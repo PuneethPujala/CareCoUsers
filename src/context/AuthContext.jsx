@@ -1,138 +1,60 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useOrganization } from './OrganizationContext';
+import React, { createContext, useState, useContext, useCallback } from 'react';
 
-const AuthContext = createContext();
+const AuthContext = createContext(null);
 
-export const useAuth = () => {
-    const context = useContext(AuthContext);
-    if (!context) {
-        throw new Error('useAuth must be used within an AuthProvider');
-    }
-    return context;
+const VALID_ROLES = ['super_admin', 'org_admin', 'care_manager', 'caller', 'mentor', 'patient'];
+
+const MOCK_NAMES = {
+    super_admin: 'System Admin',
+    org_admin: 'Org Admin',
+    care_manager: 'Alice Manager',
+    caller: 'Sarah Johnson',
+    mentor: 'Jane Williams',
+    patient: 'Robert Williams',
 };
 
-export const AuthProvider = ({ children }) => {
-    const [isAuthenticated, setIsAuthenticated] = useState(false);
+export function AuthProvider({ children }) {
     const [user, setUser] = useState(null);
-    const [selectedRole, setSelectedRole] = useState('');
-    const [isLoading, setIsLoading] = useState(true);
-    const { getOrganization, setCurrentOrganization } = useOrganization();
+    const [selectedRole, setSelectedRole] = useState(null);
 
-    useEffect(() => {
-        loadStorageData();
+    const login = useCallback(async (role, credentials) => {
+        if (!VALID_ROLES.includes(role)) throw new Error('Invalid role');
+        await new Promise(r => setTimeout(r, 600));
+        setSelectedRole(role);
+        setUser({
+            id: 'mock-user-' + role,
+            name: MOCK_NAMES[role] || 'User',
+            email: credentials?.email || `${role}@careconnect.com`,
+            role,
+        });
     }, []);
 
-    const loadStorageData = async () => {
-        try {
-            const savedAuth = await AsyncStorage.getItem('auth');
-            if (savedAuth) {
-                const authData = JSON.parse(savedAuth);
-                setIsAuthenticated(true);
-                setUser(authData.user);
-                setSelectedRole(authData.role);
-                if (authData.user.organizationId) {
-                    const org = getOrganization(authData.user.organizationId);
-                    setCurrentOrganization(org);
-                }
-            }
-        } catch (e) {
-            console.error('Failed to load auth data', e);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    const login = async (role, credentials) => {
-        // Mock login logic with hierarchical roles
-        let mockUser = {
-            id: Math.random().toString(36).substr(2, 9),
-            name: credentials.name || 'Demo User',
-            email: credentials.email,
-            role: role,
-            avatar: `https://i.pravatar.cc/150?img=${Math.floor(Math.random() * 70)}`,
-            permissions: []
-        };
-
-        // Assign organization based on role (Mocking logic)
-        if (role !== 'super_admin') {
-            const demoOrgId = 'org-1'; // Default to ABC Healthcare for demo
-            mockUser.organizationId = demoOrgId;
-            const org = getOrganization(demoOrgId);
-            setCurrentOrganization(org);
-        }
-
-        // Set permissions based on role
-        switch (role) {
-            case 'super_admin':
-                mockUser.permissions = ['manage_platform', 'manage_organizations', 'view_all_analytics'];
-                mockUser.name = 'Platform Admin';
-                break;
-            case 'org_admin':
-                mockUser.permissions = ['manage_organization', 'manage_managers', 'view_org_analytics'];
-                mockUser.name = 'Org Admin';
-                break;
-            case 'manager':
-                mockUser.permissions = ['manage_caretakers', 'manage_patients', 'manage_mentors'];
-                mockUser.name = 'Dr. Emily Chen';
-                break;
-            case 'caretaker':
-                mockUser.permissions = ['view_assigned_patients', 'log_calls'];
-                mockUser.name = 'Sarah Johnson';
-                break;
-            case 'mentor':
-                mockUser.permissions = ['view_linked_patient'];
-                mockUser.name = 'Family Member';
-                break;
-            case 'patient':
-                mockUser.permissions = ['view_own_records'];
-                mockUser.name = 'John Doe';
-                break;
-            default:
-                break;
-        }
-
-        setUser(mockUser);
+    const signup = useCallback(async (role, details) => {
+        if (!VALID_ROLES.includes(role)) throw new Error('Invalid role');
+        await new Promise(r => setTimeout(r, 800));
         setSelectedRole(role);
-        setIsAuthenticated(true);
+        setUser({
+            id: 'new-user-' + Date.now(),
+            name: details?.name || 'New User',
+            email: details?.email || `${role}@careconnect.com`,
+            role,
+        });
+    }, []);
 
-        try {
-            await AsyncStorage.setItem('auth', JSON.stringify({
-                user: mockUser,
-                role: role
-            }));
-        } catch (e) {
-            console.error('Failed to save auth data', e);
-        }
-
-        return mockUser;
-    };
-
-    const logout = async () => {
-        setIsAuthenticated(false);
+    const logout = useCallback(() => {
         setUser(null);
-        setSelectedRole('');
-        setCurrentOrganization(null);
-        try {
-            await AsyncStorage.removeItem('auth');
-        } catch (e) {
-            console.error('Failed to remove auth data', e);
-        }
-    };
-
-    const value = {
-        isAuthenticated,
-        user,
-        selectedRole,
-        login,
-        logout,
-        setSelectedRole,
-        isLoading
-    };
+        setSelectedRole(null);
+    }, []);
 
     return (
-        <AuthContext.Provider value={value}>
+        <AuthContext.Provider value={{ user, selectedRole, isAuthenticated: !!user, login, signup, logout }}>
             {children}
         </AuthContext.Provider>
     );
+}
+
+export const useAuth = () => {
+    const ctx = useContext(AuthContext);
+    if (!ctx) throw new Error('useAuth must be used within AuthProvider');
+    return ctx;
 };

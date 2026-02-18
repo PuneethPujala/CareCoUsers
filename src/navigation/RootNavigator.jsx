@@ -2,22 +2,20 @@ import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAuth } from '../context/AuthContext';
 import { ActivityIndicator, View } from 'react-native';
+import { Colors } from '../theme/colors';
 
 import AuthNavigator from './AuthNavigator';
-import ManagerNavigator from './ManagerNavigator';
-import CaretakerNavigator from './CaretakerNavigator';
-import CustomerNavigator from './CustomerNavigator';
-import PatientNavigator from './PatientNavigator';
+import DashboardNavigator from './DashboardNavigator';
 
 const Stack = createNativeStackNavigator();
 
 export default function RootNavigator() {
-    const { isAuthenticated, selectedRole, isLoading } = useAuth();
+    const { isAuthenticated, isLoading } = useAuth();
 
     if (isLoading) {
         return (
-            <View className="flex-1 justify-center items-center">
-                <ActivityIndicator size="large" />
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.white }}>
+                <ActivityIndicator size="large" color={Colors.primary} />
             </View>
         );
     }
@@ -27,12 +25,7 @@ export default function RootNavigator() {
             {!isAuthenticated ? (
                 <Stack.Screen name="Auth" component={AuthNavigator} />
             ) : (
-                <>
-                    {selectedRole === 'manager' && <Stack.Screen name="ManagerApp" component={ManagerNavigator} />}
-                    {selectedRole === 'caretaker' && <Stack.Screen name="CaretakerApp" component={CaretakerNavigator} />}
-                    {selectedRole === 'mentor' && <Stack.Screen name="CustomerApp" component={CustomerNavigator} />}
-                    {selectedRole === 'patient' && <Stack.Screen name="PatientApp" component={PatientNavigator} />}
-                </>
+                <Stack.Screen name="Dashboard" component={DashboardNavigator} />
             )}
         </Stack.Navigator>
     );
