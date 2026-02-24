@@ -6,11 +6,12 @@ import { Colors } from '../theme/colors';
 
 import AuthNavigator from './AuthNavigator';
 import DashboardNavigator from './DashboardNavigator';
+import OrgAdminNavigator from './OrgAdminNavigator';
 
 const Stack = createNativeStackNavigator();
 
 export default function RootNavigator() {
-    const { isAuthenticated, isLoading } = useAuth();
+    const { isAuthenticated, isLoading, user } = useAuth();
 
     if (isLoading) {
         return (
@@ -24,6 +25,8 @@ export default function RootNavigator() {
         <Stack.Navigator screenOptions={{ headerShown: false }}>
             {!isAuthenticated ? (
                 <Stack.Screen name="Auth" component={AuthNavigator} />
+            ) : user?.role === 'org_admin' ? (
+                <Stack.Screen name="OrgAdmin" component={OrgAdminNavigator} />
             ) : (
                 <Stack.Screen name="Dashboard" component={DashboardNavigator} />
             )}

@@ -19,8 +19,15 @@ function RoleChip({ item, selected, onPress }) {
     return (
         <TouchableOpacity onPress={onPress} activeOpacity={0.7}
             style={[s.roleChip, selected && s.roleChipActive]}>
-            <Text style={s.roleIcon}>{item.icon}</Text>
-            <Text style={[s.roleLabel, selected && s.roleLabelActive]}>{item.label}</Text>
+            <LinearGradient
+                colors={selected ? [Colors.primary + '20', Colors.primary + '05'] : ['transparent', 'transparent']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={[s.roleGradient, selected && { borderColor: Colors.primary }]}
+            >
+                <Text style={[s.roleIcon, selected && s.roleIconActive]}>{item.icon}</Text>
+                <Text style={[s.roleLabel, selected && s.roleLabelActive]}>{item.label}</Text>
+            </LinearGradient>
         </TouchableOpacity>
     );
 }
@@ -54,7 +61,7 @@ const handleSignup = async () => {
                     </TouchableOpacity>
                 </View>
 
-                <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+                <View style={s.content}>
                     <View>
                         <View style={s.logoRow}>
                             <LinearGradient colors={Colors.gradient} style={s.logoMini}>
@@ -63,7 +70,7 @@ const handleSignup = async () => {
                             <Text style={s.logoText}>CareConnect</Text>
                         </View>
                         <Text style={s.title}>Create Account</Text>
-                        <Text style={s.subtitle}>Join the care community</Text>
+                        <Text style={s.subtitle}>Join care community</Text>
                     </View>
 
                     <View>
@@ -96,7 +103,7 @@ const handleSignup = async () => {
                             <Text style={s.switchLink}>Sign In</Text>
                         </TouchableOpacity>
                     </View>
-                </ScrollView>
+                </View>
             </SafeAreaView>
         </View>
     );
@@ -104,26 +111,52 @@ const handleSignup = async () => {
 
 const s = StyleSheet.create({
     container: { flex: 1, backgroundColor: Colors.white },
-    safe: { flex: 1, paddingHorizontal: Spacing.lg },
-    backBtn: { paddingVertical: Spacing.sm },
+    safe: { flex: 1, paddingHorizontal: Spacing.md },
+    backBtn: { paddingVertical: Spacing.xs },
     backText: { ...Typography.bodyMedium, color: Colors.textSecondary },
+    content: { flex: 1, justifyContent: 'space-between', paddingVertical: Spacing.sm },
     logoRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.sm },
     logoMini: { width: 30, height: 30, borderRadius: 15, justifyContent: 'center', alignItems: 'center' },
     logoText: { ...Typography.bodySemibold, fontSize: 16, color: Colors.primary },
-    title: { ...Typography.h1, color: Colors.textPrimary, marginTop: Spacing.sm },
-    subtitle: { ...Typography.body, color: Colors.textSecondary, marginTop: Spacing.xs, marginBottom: Spacing.lg },
+    title: { ...Typography.h1, color: Colors.textPrimary, fontSize: 24 },
+    subtitle: { ...Typography.body, color: Colors.textSecondary, marginTop: Spacing.xs, marginBottom: Spacing.md, fontSize: 14 },
     sectionLabel: { ...Typography.tiny, color: Colors.textMuted, letterSpacing: 1.5, marginBottom: Spacing.sm },
-    roleGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, marginBottom: Spacing.lg },
-    roleChip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: Spacing.md, paddingVertical: 10, borderRadius: Radius.md, borderWidth: 1.5, borderColor: Colors.border, backgroundColor: Colors.white },
-    roleChipActive: { borderColor: Colors.primary, backgroundColor: Colors.surfaceAlt },
-    roleIcon: { fontSize: 16 },
-    roleLabel: { ...Typography.label, color: Colors.textSecondary },
-    roleLabelActive: { color: Colors.primary },
-    formCard: { backgroundColor: Colors.white, borderRadius: Radius.xl, padding: Spacing.lg, ...Shadows.card },
+    roleGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, justifyContent: 'space-between' },
+    roleChip: {
+        width: '48%',
+        height: 70,
+        marginBottom: Spacing.xs,
+        borderRadius: Radius.lg,
+        borderWidth: 1.5,
+        borderColor: Colors.border,
+        backgroundColor: Colors.white,
+        overflow: 'hidden',
+        ...Shadows.sm,
+    },
+    roleChipActive: {
+        borderColor: Colors.primary,
+        backgroundColor: Colors.surfaceAlt,
+        ...Shadows.md,
+    },
+    roleGradient: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: Spacing.sm,
+        gap: Spacing.sm,
+        borderWidth: 1,
+        borderColor: 'transparent',
+        borderRadius: Radius.lg - 1,
+    },
+    roleIcon: { fontSize: 20 },
+    roleIconActive: { fontSize: 22 },
+    roleLabel: { ...Typography.label, color: Colors.textSecondary, fontSize: 11, fontWeight: '600' },
+    roleLabelActive: { color: Colors.primary, fontSize: 12, fontWeight: '700' },
+    formCard: { backgroundColor: Colors.white, borderRadius: Radius.xl, padding: Spacing.md, ...Shadows.card },
     submitWrap: { marginTop: Spacing.md, borderRadius: Radius.lg, overflow: 'hidden', ...Shadows.lg },
-    submitBtn: { paddingVertical: 17, alignItems: 'center' },
-    submitText: { ...Typography.button, color: '#fff' },
-    switchRow: { flexDirection: 'row', justifyContent: 'center', marginTop: Spacing.lg },
-    switchText: { ...Typography.body, color: Colors.textSecondary },
-    switchLink: { ...Typography.bodySemibold, color: Colors.primary },
+    submitBtn: { paddingVertical: 14, alignItems: 'center' },
+    submitText: { ...Typography.button, color: '#fff', fontSize: 15 },
+    switchRow: { flexDirection: 'row', justifyContent: 'center' },
+    switchText: { ...Typography.body, color: Colors.textSecondary, fontSize: 14 },
+    switchLink: { ...Typography.bodySemibold, color: Colors.primary, fontSize: 14 },
 });
