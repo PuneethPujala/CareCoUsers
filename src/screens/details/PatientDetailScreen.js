@@ -4,14 +4,19 @@ import { Colors, Spacing, Typography, Radius } from '../../theme/colors';
 import GradientHeader from '../../components/common/GradientHeader';
 import PremiumCard from '../../components/common/PremiumCard';
 import StatusBadge from '../../components/common/StatusBadge';
+import PatientHealthView from '../../components/common/PatientHealthView';
 
 const PATIENT = {
     name: 'Robert Williams', age: 72, phone: '555-0401', email: 'robert@email.com',
-    conditions: ['Type 2 Diabetes', 'Hypertension', 'Mild Arthritis'],
+    conditions: [
+        { id: 'c1', condition: 'Type 2 Diabetes', diagnosedDate: '2022-03-15', severity: 'Moderate', status: 'active' },
+        { id: 'c2', condition: 'Hypertension', diagnosedDate: '2021-08-22', severity: 'Mild', status: 'active' },
+        { id: 'c3', condition: 'Mild Arthritis', diagnosedDate: '2023-05-10', severity: 'Mild', status: 'managed' },
+    ],
     medications: [
-        { name: 'Metformin 500mg', freq: 'Twice daily', adherence: 94 },
-        { name: 'Lisinopril 10mg', freq: 'Once daily', adherence: 88 },
-        { name: 'Atorvastatin 20mg', freq: 'Once daily', adherence: 92 },
+        { id: 'm1', name: 'Metformin 500mg', frequency: 'Twice daily', addedDate: '2022-03-15', adherence: 94 },
+        { id: 'm2', name: 'Lisinopril 10mg', frequency: 'Once daily', addedDate: '2021-08-22', adherence: 88 },
+        { id: 'm3', name: 'Atorvastatin 20mg', frequency: 'Once daily', addedDate: '2023-01-10', adherence: 92 },
     ],
     careTeam: [
         { name: 'Sarah Johnson', role: 'Caller' },
@@ -26,46 +31,28 @@ const PATIENT = {
 
 export default function PatientDetailScreen({ navigation, route }) {
 
-
-return (
+    return (
         <View style={s.container}>
             <GradientHeader title={PATIENT.name} subtitle={`Age ${PATIENT.age}`} onBack={() => navigation.goBack()}>
                 <View style={s.headerStats}>
                     <View style={s.hStat}><Text style={s.hStatVal}>92%</Text><Text style={s.hStatLbl}>Adherence</Text></View>
                     <View style={s.hStatDivider} />
-                    <View style={s.hStat}><Text style={s.hStatVal}>3</Text><Text style={s.hStatLbl}>Medications</Text></View>
+                    <View style={s.hStat}><Text style={s.hStatVal}>{PATIENT.medications.length}</Text><Text style={s.hStatLbl}>Medications</Text></View>
+                    <View style={s.hStatDivider} />
+                    <View style={s.hStat}><Text style={s.hStatVal}>{PATIENT.conditions.length}</Text><Text style={s.hStatLbl}>Conditions</Text></View>
                     <View style={s.hStatDivider} />
                     <View style={s.hStat}><Text style={s.hStatVal}>24</Text><Text style={s.hStatLbl}>Total Calls</Text></View>
                 </View>
             </GradientHeader>
 
             <ScrollView style={s.body} contentContainerStyle={{ paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
-                {/* Conditions */}
-                <View>
-                    <Text style={s.secTitle}>Conditions</Text>
-                    <View style={s.tagRow}>
-                        {PATIENT.conditions.map((c, i) => <StatusBadge key={i} label={c} variant="info" />)}
-                    </View>
-                </View>
-
-                {/* Medications */}
-                <View>
-                    <Text style={s.secTitle}>Medications</Text>
-                    <PremiumCard style={{ padding: 0 }}>
-                        {PATIENT.medications.map((m, i) => (
-                            <React.Fragment key={i}>
-                                {i > 0 && <View style={s.divider} />}
-                                <View style={s.medRow}>
-                                    <Text style={s.medIcon}>💊</Text>
-                                    <View style={{ flex: 1 }}>
-                                        <Text style={s.medName}>{m.name}</Text>
-                                        <Text style={s.medFreq}>{m.freq}</Text>
-                                    </View>
-                                    <StatusBadge label={`${m.adherence}%`} variant={m.adherence >= 90 ? 'success' : 'warning'} />
-                                </View>
-                            </React.Fragment>
-                        ))}
-                    </PremiumCard>
+                {/* Health Conditions & Medications (Read-Only) */}
+                <View style={{ marginTop: Spacing.lg }}>
+                    <PatientHealthView
+                        conditions={PATIENT.conditions}
+                        medications={PATIENT.medications}
+                        editable={false}
+                    />
                 </View>
 
                 {/* Care Team */}
@@ -120,12 +107,7 @@ const s = StyleSheet.create({
     hStatLbl: { ...Typography.tiny, color: 'rgba(255,255,255,0.7)', marginTop: 2 },
     hStatDivider: { width: 1, backgroundColor: 'rgba(255,255,255,0.2)' },
     secTitle: { ...Typography.h3, color: Colors.textPrimary, marginTop: Spacing.lg, marginBottom: Spacing.md },
-    tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
     divider: { height: 1, backgroundColor: Colors.borderLight },
-    medRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, paddingHorizontal: Spacing.md, paddingVertical: 14 },
-    medIcon: { fontSize: 20 },
-    medName: { ...Typography.bodySemibold, color: Colors.textPrimary, fontSize: 14 },
-    medFreq: { ...Typography.tiny, color: Colors.textMuted, marginTop: 2 },
     teamRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, paddingHorizontal: Spacing.md, paddingVertical: 14 },
     teamAvatar: { width: 40, height: 40, borderRadius: Radius.full, backgroundColor: Colors.surfaceAlt, justifyContent: 'center', alignItems: 'center' },
     teamAvatarText: { ...Typography.bodySemibold, color: Colors.primary },

@@ -7,34 +7,52 @@ import GradientHeader from '../../components/common/GradientHeader';
 import PremiumCard from '../../components/common/PremiumCard';
 import StatusBadge from '../../components/common/StatusBadge';
 import SkeletonLoader from '../../components/common/SkeletonLoader';
+import PatientHealthView from '../../components/common/PatientHealthView';
 
 const PATIENTS = [
-    { 
-        id: 'p1', 
-        name: 'Robert Williams', 
-        status: 'stable', 
-        adherence: 92, 
+    {
+        id: 'p1',
+        name: 'Robert Williams',
+        status: 'stable',
+        adherence: 92,
         lastCall: 'Today, 9:30 AM',
-        conditions: ['Type 2 Diabetes', 'Hypertension'],
-        medications: ['Metformin 500mg', 'Lisinopril 10mg', 'Atorvastatin 20mg']
+        conditions: [
+            { id: 'c1', condition: 'Type 2 Diabetes', diagnosedDate: '2022-03-15', severity: 'Moderate', status: 'active' },
+            { id: 'c2', condition: 'Hypertension', diagnosedDate: '2021-08-22', severity: 'Mild', status: 'active' },
+        ],
+        medications: [
+            { id: 'm1', name: 'Metformin 500mg', frequency: 'Twice daily', addedDate: '2022-03-15', adherence: 94 },
+            { id: 'm2', name: 'Lisinopril 10mg', frequency: 'Once daily', addedDate: '2021-08-22', adherence: 88 },
+            { id: 'm3', name: 'Atorvastatin 20mg', frequency: 'Once daily', addedDate: '2023-01-10', adherence: 92 },
+        ]
     },
-    { 
-        id: 'p2', 
-        name: 'Margaret Chen', 
-        status: 'attention', 
-        adherence: 68, 
+    {
+        id: 'p2',
+        name: 'Margaret Chen',
+        status: 'attention',
+        adherence: 68,
         lastCall: 'Yesterday',
-        conditions: ['Hypertension', 'High Cholesterol'],
-        medications: ['Lisinopril 10mg', 'Aspirin 81mg']
+        conditions: [
+            { id: 'c3', condition: 'Hypertension', diagnosedDate: '2020-06-10', severity: 'Moderate', status: 'active' },
+            { id: 'c4', condition: 'High Cholesterol', diagnosedDate: '2021-11-05', severity: 'Mild', status: 'managed' },
+        ],
+        medications: [
+            { id: 'm4', name: 'Lisinopril 10mg', frequency: 'Once daily', addedDate: '2020-06-10', adherence: 72 },
+            { id: 'm5', name: 'Aspirin 81mg', frequency: 'Once daily', addedDate: '2021-11-05', adherence: 65 },
+        ]
     },
-    { 
-        id: 'p3', 
-        name: 'James Wilson', 
-        status: 'stable', 
-        adherence: 85, 
+    {
+        id: 'p3',
+        name: 'James Wilson',
+        status: 'stable',
+        adherence: 85,
         lastCall: 'Today, 11:00 AM',
-        conditions: ['High Cholesterol'],
-        medications: ['Atorvastatin 20mg']
+        conditions: [
+            { id: 'c5', condition: 'High Cholesterol', diagnosedDate: '2023-02-20', severity: 'Mild', status: 'managed' },
+        ],
+        medications: [
+            { id: 'm6', name: 'Atorvastatin 20mg', frequency: 'Once daily', addedDate: '2023-02-20', adherence: 85 },
+        ]
     },
 ];
 
@@ -49,8 +67,11 @@ export default function MentorDashboard({ navigation }) {
     const { user } = useAuth();
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
+    const [patients, setPatients] = useState(PATIENTS);
     const [selectedPatient, setSelectedPatient] = useState(null);
     const [showPatientDetailModal, setShowPatientDetailModal] = useState(false);
+
+    // Delete modals
     const [showDeleteMedModal, setShowDeleteMedModal] = useState(false);
     const [showDeleteConditionModal, setShowDeleteConditionModal] = useState(false);
     const [selectedMed, setSelectedMed] = useState(null);
@@ -58,14 +79,86 @@ export default function MentorDashboard({ navigation }) {
     const [deleteReason, setDeleteReason] = useState('');
     const [deleteReasonType, setDeleteReasonType] = useState('');
 
+    // Add modals
+    const [showAddMedModal, setShowAddMedModal] = useState(false);
+    const [showAddConditionModal, setShowAddConditionModal] = useState(false);
+    const [newMed, setNewMed] = useState('');
+    const [newMedFrequency, setNewMedFrequency] = useState('');
+    const [newCondition, setNewCondition] = useState('');
+    const [newConditionSeverity, setNewConditionSeverity] = useState('Mild');
+
     useEffect(() => { const t = setTimeout(() => setLoading(false), 600); return () => clearTimeout(t); }, []);
     const onRefresh = useCallback(() => { setRefreshing(true); setTimeout(() => setRefreshing(false), 800); }, []);
 
     const openPatientDetail = (patient) => {
-        setSelectedPatient(patient);
+        setSelectedPatient({ ...patient });
         setShowPatientDetailModal(true);
     };
 
+    // ─── Add Handlers ──────────────────────────────────────
+    const addMedication = () => {
+        if (!newMed.trim()) return;
+        if (!selectedPatient) return;
+
+        const duplicate = selectedPatient.medications.some(
+            m => m.name.toLowerCase() === newMed.toLowerCase().trim()
+        );
+        if (duplicate) {
+            Alert.alert('Duplicate Medication', 'This medication is already in the patient\'s list.');
+            return;
+        }
+
+        const newMedication = {
+            id: `m_${Date.now()}`,
+            name: newMed.trim(),
+            frequency: newMedFrequency.trim() || 'As prescribed',
+            addedDate: new Date().toISOString().split('T')[0],
+            adherence: null,
+        };
+
+        const updatedPatient = {
+            ...selectedPatient,
+            medications: [...selectedPatient.medications, newMedication],
+        };
+        setSelectedPatient(updatedPatient);
+        setPatients(prev => prev.map(p => p.id === updatedPatient.id ? updatedPatient : p));
+        setNewMed('');
+        setNewMedFrequency('');
+        setShowAddMedModal(false);
+    };
+
+    const addCondition = () => {
+        if (!newCondition.trim()) return;
+        if (!selectedPatient) return;
+
+        const duplicate = selectedPatient.conditions.some(
+            c => c.condition.toLowerCase() === newCondition.toLowerCase().trim()
+        );
+        if (duplicate) {
+            Alert.alert('Duplicate Condition', 'This condition is already in the patient\'s list.');
+            return;
+        }
+
+        const newCond = {
+            id: `c_${Date.now()}`,
+            condition: newCondition.trim(),
+            diagnosedDate: new Date().toISOString().split('T')[0],
+            severity: newConditionSeverity,
+            status: 'active',
+        };
+
+        const updatedPatient = {
+            ...selectedPatient,
+            conditions: [...selectedPatient.conditions, newCond],
+        };
+        setSelectedPatient(updatedPatient);
+        setPatients(prev => prev.map(p => p.id === updatedPatient.id ? updatedPatient : p));
+        setNewCondition('');
+        setNewConditionSeverity('Mild');
+        setShowAddConditionModal(false);
+    };
+
+    // ─── Delete Handlers ────────────────────────────────────
     const openDeleteMedModal = (med) => {
         setSelectedMed(med);
         setDeleteReasonType('');
@@ -86,9 +179,12 @@ export default function MentorDashboard({ navigation }) {
                 Alert.alert('Reason Required', 'Please specify the reason for deletion.');
                 return;
             }
-            // Remove medication from patient
-            selectedPatient.medications = selectedPatient.medications.filter(m => m !== selectedMed);
-            setSelectedPatient({...selectedPatient});
+            const updatedPatient = {
+                ...selectedPatient,
+                medications: selectedPatient.medications.filter(m => m.id !== selectedMed.id),
+            };
+            setSelectedPatient(updatedPatient);
+            setPatients(prev => prev.map(p => p.id === updatedPatient.id ? updatedPatient : p));
             setSelectedMed(null);
             setDeleteReason('');
             setDeleteReasonType('');
@@ -102,9 +198,12 @@ export default function MentorDashboard({ navigation }) {
                 Alert.alert('Reason Required', 'Please specify the reason for deletion.');
                 return;
             }
-            // Remove condition from patient
-            selectedPatient.conditions = selectedPatient.conditions.filter(c => c !== selectedCondition);
-            setSelectedPatient({...selectedPatient});
+            const updatedPatient = {
+                ...selectedPatient,
+                conditions: selectedPatient.conditions.filter(c => c.id !== selectedCondition.id),
+            };
+            setSelectedPatient(updatedPatient);
+            setPatients(prev => prev.map(p => p.id === updatedPatient.id ? updatedPatient : p));
             setSelectedCondition(null);
             setDeleteReason('');
             setDeleteReasonType('');
@@ -153,10 +252,10 @@ export default function MentorDashboard({ navigation }) {
                         <View>
                             <View style={s.sectionHeader}>
                                 <Text style={s.sectionTitle}>My Patients</Text>
-                                <StatusBadge label={`${PATIENTS.length} assigned`} variant="primary" />
+                                <StatusBadge label={`${patients.length} assigned`} variant="primary" />
                             </View>
                             <PremiumCard style={{ padding: 0 }}>
-                                {PATIENTS.map((p, i) => (
+                                {patients.map((p, i) => (
                                     <React.Fragment key={p.id}>
                                         {i > 0 && <View style={s.divider} />}
                                         <TouchableOpacity style={s.patRow} activeOpacity={0.7}
@@ -224,60 +323,167 @@ export default function MentorDashboard({ navigation }) {
                 onRequestClose={() => setShowPatientDetailModal(false)}>
                 <View style={s.modalOverlay}>
                     <View style={s.modalContent}>
-                        {selectedPatient && (
-                            <>
-                                <View style={s.modalHeader}>
-                                    <Text style={s.modalTitle}>{selectedPatient.name}</Text>
-                                    <TouchableOpacity style={s.closeBtn} onPress={() => setShowPatientDetailModal(false)}>
-                                        <Text style={s.closeBtnText}>✕</Text>
-                                    </TouchableOpacity>
-                                </View>
-
-                                <View style={s.modalSection}>
-                                    <Text style={s.modalSectionTitle}>Health Conditions</Text>
-                                    <View style={s.modalList}>
-                                        {selectedPatient.conditions.map((condition, i) => (
-                                            <View key={i} style={s.modalListItem}>
-                                                <Text style={s.modalListItemText}>🏥 {condition}</Text>
-                                                <View style={s.modalItemActions}>
-                                                    <TouchableOpacity 
-                                                        style={s.deleteBtn} 
-                                                        onPress={() => openDeleteConditionModal(condition)}
-                                                        activeOpacity={0.7}>
-                                                        <Text style={s.deleteBtnText}>❌</Text>
-                                                    </TouchableOpacity>
+                        <ScrollView showsVerticalScrollIndicator={false}>
+                            {selectedPatient && (
+                                <>
+                                    <View style={s.modalHeader}>
+                                        <View style={s.modalPatientInfo}>
+                                            <View style={s.modalAvatar}>
+                                                <Text style={s.modalAvatarText}>{selectedPatient.name.charAt(0)}</Text>
+                                            </View>
+                                            <View>
+                                                <Text style={s.modalTitle}>{selectedPatient.name}</Text>
+                                                <View style={s.modalSubRow}>
+                                                    <StatusBadge
+                                                        label={selectedPatient.status === 'stable' ? 'Stable' : 'Needs Attention'}
+                                                        variant={selectedPatient.status === 'stable' ? 'success' : 'warning'}
+                                                    />
+                                                    <Text style={s.modalAdherence}>
+                                                        Adherence: {selectedPatient.adherence}%
+                                                    </Text>
                                                 </View>
                                             </View>
-                                        ))}
+                                        </View>
+                                        <TouchableOpacity style={s.closeBtn} onPress={() => setShowPatientDetailModal(false)}>
+                                            <Text style={s.closeBtnText}>✕</Text>
+                                        </TouchableOpacity>
                                     </View>
-                                </View>
 
-                                <View style={s.modalSection}>
-                                    <Text style={s.modalSectionTitle}>Medications</Text>
-                                    <View style={s.modalList}>
-                                        {selectedPatient.medications.map((med, i) => (
-                                            <View key={i} style={s.modalListItem}>
-                                                <Text style={s.modalListItemText}>💊 {med}</Text>
-                                                <View style={s.modalItemActions}>
-                                                    <TouchableOpacity 
-                                                        style={s.deleteBtn} 
-                                                        onPress={() => openDeleteMedModal(med)}
-                                                        activeOpacity={0.7}>
-                                                        <Text style={s.deleteBtnText}>❌</Text>
-                                                    </TouchableOpacity>
-                                                </View>
-                                            </View>
-                                        ))}
+                                    <View style={s.modalStatsRow}>
+                                        <View style={s.modalStat}>
+                                            <Text style={s.modalStatVal}>{selectedPatient.conditions.length}</Text>
+                                            <Text style={s.modalStatLabel}>Conditions</Text>
+                                        </View>
+                                        <View style={s.modalStatDivider} />
+                                        <View style={s.modalStat}>
+                                            <Text style={s.modalStatVal}>{selectedPatient.medications.length}</Text>
+                                            <Text style={s.modalStatLabel}>Medications</Text>
+                                        </View>
+                                        <View style={s.modalStatDivider} />
+                                        <View style={s.modalStat}>
+                                            <Text style={s.modalStatVal}>{selectedPatient.adherence}%</Text>
+                                            <Text style={s.modalStatLabel}>Adherence</Text>
+                                        </View>
                                     </View>
-                                </View>
 
-                                <View style={s.modalFooter}>
-                                    <Text style={s.modalFooterText}>
-                                        Adherence: {selectedPatient.adherence}% • Last call: {selectedPatient.lastCall}
-                                    </Text>
-                                </View>
-                            </>
-                        )}
+                                    <View style={{ marginTop: Spacing.lg }}>
+                                        <PatientHealthView
+                                            conditions={selectedPatient.conditions}
+                                            medications={selectedPatient.medications}
+                                            editable={true}
+                                            onAddCondition={() => {
+                                                setNewCondition('');
+                                                setNewConditionSeverity('Mild');
+                                                setShowAddConditionModal(true);
+                                            }}
+                                            onRemoveCondition={openDeleteConditionModal}
+                                            onAddMedication={() => {
+                                                setNewMed('');
+                                                setNewMedFrequency('');
+                                                setShowAddMedModal(true);
+                                            }}
+                                            onRemoveMedication={openDeleteMedModal}
+                                        />
+                                    </View>
+
+                                    <View style={s.modalFooter}>
+                                        <Text style={s.modalFooterText}>
+                                            Last call: {selectedPatient.lastCall}
+                                        </Text>
+                                    </View>
+                                </>
+                            )}
+                        </ScrollView>
+                    </View>
+                </View>
+            </Modal>
+
+            {/* Add Medication Modal */}
+            <Modal
+                visible={showAddMedModal}
+                transparent={true}
+                animationType="slide"
+                onRequestClose={() => setShowAddMedModal(false)}>
+                <View style={s.modalOverlay}>
+                    <View style={s.formModalContent}>
+                        <Text style={s.formModalTitle}>Add Medication</Text>
+                        <Text style={s.formModalSubtitle}>
+                            Add a new medication for {selectedPatient?.name}
+                        </Text>
+                        <Text style={s.inputLabel}>Medication Name *</Text>
+                        <TextInput
+                            style={s.modalInput}
+                            placeholder="e.g. Metformin 500mg"
+                            placeholderTextColor={Colors.textMuted}
+                            value={newMed}
+                            onChangeText={setNewMed}
+                            autoFocus={true}
+                        />
+                        <Text style={s.inputLabel}>Frequency</Text>
+                        <TextInput
+                            style={s.modalInput}
+                            placeholder="e.g. Twice daily"
+                            placeholderTextColor={Colors.textMuted}
+                            value={newMedFrequency}
+                            onChangeText={setNewMedFrequency}
+                        />
+                        <View style={s.formActions}>
+                            <TouchableOpacity style={[s.formBtn, s.cancelBtn]} onPress={() => setShowAddMedModal(false)}>
+                                <Text style={s.cancelBtnText}>Cancel</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={[s.formBtn, s.addFormBtn]} onPress={addMedication}>
+                                <Text style={s.addFormBtnText}>Add Medication</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
+
+            {/* Add Condition Modal */}
+            <Modal
+                visible={showAddConditionModal}
+                transparent={true}
+                animationType="slide"
+                onRequestClose={() => setShowAddConditionModal(false)}>
+                <View style={s.modalOverlay}>
+                    <View style={s.formModalContent}>
+                        <Text style={s.formModalTitle}>Add Health Condition</Text>
+                        <Text style={s.formModalSubtitle}>
+                            Add a new condition for {selectedPatient?.name}
+                        </Text>
+                        <Text style={s.inputLabel}>Condition Name *</Text>
+                        <TextInput
+                            style={s.modalInput}
+                            placeholder="e.g. Type 2 Diabetes"
+                            placeholderTextColor={Colors.textMuted}
+                            value={newCondition}
+                            onChangeText={setNewCondition}
+                            autoFocus={true}
+                        />
+                        <Text style={s.inputLabel}>Severity</Text>
+                        <View style={s.severityRow}>
+                            {['Mild', 'Moderate', 'Severe'].map(sev => (
+                                <TouchableOpacity
+                                    key={sev}
+                                    style={[s.severityBtn, newConditionSeverity === sev && s.severityBtnActive]}
+                                    onPress={() => setNewConditionSeverity(sev)}
+                                    activeOpacity={0.7}
+                                >
+                                    <Text style={[
+                                        s.severityBtnText,
+                                        newConditionSeverity === sev && s.severityBtnTextActive
+                                    ]}>{sev}</Text>
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+                        <View style={s.formActions}>
+                            <TouchableOpacity style={[s.formBtn, s.cancelBtn]} onPress={() => setShowAddConditionModal(false)}>
+                                <Text style={s.cancelBtnText}>Cancel</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={[s.formBtn, s.addFormBtn]} onPress={addCondition}>
+                                <Text style={s.addFormBtnText}>Add Condition</Text>
+                            </TouchableOpacity>
+                        </View>
                     </View>
                 </View>
             </Modal>
@@ -289,10 +495,10 @@ export default function MentorDashboard({ navigation }) {
                 animationType="slide"
                 onRequestClose={() => setShowDeleteMedModal(false)}>
                 <View style={s.modalOverlay}>
-                    <View style={s.modalContent}>
-                        <Text style={s.modalTitle}>Remove Medication</Text>
-                        <Text style={s.modalSubtitle}>Why are you removing this medication?</Text>
-                        
+                    <View style={s.formModalContent}>
+                        <Text style={s.formModalTitle}>Remove Medication</Text>
+                        <Text style={s.formModalSubtitle}>Why are you removing this medication?</Text>
+
                         <View style={s.reasonOptions}>
                             {[
                                 { value: 'side_effects', label: 'Side effects' },
@@ -316,8 +522,9 @@ export default function MentorDashboard({ navigation }) {
 
                         {deleteReasonType === 'other' && (
                             <TextInput
-                                style={s.modalInput}
+                                style={[s.modalInput, { minHeight: 80, textAlignVertical: 'top' }]}
                                 placeholder="Please specify the reason"
+                                placeholderTextColor={Colors.textMuted}
                                 value={deleteReason}
                                 onChangeText={setDeleteReason}
                                 multiline={true}
@@ -325,12 +532,12 @@ export default function MentorDashboard({ navigation }) {
                             />
                         )}
 
-                        <View style={s.modalActions}>
-                            <TouchableOpacity style={[s.modalBtn, s.cancelBtn]} onPress={() => setShowDeleteMedModal(false)}>
+                        <View style={s.formActions}>
+                            <TouchableOpacity style={[s.formBtn, s.cancelBtn]} onPress={() => setShowDeleteMedModal(false)}>
                                 <Text style={s.cancelBtnText}>Cancel</Text>
                             </TouchableOpacity>
-                            <TouchableOpacity style={[s.modalBtn, s.deleteModalBtn]} onPress={deleteMedication}>
-                                <Text style={s.deleteModalBtnText}>Remove</Text>
+                            <TouchableOpacity style={[s.formBtn, s.deleteFormBtn]} onPress={deleteMedication}>
+                                <Text style={s.deleteFormBtnText}>Remove</Text>
                             </TouchableOpacity>
                         </View>
                     </View>
@@ -344,10 +551,10 @@ export default function MentorDashboard({ navigation }) {
                 animationType="slide"
                 onRequestClose={() => setShowDeleteConditionModal(false)}>
                 <View style={s.modalOverlay}>
-                    <View style={s.modalContent}>
-                        <Text style={s.modalTitle}>Remove Health Condition</Text>
-                        <Text style={s.modalSubtitle}>Why are you removing this condition?</Text>
-                        
+                    <View style={s.formModalContent}>
+                        <Text style={s.formModalTitle}>Remove Health Condition</Text>
+                        <Text style={s.formModalSubtitle}>Why are you removing this condition?</Text>
+
                         <View style={s.reasonOptions}>
                             {[
                                 { value: 'cured', label: 'Condition cured' },
@@ -370,8 +577,9 @@ export default function MentorDashboard({ navigation }) {
 
                         {deleteReasonType === 'other' && (
                             <TextInput
-                                style={s.modalInput}
+                                style={[s.modalInput, { minHeight: 80, textAlignVertical: 'top' }]}
                                 placeholder="Please specify the reason"
+                                placeholderTextColor={Colors.textMuted}
                                 value={deleteReason}
                                 onChangeText={setDeleteReason}
                                 multiline={true}
@@ -379,12 +587,12 @@ export default function MentorDashboard({ navigation }) {
                             />
                         )}
 
-                        <View style={s.modalActions}>
-                            <TouchableOpacity style={[s.modalBtn, s.cancelBtn]} onPress={() => setShowDeleteConditionModal(false)}>
+                        <View style={s.formActions}>
+                            <TouchableOpacity style={[s.formBtn, s.cancelBtn]} onPress={() => setShowDeleteConditionModal(false)}>
                                 <Text style={s.cancelBtnText}>Cancel</Text>
                             </TouchableOpacity>
-                            <TouchableOpacity style={[s.modalBtn, s.deleteModalBtn]} onPress={deleteCondition}>
-                                <Text style={s.deleteModalBtnText}>Remove</Text>
+                            <TouchableOpacity style={[s.formBtn, s.deleteFormBtn]} onPress={deleteCondition}>
+                                <Text style={s.deleteFormBtnText}>Remove</Text>
                             </TouchableOpacity>
                         </View>
                     </View>
@@ -429,69 +637,75 @@ const s = StyleSheet.create({
     // Patient Info
     patInfo: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.xs },
     patInfoText: { ...Typography.tiny, color: Colors.textMuted },
-    // Modal
-    modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: Spacing.lg },
-    modalContent: { backgroundColor: Colors.surface, borderRadius: Radius.lg, padding: Spacing.lg, width: '100%', maxWidth: 500, maxHeight: '80%' },
-    modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.lg },
+    // Modal Overlay
+    modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: Spacing.md },
+    // Patient Detail Modal
+    modalContent: { backgroundColor: Colors.surface, borderRadius: Radius.xl, padding: Spacing.lg, width: '100%', maxWidth: 500, maxHeight: '85%' },
+    modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: Spacing.md },
+    modalPatientInfo: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, flex: 1 },
+    modalAvatar: { width: 48, height: 48, borderRadius: Radius.full, backgroundColor: Colors.surfaceAlt, justifyContent: 'center', alignItems: 'center' },
+    modalAvatarText: { ...Typography.h3, color: Colors.primary },
+    modalTitle: { ...Typography.h3, color: Colors.textPrimary, marginBottom: Spacing.xs },
+    modalSubRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+    modalAdherence: { ...Typography.tiny, color: Colors.textMuted },
     closeBtn: { width: 32, height: 32, borderRadius: Radius.full, backgroundColor: Colors.surfaceAlt, justifyContent: 'center', alignItems: 'center' },
     closeBtnText: { fontSize: 18, color: Colors.textMuted },
-    modalSection: { marginBottom: Spacing.lg },
-    modalSectionTitle: { ...Typography.h3, color: Colors.textPrimary, marginBottom: Spacing.md },
-    modalList: { gap: Spacing.sm },
-    modalListItem: { 
-        flexDirection: 'row', 
-        alignItems: 'center', 
-        justifyContent: 'space-between',
-        paddingVertical: Spacing.sm 
-    },
-    modalItemActions: { 
-        flexShrink: 0
-    },
-    modalListItemText: { ...Typography.body, color: Colors.textSecondary },
-    modalFooter: { paddingTop: Spacing.md, borderTopWidth: 1, borderTopColor: Colors.borderLight },
+    // Modal Stats
+    modalStatsRow: { flexDirection: 'row', backgroundColor: Colors.surfaceAlt, borderRadius: Radius.md, paddingVertical: Spacing.md, marginBottom: Spacing.sm },
+    modalStat: { flex: 1, alignItems: 'center' },
+    modalStatVal: { ...Typography.h3, color: Colors.primary },
+    modalStatLabel: { ...Typography.tiny, color: Colors.textMuted, marginTop: 2 },
+    modalStatDivider: { width: 1, backgroundColor: Colors.borderLight },
+    modalFooter: { paddingTop: Spacing.lg, borderTopWidth: 1, borderTopColor: Colors.borderLight, marginTop: Spacing.lg },
     modalFooterText: { ...Typography.caption, color: Colors.textMuted, textAlign: 'center' },
-    // Delete Button
-    deleteBtn: { 
-        width: 32, 
-        height: 32, 
-        borderRadius: Radius.full, 
-        backgroundColor: Colors.errorLight, 
-        justifyContent: 'center', 
-        alignItems: 'center'
-    },
-    deleteBtnText: { 
-        fontSize: 16, 
-        color: Colors.error
-    },
-    // Delete Modal
-    modalSubtitle: { ...Typography.body, color: Colors.textSecondary, textAlign: 'center', marginBottom: Spacing.lg },
-    reasonOptions: { gap: Spacing.sm, marginBottom: Spacing.lg },
-    reasonOption: { 
-        padding: Spacing.md, 
-        borderRadius: Radius.md, 
-        borderWidth: 1, 
+    // Form Modal
+    formModalContent: { backgroundColor: Colors.surface, borderRadius: Radius.xl, padding: Spacing.lg, width: '100%', maxWidth: 400, maxHeight: '85%' },
+    formModalTitle: { ...Typography.h3, color: Colors.textPrimary, marginBottom: Spacing.xs, textAlign: 'center' },
+    formModalSubtitle: { ...Typography.body, color: Colors.textSecondary, textAlign: 'center', marginBottom: Spacing.lg },
+    inputLabel: { ...Typography.caption, color: Colors.textSecondary, marginBottom: Spacing.xs, fontWeight: '600' },
+    modalInput: {
+        borderWidth: 1,
         borderColor: Colors.border,
-        backgroundColor: Colors.surface
-    },
-    reasonOptionSelected: { 
-        borderColor: Colors.primary, 
-        backgroundColor: Colors.primaryLight 
-    },
-    reasonOptionText: { ...Typography.body, color: Colors.textPrimary },
-    reasonOptionTextSelected: { ...Typography.body, color: Colors.primary, fontWeight: '600' },
-    modalInput: { 
-        borderWidth: 1, 
-        borderColor: Colors.border, 
-        borderRadius: Radius.md, 
-        padding: Spacing.md, 
-        marginBottom: Spacing.lg,
+        borderRadius: Radius.md,
+        padding: Spacing.md,
+        marginBottom: Spacing.md,
         ...Typography.body,
-        color: Colors.textPrimary
+        color: Colors.textPrimary,
+        backgroundColor: Colors.background,
     },
-    modalActions: { flexDirection: 'row', gap: Spacing.sm },
-    modalBtn: { flex: 1, paddingVertical: Spacing.md, borderRadius: Radius.md, alignItems: 'center' },
+    // Severity Picker
+    severityRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.lg },
+    severityBtn: {
+        flex: 1,
+        paddingVertical: Spacing.sm,
+        borderRadius: Radius.md,
+        borderWidth: 1,
+        borderColor: Colors.border,
+        alignItems: 'center',
+        backgroundColor: Colors.surface,
+    },
+    severityBtnActive: { borderColor: Colors.primary, backgroundColor: Colors.surfaceAlt },
+    severityBtnText: { ...Typography.caption, color: Colors.textMuted },
+    severityBtnTextActive: { color: Colors.primary, fontWeight: '700' },
+    // Form Actions
+    formActions: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.sm },
+    formBtn: { flex: 1, paddingVertical: Spacing.md, borderRadius: Radius.md, alignItems: 'center' },
     cancelBtn: { backgroundColor: Colors.surfaceAlt },
     cancelBtnText: { ...Typography.body, color: Colors.textMuted },
-    deleteModalBtn: { backgroundColor: Colors.error },
-    deleteModalBtnText: { ...Typography.body, color: '#fff', fontWeight: '600' },
+    addFormBtn: { backgroundColor: Colors.primary },
+    addFormBtnText: { ...Typography.body, color: '#fff', fontWeight: '700' },
+    deleteFormBtn: { backgroundColor: Colors.error },
+    deleteFormBtnText: { ...Typography.body, color: '#fff', fontWeight: '700' },
+    // Reason Options
+    reasonOptions: { gap: Spacing.sm, marginBottom: Spacing.md },
+    reasonOption: {
+        padding: Spacing.md,
+        borderRadius: Radius.md,
+        borderWidth: 1,
+        borderColor: Colors.border,
+        backgroundColor: Colors.surface,
+    },
+    reasonOptionSelected: { borderColor: Colors.primary, backgroundColor: Colors.surfaceAlt },
+    reasonOptionText: { ...Typography.body, color: Colors.textPrimary },
+    reasonOptionTextSelected: { color: Colors.primary, fontWeight: '600' },
 });
