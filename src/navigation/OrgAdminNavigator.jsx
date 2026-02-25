@@ -10,6 +10,8 @@ import CallerDetail from '../screens/dashboards/CallerDetail';
 import MentorDetail from '../screens/dashboards/MentorDetail';
 import PatientDetail from '../screens/dashboards/PatientDetail';
 import NotificationsScreen from '../screens/details/NotificationsScreen';
+import ActivityScreen from '../screens/tabs/ActivityScreen';
+import ProfileScreen from '../screens/ProfileScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -26,6 +28,8 @@ export default function OrgAdminNavigator() {
             <Stack.Screen name="MentorDetail" component={MentorDetail} />
             <Stack.Screen name="PatientDetail" component={PatientDetail} />
             <Stack.Screen name="Notifications" component={NotificationsScreen} />
+            <Stack.Screen name="Activity" component={ActivityScreen} />
+            <Stack.Screen name="Profile" component={ProfileScreen} />
         </Stack.Navigator>
     );
 }

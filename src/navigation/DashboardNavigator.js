@@ -110,6 +110,7 @@ export default function DashboardNavigator() {
         <Stack.Navigator screenOptions={{ headerShown: false }}>
             <Stack.Screen name="DashboardTabs" component={DashboardTabs} />
             <Stack.Screen name="Profile" component={ProfileScreen} options={{ presentation: 'modal' }} />
+            <Stack.Screen name="Activity" component={ActivityScreen} />
             <Stack.Screen name="PatientDetail" component={PatientDetailScreen} />
             <Stack.Screen name="CallerDetail" component={CallerDetailScreen} />
             <Stack.Screen name="OrgDetail" component={OrgDetailScreen} />

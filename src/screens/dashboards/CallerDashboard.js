@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, RefreshControl } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, RefreshControl, Alert } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Colors, Spacing, Typography, Radius, Shadows } from '../../theme/colors';
 import { useAuth } from '../../context/AuthContext';
 import GradientHeader from '../../components/common/GradientHeader';
@@ -82,6 +83,21 @@ export default function CallerDashboard({ navigation }) {
         setTimeout(() => setRefreshing(false), 800);
     }, []);
 
+    const handleEmergencySOS = () => {
+        Alert.alert(
+            'Emergency SOS',
+            'Are you sure you want to trigger emergency assistance?',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                { 
+                    text: 'Call Emergency', 
+                    style: 'destructive',
+                    onPress: () => navigation.navigate('Emergency')
+                }
+            ]
+        );
+    };
+
     return (
         <View style={s.container}>
             <GradientHeader
@@ -111,7 +127,16 @@ export default function CallerDashboard({ navigation }) {
                     <>
                         {/* Stats Grid */}
                         <View style={s.statsGrid}>
-                            {STATS.map((item, i) => <StatCard key={i} item={item} index={i} />)}
+                            {STATS.map((item, i) => (
+                                <View key={i} style={s.statCard}>
+                                    <PremiumCard style={s.statInner}>
+                                        <Text style={s.statIcon}>{item.icon}</Text>
+                                        <Text style={s.statValue}>{item.value}</Text>
+                                        <Text style={s.statLabel}>{item.label}</Text>
+                                        {item.trend && <Text style={[s.statTrend, item.trend.startsWith('+') ? s.trendUp : s.trendDown]}>{item.trend}</Text>}
+                                    </PremiumCard>
+                                </View>
+                            ))}
                         </View>
 
                         {/* Calls */}
@@ -121,6 +146,20 @@ export default function CallerDashboard({ navigation }) {
                         </View>
                         <View style={{ gap: Spacing.md }}>
                             {CALLS.map((call) => <CallCard key={call.id} item={call} navigation={navigation} />)}
+                        </View>
+
+                        {/* Emergency SOS */}
+                        <View>
+                            <TouchableOpacity style={s.emergencyBtn} activeOpacity={0.8}
+                                onPress={handleEmergencySOS}>
+                                <LinearGradient colors={['#DC2626', '#EF4444']} style={s.emergencyGrad} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
+                                    <Text style={s.emergencyIcon}>🚨</Text>
+                                    <View>
+                                        <Text style={s.emergencyTitle}>Emergency SOS</Text>
+                                        <Text style={s.emergencySub}>Tap to call for immediate help</Text>
+                                    </View>
+                                </LinearGradient>
+                            </TouchableOpacity>
                         </View>
                     </>
                 )}
@@ -136,13 +175,28 @@ const s = StyleSheet.create({
     bellBtn: { width: 44, height: 44, borderRadius: Radius.full, backgroundColor: 'rgba(255,255,255,0.15)', justifyContent: 'center', alignItems: 'center' },
     bellDot: { position: 'absolute', top: 10, right: 10, width: 10, height: 10, borderRadius: 5, backgroundColor: Colors.error, borderWidth: 2, borderColor: '#fff' },
     // Stats
-    statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, marginTop: Spacing.md },
-    statCard: { width: '48%' },
-    statInner: { alignItems: 'center', paddingVertical: Spacing.md },
-    statIcon: { fontSize: 28, marginBottom: Spacing.sm },
+    statsGrid: { 
+        flexDirection: 'row', 
+        flexWrap: 'wrap', 
+        marginTop: Spacing.md,
+        justifyContent: 'space-between'
+    },
+    statCard: { 
+        width: '48%', 
+        marginBottom: Spacing.md,
+        height: 130
+    },
+    statInner: { 
+        alignItems: 'center', 
+        paddingVertical: Spacing.sm,
+        paddingHorizontal: Spacing.xs,
+        height: 130,
+        justifyContent: 'center'
+    },
+    statIcon: { fontSize: 24, marginBottom: Spacing.xs },
     statValue: { ...Typography.h2, color: Colors.textPrimary },
-    statLabel: { ...Typography.tiny, color: Colors.textMuted, marginTop: Spacing.xs },
-    statTrend: { ...Typography.tiny, marginTop: Spacing.xs },
+    statLabel: { ...Typography.tiny, color: Colors.textMuted, marginTop: Spacing.xs, textAlign: 'center' },
+    statTrend: { ...Typography.tiny, marginTop: Spacing.xs, textAlign: 'center' },
     trendUp: { color: Colors.success },
     trendDown: { color: Colors.info },
     // Section
@@ -163,6 +217,12 @@ const s = StyleSheet.create({
     callNowBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm, margin: Spacing.md, marginTop: Spacing.sm, paddingVertical: Spacing.sm + 4, borderRadius: Radius.md, backgroundColor: Colors.surfaceAlt },
     callNowIcon: { fontSize: 16 },
     callNowText: { ...Typography.bodySemibold, color: Colors.primary, fontSize: 14 },
+    // Emergency SOS
+    emergencyBtn: { marginTop: Spacing.xl, borderRadius: Radius.lg, overflow: 'hidden', ...Shadows.lg },
+    emergencyGrad: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, paddingVertical: Spacing.lg, paddingHorizontal: Spacing.lg },
+    emergencyIcon: { fontSize: 32 },
+    emergencyTitle: { ...Typography.h3, color: '#fff' },
+    emergencySub: { ...Typography.caption, color: 'rgba(255,255,255,0.8)', marginTop: 2 },
     // Skeleton
     skeletonArea: { paddingTop: Spacing.md },
     skeletonStats: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },

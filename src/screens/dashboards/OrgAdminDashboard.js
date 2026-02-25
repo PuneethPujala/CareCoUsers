@@ -51,7 +51,7 @@ const MOCK_USERS = {
 
 function UserRow({ item, role, navigation }) {
     const getRoleSpecificInfo = () => {
-        switch(role) {
+        switch (role) {
             case 'care_manager':
                 return `${item.patients} patients`;
             case 'caller':
@@ -115,20 +115,20 @@ export default function OrgAdminDashboard({ navigation }) {
     const getFilteredUsers = () => {
         if (!selectedRole) return [];
         let users = MOCK_USERS[selectedRole] || [];
-        
+
         // Filter by search query
         if (searchQuery) {
-            users = users.filter(user => 
+            users = users.filter(user =>
                 user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 user.email.toLowerCase().includes(searchQuery.toLowerCase())
             );
         }
-        
+
         // Filter by status
         if (statusFilter !== 'all') {
             users = users.filter(user => user.status === statusFilter);
         }
-        
+
         return users;
     };
 
@@ -159,7 +159,7 @@ export default function OrgAdminDashboard({ navigation }) {
                 }
             />
 
-            <ScrollView style={s.body} contentContainerStyle={{ paddingBottom: 32 }} showsVerticalScrollIndicator={false}
+            <ScrollView style={s.body} contentContainerStyle={{ paddingBottom: 100 }} showsVerticalScrollIndicator={false}
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />}>
                 {loading ? (
                     <View style={{ paddingTop: Spacing.md }}>
@@ -284,6 +284,22 @@ export default function OrgAdminDashboard({ navigation }) {
                     </>
                 )}
             </ScrollView>
+
+            {/* Bottom Navigation */}
+            <View style={s.bottomNav}>
+                <TouchableOpacity style={s.navItem}>
+                    <Text style={s.navIcon}>🏠</Text>
+                    <Text style={s.navLabel}>Home</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={s.navItem} onPress={() => navigation.navigate('Activity')}>
+                    <Text style={s.navIcon}>📊</Text>
+                    <Text style={s.navLabel}>Activity</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={s.navItem} onPress={() => navigation.navigate('Profile')}>
+                    <Text style={s.navIcon}>👤</Text>
+                    <Text style={s.navLabel}>Profile</Text>
+                </TouchableOpacity>
+            </View>
         </View>
     );
 }
@@ -294,9 +310,9 @@ const s = StyleSheet.create({
     bellBtn: { width: 44, height: 44, borderRadius: Radius.full, backgroundColor: 'rgba(255,255,255,0.15)', justifyContent: 'center', alignItems: 'center' },
     headerBackBtn: { width: 44, height: 44, borderRadius: Radius.full, backgroundColor: 'rgba(255,255,255,0.15)', justifyContent: 'center', alignItems: 'center' },
     headerBackText: { fontSize: 20, color: 'white', fontWeight: 'bold' },
-    statsGrid: { 
-        flexDirection: 'row', 
-        flexWrap: 'wrap', 
+    statsGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
         marginTop: Spacing.lg,
         marginHorizontal: Spacing.sm
     },
@@ -309,12 +325,12 @@ const s = StyleSheet.create({
         justifyContent: 'space-between',
         marginBottom: Spacing.md
     },
-    statCard: { 
-        width: '48%', 
-        alignItems: 'center', 
-        paddingVertical: Spacing.lg, 
-        paddingHorizontal: Spacing.sm, 
-        borderRadius: Radius.lg, 
+    statCard: {
+        width: '48%',
+        alignItems: 'center',
+        paddingVertical: Spacing.lg,
+        paddingHorizontal: Spacing.sm,
+        borderRadius: Radius.lg,
         backgroundColor: Colors.surface,
         borderWidth: 1,
         borderColor: Colors.borderLight,
@@ -381,4 +397,39 @@ const s = StyleSheet.create({
     // Empty State
     emptyState: { paddingVertical: Spacing.xl, alignItems: 'center' },
     emptyText: { ...Typography.body, color: Colors.textMuted },
+    // Bottom Navigation
+    bottomNav: {
+        flexDirection: 'row',
+        backgroundColor: Colors.surface,
+        borderTopWidth: 1,
+        borderTopColor: Colors.borderLight,
+        paddingTop: Spacing.sm,
+        paddingBottom: Spacing.xs,
+        paddingHorizontal: Spacing.md,
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: -2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 8
+    },
+    navItem: {
+        flex: 1,
+        alignItems: 'center',
+        paddingVertical: Spacing.xs,
+        paddingHorizontal: Spacing.sm
+    },
+    navIcon: {
+        fontSize: 20,
+        marginBottom: 2
+    },
+    navLabel: {
+        ...Typography.caption,
+        color: Colors.textMuted,
+        fontSize: 10,
+        fontWeight: '500'
+    },
 });
