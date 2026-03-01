@@ -30,6 +30,10 @@ import ActiveCallScreen from '../screens/details/ActiveCallScreen';
 import NotificationsScreen from '../screens/details/NotificationsScreen';
 import EmergencyScreen from '../screens/details/EmergencyScreen';
 
+/* Create User / Change Password */
+import CreateUserScreen from '../screens/CreateUserScreen';
+import ChangePasswordScreen from '../screens/ChangePasswordScreen';
+
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
@@ -51,8 +55,9 @@ function TabIcon({ icon, focused }) {
 }
 
 function DashboardTabs() {
-    const { selectedRole } = useAuth();
-    const DashboardComponent = dashboardMap[selectedRole] || CallerDashboard;
+    const { profile } = useAuth();
+    const currentRole = profile?.role || 'caller';
+    const DashboardComponent = dashboardMap[currentRole] || CallerDashboard;
 
     const tabConfigs = {
         caller: [
@@ -74,7 +79,7 @@ function DashboardTabs() {
         ],
     };
 
-    const tabs = tabConfigs[selectedRole] || tabConfigs.default;
+    const tabs = tabConfigs[currentRole] || tabConfigs.default;
 
     return (
         <Tab.Navigator
@@ -118,6 +123,8 @@ export default function DashboardNavigator() {
             <Stack.Screen name="ActiveCall" component={ActiveCallScreen} />
             <Stack.Screen name="Notifications" component={NotificationsScreen} />
             <Stack.Screen name="Emergency" component={EmergencyScreen} />
+            <Stack.Screen name="CreateUser" component={CreateUserScreen} />
+            <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
         </Stack.Navigator>
     );
 }

@@ -50,7 +50,7 @@ export default function SuperAdminDashboard({ navigation }) {
     const onRefresh = useCallback(() => { setRefreshing(true); setTimeout(() => setRefreshing(false), 800); }, []);
 
 
-return (
+    return (
         <View style={s.container}>
             <GradientHeader
                 title="System Overview"
@@ -82,6 +82,15 @@ return (
                                 </PremiumCard>
                             ))}
                         </View>
+
+                        {/* Create Org Admin */}
+                        <TouchableOpacity
+                            style={{ marginTop: Spacing.md, backgroundColor: Colors.primary, borderRadius: Radius.md, paddingVertical: 14, alignItems: 'center', ...Shadows.md }}
+                            activeOpacity={0.85}
+                            onPress={() => navigation.navigate('CreateUser', { allowedRole: 'org_admin' })}
+                        >
+                            <Text style={{ ...Typography.button, color: '#fff' }}>+ Create Org Admin</Text>
+                        </TouchableOpacity>
 
                         <View>
                             <View style={s.sectionHeader}>

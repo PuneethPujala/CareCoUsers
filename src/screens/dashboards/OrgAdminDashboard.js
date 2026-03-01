@@ -196,6 +196,15 @@ export default function OrgAdminDashboard({ navigation }) {
                                     </View>
                                 </View>
 
+                                {/* Create Care Manager */}
+                                <TouchableOpacity
+                                    style={{ marginTop: Spacing.md, backgroundColor: Colors.primary, borderRadius: Radius.md, paddingVertical: 14, alignItems: 'center', ...Shadows.md }}
+                                    activeOpacity={0.85}
+                                    onPress={() => navigation.navigate('CreateUser', { allowedRole: 'care_manager' })}
+                                >
+                                    <Text style={{ ...Typography.button, color: '#fff' }}>+ Create Care Manager</Text>
+                                </TouchableOpacity>
+
                                 <View>
                                     <View style={s.sectionHeader}>
                                         <Text style={s.sectionTitle}>Routing Queue</Text>

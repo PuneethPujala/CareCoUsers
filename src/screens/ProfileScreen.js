@@ -46,14 +46,16 @@ function SettingsItem({ icon, label, value, onPress }) {
 }
 
 export default function ProfileScreen({ navigation }) {
-    const { user, selectedRole, logout } = useAuth();
-    const initial = user?.name?.charAt(0)?.toUpperCase() || 'U';
-    const roleColor = Colors.role[selectedRole] || Colors.primary;
-    const conn = ROLE_CONNECTIONS[selectedRole] || {};
-const handleLogout = () => {
+    const { user, profile, signOut } = useAuth();
+    const displayName = profile?.fullName || user?.email?.split('@')[0] || 'User';
+    const initial = displayName.charAt(0).toUpperCase();
+    const currentRole = profile?.role || 'patient';
+    const roleColor = Colors.role?.[currentRole] || Colors.primary;
+    const conn = ROLE_CONNECTIONS[currentRole] || {};
+    const handleLogout = () => {
         Alert.alert('Sign Out', 'Are you sure you want to sign out of CareConnect?', [
             { text: 'Cancel', style: 'cancel' },
-            { text: 'Sign Out', style: 'destructive', onPress: logout },
+            { text: 'Sign Out', style: 'destructive', onPress: signOut },
         ]);
     };
 
@@ -78,10 +80,10 @@ const handleLogout = () => {
                         <View style={s.avatar}>
                             <Text style={s.avatarText}>{initial}</Text>
                         </View>
-                        <Text style={s.profileName}>{user?.name || 'User'}</Text>
-                        <Text style={s.profileEmail}>{user?.email || 'user@careconnect.com'}</Text>
+                        <Text style={s.profileName}>{displayName}</Text>
+                        <Text style={s.profileEmail}>{user?.email || profile?.email || 'user@careconnect.com'}</Text>
                         <StatusBadge
-                            label={ROLE_LABELS[selectedRole] || selectedRole}
+                            label={ROLE_LABELS[currentRole] || currentRole}
                             variant="info"
                             style={{ backgroundColor: 'rgba(255,255,255,0.2)', marginTop: Spacing.sm }}
                         />
@@ -130,6 +132,8 @@ const handleLogout = () => {
                         <SettingsItem icon="🔔" label="Notifications" value="On" />
                         <View style={s.divider} />
                         <SettingsItem icon="🔒" label="Privacy & Security" />
+                        <View style={s.divider} />
+                        <SettingsItem icon="🔑" label="Change Password" onPress={() => navigation.navigate('ChangePassword', { forced: false })} />
                         <View style={s.divider} />
                         <SettingsItem icon="🌐" label="Language" value="English" />
                     </View>

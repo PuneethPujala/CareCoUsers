@@ -54,7 +54,7 @@ export default function CareManagerDashboard({ navigation }) {
     const onRefresh = useCallback(() => { setRefreshing(true); setTimeout(() => setRefreshing(false), 800); }, []);
 
 
-return (
+    return (
         <View style={s.container}>
             <GradientHeader
                 title={`${user?.name?.split(' ')[0] || 'Manager'} Dashboard`}
@@ -85,6 +85,15 @@ return (
                                 </PremiumCard>
                             ))}
                         </View>
+
+                        {/* Create Caretaker */}
+                        <TouchableOpacity
+                            style={{ marginTop: Spacing.md, backgroundColor: Colors.primary, borderRadius: Radius.md, paddingVertical: 14, alignItems: 'center', ...Shadows.md }}
+                            activeOpacity={0.85}
+                            onPress={() => navigation.navigate('CreateUser', { allowedRole: 'caretaker' })}
+                        >
+                            <Text style={{ ...Typography.button, color: '#fff' }}>+ Create Caretaker</Text>
+                        </TouchableOpacity>
 
                         <View>
                             <View style={s.sectionHeader}>

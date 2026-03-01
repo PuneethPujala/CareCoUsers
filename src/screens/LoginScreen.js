@@ -36,7 +36,7 @@ function RoleChip({ item, selected, onPress }) {
 }
 
 export default function LoginScreen({ navigation }) {
-    const { login } = useAuth();
+    const { signIn } = useAuth();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [role, setRole] = useState('caller');
@@ -45,11 +45,14 @@ export default function LoginScreen({ navigation }) {
 
 
 
-const handleLogin = async () => {
+    const handleLogin = async () => {
         if (!email || !password) { Alert.alert('Missing Fields', 'Please fill in all fields.'); return; }
         setLoading(true);
-        try { await login(role, { email, password }); }
-        catch { Alert.alert('Error', 'Login failed. Please try again.'); }
+        try { await signIn(email, password, role); }
+        catch (err) {
+            const title = err?.code === 'ROLE_MISMATCH' ? 'Wrong Role' : 'Login Failed';
+            Alert.alert(title, err?.message || 'Login failed. Please try again.');
+        }
         finally { setLoading(false); }
     };
 

@@ -11,9 +11,9 @@ import OrgAdminNavigator from './OrgAdminNavigator';
 const Stack = createNativeStackNavigator();
 
 export default function RootNavigator() {
-    const { isAuthenticated, isLoading, user } = useAuth();
+    const { profile, initializing, loading } = useAuth();
 
-    if (isLoading) {
+    if (initializing || loading) {
         return (
             <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.white }}>
                 <ActivityIndicator size="large" color={Colors.primary} />
@@ -23,9 +23,9 @@ export default function RootNavigator() {
 
     return (
         <Stack.Navigator screenOptions={{ headerShown: false }}>
-            {!isAuthenticated ? (
+            {!profile ? (
                 <Stack.Screen name="Auth" component={AuthNavigator} />
-            ) : user?.role === 'org_admin' ? (
+            ) : profile.role === 'org_admin' ? (
                 <Stack.Screen name="OrgAdmin" component={OrgAdminNavigator} />
             ) : (
                 <Stack.Screen name="Dashboard" component={DashboardNavigator} />
