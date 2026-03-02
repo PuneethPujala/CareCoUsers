@@ -83,7 +83,8 @@ const AuditLogSchema = new mongoose.Schema(
         enum: [
           'suspicious_location', 'unusual_time', 'multiple_failed_attempts',
           'privilege_escalation', 'data_access_anomaly', 'brute_force_detected',
-          'session_hijacking', 'unauthorized_device', 'compliance_violation'
+          'session_hijacking', 'unauthorized_device', 'compliance_violation',
+          'login_failed', 'password_change_failed'
         ]
       },
       severity: {

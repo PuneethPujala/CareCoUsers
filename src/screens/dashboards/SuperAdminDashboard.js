@@ -83,9 +83,18 @@ export default function SuperAdminDashboard({ navigation }) {
                             ))}
                         </View>
 
+                        {/* Create Organization */}
+                        <TouchableOpacity
+                            style={{ marginTop: Spacing.md, backgroundColor: '#059669', borderRadius: Radius.md, paddingVertical: 14, alignItems: 'center', ...Shadows.md }}
+                            activeOpacity={0.85}
+                            onPress={() => navigation.navigate('CreateOrganization')}
+                        >
+                            <Text style={{ ...Typography.button, color: '#fff' }}>+ Create Organization</Text>
+                        </TouchableOpacity>
+
                         {/* Create Org Admin */}
                         <TouchableOpacity
-                            style={{ marginTop: Spacing.md, backgroundColor: Colors.primary, borderRadius: Radius.md, paddingVertical: 14, alignItems: 'center', ...Shadows.md }}
+                            style={{ marginTop: Spacing.sm, backgroundColor: Colors.primary, borderRadius: Radius.md, paddingVertical: 14, alignItems: 'center', ...Shadows.md }}
                             activeOpacity={0.85}
                             onPress={() => navigation.navigate('CreateUser', { allowedRole: 'org_admin' })}
                         >

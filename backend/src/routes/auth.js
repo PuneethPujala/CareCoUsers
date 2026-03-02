@@ -521,6 +521,12 @@ router.post('/create-user', authenticate, checkPasswordChange, async (req, res) 
       }
     }
 
+    // Check if a profile with this email already exists in MongoDB
+    const existingProfile = await Profile.findOne({ email: email.toLowerCase().trim() });
+    if (existingProfile) {
+      return res.status(400).json({ error: `A user with the email "${email}" already exists.` });
+    }
+
     // Generate temp password
     const tempPassword = generateTempPassword();
 
@@ -536,7 +542,20 @@ router.post('/create-user', authenticate, checkPasswordChange, async (req, res) 
       await logEvent(req.profile.supabaseUid, 'create_user_failed', 'profile', null, req, {
         targetEmail: email, targetRole: role, reason: authError.message,
       });
-      return res.status(400).json({ error: 'Failed to create Supabase user', details: authError.message });
+
+      // Return user-friendly error messages
+      let userMessage = 'Failed to create user account';
+      const msg = (authError.message || '').toLowerCase();
+      if (msg.includes('already') || msg.includes('duplicate') || msg.includes('exists') || msg.includes('unique')) {
+        userMessage = 'A user with this email address already exists.';
+      } else if (msg.includes('invalid email') || msg.includes('email')) {
+        userMessage = 'The email address provided is invalid.';
+      } else if (msg.includes('password')) {
+        userMessage = 'The password does not meet the minimum requirements.';
+      }
+
+      console.warn('Create user Supabase error:', authError.message);
+      return res.status(400).json({ error: userMessage });
     }
 
     // Hash temp password for history
@@ -576,7 +595,13 @@ router.post('/create-user', authenticate, checkPasswordChange, async (req, res) 
     });
   } catch (error) {
     console.warn('Create user error:', error?.message);
-    res.status(500).json({ error: 'Failed to create user', details: error.message });
+
+    // Handle MongoDB duplicate key error
+    if (error.code === 11000 || error.message?.includes('E11000')) {
+      return res.status(400).json({ error: 'A user with this email address already exists.' });
+    }
+
+    res.status(500).json({ error: 'Failed to create user. Please try again.' });
   }
 });
 

@@ -1,34 +1,67 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View, Text, TextInput, TouchableOpacity, StyleSheet,
     StatusBar, Alert, ActivityIndicator, KeyboardAvoidingView, Platform,
+    ScrollView,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors, Spacing, Typography, Radius, Shadows } from '../theme/colors';
 import { useAuth } from '../context/AuthContext';
+import { apiService } from '../lib/api';
 
 const ROLE_LABELS = {
     org_admin: 'Org Admin',
     care_manager: 'Care Manager',
     caretaker: 'Caretaker',
+    caller: 'Caller',
+    mentor: 'Patient Mentor',
 };
+
+// Roles that require an organization
+const ROLES_NEEDING_ORG = ['org_admin', 'care_manager', 'caretaker', 'caller', 'mentor'];
 
 export default function CreateUserScreen({ navigation, route }) {
     const allowedRole = route?.params?.allowedRole || 'org_admin';
     const roleLabel = ROLE_LABELS[allowedRole] || allowedRole;
-    const { createUser } = useAuth();
+    const { createUser, organizationId: callerOrgId, profile } = useAuth();
+
+    const isSuperAdmin = profile?.role === 'super_admin';
+    const needsOrgPicker = isSuperAdmin && ROLES_NEEDING_ORG.includes(allowedRole);
 
     const [fullName, setFullName] = useState('');
     const [email, setEmail] = useState('');
     const [loading, setLoading] = useState(false);
     const [errors, setErrors] = useState({});
 
+    // Organization picker state (for super admin)
+    const [organizations, setOrganizations] = useState([]);
+    const [selectedOrgId, setSelectedOrgId] = useState(null);
+    const [orgsLoading, setOrgsLoading] = useState(false);
+
+    // Fetch organizations if super admin needs to pick one
+    useEffect(() => {
+        if (needsOrgPicker) {
+            setOrgsLoading(true);
+            apiService.organizations.getAll({ isActive: true })
+                .then(res => {
+                    const orgs = res.data?.organizations || res.data || [];
+                    setOrganizations(Array.isArray(orgs) ? orgs : []);
+                })
+                .catch(err => {
+                    console.log('Failed to load organizations:', err?.message);
+                    setOrganizations([]);
+                })
+                .finally(() => setOrgsLoading(false));
+        }
+    }, [needsOrgPicker]);
+
     const validate = () => {
         const errs = {};
         if (!fullName.trim()) errs.fullName = 'Full name is required';
         if (!email.trim()) errs.email = 'Email is required';
         else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errs.email = 'Enter a valid email address';
+        if (needsOrgPicker && !selectedOrgId) errs.org = 'Please select an organization';
         return errs;
     };
 
@@ -37,9 +70,12 @@ export default function CreateUserScreen({ navigation, route }) {
         setErrors(errs);
         if (Object.keys(errs).length > 0) return;
 
+        // Use selected org (super admin) or caller's org (org admin/care manager)
+        const targetOrgId = needsOrgPicker ? selectedOrgId : callerOrgId;
+
         setLoading(true);
         try {
-            const result = await createUser(email.trim().toLowerCase(), fullName.trim(), allowedRole);
+            const result = await createUser(email.trim().toLowerCase(), fullName.trim(), allowedRole, targetOrgId);
             Alert.alert(
                 'Account Created',
                 result?.message || `${roleLabel} account created. A temporary password has been emailed to ${email}.`,
@@ -71,12 +107,53 @@ export default function CreateUserScreen({ navigation, route }) {
             </LinearGradient>
 
             <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-                <View style={s.body}>
+                <ScrollView style={s.body} contentContainerStyle={{ paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
                     {/* Info banner */}
                     <View style={s.infoBanner}>
                         <Text style={s.infoIcon}>📧</Text>
                         <Text style={s.infoText}>A temporary password will be emailed to the new user. They must change it on first login.</Text>
                     </View>
+
+                    {/* Organization Picker (super admin only) */}
+                    {needsOrgPicker && (
+                        <>
+                            <Text style={s.label}>Organization</Text>
+                            {orgsLoading ? (
+                                <View style={[s.inputRow, { paddingVertical: 14, justifyContent: 'center' }]}>
+                                    <ActivityIndicator size="small" color={Colors.primary} />
+                                    <Text style={{ ...Typography.body, color: Colors.textMuted, marginLeft: Spacing.sm }}>Loading organizations...</Text>
+                                </View>
+                            ) : organizations.length === 0 ? (
+                                <View style={[s.infoBanner, { backgroundColor: Colors.warningLight, borderColor: Colors.warning + '40' }]}>
+                                    <Text style={s.infoIcon}>⚠️</Text>
+                                    <Text style={[s.infoText, { color: '#92400E' }]}>No organizations found. Please create an organization first.</Text>
+                                </View>
+                            ) : (
+                                <View style={s.orgList}>
+                                    {organizations.map((org) => {
+                                        const orgId = org._id || org.id;
+                                        const isSelected = selectedOrgId === orgId;
+                                        return (
+                                            <TouchableOpacity
+                                                key={orgId}
+                                                style={[s.orgChip, isSelected && s.orgChipActive]}
+                                                onPress={() => { setSelectedOrgId(orgId); setErrors(e => ({ ...e, org: undefined })); }}
+                                                activeOpacity={0.7}
+                                            >
+                                                <Text style={s.orgIcon}>🏥</Text>
+                                                <View style={{ flex: 1 }}>
+                                                    <Text style={[s.orgName, isSelected && s.orgNameActive]}>{org.name}</Text>
+                                                    <Text style={s.orgType}>{org.type || 'Organization'}</Text>
+                                                </View>
+                                                {isSelected && <Text style={{ fontSize: 16, color: Colors.primary }}>✓</Text>}
+                                            </TouchableOpacity>
+                                        );
+                                    })}
+                                </View>
+                            )}
+                            {errors.org && <Text style={s.errorText}>{errors.org}</Text>}
+                        </>
+                    )}
 
                     {/* Full Name */}
                     <Text style={s.label}>Full Name</Text>
@@ -125,7 +202,7 @@ export default function CreateUserScreen({ navigation, route }) {
                             )}
                         </LinearGradient>
                     </TouchableOpacity>
-                </View>
+                </ScrollView>
             </KeyboardAvoidingView>
         </View>
     );
@@ -150,6 +227,20 @@ const s = StyleSheet.create({
     inputRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.white, borderRadius: Radius.md, borderWidth: 1, borderColor: Colors.border, ...Shadows.sm },
     input: { flex: 1, paddingHorizontal: Spacing.md, paddingVertical: 14, ...Typography.body, color: Colors.textPrimary },
     errorText: { ...Typography.caption, color: Colors.error, marginTop: Spacing.xs },
+    // Organization picker
+    orgList: { gap: Spacing.sm },
+    orgChip: {
+        flexDirection: 'row', alignItems: 'center', gap: Spacing.sm,
+        backgroundColor: Colors.white, borderRadius: Radius.md,
+        borderWidth: 1.5, borderColor: Colors.border,
+        paddingHorizontal: Spacing.md, paddingVertical: 12,
+        ...Shadows.sm,
+    },
+    orgChipActive: { borderColor: Colors.primary, backgroundColor: Colors.primary + '08' },
+    orgIcon: { fontSize: 20 },
+    orgName: { ...Typography.bodySemibold, color: Colors.textPrimary, fontSize: 14 },
+    orgNameActive: { color: Colors.primary },
+    orgType: { ...Typography.caption, color: Colors.textMuted, marginTop: 2, textTransform: 'capitalize' },
     // Submit
     submitBtn: { marginTop: Spacing.xl, borderRadius: Radius.md, overflow: 'hidden', ...Shadows.md },
     submitBtnDisabled: { opacity: 0.7 },

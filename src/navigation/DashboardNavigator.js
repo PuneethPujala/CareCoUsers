@@ -33,6 +33,7 @@ import EmergencyScreen from '../screens/details/EmergencyScreen';
 /* Create User / Change Password */
 import CreateUserScreen from '../screens/CreateUserScreen';
 import ChangePasswordScreen from '../screens/ChangePasswordScreen';
+import CreateOrganizationScreen from '../screens/CreateOrganizationScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -125,6 +126,7 @@ export default function DashboardNavigator() {
             <Stack.Screen name="Emergency" component={EmergencyScreen} />
             <Stack.Screen name="CreateUser" component={CreateUserScreen} />
             <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
+            <Stack.Screen name="CreateOrganization" component={CreateOrganizationScreen} />
         </Stack.Navigator>
     );
 }

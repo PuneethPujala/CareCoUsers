@@ -125,7 +125,6 @@ export function AuthProvider({ children }) {
 
   // ─── Sign In (backend-validated with role) ────
   const signIn = useCallback(async (email, password, role) => {
-    setLoading(true);
     try {
       // Call backend which validates role against MongoDB, then authenticates
       const response = await apiService.auth.login({ email, password, role });
@@ -142,12 +141,10 @@ export function AuthProvider({ children }) {
         refresh_token: session.refresh_token,
       });
 
-      setLoading(false);
       return response.data;
     } catch (error) {
-      setLoading(false);
       const serverMsg = error?.response?.data?.error;
-      const err = new Error(serverMsg || error?.message || 'Login failed');
+      const err = new Error(serverMsg || error?.message || 'Login failed. Invalid credentials.');
       err.code = error?.response?.data?.code;
       throw err;
     }
@@ -203,14 +200,24 @@ export function AuthProvider({ children }) {
       setProfile(null);
       setMustChangePassword(false);
       return response.data;
-    } catch (error) { throw handleApiError(error); }
+    } catch (error) {
+      const parsed = handleApiError(error);
+      const err = new Error(parsed.message || 'Failed to change password');
+      err.code = parsed.code;
+      throw err;
+    }
   }, []);
 
   const createUser = useCallback(async (email, fullName, role, organizationId) => {
     try {
       const response = await apiService.auth.createUser({ email, fullName, role, organizationId });
       return response.data;
-    } catch (error) { throw handleApiError(error); }
+    } catch (error) {
+      const parsed = handleApiError(error);
+      const err = new Error(parsed.message || 'Failed to create user');
+      err.code = parsed.code;
+      throw err;
+    }
   }, []);
 
   const refreshProfile = useCallback(async () => {

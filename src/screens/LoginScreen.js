@@ -50,8 +50,9 @@ export default function LoginScreen({ navigation }) {
         setLoading(true);
         try { await signIn(email, password, role); }
         catch (err) {
+            console.log('Login error:', err?.message);
             const title = err?.code === 'ROLE_MISMATCH' ? 'Wrong Role' : 'Login Failed';
-            Alert.alert(title, err?.message || 'Login failed. Please try again.');
+            Alert.alert(title, err?.message || 'Login failed. Invalid credentials.');
         }
         finally { setLoading(false); }
     };

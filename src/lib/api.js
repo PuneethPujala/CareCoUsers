@@ -49,7 +49,7 @@ api.interceptors.response.use(
 
     // Log slow requests
     if (duration > 2000) {
-      console.warn(`Slow API request: ${response.config.method?.toUpperCase()} ${response.config.url} took ${duration}ms`);
+      console.log(`Slow API request: ${response.config.method?.toUpperCase()} ${response.config.url} took ${duration}ms`);
     }
 
     return response;
@@ -58,7 +58,11 @@ api.interceptors.response.use(
     const originalRequest = error.config;
 
     // Handle 401 Unauthorized errors
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    // Skip token refresh for auth endpoints — their 401s mean invalid credentials, not expired tokens
+    const requestUrl = originalRequest?.url || '';
+    const isAuthEndpoint = requestUrl.includes('/auth/login') || requestUrl.includes('/auth/register') || requestUrl.includes('/auth/refresh');
+
+    if (error.response?.status === 401 && !originalRequest._retry && !isAuthEndpoint) {
       originalRequest._retry = true;
 
       try {
@@ -66,11 +70,10 @@ api.interceptors.response.use(
         const { data: { session }, error: refreshError } = await supabase.auth.refreshSession();
 
         if (refreshError) {
-          // Refresh failed, redirect to login
-          console.warn('Token refresh failed:', refreshError?.message);
+          // Refresh failed — expected if no session exists (e.g. app startup)
+          console.log('Token refresh skipped:', refreshError?.message);
           await supabase.auth.signOut();
-          // You might want to navigate to login screen here
-          return Promise.reject(refreshError);
+          return Promise.reject(error); // reject with ORIGINAL error, not refresh error
         }
 
         // Update the request with new token
@@ -79,20 +82,20 @@ api.interceptors.response.use(
           return api(originalRequest);
         }
       } catch (refreshError) {
-        console.warn('Session refresh error:', refreshError?.message);
-        return Promise.reject(refreshError);
+        console.log('Session refresh skipped:', refreshError?.message);
+        return Promise.reject(error); // reject with ORIGINAL error
       }
     }
 
     // Handle network errors
     if (!error.response) {
-      console.warn('Network error:', error.message);
+      console.log('Network error:', error.message);
       error.message = 'Network error. Please check your internet connection.';
     }
 
     // Handle server errors
     if (error.response?.status >= 500) {
-      console.warn('Server error:', error.response?.status);
+      console.log('Server error:', error.response?.status);
       error.message = 'Server error. Please try again later.';
     }
 
@@ -190,7 +193,7 @@ export const apiService = {
 
 // Error handling utilities
 export const handleApiError = (error) => {
-  console.warn('API Error:', error?.message);
+  console.log('API Error:', error?.message);
 
   if (error.response) {
     // Server responded with error status

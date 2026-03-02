@@ -11,9 +11,9 @@ import OrgAdminNavigator from './OrgAdminNavigator';
 const Stack = createNativeStackNavigator();
 
 export default function RootNavigator() {
-    const { profile, initializing, loading } = useAuth();
+    const { profile, initializing } = useAuth();
 
-    if (initializing || loading) {
+    if (initializing) {
         return (
             <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.white }}>
                 <ActivityIndicator size="large" color={Colors.primary} />
