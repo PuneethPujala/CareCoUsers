@@ -1,0 +1,20 @@
+﻿2d1e684 HEAD@{0}: commit: Backend integration for medications
+7fa2555 HEAD@{1}: checkout: moving from main to pun
+7fa2555 HEAD@{2}: merge pun: Fast-forward
+52f4bd5 HEAD@{3}: checkout: moving from pun to main
+7fa2555 HEAD@{4}: commit: Add notification preference fields and routes
+52f4bd5 HEAD@{5}: checkout: moving from main to pun
+52f4bd5 HEAD@{6}: merge pun: Fast-forward
+73956fa HEAD@{7}: checkout: moving from pun to main
+52f4bd5 HEAD@{8}: commit: Standardize UI and overhaul Medications Screen
+24a45ae HEAD@{9}: commit: update dependencies or changes
+73956fa HEAD@{10}: reset: moving to main
+4dd8987 HEAD@{11}: checkout: moving from main to pun
+73956fa HEAD@{12}: commit (amend): Final Update: Elite UI Refactor and Stability
+36bfef4 HEAD@{13}: commit: Final Update: Elite UI Refactor and Stability
+f2612ae HEAD@{14}: reset: moving to f2612ae
+4dd8987 HEAD@{15}: checkout: moving from main to main
+4dd8987 HEAD@{16}: merge pun: Fast-forward
+cdde871 HEAD@{17}: checkout: moving from pun to main
+4dd8987 HEAD@{18}: commit: update dependencies or changes
+f17e864 HEAD@{19}: commit: Changes to auth.js testing

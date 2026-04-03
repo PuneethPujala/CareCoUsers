@@ -1,0 +1,64 @@
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnp
+.pnp.js
+
+# Environment Variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+backend/.env
+backend/.env.local
+backend/.env.development.local
+backend/.env.test.local
+backend/.env.production.local
+users-app/.env
+users-app/.env.local
+users-app/.env.development.local
+users-app/.env.test.local
+users-app/.env.production.local
+
+# Expo / React Native
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+users-app/.expo/
+users-app/dist/
+users-app/web-build/
+users-app/expo-env.d.ts
+
+# Native Mobile generated folders
+ios/
+android/
+users-app/ios/
+users-app/android/
+
+# Metro
+.metro-health-check*
+
+# Testing
+coverage/
+
+# OS / Editor / IDE Files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*.log
+
+# Misc
+.cache
+*.tgz
+*.zip
