@@ -32,19 +32,15 @@ app.use(helmet());
 app.use(compression());
 
 // CORS configuration (MUST be before rate limiter or any route that needs CORS)
+// Mobile apps send no Origin header, so we allow all origins.
+// In production, you can restrict this to specific web domains if needed.
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production'
-    ? ['https://your-production-domain.com']
-    : function (origin, callback) {
-      // Allow requests with no origin (like mobile apps)
-      if (!origin) return callback(null, true);
-      // Allow all local network origins for dev
-      if (origin.match(/^http:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.\d+\.\d+\.\d+)(:\d+)?$/) ||
-        origin.match(/^exp:\/\/(192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.\d+\.\d+\.\d+)(:\d+)?$/)) {
-        return callback(null, true);
-      }
-      callback(null, true); // Fallback: allow all in dev for easier mobile testing
-    },
+  origin: function (origin, callback) {
+    // Allow requests with no origin (mobile apps, curl, etc.)
+    if (!origin) return callback(null, true);
+    // Allow all origins — this is a mobile-first API
+    callback(null, true);
+  },
   credentials: true,
 }));
 

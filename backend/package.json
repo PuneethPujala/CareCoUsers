@@ -41,6 +41,9 @@
     "supabase",
     "mongodb"
   ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "author": "CareConnect Team",
   "license": "MIT"
 }
