@@ -4,12 +4,13 @@ import { LinearGradient } from 'expo-linear-gradient';
 import {
     Pill, PhoneCall, CalendarCheck, Sunrise, Sun, Moon,
     Sparkles, ChevronRight, PhoneIncoming, TrendingUp, Activity, CalendarDays, CheckCircle2, Circle, Bell,
-    Heart, Wind, Thermometer, Droplets, MapPin, AlertTriangle, PillBottle, Syringe
+    Heart, Wind, Thermometer, Droplets, MapPin, AlertTriangle, PillBottle, Syringe, WifiOff
 } from 'lucide-react-native';
 import { handleAxiosError } from '../../lib/axiosInstance';
 import { colors } from '../../theme';
 import { useAuth } from '../../context/AuthContext';
 import { apiService } from '../../lib/api';
+import { getCache, setCache, CACHE_KEYS } from '../../lib/CacheService';
 import { useFocusEffect } from '@react-navigation/native';
 
 const ACCENT_MAP = { morning: colors.success, afternoon: colors.warning, night: '#8B5CF6' };
@@ -132,6 +133,7 @@ export default function PatientHomeScreen({ navigation }) {
     const [meds, setMeds] = useState([]);
     const [vitals, setVitals] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [isCached, setIsCached] = useState(false);
 
     // Log vitals form state
     const [isLogging, setIsLogging] = useState(false);
@@ -155,38 +157,44 @@ export default function PatientHomeScreen({ navigation }) {
 
     const lastFetchRef = useRef(0);
 
-    const fetchData = useCallback(async (force = false) => {
-        const now = Date.now();
-        // Prevent refetching if already fetched within the last 60 seconds, unless forced
-        if (!force && now - lastFetchRef.current < 60000 && patient && vitals !== undefined && meds.length >= 0) {
-            return;
-        }
-        
+    const fetchData = useCallback(async (skipCache = false) => {
         try {
-            // Get patient profile (auto-seeds basic profile if new)
-            const pRes = await apiService.patients.getMe();
-            const pData = pRes.data.patient;
-            setPatient(pData);
+            // ── Step 1: Load from cache instantly ──────────────────────
+            if (!skipCache) {
+                const cached = await getCache(CACHE_KEYS.HOME_DASHBOARD);
+                if (cached) {
+                    const { patient: cPatient, vitals: cVitals, meds: cMeds } = cached.data;
+                    setPatient(cPatient);
+                    setVitals(cVitals);
+                    setMeds(cMeds);
+                    setIsCached(true);
+                    setLoading(false); // Instant — no spinner
+                }
+            }
 
-            // Fetch today's vitals — query from midnight to end-of-day
+            // ── Step 2: Fetch fresh data from network ─────────────────
             const todayStart = new Date();
             todayStart.setHours(0, 0, 0, 0);
             const todayEnd = new Date();
             todayEnd.setHours(23, 59, 59, 999);
-            const vRes = await apiService.patients.getVitals({ 
-                start_date: todayStart.toISOString(), 
-                end_date: todayEnd.toISOString() 
-            });
+
+            const [pRes, vRes, medsRes] = await Promise.all([
+                apiService.patients.getMe(),
+                apiService.patients.getVitals({ 
+                    start_date: todayStart.toISOString(), 
+                    end_date: todayEnd.toISOString() 
+                }),
+                apiService.medicines.getToday()
+            ]);
+
+            const freshPatient = pRes.data.patient;
+            setPatient(freshPatient);
+
             const todayVitals = vRes.data.vitals;
-            if (todayVitals && todayVitals.length > 0) {
-                setVitals(todayVitals[todayVitals.length - 1]);
-            } else {
-                setVitals(null);
-            }
+            const freshVitals = (todayVitals && todayVitals.length > 0) ? todayVitals[todayVitals.length - 1] : null;
+            setVitals(freshVitals);
 
-
-            const { data } = await apiService.medicines.getToday();
-            const medicines = (data.log?.medicines || []).map((m) => ({
+            const freshMeds = (medsRes.data.log?.medicines || []).map((m) => ({
                 id: `${m.medicine_name}_${m.scheduled_time}`,
                 name: m.medicine_name,
                 dosage: m.dosage || (m.scheduled_time === 'morning' ? '500mg' : m.scheduled_time === 'afternoon' ? '5mg' : '10mg'),
@@ -196,14 +204,25 @@ export default function PatientHomeScreen({ navigation }) {
                 taken: m.taken,
                 accent: ACCENT_MAP[m.scheduled_time] || colors.accent,
             }));
-            setMeds(medicines);
-            lastFetchRef.current = Date.now();
+            setMeds(freshMeds);
+            setIsCached(false);
+
+            // ── Step 3: Persist to cache for offline use ───────────────
+            await setCache(CACHE_KEYS.HOME_DASHBOARD, {
+                patient: freshPatient,
+                vitals: freshVitals,
+                meds: freshMeds,
+            }, 60); // 60-minute TTL
         } catch (err) {
             console.warn('Failed to fetch dashboard data:', err.message);
+            // If network fails but we already have cached data, keep showing it
+            if (!patient) {
+                // No cached data either — still show empty state
+            }
         } finally {
             setLoading(false);
         }
-    }, [patient, vitals, meds]);
+    }, [patient]);
 
     // ─── Submit new vitals ──────────────────────────────────────
     const handleLogVitals = async () => {
@@ -334,7 +353,7 @@ export default function PatientHomeScreen({ navigation }) {
                             <View style={styles.headerLeft}>
                                 <View style={styles.greetingGroupCompact}>
                                     <Text style={styles.greetingGreeting}>{getGreeting()}</Text>
-                                    <Text style={styles.greetingNameCompact}>{displayName?.split(' ')[0] || 'User'}</Text>
+                                    <Text style={styles.greetingNameCompact}>{(patient?.name || displayName)?.split(' ')[0] || 'User'}</Text>
                                 </View>
                             </View>
 
@@ -375,6 +394,12 @@ export default function PatientHomeScreen({ navigation }) {
                 showsVerticalScrollIndicator={false}
                 keyboardShouldPersistTaps="handled"
             >
+                {isCached && (
+                    <View style={styles.offlineBanner}>
+                        <WifiOff size={14} color="#92400E" />
+                        <Text style={styles.offlineBannerText}>Showing cached data • Pull to refresh</Text>
+                    </View>
+                )}
                 <Animated.View style={[styles.headerStatsRow, { opacity: staggerAnims[1], transform: [{ translateY: staggerAnims[1].interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) }] }]}>
                     <View style={styles.statMiniCardEnhanced}>
                         <View style={[styles.statIconBox, { backgroundColor: 'rgba(14,165,233,0.1)' }]}><Pill size={18} color="#0EA5E9" /></View>
@@ -536,6 +561,25 @@ export default function PatientHomeScreen({ navigation }) {
 }
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: 'transparent' },
+
+    offlineBanner: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        backgroundColor: '#FEF3C7',
+        borderWidth: 1,
+        borderColor: '#FDE68A',
+        borderRadius: 12,
+        paddingVertical: 8,
+        paddingHorizontal: 14,
+        marginBottom: 16,
+    },
+    offlineBannerText: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: '#92400E',
+    },
 
     minimalHeader: { paddingTop: Platform.OS === 'ios' ? 70 : 50, paddingHorizontal: 24, paddingBottom: 16, backgroundColor: 'transparent' },
 

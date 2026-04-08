@@ -255,6 +255,10 @@ const PatientSchema = new mongoose.Schema(
             type: Boolean,
             default: true,
         },
+        expo_push_token: {
+            type: String,
+            trim: true,
+        },
 
         // ── Notes & Flags ─────────────────────────────
         notes: { type: String },

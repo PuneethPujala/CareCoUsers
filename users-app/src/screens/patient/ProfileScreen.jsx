@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import {
     View, Text, StyleSheet, ScrollView, Platform, Pressable, Modal,
-    TextInput, Alert, Switch, Animated, StatusBar, FlatList,
+    TextInput, Alert, Switch, Animated, StatusBar, FlatList, KeyboardAvoidingView,
 } from 'react-native';
 import {
     Bell, Settings, LogOut, ChevronRight, UserRound, Phone, X, Save,
@@ -13,6 +13,7 @@ import {
 import { colors } from '../../theme';
 import { useAuth } from '../../context/AuthContext';
 import { apiService } from '../../lib/api';
+import { registerForPushNotificationsAsync } from '../../utils/notifications';
 
 const C = {
     primary: '#6366F1', primarySoft: '#EEF2FF', dark: '#0F172A', mid: '#334155',
@@ -172,7 +173,22 @@ export default function PatientProfileScreen({ navigation }) {
     const handleTogglePush = async (val) => {
         setPushEnabled(val);
         try {
+            // Always save the preference first
             await apiService.patients.updateMe({ push_notifications_enabled: val });
+
+            if (val) {
+                // Try to register and get the push token
+                const { token } = await registerForPushNotificationsAsync();
+                if (token) {
+                    // Send token to backend
+                    await apiService.patients.updateMe({ expo_push_token: token });
+                }
+                // If token is null but permission was denied, revert
+                // (registerForPushNotificationsAsync shows an alert for this)
+            } else {
+                // Clear the token on the backend when disabling
+                await apiService.patients.updateMe({ expo_push_token: '' });
+            }
         } catch (err) {
             console.warn('Failed to save push pref:', err.message);
         }
@@ -414,7 +430,7 @@ export default function PatientProfileScreen({ navigation }) {
                             <Switch
                                 trackColor={{ false: '#E2E8F0', true: '#818CF8' }}
                                 thumbColor={pushEnabled ? '#4338CA' : '#F8FAFC'}
-                                onValueChange={setPushEnabled}
+                                onValueChange={handleTogglePush}
                                 value={pushEnabled}
                             />
                         </View>
@@ -497,7 +513,7 @@ export default function PatientProfileScreen({ navigation }) {
 
             {/* ── Phone Edit ── */}
             <Modal visible={phoneModalVisible} animationType="slide" transparent onRequestClose={() => setPhoneModalVisible(false)}>
-                <View style={s.modalOverlay}>
+                <KeyboardAvoidingView style={s.modalOverlay} behavior="padding">
                     <View style={s.modalContent}>
                         <View style={s.modalHeader}>
                             <Text style={s.modalTitle}>Phone Number</Text>
@@ -510,12 +526,12 @@ export default function PatientProfileScreen({ navigation }) {
                             <Text style={s.saveBtnTxt}>{saving ? 'Saving...' : 'Save Phone'}</Text>
                         </Pressable>
                     </View>
-                </View>
+                </KeyboardAvoidingView>
             </Modal>
 
             {/* ── Emergency Contact ── */}
             <Modal visible={ecModalVisible} animationType="slide" transparent onRequestClose={() => setEcModalVisible(false)}>
-                <View style={s.modalOverlay}>
+                <KeyboardAvoidingView style={s.modalOverlay} behavior="padding">
                     <View style={s.modalContent}>
                         <View style={s.modalHeader}>
                             <Text style={s.modalTitle}>Emergency Contact</Text>
@@ -532,7 +548,7 @@ export default function PatientProfileScreen({ navigation }) {
                             <Text style={s.saveBtnTxt}>{saving ? 'Saving...' : 'Save Contact'}</Text>
                         </Pressable>
                     </View>
-                </View>
+                </KeyboardAvoidingView>
             </Modal>
 
             {/* ── Account Details ── */}
@@ -561,7 +577,7 @@ export default function PatientProfileScreen({ navigation }) {
 
             {/* ── Edit Account ── */}
             <Modal visible={editAccountModalVisible} animationType="slide" transparent onRequestClose={() => setEditAccountModalVisible(false)}>
-                <View style={s.modalOverlay}>
+                <KeyboardAvoidingView style={s.modalOverlay} behavior="padding">
                     <View style={s.modalContent}>
                         <View style={s.modalHeader}>
                             <Text style={s.modalTitle}>Edit Profile</Text>
@@ -576,12 +592,12 @@ export default function PatientProfileScreen({ navigation }) {
                             <Text style={s.saveBtnTxt}>{savingAccount ? 'Saving...' : 'Save Profile'}</Text>
                         </Pressable>
                     </View>
-                </View>
+                </KeyboardAvoidingView>
             </Modal>
 
             {/* ── Change Password ── */}
             <Modal visible={cpModalVisible} animationType="slide" transparent onRequestClose={() => setCpModalVisible(false)}>
-                <View style={s.modalOverlay}>
+                <KeyboardAvoidingView style={s.modalOverlay} behavior="padding">
                     <View style={s.modalContent}>
                         <View style={s.modalHeader}>
                             <Text style={s.modalTitle}>Change Password</Text>
@@ -598,7 +614,7 @@ export default function PatientProfileScreen({ navigation }) {
                             <Text style={s.saveBtnTxt}>{savingCp ? 'Changing...' : 'Change Password'}</Text>
                         </Pressable>
                     </View>
-                </View>
+                </KeyboardAvoidingView>
             </Modal>
 
 

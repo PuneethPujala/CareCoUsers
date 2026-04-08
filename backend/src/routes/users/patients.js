@@ -349,7 +349,7 @@ router.get('/me', authenticateSession, async (req, res) => {
  */
 router.put('/me', authenticateSession, async (req, res) => {
     try {
-        const { name, city, date_of_birth, phone, gender, blood_type, language, push_notifications_enabled, medication_reminders_enabled } = req.body;
+        const { name, city, date_of_birth, phone, gender, blood_type, language, push_notifications_enabled, medication_reminders_enabled, expo_push_token } = req.body;
         const updates = {};
         if (name !== undefined) updates.name = name;
         if (city !== undefined) updates.city = city;
@@ -360,6 +360,7 @@ router.put('/me', authenticateSession, async (req, res) => {
         if (language !== undefined) updates.language = language;
         if (push_notifications_enabled !== undefined) updates.push_notifications_enabled = push_notifications_enabled;
         if (medication_reminders_enabled !== undefined) updates.medication_reminders_enabled = medication_reminders_enabled;
+        if (expo_push_token !== undefined) updates.expo_push_token = expo_push_token;
 
         const patient = await Patient.findOneAndUpdate(
             { supabase_uid: req.user.id },

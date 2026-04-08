@@ -482,7 +482,7 @@ export default function HealthProfileScreen({ navigation }) {
 
             {/* Dynamic Modal Form */}
             <Modal visible={modalVisible} transparent animationType="none" onRequestClose={closeModal}>
-                <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+                <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
                     <TouchableWithoutFeedback onPress={closeModal}>
                         <Animated.View style={[s.backdrop, { opacity: backdropAnim }]} />
                     </TouchableWithoutFeedback>

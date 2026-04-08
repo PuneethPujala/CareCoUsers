@@ -349,13 +349,13 @@ export default function MyCallerScreen({ navigation }) {
             <View style={s.sectionHeaderRow}>
               <Text style={s.sectionHeaderBase}>MANAGER</Text>
             </View>
-            <View style={s.emptyCard}>
-              <View style={s.emptyIconWrap}>
-                <ShieldCheck size={32} color={C.light} strokeWidth={1.5} />
+            <LinearGradient colors={['#F8FAFC', '#F1F5F9']} style={s.emptyCardPremium}>
+              <View style={s.emptyIconWrapPremium}>
+                <ShieldCheck size={32} color={C.primary} strokeWidth={1.5} />
               </View>
               <Text style={s.emptyTitle}>No Manager Assigned</Text>
               <Text style={s.emptyBody}>A manager will be assigned if additional support is required.</Text>
-            </View>
+            </LinearGradient>
           </View>
         </Animated.View>
 
@@ -371,13 +371,13 @@ export default function MyCallerScreen({ navigation }) {
             </View>
             
             {contacts.length === 0 ? (
-              <View style={s.emptyCard}>
-                <View style={s.emptyIconWrap}>
-                  <Users size={32} color={C.light} strokeWidth={1.5} />
+              <LinearGradient colors={['#F8FAFC', '#F1F5F9']} style={s.emptyCardPremium}>
+                <View style={s.emptyIconWrapPremium}>
+                  <Users size={32} color={C.primary} strokeWidth={1.5} />
                 </View>
                 <Text style={s.emptyTitle}>No Contacts Added</Text>
                 <Text style={s.emptyBody}>Add trusted family members or friends for emergencies.</Text>
-              </View>
+              </LinearGradient>
             ) : (
               contacts.map((contact, idx) => {
                 const colorTheme = AVATAR_COLORS[idx % AVATAR_COLORS.length];
@@ -551,7 +551,7 @@ export default function MyCallerScreen({ navigation }) {
         animationType="none"
         onRequestClose={closeContactModal}
       >
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
           <TouchableWithoutFeedback onPress={closeContactModal}>
             <Animated.View style={[s.backdrop, { opacity: backdropAnim }]} />
           </TouchableWithoutFeedback>
@@ -728,7 +728,9 @@ const s = StyleSheet.create({
   // ── Empty / Upgrade state ──
   emptyWrap: { alignItems: 'center', paddingVertical: 60, paddingHorizontal: 20 },
   emptyCard: { backgroundColor: C.cardBg, borderRadius: 24, padding: 32, alignItems: 'center', borderWidth: 1, borderColor: C.border, shadowColor: C.primary, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.04, shadowRadius: 16, elevation: 4 },
+  emptyCardPremium: { backgroundColor: C.cardBg, borderRadius: 24, padding: 32, alignItems: 'center', borderWidth: 1, borderColor: '#E2E8F0', shadowColor: C.primary, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.08, shadowRadius: 16, elevation: 4 },
   emptyIconWrap: { width: 80, height: 80, borderRadius: 40, backgroundColor: C.pageBg, alignItems: 'center', justifyContent: 'center', marginBottom: 20 },
+  emptyIconWrapPremium: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', marginBottom: 20, shadowColor: C.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 },
   emptyTitle: { fontSize: 18, fontWeight: '700', color: C.dark, marginBottom: 8 },
   emptyBody: { fontSize: 14, fontWeight: '500', color: C.muted, textAlign: 'center', lineHeight: 22 },
   

@@ -11,10 +11,7 @@ import { supabase } from '../../lib/supabase';
 import { parseError } from '../../utils/parseError';
 import analytics from '../../utils/analytics';
 import { colors } from '../../theme';
-import * as Google from 'expo-auth-session/providers/google';
-import * as WebBrowser from 'expo-web-browser';
-
-WebBrowser.maybeCompleteAuthSession();
+import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 
 const C = {
     primary: '#6366F1',
@@ -42,11 +39,6 @@ const FONT = {
 export default function LoginScreen({ navigation }) {
     const { signIn, signInWithGoogle, resetPassword } = useAuth();
 
-    const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
-        clientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
-        prompt: 'select_account',
-    });
-
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
@@ -71,6 +63,12 @@ export default function LoginScreen({ navigation }) {
     const cardOpacity = useRef(new Animated.Value(0)).current;
 
     useEffect(() => {
+        // Configure native Google Sign-In
+        GoogleSignin.configure({
+            webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+            offlineAccess: false,
+        });
+
         Animated.parallel([
             Animated.timing(heroAnim, { toValue: 0, duration: 300, useNativeDriver: true }),
             Animated.timing(heroOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
@@ -96,18 +94,17 @@ export default function LoginScreen({ navigation }) {
         };
     }, []);
 
-    // Handle Google OAuth response
-    useEffect(() => {
-        if (response?.type === 'success') {
-            const { id_token } = response.params;
-            handleGoogleSignIn(id_token);
-        }
-    }, [response]);
-
-    const handleGoogleSignIn = async (idToken) => {
+    const handleGooglePress = async () => {
         try {
             setLoading(true);
             setErrorText('');
+            await GoogleSignin.hasPlayServices();
+            const signInResult = await GoogleSignin.signIn();
+            const idToken = signInResult?.data?.idToken;
+            if (!idToken) {
+                setErrorText('Failed to get Google ID token. Please try again.');
+                return;
+            }
             const result = await signInWithGoogle(idToken);
             if (result?.isNewUser) {
                 await supabase.auth.signOut();
@@ -117,9 +114,17 @@ export default function LoginScreen({ navigation }) {
                 analytics.loginSuccess(result?.user?.id);
             }
         } catch (error) {
-            const { general } = parseError(error);
-            setErrorText(general);
-            analytics.loginFailure(error?.code || 'google_error');
+            if (error?.code === statusCodes.SIGN_IN_CANCELLED) {
+                // User cancelled — do nothing
+            } else if (error?.code === statusCodes.IN_PROGRESS) {
+                setErrorText('Sign-in already in progress.');
+            } else if (error?.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+                setErrorText('Google Play Services not available. Please update.');
+            } else {
+                const { general } = parseError(error);
+                setErrorText(general || error?.message || 'Google sign-in failed');
+                analytics.loginFailure(error?.code || 'google_error');
+            }
         } finally {
             setLoading(false);
         }
@@ -239,7 +244,7 @@ export default function LoginScreen({ navigation }) {
 
                     {/* Social/Alt Logins */}
                     <View style={styles.socialRowPremium}>
-                        <Pressable style={styles.socialBtnPremium} onPress={() => promptAsync()} disabled={!request || loading}>
+                        <Pressable style={styles.socialBtnPremium} onPress={handleGooglePress} disabled={loading}>
                             <Text style={styles.googleG}>G</Text>
                             <Text style={styles.socialBtnTextPremium}>Google</Text>
                         </Pressable>

@@ -38,11 +38,8 @@ import { useAuth } from '../../context/AuthContext';
 import { apiService } from '../../lib/api';
 import { parseError } from '../../utils/parseError';
 import analytics from '../../utils/analytics';
-import * as Google from 'expo-auth-session/providers/google';
+import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 import * as Location from 'expo-location';
-import * as WebBrowser from 'expo-web-browser';
-
-WebBrowser.maybeCompleteAuthSession();
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -267,10 +264,13 @@ export default function PatientSignupScreen({ navigation, route }) {
     const mainScrollRef   = useRef(null);
     const isSubmittingRef = useRef(false);
 
-    const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
-        clientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
-        prompt: 'select_account',
-    });
+    // Configure native Google Sign-In on mount
+    useEffect(() => {
+        GoogleSignin.configure({
+            webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+            offlineAccess: false,
+        });
+    }, []);
 
     const heroAnim    = useRef(new Animated.Value(-15)).current;
     const heroOpacity = useRef(new Animated.Value(0)).current;
@@ -403,14 +403,7 @@ export default function PatientSignupScreen({ navigation, route }) {
         if (step === 2 && availableCities.length === 0) fetchCities();
     }, [step]);
 
-    // ── Google response handler ────────────────────────────────────────────────
-
-    useEffect(() => {
-        if (response?.type === 'success') {
-            const { id_token } = response.params;
-            handleGoogleSignUp(id_token);
-        }
-    }, [response]);
+    // ── Google native sign-in trigger ────────────────────────────────────────────
 
     // ── Fetchers ──────────────────────────────────────────────────────────────
 
@@ -426,12 +419,19 @@ export default function PatientSignupScreen({ navigation, route }) {
         }
     };
 
-    // ── Google Sign Up ─────────────────────────────────────────────────────────
+    // ── Google Sign Up (native) ──────────────────────────────────────────────────
 
-    const handleGoogleSignUp = async (idToken) => {
+    const handleGooglePress = async () => {
         try {
             setGoogleLoading(true);
             setErrors({});
+            await GoogleSignin.hasPlayServices();
+            const signInResult = await GoogleSignin.signIn();
+            const idToken = signInResult?.data?.idToken;
+            if (!idToken) {
+                setErrors({ google: 'Failed to get Google ID token. Please try again.' });
+                return;
+            }
             const result = await signInWithGoogle(idToken);
             if (result?.isNewUser) {
                 const googleUser = result.user;
@@ -459,7 +459,13 @@ export default function PatientSignupScreen({ navigation, route }) {
                 }
             }
         } catch (error) {
-            setErrors({ google: error.message || 'Google sign-up failed' });
+            if (error?.code === statusCodes.SIGN_IN_CANCELLED) {
+                // User cancelled — do nothing
+            } else if (error?.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+                setErrors({ google: 'Google Play Services not available. Please update.' });
+            } else {
+                setErrors({ google: error?.message || 'Google sign-up failed' });
+            }
         } finally {
             setGoogleLoading(false);
         }
@@ -707,14 +713,7 @@ export default function PatientSignupScreen({ navigation, route }) {
     const renderStep1 = () => (
         <View>
             <Animated.View style={{ opacity: staggerAnims[0], transform: [{ translateY: staggerAnims[0].interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) }] }}>
-                <Pressable style={styles.googleBtnEnhanced} onPress={() => {
-                    try {
-                        if (request) promptAsync();
-                        else setErrors({ google: 'Google sign-in not ready. Please try again.' });
-                    } catch (err) {
-                        setErrors({ google: 'Google sign-in failed. Please try again or use email.' });
-                    }
-                }} disabled={!request || googleLoading}>
+                <Pressable style={styles.googleBtnEnhanced} onPress={handleGooglePress} disabled={googleLoading}>
                     <Text style={styles.googleG}>G</Text>
                     <Text style={styles.googleBtnText}>{googleLoading ? 'Signing up...' : 'Continue with Google'}</Text>
                 </Pressable>

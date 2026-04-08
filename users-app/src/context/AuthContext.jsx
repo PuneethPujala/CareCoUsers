@@ -14,6 +14,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import { supabase, auth, handleAuthError } from '../lib/supabase';
 import { apiService, handleApiError } from '../lib/api';
+import { setCacheUserId, clearUserCache } from '../lib/CacheService';
 import analytics from '../utils/analytics';
 import * as WebBrowser from 'expo-web-browser';
 
@@ -95,6 +96,8 @@ export function AuthProvider({ children }) {
         profileRef.current = profileData;
         if (profileData) {
             await cacheProfile(profileData);
+            // Set user ID for CacheService scoping
+            setCacheUserId(profileData.id || profileData._id || null);
         }
     }, []);
 
@@ -104,7 +107,9 @@ export function AuthProvider({ children }) {
         try { await auth.signOut(); } catch { }
         // §8 FIX: Clear all stored data
         await clearCachedProfile();
+        await clearUserCache(); // Clear offline cache for this user
         try { await AsyncStorage.removeItem(ONBOARDING_STORAGE_KEY); } catch { }
+        setCacheUserId(null);
         setUser(null);
         setSession(null);
         setProfile(null);

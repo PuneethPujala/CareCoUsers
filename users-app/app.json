@@ -8,6 +8,7 @@
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
+      "image": "./assets/splash.png",
       "backgroundColor": "#0A2463",
       "resizeMode": "contain"
     },
@@ -16,9 +17,6 @@
       "bundleIdentifier": "com.careco.users"
     },
     "android": {
-      "adaptiveIcon": {
-        "backgroundColor": "#0A2463"
-      },
       "package": "com.careco.users"
     },
     "web": {
@@ -28,7 +26,22 @@
       "expo-web-browser",
       "expo-secure-store",
       "@react-native-community/datetimepicker",
-      "expo-font"
-    ]
+      "expo-font",
+      "@react-native-google-signin/google-signin",
+      "expo-notifications",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "0577bab0-242a-4d43-a66c-4e0ee3e9bcff"
+      }
+    }
   }
 }
