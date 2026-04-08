@@ -215,14 +215,12 @@ export default function PatientHomeScreen({ navigation }) {
             }, 60); // 60-minute TTL
         } catch (err) {
             console.warn('Failed to fetch dashboard data:', err.message);
-            // If network fails but we already have cached data, keep showing it
-            if (!patient) {
-                // No cached data either — still show empty state
-            }
+            // If network fails but we loaded cached data above, it remains visible.
+            // If no cache was loaded either, the empty state will show.
         } finally {
             setLoading(false);
         }
-    }, [patient]);
+    }, []);
 
     // ─── Submit new vitals ──────────────────────────────────────
     const handleLogVitals = async () => {
