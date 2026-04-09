@@ -443,7 +443,8 @@ router.post('/reset-password', async (req, res) => {
 
         // Generate and send OTP
         const otp = await createOTP(`reset:${email.toLowerCase().trim()}`);
-        await sendPasswordResetEmail(email, otp);
+        // Fire-and-forget — don't block the response waiting for email delivery
+        sendPasswordResetEmail(email, otp).catch(err => console.error('Reset email failed:', err.message));
 
         const uid = profile ? profile.supabaseUid : patient.supabase_uid;
         const docId = profile ? profile._id : patient._id;
@@ -917,7 +918,8 @@ router.post('/send-otp', async (req, res) => {
         if (type === 'email') {
             // Generate real OTP and send via email
             const otp = await createOTP(identifier.toLowerCase().trim());
-            await sendOTPEmail(identifier, otp);
+            // Fire-and-forget — don't block the response waiting for email delivery
+            sendOTPEmail(identifier, otp).catch(err => console.error('OTP email failed:', err.message));
             res.json({ message: 'Verification code sent to your email.' });
         } else if (type === 'phone') {
             // Placeholder: store fixed OTP 123456
