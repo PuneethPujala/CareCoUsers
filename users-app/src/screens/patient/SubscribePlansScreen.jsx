@@ -87,7 +87,7 @@ export default function SubscribePlansScreen({ navigation }) {
             >
                 <View style={styles.decorCircle1} />
                 <View style={styles.decorCircle2} />
-                <Text style={styles.heroEyebrow}>CARECO</Text>
+                <Text style={styles.heroEyebrow}>SAMVAYA</Text>
                 <Text style={styles.heroTitle}>Choose Your Plan</Text>
                 <Text style={styles.heroSubtitle}>
                     Start your journey to better health with a dedicated care coordinator

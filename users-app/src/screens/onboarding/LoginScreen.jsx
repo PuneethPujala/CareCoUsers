@@ -1,17 +1,19 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
     View, Text, StyleSheet, TextInput, Pressable, Platform,
-    KeyboardAvoidingView, ScrollView, Animated, ActivityIndicator, Alert,
-    BackHandler,
+    KeyboardAvoidingView, Animated, ActivityIndicator, Alert, Modal,
+    BackHandler, Dimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Mail, Lock, Eye, EyeOff, HeartPulse, AlertCircle, Smartphone, ChevronRight } from 'lucide-react-native';
+import { Mail, Lock, Eye, EyeOff, HeartPulse, AlertCircle, Smartphone, ChevronRight, X } from 'lucide-react-native';
 import { useAuth } from '../../context/AuthContext';
-import { supabase } from '../../lib/supabase';
+import { apiService } from '../../lib/api';
 import { parseError } from '../../utils/parseError';
 import analytics from '../../utils/analytics';
 import { colors } from '../../theme';
 import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
+
+const { height: SCREEN_H } = Dimensions.get('window');
 
 const C = {
     primary: '#6366F1',
@@ -36,6 +38,223 @@ const FONT = {
     heavy: { fontFamily: 'Inter_800ExtraBold' },
 };
 
+// ─── Reset Password OTP Modal ───────────────────────────────────────────────
+const ResetPasswordModal = ({ visible, onClose, email }) => {
+    const [step, setStep] = useState('request'); // 'request' | 'otp' | 'newpass'
+    const [resetEmail, setResetEmail] = useState(email || '');
+    const [otp, setOtp] = useState('');
+    const [newPassword, setNewPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [showPass, setShowPass] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
+    const [success, setSuccess] = useState('');
+    const [resendTimer, setResendTimer] = useState(0);
+
+    useEffect(() => {
+        let interval;
+        if (resendTimer > 0) {
+            interval = setInterval(() => setResendTimer(prev => prev - 1), 1000);
+        }
+        return () => clearInterval(interval);
+    }, [resendTimer]);
+
+    useEffect(() => {
+        if (visible) {
+            setStep('request');
+            setResetEmail(email || '');
+            setOtp('');
+            setNewPassword('');
+            setConfirmPassword('');
+            setError('');
+            setSuccess('');
+        }
+    }, [visible, email]);
+
+    const handleSendCode = async () => {
+        const cleanEmail = resetEmail.trim().toLowerCase();
+        if (!cleanEmail || !/\S+@\S+\.\S+/.test(cleanEmail)) {
+            setError('Please enter a valid email address.');
+            return;
+        }
+        setLoading(true);
+        setError('');
+        try {
+            await apiService.auth.resetPassword(cleanEmail);
+            setStep('otp');
+            setResendTimer(60);
+        } catch (err) {
+            setError('Failed to send reset code. Please try again.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleResend = async () => {
+        if (resendTimer > 0) return;
+        setLoading(true);
+        setError('');
+        try {
+            await apiService.auth.resetPassword(resetEmail.trim().toLowerCase());
+            setResendTimer(60);
+            setOtp('');
+        } catch (err) {
+            setError('Failed to resend code.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleVerifyAndReset = async () => {
+        if (otp.length < 6) { setError('Please enter the 6-digit code.'); return; }
+        if (newPassword.length < 8) { setError('Password must be at least 8 characters.'); return; }
+        if (!/[A-Z]/.test(newPassword)) { setError('Password must contain an uppercase letter.'); return; }
+        if (!/[0-9]/.test(newPassword)) { setError('Password must contain a number.'); return; }
+        if (newPassword !== confirmPassword) { setError('Passwords do not match.'); return; }
+
+        setLoading(true);
+        setError('');
+        try {
+            await apiService.auth.resetPasswordVerify({
+                email: resetEmail.trim().toLowerCase(),
+                otp,
+                newPassword,
+            });
+            setSuccess('Password reset successfully! You can now log in.');
+            setTimeout(() => onClose(), 2000);
+        } catch (err) {
+            const msg = err?.response?.data?.error || 'Failed to reset password.';
+            setError(msg);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <Modal visible={visible} animationType="fade" transparent>
+            <View style={rs.overlay}>
+                <View style={rs.sheet}>
+                    <View style={rs.header}>
+                        <Text style={rs.title}>
+                            {step === 'request' ? 'Reset Password' : step === 'otp' ? 'Enter Code & New Password' : 'Success'}
+                        </Text>
+                        <Pressable onPress={onClose} hitSlop={12}><X size={22} color="#64748B" /></Pressable>
+                    </View>
+
+                    {success ? (
+                        <View style={rs.successBox}>
+                            <Text style={rs.successText}>✅ {success}</Text>
+                        </View>
+                    ) : null}
+
+                    {error ? (
+                        <View style={rs.errorBox}>
+                            <AlertCircle size={16} color={C.danger} />
+                            <Text style={rs.errorText}>{error}</Text>
+                        </View>
+                    ) : null}
+
+                    {step === 'request' && (
+                        <>
+                            <Text style={rs.subtitle}>Enter your email and we'll send a 6-digit code to reset your password.</Text>
+                            <View style={rs.inputWrap}>
+                                <Mail size={18} color={C.muted} />
+                                <TextInput
+                                    style={rs.input}
+                                    placeholder="name@example.com"
+                                    placeholderTextColor={C.muted}
+                                    value={resetEmail}
+                                    onChangeText={(v) => { setResetEmail(v); setError(''); }}
+                                    autoCapitalize="none"
+                                    keyboardType="email-address"
+                                />
+                            </View>
+                            <Pressable style={[rs.btn, loading && { opacity: 0.7 }]} onPress={handleSendCode} disabled={loading}>
+                                {loading ? <ActivityIndicator size="small" color="#FFF" /> : <Text style={rs.btnText}>Send Reset Code</Text>}
+                            </Pressable>
+                        </>
+                    )}
+
+                    {step === 'otp' && (
+                        <>
+                            <Text style={rs.subtitle}>Enter the code sent to <Text style={{ ...FONT.bold }}>{resetEmail}</Text> and set your new password.</Text>
+                            <View style={rs.inputWrap}>
+                                <Lock size={18} color={C.muted} />
+                                <TextInput
+                                    style={[rs.input, { letterSpacing: 6, fontSize: 22, textAlign: 'center' }]}
+                                    placeholder="000000"
+                                    placeholderTextColor="#CBD5E1"
+                                    maxLength={6}
+                                    keyboardType="number-pad"
+                                    value={otp}
+                                    onChangeText={(v) => { setOtp(v); setError(''); }}
+                                />
+                            </View>
+                            <View style={rs.resendRow}>
+                                {resendTimer > 0 ? (
+                                    <Text style={rs.timerText}>Resend in {resendTimer}s</Text>
+                                ) : (
+                                    <Pressable onPress={handleResend} disabled={loading}>
+                                        <Text style={rs.resendAction}>Resend Code</Text>
+                                    </Pressable>
+                                )}
+                            </View>
+                            <View style={rs.inputWrap}>
+                                <Lock size={18} color={C.muted} />
+                                <TextInput
+                                    style={rs.input}
+                                    placeholder="New password"
+                                    placeholderTextColor={C.muted}
+                                    value={newPassword}
+                                    onChangeText={(v) => { setNewPassword(v); setError(''); }}
+                                    secureTextEntry={!showPass}
+                                />
+                                <Pressable onPress={() => setShowPass(!showPass)} hitSlop={12}>
+                                    {showPass ? <Eye size={18} color={C.primary} /> : <EyeOff size={18} color={C.muted} />}
+                                </Pressable>
+                            </View>
+                            <View style={rs.inputWrap}>
+                                <Lock size={18} color={C.muted} />
+                                <TextInput
+                                    style={rs.input}
+                                    placeholder="Confirm new password"
+                                    placeholderTextColor={C.muted}
+                                    value={confirmPassword}
+                                    onChangeText={(v) => { setConfirmPassword(v); setError(''); }}
+                                    secureTextEntry={!showPass}
+                                />
+                            </View>
+                            <Pressable style={[rs.btn, loading && { opacity: 0.7 }]} onPress={handleVerifyAndReset} disabled={loading}>
+                                {loading ? <ActivityIndicator size="small" color="#FFF" /> : <Text style={rs.btnText}>Reset Password</Text>}
+                            </Pressable>
+                        </>
+                    )}
+                </View>
+            </View>
+        </Modal>
+    );
+};
+
+const rs = StyleSheet.create({
+    overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 },
+    sheet: { width: '100%', maxWidth: 420, backgroundColor: '#FFF', borderRadius: 28, padding: 28, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 20, elevation: 10 },
+    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+    title: { fontSize: 20, ...FONT.heavy, color: C.dark },
+    subtitle: { fontSize: 14, ...FONT.medium, color: C.muted, lineHeight: 22, marginBottom: 20 },
+    inputWrap: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', borderWidth: 1.5, borderColor: C.borderMid, borderRadius: 16, height: 56, paddingHorizontal: 16, marginBottom: 14, gap: 12 },
+    input: { flex: 1, fontSize: 16, color: C.dark, ...FONT.semibold },
+    btn: { backgroundColor: C.primary, borderRadius: 16, height: 54, alignItems: 'center', justifyContent: 'center', marginTop: 8 },
+    btnText: { color: '#FFF', fontSize: 16, ...FONT.bold },
+    errorBox: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: C.dangerBg, borderRadius: 12, padding: 14, marginBottom: 14 },
+    errorText: { color: '#991B1B', fontSize: 13, ...FONT.semibold, flex: 1 },
+    successBox: { backgroundColor: '#DCFCE7', borderRadius: 12, padding: 14, marginBottom: 14 },
+    successText: { color: '#166534', fontSize: 14, ...FONT.bold },
+    resendRow: { alignItems: 'center', marginBottom: 16, marginTop: -4 },
+    timerText: { fontSize: 13, ...FONT.bold, color: C.muted },
+    resendAction: { fontSize: 14, ...FONT.heavy, color: C.primary },
+});
+
+// ─── Main LoginScreen ─────────────────────────────────────────────────────
 export default function LoginScreen({ navigation }) {
     const { signIn, signInWithGoogle, resetPassword } = useAuth();
 
@@ -46,13 +265,10 @@ export default function LoginScreen({ navigation }) {
     const [errorText, setErrorText] = useState('');
     const [emailFocused, setEmailFocused] = useState(false);
     const [passFocused, setPassFocused] = useState(false);
+    const [resetModalVisible, setResetModalVisible] = useState(false);
 
-    // §13 FIX: useRef to prevent double-tap
     const isSubmittingRef = useRef(false);
-    // §13 FIX: AbortController for request cancellation on unmount
     const abortRef = useRef(null);
-
-    // Refs for programmatic focus
     const emailRef = useRef(null);
     const passwordRef = useRef(null);
 
@@ -63,7 +279,6 @@ export default function LoginScreen({ navigation }) {
     const cardOpacity = useRef(new Animated.Value(0)).current;
 
     useEffect(() => {
-        // Configure native Google Sign-In
         GoogleSignin.configure({
             webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
             offlineAccess: false,
@@ -77,7 +292,6 @@ export default function LoginScreen({ navigation }) {
         ]).start();
     }, []);
 
-    // §10 FIX: Android back button on Login exits app
     useEffect(() => {
         const backAction = () => {
             BackHandler.exitApp();
@@ -87,7 +301,6 @@ export default function LoginScreen({ navigation }) {
         return () => sub.remove();
     }, []);
 
-    // §13 FIX: Cancel pending requests on unmount
     useEffect(() => {
         return () => {
             if (abortRef.current) abortRef.current.abort();
@@ -107,15 +320,14 @@ export default function LoginScreen({ navigation }) {
             }
             const result = await signInWithGoogle(idToken);
             if (result?.isNewUser) {
-                await supabase.auth.signOut();
-                setErrorText('No CareCo account found for this Google account. Please sign up first.');
+                setErrorText('No Samvaya account found for this Google account. Please sign up first.');
                 analytics.loginFailure('google_no_account');
             } else {
                 analytics.loginSuccess(result?.user?.id);
             }
         } catch (error) {
             if (error?.code === statusCodes.SIGN_IN_CANCELLED) {
-                // User cancelled — do nothing
+                // User cancelled
             } else if (error?.code === statusCodes.IN_PROGRESS) {
                 setErrorText('Sign-in already in progress.');
             } else if (error?.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
@@ -131,29 +343,12 @@ export default function LoginScreen({ navigation }) {
     };
 
     const handleLogin = async () => {
-        // §13 FIX: useRef guard prevents double tap
         if (isSubmittingRef.current) return;
-
-        // §14 FIX: Trim and lowercase email
         const cleanEmail = email.trim().toLowerCase();
-
-        // §4 FIX: Client validation before any API call
-        if (!cleanEmail) {
-            setErrorText('Please enter your email address.');
-            return;
-        }
-        if (!/\S+@\S+\.\S+/.test(cleanEmail)) {
-            setErrorText('Please enter a valid email address.');
-            return;
-        }
-        if (!password) {
-            setErrorText('Please enter your password.');
-            return;
-        }
-        if (password.length < 6) {
-            setErrorText('Password must be at least 6 characters.');
-            return;
-        }
+        if (!cleanEmail) { setErrorText('Please enter your email address.'); return; }
+        if (!/\S+@\S+\.\S+/.test(cleanEmail)) { setErrorText('Please enter a valid email address.'); return; }
+        if (!password) { setErrorText('Please enter your password.'); return; }
+        if (password.length < 6) { setErrorText('Password must be at least 6 characters.'); return; }
 
         isSubmittingRef.current = true;
         setLoading(true);
@@ -161,12 +356,10 @@ export default function LoginScreen({ navigation }) {
 
         try {
             const result = await signIn(cleanEmail, password, 'patient');
-            // §14 FIX: Clear sensitive state after success
             setEmail('');
             setPassword('');
             analytics.loginSuccess(result?.session?.user?.id);
         } catch (error) {
-            // §4 FIX: Supabase-specific error mapping
             const { general } = parseError(error);
             setErrorText(general);
             setPassword('');
@@ -177,191 +370,162 @@ export default function LoginScreen({ navigation }) {
         }
     };
 
-    const handleForgotPassword = async () => {
-        const resetEmail = email.trim().toLowerCase();
-        if (!resetEmail || !/\S+@\S+\.\S+/.test(resetEmail)) {
-            Alert.alert('Enter Your Email', 'Please enter a valid email address in the email field above, then tap Forgot Password again.');
-            return;
-        }
-        try {
-            setLoading(true);
-            await resetPassword(resetEmail);
-            Alert.alert('Check Your Email', `We've sent a password reset link to ${resetEmail}. Please check your inbox.`);
-        } catch (error) {
-            const { general } = parseError(error);
-            Alert.alert('Reset Failed', general);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    // §4 FIX: Clear errors when user starts typing
-    const handleEmailChange = (v) => {
-        setEmail(v);
-        if (errorText) setErrorText('');
-    };
-    const handlePasswordChange = (v) => {
-        setPassword(v);
-        if (errorText) setErrorText('');
-    };
+    const handleEmailChange = (v) => { setEmail(v); if (errorText) setErrorText(''); };
+    const handlePasswordChange = (v) => { setPassword(v); if (errorText) setErrorText(''); };
 
     return (
         <KeyboardAvoidingView
             style={styles.container}
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-            keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
         >
-            <ScrollView
-                style={{ flex: 1 }}
-                contentContainerStyle={{ flexGrow: 1, paddingBottom: Platform.OS === 'ios' ? 100 : 150 }}
-                keyboardShouldPersistTaps="handled"
-                bounces={false}
-                showsVerticalScrollIndicator={false}
-            >
+            {/* Hero Section — compact, no scroll needed */}
+            <Animated.View style={{ transform: [{ translateY: heroAnim }], opacity: heroOpacity }}>
+                <LinearGradient
+                    colors={['#4338CA', '#38BDF8']}
+                    start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                    style={styles.hero}
+                >
+                    <View style={[styles.decorativeCircle, { top: -60, right: -40, width: 250, height: 250, backgroundColor: 'rgba(255, 255, 255, 0.12)' }]} />
+                    <View style={[styles.decorativeCircle, { top: 60, left: -80, width: 200, height: 200, backgroundColor: 'rgba(255, 255, 255, 0.08)' }]} />
 
-                {/* Hero Section — Indigo→Cyan Gradient */}
-                <Animated.View style={{ transform: [{ translateY: heroAnim }], opacity: heroOpacity }}>
-                    <LinearGradient
-                        colors={['#4338CA', '#38BDF8']}
-                        start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-                        style={styles.hero}
+                    <View style={styles.heroIconWrap}>
+                        <HeartPulse size={44} color="#FFFFFF" strokeWidth={1.5} />
+                    </View>
+                    <Text style={styles.heroLabel}>SAMVAYA</Text>
+                    <Text style={styles.heroTitle}>Welcome Back</Text>
+                    <Text style={styles.heroSubtitle}>Your health journey continues here</Text>
+                </LinearGradient>
+            </Animated.View>
+
+            {/* Form Card — no ScrollView, fits on screen */}
+            <Animated.View style={[styles.formCard, { transform: [{ translateY: cardAnim }], opacity: cardOpacity }]}>
+
+                {/* Social Logins */}
+                <View style={styles.socialRowPremium}>
+                    <Pressable style={styles.socialBtnPremium} onPress={handleGooglePress} disabled={loading}>
+                        <Text style={styles.googleG}>G</Text>
+                        <Text style={styles.socialBtnTextPremium}>Google</Text>
+                    </Pressable>
+                    <Pressable style={styles.socialBtnPremium} onPress={() => { }} disabled={loading}>
+                        <Smartphone size={20} color={C.mid} />
+                        <Text style={styles.socialBtnTextPremium}>Mobile</Text>
+                    </Pressable>
+                </View>
+
+                {/* Divider */}
+                <View style={styles.dividerRowPremium}>
+                    <View style={styles.dividerLine} />
+                    <Text style={styles.dividerText}>OR LOGIN WITH EMAIL</Text>
+                    <View style={styles.dividerLine} />
+                </View>
+
+                {/* Error */}
+                {errorText ? (
+                    <View style={styles.errorBox}>
+                        <AlertCircle size={16} color={C.danger} />
+                        <Text style={styles.errorMsg}>{errorText}</Text>
+                    </View>
+                ) : null}
+
+                {/* Email Field */}
+                <View style={styles.fieldGroup}>
+                    <Text style={styles.label}>Email Address</Text>
+                    <Pressable
+                        style={[styles.inputWrap, emailFocused && styles.inputFocused]}
+                        onPress={() => emailRef.current?.focus()}
                     >
-                        <View style={[styles.decorativeCircle, { top: -60, right: -40, width: 250, height: 250, backgroundColor: 'rgba(255, 255, 255, 0.12)' }]} />
-                        <View style={[styles.decorativeCircle, { top: 60, left: -80, width: 200, height: 200, backgroundColor: 'rgba(255, 255, 255, 0.08)' }]} />
-                        <View style={[styles.decorativeCircle, { bottom: -80, right: 40, width: 160, height: 160, backgroundColor: 'rgba(255, 255, 255, 0.05)' }]} />
-
-                        <View style={styles.heroIconWrap}>
-                            <HeartPulse size={48} color="#FFFFFF" strokeWidth={1.5} />
+                        <View style={[styles.inlineIconBox, emailFocused && { backgroundColor: C.primarySoft }]}>
+                            <Mail size={18} color={emailFocused ? C.primary : C.muted} />
                         </View>
-                        <Text style={styles.heroLabel}>CARECO</Text>
-                        <Text style={styles.heroTitle}>Welcome Back</Text>
-                        <Text style={styles.heroSubtitle}>Your health journey continues here</Text>
+                        <TextInput
+                            ref={emailRef}
+                            style={styles.textInput}
+                            placeholder="name@example.com"
+                            placeholderTextColor={C.muted}
+                            value={email}
+                            onChangeText={handleEmailChange}
+                            autoCapitalize="none"
+                            keyboardType="email-address"
+                            autoCorrect={false}
+                            spellCheck={false}
+                            textContentType="emailAddress"
+                            onFocus={() => setEmailFocused(true)}
+                            onBlur={() => setEmailFocused(false)}
+                            blurOnSubmit={false}
+                        />
+                    </Pressable>
+                </View>
+
+                {/* Password Field */}
+                <View style={styles.fieldGroup}>
+                    <Text style={styles.label}>Password</Text>
+                    <Pressable
+                        style={[styles.inputWrap, passFocused && styles.inputFocused]}
+                        onPress={() => passwordRef.current?.focus()}
+                    >
+                        <View style={[styles.inlineIconBox, passFocused && { backgroundColor: C.primarySoft }]}>
+                            <Lock size={18} color={passFocused ? C.primary : C.muted} />
+                        </View>
+                        <TextInput
+                            ref={passwordRef}
+                            style={styles.textInput}
+                            placeholder="Enter password"
+                            placeholderTextColor={C.muted}
+                            value={password}
+                            onChangeText={handlePasswordChange}
+                            secureTextEntry={!showPassword}
+                            textContentType="password"
+                            onFocus={() => setPassFocused(true)}
+                            onBlur={() => setPassFocused(false)}
+                        />
+                        <Pressable onPress={() => setShowPassword(!showPassword)} hitSlop={12}>
+                            {showPassword ? <Eye size={18} color={C.primary} /> : <EyeOff size={18} color={C.muted} />}
+                        </Pressable>
+                    </Pressable>
+                </View>
+
+                {/* Forgot Password */}
+                <Pressable style={styles.forgotRow} onPress={() => setResetModalVisible(true)}>
+                    <Text style={styles.forgotText}>Forgot Password?</Text>
+                </Pressable>
+
+                {/* Login Button */}
+                <Pressable style={[styles.primaryBtn, loading && { opacity: 0.7 }]} onPress={handleLogin} disabled={loading}>
+                    <LinearGradient
+                        colors={['#6366F1', '#4338CA']}
+                        start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                        style={styles.primaryBtnGradient}
+                    >
+                        {loading ? (
+                            <View style={styles.loadingRow}>
+                                <ActivityIndicator size="small" color="#FFFFFF" />
+                                <Text style={styles.primaryBtnText}>  Verifying...</Text>
+                            </View>
+                        ) : (
+                            <>
+                                <Text style={styles.primaryBtnText}>Sign In to Dashboard</Text>
+                                <ChevronRight size={20} color="#FFFFFF" />
+                            </>
+                        )}
                     </LinearGradient>
-                </Animated.View>
+                </Pressable>
 
-                {/* Form Card — Squircle */}
-                <Animated.View style={[styles.formCard, { transform: [{ translateY: cardAnim }], opacity: cardOpacity }]}>
-
-                    {/* Social/Alt Logins */}
-                    <View style={styles.socialRowPremium}>
-                        <Pressable style={styles.socialBtnPremium} onPress={handleGooglePress} disabled={loading}>
-                            <Text style={styles.googleG}>G</Text>
-                            <Text style={styles.socialBtnTextPremium}>Google</Text>
-                        </Pressable>
-                        <Pressable style={styles.socialBtnPremium} onPress={() => { }} disabled={loading}>
-                            <Smartphone size={20} color={C.mid} />
-                            <Text style={styles.socialBtnTextPremium}>Mobile</Text>
-                        </Pressable>
-                    </View>
-
-                    {/* Divider */}
-                    <View style={styles.dividerRowPremium}>
-                        <View style={styles.dividerLine} />
-                        <Text style={styles.dividerText}>OR LOGIN WITH EMAIL</Text>
-                        <View style={styles.dividerLine} />
-                    </View>
-
-                    {/* Error */}
-                    {errorText ? (
-                        <View style={styles.errorBox}>
-                            <AlertCircle size={16} color={C.danger} />
-                            <Text style={styles.errorMsg}>{errorText}</Text>
-                        </View>
-                    ) : null}
-
-                    {/* Email Field */}
-                    <View style={styles.fieldGroup}>
-                        <Text style={styles.label}>Email Address</Text>
-                        <Pressable
-                            style={[styles.inputWrap, emailFocused && styles.inputFocused]}
-                            onPress={() => emailRef.current?.focus()}
-                        >
-                            <View style={[styles.inlineIconBox, emailFocused && { backgroundColor: C.primarySoft }]}>
-                                <Mail size={18} color={emailFocused ? C.primary : C.muted} />
-                            </View>
-                            <TextInput
-                                ref={emailRef}
-                                style={styles.textInput}
-                                placeholder="name@example.com"
-                                placeholderTextColor={C.muted}
-                                value={email}
-                                onChangeText={handleEmailChange}
-                                autoCapitalize="none"
-                                keyboardType="email-address"
-                                autoCorrect={false}
-                                spellCheck={false}
-                                textContentType="emailAddress"
-                                onFocus={() => setEmailFocused(true)}
-                                onBlur={() => setEmailFocused(false)}
-                                blurOnSubmit={false}
-                            />
-                        </Pressable>
-                    </View>
-
-                    {/* Password Field */}
-                    <View style={styles.fieldGroup}>
-                        <Text style={styles.label}>Password</Text>
-                        <Pressable
-                            style={[styles.inputWrap, passFocused && styles.inputFocused]}
-                            onPress={() => passwordRef.current?.focus()}
-                        >
-                            <View style={[styles.inlineIconBox, passFocused && { backgroundColor: C.primarySoft }]}>
-                                <Lock size={18} color={passFocused ? C.primary : C.muted} />
-                            </View>
-                            <TextInput
-                                ref={passwordRef}
-                                style={styles.textInput}
-                                placeholder="Enter password"
-                                placeholderTextColor={C.muted}
-                                value={password}
-                                onChangeText={handlePasswordChange}
-                                secureTextEntry={!showPassword}
-                                textContentType="password"
-                                onFocus={() => setPassFocused(true)}
-                                onBlur={() => setPassFocused(false)}
-                            />
-                            <Pressable onPress={() => setShowPassword(!showPassword)} hitSlop={12}>
-                                {showPassword ? <Eye size={18} color={C.primary} /> : <EyeOff size={18} color={C.muted} />}
-                            </Pressable>
-                        </Pressable>
-                    </View>
-
-                    {/* Forgot Password */}
-                    <Pressable style={styles.forgotRow} onPress={handleForgotPassword}>
-                        <Text style={styles.forgotText}>Forgot Password?</Text>
+                {/* Sign Up Link */}
+                <View style={styles.bottomLink}>
+                    <Text style={styles.bottomLinkText}>Don't have an account?  </Text>
+                    <Pressable onPress={() => navigation.navigate('PatientSignup')}>
+                        <Text style={styles.bottomLinkAction}>Sign Up</Text>
                     </Pressable>
+                </View>
 
-                    {/* Login Button — Indigo Pill */}
-                    <Pressable style={[styles.primaryBtn, loading && { opacity: 0.7 }]} onPress={handleLogin} disabled={loading}>
-                        <LinearGradient
-                            colors={['#6366F1', '#4338CA']}
-                            start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-                            style={styles.primaryBtnGradient}
-                        >
-                            {loading ? (
-                                <View style={styles.loadingRow}>
-                                    <ActivityIndicator size="small" color="#FFFFFF" />
-                                    <Text style={styles.primaryBtnText}>  Verifying...</Text>
-                                </View>
-                            ) : (
-                                <>
-                                    <Text style={styles.primaryBtnText}>Sign In to Dashboard</Text>
-                                    <ChevronRight size={20} color="#FFFFFF" />
-                                </>
-                            )}
-                        </LinearGradient>
-                    </Pressable>
+            </Animated.View>
 
-                    {/* Sign Up Link */}
-                    <View style={styles.bottomLink}>
-                        <Text style={styles.bottomLinkText}>Don't have an account?  </Text>
-                        <Pressable onPress={() => navigation.navigate('PatientSignup')}>
-                            <Text style={styles.bottomLinkAction}>Sign Up</Text>
-                        </Pressable>
-                    </View>
-
-                </Animated.View>
-            </ScrollView>
+            {/* Reset Password Modal */}
+            <ResetPasswordModal
+                visible={resetModalVisible}
+                onClose={() => setResetModalVisible(false)}
+                email={email}
+            />
         </KeyboardAvoidingView>
     );
 }
@@ -369,104 +533,103 @@ export default function LoginScreen({ navigation }) {
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: C.pageBg },
 
-    // ─── Hero Section — Indigo→Cyan ────────────────
+    // ─── Hero Section — Compact ────────────────
     hero: {
-        height: 300,
+        height: 260,
         borderBottomLeftRadius: 40,
         borderBottomRightRadius: 40,
         alignItems: 'center',
         justifyContent: 'center',
-        paddingTop: Platform.OS === 'ios' ? 60 : 40,
+        paddingTop: Platform.OS === 'ios' ? 50 : 30,
         overflow: 'hidden',
     },
     decorativeCircle: { position: 'absolute', borderRadius: 100 },
     heroIconWrap: {
-        width: 80, height: 80, borderRadius: 24,
+        width: 72, height: 72, borderRadius: 22,
         backgroundColor: 'rgba(255,255,255,0.15)',
         alignItems: 'center', justifyContent: 'center',
-        marginBottom: 16,
+        marginBottom: 12,
         borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)',
     },
-    heroLabel: { fontSize: 12, ...FONT.bold, color: 'rgba(255,255,255,0.6)', letterSpacing: 2, marginBottom: 6 },
-    heroTitle: { fontSize: 32, ...FONT.heavy, color: '#FFFFFF', letterSpacing: -0.5 },
-    heroSubtitle: { fontSize: 15, ...FONT.medium, color: 'rgba(255,255,255,0.75)', marginTop: 4 },
+    heroLabel: { fontSize: 12, ...FONT.bold, color: 'rgba(255,255,255,0.6)', letterSpacing: 2, marginBottom: 4 },
+    heroTitle: { fontSize: 30, ...FONT.heavy, color: '#FFFFFF', letterSpacing: -0.5 },
+    heroSubtitle: { fontSize: 14, ...FONT.medium, color: 'rgba(255,255,255,0.75)', marginTop: 4 },
 
-    // ─── Form Card Overlay — Squircle ───────────
+    // ─── Form Card — No scrolling ───────────
     formCard: {
-        marginTop: -30,
+        marginTop: -28,
         marginHorizontal: 20,
         backgroundColor: '#FFFFFF',
-        borderRadius: 36,
-        paddingHorizontal: 24,
-        paddingTop: 32,
-        paddingBottom: 30,
+        borderRadius: 32,
+        paddingHorizontal: 22,
+        paddingTop: 26,
+        paddingBottom: 22,
         shadowColor: C.primary,
         shadowOffset: { width: 0, height: 20 },
         shadowOpacity: 0.08,
         shadowRadius: 32,
         elevation: 12,
-        marginBottom: 40,
         zIndex: 5,
     },
 
-    socialRowPremium: { flexDirection: 'row', gap: 16, marginBottom: 32 },
+    socialRowPremium: { flexDirection: 'row', gap: 14, marginBottom: 24 },
     socialBtnPremium: {
         flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
         backgroundColor: '#FFFFFF',
         borderWidth: 1.5, borderColor: C.borderMid,
-        borderRadius: 24, height: 60, gap: 12,
+        borderRadius: 20, height: 52, gap: 10,
     },
-    socialBtnTextPremium: { fontSize: 15, ...FONT.bold, color: C.dark },
-    googleG: { fontSize: 20, ...FONT.heavy, color: '#4285F4' },
+    socialBtnTextPremium: { fontSize: 14, ...FONT.bold, color: C.dark },
+    googleG: { fontSize: 18, ...FONT.heavy, color: '#4285F4' },
 
-    dividerRowPremium: { flexDirection: 'row', alignItems: 'center', marginBottom: 24, paddingHorizontal: 10 },
+    dividerRowPremium: { flexDirection: 'row', alignItems: 'center', marginBottom: 20, paddingHorizontal: 10 },
     dividerLine: { flex: 1, height: 1, backgroundColor: C.borderMid },
-    dividerText: { marginHorizontal: 16, fontSize: 11, color: C.muted, ...FONT.heavy, letterSpacing: 1.5 },
+    dividerText: { marginHorizontal: 14, fontSize: 10, color: C.muted, ...FONT.heavy, letterSpacing: 1.5 },
 
     // ─── Fields ──────────────────────
-    fieldGroup: { marginBottom: 20 },
-    label: { fontSize: 13, ...FONT.bold, color: C.muted, marginBottom: 10, marginLeft: 2, letterSpacing: 0.5 },
+    fieldGroup: { marginBottom: 16 },
+    label: { fontSize: 12, ...FONT.bold, color: C.muted, marginBottom: 8, marginLeft: 2, letterSpacing: 0.5 },
     inlineIconBox: {
-        width: 36, height: 36, borderRadius: 10,
-        backgroundColor: C.border, alignItems: 'center', justifyContent: 'center', marginRight: 12,
+        width: 34, height: 34, borderRadius: 10,
+        backgroundColor: C.border, alignItems: 'center', justifyContent: 'center', marginRight: 10,
     },
     inputWrap: {
         flexDirection: 'row', alignItems: 'center',
         backgroundColor: '#FFFFFF',
         borderWidth: 1.5, borderColor: C.border,
-        borderRadius: 20, height: 64,
-        paddingHorizontal: 16,
+        borderRadius: 18, height: 56,
+        paddingHorizontal: 14,
     },
     inputFocused: {
         borderColor: C.primary,
         shadowColor: C.primary, shadowOpacity: 0.08, shadowRadius: 16, shadowOffset: { width: 0, height: 4 },
         elevation: 4,
     },
-    textInput: { flex: 1, fontSize: 16, color: C.dark, ...FONT.semibold },
+    textInput: { flex: 1, fontSize: 15, color: C.dark, ...FONT.semibold },
 
     errorBox: {
-        flexDirection: 'row', alignItems: 'center', gap: 10,
-        backgroundColor: C.dangerBg, borderRadius: 20, padding: 16, marginBottom: 24,
+        flexDirection: 'row', alignItems: 'center', gap: 8,
+        backgroundColor: C.dangerBg, borderRadius: 16, padding: 14, marginBottom: 16,
         borderWidth: 1, borderColor: '#FCA5A5',
     },
-    errorMsg: { color: '#991B1B', fontSize: 14, ...FONT.semibold, flex: 1 },
+    errorMsg: { color: '#991B1B', fontSize: 13, ...FONT.semibold, flex: 1 },
 
-    forgotRow: { alignSelf: 'flex-end', marginTop: -10, marginBottom: 32 },
-    forgotText: { fontSize: 14, ...FONT.bold, color: C.primary },
+    forgotRow: { alignSelf: 'flex-end', marginTop: -6, marginBottom: 20 },
+    forgotText: { fontSize: 13, ...FONT.bold, color: C.primary },
 
-    // ─── Primary Button — Indigo Pill ────────
+    // ─── Primary Button ────────
     primaryBtn: {
-        borderRadius: 100, height: 64,
+        borderRadius: 100, height: 56,
         overflow: 'hidden',
         shadowColor: C.primary, shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.3, shadowRadius: 20, elevation: 10,
     },
     primaryBtnGradient: {
-        flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12,
+        flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
     },
-    primaryBtnText: { color: '#FFFFFF', fontSize: 17, ...FONT.bold },
+    primaryBtnText: { color: '#FFFFFF', fontSize: 16, ...FONT.bold },
     loadingRow: { flexDirection: 'row', alignItems: 'center' },
 
-    bottomLink: { flexDirection: 'row', justifyContent: 'center', marginTop: 40, paddingBottom: 20 },
-    bottomLinkText: { fontSize: 15, color: C.muted, ...FONT.medium },
-    bottomLinkAction: { fontSize: 15, ...FONT.heavy, color: C.primary },
+    bottomLink: { flexDirection: 'row', justifyContent: 'center', marginTop: 24, paddingBottom: 10 },
+    bottomLinkText: { fontSize: 14, color: C.muted, ...FONT.medium },
+    bottomLinkAction: { fontSize: 14, ...FONT.heavy, color: C.primary },
 });

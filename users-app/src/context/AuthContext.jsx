@@ -373,10 +373,13 @@ export function AuthProvider({ children }) {
     }, [setProfileAndCache]);
 
     // ── Reset Password ─────────────────────────────────────────────────────
-
+    // Now uses our custom OTP-based reset flow instead of Supabase default
     const resetPassword = useCallback(async (email) => {
-        try { await auth.resetPassword(email, 'careco-app://reset-password'); }
-        catch (error) { throw handleAuthError(error); }
+        try {
+            await apiService.auth.resetPassword(email);
+        } catch (error) {
+            throw error;
+        }
     }, []);
 
     // ── Inject Session (post Google new-user signup) ───────────────────────
@@ -405,14 +408,12 @@ export function AuthProvider({ children }) {
         isOnboardingRef.current = false;
     }, []);
 
-    // ── OTP Verification ───────────────────────────────────────────────────
+    // ── OTP Verification (Custom Backend) ──────────────────────────────────
+    // Uses our Redis-backed OTP service instead of Supabase Magic Links
 
     const sendOtp = useCallback(async (field, value) => {
         try {
-            const { error } = await supabase.auth.signInWithOtp({
-                [field === 'phone' ? 'phone' : 'email']: value,
-            });
-            if (error) throw handleAuthError(error);
+            await apiService.auth.sendOtp(value, field); // field = 'email' or 'phone'
             return true;
         } catch (error) {
             throw error;
@@ -421,18 +422,8 @@ export function AuthProvider({ children }) {
 
     const verifyOtp = useCallback(async (field, value, token) => {
         try {
-            const { data, error } = await supabase.auth.verifyOtp({
-                [field === 'phone' ? 'phone' : 'email']: value,
-                token,
-                type: field === 'phone' ? 'sms' : 'email',
-            });
-            if (error) throw handleAuthError(error);
-            
-            // Note: Since this is for verification *during* signup, we don't
-            // want to accidentally set the main session yet if they are still 
-            // filling out the rest of the form. But Supabase will log them in. 
-            // The signup flow handles this by re-authenticating or linking.
-            return data;
+            const res = await apiService.auth.verifyOtp(value, token, field);
+            return res.data;
         } catch (error) {
             throw error;
         }

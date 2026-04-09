@@ -14,7 +14,7 @@ const api = axios.create({
     timeout: 10000,
     headers: {
         'Content-Type': 'application/json',
-        'x-app-name': 'CareCo',
+        'x-app-name': 'Samvaya',
         'x-app-platform': 'mobile',
     },
 });
@@ -130,6 +130,10 @@ export const apiService = {
         updatePatientCity: (data) => api.put('/auth/patient-city', data),
         changePassword: (data) => api.post('/auth/change-password', data),
         resetPassword: (email) => api.post('/auth/reset-password', { email }),
+        resetPasswordVerify: (data) => api.post('/auth/reset-password/verify', data),
+        sendOtp: (identifier, type) => api.post('/auth/send-otp', { identifier, type }),
+        verifyOtp: (identifier, otp, type) => api.post('/auth/verify-otp', { identifier, otp, type }),
+        setPassword: (newPassword) => api.post('/auth/set-password', { newPassword }),
     },
 
     // Patient-specific endpoints

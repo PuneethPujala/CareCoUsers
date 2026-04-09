@@ -36,7 +36,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     },
     global: {
         headers: {
-            'x-app-name': 'CareCo',
+            'x-app-name': 'Samvaya',
             'x-app-platform': Platform.OS,
             'x-app-version': '1.0.0',
         },

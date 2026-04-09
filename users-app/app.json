@@ -1,14 +1,15 @@
 {
   "expo": {
-    "name": "CareCo",
+    "name": "Samvaya",
     "slug": "careco-users",
     "scheme": "careco-app",
     "version": "1.0.0",
     "orientation": "portrait",
+    "icon": "./assets/Logo.jpg",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/splash.png",
+      "image": "./assets/Logo.jpg",
       "backgroundColor": "#0A2463",
       "resizeMode": "contain"
     },
@@ -40,8 +41,9 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "0577bab0-242a-4d43-a66c-4e0ee3e9bcff"
+        "projectId": "15b2983e-5c3b-42bb-b810-61bca54d3c4c"
       }
-    }
+    },
+    "owner": "puneeth.2005"
   }
 }

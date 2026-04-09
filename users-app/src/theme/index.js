@@ -1,6 +1,6 @@
 /**
- * CareCo Users App — Theme
- * Design tokens for the CareCo Users App
+ * Samvaya Users App — Theme
+ * Design tokens for the Samvaya Users App
  * (Mirrors shared/theme/tokens.js — kept in-app for Metro bundler compatibility)
  */
 

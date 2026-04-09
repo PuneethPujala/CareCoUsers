@@ -10,7 +10,8 @@ const { authenticate } = require('../middleware/authenticate');
 const { authorize } = require('../middleware/authorize');
 const { checkPasswordChange } = require('../middleware/checkPasswordChange');
 const { logEvent, logSecurityEvent } = require('../services/auditService');
-const { sendTempPasswordEmail, sendPasswordChangedEmail } = require('../services/emailService');
+const { sendTempPasswordEmail, sendPasswordChangedEmail, sendOTPEmail, sendPasswordResetEmail } = require('../services/emailService');
+const { createOTP, verifyOTP } = require('../services/otpService');
 
 const router = express.Router();
 
@@ -422,35 +423,86 @@ router.post('/refresh', async (req, res) => {
 
 /**
  * POST /api/auth/reset-password
+ * Sends a custom OTP to the user's email for password reset (replaces Supabase default)
  */
 router.post('/reset-password', async (req, res) => {
     try {
         const { email } = req.body;
         if (!email) return res.status(400).json({ error: 'Email is required' });
 
-        const profile = await Profile.findOne({ email, isActive: true });
-
         // Always return same message — don't reveal whether account exists
         const genericResponse = {
-            message: 'If an account with this email exists, a password reset link has been sent',
+            message: 'If an account with this email exists, a password reset code has been sent',
         };
 
-        if (!profile) return res.json(genericResponse);
+        // Check both Profile and Patient collections
+        const profile = await Profile.findOne({ email: email.toLowerCase().trim(), isActive: true });
+        const patient = await Patient.findOne({ email: email.toLowerCase().trim(), is_active: true });
 
-        const { error } = await supabase.auth.resetPasswordForEmail(email, {
-            redirectTo: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password`,
-        });
+        if (!profile && !patient) return res.json(genericResponse);
 
-        if (error) {
-            console.error('Password reset error:', error);
-            return res.status(500).json({ error: 'Failed to send password reset email', details: error.message });
-        }
+        // Generate and send OTP
+        const otp = await createOTP(`reset:${email.toLowerCase().trim()}`);
+        await sendPasswordResetEmail(email, otp);
 
-        await logEvent(profile.supabaseUid, 'password_reset', 'profile', profile._id, req);
+        const uid = profile ? profile.supabaseUid : patient.supabase_uid;
+        const docId = profile ? profile._id : patient._id;
+        await logEvent(uid, 'password_reset_requested', profile ? 'profile' : 'patient', docId, req);
+
         res.json(genericResponse);
-
     } catch (error) {
         console.error('Password reset error:', error);
+        res.status(500).json({ error: 'Password reset failed', details: error.message });
+    }
+});
+
+/**
+ * POST /api/auth/reset-password/verify
+ * Verify the reset OTP and set a new password
+ */
+router.post('/reset-password/verify', async (req, res) => {
+    try {
+        const { email, otp, newPassword } = req.body;
+        if (!email || !otp || !newPassword) {
+            return res.status(400).json({ error: 'Email, OTP, and new password are required' });
+        }
+
+        const complexityErrors = validatePasswordComplexity(newPassword);
+        if (complexityErrors.length > 0) {
+            return res.status(400).json({ error: 'Password does not meet requirements', details: complexityErrors });
+        }
+
+        // Verify OTP
+        const result = await verifyOTP(`reset:${email.toLowerCase().trim()}`, otp);
+        if (!result.valid) {
+            return res.status(400).json({ error: result.reason });
+        }
+
+        // Find user in Profile or Patient
+        const profile = await Profile.findOne({ email: email.toLowerCase().trim(), isActive: true });
+        const patient = await Patient.findOne({ email: email.toLowerCase().trim(), is_active: true });
+
+        if (!profile && !patient) {
+            return res.status(404).json({ error: 'Account not found' });
+        }
+
+        const uid = profile ? profile.supabaseUid : patient.supabase_uid;
+
+        // Update password in Supabase
+        const { error: updateError } = await supabase.auth.admin.updateUserById(uid, { password: newPassword });
+        if (updateError) {
+            return res.status(500).json({ error: 'Failed to update password', details: updateError.message });
+        }
+
+        // Send confirmation email
+        const fullName = profile ? profile.fullName : patient.name;
+        sendPasswordChangedEmail(email, fullName);
+
+        await logEvent(uid, 'password_reset_completed', profile ? 'profile' : 'patient', profile ? profile._id : patient._id, req);
+
+        res.json({ message: 'Password has been reset successfully. Please log in with your new password.' });
+    } catch (error) {
+        console.error('Reset password verify error:', error);
         res.status(500).json({ error: 'Password reset failed', details: error.message });
     }
 });
@@ -844,6 +896,105 @@ router.put('/me', authenticate, checkPasswordChange, authorize('profile', 'updat
     } catch (error) {
         console.error('Update profile error:', error);
         res.status(500).json({ error: 'Failed to update profile', details: error.message });
+    }
+});
+
+// ─── OTP Endpoints ────────────────────────────────────────────────────────────
+
+/**
+ * POST /api/auth/send-otp
+ * Send a 6-digit OTP to the user's email or phone.
+ * For email: generates a real OTP and sends via email.
+ * For phone: uses placeholder OTP (123456) — no SMS service yet.
+ */
+router.post('/send-otp', async (req, res) => {
+    try {
+        const { identifier, type } = req.body; // type: 'email' or 'phone'
+        if (!identifier || !type) {
+            return res.status(400).json({ error: 'identifier and type (email/phone) are required' });
+        }
+
+        if (type === 'email') {
+            // Generate real OTP and send via email
+            const otp = await createOTP(identifier.toLowerCase().trim());
+            await sendOTPEmail(identifier, otp);
+            res.json({ message: 'Verification code sent to your email.' });
+        } else if (type === 'phone') {
+            // Placeholder: store fixed OTP 123456
+            const redis = require('../lib/redis');
+            const key = `otp:${identifier.trim()}`;
+            await redis.del(key);
+            await redis.set(key, '123456', 'EX', 600);
+            console.log(`📱 Phone OTP set to 123456 for ${identifier} (dev mode)`);
+            res.json({ message: 'Verification code sent to your phone.' });
+        } else {
+            return res.status(400).json({ error: 'type must be "email" or "phone"' });
+        }
+    } catch (error) {
+        console.error('Send OTP error:', error);
+        res.status(500).json({ error: 'Failed to send verification code', details: error.message });
+    }
+});
+
+/**
+ * POST /api/auth/verify-otp
+ * Verify the 6-digit OTP for email or phone.
+ */
+router.post('/verify-otp', async (req, res) => {
+    try {
+        const { identifier, otp, type } = req.body;
+        if (!identifier || !otp) {
+            return res.status(400).json({ error: 'identifier and otp are required' });
+        }
+
+        const key = type === 'phone' ? identifier.trim() : identifier.toLowerCase().trim();
+        const result = await verifyOTP(key, otp);
+
+        if (!result.valid) {
+            return res.status(400).json({ error: result.reason });
+        }
+
+        res.json({ message: 'Verification successful', verified: true });
+    } catch (error) {
+        console.error('Verify OTP error:', error);
+        res.status(500).json({ error: 'Verification failed', details: error.message });
+    }
+});
+
+/**
+ * POST /api/auth/set-password
+ * Allows a Google-authenticated user to set a password for email/password login.
+ */
+router.post('/set-password', authenticate, async (req, res) => {
+    try {
+        const { newPassword } = req.body;
+        if (!newPassword) {
+            return res.status(400).json({ error: 'newPassword is required' });
+        }
+
+        const complexityErrors = validatePasswordComplexity(newPassword);
+        if (complexityErrors.length > 0) {
+            return res.status(400).json({ error: 'Password does not meet requirements', details: complexityErrors });
+        }
+
+        // Update password in Supabase
+        const { error: updateError } = await supabase.auth.admin.updateUserById(
+            req.user.id, { password: newPassword }
+        );
+        if (updateError) {
+            return res.status(500).json({ error: 'Failed to set password', details: updateError.message });
+        }
+
+        const fullName = req.profile.role === 'patient' ? req.profile.name : req.profile.fullName;
+        sendPasswordChangedEmail(req.profile.email, fullName);
+
+        const uid = req.profile.role === 'patient' ? req.profile.supabase_uid : req.profile.supabaseUid;
+        await logEvent(uid, 'password_set', req.profile.role === 'patient' ? 'patient' : 'profile', req.profile._id, req);
+
+        res.json({ message: 'Password set successfully. You can now log in with email and password.' });
+    } catch (error) {
+        console.error('Set password error:', error);
+        res.status(500).json({ error: 'Failed to set password', details: error.message });
     }
 });
 

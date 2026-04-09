@@ -54,7 +54,7 @@ export async function registerForPushNotificationsAsync() {
     // Android requires a notification channel
     if (Platform.OS === 'android') {
         await Notifications.setNotificationChannelAsync('default', {
-            name: 'CareCo Notifications',
+            name: 'Samvaya Notifications',
             importance: Notifications.AndroidImportance.MAX,
             vibrationPattern: [0, 250, 250, 250],
             lightColor: '#6366F1',
@@ -95,7 +95,7 @@ export async function sendSeamlessExperienceNotification() {
     try {
         await Notifications.scheduleNotificationAsync({
             content: {
-                title: 'Welcome to CareCo! 🎉',
+                title: 'Welcome to Samvaya! 🎉',
                 body: 'Enjoy the seamless experience with our app. We\'re here to take care of your health!',
                 data: { screen: 'PatientHome' },
                 sound: 'default',
@@ -140,7 +140,7 @@ export async function sendDailyWelcomeNotification(userName = 'there', force = f
         await Notifications.scheduleNotificationAsync({
             content: {
                 title: `${greeting}, ${firstName}! 👋`,
-                body: 'Welcome back to CareCo. Stay on top of your health today!',
+                body: 'Welcome back to Samvaya. Stay on top of your health today!',
                 data: { screen: 'PatientHome' },
                 sound: 'default',
             },

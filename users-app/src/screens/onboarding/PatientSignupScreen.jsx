@@ -957,7 +957,7 @@ export default function PatientSignupScreen({ navigation, route }) {
                 <LinearGradient colors={['#F0FFF4', '#FFFFFF']} style={styles.successCelebrationCard}>
                     <View style={styles.largeSuccessCircle}><CheckCircle2 size={56} color="#22C55E" strokeWidth={2.5} /></View>
                     <Text style={styles.successTitle}>Payment Successful!</Text>
-                    <Text style={styles.successSubtitle}>Welcome to the CareCo family.</Text>
+                    <Text style={styles.successSubtitle}>Welcome to the Samvaya family.</Text>
                 </LinearGradient>
             </Animated.View>
 
@@ -1006,7 +1006,7 @@ export default function PatientSignupScreen({ navigation, route }) {
 
             <Animated.View style={{ opacity: staggerAnims[1], transform: [{ translateY: staggerAnims[1].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>
                 <Text style={styles.megaTitle}>All Systems Go!</Text>
-                <Text style={styles.megaSubtitle}>Your CareCo experience is ready and waiting.</Text>
+                <Text style={styles.megaSubtitle}>Your Samvaya experience is ready and waiting.</Text>
             </Animated.View>
 
             <Animated.View style={{ opacity: staggerAnims[2], width: '100%', transform: [{ translateY: staggerAnims[2].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>

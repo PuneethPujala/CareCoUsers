@@ -102,7 +102,7 @@ export default function WaitingScreen({ navigation, route }) {
                         </View>
                         <Text style={styles.waitingTitle}>Your Coordinator Will Call Soon</Text>
                         <Text style={styles.waitingDesc}>
-                            A CareCo care coordinator from your city will call you shortly to complete your health profile and get you started.
+                            A Samvaya care coordinator from your city will call you shortly to complete your health profile and get you started.
                         </Text>
                         <View style={styles.waitingTimeline}>
                             <Clock size={16} color="rgba(255,255,255,0.6)" />
@@ -111,12 +111,12 @@ export default function WaitingScreen({ navigation, route }) {
                     </LinearGradient>
                 </Animated.View>
 
-                {/* About CareCo */}
+                {/* About Samvaya */}
                 <Animated.View style={{ opacity: fadeAnim }}>
                     <Text style={styles.sectionEyebrow}>WHILE YOU WAIT</Text>
-                    <Text style={styles.sectionTitle}>Discover CareCo</Text>
+                    <Text style={styles.sectionTitle}>Discover Samvaya</Text>
                     <Text style={styles.sectionDesc}>
-                        CareCo is India's first personalized elderly care platform. We connect
+                        Samvaya is India's first personalized elderly care platform. We connect
                         seniors with dedicated care coordinators who call daily, track health,
                         and provide 24/7 support.
                     </Text>

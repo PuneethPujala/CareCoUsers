@@ -14,6 +14,7 @@ import { colors } from '../../theme';
 import { useAuth } from '../../context/AuthContext';
 import { apiService } from '../../lib/api';
 import { registerForPushNotificationsAsync } from '../../utils/notifications';
+import { Lock as LockIcon } from 'lucide-react-native';
 
 const C = {
     primary: '#6366F1', primarySoft: '#EEF2FF', dark: '#0F172A', mid: '#334155',
@@ -45,6 +46,7 @@ export default function PatientProfileScreen({ navigation }) {
     const [addressModalVisible, setAddressModalVisible] = useState(false);
     const [familyModalVisible, setFamilyModalVisible] = useState(false);
     const [addAddressModalVisible, setAddAddressModalVisible] = useState(false);
+    const [setPassModalVisible, setSetPassModalVisible] = useState(false);
 
     // Notification Prefs
     const [pushEnabled, setPushEnabled] = useState(true);
@@ -94,6 +96,11 @@ export default function PatientProfileScreen({ navigation }) {
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [savingCp, setSavingCp] = useState(false);
+
+    // Set Password (for Google users)
+    const [setPassNew, setSetPassNew] = useState('');
+    const [setPassConfirm, setSetPassConfirm] = useState('');
+    const [savingSetPass, setSavingSetPass] = useState(false);
 
     const staggerAnims = React.useRef([...Array(12)].map(() => new Animated.Value(0))).current;
 
@@ -288,6 +295,26 @@ export default function PatientProfileScreen({ navigation }) {
         finally { setSavingCp(false); }
     };
 
+    const handleSetPassword = async () => {
+        if (!setPassNew || !setPassConfirm) { Alert.alert('Error', 'Please fill all fields.'); return; }
+        if (setPassNew.length < 8) { Alert.alert('Error', 'Password must be at least 8 characters.'); return; }
+        if (!/[A-Z]/.test(setPassNew)) { Alert.alert('Error', 'Password must contain an uppercase letter.'); return; }
+        if (!/[0-9]/.test(setPassNew)) { Alert.alert('Error', 'Password must contain a number.'); return; }
+        if (setPassNew !== setPassConfirm) { Alert.alert('Error', 'Passwords do not match.'); return; }
+        setSavingSetPass(true);
+        try {
+            await apiService.auth.setPassword(setPassNew);
+            setSetPassModalVisible(false);
+            setSetPassNew(''); setSetPassConfirm('');
+            Alert.alert('Success', 'Password set! You can now log in with your email and this password on any device.');
+        } catch (err) {
+            const msg = err?.response?.data?.error || err?.message || 'Failed to set password.';
+            Alert.alert('Error', msg);
+        } finally {
+            setSavingSetPass(false);
+        }
+    };
+
     /* ── Derived ──────────────────────────────── */
     const planLabel = patient?.subscription?.plan === 'explore' ? 'Explore Plan' : patient?.subscription?.plan === 'basic' ? 'Basic Plan' : 'Free Plan';
     const planColor = patient?.subscription?.plan === 'explore' ? '#9333EA' : '#16A34A';
@@ -347,15 +374,15 @@ export default function PatientProfileScreen({ navigation }) {
                             </View>
                             <View style={s.profileInfo}>
                                 <Text style={s.profileName}>{patient?.name || displayName || 'User'}</Text>
-                                <Text style={s.profileEmail}>{userEmail || 'patient@careco.com'}</Text>
+                                <Text style={s.profileEmail}>{userEmail || 'patient@samvaya.com'}</Text>
                             </View>
                         </View>
                     </View>
                 </Animated.View>
 
-                {/* ── CareCo Premium Banner ── */}
+                {/* ── Samvaya Premium Banner ── */}
                 <Animated.View style={anim(2)}>
-                    <Text style={s.sectionTitle}>CARECO PLAN</Text>
+                    <Text style={s.sectionTitle}>SAMVAYA PLAN</Text>
                     <Pressable style={s.premiumCard}>
                         <View style={s.premiumLeft}>
                             <View style={s.starBadge}><Star size={18} color="#FFF" fill="#FFF" /></View>
@@ -458,7 +485,8 @@ export default function PatientProfileScreen({ navigation }) {
                     <Text style={s.sectionTitle}>ACCOUNT & SECURITY</Text>
                     <View style={s.card}>
                         <InfoRow icon={UserRound} iconBg="#EFF6FF" iconColor="#3B82F6" label="Account Details" value={null} placeholder="View details" onPress={() => setAccountModalVisible(true)} />
-                        <InfoRow icon={Shield} iconBg="#F5F3FF" iconColor="#8B5CF6" label="Change Password" value={null} placeholder="Update credentials" onPress={() => setCpModalVisible(true)} isLast />
+                        <InfoRow icon={Shield} iconBg="#F5F3FF" iconColor="#8B5CF6" label="Change Password" value={null} placeholder="Update credentials" onPress={() => setCpModalVisible(true)} />
+                        <InfoRow icon={LockIcon} iconBg="#FEF3C7" iconColor="#F59E0B" label="Set Password" value={null} placeholder="For multi-device login" onPress={() => setSetPassModalVisible(true)} isLast />
                     </View>
                 </Animated.View>
 
@@ -468,7 +496,7 @@ export default function PatientProfileScreen({ navigation }) {
                         <LogOut size={20} color="#E11D48" strokeWidth={2.5} />
                         <Text style={s.logoutTxt}>Sign Out Account</Text>
                     </Pressable>
-                    <Text style={s.versionTxt}>v1.0.4 • Made with ♥ by CareCo</Text>
+                    <Text style={s.versionTxt}>v1.0.4 • Made with ♥ by Samvaya</Text>
                 </Animated.View>
             </ScrollView>
 
@@ -612,6 +640,27 @@ export default function PatientProfileScreen({ navigation }) {
                         <Pressable style={s.saveBtn} onPress={handleChangePassword} disabled={savingCp}>
                             <Save size={18} color="#FFFFFF" />
                             <Text style={s.saveBtnTxt}>{savingCp ? 'Changing...' : 'Change Password'}</Text>
+                        </Pressable>
+                    </View>
+                </KeyboardAvoidingView>
+            </Modal>
+
+            {/* ── Set Password (Google Users) ── */}
+            <Modal visible={setPassModalVisible} animationType="slide" transparent onRequestClose={() => setSetPassModalVisible(false)}>
+                <KeyboardAvoidingView style={s.modalOverlay} behavior="padding">
+                    <View style={s.modalContent}>
+                        <View style={s.modalHeader}>
+                            <Text style={s.modalTitle}>Set Password</Text>
+                            <Pressable onPress={() => setSetPassModalVisible(false)} hitSlop={10}><X size={24} color="#64748B" /></Pressable>
+                        </View>
+                        <Text style={s.modalSubTxt}>Set a password so you can log in with your email on any device, even without Google.</Text>
+                        <Text style={s.inputLabel}>New Password</Text>
+                        <TextInput style={s.input} value={setPassNew} onChangeText={setSetPassNew} placeholder="Min 8 chars, 1 uppercase, 1 number" placeholderTextColor="#94A3B8" secureTextEntry />
+                        <Text style={s.inputLabel}>Confirm Password</Text>
+                        <TextInput style={s.input} value={setPassConfirm} onChangeText={setSetPassConfirm} placeholder="Re-enter password" placeholderTextColor="#94A3B8" secureTextEntry />
+                        <Pressable style={s.saveBtn} onPress={handleSetPassword} disabled={savingSetPass}>
+                            <Save size={18} color="#FFFFFF" />
+                            <Text style={s.saveBtnTxt}>{savingSetPass ? 'Setting...' : 'Set Password'}</Text>
                         </Pressable>
                     </View>
                 </KeyboardAvoidingView>

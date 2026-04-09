@@ -24,7 +24,7 @@ import { apiService } from "../lib/api";
 import { colors } from "../theme";
 
 // Onboarding screens
-import SplashScreen from "../screens/onboarding/SplashScreen";
+// SplashScreen removed — native splash handles the transition now
 import PatientSignupScreen from "../screens/onboarding/PatientSignupScreen";
 import LoginScreen from "../screens/onboarding/LoginScreen";
 import ResetPasswordScreen from "../screens/onboarding/ResetPasswordScreen";
@@ -251,7 +251,7 @@ const MainAppStack = ({ isCaller }) => (
 export default function AppNavigator() {
     const { initializing, isAuthenticated, userRole, user, profile } = useAuth();
     const isCaller = userRole === "caretaker" || userRole === "caller";
-    const [splashDone, setSplashDone] = useState(false);
+
 
     const notificationListener = useRef();
     const responseListener = useRef();
@@ -315,7 +315,6 @@ export default function AppNavigator() {
         setupNotifications();
     }, [isAuthenticated, user, userRole, profile]);
 
-    if (!splashDone) return <SplashScreen onFinish={() => setSplashDone(true)} />;
     if (initializing) return <LoadingScreen />;
     if (!user) return <AuthStack />;
     if (!profile) return <LoadingScreen />;
