@@ -20,6 +20,8 @@ const usersMedicineRoutes = require('./routes/users/medicines');
 const vitalsRoutes = require('./routes/vitalsRoutes');
 
 const app = express();
+// Enable if you're behind a reverse proxy (Heroku, Bluemix, AWS ELB, Nginx, Render, etc)
+app.set('trust proxy', 1);
 const PORT = process.env.PORT || 3001;
 
 // Connect to MongoDB (skip in test environment to avoid open handles or missing mocks)
