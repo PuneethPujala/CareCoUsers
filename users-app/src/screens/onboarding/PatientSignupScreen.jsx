@@ -646,7 +646,10 @@ export default function PatientSignupScreen({ navigation, route }) {
             await saveProgress(2);
             setStep(2);
         } catch (error) {
-            const { general, fields } = parseError(error);
+            let { general, fields } = parseError(error);
+            if (general === 'Request failed with status code 400' || error?.message === 'Request failed with status code 400') {
+                general = 'An account with this email/phone already exists. Please log in.';
+            }
             setErrors({
                 general,
                 ...(fields.email ? { email: fields.email } : {}),
