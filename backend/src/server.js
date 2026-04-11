@@ -18,6 +18,7 @@ const usersPatientRoutes = require('./routes/users/patients');
 const usersCallerRoutes = require('./routes/users/callers');
 const usersMedicineRoutes = require('./routes/users/medicines');
 const vitalsRoutes = require('./routes/vitalsRoutes');
+const vitalsSyncRoutes = require('./routes/vitalsSync');
 
 const app = express();
 // Enable if you're behind a reverse proxy (Heroku, Bluemix, AWS ELB, Nginx, Render, etc)
@@ -84,6 +85,7 @@ app.use('/api/users/patients', usersPatientRoutes);
 app.use('/api/users/callers', usersCallerRoutes);
 app.use('/api/users/medicines', usersMedicineRoutes);
 app.use('/api/vitals', vitalsRoutes);
+app.use('/api/vitals', vitalsSyncRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {

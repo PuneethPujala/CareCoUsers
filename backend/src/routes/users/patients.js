@@ -922,7 +922,7 @@ router.post('/me/vitals', authenticateSession, async (req, res) => {
         const patient = await Patient.findOne({ supabase_uid: req.user.id });
         if (!patient) return res.status(404).json({ error: 'Patient profile not found' });
 
-        const { date, heart_rate, blood_pressure, oxygen_saturation, hydration } = req.body;
+        const { date, heart_rate, blood_pressure, oxygen_saturation, hydration, source } = req.body;
         const logDate = date ? new Date(date) : new Date();
 
         // Create new log (we no longer overwrite, allowing multiple entries per day)
@@ -933,6 +933,7 @@ router.post('/me/vitals', authenticateSession, async (req, res) => {
             blood_pressure,
             oxygen_saturation,
             hydration,
+            source: source || 'manual'
         });
 
         await vitalLog.save();

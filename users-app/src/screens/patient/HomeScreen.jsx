@@ -13,6 +13,8 @@ import { apiService } from '../../lib/api';
 import { getCache, setCache, CACHE_KEYS } from '../../lib/CacheService';
 import { useFocusEffect } from '@react-navigation/native';
 import AIPredictionChart from '../../components/vitals/AIPredictionChart';
+import HealthSyncService from '../../services/HealthSyncService';
+import { Watch, Zap } from 'lucide-react-native';
 
 const ACCENT_MAP = { morning: colors.success, afternoon: colors.warning, night: '#8B5CF6' };
 const TIME_LABELS = { morning: 'Morning', afternoon: 'Afternoon', night: 'Night' };
@@ -147,6 +149,15 @@ export default function PatientHomeScreen({ navigation }) {
     const [submitLoading, setSubmitLoading] = useState(false);
 
     const staggerAnims = useRef([...Array(10)].map(() => new Animated.Value(0))).current;
+
+    // Health sync state
+    const [syncStatus, setSyncStatus] = useState({
+        enabled: false,
+        connected: false,
+        lastSync: null,
+        readingsToday: 0,
+        syncing: false,
+    });
 
     const runAnimations = useCallback(() => {
         staggerAnims.forEach(anim => anim.setValue(0));
@@ -296,6 +307,31 @@ export default function PatientHomeScreen({ navigation }) {
         }, [fetchData, runAnimations])
     );
 
+    // ─── Initialize Health Sync ─────────────────────────────────
+    useEffect(() => {
+        const initSync = async () => {
+            const status = await HealthSyncService.getStatus();
+            setSyncStatus(status);
+
+            if (status.enabled && status.connected) {
+                await HealthSyncService.initialize();
+            }
+        };
+        initSync();
+
+        const unsub = HealthSyncService.addListener((update) => {
+            setSyncStatus(prev => ({ ...prev, ...update }));
+            // If new readings were accepted, refresh the dashboard data
+            if (update.totalAccepted > 0) {
+                fetchData(true);
+            }
+        });
+
+        return () => {
+            unsub();
+        };
+    }, [fetchData]);
+
 
     const toggleMed = async (med) => {
         const newTaken = !med.taken;
@@ -444,6 +480,41 @@ export default function PatientHomeScreen({ navigation }) {
                                 <ChevronRight size={14} color="#64748B" />
                             </Pressable>
                         </View>
+
+                        {/* ── Health Sync Status Card ────────────── */}
+                        <Pressable
+                            style={[styles.syncCard, syncStatus.connected && styles.syncCardConnected]}
+                            onPress={() => navigation.navigate('HealthConnectSetup')}
+                        >
+                            <View style={styles.syncCardLeft}>
+                                <View style={[styles.syncIconBox, syncStatus.connected ? { backgroundColor: '#DCFCE7' } : { backgroundColor: '#EEF2FF' }]}>
+                                    {syncStatus.connected
+                                        ? <Watch size={20} color="#16A34A" strokeWidth={2.5} />
+                                        : <Watch size={20} color="#3B82F6" strokeWidth={2.5} />
+                                    }
+                                </View>
+                                <View style={styles.syncCardContent}>
+                                    <View style={styles.syncTitleRow}>
+                                        <Text style={styles.syncCardTitle}>
+                                            {syncStatus.connected ? 'Wearable Connected' : 'Connect Wearable'}
+                                        </Text>
+                                        {syncStatus.syncing && (
+                                            <View style={styles.syncingBadge}>
+                                                <Zap size={10} color="#D97706" />
+                                                <Text style={styles.syncingBadgeText}>Syncing</Text>
+                                            </View>
+                                        )}
+                                    </View>
+                                    <Text style={styles.syncCardSub}>
+                                        {syncStatus.connected
+                                            ? `${syncStatus.readingsToday} readings today${syncStatus.lastSync ? ' • Last: ' + new Date(syncStatus.lastSync).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}`
+                                            : 'Auto-track vitals from your smartwatch'
+                                        }
+                                    </Text>
+                                </View>
+                            </View>
+                            <ChevronRight size={18} color={syncStatus.connected ? '#16A34A' : '#94A3B8'} />
+                        </Pressable>
                         
                         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.vitalsScroll}>
                             <VitalsCard label="Heart Rate" value={vitals?.heart_rate || '—'} unit="bpm" icon={Heart} color="#EF4444" status={vitals?.heart_rate ? 'Recorded' : 'Not Logged'} />
@@ -819,5 +890,75 @@ const styles = StyleSheet.create({
         borderRadius: 16, padding: 14, gap: 10,
     },
     errorText: { flex: 1, color: '#991B1B', fontSize: 13, fontWeight: '600', lineHeight: 18 },
+
+    // ── Health Sync Card ──────────────────────────
+    syncCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        backgroundColor: '#FFFFFF',
+        borderRadius: 20,
+        padding: 16,
+        marginBottom: 16,
+        borderWidth: 1.5,
+        borderColor: '#E2E8F0',
+        borderStyle: 'dashed',
+        shadowColor: '#0F172A',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.03,
+        shadowRadius: 8,
+        elevation: 2,
+    },
+    syncCardConnected: {
+        borderColor: '#BBF7D0',
+        borderStyle: 'solid',
+        backgroundColor: '#F0FDF4',
+    },
+    syncCardLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        flex: 1,
+        gap: 14,
+    },
+    syncIconBox: {
+        width: 44,
+        height: 44,
+        borderRadius: 14,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    syncCardContent: {
+        flex: 1,
+    },
+    syncTitleRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        marginBottom: 2,
+    },
+    syncCardTitle: {
+        fontSize: 15,
+        fontWeight: '700',
+        color: '#1E293B',
+    },
+    syncCardSub: {
+        fontSize: 12,
+        color: '#64748B',
+        fontWeight: '500',
+    },
+    syncingBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        backgroundColor: '#FEF3C7',
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        borderRadius: 8,
+    },
+    syncingBadgeText: {
+        fontSize: 10,
+        fontWeight: '700',
+        color: '#D97706',
+    },
 });
 

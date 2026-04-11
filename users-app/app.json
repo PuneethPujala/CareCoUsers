@@ -15,7 +15,11 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.careco.users"
+      "bundleIdentifier": "com.careco.users",
+      "infoPlist": {
+        "NSHealthShareUsageDescription": "Samvaya requires access to your health data to monitor your wellbeing.",
+        "NSHealthUpdateUsageDescription": "Samvaya requires write access to update your health profile."
+      }
     },
     "android": {
       "package": "com.careco.users",
@@ -35,10 +39,12 @@
         "expo-build-properties",
         {
           "android": {
-            "usesCleartextTraffic": true
+            "usesCleartextTraffic": true,
+            "minSdkVersion": 26
           }
         }
-      ]
+      ],
+      "react-native-health-connect"
     ],
     "extra": {
       "eas": {

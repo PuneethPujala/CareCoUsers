@@ -175,6 +175,9 @@ export const apiService = {
         getNotifications: () => api.get('/users/patients/me/notifications'),
         markNotificationRead: (id) => api.put(`/users/patients/me/notifications/${id}/read`),
         getAIPrediction: () => api.get('/users/patients/me/ai-prediction'),
+        // Health Connect / HealthKit sync
+        syncVitals: (data) => api.post('/vitals/sync', data),
+        getSyncStatus: () => api.get('/vitals/sync/status'),
     },
 
     // Caller-specific endpoints

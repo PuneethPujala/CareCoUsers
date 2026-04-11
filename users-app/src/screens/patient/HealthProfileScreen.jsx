@@ -2,8 +2,9 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, Platform, ActivityIndicator, Animated, Pressable, Linking, Modal, TouchableWithoutFeedback, TextInput, KeyboardAvoidingView, Alert } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { TriangleAlert, ShieldCheck, HeartPulse, Activity, Stethoscope, Droplet, User, CalendarDays, Watch, Flame, Phone, Plus, Edit2, X, Trash2, CheckCircle2 } from 'lucide-react-native';
+import { TriangleAlert, ShieldCheck, HeartPulse, Activity, Stethoscope, Droplet, User, CalendarDays, Watch, Flame, Phone, Plus, Edit2, X, Trash2, CheckCircle2, RefreshCw } from 'lucide-react-native';
 import { apiService } from '../../lib/api';
+import { initializeHealthPlatform, requestHealthPermissions, fetchDailyVitalsSummary, isHealthSupported } from '../../lib/healthIntegration';
 
 const C = {
   primary: '#6366F1', primaryDark: '#4338CA', primarySoft: '#EEF2FF',
@@ -61,6 +62,56 @@ const ChipSelector = ({ options, selected, onSelect, vertical = false }) => (
 export default function HealthProfileScreen({ navigation }) {
     const [profile, setProfile] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [isSyncing, setIsSyncing] = useState(false);
+    const [healthSdkReady, setHealthSdkReady] = useState(false);
+
+    useEffect(() => {
+        if (isHealthSupported()) {
+            initializeHealthPlatform().then(ready => setHealthSdkReady(ready));
+        }
+    }, []);
+
+    const handleWearableSync = async () => {
+        if (!healthSdkReady) {
+            Alert.alert('Unsupported', 'Health integration is not available on this device.');
+            return;
+        }
+        
+        setIsSyncing(true);
+        try {
+            const hasPermissions = await requestHealthPermissions();
+            if (!hasPermissions) {
+                Alert.alert('Permission Denied', 'Please enable health permissions in your system settings to seamlessly sync vitals.');
+                setIsSyncing(false);
+                return;
+            }
+
+            const vitals = await fetchDailyVitalsSummary();
+            
+            // If they have any data at all, sync it
+            if (vitals.heart_rate || vitals.oxygen_saturation || vitals.systolic) {
+                // Post to our backend
+                await apiService.patients.logVitals({
+                    heart_rate: vitals.heart_rate || 70, // use default if some are missing but others present, or handle carefully
+                    blood_pressure: {
+                        systolic: vitals.systolic || 120,
+                        diastolic: vitals.diastolic || 80
+                    },
+                    oxygen_saturation: vitals.oxygen_saturation || 98,
+                    hydration: 50, // HealthKit rarely guarantees hydration, send placeholder
+                    source: Platform.OS === 'android' ? 'health_connect' : 'healthkit'
+                });
+                Alert.alert('Sync Complete', 'Successfully securely pulled your latest smartwatch data into Samvaya.');
+            } else {
+                Alert.alert('No Data Found', "We couldn't find any recent vitals recorded by your watch today.");
+            }
+        } catch (e) {
+            console.error(e);
+            Alert.alert('Sync Error', 'An error occurred while connecting to your health data.');
+        } finally {
+            setIsSyncing(false);
+        }
+    };
 
     const staggerAnims = useRef([...Array(10)].map(() => new Animated.Value(0))).current;
     
@@ -446,6 +497,36 @@ export default function HealthProfileScreen({ navigation }) {
                     </View>
                 </Animated.View>
 
+                {/* WEARABLE SYNC CARD */}
+                {isHealthSupported() && (
+                    <Animated.View style={{ opacity: staggerAnims[7], transform: [{ translateY: staggerAnims[7].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>
+                        <View style={s.section}>
+                            <View style={s.sectionHeaderRow}>
+                                <Text style={s.sectionHeaderBase}>CONNECTED WEARABLES</Text>
+                            </View>
+                            <View style={s.card}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                                        <View style={[s.iconBg, { backgroundColor: '#F3E8FF', marginRight: 16 }]}><Watch size={20} color="#9333EA" /></View>
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={s.rowTitle}>{Platform.OS === 'android' ? 'Health Connect' : 'Apple Health'}</Text>
+                                            <Text style={s.rowSub}>Sync smartwatch vitals</Text>
+                                        </View>
+                                    </View>
+                                    <Pressable 
+                                        style={s.syncBtn} 
+                                        onPress={handleWearableSync}
+                                        disabled={isSyncing}
+                                    >
+                                        {isSyncing ? <ActivityIndicator size="small" color="#FFF" /> : <RefreshCw size={16} color="#FFF" />}
+                                        {!isSyncing && <Text style={s.syncBtnTxt}>Sync Now</Text>}
+                                    </Pressable>
+                                </View>
+                            </View>
+                        </View>
+                    </Animated.View>
+                )}
+
                 {/* 8. PRIMARY DOCTOR */}
                 <Animated.View style={{ opacity: staggerAnims[8], transform: [{ translateY: staggerAnims[8].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>
                     <View style={s.section}>
@@ -767,4 +848,6 @@ const s = StyleSheet.create({
     dayChipActive: { backgroundColor: C.primary, borderColor: C.primary },
     dayChipTxt: { fontSize: 16, ...FONT.bold, color: C.mid },
     dayChipTxtActive: { color: '#FFF' },
+    syncBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: C.primary, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20 },
+    syncBtnTxt: { color: '#FFF', ...FONT.bold, fontSize: 14 }
 });

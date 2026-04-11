@@ -43,6 +43,7 @@ import WaitingScreen from "../screens/patient/WaitingScreen";
 import VitalsHistoryScreen from "../screens/patient/VitalsHistoryScreen";
 import LocationSearchScreen from "../screens/patient/LocationSearchScreen";
 import AddAddressScreen from "../screens/patient/AddAddressScreen";
+import HealthConnectSetupScreen from "../screens/patient/HealthConnectSetupScreen";
 
 // Caller screens
 import CallerHomeScreen from "../screens/caller/HomeScreen";
@@ -239,6 +240,11 @@ const MainAppStack = ({ isCaller }) => (
                     name="AddAddress"
                     component={AddAddressScreen}
                     options={{ presentation: "modal" }}
+                />
+                <Stack.Screen
+                    name="HealthConnectSetup"
+                    component={HealthConnectSetupScreen}
+                    options={{ presentation: "modal", animation: "slide_from_bottom" }}
                 />
                 <Stack.Screen name="SubscribePlans" component={SubscribePlansScreen} />
                 <Stack.Screen name="Payment" component={PaymentScreen} />
