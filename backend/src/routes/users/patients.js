@@ -6,6 +6,7 @@ const MedicineLog = require('../../models/MedicineLog');
 const VitalLog = require('../../models/VitalLog');
 const Caller = require('../../models/Caller');
 const Notification = require('../../models/Notification');
+const AIVitalPrediction = require('../../models/AIVitalPrediction');
 const { authenticate, authenticateSession } = require('../../middleware/authenticate');
 
 const router = express.Router();
@@ -321,7 +322,8 @@ router.delete('/me/addresses/:id', authenticateSession, async (req, res) => {
  */
 router.get('/me', authenticateSession, async (req, res) => {
     try {
-        let patient = await Patient.findOne({ supabase_uid: req.user.id });
+        let patient = await Patient.findOne({ supabase_uid: req.user.id })
+            .populate('assigned_manager_id', 'fullName email phone');
         if (!patient) {
             try {
                 patient = await createBasicPatient(
@@ -362,12 +364,26 @@ router.put('/me', authenticateSession, async (req, res) => {
         if (medication_reminders_enabled !== undefined) updates.medication_reminders_enabled = medication_reminders_enabled;
         if (expo_push_token !== undefined) updates.expo_push_token = expo_push_token;
 
-        const patient = await Patient.findOneAndUpdate(
-            { supabase_uid: req.user.id },
-            { $set: updates },
-            { new: true }
-        );
+        let patient = await Patient.findOne({ supabase_uid: req.user.id });
         if (!patient) return res.status(404).json({ error: 'Patient profile not found' });
+
+        const expoTokenUpdated = expo_push_token && patient.expo_push_token !== expo_push_token;
+        const isFirstTime = expoTokenUpdated && (!patient.expo_push_token);
+
+        // Apply updates
+        Object.assign(patient, updates);
+        await patient.save();
+
+        if (isFirstTime) {
+            const PushNotificationService = require('../../utils/pushNotifications');
+            const firstName = (patient.name || 'there').split(' ')[0];
+            PushNotificationService.sendPush(
+                expo_push_token, 
+                `Welcome to Samvaya, ${firstName}! 🎉`, 
+                'Enjoy the seamless experience with our app. We\'re here to take care of your health!'
+            ).catch(err => console.warn('Failed to send welcome push:', err));
+        }
+
         res.json({ patient, message: 'Profile updated successfully' });
     } catch (error) {
         console.error('Update patient profile error:', error);
@@ -790,6 +806,26 @@ router.put('/me/notifications/:id/read', authenticateSession, async (req, res) =
     }
 });
 
+/**
+ * GET /api/users/patients/me/ai-prediction
+ * Get the AI predictive vitals for patient
+ */
+router.get('/me/ai-prediction', authenticateSession, async (req, res) => {
+    try {
+        const patient = await Patient.findOne({ supabase_uid: req.user.id });
+        if (!patient) return res.status(404).json({ error: 'Patient profile not found' });
+
+        const prediction = await AIVitalPrediction.findOne({ patient_id: patient._id });
+        if (!prediction) {
+            return res.status(200).json({ prediction: null, message: 'No AI predictions generated yet.' });
+        }
+
+        res.json({ prediction });
+    } catch (error) {
+        console.error('Get AI Prediction error:', error);
+        res.status(500).json({ error: 'Failed to fetch AI Prediction' });
+    }
+});
 
 
 /**

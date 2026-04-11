@@ -18,7 +18,8 @@
       "bundleIdentifier": "com.careco.users"
     },
     "android": {
-      "package": "com.careco.users"
+      "package": "com.careco.users",
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "bundler": "metro"

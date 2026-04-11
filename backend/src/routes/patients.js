@@ -429,5 +429,38 @@ router.get('/me/calls',
 );
 
 
+/**
+ * GET /api/patients/:id/ai-prediction
+ * Get the latest AI vital predictions and health label for a patient
+ */
+router.get('/:id/ai-prediction',
+    authenticate,
+    authorize('patients', 'read'),
+    async (req, res) => {
+        try {
+            const patient = await Patient.findById(req.params.id);
+            if (!patient) {
+                return res.status(404).json({ error: 'Patient not found' });
+            }
+
+            if (!canReadPatient(req.profile, patient)) {
+                return res.status(403).json({ error: 'Access denied to this patient' });
+            }
+
+            const AIVitalPrediction = require('../models/AIVitalPrediction');
+            const prediction = await AIVitalPrediction.findOne({ patient_id: req.params.id });
+
+            if (!prediction) {
+                return res.status(404).json({ error: 'No AI predictions generated yet for this patient.' });
+            }
+
+            res.json(prediction);
+
+        } catch (error) {
+            console.error('Get patient AI prediction error:', error);
+            res.status(500).json({ error: 'Failed to get patient AI prediction', details: error.message });
+        }
+    }
+);
 
 module.exports = router;

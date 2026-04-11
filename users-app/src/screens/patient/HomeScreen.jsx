@@ -12,6 +12,7 @@ import { useAuth } from '../../context/AuthContext';
 import { apiService } from '../../lib/api';
 import { getCache, setCache, CACHE_KEYS } from '../../lib/CacheService';
 import { useFocusEffect } from '@react-navigation/native';
+import AIPredictionChart from '../../components/vitals/AIPredictionChart';
 
 const ACCENT_MAP = { morning: colors.success, afternoon: colors.warning, night: '#8B5CF6' };
 const TIME_LABELS = { morning: 'Morning', afternoon: 'Afternoon', night: 'Night' };
@@ -132,6 +133,8 @@ export default function PatientHomeScreen({ navigation }) {
     const [patient, setPatient] = useState(null);
     const [meds, setMeds] = useState([]);
     const [vitals, setVitals] = useState(null);
+    const [vitalsHistory, setVitalsHistory] = useState([]);
+    const [aiPrediction, setAiPrediction] = useState(null);
     const [loading, setLoading] = useState(true);
     const [isCached, setIsCached] = useState(false);
 
@@ -177,14 +180,20 @@ export default function PatientHomeScreen({ navigation }) {
             todayStart.setHours(0, 0, 0, 0);
             const todayEnd = new Date();
             todayEnd.setHours(23, 59, 59, 999);
+            const historyStart = new Date();
+            historyStart.setDate(historyStart.getDate() - 7);
 
-            const [pRes, vRes, medsRes] = await Promise.all([
+            const [pRes, vRes, vHistRes, medsRes, aiRes] = await Promise.all([
                 apiService.patients.getMe(),
                 apiService.patients.getVitals({ 
                     start_date: todayStart.toISOString(), 
                     end_date: todayEnd.toISOString() 
                 }),
-                apiService.medicines.getToday()
+                apiService.patients.getVitals({
+                    start_date: historyStart.toISOString(),
+                }),
+                apiService.medicines.getToday(),
+                apiService.patients.getAIPrediction().catch(() => ({ data: { prediction: null } }))
             ]);
 
             const freshPatient = pRes.data.patient;
@@ -193,6 +202,8 @@ export default function PatientHomeScreen({ navigation }) {
             const todayVitals = vRes.data.vitals;
             const freshVitals = (todayVitals && todayVitals.length > 0) ? todayVitals[todayVitals.length - 1] : null;
             setVitals(freshVitals);
+            setVitalsHistory(vHistRes.data.vitals || []);
+            setAiPrediction(aiRes.data.prediction);
 
             const freshMeds = (medsRes.data.log?.medicines || []).map((m) => ({
                 id: `${m.medicine_name}_${m.scheduled_time}`,
@@ -440,6 +451,41 @@ export default function PatientHomeScreen({ navigation }) {
                             <VitalsCard label="Oxygen" value={vitals?.oxygen_saturation != null ? vitals.oxygen_saturation : '—'} unit="%" icon={Wind} color="#06B6D4" status={vitals?.oxygen_saturation != null ? 'Recorded' : 'Not Logged'} />
                             <VitalsCard label="Hydration" value={vitals?.hydration != null ? vitals.hydration : '—'} unit="%" icon={Droplets} color="#0EA5E9" status={vitals?.hydration != null ? 'Recorded' : 'Not Logged'} />
                         </ScrollView>
+
+                        {/* ── AI OUTLOOK CARD ──────────────────────── */}
+                        {(aiPrediction || vitalsHistory.length > 0) && (
+                            <View style={styles.chartCardLog}>
+                                <View style={styles.aiOutletHeader}>
+                                    <View style={styles.aiOutletHeaderLeft}>
+                                        <Sparkles size={20} color="#8B5CF6" />
+                                        <Text style={styles.chartTitleLog}>AI Health Outlook</Text>
+                                    </View>
+                                    {aiPrediction && (
+                                        <View style={[styles.aiBadge, aiPrediction.health_label === 'Critical' ? styles.aiBadgeRed : aiPrediction.health_label === 'Warning' ? styles.aiBadgeOrange : styles.aiBadgeGreen]}>
+                                            <Text style={[styles.aiBadgeTxt, aiPrediction.health_label === 'Critical' ? styles.aiBadgeRedTxt : aiPrediction.health_label === 'Warning' ? styles.aiBadgeOrangeTxt : styles.aiBadgeGreenTxt]}>{aiPrediction.health_label}</Text>
+                                        </View>
+                                    )}
+                                </View>
+                                <Text style={styles.aiOutlookDesc}>
+                                    Our AI forecasts your vitals trajectory based on your historical data.
+                                </Text>
+                                
+                                {vitalsHistory.length > 0 && (
+                                    <AIPredictionChart 
+                                        metricName="Heart Rate" 
+                                        unit="bpm"
+                                        vitalsHistory={vitalsHistory.map(v => ({ 
+                                            label: new Date(v.date).toLocaleDateString([], { month: 'short', day: 'numeric' }), 
+                                            value: v.heart_rate 
+                                        }))}
+                                        predictionData={aiPrediction?.predictions ? aiPrediction.predictions.map(p => ({
+                                            label: new Date(p.date).toLocaleDateString([], { month: 'short', day: 'numeric' }),
+                                            value: p.heart_rate
+                                        })) : null}
+                                    />
+                                )}
+                            </View>
+                        )}
 
                         {/* ── Log Vitals Form ──────────────────────── */}
                         <View style={styles.chartCardLog}>
@@ -738,6 +784,18 @@ const styles = StyleSheet.create({
     addBadgeTxt: { color: '#3B86FF', fontSize: 13, fontWeight: '700' },
     addBadgeCancel: { backgroundColor: 'rgba(239,68,68,0.1)' },
     addBadgeCancelTxt: { color: '#EF4444' },
+
+    aiOutletHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
+    aiOutletHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    aiOutlookDesc: { fontSize: 13, color: '#64748B', lineHeight: 18, marginBottom: 12 },
+    aiBadge: { paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12, borderWidth: 1 },
+    aiBadgeTxt: { fontSize: 11, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5 },
+    aiBadgeGreen: { backgroundColor: '#F0FDF4', borderColor: '#BBF7D0' },
+    aiBadgeGreenTxt: { color: '#16A34A' },
+    aiBadgeOrange: { backgroundColor: '#FFFBEB', borderColor: '#FDE68A' },
+    aiBadgeOrangeTxt: { color: '#D97706' },
+    aiBadgeRed: { backgroundColor: '#FEF2F2', borderColor: '#FECACA' },
+    aiBadgeRedTxt: { color: '#DC2626' },
 
     formArea: { marginTop: 20 },
     formRow: { flexDirection: 'row', gap: 12 },

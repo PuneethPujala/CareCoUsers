@@ -349,13 +349,45 @@ export default function MyCallerScreen({ navigation }) {
             <View style={s.sectionHeaderRow}>
               <Text style={s.sectionHeaderBase}>MANAGER</Text>
             </View>
-            <LinearGradient colors={['#F8FAFC', '#F1F5F9']} style={s.emptyCardPremium}>
-              <View style={s.emptyIconWrapPremium}>
-                <ShieldCheck size={32} color={C.primary} strokeWidth={1.5} />
+            {patient?.assigned_manager_id ? (
+              <View style={s.callerCard}>
+                <View style={s.profileRow}>
+                  <View style={s.avatarWrap}>
+                    <LinearGradient colors={['#9333EA', '#6B21A8']} style={s.avatar}>
+                      <Text style={s.avatarLetter}>{patient.assigned_manager_id.fullName?.charAt(0) || 'M'}</Text>
+                    </LinearGradient>
+                  </View>
+                  <View style={s.profileInfo}>
+                    <Text style={s.callerName}>{patient.assigned_manager_id.fullName || 'Manager'}</Text>
+                    <View style={s.metaRow}>
+                      <Text style={s.idChipText}>Manager</Text>
+                      <View style={s.dotDivider} />
+                      <View style={s.onlinePill}>
+                        <View style={s.onlinePillDot} />
+                        <Text style={s.onlinePillText}>Available</Text>
+                      </View>
+                    </View>
+                  </View>
+                </View>
+                <View style={s.actionRow}>
+                  <Pressable
+                    style={({ pressed }) => [s.btnCall, { backgroundColor: '#9333EA' }, pressed && s.btnCallPressed]}
+                    onPress={() => patient.assigned_manager_id.phone && Linking.openURL(`tel:${patient.assigned_manager_id.phone}`)}
+                  >
+                    <Phone size={16} color="#FFF" strokeWidth={2.5} />
+                    <Text style={s.btnCallText}>Contact Manager</Text>
+                  </Pressable>
+                </View>
               </View>
-              <Text style={s.emptyTitle}>No Manager Assigned</Text>
-              <Text style={s.emptyBody}>A manager will be assigned if additional support is required.</Text>
-            </LinearGradient>
+            ) : (
+              <LinearGradient colors={['#F8FAFC', '#F1F5F9']} style={s.emptyCardPremium}>
+                <View style={s.emptyIconWrapPremium}>
+                  <ShieldCheck size={32} color={C.primary} strokeWidth={1.5} />
+                </View>
+                <Text style={s.emptyTitle}>No Manager Assigned</Text>
+                <Text style={s.emptyBody}>A manager will be assigned if additional support is required.</Text>
+              </LinearGradient>
+            )}
           </View>
         </Animated.View>
 

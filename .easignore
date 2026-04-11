@@ -22,8 +22,6 @@ users-app/.env.local
 users-app/.env.development.local
 users-app/.env.test.local
 users-app/.env.production.local
-google-services.json
-GoogleService-Info.plist
 
 # Expo / React Native
 .expo/

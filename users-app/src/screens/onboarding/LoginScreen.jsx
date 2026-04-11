@@ -16,18 +16,26 @@ import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-si
 const { height: SCREEN_H } = Dimensions.get('window');
 
 const C = {
-    primary: '#6366F1',
-    primaryDark: '#4338CA',
-    primarySoft: '#EEF2FF',
-    dark: '#0F172A',
-    mid: '#334155',
-    muted: '#94A3B8',
-    light: '#CBD5E1',
-    border: '#F1F5F9',
-    borderMid: '#E2E8F0',
-    danger: '#F43F5E',
-    dangerBg: '#FFE4E6',
-    pageBg: '#F8FAFC',
+    pageBg:        '#EEF1FF',
+    heroBgTop:     '#3B5BDB',
+    heroBgBottom:  '#7B9CFF',
+    orbDark:       '#1E3A8A',
+    orbMid:        '#93C5FD',
+    orbLight:      '#DBEAFE',
+    cardBg:        'rgba(255,255,255,0.85)',
+    cardBorder:    'rgba(255,255,255,0.6)',
+    primary:       '#3B5BDB',
+    primaryDark:   '#1E3A8A',
+    primarySoft:   '#EFF3FF',
+    dark:          '#0D1B4B',
+    mid:           '#3D4F7C',
+    muted:         '#8899BB',
+    light:         '#CBD5E1',
+    border:        '#E8EDFF',
+    borderMid:     '#D0D9F5',
+    danger:        '#F43F5E',
+    dangerBg:      '#FFE4E6',
+    success:       '#22C55E',
 };
 
 const FONT = {
@@ -237,13 +245,13 @@ const ResetPasswordModal = ({ visible, onClose, email }) => {
 
 const rs = StyleSheet.create({
     overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 },
-    sheet: { width: '100%', maxWidth: 420, backgroundColor: '#FFF', borderRadius: 28, padding: 28, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 20, elevation: 10 },
+    sheet: { width: '100%', maxWidth: 420, backgroundColor: 'rgba(255,255,255,0.96)', borderRadius: 32, padding: 28, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 20, elevation: 10 },
     header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-    title: { fontSize: 20, ...FONT.heavy, color: C.dark },
+    title: { fontSize: 20, ...FONT.heavy, color: '#0D1B4B' },
     subtitle: { fontSize: 14, ...FONT.medium, color: C.muted, lineHeight: 22, marginBottom: 20 },
     inputWrap: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', borderWidth: 1.5, borderColor: C.borderMid, borderRadius: 16, height: 56, paddingHorizontal: 16, marginBottom: 14, gap: 12 },
     input: { flex: 1, fontSize: 16, color: C.dark, ...FONT.semibold },
-    btn: { backgroundColor: C.primary, borderRadius: 16, height: 54, alignItems: 'center', justifyContent: 'center', marginTop: 8 },
+    btn: { backgroundColor: '#3B5BDB', borderRadius: 16, height: 54, alignItems: 'center', justifyContent: 'center', marginTop: 8 },
     btnText: { color: '#FFF', fontSize: 16, ...FONT.bold },
     errorBox: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: C.dangerBg, borderRadius: 12, padding: 14, marginBottom: 14 },
     errorText: { color: '#991B1B', fontSize: 13, ...FONT.semibold, flex: 1 },
@@ -381,12 +389,14 @@ export default function LoginScreen({ navigation }) {
             {/* Hero Section — compact, no scroll needed */}
             <Animated.View style={{ transform: [{ translateY: heroAnim }], opacity: heroOpacity }}>
                 <LinearGradient
-                    colors={['#4338CA', '#38BDF8']}
+                    colors={['#1E3A8A', '#3B5BDB', '#60A5FA']}
                     start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
                     style={styles.hero}
                 >
-                    <View style={[styles.decorativeCircle, { top: -60, right: -40, width: 250, height: 250, backgroundColor: 'rgba(255, 255, 255, 0.12)' }]} />
-                    <View style={[styles.decorativeCircle, { top: 60, left: -80, width: 200, height: 200, backgroundColor: 'rgba(255, 255, 255, 0.08)' }]} />
+                    <View style={styles.orb1} />
+                    <View style={styles.orb2} />
+                    <View style={styles.orb3} />
+                    <View style={styles.orb4} />
 
                     <View style={styles.heroIconWrap}>
                         <HeartPulse size={44} color="#FFFFFF" strokeWidth={1.5} />
@@ -492,7 +502,7 @@ export default function LoginScreen({ navigation }) {
                 {/* Login Button */}
                 <Pressable style={[styles.primaryBtn, loading && { opacity: 0.7 }]} onPress={handleLogin} disabled={loading}>
                     <LinearGradient
-                        colors={['#6366F1', '#4338CA']}
+                        colors={['#3B5BDB', '#1E3A8A']}
                         start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
                         style={styles.primaryBtnGradient}
                     >
@@ -535,93 +545,99 @@ const styles = StyleSheet.create({
 
     // ─── Hero Section — Compact ────────────────
     hero: {
-        height: 260,
-        borderBottomLeftRadius: 40,
-        borderBottomRightRadius: 40,
+        minHeight: 220,
+        borderBottomLeftRadius: 36,
+        borderBottomRightRadius: 36,
         alignItems: 'center',
         justifyContent: 'center',
         paddingTop: Platform.OS === 'ios' ? 50 : 30,
+        paddingBottom: 24,
         overflow: 'hidden',
     },
-    decorativeCircle: { position: 'absolute', borderRadius: 100 },
+    orb1: { position: 'absolute', borderRadius: 999, width: 140, height: 140, top: -40, right: -40, backgroundColor: '#1E3A8A', opacity: 0.75 },
+    orb2: { position: 'absolute', borderRadius: 999, width: 80, height: 80, top: 10, right: 80, backgroundColor: '#BFDBFE', opacity: 0.55 },
+    orb3: { position: 'absolute', borderRadius: 999, width: 90, height: 90, bottom: -10, left: -20, backgroundColor: '#1E40AF', opacity: 0.6 },
+    orb4: { position: 'absolute', borderRadius: 999, width: 45, height: 45, bottom: 30, left: 60, backgroundColor: '#DBEAFE', opacity: 0.4 },
     heroIconWrap: {
-        width: 72, height: 72, borderRadius: 22,
-        backgroundColor: 'rgba(255,255,255,0.15)',
+        width: 60, height: 60, borderRadius: 20,
+        backgroundColor: 'rgba(255,255,255,0.18)',
         alignItems: 'center', justifyContent: 'center',
-        marginBottom: 12,
-        borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)',
+        marginBottom: 10,
+        borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)',
     },
-    heroLabel: { fontSize: 12, ...FONT.bold, color: 'rgba(255,255,255,0.6)', letterSpacing: 2, marginBottom: 4 },
-    heroTitle: { fontSize: 30, ...FONT.heavy, color: '#FFFFFF', letterSpacing: -0.5 },
-    heroSubtitle: { fontSize: 14, ...FONT.medium, color: 'rgba(255,255,255,0.75)', marginTop: 4 },
+    heroLabel: { fontSize: 11, ...FONT.bold, color: 'rgba(255,255,255,0.6)', letterSpacing: 3.5, marginBottom: 2 },
+    heroTitle: { fontSize: 28, fontWeight: '800', color: '#FFFFFF', letterSpacing: -1 },
+    heroSubtitle: { fontSize: 13, ...FONT.medium, color: 'rgba(255,255,255,0.80)', marginTop: 4 },
 
     // ─── Form Card — No scrolling ───────────
     formCard: {
-        marginTop: -28,
-        marginHorizontal: 20,
-        backgroundColor: '#FFFFFF',
+        marginTop: -24,
+        marginHorizontal: 16,
+        backgroundColor: 'rgba(255,255,255,0.88)',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.7)',
         borderRadius: 32,
-        paddingHorizontal: 22,
-        paddingTop: 26,
-        paddingBottom: 22,
-        shadowColor: C.primary,
-        shadowOffset: { width: 0, height: 20 },
-        shadowOpacity: 0.08,
-        shadowRadius: 32,
-        elevation: 12,
+        paddingHorizontal: 20,
+        paddingTop: 16,
+        paddingBottom: 16,
+        shadowColor: '#1E3A8A',
+        shadowOffset: { width: 0, height: 12 },
+        shadowOpacity: 0.10,
+        shadowRadius: 24,
+        elevation: 8,
         zIndex: 5,
     },
 
-    socialRowPremium: { flexDirection: 'row', gap: 14, marginBottom: 24 },
+    socialRowPremium: { flexDirection: 'row', gap: 12, marginBottom: 16 },
     socialBtnPremium: {
         flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-        backgroundColor: '#FFFFFF',
-        borderWidth: 1.5, borderColor: C.borderMid,
-        borderRadius: 20, height: 52, gap: 10,
+        backgroundColor: 'rgba(255,255,255,0.92)',
+        borderWidth: 1.5, borderColor: '#D0D9F5',
+        borderRadius: 16, height: 48, gap: 8,
+        shadowColor: '#1E3A8A', shadowOpacity: 0.04, shadowRadius: 8, elevation: 2,
     },
-    socialBtnTextPremium: { fontSize: 14, ...FONT.bold, color: C.dark },
-    googleG: { fontSize: 18, ...FONT.heavy, color: '#4285F4' },
+    socialBtnTextPremium: { fontSize: 13, ...FONT.bold, color: C.dark },
+    googleG: { fontSize: 16, ...FONT.heavy, color: '#4285F4' },
 
-    dividerRowPremium: { flexDirection: 'row', alignItems: 'center', marginBottom: 20, paddingHorizontal: 10 },
-    dividerLine: { flex: 1, height: 1, backgroundColor: C.borderMid },
-    dividerText: { marginHorizontal: 14, fontSize: 10, color: C.muted, ...FONT.heavy, letterSpacing: 1.5 },
+    dividerRowPremium: { flexDirection: 'row', alignItems: 'center', marginBottom: 16, paddingHorizontal: 10 },
+    dividerLine: { flex: 1, height: 1, backgroundColor: '#D0D9F5' },
+    dividerText: { marginHorizontal: 12, fontSize: 10, color: '#8899BB', ...FONT.heavy, letterSpacing: 1.5 },
 
     // ─── Fields ──────────────────────
-    fieldGroup: { marginBottom: 16 },
-    label: { fontSize: 12, ...FONT.bold, color: C.muted, marginBottom: 8, marginLeft: 2, letterSpacing: 0.5 },
+    fieldGroup: { marginBottom: 12 },
+    label: { fontSize: 12, ...FONT.bold, color: C.muted, marginBottom: 6, marginLeft: 2, letterSpacing: 0.5 },
     inlineIconBox: {
-        width: 34, height: 34, borderRadius: 10,
-        backgroundColor: C.border, alignItems: 'center', justifyContent: 'center', marginRight: 10,
+        width: 28, height: 28, borderRadius: 10,
+        backgroundColor: '#EFF3FF', alignItems: 'center', justifyContent: 'center', marginRight: 10,
     },
     inputWrap: {
         flexDirection: 'row', alignItems: 'center',
-        backgroundColor: '#FFFFFF',
-        borderWidth: 1.5, borderColor: C.border,
-        borderRadius: 18, height: 56,
-        paddingHorizontal: 14,
+        backgroundColor: 'rgba(255,255,255,0.95)',
+        borderWidth: 1.5, borderColor: '#D0D9F5',
+        borderRadius: 16, height: 48,
+        paddingHorizontal: 12,
     },
     inputFocused: {
-        borderColor: C.primary,
-        shadowColor: C.primary, shadowOpacity: 0.08, shadowRadius: 16, shadowOffset: { width: 0, height: 4 },
+        borderColor: '#3B5BDB',
+        shadowColor: '#3B5BDB', shadowOpacity: 0.12, shadowRadius: 18, shadowOffset: { width: 0, height: 4 },
         elevation: 4,
     },
-    textInput: { flex: 1, fontSize: 15, color: C.dark, ...FONT.semibold },
+    textInput: { flex: 1, fontSize: 14, color: C.dark, ...FONT.semibold },
 
     errorBox: {
         flexDirection: 'row', alignItems: 'center', gap: 8,
-        backgroundColor: C.dangerBg, borderRadius: 16, padding: 14, marginBottom: 16,
+        backgroundColor: C.dangerBg, borderRadius: 16, padding: 12, marginBottom: 12,
         borderWidth: 1, borderColor: '#FCA5A5',
     },
-    errorMsg: { color: '#991B1B', fontSize: 13, ...FONT.semibold, flex: 1 },
+    errorMsg: { color: '#991B1B', fontSize: 12, ...FONT.semibold, flex: 1 },
 
-    forgotRow: { alignSelf: 'flex-end', marginTop: -6, marginBottom: 20 },
-    forgotText: { fontSize: 13, ...FONT.bold, color: C.primary },
+    forgotRow: { alignSelf: 'flex-end', marginTop: -4, marginBottom: 16 },
+    forgotText: { fontSize: 12, ...FONT.bold, color: C.primary },
 
-    // ─── Primary Button ────────
     primaryBtn: {
-        borderRadius: 100, height: 56,
+        borderRadius: 16, height: 50,
         overflow: 'hidden',
-        shadowColor: C.primary, shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.3, shadowRadius: 20, elevation: 10,
+        shadowColor: '#3B5BDB', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.25, shadowRadius: 16, elevation: 8,
     },
     primaryBtnGradient: {
         flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
@@ -631,5 +647,5 @@ const styles = StyleSheet.create({
 
     bottomLink: { flexDirection: 'row', justifyContent: 'center', marginTop: 24, paddingBottom: 10 },
     bottomLinkText: { fontSize: 14, color: C.muted, ...FONT.medium },
-    bottomLinkAction: { fontSize: 14, ...FONT.heavy, color: C.primary },
+    bottomLinkAction: { fontSize: 14, ...FONT.heavy, color: '#3B5BDB' },
 });

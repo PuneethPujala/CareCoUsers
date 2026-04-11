@@ -174,6 +174,7 @@ export const apiService = {
         deleteTrustedContact: (id) => api.delete(`/users/patients/me/trusted-contacts/${id}`),
         getNotifications: () => api.get('/users/patients/me/notifications'),
         markNotificationRead: (id) => api.put(`/users/patients/me/notifications/${id}/read`),
+        getAIPrediction: () => api.get('/users/patients/me/ai-prediction'),
     },
 
     // Caller-specific endpoints

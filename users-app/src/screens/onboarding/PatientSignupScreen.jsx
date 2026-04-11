@@ -56,13 +56,13 @@ const PasswordStrength = ({ password }) => {
     if (/[0-9]/.test(password)) score++;
     if (/[^A-Za-z0-9]/.test(password)) score++;
     const labels = ['', 'Weak', 'Fair', 'Good', 'Strong'];
-    const barColors = ['transparent', '#EF4444', '#F59E0B', '#6366F1', '#22C55E'];
+    const barColors = ['transparent', '#EF4444', '#F59E0B', '#3B5BDB', '#22C55E'];
     if (!password) return null;
     return (
         <View style={styles.strengthWrap}>
             <View style={styles.strengthBarRow}>
                 {[1, 2, 3, 4].map(i => (
-                    <View key={i} style={[styles.strengthSeg, { backgroundColor: i <= score ? barColors[score] : '#E2E8F0' }]} />
+                    <View key={i} style={[styles.strengthSeg, { backgroundColor: i <= score ? barColors[score] : '#D0D9F5' }]} />
                 ))}
             </View>
             <Text style={[styles.strengthLabel, { color: barColors[score] }]}>{labels[score]}</Text>
@@ -105,7 +105,7 @@ const StepIndicator = ({ current }) => (
 const IconInput = ({ icon: Icon, label, rightIcon, error, focused, onFocus, onBlur, textPrefix, ...rest }) => (
     <View style={styles.fieldGroup}>
         {typeof label === 'string' ? (
-            <Text style={[styles.label, focused && { color: '#6366F1' }]}>{label}</Text>
+            <Text style={[styles.label, focused && { color: '#3B5BDB' }]}>{label}</Text>
         ) : label}
         <View style={[
             styles.inputWrapEnhanced,
@@ -113,12 +113,12 @@ const IconInput = ({ icon: Icon, label, rightIcon, error, focused, onFocus, onBl
             error && styles.inputErrorEnhanced,
         ]}>
             <View style={[styles.inlineIconBox, focused && { backgroundColor: '#EFF6FF' }]}>
-                <Icon size={18} color={focused ? '#6366F1' : '#94A3B8'} />
+                <Icon size={18} color={focused ? '#3B5BDB' : '#8899BB'} />
             </View>
             {textPrefix && <Text style={styles.textPrefixStyle}>{textPrefix}</Text>}
             <TextInput
                 style={styles.textInputEnhanced}
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor="#8899BB"
                 onFocus={onFocus}
                 onBlur={onBlur}
                 {...rest}
@@ -145,7 +145,7 @@ const OTPModal = ({ visible, onClose, otp, setOtp, onVerify, timer, resend, atte
                 <Text style={styles.otpSubtext}>Enter the 6-digit code sent to your {field}.</Text>
                 <View style={[styles.fieldGroup, { marginTop: 20 }]}>
                     <View style={[styles.inputWrapEnhanced, error && styles.inputErrorEnhanced]}>
-                        <Lock size={18} color="#94A3B8" />
+                        <Lock size={18} color="#8899BB" />
                         <TextInput
                             style={[styles.textInputEnhanced, { letterSpacing: 8, fontSize: 24, textAlign: 'center' }]}
                             placeholder="000000"
@@ -725,13 +725,7 @@ export default function PatientSignupScreen({ navigation, route }) {
                     <Text style={styles.dividerText}>OR SIGN UP WITH EMAIL</Text>
                     <View style={styles.dividerLine} />
                 </View>
-                <View style={styles.trustRowEnhanced}>
-                    <View style={styles.trustItem}><Shield size={12} color="#6366F1" /><Text style={styles.trustText}>HIPAA Secure</Text></View>
-                    <View style={styles.trustDivider} />
-                    <View style={styles.trustItem}><Lock size={12} color="#6366F1" /><Text style={styles.trustText}>256-bit SSL</Text></View>
-                    <View style={styles.trustDivider} />
-                    <View style={styles.trustItem}><CheckCircle2 size={12} color="#6366F1" /><Text style={styles.trustText}>Privacy First</Text></View>
-                </View>
+
             </Animated.View>
 
             {(errors.general || errors.google) ? (
@@ -751,7 +745,7 @@ export default function PatientSignupScreen({ navigation, route }) {
                     <View style={{ flex: 1 }}>
                         <IconInput icon={Mail}
                             label={<View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                                <Text style={[styles.label, focusField === 'email' && { color: '#6366F1' }]}>Email Address</Text>
+                                <Text style={[styles.label, focusField === 'email' && { color: '#3B5BDB' }]}>Email Address</Text>
                                 {isEmailVerified && <CheckCircle2 size={12} color="#22C55E" />}
                             </View>}
                             placeholder="Enter your email"
@@ -771,7 +765,7 @@ export default function PatientSignupScreen({ navigation, route }) {
                     <View style={{ flex: 1 }}>
                         <IconInput icon={Smartphone}
                             label={<View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                                <Text style={[styles.label, focusField === 'phoneNumber' && { color: '#6366F1' }]}>Phone Number</Text>
+                                <Text style={[styles.label, focusField === 'phoneNumber' && { color: '#3B5BDB' }]}>Phone Number</Text>
                                 {isPhoneVerified && <CheckCircle2 size={12} color="#22C55E" />}
                             </View>}
                             placeholder="10-digit number"
@@ -794,9 +788,9 @@ export default function PatientSignupScreen({ navigation, route }) {
                     secureTextEntry={!showPass}
                     focused={focusField === 'password'} onFocus={() => setFocusField('password')} onBlur={() => setFocusField('')}
                     error={errors.password}
-                    rightIcon={<Pressable onPress={() => setShowPass(!showPass)} hitSlop={8}>{showPass ? <Eye size={18} color="#94A3B8" /> : <EyeOff size={18} color="#94A3B8" />}</Pressable>} />
+                    rightIcon={<Pressable onPress={() => setShowPass(!showPass)} hitSlop={8}>{showPass ? <Eye size={18} color="#8899BB" /> : <EyeOff size={18} color="#8899BB" />}</Pressable>} />
                 <PasswordStrength password={form.password} />
-                <PasswordRequirements password={form.password} />
+
 
                 <IconInput icon={Lock} label="Confirm Password" placeholder="Re-enter your password"
                     value={form.confirmPassword} onChangeText={v => updateField('confirmPassword', v)}
@@ -804,7 +798,7 @@ export default function PatientSignupScreen({ navigation, route }) {
                     focused={focusField === 'confirmPassword'} onFocus={() => setFocusField('confirmPassword')} onBlur={() => setFocusField('')}
                     error={errors.confirmPassword}
                     rightIcon={passwordsMatch ? <CheckCircle2 size={18} color="#22C55E" /> :
-                        <Pressable onPress={() => setShowConfirm(!showConfirm)} hitSlop={8}>{showConfirm ? <Eye size={18} color="#94A3B8" /> : <EyeOff size={18} color="#94A3B8" />}</Pressable>} />
+                        <Pressable onPress={() => setShowConfirm(!showConfirm)} hitSlop={8}>{showConfirm ? <Eye size={18} color="#8899BB" /> : <EyeOff size={18} color="#8899BB" />}</Pressable>} />
             </Animated.View>
 
             <Animated.View style={{ opacity: staggerAnims[5], transform: [{ translateY: staggerAnims[5].interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) }] }}>
@@ -843,7 +837,7 @@ export default function PatientSignupScreen({ navigation, route }) {
                 </Pressable>
 
                 <Pressable style={[styles.locationSecondaryBtn, (loadingCities || detectingLocation) && { opacity: 0.7 }]} onPress={() => setCityModalVisible(true)} disabled={loadingCities || detectingLocation}>
-                    <Navigation size={18} color="#0EA5E9" style={{ marginRight: 8 }} />
+                    <Navigation size={18} color="#3B5BDB" style={{ marginRight: 8 }} />
                     <Text style={styles.locationSecondaryBtnText}>{loadingCities ? 'Loading cities...' : 'Select city manually'}</Text>
                 </Pressable>
 
@@ -893,18 +887,18 @@ export default function PatientSignupScreen({ navigation, route }) {
             <Animated.View style={{ opacity: staggerAnims[1], transform: [{ translateY: staggerAnims[1].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>
                 <Pressable onPress={() => setSelectedPlan({ id: 'basic', name: 'Basic Plan', price: '₹500 / month' })}
                     style={[styles.planCardEnhanced, selectedPlan.id === 'basic' && styles.planCardActive]}>
-                    <LinearGradient colors={['#FFFFFF', '#F8FAFC']} style={styles.planCardGradient}>
+                    <LinearGradient colors={['#FFFFFF', '#EEF1FF']} style={styles.planCardGradient}>
                         <View style={styles.planCardHeaderRow}>
-                            <View style={[styles.planIconBoxEnhanced, { backgroundColor: '#E0F2FE' }]}><Shield size={24} color="#0EA5E9" /></View>
+                            <View style={[styles.planIconBoxEnhanced, { backgroundColor: '#EFF3FF' }]}><Shield size={24} color="#3B5BDB" /></View>
                             <View style={styles.planPriceCol}>
                                 <Text style={styles.planTitleEnhanced}>Basic Plan</Text>
                                 <Text style={styles.planPriceEnhanced}>₹500<Text style={styles.planPriceSub}>/mo</Text></Text>
                             </View>
-                            {selectedPlan.id === 'basic' && <View style={styles.selectedCheck}><CheckCircle2 size={24} color="#0EA5E9" fill="#E0F2FE" /></View>}
+                            {selectedPlan.id === 'basic' && <View style={styles.selectedCheck}><CheckCircle2 size={24} color="#3B5BDB" fill="#EFF3FF" /></View>}
                         </View>
                         <View style={styles.planFeaturesEnhanced}>
                             {['Daily Care Calls', 'Medication Tracking', 'Assigned Caller', 'Health History'].map(f => (
-                                <View key={f} style={styles.featureLine}><Check size={14} color="#0EA5E9" strokeWidth={3} /><Text style={styles.featureTextEnhanced}>{f}</Text></View>
+                                <View key={f} style={styles.featureLine}><Check size={14} color="#3B5BDB" strokeWidth={3} /><Text style={styles.featureTextEnhanced}>{f}</Text></View>
                             ))}
                         </View>
                         <Pressable style={[styles.planActionBtn, selectedPlan.id === 'basic' ? styles.btnActive : styles.btnInactive]}
@@ -919,31 +913,31 @@ export default function PatientSignupScreen({ navigation, route }) {
             </Animated.View>
 
             <Animated.View style={{ opacity: staggerAnims[2], transform: [{ translateY: staggerAnims[2].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>
-                <View style={[styles.planCardEnhanced, { opacity: 0.6, borderColor: '#E2E8F0', backgroundColor: '#F8FAFC' }]}>
-                    <LinearGradient colors={['#F8FAFC', '#FFFFFF']} style={styles.planCardGradient}>
-                        <View style={[styles.premiumBadge, { backgroundColor: '#94A3B8' }]}>
+                <View style={[styles.planCardEnhanced, { opacity: 0.6, borderColor: '#D0D9F5', backgroundColor: '#EEF1FF' }]}>
+                    <LinearGradient colors={['#EEF1FF', '#FFFFFF']} style={styles.planCardGradient}>
+                        <View style={[styles.premiumBadge, { backgroundColor: '#8899BB' }]}>
                             <Star size={10} color="#FFFFFF" fill="#FFFFFF" />
                             <Text style={styles.premiumBadgeText}>COMING SOON</Text>
                         </View>
                         <View style={styles.planCardHeaderRow}>
-                            <View style={[styles.planIconBoxEnhanced, { backgroundColor: '#E2E8F0' }]}>
-                                <Crown size={24} color="#94A3B8" />
+                            <View style={[styles.planIconBoxEnhanced, { backgroundColor: '#D0D9F5' }]}>
+                                <Crown size={24} color="#8899BB" />
                             </View>
                             <View style={styles.planPriceCol}>
                                 <Text style={[styles.planTitleEnhanced, { color: '#64748B' }]}>Premium Plan</Text>
-                                <Text style={[styles.planPriceEnhanced, { color: '#94A3B8' }]}>₹999<Text style={styles.planPriceSub}>/mo</Text></Text>
+                                <Text style={[styles.planPriceEnhanced, { color: '#8899BB' }]}>₹999<Text style={styles.planPriceSub}>/mo</Text></Text>
                             </View>
                         </View>
                         <View style={styles.planFeaturesEnhanced}>
                             {['Everything in Basic +', 'Detailed Health Analytics', 'Family Dashboard', 'Priority Support'].map((f, i) => (
                                 <View key={f} style={styles.featureLine}>
-                                    {i === 0 ? <Zap size={14} color="#94A3B8" strokeWidth={3} /> : <Check size={14} color="#94A3B8" strokeWidth={3} />}
-                                    <Text style={[styles.featureTextEnhanced, { color: '#94A3B8' }]}>{f}</Text>
+                                    {i === 0 ? <Zap size={14} color="#8899BB" strokeWidth={3} /> : <Check size={14} color="#8899BB" strokeWidth={3} />}
+                                    <Text style={[styles.featureTextEnhanced, { color: '#8899BB' }]}>{f}</Text>
                                 </View>
                             ))}
                         </View>
-                        <Pressable style={[styles.planActionBtn, { backgroundColor: '#E2E8F0' }]} disabled={true}>
-                            <Text style={[styles.planActionBtnText, { color: '#94A3B8' }]}>Available Soon</Text>
+                        <Pressable style={[styles.planActionBtn, { backgroundColor: '#D0D9F5' }]} disabled={true}>
+                            <Text style={[styles.planActionBtnText, { color: '#8899BB' }]}>Available Soon</Text>
                         </Pressable>
                     </LinearGradient>
                 </View>
@@ -954,7 +948,7 @@ export default function PatientSignupScreen({ navigation, route }) {
     const renderStep4_PaymentSuccess = () => (
         <View style={styles.centerStepEnhanced}>
             <Animated.View style={{ width: '100%', opacity: staggerAnims[0], transform: [{ translateY: staggerAnims[0].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>
-                <LinearGradient colors={['#F0FFF4', '#FFFFFF']} style={styles.successCelebrationCard}>
+                <LinearGradient colors={['#EFF3FF', '#FFFFFF']} style={styles.successCelebrationCard}>
                     <View style={styles.largeSuccessCircle}><CheckCircle2 size={56} color="#22C55E" strokeWidth={2.5} /></View>
                     <Text style={styles.successTitle}>Payment Successful!</Text>
                     <Text style={styles.successSubtitle}>Welcome to the Samvaya family.</Text>
@@ -963,7 +957,7 @@ export default function PatientSignupScreen({ navigation, route }) {
 
             <Animated.View style={{ width: '100%', opacity: staggerAnims[1], transform: [{ translateY: staggerAnims[1].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>
                 <View style={styles.nextStepsCard}>
-                    <View style={styles.nextStepsHeader}><Sparkles size={18} color="#0EA5E9" /><Text style={styles.nextStepsTitle}>Your Onboarding Journey</Text></View>
+                    <View style={styles.nextStepsHeader}><Sparkles size={18} color="#3B5BDB" /><Text style={styles.nextStepsTitle}>Your Onboarding Journey</Text></View>
                     <Text style={styles.nextStepsDesc}>A Care Caller will reach out within 24 hours to finalize your profile:</Text>
                     <View style={styles.journeyList}>
                         {[
@@ -973,7 +967,7 @@ export default function PatientSignupScreen({ navigation, route }) {
                         ].map(({ icon: Icon, text }, i) => (
                             <Animated.View key={text} style={{ opacity: staggerAnims[i + 2], transform: [{ translateX: staggerAnims[i + 2].interpolate({ inputRange: [0, 1], outputRange: [-10, 0] }) }] }}>
                                 <View style={styles.journeyItem}>
-                                    <View style={styles.journeyIconBox}><Icon size={16} color="#0EA5E9" /></View>
+                                    <View style={styles.journeyIconBox}><Icon size={16} color="#3B5BDB" /></View>
                                     <Text style={styles.journeyText}>{text}</Text>
                                 </View>
                             </Animated.View>
@@ -996,11 +990,11 @@ export default function PatientSignupScreen({ navigation, route }) {
             <Animated.View style={{ opacity: staggerAnims[0], transform: [{ scale: staggerAnims[0].interpolate({ inputRange: [0, 1], outputRange: [0.8, 1] }) }] }}>
                 <View style={styles.readyVisualWrap}>
                     <View style={styles.readyIconGrid}>
-                        <View style={[styles.readyIconBox, { top: 0, left: 20, backgroundColor: '#EFF6FF' }]}><User size={24} color="#6366F1" /></View>
+                        <View style={[styles.readyIconBox, { top: 0, left: 20, backgroundColor: '#EFF6FF' }]}><User size={24} color="#3B5BDB" /></View>
                         <View style={[styles.readyIconBox, { top: 40, right: 10, backgroundColor: '#F0FFF4' }]}><CheckCircle2 size={24} color="#22C55E" /></View>
                         <View style={[styles.readyIconBox, { bottom: 0, left: 0, backgroundColor: '#FDF2F8' }]}><Sparkles size={24} color="#DB2777" /></View>
                     </View>
-                    <View style={styles.mainReadyCircle}><Shield size={64} color="#4338CA" strokeWidth={1.5} /></View>
+                    <View style={styles.mainReadyCircle}><Shield size={64} color="#1E3A8A" strokeWidth={1.5} /></View>
                 </View>
             </Animated.View>
 
@@ -1019,7 +1013,7 @@ export default function PatientSignupScreen({ navigation, route }) {
 
             <Animated.View style={{ opacity: staggerAnims[3], width: '100%', transform: [{ scale: staggerAnims[3].interpolate({ inputRange: [0, 1], outputRange: [0.95, 1] }) }] }}>
                 <Pressable style={styles.dashboardBtn} onPress={handleCompleteSignUp}>
-                    <LinearGradient colors={['#6366F1', '#4338CA']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.dashboardBtnGradient}>
+                    <LinearGradient colors={['#3B5BDB', '#1E3A8A']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.dashboardBtnGradient}>
                         <Text style={styles.dashboardBtnText}>Enter My Dashboard</Text>
                         <ArrowLeft size={20} color="#FFFFFF" style={{ transform: [{ rotate: '180deg' }] }} />
                     </LinearGradient>
@@ -1044,15 +1038,15 @@ export default function PatientSignupScreen({ navigation, route }) {
                         </View>
                         <View style={{ paddingHorizontal: 24, paddingBottom: 16 }}>
                             <View style={styles.searchWrap}>
-                                <Search size={18} color="#94A3B8" />
-                                <TextInput style={styles.searchInput} placeholder="Search cities..." placeholderTextColor="#94A3B8"
+                                <Search size={18} color="#8899BB" />
+                                <TextInput style={styles.searchInput} placeholder="Search cities..." placeholderTextColor="#8899BB"
                                     value={citySearchQuery} onChangeText={setCitySearchQuery} />
-                                {citySearchQuery.length > 0 && <Pressable onPress={() => setCitySearchQuery('')}><X size={16} color="#94A3B8" /></Pressable>}
+                                {citySearchQuery.length > 0 && <Pressable onPress={() => setCitySearchQuery('')}><X size={16} color="#8899BB" /></Pressable>}
                             </View>
                         </View>
                         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 40 }}>
                             {loadingCities ? (
-                                <ActivityIndicator size="large" color="#6366F1" style={{ marginTop: 40 }} />
+                                <ActivityIndicator size="large" color="#3B5BDB" style={{ marginTop: 40 }} />
                             ) : filteredCities.length === 0 ? (
                                 <View style={styles.emptyState}>
                                     <MapPin size={32} color="#CBD5E1" />
@@ -1068,11 +1062,11 @@ export default function PatientSignupScreen({ navigation, route }) {
                                         setCityModalVisible(false);
                                         setErrors(prev => ({ ...prev, location: '' }));
                                     }}>
-                                    <View style={[styles.cityIconBox, form.city === city.name && { backgroundColor: '#E0F2FE' }]}>
-                                        <MapPin size={20} color={form.city === city.name ? '#0EA5E9' : '#64748B'} />
+                                    <View style={[styles.cityIconBox, form.city === city.name && { backgroundColor: '#EFF3FF' }]}>
+                                        <MapPin size={20} color={form.city === city.name ? '#3B5BDB' : '#64748B'} />
                                     </View>
                                     <View style={{ flex: 1, marginLeft: 16 }}>
-                                        <Text style={[styles.cityName, form.city === city.name && { color: '#0EA5E9', fontWeight: '700' }]}>{city.name}</Text>
+                                        <Text style={[styles.cityName, form.city === city.name && { color: '#3B5BDB', fontWeight: '700' }]}>{city.name}</Text>
                                         <Text style={styles.cityState}>{city.state}</Text>
                                     </View>
                                     <View style={[styles.radioOutline, form.city === city.name && styles.radioActive]}>
@@ -1095,10 +1089,11 @@ export default function PatientSignupScreen({ navigation, route }) {
                 keyboardShouldPersistTaps="handled" bounces={false}>
 
                 <Animated.View style={{ transform: [{ translateY: heroAnim }], opacity: heroOpacity }}>
-                    <LinearGradient colors={['#4338CA', '#38BDF8']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.heroEnhanced}>
-                        <View style={styles.decorativeCircleSmall} />
-                        <View style={[styles.decorativeCircleSmall, { width: 80, height: 80, top: 20, right: 60, opacity: 0.05 }]} />
-                        <View style={[styles.decorativeCircleSmall, { width: 60, height: 60, top: 40, left: -10, opacity: 0.1 }]} />
+                    <LinearGradient colors={['#1E3A8A', '#3B5BDB', '#60A5FA']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.heroEnhanced}>
+                        <View style={styles.orb1} />
+                        <View style={styles.orb2} />
+                        <View style={styles.orb3} />
+                        <View style={styles.orb4} />
                         <View style={styles.heroInside}>
                             <View style={styles.headerTopLine}>
                                 <View style={styles.stepBadge}>
@@ -1149,85 +1144,88 @@ export default function PatientSignupScreen({ navigation, route }) {
 
 // ─── Styles (unchanged from original) ─────────────────────────────────────────
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#F8FAFC' },
-    heroEnhanced: { height: 190, borderBottomLeftRadius: 40, borderBottomRightRadius: 40, paddingTop: Platform.OS === 'ios' ? 50 : 30, overflow: 'hidden' },
+    container: { flex: 1, backgroundColor: '#EEF1FF' },
+    heroEnhanced: { minHeight: 220, borderBottomLeftRadius: 36, borderBottomRightRadius: 36, paddingTop: Platform.OS === 'ios' ? 50 : 30, paddingBottom: 24, overflow: 'hidden' },
     heroInside: { paddingHorizontal: 24 },
-    decorativeCircleSmall: { position: 'absolute', top: -40, right: -40, width: 120, height: 120, borderRadius: 60, backgroundColor: 'rgba(255,255,255,0.06)' },
-    headerTopLine: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-    stepBadge: { backgroundColor: 'rgba(255,255,255,0.12)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+    orb1: { position: 'absolute', borderRadius: 999, width: 140, height: 140, top: -40, right: -40, backgroundColor: '#1E3A8A', opacity: 0.75 },
+    orb2: { position: 'absolute', borderRadius: 999, width: 80, height: 80, top: 10, right: 80, backgroundColor: '#BFDBFE', opacity: 0.55 },
+    orb3: { position: 'absolute', borderRadius: 999, width: 90, height: 90, bottom: -10, left: -20, backgroundColor: '#1E3A8A', opacity: 0.6 },
+    orb4: { position: 'absolute', borderRadius: 999, width: 45, height: 45, bottom: 30, left: 60, backgroundColor: '#DBEAFE', opacity: 0.4 },
+    headerTopLine: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+    stepBadge: { backgroundColor: 'rgba(255,255,255,0.18)', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)' },
     stepBadgeText: { fontSize: 10, fontWeight: '800', color: '#FFFFFF', letterSpacing: 1.2 },
     backBtnHeader: { flexDirection: 'row', alignItems: 'center', gap: 4 },
     backBtnText: { fontSize: 13, color: 'rgba(255,255,255,0.8)', fontWeight: '600' },
-    heroTitleEnhanced: { fontSize: 28, fontWeight: '800', color: '#FFFFFF', marginBottom: 4 },
-    heroSubtitleSmall: { fontSize: 13, color: 'rgba(255,255,255,0.6)', fontWeight: '500', marginBottom: 20 },
-    modernProgressContainer: { flexDirection: 'row', gap: 8, width: '100%' },
-    progressSegmentWrapper: { flex: 1, height: 6, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 3, overflow: 'hidden' },
+    heroTitleEnhanced: { fontSize: 28, fontWeight: '800', color: '#FFFFFF', marginBottom: 2 },
+    heroSubtitleSmall: { fontSize: 13, color: 'rgba(255,255,255,0.6)', fontWeight: '500', marginBottom: 16 },
+    modernProgressContainer: { flexDirection: 'row', gap: 6, width: '100%' },
+    progressSegmentWrapper: { flex: 1, height: 4, backgroundColor: 'rgba(255,255,255,0.20)', borderRadius: 2, overflow: 'hidden' },
     progressSegment: { height: '100%', width: '0%' },
     progressSegmentActive: { width: '50%', backgroundColor: '#FFFFFF' },
     progressSegmentDone: { width: '100%', backgroundColor: '#FFFFFF' },
-    formCard: { marginTop: -24, marginHorizontal: 16, backgroundColor: '#FFFFFF', borderRadius: 28, paddingHorizontal: 20, paddingTop: 24, paddingBottom: 32, marginBottom: 40, shadowColor: '#6366F1', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.06, shadowRadius: 24, elevation: 8 },
-    googleBtnEnhanced: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF', borderWidth: 1.5, borderColor: '#E2E8F0', borderRadius: 16, height: 56, marginBottom: 20, shadowColor: 'rgba(0,0,0,0.06)', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 1, shadowRadius: 10, elevation: 3 },
-    googleG: { fontSize: 20, fontWeight: '700', color: '#4285F4', marginRight: 10 },
-    googleBtnText: { fontSize: 15, fontWeight: '600', color: '#1A202C' },
-    dividerRowPremium: { flexDirection: 'row', alignItems: 'center', marginVertical: 32, paddingHorizontal: 10 },
-    dividerLine: { flex: 1, height: 1.2, backgroundColor: '#F1F5F9' },
-    dividerText: { marginHorizontal: 16, fontSize: 11, color: '#94A3B8', fontWeight: '800', letterSpacing: 1.5 },
-    errorBoxEnhanced: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#FFF1F2', borderRadius: 12, padding: 14, marginBottom: 20, borderWidth: 1, borderColor: '#FECDD3' },
+    formCard: { marginTop: -24, marginHorizontal: 20, backgroundColor: 'rgba(255,255,255,0.88)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.7)', borderRadius: 32, paddingHorizontal: 20, paddingTop: 20, paddingBottom: 20, marginBottom: 16, shadowColor: '#1E3A8A', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.10, shadowRadius: 24, elevation: 6 },
+    googleBtnEnhanced: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.92)', borderWidth: 1.5, borderColor: '#D0D9F5', borderRadius: 16, height: 46, marginBottom: 10, shadowColor: 'rgba(0,0,0,0.06)', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 1, shadowRadius: 10, elevation: 3 },
+    googleG: { fontSize: 18, fontWeight: '700', color: '#4285F4', marginRight: 10 },
+    googleBtnText: { fontSize: 14, fontWeight: '600', color: '#1A202C' },
+    dividerRowPremium: { flexDirection: 'row', alignItems: 'center', marginVertical: 12, paddingHorizontal: 10 },
+    dividerLine: { flex: 1, height: 1, backgroundColor: '#E8EDFF' },
+    dividerText: { marginHorizontal: 14, fontSize: 10, color: '#8899BB', fontWeight: '800', letterSpacing: 1.5 },
+    errorBoxEnhanced: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#FFF1F2', borderRadius: 12, padding: 12, marginBottom: 16, borderWidth: 1, borderColor: '#FECDD3' },
     errorMsgEnhanced: { color: '#E11D48', fontSize: 13, flex: 1, fontWeight: '500' },
     errorTextRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4, marginLeft: 4 },
-    trustRowEnhanced: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 24, paddingVertical: 10, backgroundColor: '#F0F7FF', borderRadius: 14, borderWidth: 1, borderColor: '#E0F2FE' },
+    trustRowEnhanced: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 14, paddingVertical: 8, backgroundColor: 'rgba(239,243,255,0.9)', borderRadius: 12, borderWidth: 1, borderColor: '#EFF3FF' },
     trustItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-    trustText: { fontSize: 10, fontWeight: '700', color: '#1E40AF', letterSpacing: 0.2 },
+    trustText: { fontSize: 10, fontWeight: '700', color: '#1E3A8A', letterSpacing: 0.2 },
     trustDivider: { width: 1, height: 10, backgroundColor: '#BFDBFE', marginHorizontal: 2 },
-    fieldGroup: { marginBottom: 20 },
-    label: { fontSize: 13, fontWeight: '700', color: '#475569', marginBottom: 8, marginLeft: 4 },
-    inputWrapEnhanced: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', borderWidth: 1.5, borderColor: '#E2E8F0', borderRadius: 16, height: 56, paddingHorizontal: 16, shadowColor: 'rgba(0,0,0,0.02)', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 1, shadowRadius: 4, elevation: 1 },
-    inputFocusedEnhanced: { borderColor: '#6366F1', backgroundColor: '#FFFFFF', shadowColor: 'rgba(58,134,255,0.1)', shadowRadius: 8, elevation: 3 },
+    fieldGroup: { marginBottom: 10 },
+    label: { fontSize: 12, fontWeight: '700', color: '#475569', marginBottom: 6, marginLeft: 4 },
+    inputWrapEnhanced: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.95)', borderWidth: 1.5, borderColor: '#D0D9F5', borderRadius: 16, height: 48, paddingHorizontal: 14, shadowColor: 'rgba(0,0,0,0.02)', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 1, shadowRadius: 4, elevation: 1 },
+    inputFocusedEnhanced: { borderColor: '#3B5BDB', backgroundColor: '#FFFFFF', shadowColor: '#3B5BDB', shadowOpacity: 0.12, shadowRadius: 18, elevation: 3 },
     inputErrorEnhanced: { borderColor: '#EF4444', backgroundColor: '#FFF1F2' },
-    inlineIconBox: { width: 32, height: 32, borderRadius: 10, backgroundColor: '#F8FAFC', alignItems: 'center', justifyContent: 'center', marginRight: 12 },
-    textPrefixStyle: { fontSize: 16, color: '#1E293B', fontWeight: '600', marginRight: 4 },
-    textInputEnhanced: { flex: 1, fontSize: 15, color: '#1E293B', fontWeight: '500' },
-    fieldErrorEnhanced: { fontSize: 12, color: '#EF4444', fontWeight: '500' },
+    inlineIconBox: { width: 28, height: 28, borderRadius: 10, backgroundColor: '#EFF3FF', alignItems: 'center', justifyContent: 'center', marginRight: 10 },
+    textPrefixStyle: { fontSize: 15, color: '#1E293B', fontWeight: '600', marginRight: 4 },
+    textInputEnhanced: { flex: 1, fontSize: 14, color: '#1E293B', fontWeight: '500' },
+    fieldErrorEnhanced: { fontSize: 11, color: '#EF4444', fontWeight: '500' },
     rightIconWrap: { marginLeft: 10 },
-    strengthWrap: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: -8, marginBottom: 12 },
+    strengthWrap: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: -6, marginBottom: 10 },
     strengthBarRow: { flexDirection: 'row', gap: 4 },
-    strengthSeg: { width: 28, height: 4, borderRadius: 2 },
+    strengthSeg: { width: 24, height: 4, borderRadius: 2 },
     strengthLabel: { fontSize: 11, fontWeight: '600' },
-    reqWrap: { marginTop: -4, marginBottom: 12, marginLeft: 4 },
-    reqItem: { fontSize: 12, marginBottom: 2 },
-    primaryBtnEnhanced: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#6366F1', borderRadius: 100, height: 64, width: '100%', gap: 8, shadowColor: '#6366F1', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.3, shadowRadius: 16, elevation: 8 },
-    primaryBtnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
-    bottomLink: { flexDirection: 'row', justifyContent: 'center', marginTop: 20 },
+    reqWrap: { marginTop: -4, marginBottom: 10, marginLeft: 4 },
+    reqItem: { fontSize: 11, marginBottom: 2 },
+    primaryBtnEnhanced: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#3B5BDB', borderRadius: 16, height: 50, width: '100%', gap: 8, shadowColor: '#3B5BDB', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.25, shadowRadius: 12, elevation: 6 },
+    primaryBtnText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
+    bottomLink: { flexDirection: 'row', justifyContent: 'center', marginTop: 12 },
     bottomLinkText: { fontSize: 14, color: '#64748B' },
-    bottomLinkAction: { fontSize: 14, fontWeight: '600', color: '#6366F1' },
+    bottomLinkAction: { fontSize: 14, fontWeight: '600', color: '#3B5BDB' },
     verifyFieldRow: { flexDirection: 'row', alignItems: 'center', gap: 10, width: '100%' },
-    verifyBtnSmall: { backgroundColor: '#6366F1', paddingHorizontal: 16, height: 44, borderRadius: 14, minWidth: 70, alignItems: 'center', justifyContent: 'center', marginTop: 12, shadowColor: '#6366F1', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 8, elevation: 4 },
-    verifiedBtn: { backgroundColor: '#22C55E', shadowColor: '#22C55E' },
+    verifyBtnSmall: { backgroundColor: '#3B5BDB', paddingHorizontal: 16, height: 44, borderRadius: 14, minWidth: 70, alignItems: 'center', justifyContent: 'center', marginTop: 12, shadowColor: '#3B5BDB', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 8, elevation: 4 },
+    verifiedBtn: { backgroundColor: '#22C55E', shadowColor: '#3B5BDB' },
     verifyBtnText: { color: '#FFFFFF', fontSize: 13, fontWeight: '800' },
     otpSubtext: { fontSize: 14, color: '#64748B', textAlign: 'center', marginTop: 8 },
     resendRow: { alignItems: 'center', marginTop: 16, marginBottom: 24 },
-    resendAction: { color: '#6366F1', fontSize: 14, fontWeight: '600' },
-    timerText: { color: '#94A3B8', fontSize: 14 },
-    attemptsText: { textAlign: 'center', marginTop: 12, fontSize: 12, color: '#94A3B8' },
+    resendAction: { color: '#3B5BDB', fontSize: 14, fontWeight: '600' },
+    timerText: { color: '#8899BB', fontSize: 14 },
+    attemptsText: { textAlign: 'center', marginTop: 12, fontSize: 12, color: '#8899BB' },
     centerStepEnhanced: { alignItems: 'center', paddingTop: 10 },
     successCelebrationCard: { width: '100%', borderRadius: 24, padding: 32, alignItems: 'center', marginBottom: 24, borderWidth: 1, borderColor: '#DCFCE7' },
-    largeSuccessCircle: { width: 96, height: 96, borderRadius: 48, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', marginBottom: 20, shadowColor: '#22C55E', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.2, shadowRadius: 20, elevation: 10 },
+    largeSuccessCircle: { width: 96, height: 96, borderRadius: 48, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', marginBottom: 20, shadowColor: '#3B5BDB', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.2, shadowRadius: 20, elevation: 10 },
     successTitle: { fontSize: 24, fontWeight: '800', color: '#166534', marginBottom: 4 },
     successSubtitle: { fontSize: 16, color: '#15803D', fontWeight: '500' },
-    nextStepsCard: { backgroundColor: '#F8FAFC', borderRadius: 24, padding: 24, width: '100%', marginBottom: 32, borderWidth: 1, borderColor: '#E2E8F0' },
+    nextStepsCard: { backgroundColor: '#EEF1FF', borderRadius: 24, padding: 24, width: '100%', marginBottom: 32, borderWidth: 1, borderColor: '#D0D9F5' },
     nextStepsHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
     nextStepsTitle: { fontSize: 16, fontWeight: '700', color: '#1E293B' },
     nextStepsDesc: { fontSize: 14, color: '#64748B', lineHeight: 20, marginBottom: 20 },
     journeyList: { gap: 16 },
     journeyItem: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-    journeyIconBox: { width: 32, height: 32, borderRadius: 999, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#E2E8F0' },
-    journeyText: { fontSize: 14, fontWeight: '600', color: '#334155' },
-    planCardGhost: { backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderStyle: 'dashed', borderRadius: 16, padding: 16, marginBottom: 20, flexDirection: 'row', alignItems: 'center', gap: 12 },
-    ghostIconWrap: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#E2E8F0' },
+    journeyIconBox: { width: 32, height: 32, borderRadius: 999, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#D0D9F5' },
+    journeyText: { fontSize: 14, fontWeight: '600', color: '#3D4F7C' },
+    planCardGhost: { backgroundColor: '#EEF1FF', borderWidth: 1, borderColor: '#D0D9F5', borderStyle: 'dashed', borderRadius: 16, padding: 16, marginBottom: 20, flexDirection: 'row', alignItems: 'center', gap: 12 },
+    ghostIconWrap: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#D0D9F5' },
     planTitleGhost: { fontSize: 14, fontWeight: '700', color: '#4A5568' },
     planDesc: { fontSize: 12, color: '#64748B', marginTop: 2 },
     planCardEnhanced: { backgroundColor: '#FFFFFF', borderRadius: 24, marginBottom: 20, borderWidth: 2, borderColor: 'transparent', shadowColor: 'rgba(10,36,99,0.08)', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 1, shadowRadius: 16, elevation: 6, overflow: 'hidden' },
-    planCardActive: { borderColor: '#0EA5E9', shadowColor: '#0EA5E9', shadowOpacity: 0.15, elevation: 8 },
+    planCardActive: { borderColor: '#3B5BDB', shadowColor: '#3B5BDB', shadowOpacity: 0.15, elevation: 8 },
     planCardGradient: { padding: 20 },
     planCardHeaderRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 20, gap: 12 },
     planIconBoxEnhanced: { width: 52, height: 52, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
@@ -1240,8 +1238,8 @@ const styles = StyleSheet.create({
     featureLine: { flexDirection: 'row', alignItems: 'center', gap: 10 },
     featureTextEnhanced: { fontSize: 14, color: '#475569', fontWeight: '500' },
     planActionBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, borderRadius: 16, gap: 8 },
-    btnActive: { backgroundColor: '#0EA5E9' },
-    btnInactive: { backgroundColor: '#F1F5F9' },
+    btnActive: { backgroundColor: '#3B5BDB' },
+    btnInactive: { backgroundColor: '#E8EDFF' },
     planActionBtnText: { fontSize: 15, fontWeight: '700' },
     txtActive: { color: '#FFFFFF' },
     txtInactive: { color: '#64748B' },
@@ -1250,51 +1248,51 @@ const styles = StyleSheet.create({
     readyVisualWrap: { width: 180, height: 180, justifyContent: 'center', alignItems: 'center', marginBottom: 32 },
     readyIconGrid: { position: 'absolute', width: '100%', height: '100%' },
     readyIconBox: { position: 'absolute', width: 52, height: 52, borderRadius: 16, alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 4 },
-    mainReadyCircle: { width: 120, height: 120, borderRadius: 60, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', shadowColor: '#4338CA', shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.15, shadowRadius: 24, elevation: 12, borderWidth: 1, borderColor: '#F1F5F9' },
-    megaTitle: { fontSize: 32, fontWeight: '900', color: '#4338CA', textAlign: 'center', marginBottom: 8 },
+    mainReadyCircle: { width: 120, height: 120, borderRadius: 60, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', shadowColor: '#1E3A8A', shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.15, shadowRadius: 24, elevation: 12, borderWidth: 1, borderColor: '#E8EDFF' },
+    megaTitle: { fontSize: 32, fontWeight: '900', color: '#1E3A8A', textAlign: 'center', marginBottom: 8 },
     megaSubtitle: { fontSize: 16, color: '#64748B', textAlign: 'center', fontWeight: '500', marginBottom: 32 },
     welcomeCard: { paddingHorizontal: 20, marginBottom: 40 },
     welcomeText: { fontSize: 15, color: '#475569', textAlign: 'center', lineHeight: 24 },
-    dashboardBtn: { width: '100%', borderRadius: 20, overflow: 'hidden', shadowColor: '#4338CA', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.3, shadowRadius: 20, elevation: 10 },
+    dashboardBtn: { width: '100%', borderRadius: 20, overflow: 'hidden', shadowColor: '#1E3A8A', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.3, shadowRadius: 20, elevation: 10 },
     dashboardBtnGradient: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', height: 68, gap: 12, paddingHorizontal: 24 },
     dashboardBtnText: { fontSize: 18, fontWeight: '800', color: '#FFFFFF' },
     modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-    modalSheet: { backgroundColor: '#FFFFFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingHorizontal: 20, paddingTop: 20, paddingBottom: Platform.OS === 'ios' ? 40 : 24, maxHeight: '80%' },
+    modalSheet: { backgroundColor: 'rgba(255,255,255,0.96)', borderTopLeftRadius: 32, borderTopRightRadius: 32, paddingHorizontal: 20, paddingTop: 20, paddingBottom: Platform.OS === 'ios' ? 40 : 24, maxHeight: '80%' },
     modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
     modalTitle: { fontSize: 18, fontWeight: '700', color: '#1A202C' },
     modalSub: { fontSize: 13, color: '#64748B', marginTop: 2 },
     closeBtnBox: { padding: 4 },
-    searchWrap: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F4F7FB', borderRadius: 12, paddingHorizontal: 14, height: 44, marginBottom: 12, borderWidth: 1, borderColor: '#E2E8F0' },
+    searchWrap: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F4F7FB', borderRadius: 12, paddingHorizontal: 14, height: 44, marginBottom: 12, borderWidth: 1, borderColor: '#D0D9F5' },
     searchInput: { flex: 1, fontSize: 15, color: '#1A202C', marginLeft: 10 },
     emptyState: { alignItems: 'center', justifyContent: 'center', paddingVertical: 40, marginTop: 20 },
     emptyTitle: { fontSize: 18, fontWeight: '700', color: '#1E293B', marginTop: 16 },
     emptyDesc: { fontSize: 14, color: '#64748B', textAlign: 'center', marginTop: 8, paddingHorizontal: 20 },
-    cityOption: { flexDirection: 'row', alignItems: 'center', padding: 16, backgroundColor: '#FAFBFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 16, marginBottom: 12 },
-    cityOptionActive: { backgroundColor: '#F0F9FF', borderColor: '#BAE6FD' },
-    cityIconBox: { width: 44, height: 44, borderRadius: 12, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center' },
+    cityOption: { flexDirection: 'row', alignItems: 'center', padding: 16, backgroundColor: '#FAFBFC', borderWidth: 1, borderColor: '#D0D9F5', borderRadius: 16, marginBottom: 12 },
+    cityOptionActive: { backgroundColor: '#EFF3FF', borderColor: '#A5B4FC' },
+    cityIconBox: { width: 44, height: 44, borderRadius: 12, backgroundColor: '#E8EDFF', alignItems: 'center', justifyContent: 'center' },
     cityName: { fontSize: 16, fontWeight: '600', color: '#1E293B', marginBottom: 2 },
     cityState: { fontSize: 13, color: '#64748B' },
     radioOutline: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: '#CBD5E1', alignItems: 'center', justifyContent: 'center' },
-    radioActive: { borderColor: '#0EA5E9' },
-    radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#0EA5E9' },
+    radioActive: { borderColor: '#3B5BDB' },
+    radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#3B5BDB' },
     paymentSummary: { backgroundColor: '#F4F7FB', borderRadius: 12, padding: 16, marginBottom: 16, alignItems: 'center' },
     payPlanName: { fontSize: 14, color: '#64748B', fontWeight: '500' },
     payAmount: { fontSize: 28, fontWeight: '700', color: '#1A202C', marginTop: 4 },
-    paySubtext: { fontSize: 13, color: '#94A3B8', marginBottom: 12, textAlign: 'center' },
-    upiRow: { flexDirection: 'row', alignItems: 'center', padding: 16, backgroundColor: '#FAFBFC', borderRadius: 12, marginBottom: 8, borderWidth: 1, borderColor: '#E2E8F0' },
-    upiIconBox: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', marginRight: 14, borderWidth: 1, borderColor: '#E2E8F0' },
+    paySubtext: { fontSize: 13, color: '#8899BB', marginBottom: 12, textAlign: 'center' },
+    upiRow: { flexDirection: 'row', alignItems: 'center', padding: 16, backgroundColor: '#FAFBFC', borderRadius: 12, marginBottom: 8, borderWidth: 1, borderColor: '#D0D9F5' },
+    upiIconBox: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', marginRight: 14, borderWidth: 1, borderColor: '#D0D9F5' },
     upiAppName: { flex: 1, fontSize: 15, fontWeight: '600', color: '#1A202C' },
-    upiAction: { fontSize: 14, fontWeight: '600', color: '#6366F1' },
-    payDivider: { height: 1, backgroundColor: '#E2E8F0', marginVertical: 12 },
+    upiAction: { fontSize: 14, fontWeight: '600', color: '#3B5BDB' },
+    payDivider: { height: 1, backgroundColor: '#D0D9F5', marginVertical: 12 },
     payManualBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#1A202C', borderRadius: 12, height: 48 },
     payManualText: { fontSize: 15, fontWeight: '600', color: '#FFFFFF' },
     locationTitlePremium: { fontSize: 28, fontWeight: '800', color: '#1A1A1A', textAlign: 'center', marginBottom: 10 },
-    locationSubtitlePremium: { fontSize: 15, fontWeight: '500', color: '#94A3B8', textAlign: 'center', lineHeight: 22, paddingHorizontal: 20 },
-    locationPrimaryBtn: { backgroundColor: '#6366F1', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', height: 58, borderRadius: 16, width: '100%', gap: 12, shadowColor: '#6366F1', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.2, shadowRadius: 15, elevation: 6 },
+    locationSubtitlePremium: { fontSize: 15, fontWeight: '500', color: '#8899BB', textAlign: 'center', lineHeight: 22, paddingHorizontal: 20 },
+    locationPrimaryBtn: { backgroundColor: '#3B5BDB', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', height: 58, borderRadius: 16, width: '100%', gap: 12, shadowColor: '#3B5BDB', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.2, shadowRadius: 15, elevation: 6 },
     locationPrimaryBtnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
     locationSecondaryBtn: { marginTop: 24, padding: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
-    locationSecondaryBtnText: { color: '#6366F1', fontSize: 15, fontWeight: '700' },
-    locationSuccessToast: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F0F9FF', paddingVertical: 10, paddingHorizontal: 16, borderRadius: 12, marginTop: 20, gap: 8, borderWidth: 1, borderColor: '#BAE6FD' },
-    locationSuccessText: { color: '#0369A1', fontSize: 13, fontWeight: '600' },
+    locationSecondaryBtnText: { color: '#3B5BDB', fontSize: 15, fontWeight: '700' },
+    locationSuccessToast: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#EFF3FF', paddingVertical: 10, paddingHorizontal: 16, borderRadius: 12, marginTop: 20, gap: 8, borderWidth: 1, borderColor: '#A5B4FC' },
+    locationSuccessText: { color: '#1E3A8A', fontSize: 13, fontWeight: '600' },
     locationErrorText: { color: '#EF4444', fontSize: 13, fontWeight: '600', marginTop: 16, textAlign: 'center' },
 });

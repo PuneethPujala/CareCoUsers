@@ -306,7 +306,9 @@ export default function PatientProfileScreen({ navigation }) {
             await apiService.auth.setPassword(setPassNew);
             setSetPassModalVisible(false);
             setSetPassNew(''); setSetPassConfirm('');
-            Alert.alert('Success', 'Password set! You can now log in with your email and this password on any device.');
+            Alert.alert('Success', 'Password set! Please log in again with your new password.', [
+                { text: 'OK', onPress: () => signOut() }
+            ]);
         } catch (err) {
             const msg = err?.response?.data?.error || err?.message || 'Failed to set password.';
             Alert.alert('Error', msg);
