@@ -5,28 +5,32 @@ import { LineChart } from 'react-native-chart-kit';
 const screenWidth = Dimensions.get('window').width;
 
 export default function AIPredictionChart({ vitalsHistory, predictionData, metricName, unit }) {
-  if (!vitalsHistory || !vitalsHistory.length) {
+  const safeHistory = vitalsHistory || [];
+  const safePrediction = predictionData || [];
+  
+  const labels = [
+    ...safeHistory.map((item) => item.label),
+    ...safePrediction.map((item) => item.label)
+  ];
+
+  const allValues = [
+    ...safeHistory.map(item => item.value),
+    ...safePrediction.map(item => item.value)
+  ];
+
+  // A line chart needs at least 2 points to draw a path without glitching/forming triangles
+  if (allValues.length < 2) {
     return (
       <View style={styles.container}>
         <Text style={styles.title}>{metricName} Forecast</Text>
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyIcon}>📊</Text>
-          <Text style={styles.emptyTitle}>No Data Available</Text>
-          <Text style={styles.emptyDesc}>Log more {metricName.toLowerCase()} readings to activate the AI forecast.</Text>
+          <Text style={styles.emptyTitle}>Insufficient Data</Text>
+          <Text style={styles.emptyDesc}>Log at least two {metricName.toLowerCase()} readings to activate the AI forecast.</Text>
         </View>
       </View>
     );
   }
-
-  const labels = [
-    ...vitalsHistory.map((item) => item.label),
-    ...(predictionData || []).map((item) => item.label)
-  ];
-
-  const allValues = [
-    ...vitalsHistory.map(item => item.value),
-    ...(predictionData || []).map(item => item.value)
-  ];
 
   // chart-kit crashes if all values are perfectly identical and 0
   const validValues = allValues.length ? allValues : [0];
@@ -134,6 +138,7 @@ const styles = StyleSheet.create({
   chartWrapper: {
     alignItems: 'center',
     marginLeft: -10,
+    overflow: 'hidden',
   },
   chart: {
     borderRadius: 16,
