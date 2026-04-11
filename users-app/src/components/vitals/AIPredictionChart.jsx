@@ -18,6 +18,20 @@ export default function AIPredictionChart({ vitalsHistory, predictionData, metri
     ...safePrediction.map(item => item.value)
   ];
 
+  // AI Models need prediction data to exist to render an actual forecast chart
+  if (!safePrediction || safePrediction.length === 0) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.title}>{metricName} Forecast</Text>
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyIcon}>🤖</Text>
+          <Text style={styles.emptyTitle}>AI Model Learning...</Text>
+          <Text style={styles.emptyDesc}>Our AI needs at least 7 historical {metricName.toLowerCase()} readings to identify your baseline and forecast future trends. Keep logging!</Text>
+        </View>
+      </View>
+    );
+  }
+
   // A line chart needs at least 2 points to draw a path without glitching/forming triangles
   if (allValues.length < 2) {
     return (
