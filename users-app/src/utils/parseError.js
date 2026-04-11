@@ -125,6 +125,16 @@ export function parseError(error) {
 
     // ── Plain Error object ───────────────────────────────────────
     if (error.message) {
+        console.warn('[parseError] Fallback to plain error message:', error.message, 'Response present?', !!error.response);
+
+        // Catch default Axios strings that slipped through (e.g. CORS hiding response data)
+        const match = error.message.match(/Request failed with status code (\d+)/);
+        if (match) {
+            const status = parseInt(match[1], 10);
+            result.general = HTTP_STATUS_MAP[status] || `An error occurred (${status}).`;
+            return result;
+        }
+
         // Check against Supabase map even for plain errors
         const mapped = Object.entries(SUPABASE_ERROR_MAP).find(
             ([key]) => error.message.toLowerCase().includes(key.toLowerCase())
