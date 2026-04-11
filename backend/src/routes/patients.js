@@ -299,6 +299,19 @@ router.put('/:id',
                 { updatedFields: Object.keys(updateData) }
             );
 
+            if (
+                updatedPatient?.expo_push_token && 
+                updatedPatient?.push_notifications_enabled !== false &&
+                (updateData.care_instructions !== undefined || updateData.notes !== undefined)
+            ) {
+                const PushNotificationService = require('../utils/pushNotifications');
+                PushNotificationService.sendPush(
+                    updatedPatient.expo_push_token,
+                    'Care Plan Updated 📋',
+                    'Your caretaker has added new notes or instructions to your profile.'
+                ).catch(err => console.warn('Failed to send update push:', err));
+            }
+
             res.json({ message: 'Patient updated successfully', patient: updatedPatient });
 
         } catch (error) {

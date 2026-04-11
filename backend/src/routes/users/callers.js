@@ -162,6 +162,25 @@ router.post('/me/calls', authenticate, async (req, res) => {
             }
         }
 
+        // Trigger Push Notifications to the Patient
+        const patientTarget = await Patient.findById(patient_id).select('expo_push_token push_notifications_enabled');
+        if (patientTarget?.expo_push_token && patientTarget?.push_notifications_enabled !== false) {
+            const PushNotificationService = require('../../utils/pushNotifications');
+            if (status === 'missed') {
+                PushNotificationService.sendPush(
+                    patientTarget.expo_push_token,
+                    'We missed you! 📞',
+                    'Your caretaker tried to reach you. Please check your dashboard or call back when you can.'
+                ).catch(err => console.warn('Failed to send missed call push:', err));
+            } else if (status === 'refused') {
+                PushNotificationService.sendPush(
+                    patientTarget.expo_push_token,
+                    'Medication Alert 💊',
+                    'Please remember to keep up with your scheduled medications to stay healthy.'
+                ).catch(err => console.warn('Failed to send medication push:', err));
+            }
+        }
+
         res.status(201).json({ message: 'Call logged successfully', callLog });
     } catch (error) {
         console.error('Log call error:', error);

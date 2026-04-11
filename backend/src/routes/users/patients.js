@@ -126,6 +126,15 @@ async function subscribeAndSeedDemoData(patient) {
         target_screen: 'HealthProfile',
     });
 
+    if (patient.expo_push_token) {
+        const PushNotificationService = require('../../utils/pushNotifications');
+        PushNotificationService.sendPush(
+            patient.expo_push_token,
+            'Welcome to CareCo! 🎉',
+            'Your account is now active. Explore the app and set up your health profile.'
+        ).catch(err => console.warn('Failed to send welcome push notification:', err));
+    }
+
     console.log(`✅ Subscribed ${patient.email} — manager notified, no dummy caller assigned.`);
     return patient;
 }
