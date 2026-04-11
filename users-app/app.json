@@ -50,7 +50,17 @@
           "requestPermissionsActivityName": ".MainActivity"
         }
       ],
-      "react-native-health-connect"
+      [
+        "react-native-health-connect",
+        {
+          "permissions": [
+            "READ_HEART_RATE",
+            "READ_BLOOD_PRESSURE",
+            "READ_SLEEP_SESSION",
+            "READ_OXYGEN_SATURATION"
+          ]
+        }
+      ]
     ],
     "extra": {
       "eas": {
