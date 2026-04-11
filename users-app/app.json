@@ -23,7 +23,13 @@
     },
     "android": {
       "package": "com.careco.users",
-      "googleServicesFile": "./google-services.json"
+      "googleServicesFile": "./google-services.json",
+      "permissions": [
+        "android.permission.health.READ_HEART_RATE",
+        "android.permission.health.READ_BLOOD_PRESSURE",
+        "android.permission.health.READ_SLEEP_SESSION",
+        "android.permission.health.READ_OXYGEN_SATURATION"
+      ]
     },
     "web": {
       "bundler": "metro"
