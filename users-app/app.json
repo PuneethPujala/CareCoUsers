@@ -44,6 +44,12 @@
           }
         }
       ],
+      [
+        "expo-health-connect",
+        {
+          "requestPermissionsActivityName": ".MainActivity"
+        }
+      ],
       "react-native-health-connect"
     ],
     "extra": {

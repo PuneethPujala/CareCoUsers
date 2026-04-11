@@ -15,6 +15,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import AIPredictionChart from '../../components/vitals/AIPredictionChart';
 import HealthSyncService from '../../services/HealthSyncService';
 import { Watch, Zap } from 'lucide-react-native';
+import { scheduleMedicationReminders, scheduleVitalsReminder, scheduleSubscriptionAlert } from '../../utils/notifications';
 
 const ACCENT_MAP = { morning: colors.success, afternoon: colors.warning, night: '#8B5CF6' };
 const TIME_LABELS = { morning: 'Morning', afternoon: 'Afternoon', night: 'Night' };
@@ -235,6 +236,26 @@ export default function PatientHomeScreen({ navigation }) {
                 vitals: freshVitals,
                 meds: freshMeds,
             }, 60); // 60-minute TTL
+            // ── Step 4: Schedule push notifications for dashboard items ──
+            try {
+                // Medication reminders — schedule at the configured times
+                const rawMeds = medsRes.data.log?.medicines || [];
+                const medPrefs = freshPatient.medication_call_preferences || {};
+                scheduleMedicationReminders(rawMeds, medPrefs);
+
+                // Vitals reminder — nudge at 10 AM if not logged yet
+                scheduleVitalsReminder(!!freshVitals);
+
+                // Subscription expiry alert
+                if (freshPatient.subscription?.expires_at) {
+                    const daysLeft = Math.ceil(
+                        (new Date(freshPatient.subscription.expires_at) - new Date()) / (1000 * 60 * 60 * 24)
+                    );
+                    scheduleSubscriptionAlert(daysLeft);
+                }
+            } catch (notifErr) {
+                console.warn('Notification scheduling error (non-critical):', notifErr.message);
+            }
         } catch (err) {
             console.warn('Failed to fetch dashboard data:', err.message);
             // If network fails but we loaded cached data above, it remains visible.

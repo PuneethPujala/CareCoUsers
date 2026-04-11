@@ -154,3 +154,133 @@ export async function sendDailyWelcomeNotification(userName = 'there', force = f
         console.warn('Welcome notification error:', error.message);
     }
 }
+
+const MED_SCHEDULE_KEY = '@samvaya_med_notifs_date';
+
+/**
+ * Schedule local push notifications for today's medications.
+ * Should be called once per day (e.g. on login or app foreground).
+ * 
+ * @param {Array} medicines - Array of { medicine_name, scheduled_time, taken }
+ * @param {object} prefs - Medication call preferences { morning: '09:00', afternoon: '14:00', night: '20:00' }
+ */
+export async function scheduleMedicationReminders(medicines, prefs = {}) {
+    try {
+        // Only schedule once per day
+        const today = new Date().toDateString();
+        const lastScheduled = await AsyncStorage.getItem(MED_SCHEDULE_KEY);
+        if (lastScheduled === today) return;
+
+        const { status } = await Notifications.getPermissionsAsync();
+        if (status !== 'granted') return;
+
+        // Cancel previous medication notifications
+        const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+        for (const notif of scheduled) {
+            if (notif.content?.data?.type === 'medication_reminder') {
+                await Notifications.cancelScheduledNotificationAsync(notif.identifier);
+            }
+        }
+
+        const now = new Date();
+        const defaultTimes = { morning: '09:00', afternoon: '14:00', night: '20:00' };
+
+        for (const med of medicines) {
+            if (med.taken) continue; // Already taken
+
+            const timeKey = med.scheduled_time || 'morning';
+            const timePref = prefs[timeKey] || defaultTimes[timeKey] || '09:00';
+            const [h, m] = timePref.split(':').map(Number);
+
+            const medTime = new Date();
+            medTime.setHours(h, m, 0, 0);
+
+            // Only schedule if the time is in the future
+            const secondsUntil = Math.round((medTime - now) / 1000);
+            if (secondsUntil > 0) {
+                const capitalizedSlot = timeKey.charAt(0).toUpperCase() + timeKey.slice(1);
+                await Notifications.scheduleNotificationAsync({
+                    content: {
+                        title: `💊 ${capitalizedSlot} Medication`,
+                        body: `Time to take your ${med.medicine_name}`,
+                        data: { screen: 'Medications', type: 'medication_reminder' },
+                        sound: 'default',
+                    },
+                    trigger: { seconds: secondsUntil },
+                });
+                console.log(`✅ Medication reminder scheduled: ${med.medicine_name} at ${timePref}`);
+            }
+        }
+
+        await AsyncStorage.setItem(MED_SCHEDULE_KEY, today);
+    } catch (error) {
+        console.warn('Medication reminder scheduling failed:', error.message);
+    }
+}
+
+const VITALS_REMINDER_KEY = '@samvaya_vitals_reminder_date';
+
+/**
+ * Schedule a daily vitals logging reminder at 10:00 AM if vitals haven't been logged yet.
+ * @param {boolean} vitalsLoggedToday - Whether the user has already logged vitals today
+ */
+export async function scheduleVitalsReminder(vitalsLoggedToday = false) {
+    try {
+        if (vitalsLoggedToday) return; // No need to remind
+
+        const today = new Date().toDateString();
+        const lastScheduled = await AsyncStorage.getItem(VITALS_REMINDER_KEY);
+        if (lastScheduled === today) return;
+
+        const { status } = await Notifications.getPermissionsAsync();
+        if (status !== 'granted') return;
+
+        const now = new Date();
+        const reminderTime = new Date();
+        reminderTime.setHours(10, 0, 0, 0);
+
+        const secondsUntil = Math.round((reminderTime - now) / 1000);
+        if (secondsUntil > 0) {
+            await Notifications.scheduleNotificationAsync({
+                content: {
+                    title: '❤️ Daily Vitals Reminder',
+                    body: "Don't forget to log your heart rate and blood pressure today!",
+                    data: { screen: 'PatientHome', type: 'vitals_reminder' },
+                    sound: 'default',
+                },
+                trigger: { seconds: secondsUntil },
+            });
+            console.log('✅ Vitals reminder scheduled for 10:00 AM');
+        }
+
+        await AsyncStorage.setItem(VITALS_REMINDER_KEY, today);
+    } catch (error) {
+        console.warn('Vitals reminder scheduling failed:', error.message);
+    }
+}
+
+/**
+ * Schedule a subscription expiry warning push notification.
+ * @param {number} daysLeft - Days remaining on subscription
+ */
+export async function scheduleSubscriptionAlert(daysLeft) {
+    try {
+        if (daysLeft > 7 || daysLeft < 0) return;
+
+        const { status } = await Notifications.getPermissionsAsync();
+        if (status !== 'granted') return;
+
+        await Notifications.scheduleNotificationAsync({
+            content: {
+                title: '⚠️ Subscription Expiring Soon',
+                body: `Your premium subscription expires in ${daysLeft} day${daysLeft !== 1 ? 's' : ''}. Renew to maintain uninterrupted care.`,
+                data: { screen: 'SubscribePlans', type: 'subscription_alert' },
+                sound: 'default',
+            },
+            trigger: { seconds: 5 },
+        });
+        console.log(`✅ Subscription alert sent (${daysLeft} days left)`);
+    } catch (error) {
+        console.warn('Subscription alert failed:', error.message);
+    }
+}

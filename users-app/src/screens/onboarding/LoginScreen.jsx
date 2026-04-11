@@ -16,14 +16,14 @@ import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-si
 const { height: SCREEN_H } = Dimensions.get('window');
 
 const C = {
-    pageBg:        '#EEF1FF',
-    heroBgTop:     '#3B5BDB',
-    heroBgBottom:  '#7B9CFF',
+    pageBg:        '#0B1437',
+    heroBgTop:     '#0B1437',
+    heroBgBottom:  '#1E3A8A',
     orbDark:       '#1E3A8A',
-    orbMid:        '#93C5FD',
-    orbLight:      '#DBEAFE',
-    cardBg:        'rgba(255,255,255,0.85)',
-    cardBorder:    'rgba(255,255,255,0.6)',
+    orbMid:        '#3B82F6',
+    orbLight:      '#60A5FA',
+    cardBg:        'rgba(255,255,255,0.95)',
+    cardBorder:    'rgba(255,255,255,0.7)',
     primary:       '#3B5BDB',
     primaryDark:   '#1E3A8A',
     primarySoft:   '#EFF3FF',
@@ -386,22 +386,23 @@ export default function LoginScreen({ navigation }) {
             style={styles.container}
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
-            {/* Hero Section — compact, no scroll needed */}
+            {/* Hero Section — deep, immersive */}
             <Animated.View style={{ transform: [{ translateY: heroAnim }], opacity: heroOpacity }}>
                 <LinearGradient
-                    colors={['#1E3A8A', '#3B5BDB', '#60A5FA']}
-                    start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                    colors={['#0B1437', '#162158', '#1E3A8A', '#2563EB']}
+                    start={{ x: 0, y: 0 }} end={{ x: 0.5, y: 1 }}
                     style={styles.hero}
                 >
                     <View style={styles.orb1} />
                     <View style={styles.orb2} />
                     <View style={styles.orb3} />
                     <View style={styles.orb4} />
+                    <View style={styles.orb5} />
 
                     <View style={styles.heroIconWrap}>
-                        <HeartPulse size={44} color="#FFFFFF" strokeWidth={1.5} />
+                        <HeartPulse size={38} color="#FFFFFF" strokeWidth={1.5} />
                     </View>
-                    <Text style={styles.heroLabel}>SAMVAYA</Text>
+                    <Text style={styles.heroLabel}>S A M V A Y A</Text>
                     <Text style={styles.heroTitle}>Welcome Back</Text>
                     <Text style={styles.heroSubtitle}>Your health journey continues here</Text>
                 </LinearGradient>
@@ -541,88 +542,90 @@ export default function LoginScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: C.pageBg },
+    container: { flex: 1, backgroundColor: '#F0F4FF' },
 
-    // ─── Hero Section — Compact ────────────────
+    // ─── Hero Section — deep, immersive ────────────
     hero: {
-        minHeight: 220,
-        borderBottomLeftRadius: 36,
-        borderBottomRightRadius: 36,
+        minHeight: 260,
+        borderBottomLeftRadius: 44,
+        borderBottomRightRadius: 44,
         alignItems: 'center',
         justifyContent: 'center',
-        paddingTop: Platform.OS === 'ios' ? 50 : 30,
-        paddingBottom: 24,
+        paddingTop: Platform.OS === 'ios' ? 60 : 44,
+        paddingBottom: 36,
         overflow: 'hidden',
     },
-    orb1: { position: 'absolute', borderRadius: 999, width: 140, height: 140, top: -40, right: -40, backgroundColor: '#1E3A8A', opacity: 0.75 },
-    orb2: { position: 'absolute', borderRadius: 999, width: 80, height: 80, top: 10, right: 80, backgroundColor: '#BFDBFE', opacity: 0.55 },
-    orb3: { position: 'absolute', borderRadius: 999, width: 90, height: 90, bottom: -10, left: -20, backgroundColor: '#1E40AF', opacity: 0.6 },
-    orb4: { position: 'absolute', borderRadius: 999, width: 45, height: 45, bottom: 30, left: 60, backgroundColor: '#DBEAFE', opacity: 0.4 },
+    orb1: { position: 'absolute', borderRadius: 999, width: 200, height: 200, top: -80, right: -60, backgroundColor: '#2563EB', opacity: 0.35 },
+    orb2: { position: 'absolute', borderRadius: 999, width: 100, height: 100, top: 20, right: 50, backgroundColor: '#60A5FA', opacity: 0.25 },
+    orb3: { position: 'absolute', borderRadius: 999, width: 140, height: 140, bottom: -40, left: -40, backgroundColor: '#1D4ED8', opacity: 0.4 },
+    orb4: { position: 'absolute', borderRadius: 999, width: 60, height: 60, bottom: 40, left: 80, backgroundColor: '#93C5FD', opacity: 0.2 },
+    orb5: { position: 'absolute', borderRadius: 999, width: 80, height: 80, top: 60, left: -20, backgroundColor: '#3B82F6', opacity: 0.15 },
     heroIconWrap: {
-        width: 60, height: 60, borderRadius: 20,
-        backgroundColor: 'rgba(255,255,255,0.18)',
+        width: 72, height: 72, borderRadius: 24,
+        backgroundColor: 'rgba(255,255,255,0.12)',
         alignItems: 'center', justifyContent: 'center',
-        marginBottom: 10,
-        borderWidth: 1, borderColor: 'rgba(255,255,255,0.35)',
+        marginBottom: 14,
+        borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.25)',
     },
-    heroLabel: { fontSize: 11, ...FONT.bold, color: 'rgba(255,255,255,0.6)', letterSpacing: 3.5, marginBottom: 2 },
-    heroTitle: { fontSize: 28, fontWeight: '800', color: '#FFFFFF', letterSpacing: -1 },
-    heroSubtitle: { fontSize: 13, ...FONT.medium, color: 'rgba(255,255,255,0.80)', marginTop: 4 },
+    heroLabel: { fontSize: 12, ...FONT.bold, color: 'rgba(255,255,255,0.5)', letterSpacing: 5, marginBottom: 6 },
+    heroTitle: { fontSize: 32, fontWeight: '800', color: '#FFFFFF', letterSpacing: -1 },
+    heroSubtitle: { fontSize: 14, ...FONT.medium, color: 'rgba(255,255,255,0.65)', marginTop: 6 },
 
-    // ─── Form Card — No scrolling ───────────
+    // ─── Form Card ───────────────────
     formCard: {
-        marginTop: -24,
+        marginTop: -28,
         marginHorizontal: 16,
-        backgroundColor: 'rgba(255,255,255,0.88)',
+        backgroundColor: 'rgba(255,255,255,0.97)',
         borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.7)',
-        borderRadius: 32,
-        paddingHorizontal: 20,
-        paddingTop: 16,
-        paddingBottom: 16,
-        shadowColor: '#1E3A8A',
-        shadowOffset: { width: 0, height: 12 },
-        shadowOpacity: 0.10,
-        shadowRadius: 24,
-        elevation: 8,
+        borderColor: 'rgba(255,255,255,0.8)',
+        borderRadius: 36,
+        paddingHorizontal: 24,
+        paddingTop: 20,
+        paddingBottom: 20,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 16 },
+        shadowOpacity: 0.12,
+        shadowRadius: 32,
+        elevation: 12,
         zIndex: 5,
     },
 
-    socialRowPremium: { flexDirection: 'row', gap: 12, marginBottom: 16 },
+    socialRowPremium: { flexDirection: 'row', gap: 12, marginBottom: 18 },
     socialBtnPremium: {
         flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-        backgroundColor: 'rgba(255,255,255,0.92)',
-        borderWidth: 1.5, borderColor: '#D0D9F5',
-        borderRadius: 16, height: 48, gap: 8,
+        backgroundColor: '#F8FAFF',
+        borderWidth: 1.5, borderColor: '#E2E8F0',
+        borderRadius: 20, height: 52, gap: 10,
         shadowColor: '#1E3A8A', shadowOpacity: 0.04, shadowRadius: 8, elevation: 2,
     },
-    socialBtnTextPremium: { fontSize: 13, ...FONT.bold, color: C.dark },
-    googleG: { fontSize: 16, ...FONT.heavy, color: '#4285F4' },
+    socialBtnTextPremium: { fontSize: 14, ...FONT.bold, color: '#1E293B' },
+    googleG: { fontSize: 18, ...FONT.heavy, color: '#4285F4' },
 
-    dividerRowPremium: { flexDirection: 'row', alignItems: 'center', marginBottom: 16, paddingHorizontal: 10 },
-    dividerLine: { flex: 1, height: 1, backgroundColor: '#D0D9F5' },
-    dividerText: { marginHorizontal: 12, fontSize: 10, color: '#8899BB', ...FONT.heavy, letterSpacing: 1.5 },
+    dividerRowPremium: { flexDirection: 'row', alignItems: 'center', marginBottom: 18, paddingHorizontal: 8 },
+    dividerLine: { flex: 1, height: 1, backgroundColor: '#E2E8F0' },
+    dividerText: { marginHorizontal: 14, fontSize: 10, color: '#94A3B8', ...FONT.heavy, letterSpacing: 1.5 },
 
     // ─── Fields ──────────────────────
-    fieldGroup: { marginBottom: 12 },
-    label: { fontSize: 12, ...FONT.bold, color: C.muted, marginBottom: 6, marginLeft: 2, letterSpacing: 0.5 },
+    fieldGroup: { marginBottom: 14 },
+    label: { fontSize: 12, ...FONT.bold, color: '#64748B', marginBottom: 8, marginLeft: 4, letterSpacing: 0.5 },
     inlineIconBox: {
-        width: 28, height: 28, borderRadius: 10,
-        backgroundColor: '#EFF3FF', alignItems: 'center', justifyContent: 'center', marginRight: 10,
+        width: 32, height: 32, borderRadius: 12,
+        backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center', marginRight: 12,
     },
     inputWrap: {
         flexDirection: 'row', alignItems: 'center',
-        backgroundColor: 'rgba(255,255,255,0.95)',
-        borderWidth: 1.5, borderColor: '#D0D9F5',
-        borderRadius: 16, height: 48,
-        paddingHorizontal: 12,
+        backgroundColor: '#FAFBFF',
+        borderWidth: 1.5, borderColor: '#E2E8F0',
+        borderRadius: 20, height: 54,
+        paddingHorizontal: 14,
     },
     inputFocused: {
         borderColor: '#3B5BDB',
-        shadowColor: '#3B5BDB', shadowOpacity: 0.12, shadowRadius: 18, shadowOffset: { width: 0, height: 4 },
+        backgroundColor: '#FFFFFF',
+        shadowColor: '#3B5BDB', shadowOpacity: 0.15, shadowRadius: 20, shadowOffset: { width: 0, height: 4 },
         elevation: 4,
     },
-    textInput: { flex: 1, fontSize: 14, color: C.dark, ...FONT.semibold },
+    textInput: { flex: 1, fontSize: 15, color: '#0F172A', ...FONT.semibold },
 
     errorBox: {
         flexDirection: 'row', alignItems: 'center', gap: 8,
@@ -635,9 +638,9 @@ const styles = StyleSheet.create({
     forgotText: { fontSize: 12, ...FONT.bold, color: C.primary },
 
     primaryBtn: {
-        borderRadius: 16, height: 50,
+        borderRadius: 20, height: 54,
         overflow: 'hidden',
-        shadowColor: '#3B5BDB', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.25, shadowRadius: 16, elevation: 8,
+        shadowColor: '#1E3A8A', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.3, shadowRadius: 20, elevation: 10,
     },
     primaryBtnGradient: {
         flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
@@ -646,6 +649,6 @@ const styles = StyleSheet.create({
     loadingRow: { flexDirection: 'row', alignItems: 'center' },
 
     bottomLink: { flexDirection: 'row', justifyContent: 'center', marginTop: 24, paddingBottom: 10 },
-    bottomLinkText: { fontSize: 14, color: C.muted, ...FONT.medium },
+    bottomLinkText: { fontSize: 14, color: '#64748B', ...FONT.medium },
     bottomLinkAction: { fontSize: 14, ...FONT.heavy, color: '#3B5BDB' },
 });
