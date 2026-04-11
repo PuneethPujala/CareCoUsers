@@ -551,7 +551,11 @@ export default function PatientSignupScreen({ navigation, route }) {
                 const errorField = verificationField === 'phone' ? 'phoneNumber' : verificationField;
                 setErrors(prev => ({ ...prev, [errorField]: `Too many attempts. Check your ${verificationField} or try again later.` }));
             } else {
-                const { general } = parseError(error);
+                let { general } = parseError(error);
+                // Hardcode override for stubborn Axios CORS/Network masks
+                if (general === 'Request failed with status code 400' || error?.message === 'Request failed with status code 400') {
+                    general = 'Invalid or expired verification code';
+                }
                 setErrors(prev => ({ ...prev, otp: general || 'OTP not correct' }));
             }
         } finally {
