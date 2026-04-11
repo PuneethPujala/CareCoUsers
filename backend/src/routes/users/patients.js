@@ -368,20 +368,19 @@ router.put('/me', authenticateSession, async (req, res) => {
         if (!patient) return res.status(404).json({ error: 'Patient profile not found' });
 
         const expoTokenUpdated = expo_push_token && patient.expo_push_token !== expo_push_token;
-        const isFirstTime = expoTokenUpdated && (!patient.expo_push_token);
 
         // Apply updates
         Object.assign(patient, updates);
         await patient.save();
 
-        if (isFirstTime) {
+        if (expoTokenUpdated) {
             const PushNotificationService = require('../../utils/pushNotifications');
             const firstName = (patient.name || 'there').split(' ')[0];
             PushNotificationService.sendPush(
                 expo_push_token, 
-                `Welcome to Samvaya, ${firstName}! 🎉`, 
-                'Enjoy the seamless experience with our app. We\'re here to take care of your health!'
-            ).catch(err => console.warn('Failed to send welcome push:', err));
+                `Push Notifications Connected! 🔔`, 
+                `Hi ${firstName}, you will now receive live alerts from the backend.`
+            ).catch(err => console.warn('Failed to send push connection notification:', err));
         }
 
         res.json({ patient, message: 'Profile updated successfully' });
