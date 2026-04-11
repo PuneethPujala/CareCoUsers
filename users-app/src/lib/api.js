@@ -94,28 +94,13 @@ api.interceptors.response.use(
 
         // ── 429: Too Many Requests ──────────────────────────────────
         if (error.response?.status === 429) {
-            const retryAfter = error.response.headers?.['retry-after'] || 60;
-            error.message = `Too many requests. Please wait ${retryAfter} seconds.`;
+            // Let the original error or response data flow through, 
+            // but attach retry-after for custom handling later if needed
+            error.retryAfter = error.response.headers?.['retry-after'] || 60;
             return Promise.reject(error);
         }
 
-        // ── 500+: Server errors ─────────────────────────────────────
-        if (error.response?.status >= 500) {
-            error.message = 'Server error. Please try again later.';
-            return Promise.reject(error);
-        }
-
-        // ── Timeout ─────────────────────────────────────────────────
-        if (error.code === 'ECONNABORTED') {
-            error.message = 'Request timed out. Please check your connection and try again.';
-            return Promise.reject(error);
-        }
-
-        // ── Network error (no response) ─────────────────────────────
-        if (!error.response) {
-            error.message = 'No internet connection. Please check your network.';
-        }
-
+        // For all other errors (500+, Network, Timeout), pass the raw error to parseError downstream
         return Promise.reject(error);
     }
 );
@@ -198,16 +183,14 @@ export const apiService = {
     },
 };
 
+import { parseError } from '../utils/parseError';
+
 export const handleApiError = (error) => {
-    if (error.response) {
-        return {
-            message: error.response.data?.error || 'An error occurred',
-            status: error.response.status,
-        };
-    }
+    const parsed = parseError(error);
     return {
-        message: error.message || 'An unexpected error occurred',
-        status: null,
+        message: parsed.general || 'An unexpected error occurred',
+        status: error.response?.status || null,
+        fields: parsed.fields || {},
     };
 };
 

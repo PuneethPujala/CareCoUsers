@@ -79,12 +79,32 @@ export function parseError(error) {
         const status = error.response.status;
         const data = error.response.data;
 
-        // Backend returns { error: "message" } or { error: "msg", code: "CODE" }
-        if (data?.error) {
-            const backendMsg = data.error;
-            const code = data.code;
+        // Try to extract the best error message from the backend response body
+        let backendMsg = '';
+        let code = '';
 
-            // Map common backend codes
+        if (data) {
+            // Case 1: Backend returns { error: "message", code?: "CODE" }
+            if (data.error && typeof data.error === 'string') {
+                backendMsg = data.error;
+                code = data.code;
+            } 
+            // Case 2: Backend returns { message: "msg" }
+            else if (data.message && typeof data.message === 'string') {
+                backendMsg = data.message;
+            } 
+            // Case 3: Backend returns { details: "msg" }
+            else if (data.details && typeof data.details === 'string') {
+                backendMsg = data.details;
+            }
+            // Case 4: Backend just sends a string message directly
+            else if (typeof data === 'string') {
+                backendMsg = data;
+            }
+        }
+
+        if (backendMsg) {
+            // Map common backend codes or recognizable messages
             if (code === 'EMAIL_ALREADY_EXISTS' || backendMsg.toLowerCase().includes('already exists')) {
                 result.general = 'An account with this email already exists.';
                 result.fields.email = 'Email already registered';
@@ -97,6 +117,7 @@ export function parseError(error) {
 
             result.general = backendMsg;
         } else {
+            // Fallback to HTTP status mapping if body is completely empty/unhelpful
             result.general = HTTP_STATUS_MAP[status] || `Request failed (${status}). Please try again.`;
         }
         return result;
