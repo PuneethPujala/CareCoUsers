@@ -745,7 +745,7 @@ export default function PatientSignupScreen({ navigation, route }) {
             <Animated.View style={{ opacity: staggerAnims[2], transform: [{ translateY: staggerAnims[2].interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) }] }}>
                 <IconInput icon={User} label="Full Name" placeholder="Enter your full name"
                     value={form.fullName} onChangeText={v => updateField('fullName', v)}
-                    focused={focusField === 'fullName'} onFocus={() => setFocusField('fullName')} onBlur={() => setFocusField('')}
+                    focused={focusField === 'fullName'} onFocus={() => setFocusField('fullName')} onBlur={() => setFocusField(prev => prev === 'fullName' ? '' : prev)}
                     error={errors.fullName} />
 
                 <View style={styles.verifyFieldRow}>
@@ -759,7 +759,7 @@ export default function PatientSignupScreen({ navigation, route }) {
                             value={form.email} onChangeText={v => updateField('email', v)}
                             autoCapitalize="none" keyboardType="email-address"
                             autoCorrect={false} spellCheck={false} textContentType="emailAddress"
-                            focused={focusField === 'email'} onFocus={() => setFocusField('email')} onBlur={() => setFocusField('')}
+                            focused={focusField === 'email'} onFocus={() => setFocusField('email')} onBlur={() => setFocusField(prev => prev === 'email' ? '' : prev)}
                             error={errors.email} />
                     </View>
                     <Pressable style={[styles.verifyBtnSmall, isEmailVerified && styles.verifiedBtn, errors.email && { marginTop: -12 }]}
@@ -778,7 +778,7 @@ export default function PatientSignupScreen({ navigation, route }) {
                             placeholder="10-digit number"
                             value={form.phoneNumber} onChangeText={v => updateField('phoneNumber', v)}
                             keyboardType="phone-pad" maxLength={10}
-                            focused={focusField === 'phoneNumber'} onFocus={() => setFocusField('phoneNumber')} onBlur={() => setFocusField('')}
+                            focused={focusField === 'phoneNumber'} onFocus={() => setFocusField('phoneNumber')} onBlur={() => setFocusField(prev => prev === 'phoneNumber' ? '' : prev)}
                             error={errors.phoneNumber}
                             textPrefix="+91 " />
                     </View>
@@ -793,7 +793,7 @@ export default function PatientSignupScreen({ navigation, route }) {
                 <IconInput icon={Lock} label="Password" placeholder="Create a password"
                     value={form.password} onChangeText={v => updateField('password', v)}
                     secureTextEntry={!showPass}
-                    focused={focusField === 'password'} onFocus={() => setFocusField('password')} onBlur={() => setFocusField('')}
+                    focused={focusField === 'password'} onFocus={() => setFocusField('password')} onBlur={() => setFocusField(prev => prev === 'password' ? '' : prev)}
                     error={errors.password}
                     rightIcon={<Pressable onPress={() => setShowPass(!showPass)} hitSlop={8}>{showPass ? <Eye size={18} color="#8899BB" /> : <EyeOff size={18} color="#8899BB" />}</Pressable>} />
                 <PasswordStrength password={form.password} />
@@ -802,7 +802,7 @@ export default function PatientSignupScreen({ navigation, route }) {
                 <IconInput icon={Lock} label="Confirm Password" placeholder="Re-enter your password"
                     value={form.confirmPassword} onChangeText={v => updateField('confirmPassword', v)}
                     secureTextEntry={!showConfirm}
-                    focused={focusField === 'confirmPassword'} onFocus={() => setFocusField('confirmPassword')} onBlur={() => setFocusField('')}
+                    focused={focusField === 'confirmPassword'} onFocus={() => setFocusField('confirmPassword')} onBlur={() => setFocusField(prev => prev === 'confirmPassword' ? '' : prev)}
                     error={errors.confirmPassword}
                     rightIcon={passwordsMatch ? <CheckCircle2 size={18} color="#22C55E" /> :
                         <Pressable onPress={() => setShowConfirm(!showConfirm)} hitSlop={8}>{showConfirm ? <Eye size={18} color="#8899BB" /> : <EyeOff size={18} color="#8899BB" />}</Pressable>} />
