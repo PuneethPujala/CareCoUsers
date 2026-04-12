@@ -102,37 +102,48 @@ const StepIndicator = ({ current }) => (
     </View>
 );
 
-const IconInput = ({ icon: Icon, label, rightIcon, error, focused, onFocus, onBlur, textPrefix, ...rest }) => (
-    <View style={styles.fieldGroup}>
-        {typeof label === 'string' ? (
-            <Text style={[styles.label, focused && { color: '#3B5BDB' }]}>{label}</Text>
-        ) : label}
-        <View style={[
-            styles.inputWrapEnhanced,
-            focused && styles.inputFocusedEnhanced,
-            error && styles.inputErrorEnhanced,
-        ]}>
-            <View style={[styles.inlineIconBox, focused && { backgroundColor: '#EFF6FF' }]}>
-                <Icon size={18} color={focused ? '#3B5BDB' : '#8899BB'} />
+const IconInput = React.memo(({ icon: Icon, label, rightIcon, error, textPrefix, onFocus: parentOnFocus, onBlur: parentOnBlur, ...rest }) => {
+    const [focused, setFocused] = React.useState(false);
+    const handleFocus = React.useCallback((e) => {
+        setFocused(true);
+        parentOnFocus && parentOnFocus(e);
+    }, [parentOnFocus]);
+    const handleBlur = React.useCallback((e) => {
+        setFocused(false);
+        parentOnBlur && parentOnBlur(e);
+    }, [parentOnBlur]);
+    return (
+        <View style={styles.fieldGroup}>
+            {typeof label === 'string' ? (
+                <Text style={[styles.label, focused && { color: '#3B5BDB' }]}>{label}</Text>
+            ) : label}
+            <View style={[
+                styles.inputWrapEnhanced,
+                focused && styles.inputFocusedEnhanced,
+                error && styles.inputErrorEnhanced,
+            ]}>
+                <View style={[styles.inlineIconBox, focused && { backgroundColor: '#EFF6FF' }]}>
+                    <Icon size={18} color={focused ? '#3B5BDB' : '#8899BB'} />
+                </View>
+                {textPrefix && <Text style={styles.textPrefixStyle}>{textPrefix}</Text>}
+                <TextInput
+                    style={styles.textInputEnhanced}
+                    placeholderTextColor="#8899BB"
+                    onFocus={handleFocus}
+                    onBlur={handleBlur}
+                    {...rest}
+                />
+                {rightIcon && <View style={styles.rightIconWrap}>{rightIcon}</View>}
             </View>
-            {textPrefix && <Text style={styles.textPrefixStyle}>{textPrefix}</Text>}
-            <TextInput
-                style={styles.textInputEnhanced}
-                placeholderTextColor="#8899BB"
-                onFocus={onFocus}
-                onBlur={onBlur}
-                {...rest}
-            />
-            {rightIcon && <View style={styles.rightIconWrap}>{rightIcon}</View>}
+            {error ? (
+                <Animated.View style={styles.errorTextRow}>
+                    <AlertCircle size={12} color="#EF4444" />
+                    <Text style={styles.fieldErrorEnhanced}>{error}</Text>
+                </Animated.View>
+            ) : null}
         </View>
-        {error ? (
-            <Animated.View style={styles.errorTextRow}>
-                <AlertCircle size={12} color="#EF4444" />
-                <Text style={styles.fieldErrorEnhanced}>{error}</Text>
-            </Animated.View>
-        ) : null}
-    </View>
-);
+    );
+});
 
 const OTPModal = ({ visible, onClose, otp, setOtp, onVerify, timer, resend, attempts, field, error, otpLoading }) => (
     <Modal visible={visible} animationType="fade" transparent>
@@ -251,7 +262,8 @@ export default function PatientSignupScreen({ navigation, route }) {
 
     const [showPass, setShowPass] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
-    const [focusField, setFocusField] = useState('');
+    // focusField state removed — each IconInput now tracks its own focus internally
+    // to prevent the parent re-render cascade that caused the flickering bug
     const [errors, setErrors] = useState({});
     const [googleLoading, setGoogleLoading] = useState(false);
     const [upiModalVisible, setUpiModalVisible] = useState(false);
@@ -745,21 +757,19 @@ export default function PatientSignupScreen({ navigation, route }) {
             <Animated.View style={{ opacity: staggerAnims[2], transform: [{ translateY: staggerAnims[2].interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) }] }}>
                 <IconInput icon={User} label="Full Name" placeholder="Enter your full name"
                     value={form.fullName} onChangeText={v => updateField('fullName', v)}
-                    focused={focusField === 'fullName'} onFocus={() => setFocusField('fullName')} onBlur={() => setFocusField(prev => prev === 'fullName' ? '' : prev)}
                     error={errors.fullName} />
 
                 <View style={styles.verifyFieldRow}>
                     <View style={{ flex: 1 }}>
                         <IconInput icon={Mail}
                             label={<View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                                <Text style={[styles.label, focusField === 'email' && { color: '#3B5BDB' }]}>Email Address</Text>
+                                <Text style={styles.label}>Email Address</Text>
                                 {isEmailVerified && <CheckCircle2 size={12} color="#22C55E" />}
                             </View>}
                             placeholder="Enter your email"
                             value={form.email} onChangeText={v => updateField('email', v)}
                             autoCapitalize="none" keyboardType="email-address"
                             autoCorrect={false} spellCheck={false} textContentType="emailAddress"
-                            focused={focusField === 'email'} onFocus={() => setFocusField('email')} onBlur={() => setFocusField(prev => prev === 'email' ? '' : prev)}
                             error={errors.email} />
                     </View>
                     <Pressable style={[styles.verifyBtnSmall, isEmailVerified && styles.verifiedBtn, errors.email && { marginTop: -12 }]}
@@ -772,13 +782,12 @@ export default function PatientSignupScreen({ navigation, route }) {
                     <View style={{ flex: 1 }}>
                         <IconInput icon={Smartphone}
                             label={<View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                                <Text style={[styles.label, focusField === 'phoneNumber' && { color: '#3B5BDB' }]}>Phone Number</Text>
+                                <Text style={styles.label}>Phone Number</Text>
                                 {isPhoneVerified && <CheckCircle2 size={12} color="#22C55E" />}
                             </View>}
                             placeholder="10-digit number"
                             value={form.phoneNumber} onChangeText={v => updateField('phoneNumber', v)}
                             keyboardType="phone-pad" maxLength={10}
-                            focused={focusField === 'phoneNumber'} onFocus={() => setFocusField('phoneNumber')} onBlur={() => setFocusField(prev => prev === 'phoneNumber' ? '' : prev)}
                             error={errors.phoneNumber}
                             textPrefix="+91 " />
                     </View>
@@ -793,7 +802,6 @@ export default function PatientSignupScreen({ navigation, route }) {
                 <IconInput icon={Lock} label="Password" placeholder="Create a password"
                     value={form.password} onChangeText={v => updateField('password', v)}
                     secureTextEntry={!showPass}
-                    focused={focusField === 'password'} onFocus={() => setFocusField('password')} onBlur={() => setFocusField(prev => prev === 'password' ? '' : prev)}
                     error={errors.password}
                     rightIcon={<Pressable onPress={() => setShowPass(!showPass)} hitSlop={8}>{showPass ? <Eye size={18} color="#8899BB" /> : <EyeOff size={18} color="#8899BB" />}</Pressable>} />
                 <PasswordStrength password={form.password} />
@@ -802,7 +810,6 @@ export default function PatientSignupScreen({ navigation, route }) {
                 <IconInput icon={Lock} label="Confirm Password" placeholder="Re-enter your password"
                     value={form.confirmPassword} onChangeText={v => updateField('confirmPassword', v)}
                     secureTextEntry={!showConfirm}
-                    focused={focusField === 'confirmPassword'} onFocus={() => setFocusField('confirmPassword')} onBlur={() => setFocusField(prev => prev === 'confirmPassword' ? '' : prev)}
                     error={errors.confirmPassword}
                     rightIcon={passwordsMatch ? <CheckCircle2 size={18} color="#22C55E" /> :
                         <Pressable onPress={() => setShowConfirm(!showConfirm)} hitSlop={8}>{showConfirm ? <Eye size={18} color="#8899BB" /> : <EyeOff size={18} color="#8899BB" />}</Pressable>} />
