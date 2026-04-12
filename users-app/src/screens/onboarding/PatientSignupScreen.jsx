@@ -102,28 +102,28 @@ const StepIndicator = ({ current }) => (
     </View>
 );
 
-const IconInput = React.memo(({ icon: Icon, label, rightIcon, error, textPrefix, onFocus: parentOnFocus, onBlur: parentOnBlur, ...rest }) => {
-    const [focused, setFocused] = React.useState(false);
-    const handleFocus = React.useCallback((e) => {
-        setFocused(true);
-        parentOnFocus && parentOnFocus(e);
-    }, [parentOnFocus]);
-    const handleBlur = React.useCallback((e) => {
-        setFocused(false);
-        parentOnBlur && parentOnBlur(e);
-    }, [parentOnBlur]);
+const IconInput = React.memo(({ icon: Icon, label, rightIcon, error, textPrefix, ...rest }) => {
+    const [localFocused, setLocalFocused] = useState(false);
+    const handleFocus = useCallback((e) => {
+        setLocalFocused(true);
+        rest.onFocus?.(e);
+    }, [rest.onFocus]);
+    const handleBlur = useCallback((e) => {
+        setLocalFocused(false);
+        rest.onBlur?.(e);
+    }, [rest.onBlur]);
     return (
         <View style={styles.fieldGroup}>
             {typeof label === 'string' ? (
-                <Text style={[styles.label, focused && { color: '#3B5BDB' }]}>{label}</Text>
+                <Text style={[styles.label, localFocused && { color: '#3B5BDB' }]}>{label}</Text>
             ) : label}
             <View style={[
                 styles.inputWrapEnhanced,
-                focused && styles.inputFocusedEnhanced,
+                localFocused && styles.inputFocusedEnhanced,
                 error && styles.inputErrorEnhanced,
             ]}>
-                <View style={[styles.inlineIconBox, focused && { backgroundColor: '#EFF6FF' }]}>
-                    <Icon size={18} color={focused ? '#3B5BDB' : '#8899BB'} />
+                <View style={[styles.inlineIconBox, localFocused && { backgroundColor: '#EFF6FF' }]}>
+                    <Icon size={18} color={localFocused ? '#3B5BDB' : '#8899BB'} />
                 </View>
                 {textPrefix && <Text style={styles.textPrefixStyle}>{textPrefix}</Text>}
                 <TextInput
@@ -262,8 +262,6 @@ export default function PatientSignupScreen({ navigation, route }) {
 
     const [showPass, setShowPass] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
-    // focusField state removed — each IconInput now tracks its own focus internally
-    // to prevent the parent re-render cascade that caused the flickering bug
     const [errors, setErrors] = useState({});
     const [googleLoading, setGoogleLoading] = useState(false);
     const [upiModalVisible, setUpiModalVisible] = useState(false);
