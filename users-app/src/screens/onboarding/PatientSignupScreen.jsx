@@ -102,35 +102,31 @@ const StepIndicator = ({ current }) => (
     </View>
 );
 
-const IconInput = React.memo(({ icon: Icon, label, rightIcon, error, textPrefix, ...rest }) => {
-    const [localFocused, setLocalFocused] = useState(false);
-    const handleFocus = useCallback((e) => {
-        setLocalFocused(true);
-        rest.onFocus?.(e);
-    }, [rest.onFocus]);
-    const handleBlur = useCallback((e) => {
-        setLocalFocused(false);
-        rest.onBlur?.(e);
-    }, [rest.onBlur]);
+
+const IconInput = ({ icon: Icon, label, rightIcon, error, textPrefix, value, onChangeText, secureTextEntry, ...rest }) => {
+    const [focused, setFocused] = useState(false);
     return (
         <View style={styles.fieldGroup}>
             {typeof label === 'string' ? (
-                <Text style={[styles.label, localFocused && { color: '#3B5BDB' }]}>{label}</Text>
+                <Text style={[styles.label, focused && { color: '#3B5BDB' }]}>{label}</Text>
             ) : label}
             <View style={[
                 styles.inputWrapEnhanced,
-                localFocused && styles.inputFocusedEnhanced,
+                focused && styles.inputFocusedEnhanced,
                 error && styles.inputErrorEnhanced,
             ]}>
-                <View style={[styles.inlineIconBox, localFocused && { backgroundColor: '#EFF6FF' }]}>
-                    <Icon size={18} color={localFocused ? '#3B5BDB' : '#8899BB'} />
+                <View style={[styles.inlineIconBox, focused && { backgroundColor: '#EFF6FF' }]}>
+                    <Icon size={18} color={focused ? '#3B5BDB' : '#8899BB'} />
                 </View>
                 {textPrefix && <Text style={styles.textPrefixStyle}>{textPrefix}</Text>}
                 <TextInput
                     style={styles.textInputEnhanced}
                     placeholderTextColor="#8899BB"
-                    onFocus={handleFocus}
-                    onBlur={handleBlur}
+                    defaultValue={value}
+                    onChangeText={onChangeText}
+                    secureTextEntry={secureTextEntry}
+                    onFocus={(e) => { setFocused(true); rest.onFocus?.(e); }}
+                    onBlur={(e) => { setFocused(false); rest.onBlur?.(e); }}
                     {...rest}
                 />
                 {rightIcon && <View style={styles.rightIconWrap}>{rightIcon}</View>}
@@ -143,7 +139,7 @@ const IconInput = React.memo(({ icon: Icon, label, rightIcon, error, textPrefix,
             ) : null}
         </View>
     );
-});
+};
 
 const OTPModal = ({ visible, onClose, otp, setOtp, onVerify, timer, resend, attempts, field, error, otpLoading }) => (
     <Modal visible={visible} animationType="fade" transparent>
