@@ -401,13 +401,18 @@ export default function MedicationsScreen({ navigation }) {
     const hasAnimated = useRef(false);
     useFocusEffect(
         useCallback(() => {
-            loadMedicinesData(false, true).then(() => {
-                if (!hasAnimated.current) {
-                    hasAnimated.current = true;
-                    runAnimations();
-                }
-            });
-            return () => {};
+            const loadMeds = () => {
+                loadMedicinesData(false, true).then(() => {
+                    if (!hasAnimated.current) {
+                        hasAnimated.current = true;
+                        runAnimations();
+                    }
+                });
+            };
+            loadMeds();
+            // Poll every 15 seconds to sync data from the admin side
+            const interval = setInterval(() => loadMedicinesData(true, true), 15000);
+            return () => clearInterval(interval);
         }, [loadMedicinesData, runAnimations])
     );
 

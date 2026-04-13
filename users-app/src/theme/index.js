@@ -6,9 +6,9 @@
 
 export const colors = {
     // ─── Core Brand ────────────────────────────
-    primary: '#0A2463',
-    primaryMid: '#1E5FAD',
-    accent: '#3A86FF',
+    primary: '#6366F1',
+    primaryMid: '#4F46E5',
+    accent: '#818CF8',
 
     // ─── Surfaces ──────────────────────────────
     background: '#F4F7FB',
@@ -36,9 +36,9 @@ export const colors = {
     divider: '#E2E8F0',
 
     // ─── Gradients ─────────────────────────────
-    gradientPrimary: ['#0A2463', '#1E5FAD'],
-    gradientAccent: ['#1E5FAD', '#3A86FF'],
-    gradientSoft: ['#3A86FF', '#7EB8FF'],
+    gradientPrimary: ['#4F46E5', '#6366F1'],
+    gradientAccent: ['#6366F1', '#818CF8'],
+    gradientSoft: ['#818CF8', '#C7D2FE'],
 
     // ─── Status Indicators ─────────────────────
     calledToday: '#22C55E',

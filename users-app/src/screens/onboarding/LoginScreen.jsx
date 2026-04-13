@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
     View, Text, StyleSheet, TextInput, Pressable, Platform,
     KeyboardAvoidingView, Animated, ActivityIndicator, Alert, Modal,
-    BackHandler, Dimensions,
+    BackHandler, Dimensions, Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Mail, Lock, Eye, EyeOff, HeartPulse, AlertCircle, Smartphone, ChevronRight, X } from 'lucide-react-native';
@@ -16,26 +16,26 @@ import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-si
 const { height: SCREEN_H } = Dimensions.get('window');
 
 const C = {
-    pageBg: '#0B1437',
-    heroBgTop: '#0B1437',
-    heroBgBottom: '#1E3A8A',
-    orbDark: '#1E3A8A',
-    orbMid: '#3B82F6',
-    orbLight: '#60A5FA',
-    cardBg: 'rgba(255,255,255,0.95)',
+    pageBg: '#F8FAFC',
+    heroBgTop: '#4F46E5',
+    heroBgBottom: '#6366F1',
+    orbDark: '#4338CA',
+    orbMid: '#6366F1',
+    orbLight: '#818CF8',
+    cardBg: 'rgba(255,255,255,0.98)',
     cardBorder: 'rgba(255,255,255,0.7)',
-    primary: '#3B5BDB',
-    primaryDark: '#1E3A8A',
-    primarySoft: '#EFF3FF',
-    dark: '#0D1B4B',
-    mid: '#3D4F7C',
-    muted: '#8899BB',
-    light: '#CBD5E1',
-    border: '#E8EDFF',
-    borderMid: '#D0D9F5',
-    danger: '#F43F5E',
-    dangerBg: '#FFE4E6',
-    success: '#22C55E',
+    primary: '#6366F1',
+    primaryDark: '#4338CA',
+    primarySoft: '#EEF2FF',
+    dark: '#0F172A',
+    mid: '#475569',
+    muted: '#94A3B8',
+    light: '#E2E8F0',
+    border: '#F1F5F9',
+    borderMid: '#E2E8F0',
+    danger: '#EF4444',
+    dangerBg: '#FEF2F2',
+    success: '#10B981',
 };
 
 const FONT = {
@@ -251,7 +251,7 @@ const rs = StyleSheet.create({
     subtitle: { fontSize: 14, ...FONT.medium, color: C.muted, lineHeight: 22, marginBottom: 20 },
     inputWrap: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', borderWidth: 1.5, borderColor: C.borderMid, borderRadius: 16, height: 56, paddingHorizontal: 16, marginBottom: 14, gap: 12 },
     input: { flex: 1, fontSize: 16, color: C.dark, ...FONT.semibold },
-    btn: { backgroundColor: '#3B5BDB', borderRadius: 16, height: 54, alignItems: 'center', justifyContent: 'center', marginTop: 8 },
+    btn: { backgroundColor: '#6366F1', borderRadius: 16, height: 54, alignItems: 'center', justifyContent: 'center', marginTop: 8 },
     btnText: { color: '#FFF', fontSize: 16, ...FONT.bold },
     errorBox: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: C.dangerBg, borderRadius: 12, padding: 14, marginBottom: 14 },
     errorText: { color: '#991B1B', fontSize: 13, ...FONT.semibold, flex: 1 },
@@ -264,7 +264,7 @@ const rs = StyleSheet.create({
 
 // ─── Main LoginScreen ─────────────────────────────────────────────────────
 export default function LoginScreen({ navigation }) {
-    const { signIn, signInWithGoogle, resetPassword } = useAuth();
+    const { signIn, signInWithGoogle, resetPassword, injectSession } = useAuth();
 
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -328,8 +328,38 @@ export default function LoginScreen({ navigation }) {
             }
             const result = await signInWithGoogle(idToken);
             if (result?.isNewUser) {
-                setErrorText('No Samvaya account found for this Google account. Please sign up first.');
-                analytics.loginFailure('google_no_account');
+                // No profile found — auto-create a patient account
+                const googleUser = result.user;
+                const fullName = googleUser.user_metadata?.full_name
+                    || googleUser.user_metadata?.name
+                    || googleUser.email.split('@')[0];
+                try {
+                    await apiService.auth.register({
+                        email: googleUser.email, fullName, role: 'patient',
+                        supabaseUid: googleUser.id, password: null,
+                    });
+                    const config = { headers: { Authorization: `Bearer ${result.session.access_token}` } };
+                    const profileRes = await apiService.auth.getProfile(config);
+                    await injectSession(result.session, profileRes.data.profile);
+                } catch (regError) {
+                    const code = regError?.response?.data?.code;
+                    if (code === 'EMAIL_ALREADY_EXISTS') {
+                        // User exists in our DB, but profile fetch failed initially (likely missing new supabaseUid link)
+                        // The backend just needs the new session to identify them or we can try fetching again
+                        try {
+                            const config = { headers: { Authorization: `Bearer ${result.session.access_token}` } };
+                            const profileRes = await apiService.auth.getProfile(config);
+                            if (profileRes.data.profile) {
+                                await injectSession(result.session, profileRes.data.profile);
+                                return;
+                            }
+                        } catch (pErr) {
+                            setErrorText('An account with this email already exists. Please try logging in with your password.');
+                        }
+                    } else {
+                        setErrorText(regError?.response?.data?.error || 'Failed to create account. Please try again.');
+                    }
+                }
             } else {
                 analytics.loginSuccess(result?.user?.id);
             }
@@ -389,8 +419,8 @@ export default function LoginScreen({ navigation }) {
             {/* Hero Section — deep, immersive */}
             <Animated.View style={{ transform: [{ translateY: heroAnim }], opacity: heroOpacity }}>
                 <LinearGradient
-                    colors={['#0B1437', '#162158', '#1E3A8A', '#2563EB']}
-                    start={{ x: 0, y: 0 }} end={{ x: 0.5, y: 1 }}
+                    colors={['#4F46E5', '#6366F1', '#818CF8']}
+                    start={{ x: 0, y: 0 }} end={{ x: 0.8, y: 1 }}
                     style={styles.hero}
                 >
                     <View style={styles.orb1} />
@@ -399,12 +429,16 @@ export default function LoginScreen({ navigation }) {
                     <View style={styles.orb4} />
                     <View style={styles.orb5} />
 
-                    <View style={styles.heroIconWrap}>
-                        <HeartPulse size={38} color="#FFFFFF" strokeWidth={1.5} />
+                    <View style={[styles.heroIconWrap, { backgroundColor: '#FFFFFF' }]}>
+                        <Image 
+                            source={require('../../../assets/logo.png')} 
+                            style={{ width: 44, height: 44 }} 
+                            resizeMode="contain" 
+                        />
                     </View>
-                    <Text style={styles.heroLabel}>S A M V A Y A</Text>
+                    <Text style={styles.heroLabel}>SAMVAYA</Text>
                     <Text style={styles.heroTitle}>Welcome Back</Text>
-                    <Text style={styles.heroSubtitle}>Your health journey continues here</Text>
+                    <Text style={styles.heroSubtitle}>Your premium health journey continues here</Text>
                 </LinearGradient>
             </Animated.View>
 
@@ -503,7 +537,7 @@ export default function LoginScreen({ navigation }) {
                 {/* Login Button */}
                 <Pressable style={[styles.primaryBtn, loading && { opacity: 0.7 }]} onPress={handleLogin} disabled={loading}>
                     <LinearGradient
-                        colors={['#3B5BDB', '#1E3A8A']}
+                        colors={['#6366F1', '#4F46E5']}
                         start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
                         style={styles.primaryBtnGradient}
                     >
@@ -620,9 +654,9 @@ const styles = StyleSheet.create({
         paddingHorizontal: 14,
     },
     inputFocused: {
-        borderColor: '#3B5BDB',
+        borderColor: '#6366F1',
         backgroundColor: '#FFFFFF',
-        shadowColor: '#3B5BDB', shadowOpacity: 0.15, shadowRadius: 20, shadowOffset: { width: 0, height: 4 },
+        shadowColor: '#6366F1', shadowOpacity: 0.15, shadowRadius: 20, shadowOffset: { width: 0, height: 4 },
         elevation: 4,
     },
     textInput: { flex: 1, fontSize: 15, color: '#0F172A', ...FONT.semibold },
@@ -650,5 +684,5 @@ const styles = StyleSheet.create({
 
     bottomLink: { flexDirection: 'row', justifyContent: 'center', marginTop: 24, paddingBottom: 10 },
     bottomLinkText: { fontSize: 14, color: '#64748B', ...FONT.medium },
-    bottomLinkAction: { fontSize: 14, ...FONT.heavy, color: '#3B5BDB' },
+    bottomLinkAction: { fontSize: 14, ...FONT.heavy, color: '#6366F1' },
 });

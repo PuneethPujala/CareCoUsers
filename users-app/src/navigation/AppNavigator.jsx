@@ -16,7 +16,6 @@ import {
     Pill,
     ShieldPlus,
     UserCircle,
-    Menu,
 } from "lucide-react-native";
 import { useAuth } from "../context/AuthContext";
 import { sendDailyWelcomeNotification, registerForPushNotificationsAsync, sendSeamlessExperienceNotification } from "../utils/notifications";
@@ -45,11 +44,7 @@ import LocationSearchScreen from "../screens/patient/LocationSearchScreen";
 import AddAddressScreen from "../screens/patient/AddAddressScreen";
 import HealthConnectSetupScreen from "../screens/patient/HealthConnectSetupScreen";
 
-// Caller screens
-import CallerHomeScreen from "../screens/caller/HomeScreen";
-import CallerPatientsScreen from "../screens/caller/PatientsScreen";
-import ActivityFeedScreen from "../screens/caller/ActivityFeedScreen";
-import CallerProfileScreen from "../screens/caller/ProfileScreen";
+// Caller screens — removed: this is a patient-only app
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -157,35 +152,7 @@ function PatientTabNavigator() {
     );
 }
 
-function CallerTabNavigator() {
-    return (
-        <Tab.Navigator
-            tabBar={(props) => <CustomTabBar {...props} />}
-            screenOptions={{ headerShown: false }}
-        >
-            <Tab.Screen
-                name="CallerHome"
-                component={CallerHomeScreen}
-                options={{ tabBarIconComponent: LayoutDashboard }}
-            />
-            <Tab.Screen
-                name="CallerPatients"
-                component={CallerPatientsScreen}
-                options={{ tabBarIconComponent: Users }}
-            />
-            <Tab.Screen
-                name="ActivityFeed"
-                component={ActivityFeedScreen}
-                options={{ tabBarIconComponent: ShieldPlus }}
-            />
-            <Tab.Screen
-                name="CallerProfile"
-                component={CallerProfileScreen}
-                options={{ tabBarIconComponent: Menu }}
-            />
-        </Tab.Navigator>
-    );
-}
+
 
 function LoadingScreen() {
     return (
@@ -218,45 +185,38 @@ const PatientOnboardingStack = () => (
     </Stack.Navigator>
 );
 
-const MainAppStack = ({ isCaller }) => (
+const MainAppStack = () => (
     <Stack.Navigator screenOptions={{ headerShown: false, animation: "fade" }}>
-        {isCaller ? (
-            <Stack.Screen name="CallerTabs" component={CallerTabNavigator} />
-        ) : (
-            <>
-                <Stack.Screen name="PatientTabs" component={PatientTabNavigator} />
-                <Stack.Screen
-                    name="Notifications"
-                    component={NotificationsScreen}
-                    options={{ presentation: "modal" }}
-                />
-                <Stack.Screen name="VitalsHistory" component={VitalsHistoryScreen} />
-                <Stack.Screen
-                    name="LocationSearch"
-                    component={LocationSearchScreen}
-                    options={{ presentation: "modal", animation: "slide_from_bottom" }}
-                />
-                <Stack.Screen
-                    name="AddAddress"
-                    component={AddAddressScreen}
-                    options={{ presentation: "modal" }}
-                />
-                <Stack.Screen
-                    name="HealthConnectSetup"
-                    component={HealthConnectSetupScreen}
-                    options={{ presentation: "modal", animation: "slide_from_bottom" }}
-                />
-                <Stack.Screen name="SubscribePlans" component={SubscribePlansScreen} />
-                <Stack.Screen name="Payment" component={PaymentScreen} />
-                <Stack.Screen name="WaitingRoom" component={WaitingScreen} />
-            </>
-        )}
+        <Stack.Screen name="PatientTabs" component={PatientTabNavigator} />
+        <Stack.Screen
+            name="Notifications"
+            component={NotificationsScreen}
+            options={{ presentation: "modal" }}
+        />
+        <Stack.Screen name="VitalsHistory" component={VitalsHistoryScreen} />
+        <Stack.Screen
+            name="LocationSearch"
+            component={LocationSearchScreen}
+            options={{ presentation: "modal", animation: "slide_from_bottom" }}
+        />
+        <Stack.Screen
+            name="AddAddress"
+            component={AddAddressScreen}
+            options={{ presentation: "modal" }}
+        />
+        <Stack.Screen
+            name="HealthConnectSetup"
+            component={HealthConnectSetupScreen}
+            options={{ presentation: "modal", animation: "slide_from_bottom" }}
+        />
+        <Stack.Screen name="SubscribePlans" component={SubscribePlansScreen} />
+        <Stack.Screen name="Payment" component={PaymentScreen} />
+        <Stack.Screen name="WaitingRoom" component={WaitingScreen} />
     </Stack.Navigator>
 );
 
 export default function AppNavigator() {
-    const { initializing, isAuthenticated, userRole, user, profile } = useAuth();
-    const isCaller = userRole === "caretaker" || userRole === "caller";
+    const { initializing, isAuthenticated, user, profile } = useAuth();
 
 
     const notificationListener = useRef();
@@ -279,10 +239,10 @@ export default function AppNavigator() {
 
         return () => {
             if (notificationListener.current) {
-                Notifications.removeNotificationSubscription(notificationListener.current);
+                notificationListener.current.remove();
             }
             if (responseListener.current) {
-                Notifications.removeNotificationSubscription(responseListener.current);
+                responseListener.current.remove();
             }
         };
     }, []);
@@ -296,7 +256,7 @@ export default function AppNavigator() {
                     const { token, granted, isNewGrant } = await registerForPushNotificationsAsync();
 
                     // Save push token to backend (patients only — they have the Patient model)
-                    if (token && userRole === 'patient') {
+                    if (token) {
                         await apiService.patients.updateMe({ 
                             push_notifications_enabled: true,
                             expo_push_token: token 
@@ -318,15 +278,16 @@ export default function AppNavigator() {
             }
         };
 
+        console.log('[AppNavigator] Rendering with state:', { initializing, user: !!user, profile: !!profile, isAuthenticated, isOnboarding: !isAuthenticated && !!user });
         setupNotifications();
-    }, [isAuthenticated, user, userRole, profile]);
+    }, [isAuthenticated, user, profile]);
 
     if (initializing) return <LoadingScreen />;
     if (!user) return <AuthStack />;
     if (!profile) return <LoadingScreen />;
-    if (!isAuthenticated && userRole === "patient") return <PatientOnboardingStack />;
+    if (!isAuthenticated) return <PatientOnboardingStack />;
 
-    return <MainAppStack isCaller={isCaller} />;
+    return <MainAppStack />;
 }
 
 const styles = StyleSheet.create({

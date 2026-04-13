@@ -100,7 +100,7 @@ export async function sendSeamlessExperienceNotification() {
                 data: { screen: 'PatientHome' },
                 sound: 'default',
             },
-            trigger: { seconds: 1 },
+            trigger: { type: 'timeInterval', seconds: 1 },
         });
         console.log('✅ Seamless experience notification scheduled');
     } catch (error) {
@@ -108,7 +108,7 @@ export async function sendSeamlessExperienceNotification() {
     }
 }
 
-const WELCOME_KEY = '@careco_last_welcome_date';
+const WELCOME_KEY = '@samvaya_last_welcome_date';
 
 /**
  * Send a local "welcome back" notification.
@@ -144,7 +144,7 @@ export async function sendDailyWelcomeNotification(userName = 'there', force = f
                 data: { screen: 'PatientHome' },
                 sound: 'default',
             },
-            trigger: { seconds: 2 },
+            trigger: { type: 'timeInterval', seconds: 2 },
         });
 
         // Mark today as greeted
@@ -206,7 +206,7 @@ export async function scheduleMedicationReminders(medicines, prefs = {}) {
                         data: { screen: 'Medications', type: 'medication_reminder' },
                         sound: 'default',
                     },
-                    trigger: { seconds: secondsUntil },
+                    trigger: { type: 'timeInterval', seconds: secondsUntil },
                 });
                 console.log(`✅ Medication reminder scheduled: ${med.medicine_name} at ${timePref}`);
             }
@@ -248,7 +248,7 @@ export async function scheduleVitalsReminder(vitalsLoggedToday = false) {
                     data: { screen: 'PatientHome', type: 'vitals_reminder' },
                     sound: 'default',
                 },
-                trigger: { seconds: secondsUntil },
+                trigger: { type: 'timeInterval', seconds: secondsUntil },
             });
             console.log('✅ Vitals reminder scheduled for 10:00 AM');
         }
@@ -277,7 +277,7 @@ export async function scheduleSubscriptionAlert(daysLeft) {
                 data: { screen: 'SubscribePlans', type: 'subscription_alert' },
                 sound: 'default',
             },
-            trigger: { seconds: 5 },
+            trigger: { type: 'timeInterval', seconds: 5 },
         });
         console.log(`✅ Subscription alert sent (${daysLeft} days left)`);
     } catch (error) {

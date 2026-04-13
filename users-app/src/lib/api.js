@@ -11,7 +11,7 @@ const PUBLIC_ENDPOINTS = [
 
 const api = axios.create({
     baseURL: API_BASE_URL,
-    timeout: 10000,
+    timeout: 40000,
     headers: {
         'Content-Type': 'application/json',
         'x-app-name': 'Samvaya',

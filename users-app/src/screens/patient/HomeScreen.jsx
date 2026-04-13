@@ -318,13 +318,18 @@ export default function PatientHomeScreen({ navigation }) {
     const hasAnimated = useRef(false);
     useFocusEffect(
         useCallback(() => {
-            fetchData().then(() => {
-                if (!hasAnimated.current) {
-                    hasAnimated.current = true;
-                    runAnimations();
-                }
-            });
-            return () => {};
+            const doFetch = () => {
+                fetchData(true).then(() => {
+                    if (!hasAnimated.current) {
+                        hasAnimated.current = true;
+                        runAnimations();
+                    }
+                });
+            };
+            doFetch();
+            // Poll every 15 seconds to sync data from the admin side
+            const interval = setInterval(() => fetchData(true), 15000);
+            return () => clearInterval(interval);
         }, [fetchData, runAnimations])
     );
 

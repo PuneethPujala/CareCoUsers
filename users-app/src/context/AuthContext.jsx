@@ -11,6 +11,7 @@
 import React, { createContext, useState, useContext, useEffect, useCallback, useRef } from 'react';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import * as SecureStore from 'expo-secure-store';
 import { supabase, auth, handleAuthError } from '../lib/supabase';
 import { apiService, handleApiError } from '../lib/api';
@@ -22,27 +23,21 @@ WebBrowser.maybeCompleteAuthSession();
 
 const AuthContext = createContext(null);
 
-const ONBOARDING_STORAGE_KEY = 'careco_onboarding_progress';
-const PROFILE_SECURE_KEY = 'careco_user_profile';
+const ONBOARDING_STORAGE_KEY = 'samvaya_onboarding_progress';
+const PROFILE_SECURE_KEY = 'samvaya_user_profile';
 const STALE_PROGRESS_DAYS = 7;
 
 // ─── Profile SecureStore helpers ────────────────────────────────────────────
 
 async function cacheProfile(profileData) {
     try {
-        if (Platform.OS === 'web') {
-            await AsyncStorage.setItem(PROFILE_SECURE_KEY, JSON.stringify(profileData));
-            return;
-        }
-        await SecureStore.setItemAsync(PROFILE_SECURE_KEY, JSON.stringify(profileData));
+        await AsyncStorage.setItem(PROFILE_SECURE_KEY, JSON.stringify(profileData));
     } catch { }
 }
 
 async function getCachedProfile() {
     try {
-        const raw = Platform.OS === 'web'
-            ? await AsyncStorage.getItem(PROFILE_SECURE_KEY)
-            : await SecureStore.getItemAsync(PROFILE_SECURE_KEY);
+        const raw = await AsyncStorage.getItem(PROFILE_SECURE_KEY);
         return raw ? JSON.parse(raw) : null;
     } catch {
         return null;
@@ -51,11 +46,7 @@ async function getCachedProfile() {
 
 async function clearCachedProfile() {
     try {
-        if (Platform.OS === 'web') {
-            await AsyncStorage.removeItem(PROFILE_SECURE_KEY);
-            return;
-        }
-        await SecureStore.deleteItemAsync(PROFILE_SECURE_KEY);
+        await AsyncStorage.removeItem(PROFILE_SECURE_KEY);
     } catch { }
 }
 
@@ -78,6 +69,7 @@ export function AuthProvider({ children }) {
     const [user, setUser] = useState(null);
     const [session, setSession] = useState(null);
     const [profile, setProfile] = useState(null);
+    const [patient, setPatient] = useState(null);
     const [loading, setLoading] = useState(false);
     const [initializing, setInitializing] = useState(true);
     const [isOnboarding, setIsOnboarding] = useState(false);
@@ -101,10 +93,34 @@ export function AuthProvider({ children }) {
         }
     }, []);
 
+    // ── Check if patient record exists and has active subscription ──────────
+
+    const checkPatientPaid = useCallback(async () => {
+        try {
+            const res = await apiService.patients.getMe();
+            // Backend returns { patient: { ... } }
+            const p = res.data?.patient;
+            if (p) {
+                setPatient(p);
+                // Schema Alignment: image shows subscription.paid: 1
+                const isPaid = p.subscription?.paid === 1 || 
+                               p.subscription_status === 'active' || 
+                               !!p.paid;
+                console.log(`[Auth] Patient data mapped for ${p.email}. Paid: ${isPaid}`);
+                return isPaid;
+            }
+            return false;
+        } catch (err) {
+            console.warn('[Auth] checkPatientPaid failed:', err.message);
+            return false;
+        }
+    }, []);
+
     // ── Sign Out — §8 FIX: clears SecureStore + AsyncStorage ───────────────
 
     const signOut = useCallback(async () => {
         try { await auth.signOut(); } catch { }
+        try { await GoogleSignin.signOut(); } catch { }
         // §8 FIX: Clear all stored data
         await clearCachedProfile();
         await clearUserCache(); // Clear offline cache for this user
@@ -131,19 +147,16 @@ export function AuthProvider({ children }) {
                     try {
                         const response = await apiService.auth.getProfile();
                         const profileData = response.data.profile;
+                        // Force patient role — this is a patient-only app
+                        if (profileData) profileData.role = 'patient';
                         await setProfileAndCache(profileData);
-                        analytics.identify(currentSession.user.id, { role: profileData.role });
+                        analytics.identify(currentSession.user.id, { role: 'patient' });
 
-                        if (profileData.role === 'patient' && profileData.subscription_status !== 'active') {
-                            const midOnboarding = await hasActiveOnboardingProgress();
-                            if (midOnboarding) {
-                                setIsOnboarding(true);
-                                isOnboardingRef.current = true;
-                            } else {
-                                await signOut();
-                            }
-                            return;
-                        }
+                        // Check patient record for payment status
+                        const paid = await checkPatientPaid();
+                        setIsOnboarding(!paid);
+                        isOnboardingRef.current = !paid;
+                        if (!paid) return;
                     } catch (error) {
                         // If 403 (Profile deleted from DB) or 401, log out to prevent cached ghost sessions
                         if (error.response?.status === 403 || error.response?.status === 401) {
@@ -153,6 +166,7 @@ export function AuthProvider({ children }) {
                         // §3 FIX: Fall back to cached profile for offline access
                         const cached = await getCachedProfile();
                         if (cached) {
+                            cached.role = 'patient';
                             setProfile(cached);
                             profileRef.current = cached;
                         } else {
@@ -169,7 +183,7 @@ export function AuthProvider({ children }) {
             }
         };
         init();
-    }, [signOut, setProfileAndCache]);
+    }, [signOut, setProfileAndCache, checkPatientPaid]);
 
     // ── Auth state listener — §2 FIX: handle all event types ────────────────
 
@@ -204,7 +218,9 @@ export function AuthProvider({ children }) {
                     // Re-fetch profile in case metadata changed
                     try {
                         const resp = await apiService.auth.getProfile();
-                        await setProfileAndCache(resp.data.profile);
+                        const pd = resp.data.profile;
+                        if (pd) pd.role = 'patient';
+                        await setProfileAndCache(pd);
                     } catch { }
                 }
                 return;
@@ -241,18 +257,13 @@ export function AuthProvider({ children }) {
                     try {
                         const response = await apiService.auth.getProfile();
                         const profileData = response.data.profile;
+                        if (profileData) profileData.role = 'patient';
 
-                        if (profileData.role === 'patient' && profileData.subscription_status !== 'active') {
-                            const midOnboarding = await hasActiveOnboardingProgress();
-                            if (midOnboarding) {
-                                setIsOnboarding(true);
-                                isOnboardingRef.current = true;
-                                await setProfileAndCache(profileData);
-                            } else {
-                                await signOut();
-                            }
-                            return;
-                        }
+                        const paid = await checkPatientPaid();
+                        setIsOnboarding(!paid);
+                        isOnboardingRef.current = !paid;
+                        await setProfileAndCache(profileData);
+                        if (!paid) return;
 
                         await setProfileAndCache(profileData);
                     } catch { }
@@ -260,7 +271,7 @@ export function AuthProvider({ children }) {
             }
         });
         return () => subscription.unsubscribe();
-    }, [signOut, setProfileAndCache]);
+    }, [signOut, setProfileAndCache, checkPatientPaid]);
 
     // ── Sign In ────────────────────────────────────────────────────────────
 
@@ -270,12 +281,14 @@ export function AuthProvider({ children }) {
             const response = await apiService.auth.login({ email, password, role });
             const { session: loginSession, profile: profileData } = response.data;
 
+            // Force patient role — this is a patient-only app
+            if (profileData) profileData.role = 'patient';
             await setProfileAndCache(profileData);
 
-            if (profileData.role === 'patient' && profileData.subscription_status !== 'active') {
-                setIsOnboarding(true);
-                isOnboardingRef.current = true;
-            }
+            // Check patient payment status from patients schema
+            const paid = await checkPatientPaid();
+            setIsOnboarding(!paid);
+            isOnboardingRef.current = !paid;
 
             skipFetchCountRef.current = 2;
 
@@ -287,13 +300,13 @@ export function AuthProvider({ children }) {
             setUser(loginSession.user);
             setSession(loginSession);
             setLoading(false);
-            analytics.identify(loginSession.user.id, { role: profileData.role });
+            analytics.identify(loginSession.user.id, { role: 'patient' });
             return response.data;
         } catch (error) {
             setLoading(false);
             throw error;
         }
-    }, [setProfileAndCache]);
+    }, [setProfileAndCache, checkPatientPaid]);
 
     // ── Sign Up ────────────────────────────────────────────────────────────
 
@@ -309,6 +322,11 @@ export function AuthProvider({ children }) {
 
             setUser(signUpSession.user);
             await setProfileAndCache(profileData);
+
+            // Check if they are actually a returning/paid user even during signup
+            const paid = await checkPatientPaid();
+            setIsOnboarding(!paid);
+            isOnboardingRef.current = !paid;
 
             const { error: sessionError } = await supabase.auth.setSession({
                 access_token: signUpSession.access_token,
@@ -347,12 +365,16 @@ export function AuthProvider({ children }) {
                 const config = { headers: { Authorization: `Bearer ${data.session.access_token}` } };
                 const response = await apiService.auth.getProfile(config);
                 const profileData = response.data.profile;
+                if (profileData) profileData.role = 'patient';
 
                 await setProfileAndCache(profileData);
 
-                if (profileData.role === 'patient' && profileData.subscription_status !== 'active') {
-                    setIsOnboarding(true);
-                    isOnboardingRef.current = true;
+                // Check patient payment status
+                const paid = await checkPatientPaid();
+                setIsOnboarding(!paid);
+                isOnboardingRef.current = !paid;
+
+                if (!paid) {
                     setUser(data.user);
                     setLoading(false);
                     return { isNewUser: false, user: data.user, session: data.session };
@@ -370,7 +392,7 @@ export function AuthProvider({ children }) {
             setLoading(false);
             throw new Error(error?.message || 'Google sign-in failed');
         }
-    }, [setProfileAndCache]);
+    }, [setProfileAndCache, checkPatientPaid]);
 
     // ── Reset Password ─────────────────────────────────────────────────────
     // Now uses our custom OTP-based reset flow instead of Supabase default
@@ -385,12 +407,13 @@ export function AuthProvider({ children }) {
     // ── Inject Session (post Google new-user signup) ───────────────────────
 
     const injectSession = useCallback(async (newSession, newProfile) => {
+        if (newProfile) newProfile.role = 'patient';
         await setProfileAndCache(newProfile);
 
-        if (newProfile.role === 'patient' && newProfile.subscription_status !== 'active') {
-            setIsOnboarding(true);
-            isOnboardingRef.current = true;
-        }
+        // Check patient payment status
+        const paid = await checkPatientPaid();
+        setIsOnboarding(!paid);
+        isOnboardingRef.current = !paid;
 
         await supabase.auth.setSession({
             access_token: newSession.access_token,
@@ -399,7 +422,7 @@ export function AuthProvider({ children }) {
 
         setUser(newSession.user);
         setSession(newSession);
-    }, [setProfileAndCache]);
+    }, [setProfileAndCache, checkPatientPaid]);
 
     // ── Complete Sign Up ───────────────────────────────────────────────────
 
@@ -436,7 +459,7 @@ export function AuthProvider({ children }) {
     const userRole = profile?.role;
 
     const value = {
-        user, session, profile, loading, initializing,
+        user, session, profile, patient, loading, initializing,
         isAuthenticated, displayName, userRole, userEmail: user?.email,
         signIn, signUp, signOut, resetPassword, signInWithGoogle, completeSignUp, injectSession,
         sendOtp, verifyOtp,

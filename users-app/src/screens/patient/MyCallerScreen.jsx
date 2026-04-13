@@ -248,6 +248,8 @@ export default function MyCallerScreen({ navigation }) {
     );
   }
 
+  const manager = patient?.assigned_manager_id || patient?.assigned_manager;
+
   return (
     <LinearGradient colors={['#F8FAFC', '#EEF2FF']} style={s.container}>
       {/* ── Premium Gradient Header ── */}
@@ -349,16 +351,16 @@ export default function MyCallerScreen({ navigation }) {
             <View style={s.sectionHeaderRow}>
               <Text style={s.sectionHeaderBase}>MANAGER</Text>
             </View>
-            {patient?.assigned_manager_id ? (
+            {manager ? (
               <View style={s.callerCard}>
                 <View style={s.profileRow}>
                   <View style={s.avatarWrap}>
                     <LinearGradient colors={['#9333EA', '#6B21A8']} style={s.avatar}>
-                      <Text style={s.avatarLetter}>{patient.assigned_manager_id.fullName?.charAt(0) || 'M'}</Text>
+                      <Text style={s.avatarLetter}>{manager.fullName?.charAt(0) || 'M'}</Text>
                     </LinearGradient>
                   </View>
                   <View style={s.profileInfo}>
-                    <Text style={s.callerName}>{patient.assigned_manager_id.fullName || 'Manager'}</Text>
+                    <Text style={s.callerName}>{manager.fullName || 'Manager'}</Text>
                     <View style={s.metaRow}>
                       <Text style={s.idChipText}>Manager</Text>
                       <View style={s.dotDivider} />
@@ -372,7 +374,7 @@ export default function MyCallerScreen({ navigation }) {
                 <View style={s.actionRow}>
                   <Pressable
                     style={({ pressed }) => [s.btnCall, { backgroundColor: '#9333EA' }, pressed && s.btnCallPressed]}
-                    onPress={() => patient.assigned_manager_id.phone && Linking.openURL(`tel:${patient.assigned_manager_id.phone}`)}
+                    onPress={() => manager.phone && Linking.openURL(`tel:${manager.phone}`)}
                   >
                     <Phone size={16} color="#FFF" strokeWidth={2.5} />
                     <Text style={s.btnCallText}>Contact Manager</Text>

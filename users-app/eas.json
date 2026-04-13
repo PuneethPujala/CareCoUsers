@@ -6,7 +6,14 @@
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "EXPO_NO_DOCTOR": "1",
+        "NPM_CONFIG_LEGACY_PEER_DEPS": "true",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://uwyglhjsdxlkstoxaoqw.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_qPLlhvr0FHw6daqW3RrT4A_y_v2-4ei",
+        "EXPO_PUBLIC_API_URL": "https://careco-backend.onrender.com/api"
+      }
     },
     "preview": {
       "distribution": "internal",
