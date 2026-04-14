@@ -56,6 +56,7 @@ import {
 } from 'lucide-react-native';
 import { colors } from '../../theme';
 import { useAuth } from '../../context/AuthContext';
+import { resolveOnboardingStep } from '../../utils/authUtils';
 import { apiService } from '../../lib/api';
 import { parseError } from '../../utils/parseError';
 import analytics from '../../utils/analytics';
@@ -327,18 +328,7 @@ export default function PatientSignupScreen({ navigation, route }) {
     useEffect(() => {
         if (!profile && !patient) return;
 
-        // 1. Schema-Aligned Paid Check: subscription.paid: 1 is the Source of Truth
-        const isActuallyPaid = patient?.subscription?.paid === 1 || 
-                               patient?.subscription_status === 'active' || 
-                               profile?.paid === true;
-
-        if (isActuallyPaid) {
-            completeSignUp();
-            navigation.replace('PatientHome');
-            return;
-        }
-
-        // 2. Data Population from Database
+        // 1. Data Population from Database
         const dbName = patient?.name || profile?.fullName;
         const dbEmail = patient?.email || profile?.email;
         const dbPhone = patient?.phone || profile?.phoneNumber;
@@ -358,18 +348,12 @@ export default function PatientSignupScreen({ navigation, route }) {
             if (dbCity) setLocationAddress(`${dbCity}`);
         }
 
-        // 3. Forced Step Skipping (Overrides AsyncStorage)
-        // If we have locality (city), jump straight to Step 3 (Payment)
-        if (dbCity && step < 3) {
-            setStep(3);
-            return;
+        // 2. Forced Step Skipping (Overrides AsyncStorage)
+        const targetStep = resolveOnboardingStep(patient, profile);
+        if (targetStep && step < targetStep) {
+            setStep(targetStep);
         }
-
-        // If we have identity but NO city, jump to Step 2 (Locality)
-        if (dbName && dbPhone && step === 1) {
-            setStep(2);
-        }
-    }, [profile, patient, step, navigation, completeSignUp]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [profile, patient, step]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Configure native Google Sign-In on mount
     useEffect(() => {

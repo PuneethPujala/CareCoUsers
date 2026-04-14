@@ -6,9 +6,10 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import {
     Crown, Check, PhoneCall, Pill, Shield, HeartPulse,
-    Users, Sparkles, ChevronRight, Star
+    Users, Sparkles, ChevronRight, Star, AlertCircle, LogOut
 } from 'lucide-react-native';
 import { colors } from '../../theme';
+import { useAuth } from '../../context/AuthContext';
 
 const { width } = Dimensions.get('window');
 
@@ -59,6 +60,7 @@ const FeatureRow = ({ text, color }) => (
 );
 
 export default function SubscribePlansScreen({ navigation }) {
+    const { subscriptionStatus, signOut } = useAuth();
     const [selected, setSelected] = useState('basic');
     const scaleAnim = useRef(new Animated.Value(1)).current;
     const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -93,6 +95,19 @@ export default function SubscribePlansScreen({ navigation }) {
                     Start your journey to better health with a dedicated care coordinator
                 </Text>
             </LinearGradient>
+
+            {subscriptionStatus === 'expired' && (
+                <View style={styles.expiredBanner}>
+                    <View style={styles.expiredRow}>
+                        <AlertCircle size={20} color="#DC2626" />
+                        <Text style={styles.expiredText}>Your subscription has expired. Please renew to continue.</Text>
+                    </View>
+                    <Pressable onPress={signOut} style={styles.logoutBtn}>
+                        <LogOut size={16} color="#64748B" />
+                        <Text style={styles.logoutText}>Sign Out</Text>
+                    </Pressable>
+                </View>
+            )}
 
             <Animated.View style={[styles.bodyWrap, { opacity: fadeAnim }]}>
                 <ScrollView
@@ -182,6 +197,21 @@ export default function SubscribePlansScreen({ navigation }) {
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#F4F7FB' },
+
+    expiredBanner: {
+        backgroundColor: '#FEF2F2',
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        borderBottomWidth: 1,
+        borderColor: '#FEE2E2',
+    },
+    expiredRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 },
+    expiredText: { color: '#991B1B', fontSize: 13, fontWeight: '600', flexShrink: 1 },
+    logoutBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, paddingVertical: 6, backgroundColor: '#FFFFFF', borderRadius: 12, borderWidth: 1, borderColor: '#E2E8F0' },
+    logoutText: { fontSize: 12, fontWeight: '600', color: '#64748B' },
 
     hero: {
         paddingTop: Platform.OS === 'ios' ? 64 : 48,

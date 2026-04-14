@@ -22,8 +22,6 @@ users-app/.env.local
 users-app/.env.development.local
 users-app/.env.test.local
 users-app/.env.production.local
-google-services.json
-GoogleService-Info.plist
 
 # Expo / React Native
 .expo/
@@ -60,7 +58,14 @@ ehthumbs.db
 *.sw?
 *.log
 
+# Sensitive Files
+*.jks
+*-firebase-adminsdk-*.json
+google-services.json
+GoogleService-Info.plist
+
 # Misc
 .cache
 *.tgz
 *.zip
+backend/src/scratch/

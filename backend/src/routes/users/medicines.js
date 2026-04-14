@@ -75,7 +75,7 @@ router.get('/today', authenticate, async (req, res) => {
  */
 router.put('/mark', authenticate, async (req, res) => {
     try {
-        const { medicine_name, scheduled_time, taken } = req.body;
+        const { medicine_name, scheduled_time, taken, marked_by = 'patient' } = req.body;
         const patient = await Patient.findOne({ supabase_uid: req.user.id });
         if (!patient) {
             return res.status(404).json({ error: 'Patient profile not found' });
@@ -101,9 +101,32 @@ router.put('/mark', authenticate, async (req, res) => {
             return res.status(404).json({ error: 'Medicine not found in schedule' });
         }
 
+        // 1. Update Daily Log
         med.taken = taken;
         med.taken_at = taken ? new Date() : null;
+        med.marked_by = marked_by;
         await log.save();
+
+        // 2. Update Patient Audit Trail
+        const patientMed = patient.medications.find(m => m.name === medicine_name);
+        if (patientMed) {
+            // Append to takenLogs
+            patientMed.takenLogs.push({
+                timestamp: new Date(),
+                status: taken ? 'taken' : 'missed',
+                markedBy: marked_by
+            });
+
+            // If taken, update takenDates (prevent duplicate for same day)
+            if (taken) {
+                const todayStr = today.toDateString();
+                const alreadyTakenToday = patientMed.takenDates.some(d => new Date(d).toDateString() === todayStr);
+                if (!alreadyTakenToday) {
+                    patientMed.takenDates.push(new Date());
+                }
+            }
+            await patient.save();
+        }
 
         res.json({ log });
     } catch (error) {

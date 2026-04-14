@@ -31,14 +31,30 @@ const processQueue = (error, token = null) => {
     failedQueue = [];
 };
 
-// ─── Request Interceptor: Attach JWT (skip for public endpoints) ───────────
+// ─── Request Interceptor: Proactive Token Refresh ───────────
 api.interceptors.request.use(async (config) => {
     try {
         const isPublic = PUBLIC_ENDPOINTS.some((ep) => config.url?.includes(ep));
         if (!isPublic) {
-            const {
+            let {
                 data: { session },
             } = await supabase.auth.getSession();
+            
+            if (session) {
+                const expiresAt = session.expires_at;
+                const timeRemaining = expiresAt ? expiresAt - Math.floor(Date.now() / 1000) : Infinity;
+                
+                // Proactive refresh if token expires in less than 60 seconds
+                if (timeRemaining < 60) {
+                    try {
+                        const { data } = await supabase.auth.refreshSession();
+                        session = data?.session || session;
+                    } catch (e) {
+                        console.warn('[API] Proactive refresh failed:', e.message);
+                    }
+                }
+            }
+
             if (session?.access_token) {
                 config.headers.Authorization = `Bearer ${session.access_token}`;
             }

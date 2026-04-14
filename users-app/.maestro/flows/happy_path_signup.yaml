@@ -1,0 +1,45 @@
+appId: com.careco.users
+---
+- launchApp
+- clearState
+
+# 1. Login or Sign Up
+- assertVisible: "Sign in to Samvaya"
+- tapOn: "Create Account"
+- assertVisible: "Create Your Profile"
+
+# 2. Fill Identity (Step 1)
+- tapOn: "Enter full name"
+- inputText: "Maestro Tester"
+- tapOn: "Enter email address"
+- inputText: "maestro@careco.in"
+# Maestro handles dismissing keyboards automatically
+- hideKeyboard
+- tapOn: "Enter mobile number"
+- inputText: "+919999999999"
+- hideKeyboard
+- tapOn: "Create Password"
+- inputText: "Secure123!"
+- hideKeyboard
+- tapOn: "Continue"
+
+# 3. Fill Locality (Step 2)
+# The AppNavigator routes here upon resolveOnboardingStep returning 2
+- assertVisible: "Where are you located?"
+- tapOn: "Enter city name..."
+- inputText: "Bangalore"
+- hideKeyboard
+- tapOn: "Bangalore, Karnataka, India" # Wait for dropdown mockup
+- tapOn: "Save Location"
+
+# 4. Paywall Verification (Step 3/4)
+- assertVisible: "Choose Your Plan"
+- tapOn: "Subscribe to Basic — ₹500/mo"
+- assertVisible: "Complete Your Purchase"
+- tapOn: "Pay Securely"
+
+# 5. Successfully Reached Dashboard
+- assertVisible: "Dashboard"
+- tapOn: "Medicine Taken"
+- assertVisible: "Are you sure?"
+- tapOn: "Yes"

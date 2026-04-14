@@ -20,7 +20,6 @@ async function createBasicPatient(supabaseUid, email, name, profileId, paid = 0)
             profile_id: profileId,
             name: name || (email ? email.split('@')[0] : 'Patient'),
             email: email || `${supabaseUid}@phone.careco.in`,
-            city: 'Hyderabad', // Mock default city picked during signup
             organization_id: orgId,
             subscription: { 
                 status: paid === 1 ? 'active' : 'pending_payment', 

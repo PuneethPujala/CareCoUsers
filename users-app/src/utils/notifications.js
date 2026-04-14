@@ -9,7 +9,8 @@ import { Platform, Alert } from 'react-native';
  */
 Notifications.setNotificationHandler({
     handleNotification: async () => ({
-        shouldShowAlert: true,
+        shouldShowBanner: true,
+        shouldShowList: true,
         shouldPlaySound: true,
         shouldSetBadge: true,
     }),
@@ -185,30 +186,55 @@ export async function scheduleMedicationReminders(medicines, prefs = {}) {
         const now = new Date();
         const defaultTimes = { morning: '09:00', afternoon: '14:00', night: '20:00' };
 
+        // 1. Group medications by their scheduled time
+        const slotsMap = {}; // { "09:00": { names: [], slotKey: "morning" } }
+
         for (const med of medicines) {
-            if (med.taken) continue; // Already taken
+            if (med.taken) continue;
 
             const timeKey = med.scheduled_time || 'morning';
             const timePref = prefs[timeKey] || defaultTimes[timeKey] || '09:00';
-            const [h, m] = timePref.split(':').map(Number);
+            
+            if (!slotsMap[timePref]) {
+                slotsMap[timePref] = { 
+                    names: [], 
+                    slotKey: timeKey 
+                };
+            }
+            slotsMap[timePref].names.push(med.medicine_name);
+        }
 
+        // 2. Schedule one notification per unique time slot
+        for (const [timePref, data] of Object.entries(slotsMap)) {
+            const [h, m] = timePref.split(':').map(Number);
             const medTime = new Date();
             medTime.setHours(h, m, 0, 0);
 
-            // Only schedule if the time is in the future
             const secondsUntil = Math.round((medTime - now) / 1000);
             if (secondsUntil > 0) {
-                const capitalizedSlot = timeKey.charAt(0).toUpperCase() + timeKey.slice(1);
+                const { names, slotKey } = data;
+                let body = '';
+                
+                if (names.length === 1) {
+                    body = `Time to take your ${names[0]}`;
+                } else if (names.length === 2) {
+                    body = `Time to take your ${names[0]} and ${names[1]}`;
+                } else {
+                    body = `Time to take your ${names[0]}, ${names[1]} and ${names.length - 2} others`;
+                }
+
+                const capitalizedSlot = slotKey.charAt(0).toUpperCase() + slotKey.slice(1);
+                
                 await Notifications.scheduleNotificationAsync({
                     content: {
                         title: `💊 ${capitalizedSlot} Medication`,
-                        body: `Time to take your ${med.medicine_name}`,
+                        body,
                         data: { screen: 'Medications', type: 'medication_reminder' },
                         sound: 'default',
                     },
                     trigger: { type: 'timeInterval', seconds: secondsUntil },
                 });
-                console.log(`✅ Medication reminder scheduled: ${med.medicine_name} at ${timePref}`);
+                console.log(`✅ Grouped medication reminder scheduled: ${names.join(', ')} at ${timePref}`);
             }
         }
 

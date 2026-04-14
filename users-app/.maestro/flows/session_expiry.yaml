@@ -1,0 +1,29 @@
+appId: com.careco.users
+---
+- launchApp
+- clearState
+
+# 1. Login with Active Account
+- assertVisible: "Sign in to Samvaya"
+- tapOn: "Email Address"
+- inputText: "active_user@careco.in"
+- hideKeyboard
+- tapOn: "Password"
+- inputText: "TestAuth123!"
+- hideKeyboard
+- tapOn: "Sign In"
+
+# 2. Wait for Load onto Dashboard
+- assertVisible: "Dashboard"
+- assertNotVisible: "SubscribePlansScreen" # Dev internal tag or title
+
+# 3. Force Session Purge (Offline Log Out flow mapping)
+# Assuming there is a Profile/Settings tab
+- tapOn:
+    id: "tab-UserCircle" # Assuming React Navigation creates testIDs for tabs
+- assertVisible: "Sign Out"
+- tapOn: "Sign Out"
+
+# 4. Verify Local Purge is completed and bounded back to Boot
+- assertVisible: "Sign in to Samvaya"
+- assertNotVisible: "Dashboard"

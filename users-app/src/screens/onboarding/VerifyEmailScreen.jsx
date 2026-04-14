@@ -42,20 +42,8 @@ export default function VerifyEmailScreen({ navigation, route }) {
         return () => clearInterval(timerRef.current);
     }, [resendCount]);
 
-    // Listen for email confirmation (user opens link → session updates)
-    useEffect(() => {
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-            if (event === 'SIGNED_IN' && session?.user?.email_confirmed_at) {
-                analytics.emailConfirmationSent(session.user.id);
-                // Navigate away — email is now confirmed
-                navigation.reset({
-                    index: 0,
-                    routes: [{ name: 'Login' }],
-                });
-            }
-        });
-        return () => subscription.unsubscribe();
-    }, [navigation]);
+    // AppNavigator handles the stack switch automatically when the user confirms their email 
+    // and the AuthContext sets the global 'user' state. Manual navigation here causes collisions.
 
     const handleResend = async () => {
         if (resendTimer > 0 || resending) return;
@@ -85,10 +73,6 @@ export default function VerifyEmailScreen({ navigation, route }) {
 
     const handleGoBack = async () => {
         await signOut();
-        navigation.reset({
-            index: 0,
-            routes: [{ name: 'Login' }],
-        });
     };
 
     return (

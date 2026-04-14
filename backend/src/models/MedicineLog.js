@@ -26,6 +26,11 @@ const MedicineLogSchema = new mongoose.Schema(
                     default: false,
                 },
                 taken_at: Date,
+                marked_by: {
+                    type: String,
+                    enum: ['patient', 'caller', 'system'],
+                    default: 'patient',
+                },
             },
         ],
     },

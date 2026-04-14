@@ -258,34 +258,21 @@ const TimePill = ({ type, timeStr, timeVal }) => {
 };
 
 const AnimatedMedCard = ({ med, onToggle }) => {
-    const [taken, setTaken] = useState(med.taken);
-    const [scale] = useState(new Animated.Value(1));
+    const scale = useRef(new Animated.Value(1)).current;
 
-    useEffect(() => {
-        setTaken(med.taken);
-    }, [med.taken]);
+    const handlePress = () => {
+        if (med.taken) return; // ONE-WAY: Cannot unmark
 
-    const handleCheck = async () => {
-        const newVal = !taken;
         Animated.sequence([
             Animated.timing(scale, { toValue: 0.9, duration: 100, useNativeDriver: true }),
             Animated.timing(scale, { toValue: 1.1, duration: 100, useNativeDriver: true }),
             Animated.timing(scale, { toValue: 1, duration: 100, useNativeDriver: true }),
         ]).start();
         
-        setTaken(newVal);
-        
-        try {
-            await apiService.medicines.markMedicine({ medicine_name: med.name, scheduled_time: med.type, taken: newVal });
-            if (onToggle) onToggle(med.id, newVal);
-            DeviceEventEmitter.emit('MEDS_UPDATED');
-        } catch (err) {
-            console.warn('Failed to mark medicine:', err.message);
-            setTaken(!newVal);
-        }
+        if (onToggle) onToggle(med);
     };
 
-    const isTakenOpacity = taken ? 0.7 : 1;
+    const isTakenOpacity = med.taken ? 0.7 : 1;
 
     let IconCmp = Pill;
     if (med.type === 'afternoon') IconCmp = PillBottle;
@@ -298,13 +285,24 @@ const AnimatedMedCard = ({ med, onToggle }) => {
                     <IconCmp size={20} color="#3B82F6" strokeWidth={2.5} />
                 </View>
                 <View style={styles.medContentMinimal}>
-                    <Text style={[styles.medTitleMinimal, taken && styles.textStrikethrough]}>{med.name}</Text>
-                    <Text style={styles.medSubMinimal}>{med.dosage} • {med.instructions}</Text>
+                    <Text style={[styles.medTitleMinimal, med.taken && styles.textStrikethrough]}>{med.name}</Text>
+                    <View style={styles.medMetaRow}>
+                        <Text style={styles.medSubMinimal}>
+                            {med.scheduled_times?.length > 0 ? `${med.scheduled_times[0]} • ` : ''}
+                            {med.dosage} • {med.instructions}
+                        </Text>
+                        {med.marked_by === 'caller' && (
+                            <View style={styles.verifiedBadge}>
+                                <CheckCircle2 size={10} color="#059669" />
+                                <Text style={styles.verifiedTxt}>Verified</Text>
+                            </View>
+                        )}
+                    </View>
                 </View>
-                <Pressable onPress={handleCheck} style={styles.checkboxTouch}>
-                    <Animated.View style={[{ transform: [{ scale }] }, styles.checkboxMinimal]}>
-                        {taken && <CheckCircle2 color="#3B82F6" fill="#FFF" size={24} />}
-                        {!taken && <CheckCircle2 color="#CBD5E1" size={24} />}
+                <Pressable onPress={handlePress} style={styles.checkboxTouch} disabled={med.taken}>
+                    <Animated.View style={[{ transform: [{ scale }] }, styles.checkboxMinimal, med.taken && { backgroundColor: '#F8FAFC', borderColor: '#F1F5F9' }]}>
+                        {med.taken && <CheckCircle2 color="#10B981" fill="#FFF" size={24} />}
+                        {!med.taken && <CheckCircle2 color="#CBD5E1" size={24} />}
                     </Animated.View>
                 </Pressable>
             </View>
@@ -325,6 +323,10 @@ export default function MedicationsScreen({ navigation }) {
     const [activePicker, setActivePicker] = useState(null);
     const [requestingMod, setRequestingMod] = useState(false);
     const [modRequested, setModRequested] = useState(false);
+
+    // Confirmation & Optimistic UI State
+    const [confirmingMed, setConfirmingMed] = useState(null);
+    const [isConfirmVisible, setIsConfirmVisible] = useState(false);
 
     const staggerAnims = useRef([...Array(10)].map(() => new Animated.Value(0))).current;
     const lastFetchRef = useRef(0);
@@ -356,26 +358,47 @@ export default function MedicationsScreen({ navigation }) {
                     apiService.medicines.getWeeklyAdherence(),
                 ]);
 
-                const medicines = todayRes.data.log?.medicines || [];
-                // Use backend call preferences, fallback to defaults
-                const prefs = pRes.data.patient?.medication_call_preferences || todayRes.data.preferences || { morning: '09:00', afternoon: '14:00', night: '20:00' };
-                setPreferences(prefs);
-                setTempPrefs(prefs);
+                const markedMeds = todayRes.data.log?.medicines || [];
+                const profileMeds = pRes.data.patient?.medications || [];
+
+                // Merge: Baseline from profile + status from today's log
+                const mergedMeds = profileMeds.map(pm => {
+                    const marked = markedMeds.find(mm => mm.medicine_name === pm.name && mm.scheduled_time === pm.type);
+                    return {
+                        id: `${pm.name}_${pm.type}`,
+                        name: pm.name,
+                        dosage: pm.dosage || (pm.type === 'morning' ? '500mg' : pm.type === 'afternoon' ? '5mg' : '10mg'),
+                        instructions: pm.instructions || (pm.type === 'morning' ? 'Take with food' : pm.type === 'afternoon' ? 'Take after lunch' : 'Take before sleep'),
+                        type: pm.type,
+                        taken: marked ? marked.taken : false,
+                        marked_by: marked ? marked.marked_by : null,
+                        accent: ACCENT_MAP[pm.type] || '#6366F1',
+                        scheduled_times: pm.scheduledTimes || [],
+                    };
+                });
+
+                // Fallback for any meds in log not in profile (edge case)
+                markedMeds.forEach(mm => {
+                    if (!mergedMeds.some(m => m.name === mm.medicine_name && m.type === mm.scheduled_time)) {
+                        mergedMeds.push({
+                            id: `${mm.medicine_name}_${mm.scheduled_time}_log`,
+                            name: mm.medicine_name,
+                            dosage: mm.dosage,
+                            instructions: mm.instructions,
+                            type: mm.scheduled_time,
+                            taken: mm.taken,
+                            marked_by: mm.marked_by,
+                            accent: ACCENT_MAP[mm.scheduled_time],
+                            scheduled_times: mm.scheduled_times || [],
+                        });
+                    }
+                });
 
                 const grouped = { morning: [], afternoon: [], night: [] };
-                medicines.forEach(m => {
-                    const slot = m.scheduled_time;
-                    grouped[slot] = grouped[slot] || [];
-                    grouped[slot].push({
-                        id: `${m.medicine_name}_${slot}`,
-                        name: m.medicine_name,
-                        dosage: m.dosage || (slot === 'morning' ? '500mg' : slot === 'afternoon' ? '5mg' : '10mg'),
-                        instructions: m.instructions || (slot === 'morning' ? 'Take with food' : slot === 'afternoon' ? 'Take after lunch' : 'Take before sleep'),
-                        time: prefs[slot] || TIME_LABELS[slot],
-                        type: slot,
-                        taken: m.taken,
-                        accent: ACCENT_MAP[slot],
-                    });
+                mergedMeds.forEach(m => {
+                    if (grouped[m.type]) {
+                        grouped[m.type].push(m);
+                    }
                 });
                 setSchedule(grouped);
 
@@ -385,7 +408,6 @@ export default function MedicationsScreen({ navigation }) {
                     p: d.rate,
                     isToday: new Date(d.date).toDateString() === new Date().toDateString(),
                 }));
-                setAdherence(weeklyData);
                 setAdherence(weeklyData);
                 if (!isRefresh && !isBackground) runAnimations();
             }
@@ -429,42 +451,64 @@ export default function MedicationsScreen({ navigation }) {
         loadMedicinesData(true);
     }, [loadMedicinesData]);
 
-    const handleToggleMedication = useCallback((medId, isTaken) => {
+    const handleConfirmToggle = async () => {
+        if (!confirmingMed) return;
+        const med = confirmingMed;
+        const targetTaken = !med.taken;
+        
+        setIsConfirmVisible(false);
+        setConfirmingMed(null);
+
+        // --- OPTIMISTIC UPDATE ---
+        // 1. Save old state for rollback
+        const oldSchedule = { ...schedule };
+        const oldAdherence = [...adherence];
+
+        // 2. Update local state immediately
         setSchedule(prev => {
-            const newSchedule = { ...prev };
-            let total = 0;
-            let takenCount = 0;
-
-            Object.keys(newSchedule).forEach(slot => {
-                newSchedule[slot] = newSchedule[slot].map(m => {
-                    const finalTaken = m.id === medId ? isTaken : m.taken;
-                    total++;
-                    if (finalTaken) takenCount++;
-                    return m.id === medId ? { ...m, taken: isTaken } : m;
-                });
-            });
-
-            const newProgress = total > 0 ? (takenCount / total) * 100 : 0;
-            
-            setAdherence(prevAdherence => prevAdherence.map(d => 
-                d.isToday ? { ...d, p: Math.round(newProgress) } : d
-            ));
-
-            return newSchedule;
+            const next = { ...prev };
+            next[med.type] = next[med.type].map(m => 
+                m.id === med.id ? { ...m, taken: targetTaken } : m
+            );
+            return next;
         });
 
-        // Re-fetch weekly adherence data in background to ensure it's up to date
-        apiService.medicines.getWeeklyAdherence().then(weeklyRes => {
-            const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-            const weeklyData = (weeklyRes.data.adherence || []).map(d => ({
-                day: days[new Date(d.date).getDay()],
-                p: d.rate,
-                isToday: new Date(d.date).toDateString() === new Date().toDateString(),
-            }));
-            setAdherence(weeklyData);
-        }).catch(err => console.warn('Background adherence fetch failed:', err.message));
+        // Update adherence bar immediately
+        setAdherence(prev => prev.map(d => {
+            if (d.isToday) {
+                const dayMeds = [...(schedule.morning || []), ...(schedule.afternoon || []), ...(schedule.night || [])];
+                const newTaken = dayMeds.reduce((acc, current) => {
+                    const isTheOne = current.id === med.id;
+                    return acc + (isTheOne ? (targetTaken ? 1 : 0) : (current.taken ? 1 : 0));
+                }, 0);
+                return { ...d, p: Math.round((newTaken / dayMeds.length) * 100) };
+            }
+            return d;
+        }));
+
+        // 3. Fire API call
+        try {
+            await apiService.medicines.markMedicine({ 
+                medicine_name: med.name, 
+                scheduled_time: med.type, 
+                taken: targetTaken 
+            });
+            DeviceEventEmitter.emit('MEDS_UPDATED');
+        } catch (err) {
+            console.warn('[Optimistic] Mark failed, rolling back:', err.message);
+            // ROLLBACK
+            setSchedule(oldSchedule);
+            setAdherence(oldAdherence);
+            Alert.alert('Update Failed', 'Could not sync with server. Please check your connection.');
+        }
+    };
+
+    const handleMedIconPress = useCallback((med) => {
+        if (med.taken) return; // ONE-WAY: User cannot unmark once confirmed
         
-    }, []);
+        setConfirmingMed(med);
+        setIsConfirmVisible(true);
+    }, [schedule]);
 
     const handleSavePreferences = async () => {
         setSavingPrefs(true);
@@ -614,7 +658,7 @@ export default function MedicationsScreen({ navigation }) {
                                     <>
                                         <TimePill type="morning" timeStr="Morning" timeVal={preferences.morning} />
                                         {schedule.morning.map((med, idx) => (
-                                            <AnimatedMedCard key={med.id} med={med} onToggle={handleToggleMedication} />
+                                            <AnimatedMedCard key={med.id} med={med} onToggle={handleMedIconPress} />
                                         ))}
                                     </>
                                 )}
@@ -624,7 +668,7 @@ export default function MedicationsScreen({ navigation }) {
                                     <>
                                         <TimePill type="afternoon" timeStr="Afternoon" timeVal={preferences.afternoon} />
                                         {schedule.afternoon.map((med, idx) => (
-                                            <AnimatedMedCard key={med.id} med={med} onToggle={handleToggleMedication} />
+                                            <AnimatedMedCard key={med.id} med={med} onToggle={handleMedIconPress} />
                                         ))}
                                     </>
                                 )}
@@ -634,7 +678,7 @@ export default function MedicationsScreen({ navigation }) {
                                     <>
                                         <TimePill type="night" timeStr="Night" timeVal={preferences.night} />
                                         {schedule.night.map((med, idx) => (
-                                            <AnimatedMedCard key={med.id} med={med} onToggle={handleToggleMedication} />
+                                            <AnimatedMedCard key={med.id} med={med} onToggle={handleMedIconPress} />
                                         ))}
                                     </>
                                 )}
@@ -728,6 +772,49 @@ export default function MedicationsScreen({ navigation }) {
                     setActivePicker(null);
                 }} 
             />
+
+            {/* Premium Confirmation Modal */}
+            <Modal visible={isConfirmVisible} transparent animationType="fade">
+                <View style={styles.confirmOverlay}>
+                    <View style={styles.confirmCard}>
+                        <View style={styles.confirmHeader}>
+                            <View style={[styles.confirmIconWrap, { backgroundColor: confirmingMed?.taken ? '#F1F5F9' : '#DBEAFE' }]}>
+                                {confirmingMed?.taken ? (
+                                    <Clock size={28} color="#64748B" />
+                                ) : (
+                                    <CheckCircle2 size={28} color="#2563EB" />
+                                )}
+                            </View>
+                        </View>
+                        
+                        <Text style={styles.confirmTitle}>
+                            {confirmingMed?.taken ? 'Undo Record?' : 'Confirm Intake'}
+                        </Text>
+                        <Text style={styles.confirmText}>
+                            {confirmingMed?.taken 
+                                ? `Do you want to mark "${confirmingMed?.name}" as not taken?` 
+                                : `Have you taken your "${confirmingMed?.name}" medication?`}
+                        </Text>
+                        
+                        <View style={styles.confirmActionRow}>
+                            <Pressable 
+                                style={styles.confirmCancelBtn} 
+                                onPress={() => { setIsConfirmVisible(false); setConfirmingMed(null); }}
+                            >
+                                <Text style={styles.confirmCancelTxt}>Nevermind</Text>
+                            </Pressable>
+                            <Pressable 
+                                style={[styles.confirmYesBtn, { backgroundColor: confirmingMed?.taken ? '#64748B' : '#2563EB' }]} 
+                                onPress={handleConfirmToggle}
+                            >
+                                <Text style={styles.confirmYesTxt}>
+                                    {confirmingMed?.taken ? 'Yes, Undo' : 'Yes, I took it'}
+                                </Text>
+                            </Pressable>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
         </LinearGradient>
     );
 
@@ -748,7 +835,7 @@ const styles = StyleSheet.create({
     bodyContent: { paddingHorizontal: 20, paddingBottom: 140, paddingTop: 12 },
 
     // Empty State
-    emptyStateContainer: { backgroundColor: '#FFF', borderRadius: 28, padding: 32, alignItems: 'center', marginTop: 24, borderWidth: 1, borderColor: '#F1F5F9', shadowColor: '#6366F1', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.04, shadowRadius: 16, elevation: 4 },
+    emptyStateContainer: { backgroundColor: '#FFF', borderRadius: 28, padding: 32, alignItems: 'center', marginTop: 32, borderWidth: 1, borderColor: '#F1F5F9', shadowColor: '#6366F1', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.04, shadowRadius: 16, elevation: 4 },
     emptyIconCircle: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#EEF2FF', alignItems: 'center', justifyContent: 'center', marginBottom: 20 },
     emptyTitle: { fontSize: 22, fontWeight: '800', color: '#0F172A', marginBottom: 8, textAlign: 'center' },
     emptyBody: { fontSize: 15, fontWeight: '500', color: '#64748B', textAlign: 'center', lineHeight: 22, marginBottom: 24 },
@@ -792,6 +879,9 @@ const styles = StyleSheet.create({
     medCardInner: { flexDirection: 'row', padding: 20, alignItems: 'center' },
     medIconBox: { width: 44, height: 44, borderRadius: 14, backgroundColor: '#F0FDFA', alignItems: 'center', justifyContent: 'center', marginRight: 16 },
     medContentMinimal: { flex: 1 },
+    medMetaRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' },
+    verifiedBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#ECFDF5', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, marginLeft: 8, borderWidth: 1, borderColor: '#D1FAE5' },
+    verifiedTxt: { fontSize: 10, fontWeight: '700', color: '#059669', marginLeft: 3, textTransform: 'uppercase' },
     medTitleMinimal: { fontSize: 16, fontWeight: '700', color: '#0F172A', marginBottom: 4 },
     medSubMinimal: { fontSize: 13, color: '#64748B', fontWeight: '500' },
     textStrikethrough: { textDecorationLine: 'line-through', color: '#94A3B8' },
@@ -820,4 +910,16 @@ const styles = StyleSheet.create({
     // Request Modify
     requestModifyBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 16, backgroundColor: '#EFF6FF', borderRadius: 16, borderWidth: 1, borderColor: '#BFDBFE', borderStyle: 'dashed' },
     requestModifyTxt: { fontSize: 15, fontWeight: '700', color: '#3B82F6', marginLeft: 8 },
+
+    // Confirmation Modal
+    confirmOverlay: { flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.6)', justifyContent: 'center', alignItems: 'center', padding: 24 },
+    confirmCard: { backgroundColor: '#FFF', borderRadius: 32, padding: 32, width: '100%', maxWidth: 340, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 20 }, shadowOpacity: 0.15, shadowRadius: 30, elevation: 12 },
+    confirmIconWrap: { width: 72, height: 72, borderRadius: 36, alignItems: 'center', justifyContent: 'center', marginBottom: 20 },
+    confirmTitle: { fontSize: 22, fontWeight: '800', color: '#0F172A', marginBottom: 12 },
+    confirmText: { fontSize: 15, color: '#64748B', textAlign: 'center', lineHeight: 22, marginBottom: 32 },
+    confirmActionRow: { flexDirection: 'row', gap: 12, width: '100%' },
+    confirmCancelBtn: { flex: 1, paddingVertical: 14, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F8FAFC' },
+    confirmCancelTxt: { fontSize: 15, fontWeight: '700', color: '#64748B' },
+    confirmYesBtn: { flex: 2, paddingVertical: 14, borderRadius: 16, alignItems: 'center', justifyContent: 'center', shadowColor: '#2563EB', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 4 },
+    confirmYesTxt: { fontSize: 15, fontWeight: '700', color: '#FFF' },
 });

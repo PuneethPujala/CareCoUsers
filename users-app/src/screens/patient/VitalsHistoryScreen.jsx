@@ -714,7 +714,7 @@ export default function VitalsHistoryScreen({ navigation }) {
         });
 
         return (
-            <Animated.View style={[styles.glassHeaderContainer, { borderBottomWidth: headerOpacity }]}>
+            <Animated.View style={styles.glassHeaderContainer}>
                 <LinearGradient
                     colors={['rgba(255,255,255,0.9)', 'rgba(255,255,255,0.8)']}
                     style={StyleSheet.absoluteFill}
@@ -726,6 +726,21 @@ export default function VitalsHistoryScreen({ navigation }) {
                     <Text style={styles.headerTitle}>Vitals History</Text>
                     <View style={{ width: 44 }} />
                 </View>
+                {/* 
+                   FIX: Style property 'borderBottomWidth' is not supported by native animated module.
+                   We animate the opacity of a separate 1px line instead.
+                */}
+                <Animated.View 
+                    style={{ 
+                        position: 'absolute', 
+                        bottom: 0, 
+                        left: 0, 
+                        right: 0, 
+                        height: 1, 
+                        backgroundColor: '#E2E8F0', 
+                        opacity: headerOpacity 
+                    }} 
+                />
             </Animated.View>
         );
     };

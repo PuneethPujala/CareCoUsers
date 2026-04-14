@@ -59,7 +59,7 @@ const PatientSchema = new mongoose.Schema(
             street: { type: String, trim: true },
             state: { type: String, trim: true },
             postcode: { type: String, trim: true },
-            country: { type: String, trim: true, default: 'UK' },
+            country: { type: String, trim: true, default: 'India' },
         },
         saved_addresses: [
             {
@@ -100,7 +100,7 @@ const PatientSchema = new mongoose.Schema(
         // ── Scheduling / Time Slots ───────────────────
         timezone: {
             type: String,
-            default: 'Europe/London',
+            default: 'Asia/Kolkata',
         },
         medication_call_preferences: {
             morning: { type: String, default: '09:00' },
@@ -142,7 +142,7 @@ const PatientSchema = new mongoose.Schema(
                 default: 'basic',
             },
             amount: { type: Number, default: 0 },
-            currency: { type: String, default: 'GBP' },
+            currency: { type: String, default: 'INR' },
             payment_date: Date,
             started_at: Date,
             expires_at: Date,
@@ -202,9 +202,19 @@ const PatientSchema = new mongoose.Schema(
                         enum: ['morning', 'afternoon', 'evening', 'night', 'as_needed'],
                     },
                 ],
+                scheduledTimes: [String], // NEW - Array of HH:MM strings
+                takenDates: [Date],      // NEW - Array of dates when medicine was taken
+                takenLogs: [             // NEW - Rich audit trail
+                    {
+                        timestamp: { type: Date, default: Date.now },
+                        status: { type: String, enum: ['taken', 'missed', 'refused'], default: 'taken' },
+                        markedBy: { type: String, enum: ['patient', 'caller', 'system'], default: 'patient' },
+                        notes: String
+                    }
+                ],
                 start_date: { type: Date },
-                end_date: { type: Date },   // NEW - null = ongoing
-                is_active: { type: Boolean, default: true }, // NEW
+                end_date: { type: Date },   // null = ongoing
+                is_active: { type: Boolean, default: true },
                 refill_due: { type: Date },
                 prescribed_by: String,
                 instructions: String,

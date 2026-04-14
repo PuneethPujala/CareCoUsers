@@ -180,7 +180,6 @@ const PatientOnboardingStack = () => (
         <Stack.Screen
             name="PatientSignupOnboarding"
             component={PatientSignupScreen}
-            initialParams={{ step: 2 }}
         />
     </Stack.Navigator>
 );
@@ -215,12 +214,19 @@ const MainAppStack = () => (
     </Stack.Navigator>
 );
 
+function AppSplashScreen() {
+    return (
+        <View style={{ flex: 1, backgroundColor: '#0F172A' }} />
+    );
+}
+
 export default function AppNavigator() {
-    const { initializing, isAuthenticated, user, profile } = useAuth();
+    const { isBootstrapping, onboardingComplete, subscriptionStatus, user, profile } = useAuth();
 
 
     const notificationListener = useRef();
     const responseListener = useRef();
+    const hasNotified = useRef(false);
 
     useEffect(() => {
         // Listen for incoming notifications while app is foregrounded
@@ -250,7 +256,8 @@ export default function AppNavigator() {
     // Handle push registration and welcome notification when authenticated
     useEffect(() => {
         const setupNotifications = async () => {
-            if (isAuthenticated && user) {
+            if (user && onboardingComplete && !hasNotified.current) {
+                hasNotified.current = true;
                 // 1. Request push permissions for ALL users on login
                 try {
                     const { token, granted, isNewGrant } = await registerForPushNotificationsAsync();
@@ -270,7 +277,7 @@ export default function AppNavigator() {
                     } else if (granted) {
                         // Already allowed → show welcome back notification
                         const name = profile?.fullName || user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'there';
-                        sendDailyWelcomeNotification(name, true);
+                        sendDailyWelcomeNotification(name);
                     }
                 } catch (err) {
                     console.warn('Notification setup failed:', err.message);
@@ -278,14 +285,25 @@ export default function AppNavigator() {
             }
         };
 
-        console.log('[AppNavigator] Rendering with state:', { initializing, user: !!user, profile: !!profile, isAuthenticated, isOnboarding: !isAuthenticated && !!user });
+        console.log('[AppNavigator] State:', { isBootstrapping, user: !!user, profile: !!profile, onboardingComplete, subscriptionStatus });
         setupNotifications();
-    }, [isAuthenticated, user, profile]);
+    }, [onboardingComplete, user, profile]);
 
-    if (initializing) return <LoadingScreen />;
+    if (isBootstrapping) return <AppSplashScreen />;
     if (!user) return <AuthStack />;
-    if (!profile) return <LoadingScreen />;
-    if (!isAuthenticated) return <PatientOnboardingStack />;
+    
+    // User exists, check granular flags
+    if (!onboardingComplete) return <PatientOnboardingStack />;
+    
+    // Profile is onboardingComplete, check subscription
+    if (subscriptionStatus !== 'active') {
+        return (
+            <Stack.Navigator screenOptions={{ headerShown: false, animation: "fade" }}>
+                <Stack.Screen name="SubscribePlans" component={SubscribePlansScreen} />
+                <Stack.Screen name="Payment" component={PaymentScreen} />
+            </Stack.Navigator>
+        );
+    }
 
     return <MainAppStack />;
 }

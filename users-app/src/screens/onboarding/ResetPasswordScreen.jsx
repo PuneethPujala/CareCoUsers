@@ -15,6 +15,8 @@ import { Lock, Eye, EyeOff, ShieldCheck, CheckCircle2, ChevronRight, AlertCircle
 import { auth } from '../../lib/supabase';
 import { parseError } from '../../utils/parseError';
 import analytics from '../../utils/analytics';
+import { useAuth } from '../../context/AuthContext';
+import { isRecoveryExpired } from '../../utils/authUtils';
 
 export default function ResetPasswordScreen({ navigation }) {
     const [newPassword, setNewPassword] = useState('');
@@ -25,6 +27,11 @@ export default function ResetPasswordScreen({ navigation }) {
     const [error, setError] = useState('');
     const [success, setSuccess] = useState(false);
     const isSubmittingRef = useRef(false);
+
+    const { signOut, recoverySessionAt } = useAuth();
+
+    // Check if recovery link is expired (10 minutes)
+    const isExpired = isRecoveryExpired(recoverySessionAt);
 
     const handleResetPassword = async () => {
         if (isSubmittingRef.current) return;
@@ -72,12 +79,31 @@ export default function ResetPasswordScreen({ navigation }) {
         }
     };
 
-    const handleGoToLogin = () => {
-        navigation.reset({
-            index: 0,
-            routes: [{ name: 'Login' }],
-        });
+    const handleGoToLogin = async () => {
+        // Just sign out — this clears the recovery session and resets the global 'user' state
+        // causing AppNavigator to naturally show the Login screen.
+        await signOut();
     };
+
+    if (isExpired) {
+        return (
+            <View style={styles.container}>
+                <View style={styles.successCenter}>
+                    <View style={[styles.successCircle, { backgroundColor: '#FEF2F2', borderColor: '#FEE2E2' }]}>
+                        <AlertCircle size={64} color="#DC2626" strokeWidth={1.5} />
+                    </View>
+                    <Text style={[styles.successTitle, { color: '#991B1B' }]}>Link Expired</Text>
+                    <Text style={styles.successSub}>This password reset link has expired. Please request a new one.</Text>
+                    <Pressable style={styles.primaryBtn} onPress={handleGoToLogin}>
+                        <LinearGradient colors={['#6366F1', '#4338CA']} style={styles.primaryBtnGradient}>
+                            <Text style={styles.primaryBtnText}>Return to Login</Text>
+                            <ChevronRight size={20} color="#FFFFFF" />
+                        </LinearGradient>
+                    </Pressable>
+                </View>
+            </View>
+        );
+    }
 
     if (success) {
         return (
