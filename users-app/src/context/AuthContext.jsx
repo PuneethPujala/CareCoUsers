@@ -27,7 +27,7 @@ const ONBOARDING_STORAGE_KEY = 'samvaya_onboarding_progress';
 const PROFILE_SECURE_KEY = 'samvaya_user_profile';
 const STALE_PROGRESS_DAYS = 7;
 
-import { normaliseStatus } from '../utils/authUtils';
+import { normaliseStatus, resolveOnboardingStep } from '../utils/authUtils';
 
 // ─── Profile SecureStore helpers ────────────────────────────────────────────
 
