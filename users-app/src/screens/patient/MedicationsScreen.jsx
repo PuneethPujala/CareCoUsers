@@ -439,9 +439,25 @@ export default function MedicationsScreen({ navigation }) {
     );
 
     useEffect(() => {
-        const medsSub = DeviceEventEmitter.addListener('MEDS_UPDATED', () => {
-            lastFetchRef.current = 0;
-            loadMedicinesData(true);
+        const medsSub = DeviceEventEmitter.addListener('MEDS_UPDATED', (payload) => {
+            if (payload && payload.id) {
+                // Optimistically update
+                setSchedule(prev => {
+                    const next = { ...prev };
+                    for (const type of ['morning', 'afternoon', 'night']) {
+                        if (next[type]) {
+                            next[type] = next[type].map(m => m.id === payload.id ? { ...m, taken: payload.taken } : m);
+                        }
+                    }
+                    return next;
+                });
+                
+                // Keep everything else in sync softly
+                loadMedicinesData(true, true);
+            } else {
+                lastFetchRef.current = 0;
+                loadMedicinesData(true);
+            }
         });
         return () => medsSub.remove();
     }, [loadMedicinesData]);

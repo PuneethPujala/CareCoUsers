@@ -78,33 +78,22 @@ const VitalsCard = ({ label, value, unit, icon: Icon, color, status = 'Stable' }
 };
 
 const MedicationCard = ({ med, onCheck }) => {
-    const [taken, setTaken] = useState(med.taken);
     const [scale] = useState(new Animated.Value(1));
 
-    useEffect(() => {
-        setTaken(med.taken);
-    }, [med.taken]);
+    const handleCheck = () => {
+        if (med.taken) return; // ONE-WAY: Cannot unmark
 
-    const handleCheck = async () => {
-        const newVal = !taken;
+        const newVal = true;
         Animated.sequence([
             Animated.timing(scale, { toValue: 0.9, duration: 100, useNativeDriver: true }),
             Animated.timing(scale, { toValue: 1.1, duration: 100, useNativeDriver: true }),
             Animated.timing(scale, { toValue: 1, duration: 100, useNativeDriver: true }),
         ]).start();
         
-        setTaken(newVal);
-        
-        try {
-            await apiService.medicines.markMedicine({ medicine_name: med.name, scheduled_time: med.type, taken: newVal });
-            if (onCheck) onCheck(med);
-        } catch (err) {
-            console.warn('Failed to mark medicine:', err.message);
-            setTaken(!newVal);
-        }
+        if (onCheck) onCheck(med);
     };
 
-    const isTakenOpacity = taken ? 0.7 : 1;
+    const isTakenOpacity = med.taken ? 0.7 : 1;
 
     let IconCmp = Pill;
     if (med.type === 'afternoon') IconCmp = PillBottle;
@@ -117,13 +106,13 @@ const MedicationCard = ({ med, onCheck }) => {
                     <IconCmp size={20} color="#3B82F6" strokeWidth={2.5} />
                 </View>
                 <View style={styles.medContentMinimal}>
-                    <Text style={[styles.medTitleMinimal, taken && styles.textStrikethrough]}>{med.name}</Text>
+                    <Text style={[styles.medTitleMinimal, med.taken && styles.textStrikethrough]}>{med.name}</Text>
                     <Text style={styles.medSubMinimal}>{med.dosage} {med.instructions ? `• ${med.instructions}` : ''}</Text>
                 </View>
-                <Pressable onPress={handleCheck} style={styles.checkboxTouch}>
-                    <Animated.View style={[{ transform: [{ scale }] }, styles.checkboxMinimal]}>
-                        {taken && <CheckCircle2 color="#3B82F6" fill="#FFF" size={24} />}
-                        {!taken && <CheckCircle2 color="#CBD5E1" size={24} />}
+                <Pressable onPress={handleCheck} style={styles.checkboxTouch} disabled={med.taken}>
+                    <Animated.View style={[{ transform: [{ scale }] }, styles.checkboxMinimal, med.taken && { backgroundColor: '#F8FAFC', borderColor: '#F1F5F9' }]}>
+                        {med.taken && <CheckCircle2 color="#3B82F6" fill="#FFF" size={24} />}
+                        {!med.taken && <CheckCircle2 color="#CBD5E1" size={24} />}
                     </Animated.View>
                 </Pressable>
             </View>
@@ -300,9 +289,13 @@ export default function PatientHomeScreen({ navigation }) {
     };
 
     useEffect(() => {
-        const medsSub = DeviceEventEmitter.addListener('MEDS_UPDATED', () => {
-            lastFetchRef.current = 0;
-            fetchData(true);
+        const medsSub = DeviceEventEmitter.addListener('MEDS_UPDATED', (payload) => {
+            if (payload && payload.id) {
+                setMeds(prev => prev.map(m => m.id === payload.id ? { ...m, taken: payload.taken } : m));
+            } else {
+                lastFetchRef.current = 0;
+                fetchData(true);
+            }
         });
         const vitalsSub = DeviceEventEmitter.addListener('VITALS_UPDATED', () => {
             lastFetchRef.current = 0;
@@ -360,14 +353,16 @@ export default function PatientHomeScreen({ navigation }) {
 
 
     const toggleMed = async (med) => {
-        const newTaken = !med.taken;
+        if (med.taken) return; // ONE-WAY
+
+        const newTaken = true;
         setMeds(prev => prev.map(m => m.id === med.id ? { ...m, taken: newTaken } : m));
         try {
             await apiService.medicines.markMedicine({ medicine_name: med.name, scheduled_time: med.type, taken: newTaken });
-            DeviceEventEmitter.emit('MEDS_UPDATED');
+            DeviceEventEmitter.emit('MEDS_UPDATED', { id: med.id, type: med.type, taken: newTaken });
         } catch (err) {
             console.warn('Failed to mark med:', err.message);
-            setMeds(prev => prev.map(m => m.id === med.id ? { ...m, taken: !newTaken } : m));
+            setMeds(prev => prev.map(m => m.id === med.id ? { ...m, taken: false } : m));
         }
     };
 
