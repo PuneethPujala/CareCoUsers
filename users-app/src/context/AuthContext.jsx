@@ -281,6 +281,12 @@ export function AuthProvider({ children }) {
 
             skipFetchCountRef.current = 2;
 
+            await saveApiTokens({
+                access_token: loginSession.access_token,
+                refresh_token: loginSession.refresh_token,
+                expires_at: loginSession.expires_at,
+            });
+
             await supabase.auth.setSession({
                 access_token: loginSession.access_token,
                 refresh_token: loginSession.refresh_token,
@@ -311,6 +317,12 @@ export function AuthProvider({ children }) {
             await setProfileAndCache(profileData);
 
             await fetchPatientData();
+
+            await saveApiTokens({
+                access_token: signUpSession.access_token,
+                refresh_token: signUpSession.refresh_token,
+                expires_at: signUpSession.expires_at,
+            });
 
             await supabase.auth.setSession({
                 access_token: signUpSession.access_token,

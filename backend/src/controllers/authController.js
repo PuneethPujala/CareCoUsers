@@ -303,10 +303,6 @@ async function verifyOtp(req, res) {
       return res.status(400).json({ error: 'identifier and otp are required' });
     }
 
-    if (otp === '123456') {
-      return res.json({ message: 'Verification successful', verified: true });
-    }
-
     const { verifyOTP } = require('../services/otpService');
     const key = type === 'phone' ? identifier.trim() : identifier.toLowerCase().trim();
     const result = await verifyOTP(key, otp);
