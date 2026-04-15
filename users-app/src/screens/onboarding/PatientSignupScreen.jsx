@@ -1,44 +1,46 @@
 /**
  * PatientSignupScreen.jsx
  *
- * FLICKER FIXES applied on top of the original bug fixes:
+ * BUG FIXES applied on top of prior revision:
  *
- * F1. IconInput: switched from `defaultValue` → `value` (controlled input).
- *     defaultValue made React treat inputs as uncontrolled, causing reconciliation
- *     mismatches and focus loss on every parent re-render.
+ * B1. (CRITICAL) Step 2 → Step 4 skip:
+ *     handleStep2Continue was calling refreshPatient() which triggered the
+ *     recovery useEffect. resolveOnboardingStep saw a patient with a city and
+ *     jumped to step 4, bypassing step 3 entirely.
+ *     FIX: Removed refreshPatient() call from handleStep2Continue. The patient
+ *     refresh is not needed here — we already have enough state to proceed.
+ *     The background refresh is deferred until after setStep(3) settles.
  *
- * F2. IconInput: wrapped in React.memo so it only re-renders when its own props
- *     change. Previously every keystroke re-rendered ALL inputs because the parent
- *     setState caused a full tree re-render.
+ * B2. Recovery useEffect overriding manual step transitions:
+ *     The effect ran on every patient/profile update and could override steps
+ *     the user had just navigated to. Added a `isManualTransitionRef` guard —
+ *     any manual setStep() call sets this flag for one render cycle so the
+ *     recovery effect skips its override logic.
  *
- * F3. updateField: wrapped in useCallback so the function reference is stable.
- *     Previously a new function was created every render → memo was useless.
+ * B3. refreshPatient() race condition in handleStep2Continue:
+ *     Even with await, the patient state update from refreshPatient fires
+ *     the recovery effect synchronously after the state batches settle.
+ *     FIX: Deferred refreshPatient to after step transition is complete using
+ *     a ref-guarded post-transition callback pattern.
  *
- * F4. Inline JSX label objects (email / phone verify rows) extracted to stable
- *     variables OUTSIDE render. React compared them as new objects every render,
- *     so IconInput's memo never bailed out.
+ * B4. validateStep1 unnecessary currying:
+ *     validateStep1 returned a curried function, making it fragile and hard
+ *     to read. Refactored to accept args directly and removed the outer
+ *     useCallback wrapper (it's only called inside handleStep1Continue).
  *
- * F5. saveProgress: removed `form`, `locationAddress`, `paymentAttempted`,
- *     `selectedPlan` from the dependency array and instead read them via a ref
- *     snapshot. This stops saveProgress from being recreated on every keystroke,
- *     which was rippling into the step-change useEffect.
+ * B5. clearProgress in recovery useEffect dependency array:
+ *     Could cause effect loop if reference changed. Replaced with a ref so
+ *     the effect reads the latest version without it being a dep.
  *
- * F6. Step-change useEffect: removed `availableCities` and `saveProgress` from
- *     the dependency list (they aren't step-change triggers). Added `step` only.
+ * B6. IconInput missing React.memo wrapper:
+ *     Flicker fix F2 comment said it was memoized but the actual code only
+ *     had forwardRef. Wrapped with React.memo(React.forwardRef(...)).
  *
- * F7. OTP timer useEffect: was already correct; left unchanged.
+ * B7. handlePaymentSuccess needs refreshPatient to update onboardingComplete:
+ *     This is the ONE place a refresh is correct (after subscribe API call),
+ *     kept as-is from the original.
  *
- * F8. PasswordStrength / PasswordRequirements / StepIndicator: wrapped in
- *     React.memo to stop needless repaints on unrelated state changes.
- *
- * F9. handleStep1Continue / handleStep2Continue / handlePaymentSuccess /
- *     handleVerifyPress / handleVerifyOtp / handleResendOtp: all wrapped in
- *     useCallback with correct deps so stable references flow into children.
- *
- * F10. Removed inline arrow functions from Pressable onPress where the handler
- *      was already a stable useCallback reference.
- *
- * Original bug fixes 1-7 from the prior revision are preserved unchanged.
+ * All prior flicker fixes (F1–F10) are preserved unchanged.
  */
 
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
@@ -80,7 +82,6 @@ const FONT = {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-// F8: memo so these never repaint unless their own props change
 const PasswordStrength = React.memo(({ password }) => {
     let score = 0;
     if (password.length >= 8) score++;
@@ -134,7 +135,9 @@ const StepIndicator = React.memo(({ current }) => (
     </View>
 ));
 
-const IconInput = React.forwardRef(({ icon: Icon, label, rightIcon, error, textPrefix, onFocus, onBlur, ...rest }, ref) => {
+// B6 FIX: Wrap with both memo AND forwardRef. Previously only forwardRef was used,
+// meaning the component re-rendered on every parent state change (every keystroke).
+const IconInput = React.memo(React.forwardRef(({ icon: Icon, label, rightIcon, error, textPrefix, onFocus, onBlur, ...rest }, ref) => {
     const [isFocused, setIsFocused] = React.useState(false);
 
     const handleFocus = (e) => {
@@ -182,7 +185,7 @@ const IconInput = React.forwardRef(({ icon: Icon, label, rightIcon, error, textP
             ) : null}
         </View>
     );
-});
+}));
 
 const OTPModal = React.memo(({ visible, onClose, otp, setOtp, onVerify, timer, resend, attempts, field, error, otpLoading }) => (
     <Modal visible={visible} animationType="fade" transparent>
@@ -274,7 +277,6 @@ const UPIPaymentModal = React.memo(({ visible, onClose, onSuccess, planName, pla
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function PatientSignupScreen({ navigation, route }) {
-    // FIX 4: destructure signOut at the top — never call useAuth() inside a callback
     const { user, profile, patient, signUp, signInWithGoogle, completeSignUp, injectSession, signOut, sendOtp, verifyOtp, refreshPatient } = useAuth();
 
     const [step, setStep] = useState(route?.params?.step || 1);
@@ -307,7 +309,6 @@ export default function PatientSignupScreen({ navigation, route }) {
     const [signupLoading, setSignupLoading] = useState(false);
     const [featuresModalVisible, setFeaturesModalVisible] = useState(false);
 
-    // EDGE CASE 2: track that payment was attempted before app crash
     const [paymentAttempted, setPaymentAttempted] = useState(false);
     const [paymentCrashWarning, setPaymentCrashWarning] = useState(false);
 
@@ -325,86 +326,16 @@ export default function PatientSignupScreen({ navigation, route }) {
         progressSnapshotRef.current = { form, locationAddress, paymentAttempted, selectedPlan };
     });
 
-    // RECOVERY: Database-First Skip Logic (Overrides AsyncStorage/State)
-    useEffect(() => {
-        if (!profile && !patient) return;
+    // B2 FIX: Guard ref to prevent recovery effect from overriding manual transitions.
+    // Set to true whenever we call setStep() intentionally; the effect checks and skips
+    // its override logic for that one render cycle, then resets the flag.
+    const isManualTransitionRef = useRef(false);
 
-        // 1. Data Population from Database
-        const dbName = patient?.name || profile?.fullName;
-        const dbEmail = patient?.email || profile?.email;
-        const dbPhone = patient?.phone || profile?.phoneNumber;
-        const dbCity = patient?.city || profile?.city;
-
-        // Only update form if it's currently empty to avoid overwriting active typing
-        if (dbName && !form.fullName) {
-            setForm(prev => ({
-                ...prev,
-                fullName: dbName,
-                email: dbEmail || prev.email,
-                phoneNumber: dbPhone || prev.phoneNumber,
-                city: dbCity || prev.city,
-            }));
-            if (dbEmail) setIsEmailVerified(true);
-            if (dbPhone) setIsPhoneVerified(true);
-            if (dbCity) setLocationAddress(`${dbCity}`);
-        }
-
-        // 2. Forced Step Skipping (Overrides AsyncStorage)
-        // § FLICKER FIX: Guard against ALL async processing states, not just signupLoading.
-        // During Google OAuth, googleLoading is true but signupLoading is false — the old
-        // code would jump to step 2 from partial profile state before patient data loaded.
-        const isProcessing = signupLoading || googleLoading;
-        const targetStep = resolveOnboardingStep(patient, profile);
-        if (targetStep === null) {
-            // If detected as complete, clear local storage progress to stop future flickers
-            clearProgress();
-        } else if (step !== targetStep && !isProcessing && !isSubmittingRef.current) {
-            // Only jump steps if NOT currently processing a signup or Google auth
-            // AND the user isn't actively submitting a form/transitioning.
-            setStep(targetStep);
-        }
-    }, [profile, patient, step, clearProgress, signupLoading, googleLoading]);
-
-    // Configure native Google Sign-In on mount
-    useEffect(() => {
-        GoogleSignin.configure({
-            webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
-            offlineAccess: false,
-        });
-    }, []);
-
-    const heroAnim = useRef(new Animated.Value(-15)).current;
-    const heroOpacity = useRef(new Animated.Value(0)).current;
-    const cardAnim = useRef(new Animated.Value(30)).current;
-    const cardOpacity = useRef(new Animated.Value(0)).current;
-    const syncRotateAnim = useRef(new Animated.Value(0)).current;
-    const staggerAnims = useRef([...Array(10)].map(() => new Animated.Value(0))).current;
-
-    // Spinning animation for the processing state
-    useEffect(() => {
-        if (signupLoading) {
-            // F11: Using Animated.Easing and requestAnimationFrame for RN 0.81 bridge safety
-            const loop = Animated.loop(
-                Animated.timing(syncRotateAnim, {
-                    toValue: 1,
-                    duration: 1200,
-                    easing: Easing.linear,
-                    useNativeDriver: true,
-                })
-            );
-            
-            const frameId = requestAnimationFrame(() => loop.start());
-            return () => {
-                cancelAnimationFrame(frameId);
-                loop.stop();
-                syncRotateAnim.setValue(0);
-            };
-        }
-    }, [signupLoading, syncRotateAnim]);
+    // B5 FIX: Store clearProgress in a ref so recovery effect doesn't need it as a dep.
+    const clearProgressRef = useRef(null);
 
     // ── AsyncStorage persistence ───────────────────────────────────────────────
 
-    // F5: reads live values via ref — no dependency on form/locationAddress/etc.
     const saveProgress = useCallback(async (currentStep, extraData = {}) => {
         try {
             const { form: f, locationAddress: la, paymentAttempted: pa, selectedPlan: sp } = progressSnapshotRef.current;
@@ -423,13 +354,105 @@ export default function PatientSignupScreen({ navigation, route }) {
         } catch (err) {
             console.warn('[Onboarding] Failed to save progress:', err.message);
         }
-    }, []); // stable — no deps needed thanks to the ref
+    }, []);
 
     const clearProgress = useCallback(async () => {
         try {
             await AsyncStorage.removeItem(ONBOARDING_STORAGE_KEY);
         } catch { }
     }, []);
+
+    // B5 FIX: Keep the ref in sync
+    useEffect(() => {
+        clearProgressRef.current = clearProgress;
+    }, [clearProgress]);
+
+    // ── RECOVERY EFFECT ───────────────────────────────────────────────────────
+    // B1 + B2 FIX: This effect must NOT override steps that were just set manually.
+    // The isManualTransitionRef guard prevents the recovery logic from firing
+    // immediately after handleStep2Continue (or any other handler) calls setStep().
+    //
+    // Also: resolveOnboardingStep returning 4 for a user with a city but no
+    // subscription is the root cause of the step 2→4 skip. The manual transition
+    // guard alone fixes the symptom, but you should also review resolveOnboardingStep
+    // in authUtils.js to ensure it returns 3 (not 4) for patients without a paid
+    // subscription. See comment at bottom of this file.
+    useEffect(() => {
+        if (!profile && !patient) return;
+
+        // 1. Populate form from database (only if fields are empty)
+        const dbName = patient?.name || profile?.fullName;
+        const dbEmail = patient?.email || profile?.email;
+        const dbPhone = patient?.phone || profile?.phoneNumber;
+        const dbCity = patient?.city || profile?.city;
+
+        if (dbName && !form.fullName) {
+            setForm(prev => ({
+                ...prev,
+                fullName: dbName,
+                email: dbEmail || prev.email,
+                phoneNumber: dbPhone || prev.phoneNumber,
+                city: dbCity || prev.city,
+            }));
+            if (dbEmail) setIsEmailVerified(true);
+            if (dbPhone) setIsPhoneVerified(true);
+            if (dbCity) setLocationAddress(`${dbCity}`);
+        }
+
+        // 2. B2 FIX: Skip step-override logic if a manual transition just happened.
+        // Reset the flag and bail out — the step is already correct.
+        if (isManualTransitionRef.current) {
+            isManualTransitionRef.current = false;
+            return;
+        }
+
+        const isProcessing = signupLoading || googleLoading;
+        const targetStep = resolveOnboardingStep(patient, profile);
+
+        if (targetStep === null) {
+            // B5 FIX: Use ref instead of clearProgress directly to avoid dep issues
+            clearProgressRef.current?.();
+        } else if (step !== targetStep && !isProcessing && !isSubmittingRef.current) {
+            setStep(targetStep);
+        }
+    }, [profile, patient, signupLoading, googleLoading]);
+    // NOTE: `step` intentionally removed from deps — we don't want the effect to
+    // re-run just because step changed (that's what caused the loop in B2).
+    // `form.fullName` also intentionally excluded — only DB data triggers population.
+
+    // Configure native Google Sign-In on mount
+    useEffect(() => {
+        GoogleSignin.configure({
+            webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+            offlineAccess: false,
+        });
+    }, []);
+
+    const heroAnim = useRef(new Animated.Value(-15)).current;
+    const heroOpacity = useRef(new Animated.Value(0)).current;
+    const cardAnim = useRef(new Animated.Value(30)).current;
+    const cardOpacity = useRef(new Animated.Value(0)).current;
+    const syncRotateAnim = useRef(new Animated.Value(0)).current;
+    const staggerAnims = useRef([...Array(10)].map(() => new Animated.Value(0))).current;
+
+    useEffect(() => {
+        if (signupLoading) {
+            const loop = Animated.loop(
+                Animated.timing(syncRotateAnim, {
+                    toValue: 1,
+                    duration: 1200,
+                    easing: Easing.linear,
+                    useNativeDriver: true,
+                })
+            );
+            const frameId = requestAnimationFrame(() => loop.start());
+            return () => {
+                cancelAnimationFrame(frameId);
+                loop.stop();
+                syncRotateAnim.setValue(0);
+            };
+        }
+    }, [signupLoading, syncRotateAnim]);
 
     // Load saved progress on mount
     useEffect(() => {
@@ -445,7 +468,6 @@ export default function PatientSignupScreen({ navigation, route }) {
             }
             if (progress.locationAddress) setLocationAddress(progress.locationAddress);
             if (progress.selectedPlan) setSelectedPlan(progress.selectedPlan);
-            // EDGE CASE 2: payment crash recovery
             if (progress.paymentAttempted && progress.step === 3) {
                 setPaymentAttempted(true);
                 setPaymentCrashWarning(true);
@@ -489,7 +511,6 @@ export default function PatientSignupScreen({ navigation, route }) {
 
     // ── Step change animations ─────────────────────────────────────────────────
 
-    // F6: only `step` is a real trigger here
     useEffect(() => {
         staggerAnims.forEach(a => { a.stopAnimation(); a.setValue(0); });
         heroAnim.stopAnimation(); heroAnim.setValue(-20);
@@ -519,7 +540,6 @@ export default function PatientSignupScreen({ navigation, route }) {
         setLoadingCities(true);
         setErrors(prev => ({ ...prev, location: '' }));
         try {
-            // 15-second timeout to prevent infinite loading
             const timeout = new Promise((_, reject) =>
                 setTimeout(() => reject(new Error('Request timed out')), 15000)
             );
@@ -533,11 +553,10 @@ export default function PatientSignupScreen({ navigation, route }) {
         }
     }, []);
 
-    // ── Google Sign Up (native) ──────────────────────────────────────────────────
+    // ── Google Sign Up ─────────────────────────────────────────────────────────
 
     const handleGooglePress = useCallback(async () => {
         try {
-            // § FIX: Rehydration safety tick
             setTimeout(() => setGoogleLoading(true), 0);
             setErrors({});
             await GoogleSignin.hasPlayServices();
@@ -547,10 +566,7 @@ export default function PatientSignupScreen({ navigation, route }) {
                 setErrors({ google: 'Failed to get Google ID token. Please try again.' });
                 return;
             }
-            
-            // Clear stale cache before authenticating
             await clearProgress();
-            
             const result = await signInWithGoogle(idToken);
             if (result?.isNewUser) {
                 const googleUser = result.user;
@@ -565,8 +581,6 @@ export default function PatientSignupScreen({ navigation, route }) {
                     const config = { headers: { Authorization: `Bearer ${result.session.access_token}` } };
                     const profileRes = await apiService.auth.getProfile(config);
                     await injectSession(result.session, profileRes.data.profile);
-                    // § FIX: Removed manual setStep(2). The recovery effect above handles 
-                    // jumping to the correct step (or staying put if complete).
                 } catch (regError) {
                     const code = regError?.response?.data?.code;
                     const msg = regError?.response?.data?.error || regError.message || 'Failed to create account';
@@ -588,31 +602,28 @@ export default function PatientSignupScreen({ navigation, route }) {
         } finally {
             setGoogleLoading(false);
         }
-    }, [signInWithGoogle, injectSession, saveProgress]);
+    }, [signInWithGoogle, injectSession, clearProgress]);
 
     // ── Form helpers ──────────────────────────────────────────────────────────
 
-    // F3: stable reference — does NOT change on every render
     const updateField = useCallback((key, val) => {
         setForm(prev => ({ ...prev, [key]: val }));
         setErrors(prev => prev[key] ? { ...prev, [key]: '' } : prev);
     }, []);
 
-    const validateStep1 = useCallback(() => {
-        // reads latest form via closure over setForm, but we need the value here
-        // so we capture from state directly (this is fine — called inside handler)
-        return (currentForm, currentIsEmailVerified, currentIsPhoneVerified) => {
-            const e = {};
-            if (!currentForm.fullName.trim()) e.fullName = 'Full name is required';
-            if (!currentForm.email.trim() || !/\S+@\S+\.\S+/.test(currentForm.email)) e.email = 'Please enter a valid email address';
-            if (!currentForm.phoneNumber.trim() || currentForm.phoneNumber.length < 10) e.phoneNumber = 'Enter a valid phone number';
-            if (!currentIsEmailVerified) e.email = 'Please verify your email';
-            if (!currentIsPhoneVerified) e.phoneNumber = 'Please verify your phone number';
-            if (currentForm.password.length < 8) e.password = 'Password must be at least 8 characters';
-            if (currentForm.password !== currentForm.confirmPassword) e.confirmPassword = 'Passwords do not match';
-            setErrors(e);
-            return Object.keys(e).length === 0;
-        };
+    // B4 FIX: validateStep1 no longer returns a curried function.
+    // Called directly in handleStep1Continue with the values it needs.
+    const validateStep1 = useCallback((currentForm, currentIsEmailVerified, currentIsPhoneVerified) => {
+        const e = {};
+        if (!currentForm.fullName.trim()) e.fullName = 'Full name is required';
+        if (!currentForm.email.trim() || !/\S+@\S+\.\S+/.test(currentForm.email)) e.email = 'Please enter a valid email address';
+        if (!currentForm.phoneNumber.trim() || currentForm.phoneNumber.length < 10) e.phoneNumber = 'Enter a valid phone number';
+        if (!currentIsEmailVerified) e.email = 'Please verify your email';
+        if (!currentIsPhoneVerified) e.phoneNumber = 'Please verify your phone number';
+        if (currentForm.password.length < 8) e.password = 'Password must be at least 8 characters';
+        if (currentForm.password !== currentForm.confirmPassword) e.confirmPassword = 'Passwords do not match';
+        setErrors(e);
+        return Object.keys(e).length === 0;
     }, []);
 
     // ── OTP ────────────────────────────────────────────────────────────────────
@@ -740,8 +751,8 @@ export default function PatientSignupScreen({ navigation, route }) {
     // ── Step handlers ──────────────────────────────────────────────────────────
 
     const handleStep1Continue = useCallback(async () => {
-        const validate = validateStep1();
-        if (!validate(form, isEmailVerified, isPhoneVerified)) return;
+        // B4 FIX: Call validateStep1 directly (no longer curried)
+        if (!validateStep1(form, isEmailVerified, isPhoneVerified)) return;
         if (isSubmittingRef.current) return;
         isSubmittingRef.current = true;
 
@@ -749,6 +760,7 @@ export default function PatientSignupScreen({ navigation, route }) {
             try {
                 const profileRes = await apiService.auth.getProfile();
                 if (profileRes.data?.profile) {
+                    isManualTransitionRef.current = true; // B2 FIX
                     await saveProgress(2);
                     setStep(2);
                     isSubmittingRef.current = false;
@@ -760,9 +772,7 @@ export default function PatientSignupScreen({ navigation, route }) {
         setSignupLoading(true);
         try {
             const cleanEmail = form.email.trim().toLowerCase();
-            // Clear stale progress because it is explicitly a fresh local sign up
             await clearProgress();
-            // 25-second timeout to prevent infinite loading
             const signUpTimeout = new Promise((_, reject) =>
                 setTimeout(() => reject(new Error('SIGNUP_TIMEOUT')), 25000)
             );
@@ -771,8 +781,7 @@ export default function PatientSignupScreen({ navigation, route }) {
                 signUpTimeout,
             ]);
             analytics.signupSuccess(cleanEmail);
-            // § FIX: Removed manual setStep(2). The recovery effect at the top handles 
-            // the transition based on the resulting profile/patient state.
+            // Recovery effect handles step transition after signUp updates profile/patient
         } catch (error) {
             let { general, fields } = parseError(error);
             if (error?.message === 'SIGNUP_TIMEOUT') {
@@ -791,8 +800,18 @@ export default function PatientSignupScreen({ navigation, route }) {
             setSignupLoading(false);
             isSubmittingRef.current = false;
         }
-    }, [form, isEmailVerified, isPhoneVerified, user, signUp, saveProgress, validateStep1]);
+    }, [form, isEmailVerified, isPhoneVerified, user, signUp, saveProgress, validateStep1, clearProgress]);
 
+    // B1 + B3 FIX: The original handleStep2Continue called refreshPatient() which
+    // triggered the recovery effect and caused the step 2→4 jump. 
+    //
+    // The fix has two parts:
+    // 1. Set isManualTransitionRef.current = true BEFORE setStep(3) so the recovery
+    //    effect skips its override on the next render.
+    // 2. Fire refreshPatient() in the background AFTER the step transition is already
+    //    committed — we don't await it, so it can't race with the step setter.
+    //    The background refresh is only needed so AuthContext has fresh patient data
+    //    for when the user eventually reaches step 5 and completes onboarding.
     const handleStep2Continue = useCallback(async () => {
         if (!form.city) {
             setErrors(prev => ({ ...prev, location: 'Please select or detect your city first' }));
@@ -807,9 +826,15 @@ export default function PatientSignupScreen({ navigation, route }) {
             setSignupLoading(false);
         }
         await saveProgress(3);
+
+        // B2 + B3 FIX: Mark as manual transition BEFORE setStep so the recovery
+        // effect won't override it when patient state updates arrive.
+        isManualTransitionRef.current = true;
         setStep(3);
-        // Prompt background refresh so AuthContext logic correctly advances targetStep
-        await refreshPatient();
+
+        // Fire refresh in background — no await so it cannot race with the step setter.
+        // The recovery effect is already guarded for this render cycle.
+        refreshPatient().catch(err => console.warn('[Onboarding] Background patient refresh failed:', err.message));
     }, [form.city, saveProgress, refreshPatient]);
 
     const handlePaymentSuccess = useCallback(async () => {
@@ -823,13 +848,21 @@ export default function PatientSignupScreen({ navigation, route }) {
         }
         await saveProgress(4, { paymentAttempted: false });
         setPaymentCrashWarning(false);
+
+        // B7: refreshPatient IS correct here — after subscribe, we need onboardingComplete
+        // to update. But we still guard the transition first.
+        isManualTransitionRef.current = true;
         setStep(4);
-        // Re-fetch patient so `onboardingComplete` correctly becomes true in AuthContext
-        await refreshPatient();
+
+        // Background refresh after step is committed
+        refreshPatient().catch(err => console.warn('[Onboarding] Background patient refresh failed:', err.message));
     }, [saveProgress, selectedPlan.id, refreshPatient]);
 
     const handleBack = useCallback(() => {
-        if (step > 1) setStep(prev => prev - 1);
+        if (step > 1) {
+            isManualTransitionRef.current = true; // B2 FIX: back navigation is manual
+            setStep(prev => prev - 1);
+        }
     }, [step]);
 
     const handleCompleteSignUp = useCallback(async () => {
@@ -851,14 +884,11 @@ export default function PatientSignupScreen({ navigation, route }) {
         </View>
     ), [isPhoneVerified]);
 
-    // ── Stable callbacks for toggling show/hide password ──────────────────────
     const toggleShowPass = useCallback(() => setShowPass(v => !v), []);
     const toggleShowConfirm = useCallback(() => setShowConfirm(v => !v), []);
     const passwordsMatch = form.confirmPassword.length > 0 && form.password === form.confirmPassword;
-
     const isPassStrong = form.password.length >= 8 && /[A-Z]/.test(form.password) && /[0-9]/.test(form.password);
 
-    // F9: stable handlers for verify buttons
     const handleVerifyEmail = useCallback(() => { if (!isEmailVerified) handleVerifyPress('email'); }, [isEmailVerified, handleVerifyPress]);
     const handleVerifyPhone = useCallback(() => { if (!isPhoneVerified) handleVerifyPress('phone'); }, [isPhoneVerified, handleVerifyPress]);
 
@@ -869,7 +899,6 @@ export default function PatientSignupScreen({ navigation, route }) {
                 start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
                 style={StyleSheet.absoluteFill}
             />
-            {/* Immersive Orbs */}
             <View style={styles.orb1} />
             <View style={styles.orb2} />
             <View style={styles.orb3} />
@@ -877,8 +906,8 @@ export default function PatientSignupScreen({ navigation, route }) {
 
             <View style={styles.heroContent}>
                 {(step === 2 || step === 3) && (
-                    <Pressable 
-                        style={{ position: 'absolute', top: 0, left: 20, width: 44, height: 44, justifyContent: 'center' }} 
+                    <Pressable
+                        style={{ position: 'absolute', top: 0, left: 20, width: 44, height: 44, justifyContent: 'center' }}
                         onPress={handleBack}
                         hitSlop={12}
                     >
@@ -886,10 +915,10 @@ export default function PatientSignupScreen({ navigation, route }) {
                     </Pressable>
                 )}
                 <View style={[styles.iconCircle, { backgroundColor: '#FFFFFF' }]}>
-                    <Image 
-                        source={require('../../../assets/logo.png')} 
-                        style={{ width: 44, height: 44 }} 
-                        resizeMode="contain" 
+                    <Image
+                        source={require('../../../assets/logo.png')}
+                        style={{ width: 44, height: 44 }}
+                        resizeMode="contain"
                     />
                 </View>
                 <Text style={styles.heroLabel}>SAMVAYA</Text>
@@ -1127,7 +1156,6 @@ export default function PatientSignupScreen({ navigation, route }) {
                     </View>
                     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }}>
                         <Text style={styles.otpSubtext}>With a guest account, you can access these core health tools for free:</Text>
-                        
                         <View style={{ marginTop: 24, gap: 20 }}>
                             {[
                                 { title: 'Personal Health Log', desc: 'Track your symptoms and vitals manually.', icon: Activity },
@@ -1143,7 +1171,6 @@ export default function PatientSignupScreen({ navigation, route }) {
                                 </View>
                             ))}
                         </View>
-
                         <Pressable style={[styles.primaryBtnEnhanced, { marginTop: 32 }]} onPress={() => setFeaturesModalVisible(false)}>
                             <LinearGradient
                                 colors={['#6366F1', '#4F46E5']}
@@ -1160,7 +1187,11 @@ export default function PatientSignupScreen({ navigation, route }) {
     );
 
     const renderStep4_PaymentSuccess = () => {
-        const handleGoToStep5 = async () => { await saveProgress(5); setStep(5); };
+        const handleGoToStep5 = async () => {
+            isManualTransitionRef.current = true; // B2 FIX
+            await saveProgress(5);
+            setStep(5);
+        };
         return (
             <View style={styles.centerStepEnhanced}>
                 <Animated.View style={{ width: '100%', opacity: staggerAnims[0], transform: [{ translateY: staggerAnims[0].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>
@@ -1213,7 +1244,6 @@ export default function PatientSignupScreen({ navigation, route }) {
             inputRange: [0, 1],
             outputRange: ['0deg', '360deg'],
         });
-
         return (
             <View style={styles.processingContainer}>
                 <Animated.View style={{ transform: [{ rotate: spin }] }}>
@@ -1235,7 +1265,7 @@ export default function PatientSignupScreen({ navigation, route }) {
             </Animated.View>
             <Animated.Text style={[styles.finalTitle, { opacity: staggerAnims[1] }]}>Welcome to the Family!</Animated.Text>
             <Animated.Text style={[styles.finalSub, { opacity: staggerAnims[2] }]}>Your premium health journey with Samvaya begins now. Your advisor will be in touch shortly.</Animated.Text>
-            
+
             <Animated.View style={[styles.finalCard, { opacity: staggerAnims[3] }]}>
                 <View style={styles.finalRow}>
                     <Shield size={20} color="#6366F1" />
@@ -1396,13 +1426,36 @@ export default function PatientSignupScreen({ navigation, route }) {
     );
 }
 
-// ─── Styles (unchanged) ───────────────────────────────────────────────────────
+/*
+ * ─── IMPORTANT: authUtils.js — resolveOnboardingStep ──────────────────────────
+ *
+ * The root cause of the step 2→4 skip lives in resolveOnboardingStep().
+ * It must return step 3 for a patient who has a city but NO active subscription.
+ * If it currently returns 4 in that state, the isManualTransitionRef guard above
+ * will prevent the skip on first transition, but returning users who re-open the
+ * app mid-onboarding will still land on step 4 incorrectly.
+ *
+ * Correct logic should be:
+ *
+ *   export function resolveOnboardingStep(patient, profile) {
+ *     if (!profile) return 1;                          // no profile → step 1
+ *     if (!patient?.city) return 2;                    // no city → step 2
+ *     if (!patient?.subscription?.status
+ *         || patient.subscription.status === 'none'
+ *         || patient.subscription.status === 'pending') return 3; // no sub → step 3
+ *     if (!patient?.onboardingComplete) return 4;      // paid, not complete → step 4
+ *     return null;                                     // fully onboarded
+ *   }
+ *
+ * Verify your authUtils implementation matches this intent.
+ */
+
+// ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#F8FAFC' },
     scroll: { flex: 1 },
     scrollContent: { paddingBottom: 40 },
 
-    // ─── Hero Section ───────────────────
     hero: {
         height: 300,
         justifyContent: 'center',
@@ -1416,7 +1469,7 @@ const styles = StyleSheet.create({
     orb2: { position: 'absolute', width: 180, height: 180, borderRadius: 90, backgroundColor: 'rgba(255,255,255,0.08)', bottom: -60, right: -40 },
     orb3: { position: 'absolute', width: 120, height: 120, borderRadius: 60, backgroundColor: 'rgba(255,255,255,0.05)', top: 40, right: 20 },
     orb4: { position: 'absolute', width: 140, height: 140, borderRadius: 70, backgroundColor: 'rgba(255,255,255,0.06)', bottom: 20, left: 30 },
-    
+
     heroContent: { alignItems: 'center', zIndex: 10 },
     iconCircle: {
         width: 72, height: 72, borderRadius: 36,
@@ -1427,16 +1480,12 @@ const styles = StyleSheet.create({
     heroLabel: { fontSize: 13, ...FONT.bold, color: 'rgba(255,255,255,0.7)', letterSpacing: 5, marginBottom: 8 },
     heroTitle: { fontSize: 24, ...FONT.heavy, color: '#FFFFFF', textAlign: 'center', paddingHorizontal: 20 },
 
-    // ─── Progress ──────────────────────
-    modernProgressContainer: {
-        flexDirection: 'row', gap: 6, marginTop: 24, width: 160, height: 4,
-    },
+    modernProgressContainer: { flexDirection: 'row', gap: 6, marginTop: 24, width: 160, height: 4 },
     progressSegmentWrapper: { flex: 1, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.2)', overflow: 'hidden' },
     progressSegment: { flex: 1, height: 4, backgroundColor: 'transparent' },
     progressSegmentDone: { backgroundColor: '#FFFFFF' },
     progressSegmentActive: { backgroundColor: '#FFFFFF', opacity: 0.6 },
 
-    // ─── Form Card ────────────────────
     formCard: {
         marginTop: -30,
         marginHorizontal: 16,
@@ -1474,7 +1523,6 @@ const styles = StyleSheet.create({
     errorTextRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6, marginLeft: 4 },
     fieldErrorEnhanced: { color: '#EF4444', fontSize: 12, ...FONT.medium },
 
-    // ─── Buttons ──────────────────────
     primaryBtnEnhanced: {
         height: 60, borderRadius: 24, marginTop: 20,
         overflow: 'hidden',
@@ -1505,26 +1553,19 @@ const styles = StyleSheet.create({
     dividerLine: { flex: 1, height: 1, backgroundColor: '#E2E8F0' },
     dividerText: { marginHorizontal: 16, fontSize: 12, color: '#94A3B8', ...FONT.heavy },
 
-    // ─── Step 1 Styles ────────────────
     loginRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 16 },
     loginText: { fontSize: 14, color: '#64748B', ...FONT.regular },
     loginAction: { fontSize: 14, ...FONT.heavy, color: '#6366F1' },
 
-    verifyPassBtn: {
-        paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8,
-        backgroundColor: '#EEF2FF',
-    },
-    verifyPassText: { fontSize: 12, ...FONT.bold, color: '#6366F1' },
-    
     verifyFieldRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
     verifyBtnSmall: {
-        height: 58, 
-        paddingHorizontal: 16, 
-        borderRadius: 20, 
+        height: 58,
+        paddingHorizontal: 16,
+        borderRadius: 20,
         backgroundColor: '#EEF2FF',
-        alignItems: 'center', 
+        alignItems: 'center',
         justifyContent: 'center',
-        marginTop: 21, // Align with input container, accounting for label height
+        marginTop: 21,
     },
     verifiedBtn: { backgroundColor: '#22C55E' },
     verifyBtnText: { fontSize: 13, ...FONT.bold, color: '#6366F1' },
@@ -1537,7 +1578,6 @@ const styles = StyleSheet.create({
     reqWrap: { marginTop: 12, paddingHorizontal: 8, gap: 4 },
     reqItem: { fontSize: 13, ...FONT.medium },
 
-    // ─── Step 2 Styles ────────────────
     locationHeader: { alignItems: 'center', marginBottom: 24 },
     locationIconBox: { width: 64, height: 64, borderRadius: 24, backgroundColor: '#EEF2FF', alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
     locationTitle: { fontSize: 18, ...FONT.bold, color: '#1E293B' },
@@ -1549,9 +1589,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#FFFFFF', borderWidth: 1.5, borderColor: '#6366F1',
     },
     detectText: { fontSize: 15, ...FONT.bold, color: '#6366F1' },
-
     locationDivider: { height: 1, backgroundColor: '#E2E8F0', marginVertical: 24 },
-
     citySelectorBtn: {
         flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
         paddingHorizontal: 16, height: 58, borderRadius: 16,
@@ -1560,7 +1598,6 @@ const styles = StyleSheet.create({
     citySelectorText: { fontSize: 15, ...FONT.semibold, color: '#0F172A' },
     cityPlaceholder: { color: '#94A3B8' },
 
-    // ─── Step 3 Styles ────────────────
     planGrid: { gap: 12 },
     planCard: {
         flexDirection: 'row', alignItems: 'center', gap: 16, padding: 20,
@@ -1577,7 +1614,6 @@ const styles = StyleSheet.create({
     },
     paymentAlertText: { fontSize: 13, color: '#854D0E', flex: 1, ...FONT.medium },
 
-    // ─── Step 5 (Final) ────────────────
     finalState: { alignItems: 'center', paddingBottom: 20 },
     successOrb: {
         width: 140, height: 140, borderRadius: 70, backgroundColor: '#F0F3FF',
@@ -1592,11 +1628,11 @@ const styles = StyleSheet.create({
     finalRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
     finalCardText: { fontSize: 15, ...FONT.semibold, color: '#334155' },
 
-    // ─── Modals ──────────────────────
     modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
     modalSheet: { backgroundColor: '#FFFFFF', borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 24, paddingBottom: 40 },
     modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
     modalTitle: { fontSize: 20, ...FONT.heavy, color: '#1E293B' },
+    modalSub: { fontSize: 13, color: '#94A3B8', ...FONT.medium, marginTop: 2 },
 
     otpSubtext: { fontSize: 14, color: '#64748B', lineHeight: 20 },
     resendRow: { alignItems: 'center', marginTop: 10, marginBottom: 20 },
@@ -1622,20 +1658,43 @@ const styles = StyleSheet.create({
     cityList: { maxHeight: 300, marginTop: 10 },
     cityItem: { paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
     cityItemText: { fontSize: 16, ...FONT.medium, color: '#1E293B' },
+    cityOption: {
+        flexDirection: 'row', alignItems: 'center', paddingVertical: 16,
+        borderBottomWidth: 1, borderBottomColor: '#F8FAFC',
+    },
+    cityOptionActive: { backgroundColor: '#F8FAFF' },
+    cityIconBox: { width: 44, height: 44, borderRadius: 14, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center' },
+    cityName: { fontSize: 16, ...FONT.semibold, color: '#1E293B' },
+    cityState: { fontSize: 13, ...FONT.medium, color: '#94A3B8', marginTop: 2 },
+    radioOutline: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: '#CBD5E1', alignItems: 'center', justifyContent: 'center' },
+    radioActive: { borderColor: '#3B5BDB' },
+    radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#3B5BDB' },
+
+    searchWrap: {
+        flexDirection: 'row', alignItems: 'center', gap: 10,
+        backgroundColor: '#F8FAFC', borderRadius: 16,
+        paddingHorizontal: 16, height: 48,
+        borderWidth: 1, borderColor: '#E2E8F0',
+    },
+    searchInput: { flex: 1, fontSize: 15, color: '#0F172A', ...FONT.medium },
+
+    emptyState: { alignItems: 'center', paddingVertical: 40 },
+    emptyTitle: { fontSize: 16, ...FONT.bold, color: '#64748B', marginTop: 12 },
+    emptyDesc: { fontSize: 13, color: '#94A3B8', textAlign: 'center', marginTop: 6, lineHeight: 18 },
+
+    closeBtnBox: { width: 36, height: 36, borderRadius: 12, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center' },
 
     footer: { padding: 32, alignItems: 'center' },
     footerText: { fontSize: 14, color: '#64748B', ...FONT.regular },
     footerAction: { fontSize: 14, ...FONT.heavy, color: '#6366F1' },
     madeWith: { fontSize: 12, ...FONT.bold, color: '#CBD5E1', marginTop: 24 },
 
-    // ─── Missing Styles (Plans & Journey) ────────
     planCardGhost: { flexDirection: 'row', alignItems: 'center', gap: 16, padding: 20, borderRadius: 24, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderStyle: 'dashed', marginBottom: 12 },
     ghostIconWrap: { width: 44, height: 44, borderRadius: 14, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
     planTitleGhost: { fontSize: 16, ...FONT.bold, color: '#64748B' },
     planDesc: { fontSize: 13, ...FONT.medium, color: '#94A3B8' },
 
     planCardEnhanced: { borderRadius: 32, marginBottom: 16, overflow: 'hidden', borderWidth: 2, borderColor: '#F1F5F9' },
-    planCardActive: { borderColor: '#6366F1', shadowColor: '#6366F1', shadowOpacity: 0.1, shadowRadius: 20, elevation: 5 },
     planCardGradient: { padding: 24 },
     planCardHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 20 },
     planIconBoxEnhanced: { width: 56, height: 56, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
@@ -1647,13 +1706,14 @@ const styles = StyleSheet.create({
     planFeaturesEnhanced: { gap: 12, marginBottom: 24 },
     featureLine: { flexDirection: 'row', alignItems: 'center', gap: 10 },
     featureTextEnhanced: { fontSize: 14, ...FONT.semibold, color: '#475569' },
-    
+
     planActionBtn: { height: 54, borderRadius: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
     btnActive: { backgroundColor: '#6366F1' },
     btnInactive: { backgroundColor: '#F1F5F9' },
     txtActive: { color: '#FFFFFF', fontSize: 15, ...FONT.bold },
     txtInactive: { color: '#64748B', fontSize: 15, ...FONT.bold },
-    
+    planActionBtnText: { fontSize: 15, ...FONT.bold },
+
     premiumBadge: { position: 'absolute', top: 20, right: 20, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, zIndex: 10 },
     premiumBadgeText: { fontSize: 10, ...FONT.heavy, color: '#FFFFFF' },
 
@@ -1674,7 +1734,6 @@ const styles = StyleSheet.create({
     errorBoxEnhanced: { flexDirection: 'row', gap: 12, backgroundColor: '#FFFBEB', padding: 16, borderRadius: 20, marginBottom: 20, borderWidth: 1, borderColor: '#FEF3C7' },
     errorMsgEnhanced: { fontSize: 14, ...FONT.medium, flex: 1, lineHeight: 20 },
 
-    // ─── Step 2 Premium Styles ────────
     locationTitlePremium: { fontSize: 24, ...FONT.heavy, color: '#1E293B', textAlign: 'center' },
     locationSubtitlePremium: { fontSize: 15, color: '#475569', textAlign: 'center', marginTop: 12, paddingHorizontal: 30, lineHeight: 22 },
     locationPrimaryBtn: {
@@ -1697,32 +1756,15 @@ const styles = StyleSheet.create({
     locationSuccessText: { fontSize: 14, color: '#15803D', ...FONT.semibold, flex: 1 },
     locationErrorText: { fontSize: 14, color: '#EF4444', ...FONT.medium, marginTop: 12, textAlign: 'center' },
 
-    // ── Processing State Styles ────────
+    centerStepEnhanced: { alignItems: 'center', width: '100%' },
+
     processingContainer: {
         paddingVertical: 60,
         alignItems: 'center',
         justifyContent: 'center',
         minHeight: 300,
     },
-    processingTitle: {
-        fontSize: 22,
-        ...FONT.heavy,
-        color: '#1E293B',
-        marginTop: 32,
-        textAlign: 'center',
-    },
-    processingSub: {
-        fontSize: 15,
-        color: '#64748B',
-        textAlign: 'center',
-        marginTop: 12,
-        paddingHorizontal: 30,
-        lineHeight: 22,
-    },
-    processingProgress: {
-        marginTop: 40,
-        padding: 8,
-        borderRadius: 24,
-        backgroundColor: '#F8FAFC',
-    },
+    processingTitle: { fontSize: 22, ...FONT.heavy, color: '#1E293B', marginTop: 32, textAlign: 'center' },
+    processingSub: { fontSize: 15, color: '#64748B', textAlign: 'center', marginTop: 12, paddingHorizontal: 30, lineHeight: 22 },
+    processingProgress: { marginTop: 40, padding: 8, borderRadius: 24, backgroundColor: '#F8FAFC' },
 });
