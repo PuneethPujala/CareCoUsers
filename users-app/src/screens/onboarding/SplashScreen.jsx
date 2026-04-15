@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, Animated, Easing, Dimensions, Platform } from 'react-native';
+import { View, Text, StyleSheet, Animated, Dimensions, Platform } from 'react-native';
 import Svg, { Path, Defs, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -35,8 +35,8 @@ const Particle = () => {
     useEffect(() => {
         const animation = Animated.loop(
             Animated.sequence([
-                Animated.timing(anim, { toValue: 1, duration: 3000 + Math.random() * 4000, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-                Animated.timing(anim, { toValue: 0, duration: 3000 + Math.random() * 4000, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+                Animated.timing(anim, { toValue: 1, duration: 3000 + Math.random() * 4000, easing: Animated.Easing?.inOut(Animated.Easing.sin), useNativeDriver: true }),
+                Animated.timing(anim, { toValue: 0, duration: 3000 + Math.random() * 4000, easing: Animated.Easing?.inOut(Animated.Easing.sin), useNativeDriver: true }),
             ])
         );
         animation.start();
@@ -81,16 +81,16 @@ export default function SplashScreen({ navigation, onFinish }) {
 
         const sequence = Animated.parallel([
             Animated.timing(bgFade, { toValue: 1, duration: 1200, useNativeDriver: true }),
-            Animated.timing(networkAnim, { toValue: 1, duration: 2000, easing: Easing.bezier(0.2, 0, 0.3, 1), useNativeDriver: true, delay: 600 }),
-            Animated.timing(convergeAnim, { toValue: 1, duration: 1500, easing: Easing.bezier(0.7, 0, 0.84, 0), useNativeDriver: true, delay: 2600 }),
+            Animated.timing(networkAnim, { toValue: 1, duration: 2000, easing: Animated.Easing?.bezier(0.2, 0, 0.3, 1), useNativeDriver: true, delay: 600 }),
+            Animated.timing(convergeAnim, { toValue: 1, duration: 1500, easing: Animated.Easing?.bezier(0.7, 0, 0.84, 0), useNativeDriver: true, delay: 2600 }),
             Animated.sequence([
                 Animated.delay(3800),
-                Animated.timing(bloomAnim, { toValue: 1, duration: 1000, easing: Easing.out(Easing.poly(3)), useNativeDriver: true })
+                Animated.timing(bloomAnim, { toValue: 1, duration: 1000, easing: Animated.Easing?.out(Animated.Easing.poly(3)), useNativeDriver: true })
             ]),
-            Animated.timing(silhouettesAnim, { toValue: 1, duration: 1500, easing: Easing.out(Easing.back(1.5)), useNativeDriver: true, delay: 4800 }),
-            Animated.timing(pulseAnim, { toValue: 1, duration: 1700, easing: Easing.inOut(Easing.sin), useNativeDriver: false, delay: 5800 }),
-            Animated.timing(textAnim, { toValue: 1, duration: 1500, easing: Easing.out(Easing.poly(3)), useNativeDriver: true, delay: 6800 }),
-            Animated.timing(exitAnim, { toValue: 1, duration: 700, easing: Easing.inOut(Easing.ease), useNativeDriver: true, delay: 8300 })
+            Animated.timing(silhouettesAnim, { toValue: 1, duration: 1500, easing: Animated.Easing?.out(Animated.Easing.back(1.5)), useNativeDriver: true, delay: 4800 }),
+            Animated.timing(pulseAnim, { toValue: 1, duration: 1700, easing: Animated.Easing?.inOut(Animated.Easing.sin), useNativeDriver: false, delay: 5800 }),
+            Animated.timing(textAnim, { toValue: 1, duration: 1500, easing: Animated.Easing?.out(Animated.Easing.poly(3)), useNativeDriver: true, delay: 6800 }),
+            Animated.timing(exitAnim, { toValue: 1, duration: 700, easing: Animated.Easing?.inOut(Animated.Easing.ease), useNativeDriver: true, delay: 8300 })
         ]);
 
         sequence.start(({ finished }) => {
@@ -108,7 +108,7 @@ export default function SplashScreen({ navigation, onFinish }) {
         const pulseTimer = setTimeout(() => {
             Animated.loop(
                 Animated.sequence([
-                    Animated.timing(pulseLoop, { toValue: 1, duration: 2000, easing: Easing.linear, useNativeDriver: false }),
+                    Animated.timing(pulseLoop, { toValue: 1, duration: 2000, easing: Animated.Easing?.linear, useNativeDriver: false }),
                     Animated.timing(pulseLoop, { toValue: 0, duration: 0, useNativeDriver: false }),
                 ])
             ).start();

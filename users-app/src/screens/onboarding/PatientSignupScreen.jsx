@@ -45,14 +45,15 @@ import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import {
     View, Text, StyleSheet, TextInput, Pressable, Platform,
     KeyboardAvoidingView, ScrollView, Animated, ActivityIndicator,
-    Modal, Image, Alert,
+    Modal, Image, Alert, Easing,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
     User, Mail, MapPin, Lock, Eye, EyeOff, CheckCircle2, ArrowLeft, AlertCircle,
     Search, X, CreditCard, Smartphone, Check, ChevronLeft, Activity, CloudUpload,
-    Shield, Crown, Sparkles, Star, Zap, ChevronRight, LogOut, Navigation
+    Shield, Crown, Sparkles, Star, Zap, ChevronRight, LogOut, Navigation,
+    RotateCcw
 } from 'lucide-react-native';
 import { colors } from '../../theme';
 import { useAuth } from '../../context/AuthContext';
@@ -274,7 +275,7 @@ const UPIPaymentModal = React.memo(({ visible, onClose, onSuccess, planName, pla
 
 export default function PatientSignupScreen({ navigation, route }) {
     // FIX 4: destructure signOut at the top — never call useAuth() inside a callback
-    const { user, profile, patient, signUp, signInWithGoogle, completeSignUp, injectSession, signOut, sendOtp, verifyOtp } = useAuth();
+    const { user, profile, patient, signUp, signInWithGoogle, completeSignUp, injectSession, signOut, sendOtp, verifyOtp, refreshPatient } = useAuth();
 
     const [step, setStep] = useState(route?.params?.step || 1);
     const [form, setForm] = useState({
@@ -349,11 +350,20 @@ export default function PatientSignupScreen({ navigation, route }) {
         }
 
         // 2. Forced Step Skipping (Overrides AsyncStorage)
+        // § FLICKER FIX: Guard against ALL async processing states, not just signupLoading.
+        // During Google OAuth, googleLoading is true but signupLoading is false — the old
+        // code would jump to step 2 from partial profile state before patient data loaded.
+        const isProcessing = signupLoading || googleLoading;
         const targetStep = resolveOnboardingStep(patient, profile);
-        if (targetStep && step < targetStep) {
+        if (targetStep === null) {
+            // If detected as complete, clear local storage progress to stop future flickers
+            clearProgress();
+        } else if (step !== targetStep && !isProcessing && !isSubmittingRef.current) {
+            // Only jump steps if NOT currently processing a signup or Google auth
+            // AND the user isn't actively submitting a form/transitioning.
             setStep(targetStep);
         }
-    }, [profile, patient, step]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [profile, patient, step, clearProgress, signupLoading, googleLoading]);
 
     // Configure native Google Sign-In on mount
     useEffect(() => {
@@ -367,7 +377,30 @@ export default function PatientSignupScreen({ navigation, route }) {
     const heroOpacity = useRef(new Animated.Value(0)).current;
     const cardAnim = useRef(new Animated.Value(30)).current;
     const cardOpacity = useRef(new Animated.Value(0)).current;
+    const syncRotateAnim = useRef(new Animated.Value(0)).current;
     const staggerAnims = useRef([...Array(10)].map(() => new Animated.Value(0))).current;
+
+    // Spinning animation for the processing state
+    useEffect(() => {
+        if (signupLoading) {
+            // F11: Using Animated.Easing and requestAnimationFrame for RN 0.81 bridge safety
+            const loop = Animated.loop(
+                Animated.timing(syncRotateAnim, {
+                    toValue: 1,
+                    duration: 1200,
+                    easing: Easing.linear,
+                    useNativeDriver: true,
+                })
+            );
+            
+            const frameId = requestAnimationFrame(() => loop.start());
+            return () => {
+                cancelAnimationFrame(frameId);
+                loop.stop();
+                syncRotateAnim.setValue(0);
+            };
+        }
+    }, [signupLoading, syncRotateAnim]);
 
     // ── AsyncStorage persistence ───────────────────────────────────────────────
 
@@ -504,7 +537,8 @@ export default function PatientSignupScreen({ navigation, route }) {
 
     const handleGooglePress = useCallback(async () => {
         try {
-            setGoogleLoading(true);
+            // § FIX: Rehydration safety tick
+            setTimeout(() => setGoogleLoading(true), 0);
             setErrors({});
             await GoogleSignin.hasPlayServices();
             const signInResult = await GoogleSignin.signIn();
@@ -513,6 +547,10 @@ export default function PatientSignupScreen({ navigation, route }) {
                 setErrors({ google: 'Failed to get Google ID token. Please try again.' });
                 return;
             }
+            
+            // Clear stale cache before authenticating
+            await clearProgress();
+            
             const result = await signInWithGoogle(idToken);
             if (result?.isNewUser) {
                 const googleUser = result.user;
@@ -527,8 +565,8 @@ export default function PatientSignupScreen({ navigation, route }) {
                     const config = { headers: { Authorization: `Bearer ${result.session.access_token}` } };
                     const profileRes = await apiService.auth.getProfile(config);
                     await injectSession(result.session, profileRes.data.profile);
-                    await saveProgress(2);
-                    setStep(2);
+                    // § FIX: Removed manual setStep(2). The recovery effect above handles 
+                    // jumping to the correct step (or staying put if complete).
                 } catch (regError) {
                     const code = regError?.response?.data?.code;
                     const msg = regError?.response?.data?.error || regError.message || 'Failed to create account';
@@ -722,6 +760,8 @@ export default function PatientSignupScreen({ navigation, route }) {
         setSignupLoading(true);
         try {
             const cleanEmail = form.email.trim().toLowerCase();
+            // Clear stale progress because it is explicitly a fresh local sign up
+            await clearProgress();
             // 25-second timeout to prevent infinite loading
             const signUpTimeout = new Promise((_, reject) =>
                 setTimeout(() => reject(new Error('SIGNUP_TIMEOUT')), 25000)
@@ -731,8 +771,8 @@ export default function PatientSignupScreen({ navigation, route }) {
                 signUpTimeout,
             ]);
             analytics.signupSuccess(cleanEmail);
-            await saveProgress(2);
-            setStep(2);
+            // § FIX: Removed manual setStep(2). The recovery effect at the top handles 
+            // the transition based on the resulting profile/patient state.
         } catch (error) {
             let { general, fields } = parseError(error);
             if (error?.message === 'SIGNUP_TIMEOUT') {
@@ -768,7 +808,9 @@ export default function PatientSignupScreen({ navigation, route }) {
         }
         await saveProgress(3);
         setStep(3);
-    }, [form.city, saveProgress]);
+        // Prompt background refresh so AuthContext logic correctly advances targetStep
+        await refreshPatient();
+    }, [form.city, saveProgress, refreshPatient]);
 
     const handlePaymentSuccess = useCallback(async () => {
         setUpiModalVisible(false);
@@ -782,7 +824,9 @@ export default function PatientSignupScreen({ navigation, route }) {
         await saveProgress(4, { paymentAttempted: false });
         setPaymentCrashWarning(false);
         setStep(4);
-    }, [saveProgress, selectedPlan.id]);
+        // Re-fetch patient so `onboardingComplete` correctly becomes true in AuthContext
+        await refreshPatient();
+    }, [saveProgress, selectedPlan.id, refreshPatient]);
 
     const handleBack = useCallback(() => {
         if (step > 1) setStep(prev => prev - 1);
@@ -832,6 +876,15 @@ export default function PatientSignupScreen({ navigation, route }) {
             <View style={styles.orb4} />
 
             <View style={styles.heroContent}>
+                {(step === 2 || step === 3) && (
+                    <Pressable 
+                        style={{ position: 'absolute', top: 0, left: 20, width: 44, height: 44, justifyContent: 'center' }} 
+                        onPress={handleBack}
+                        hitSlop={12}
+                    >
+                        <ChevronLeft size={28} color="#FFFFFF" strokeWidth={2.5} />
+                    </Pressable>
+                )}
                 <View style={[styles.iconCircle, { backgroundColor: '#FFFFFF' }]}>
                     <Image 
                         source={require('../../../assets/logo.png')} 
@@ -1067,38 +1120,40 @@ export default function PatientSignupScreen({ navigation, route }) {
     const renderFeaturesModal = () => (
         <Modal visible={featuresModalVisible} animationType="fade" transparent>
             <View style={styles.modalOverlay}>
-                <View style={styles.modalSheet}>
+                <View style={[styles.modalSheet, { maxHeight: '80%' }]}>
                     <View style={styles.modalHeader}>
                         <Text style={styles.modalTitle}>Explore Features</Text>
                         <Pressable onPress={() => setFeaturesModalVisible(false)} hitSlop={12}><X size={22} color="#64748B" /></Pressable>
                     </View>
-                    <Text style={styles.otpSubtext}>With a guest account, you can access these core health tools for free:</Text>
-                    
-                    <View style={{ marginTop: 24, gap: 16 }}>
-                        {[
-                            { title: 'Personal Health Log', desc: 'Track your symptoms and vitals manually.', icon: Activity },
-                            { title: 'Community Support', desc: 'Join groups with similar health goals.', icon: User },
-                            { title: 'Emergency SOS', desc: 'Quick access to emergency contacts.', icon: AlertCircle },
-                        ].map(({ title, desc, icon: Icon }) => (
-                            <View key={title} style={styles.journeyItem}>
-                                <View style={styles.journeyIconBox}><Icon size={18} color="#6366F1" /></View>
-                                <View style={{ flex: 1 }}>
-                                    <Text style={styles.journeyText}>{title}</Text>
-                                    <Text style={[styles.otpSubtext, { fontSize: 13, marginTop: 2 }]}>{desc}</Text>
+                    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }}>
+                        <Text style={styles.otpSubtext}>With a guest account, you can access these core health tools for free:</Text>
+                        
+                        <View style={{ marginTop: 24, gap: 20 }}>
+                            {[
+                                { title: 'Personal Health Log', desc: 'Track your symptoms and vitals manually.', icon: Activity },
+                                { title: 'Community Support', desc: 'Join groups with similar health goals.', icon: User },
+                                { title: 'Emergency SOS', desc: 'Quick access to emergency contacts.', icon: AlertCircle },
+                            ].map(({ title, desc, icon: Icon }) => (
+                                <View key={title} style={styles.journeyItem}>
+                                    <View style={[styles.journeyIconBox, { marginTop: 0 }]}><Icon size={18} color="#6366F1" /></View>
+                                    <View style={{ flex: 1, paddingLeft: 4 }}>
+                                        <Text style={{ fontSize: 16, fontWeight: '700', color: '#1E293B', marginBottom: 4 }}>{title}</Text>
+                                        <Text style={{ fontSize: 14, color: '#64748B', lineHeight: 20 }}>{desc}</Text>
+                                    </View>
                                 </View>
-                            </View>
-                        ))}
-                    </View>
+                            ))}
+                        </View>
 
-                    <Pressable style={[styles.primaryBtnEnhanced, { marginTop: 32 }]} onPress={() => setFeaturesModalVisible(false)}>
-                        <LinearGradient
-                            colors={['#6366F1', '#4F46E5']}
-                            start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-                            style={styles.primaryBtnGradientEnhanced}
-                        >
-                            <Text style={styles.primaryBtnText}>Got it</Text>
-                        </LinearGradient>
-                    </Pressable>
+                        <Pressable style={[styles.primaryBtnEnhanced, { marginTop: 32 }]} onPress={() => setFeaturesModalVisible(false)}>
+                            <LinearGradient
+                                colors={['#6366F1', '#4F46E5']}
+                                start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                                style={styles.primaryBtnGradientEnhanced}
+                            >
+                                <Text style={styles.primaryBtnText}>Got it</Text>
+                            </LinearGradient>
+                        </Pressable>
+                    </ScrollView>
                 </View>
             </View>
         </Modal>
@@ -1149,6 +1204,26 @@ export default function PatientSignupScreen({ navigation, route }) {
                         </LinearGradient>
                     </Pressable>
                 </Animated.View>
+            </View>
+        );
+    };
+
+    const renderProcessingState = () => {
+        const spin = syncRotateAnim.interpolate({
+            inputRange: [0, 1],
+            outputRange: ['0deg', '360deg'],
+        });
+
+        return (
+            <View style={styles.processingContainer}>
+                <Animated.View style={{ transform: [{ rotate: spin }] }}>
+                    <RotateCcw size={48} color="#6366F1" strokeWidth={1.5} />
+                </Animated.View>
+                <Text style={styles.processingTitle}>Configuring Your Profile</Text>
+                <Text style={styles.processingSub}>Synchronizing your health data and preparing your medical dashboard...</Text>
+                <View style={styles.processingProgress}>
+                    <ActivityIndicator size="small" color="#6366F1" />
+                </View>
             </View>
         );
     };
@@ -1270,11 +1345,15 @@ export default function PatientSignupScreen({ navigation, route }) {
                 {renderHeader()}
 
                 <Animated.View style={[styles.formCard, { transform: [{ translateY: cardAnim }], opacity: cardOpacity }]}>
-                    {step === 1 && renderStep1()}
-                    {step === 2 && renderStep2()}
-                    {step === 3 && renderStep3_PlanSelection()}
-                    {step === 4 && renderStep4_PaymentSuccess()}
-                    {step === 5 && renderStep5()}
+                    {signupLoading ? renderProcessingState() : (
+                        <>
+                            {step === 1 && renderStep1()}
+                            {step === 2 && renderStep2()}
+                            {step === 3 && renderStep3_PlanSelection()}
+                            {step === 4 && renderStep4_PaymentSuccess()}
+                            {step === 5 && renderStep5()}
+                        </>
+                    )}
                 </Animated.View>
 
                 {step === 1 && (
@@ -1617,4 +1696,33 @@ const styles = StyleSheet.create({
     },
     locationSuccessText: { fontSize: 14, color: '#15803D', ...FONT.semibold, flex: 1 },
     locationErrorText: { fontSize: 14, color: '#EF4444', ...FONT.medium, marginTop: 12, textAlign: 'center' },
+
+    // ── Processing State Styles ────────
+    processingContainer: {
+        paddingVertical: 60,
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: 300,
+    },
+    processingTitle: {
+        fontSize: 22,
+        ...FONT.heavy,
+        color: '#1E293B',
+        marginTop: 32,
+        textAlign: 'center',
+    },
+    processingSub: {
+        fontSize: 15,
+        color: '#64748B',
+        textAlign: 'center',
+        marginTop: 12,
+        paddingHorizontal: 30,
+        lineHeight: 22,
+    },
+    processingProgress: {
+        marginTop: 40,
+        padding: 8,
+        borderRadius: 24,
+        backgroundColor: '#F8FAFC',
+    },
 });

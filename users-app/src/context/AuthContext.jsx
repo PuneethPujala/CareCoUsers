@@ -19,8 +19,6 @@ import { setCacheUserId, clearUserCache } from '../lib/CacheService';
 import analytics from '../utils/analytics';
 import * as WebBrowser from 'expo-web-browser';
 
-WebBrowser.maybeCompleteAuthSession();
-
 const AuthContext = createContext(null);
 
 const ONBOARDING_STORAGE_KEY = 'samvaya_onboarding_progress';
@@ -80,6 +78,12 @@ export function AuthProvider({ children }) {
     const profileRef = useRef(profile);
 
     useEffect(() => { profileRef.current = profile; }, [profile]);
+
+    // §RN0.81 FIX: Defer native bridge access until the component mounts.
+    // Previously at module scope, this caused an EventEmitter crash.
+    useEffect(() => {
+        WebBrowser.maybeCompleteAuthSession();
+    }, []);
 
     // ── Internal setter that also caches to SecureStore ─────────────────────
 
@@ -428,7 +432,7 @@ export function AuthProvider({ children }) {
         isBootstrapping, onboardingComplete, subscriptionStatus, recoverySessionAt,
         displayName, userRole, userEmail: user?.email,
         signIn, signUp, signOut, resetPassword, signInWithGoogle, completeSignUp, injectSession,
-        sendOtp, verifyOtp,
+        sendOtp, verifyOtp, refreshPatient: fetchPatientData,
     };
 
     return (

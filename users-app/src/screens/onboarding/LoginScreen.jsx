@@ -317,7 +317,7 @@ export default function LoginScreen({ navigation }) {
 
     const handleGooglePress = async () => {
         try {
-            setLoading(true);
+            setTimeout(() => setLoading(true), 0);
             setErrorText('');
             await GoogleSignin.hasPlayServices();
             const signInResult = await GoogleSignin.signIn();

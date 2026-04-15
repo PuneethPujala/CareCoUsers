@@ -80,6 +80,8 @@ function CustomTabBar({ state, descriptors, navigation }) {
                         onPress={onPress}
                         style={styles.tabItem}
                         activeOpacity={0.7}
+                        testID={`tab-${route.name}`}
+                        accessibilityLabel={route.name}
                     >
                         <TabSlot focused={focused} IconConfig={IconComponent} />
                     </TouchableOpacity>

@@ -41,13 +41,13 @@ describe('Auth Utilities', () => {
             expect(resolveOnboardingStep(patient, profile)).toBe(3);
         });
 
-        it('returns 4 if plan exists but payment status is not active or expired', () => {
+        it('returns 3 (stays on payment screen) if plan exists but payment status is none', () => {
             const profile = { city: 'London' };
             const patient = { 
                 city: 'London', 
                 subscription: { plan: 'premium', status: 'none' } 
             };
-            expect(resolveOnboardingStep(patient, profile)).toBe(4);
+            expect(resolveOnboardingStep(patient, profile)).toBe(3);
         });
 
         it('returns null (Complete) if all steps are satisfied', () => {

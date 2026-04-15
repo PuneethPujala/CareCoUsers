@@ -14,7 +14,7 @@ export const resolveOnboardingStep = (patient, profile) => {
     if (!profile && !patient) return 1;
     if (!profile?.city && !patient?.city) return 2; // locality
     if (!patient?.subscription?.plan) return 3; // pick plan
-    if (normaliseStatus(patient?.subscription?.status) === 'none') return 4; // payment
+    if (normaliseStatus(patient?.subscription?.status) === 'none') return 3; // Stay on payment screen (Step 3) until status is active/expired
     return null; // Complete
 };
 
