@@ -14,7 +14,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import * as SecureStore from 'expo-secure-store';
 import { supabase, auth, handleAuthError } from '../lib/supabase';
-import { apiService, handleApiError } from '../lib/api';
+import { apiService, handleApiError, saveApiTokens, clearApiTokens, getApiTokens } from '../lib/api';
 import { setCacheUserId, clearUserCache } from '../lib/CacheService';
 import analytics from '../utils/analytics';
 import * as WebBrowser from 'expo-web-browser';
@@ -124,6 +124,7 @@ export function AuthProvider({ children }) {
             // §8 FIX: Always explicitly nullify local state and clear storage
             await clearCachedProfile();
             await clearUserCache();
+            await clearApiTokens();
             try { await AsyncStorage.removeItem(ONBOARDING_STORAGE_KEY); } catch { }
             
             setCacheUserId(null);
@@ -382,9 +383,10 @@ export function AuthProvider({ children }) {
 
         await fetchPatientData();
 
-        await supabase.auth.setSession({
+        await saveApiTokens({
             access_token: newSession.access_token,
             refresh_token: newSession.refresh_token,
+            expires_at: newSession.expires_at,
         });
 
         setUser(newSession.user);

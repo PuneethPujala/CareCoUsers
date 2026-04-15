@@ -3,11 +3,16 @@ const mongoose = require('mongoose');
 const PatientSchema = new mongoose.Schema(
     {
         // ── Core Identity ─────────────────────────────
+        /** Stable auth subject (legacy Supabase UUID or server-issued UUID) */
         supabase_uid: {
             type: String,
             required: true,
             unique: true,
             index: true,
+        },
+        passwordHash: {
+            type: String,
+            select: false,
         },
         profile_id: {
             type: mongoose.Schema.Types.ObjectId,
@@ -352,7 +357,13 @@ const PatientSchema = new mongoose.Schema(
     },
     {
         timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' },
-        toJSON: { virtuals: true },
+        toJSON: {
+            virtuals: true,
+            transform: function (doc, ret) {
+                delete ret.passwordHash;
+                return ret;
+            },
+        },
         toObject: { virtuals: true },
     }
 );

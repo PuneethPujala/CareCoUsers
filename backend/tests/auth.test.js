@@ -1,4 +1,5 @@
 process.env.NODE_ENV = 'test';
+process.env.AUTH_ENABLE_SUPABASE_FALLBACK = 'true';
 
 /**
  * auth.test.js — fixed
@@ -97,6 +98,21 @@ jest.mock('../src/middleware/checkPasswordChange', () => ({
     checkPasswordChange: (req, res, next) => next(),
 }));
 
+jest.mock('../src/services/tokenService', () => ({
+    issueTokenPair: jest.fn().mockResolvedValue({
+        access_token:  'mock-access-token',
+        refresh_token: 'mock-refresh-token',
+        expires_in:    900,
+        expires_at:    Math.floor(Date.now() / 1000) + 900,
+    }),
+    revokeAllForUser: jest.fn().mockResolvedValue(undefined),
+}));
+
+jest.mock('../src/models/RefreshToken', () => ({
+    hashToken: jest.fn(() => 'hashed-test-refresh'),
+    findOne:   jest.fn(),
+}));
+
 jest.mock('../src/middleware/scopeFilter', () => ({
     scopeFilter: () => (req, res, next) => { req.scopeFilter = {}; next(); },
 }));
@@ -110,18 +126,31 @@ const Patient      = require('../src/models/Patient');
 const Organization = require('../src/models/Organization');
 const { logEvent, logSecurityEvent } = require('../src/services/auditService');
 const { sendTempPasswordEmail }      = require('../src/services/emailService');
+const tokenService = require('../src/services/tokenService');
+const RefreshToken = require('../src/models/RefreshToken');
 const { mockProfile, mockPatient, mockOrganization } = require('./helpers/mockModels');
+const crypto = require('crypto');
 
 // ─── Chain builders ───────────────────────────────────────────────────────────
 
-/** Profile.findOne({...}).populate() */
+/** Profile.findOne({...}).select().populate() */
 function findOnePopulateChain(resolvedValue) {
-    return { populate: jest.fn().mockResolvedValue(resolvedValue) };
+    return {
+        select:   jest.fn().mockReturnThis(),
+        populate: jest.fn().mockResolvedValue(resolvedValue),
+    };
 }
 
 /** Profile.findById(id).populate() */
 function findByIdPopulateChain(resolvedValue) {
     return { populate: jest.fn().mockResolvedValue(resolvedValue) };
+}
+
+/** Patient.findOne({...}).select('+passwordHash') */
+function patientSelectChain(resolvedValue) {
+    return {
+        select: jest.fn().mockResolvedValue(resolvedValue),
+    };
 }
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
@@ -145,7 +174,7 @@ describe('Auth Routes', () => {
                 .send({ email: 'test@example.com' });
 
             expect(res.status).toBe(400);
-            expect(res.body.error).toMatch(/missing required fields/i);
+            expect(res.body.code).toBe('VALIDATION');
         });
 
 
@@ -156,7 +185,7 @@ describe('Auth Routes', () => {
 
             const res = await request(app)
                 .post('/api/auth/register')
-                .send({ email: 'dupe@careco.in', fullName: 'Test', password: 'Pass123', city: 'Hyderabad' });
+                .send({ email: 'dupe@careco.in', fullName: 'Test', password: 'Pass12345', city: 'Hyderabad' });
 
             expect(res.status).toBe(400);
             expect(res.body.code).toBe('EMAIL_ALREADY_EXISTS');
@@ -170,7 +199,7 @@ describe('Auth Routes', () => {
 
             const res = await request(app)
                 .post('/api/auth/register')
-                .send({ email: 'test@example.com', fullName: 'Test', password: 'Pass123', city: 'UnknownCity' });
+                .send({ email: 'test@example.com', fullName: 'Test', password: 'Pass12345', city: 'UnknownCity' });
 
             expect(res.status).toBe(400);
             expect(res.body.error).toMatch(/no active organisation/i);
@@ -188,7 +217,7 @@ describe('Auth Routes', () => {
 
             const res = await request(app)
                 .post('/api/auth/register')
-                .send({ email: 'test@example.com', fullName: 'Test', password: 'Pass123', city: 'Hyderabad' });
+                .send({ email: 'test@example.com', fullName: 'Test', password: 'Pass12345', city: 'Hyderabad' });
 
             expect(res.status).toBe(400);
             expect(res.body.error).toMatch(/capacity/i);
@@ -202,52 +231,45 @@ describe('Auth Routes', () => {
             Organization.findOne  = jest.fn().mockResolvedValue(org);
             Organization.findById = jest.fn().mockResolvedValue(org);
 
-            mockSupabase.auth.admin.createUser.mockResolvedValue({
-                data:  { user: { id: 'sup-uid-123', email: 'dupe@example.com' } },
-                error: null,
-            });
-
             const dupeError = Object.assign(new Error('Duplicate'), { code: 11000, keyValue: { email: 1 } });
             Patient.prototype.save = jest.fn().mockRejectedValue(dupeError);
 
             const res = await request(app)
                 .post('/api/auth/register')
-                .send({ email: 'dupe@example.com', fullName: 'Test', password: 'Pass123', city: 'Hyderabad' });
+                .send({ email: 'dupe@example.com', fullName: 'Test', password: 'Pass12345', city: 'Hyderabad' });
 
             expect(res.status).toBe(400);
-            expect(res.body.error).toMatch(/already exists/i);
+            expect(res.body.code).toBe('EMAIL_ALREADY_EXISTS');
         });
 
         it('registers successfully and creates Patient only (no Profile)', async () => {
+            const fixedSubject = '11111111-1111-1111-1111-111111111111';
+            jest.spyOn(crypto, 'randomUUID').mockReturnValue(fixedSubject);
+
             const org = mockOrganization({ _id: 'org123' });
             Patient.findOne                = jest.fn().mockResolvedValue(null);
             Organization.findOne          = jest.fn().mockResolvedValue(org);
             Organization.findById         = jest.fn().mockResolvedValue(org);
             Organization.findByIdAndUpdate = jest.fn().mockResolvedValue({});
 
-            mockSupabase.auth.admin.createUser.mockResolvedValue({
-                data:  { user: { id: 'sup-uid-123', email: 'new@example.com' } },
-                error: null,
-            });
-
             Patient.prototype._id  = 'patient-auto-id';
             Patient.prototype.save = jest.fn().mockResolvedValue({});
 
             const res = await request(app)
                 .post('/api/auth/register')
-                .send({ email: 'new@example.com', fullName: 'New User', password: 'Pass123', city: 'Hyderabad' });
+                .send({ email: 'new@example.com', fullName: 'New User', password: 'Pass12345', city: 'Hyderabad' });
 
             expect(res.status).toBe(201);
             expect(res.body.message).toBe('Registration successful');
+            expect(mockSupabase.auth.admin.createUser).not.toHaveBeenCalled();
             expect(Patient.prototype.save).toHaveBeenCalled();
-            // Profile should NOT be created
             expect(Profile.prototype.save).not.toHaveBeenCalled();
             expect(Organization.findByIdAndUpdate).toHaveBeenCalledWith(
                 expect.anything(),
                 { $inc: { 'counts.patients': 1 } }
             );
             expect(logEvent).toHaveBeenCalledWith(
-                'sup-uid-123',
+                fixedSubject,
                 'patient_created',
                 'patient',
                 expect.anything(),
@@ -267,16 +289,16 @@ describe('Auth Routes', () => {
                 .send({ email: 'test@example.com' });
 
             expect(res.status).toBe(400);
-            expect(res.body.error).toMatch(/email and password are required/i);
+            expect(res.body.code).toBe('VALIDATION');
         });
 
         it('returns 400 when role is missing', async () => {
             const res = await request(app)
                 .post('/api/auth/login')
-                .send({ email: 'test@example.com', password: 'Pass123' });
+                .send({ email: 'test@example.com', password: 'Pass12345' });
 
             expect(res.status).toBe(400);
-            expect(res.body.error).toMatch(/select a role/i);
+            expect(res.body.code).toBe('VALIDATION');
         });
 
         it('returns 403 with ROLE_MISMATCH when email exists under a different role', async () => {
@@ -289,18 +311,18 @@ describe('Auth Routes', () => {
 
             const res = await request(app)
                 .post('/api/auth/login')
-                .send({ email: 'test@example.com', password: 'Pass123', role: 'caller' });
+                .send({ email: 'test@example.com', password: 'Pass12345', role: 'caller' });
 
             expect(res.status).toBe(403);
             expect(res.body.code).toBe('ROLE_MISMATCH');
         });
 
         it('returns 403 with PROFILE_NOT_FOUND when patient email does not exist', async () => {
-            Patient.findOne = jest.fn().mockResolvedValueOnce(null);
+            Patient.findOne = jest.fn().mockReturnValue(patientSelectChain(null));
 
             const res = await request(app)
                 .post('/api/auth/login')
-                .send({ email: 'ghost@example.com', password: 'Pass123', role: 'patient' });
+                .send({ email: 'ghost@example.com', password: 'Pass12345', role: 'patient' });
 
             expect(res.status).toBe(403);
             expect(res.body.code).toBe('PROFILE_NOT_FOUND');
@@ -339,16 +361,21 @@ describe('Auth Routes', () => {
 
             const res = await request(app)
                 .post('/api/auth/login')
-                .send({ email: 'caller@careco.in', password: 'Pass123', role: 'caller' });
+                .send({ email: 'caller@careco.in', password: 'Pass12345', role: 'caller' });
 
             expect(res.status).toBe(423);
             expect(res.body.code).toBe('ACCOUNT_LOCKED');
         });
 
         it('logs in patient successfully and returns session + profile', async () => {
-            const patient = mockPatient({ _id: 'patient123', email: 'patient@careco.in', failedLoginAttempts: 0 });
+            const patient = mockPatient({
+                _id:          'patient123',
+                email:        'patient@careco.in',
+                supabase_uid: 'sup-uid-pat-stable',
+                failedLoginAttempts: 0,
+            });
             Object.defineProperty(patient, 'isLocked', { get: () => false });
-            Patient.findOne = jest.fn().mockResolvedValue(patient);
+            Patient.findOne = jest.fn().mockReturnValue(patientSelectChain(patient));
 
             mockSupabase.auth.signInWithPassword.mockResolvedValue({
                 data: {
@@ -360,14 +387,14 @@ describe('Auth Routes', () => {
 
             const res = await request(app)
                 .post('/api/auth/login')
-                .send({ email: 'patient@careco.in', password: 'Pass123', role: 'patient' });
+                .send({ email: 'patient@careco.in', password: 'Pass12345', role: 'patient' });
 
             expect(res.status).toBe(200);
-            expect(res.body.session.access_token).toBe('acc-tok');
+            expect(res.body.session.access_token).toBe('mock-access-token');
             expect(res.body.profile.role).toBe('patient');
             expect(res.body.profile.subscription_status).toBe('active');
             expect(logEvent).toHaveBeenCalledWith(
-                'sup-uid-123',
+                'sup-uid-pat-stable',
                 'login',
                 'patient',
                 patient._id,
@@ -377,7 +404,7 @@ describe('Auth Routes', () => {
         });
 
         it('logs in staff successfully and returns session + profile', async () => {
-            const profile = mockProfile({ role: 'caller', failedLoginAttempts: 0 });
+            const profile = mockProfile({ role: 'caller', supabaseUid: 'sup-uid-123', failedLoginAttempts: 0 });
             Object.defineProperty(profile, 'isLocked', { get: () => false });
             Profile.findOne = jest.fn().mockReturnValue(findOnePopulateChain(profile));
 
@@ -391,10 +418,10 @@ describe('Auth Routes', () => {
 
             const res = await request(app)
                 .post('/api/auth/login')
-                .send({ email: 'caller@careco.in', password: 'Pass123', role: 'caller' });
+                .send({ email: 'caller@careco.in', password: 'Pass12345', role: 'caller' });
 
             expect(res.status).toBe(200);
-            expect(res.body.session.access_token).toBe('acc-tok');
+            expect(res.body.session.access_token).toBe('mock-access-token');
             expect(res.body.profile.role).toBe('caller');
             expect(logEvent).toHaveBeenCalledWith(
                 'sup-uid-123',
@@ -419,17 +446,15 @@ describe('Auth Routes', () => {
             expect(res.status).toBe(401);
         });
 
-        it('logs out successfully and signs out Supabase session', async () => {
+        it('logs out successfully and revokes refresh tokens', async () => {
             const profile = mockProfile({ _id: 'profile123', supabaseUid: 'sup-uid-123' });
             mockAuthState.user    = { id: 'sup-uid-123' };
             mockAuthState.profile = profile;
 
-            mockSupabase.auth.admin.signOut.mockResolvedValue({ error: null });
-
             const res = await request(app).post('/api/auth/logout');
 
             expect(res.status).toBe(200);
-            expect(mockSupabase.auth.admin.signOut).toHaveBeenCalledWith('sup-uid-123', 'global');
+            expect(tokenService.revokeAllForUser).toHaveBeenCalledWith(profile._id, 'Profile');
             expect(logEvent).toHaveBeenCalledWith(
                 'sup-uid-123',
                 'logout',
@@ -450,14 +475,11 @@ describe('Auth Routes', () => {
                 .send({});
 
             expect(res.status).toBe(400);
-            expect(res.body.error).toMatch(/refresh token is required/i);
+            expect(res.body.code).toBe('VALIDATION');
         });
 
-        it('returns 401 when Supabase rejects the refresh token', async () => {
-            mockSupabase.auth.refreshSession.mockResolvedValue({
-                data:  null,
-                error: { message: 'Invalid refresh token' },
-            });
+        it('returns 401 when refresh token document is not found', async () => {
+            RefreshToken.findOne.mockResolvedValue(null);
 
             const res = await request(app)
                 .post('/api/auth/refresh')
@@ -468,37 +490,37 @@ describe('Auth Routes', () => {
         });
 
         it('returns new tokens and profile on successful refresh', async () => {
-            mockSupabase.auth.refreshSession.mockResolvedValue({
-                data: {
-                    user:    { id: 'sup-uid-123', email: 'staff@careco.in' },
-                    session: { access_token: 'new-acc', refresh_token: 'new-ref', expires_in: 3600 },
-                },
-                error: null,
-            });
-
             const profile = mockProfile({ _id: 'profile123', supabaseUid: 'sup-uid-123' });
-            Profile.findOne = jest.fn().mockReturnValue(findOnePopulateChain(profile));
+            const doc = {
+                userId:    profile._id,
+                userType:  'Profile',
+                revokedAt: null,
+                save:      jest.fn().mockResolvedValue(undefined),
+            };
+            RefreshToken.findOne.mockResolvedValue(doc);
+            Profile.findById = jest.fn().mockReturnValue(findByIdPopulateChain(profile));
 
             const res = await request(app)
                 .post('/api/auth/refresh')
                 .send({ refresh_token: 'valid-refresh-token' });
 
             expect(res.status).toBe(200);
-            expect(res.body.session.access_token).toBe('new-acc');
+            expect(res.body.session.access_token).toBe('mock-access-token');
             expect(res.body.profile.role).toBe(profile.role);
+            expect(doc.save).toHaveBeenCalled();
         });
 
-        it('returns 403 when refreshed user has no profile or patient', async () => {
-            mockSupabase.auth.refreshSession.mockResolvedValue({
-                data: {
-                    user:    { id: 'sup-uid-orphan' },
-                    session: { access_token: 'tok', refresh_token: 'ref', expires_in: 3600 },
-                },
-                error: null,
+        it('returns 403 when account no longer exists', async () => {
+            const doc = {
+                userId:    'deleted-profile-id',
+                userType:  'Profile',
+                revokedAt: null,
+                save:      jest.fn().mockResolvedValue(undefined),
+            };
+            RefreshToken.findOne.mockResolvedValue(doc);
+            Profile.findById = jest.fn().mockReturnValue({
+                populate: jest.fn().mockResolvedValue(null),
             });
-
-            Profile.findOne = jest.fn().mockReturnValue(findOnePopulateChain(null));
-            Patient.findOne = jest.fn().mockResolvedValue(null);
 
             const res = await request(app)
                 .post('/api/auth/refresh')
@@ -552,12 +574,14 @@ describe('Auth Routes', () => {
 
     describe('POST /api/auth/create-user', () => {
 
+        const testOrgId = '507f1f77bcf86cd799439011';
+
         beforeEach(() => {
             mockAuthState.profile = {
                 _id:            'admin123',
                 supabaseUid:    'admin-user',
                 role:           'org_admin',
-                organizationId: 'org123',
+                organizationId: testOrgId,
             };
         });
 
@@ -567,7 +591,7 @@ describe('Auth Routes', () => {
                 .send({ email: 'new@careco.in' });
 
             expect(res.status).toBe(400);
-            expect(res.body.error).toMatch(/missing required fields/i);
+            expect(res.body.code).toBe('VALIDATION');
         });
 
         it('returns 403 when role hierarchy is violated (org_admin cannot create org_admin)', async () => {
@@ -581,6 +605,7 @@ describe('Auth Routes', () => {
 
         it('returns 400 when org is at caller capacity', async () => {
             const org = mockOrganization({
+                _id:    testOrgId,
                 counts: { patients: 0, callers: 50, managers: 0 },
                 limits: { max_patients: 500, max_callers: 50, max_managers: 10 },
             });
@@ -588,29 +613,25 @@ describe('Auth Routes', () => {
 
             const res = await request(app)
                 .post('/api/auth/create-user')
-                .send({ email: 'new@careco.in', fullName: 'New Caller', role: 'caller', organizationId: 'org123' });
+                .send({ email: 'new@careco.in', fullName: 'New Caller', role: 'caller', organizationId: testOrgId });
 
             expect(res.status).toBe(400);
             expect(res.body.code).toBe('CAPACITY_LIMIT_REACHED');
         });
 
         it('creates caller successfully and sends temp password email', async () => {
-            const org = mockOrganization({ _id: 'org123' });
+            const org = mockOrganization({ _id: testOrgId });
             Organization.findById          = jest.fn().mockResolvedValue(org);
             Organization.findByIdAndUpdate = jest.fn().mockResolvedValue({});
             Profile.findOne                = jest.fn().mockResolvedValue(null);
             Profile.prototype.save         = jest.fn().mockResolvedValue({});
 
-            mockSupabase.auth.admin.createUser.mockResolvedValue({
-                data:  { user: { id: 'sup-uid-new' } },
-                error: null,
-            });
-
             const res = await request(app)
                 .post('/api/auth/create-user')
-                .send({ email: 'newcaller@careco.in', fullName: 'New Caller', role: 'caller', organizationId: 'org123' });
+                .send({ email: 'newcaller@careco.in', fullName: 'New Caller', role: 'caller', organizationId: testOrgId });
 
             expect(res.status).toBe(201);
+            expect(mockSupabase.auth.admin.createUser).not.toHaveBeenCalled();
             expect(sendTempPasswordEmail).toHaveBeenCalled();
             expect(Organization.findByIdAndUpdate).toHaveBeenCalledWith(
                 expect.anything(),

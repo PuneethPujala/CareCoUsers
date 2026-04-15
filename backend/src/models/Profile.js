@@ -2,11 +2,17 @@ const mongoose = require('mongoose');
 
 const ProfileSchema = new mongoose.Schema(
   {
+    /** Stable auth subject (legacy Supabase UUID or server-issued UUID for local auth) */
     supabaseUid: {
       type: String,
       required: true,
       unique: true,
       index: true,
+    },
+    /** Local auth credential (never returned in JSON) */
+    passwordHash: {
+      type: String,
+      select: false,
     },
     email: {
       type: String,
@@ -119,6 +125,7 @@ const ProfileSchema = new mongoose.Schema(
       transform: function (doc, ret) {
         // Never expose sensitive fields
         delete ret.passwordHistory;
+        delete ret.passwordHash;
         delete ret.failedLoginAttempts;
         delete ret.accountLockedUntil;
         return ret;

@@ -1,13 +1,18 @@
 import axios from 'axios';
 import { supabase } from './supabase';
+import { getApiTokens, saveApiTokens, clearApiTokens } from './tokenStorage';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000/api';
 
+/** Plain client for refresh calls — avoids interceptor recursion */
+const rawApi = axios.create({
+    baseURL: API_BASE_URL,
+    timeout: 20000,
+    headers: { 'Content-Type': 'application/json' },
+});
+
 // Public endpoints that don't need auth headers
-const PUBLIC_ENDPOINTS = [
-    '/users/patients/cities',
-    '/users/patients/location/reverse',
-];
+const PUBLIC_ENDPOINTS = ['/users/patients/cities', '/users/patients/location/reverse'];
 
 const api = axios.create({
     baseURL: API_BASE_URL,
@@ -19,7 +24,6 @@ const api = axios.create({
     },
 });
 
-// ─── §9 FIX: Token refresh queue to prevent parallel refreshes ─────────────
 let isRefreshing = false;
 let failedQueue = [];
 
@@ -31,32 +35,60 @@ const processQueue = (error, token = null) => {
     failedQueue = [];
 };
 
-// ─── Request Interceptor: Proactive Token Refresh ───────────
+/**
+ * Prefer CareConnect JWTs; fall back to Supabase (e.g. Google sign-in).
+ */
+async function getAccessTokenForRequest() {
+    const apiTok = await getApiTokens();
+    if (apiTok?.access_token) {
+        const exp = apiTok.expires_at;
+        const nowSec = Math.floor(Date.now() / 1000);
+        const timeLeft = exp ? exp - nowSec : Infinity;
+        if (timeLeft < 90 && apiTok.refresh_token) {
+            try {
+                const { data } = await rawApi.post('/auth/refresh', {
+                    refresh_token: apiTok.refresh_token,
+                });
+                const s = data.session;
+                await saveApiTokens({
+                    access_token: s.access_token,
+                    refresh_token: s.refresh_token,
+                    expires_at: s.expires_at,
+                });
+                return s.access_token;
+            } catch (e) {
+                console.warn('[API] CareConnect proactive refresh failed:', e.message);
+            }
+        }
+        return apiTok.access_token;
+    }
+
+    const {
+        data: { session },
+    } = await supabase.auth.getSession();
+    if (session) {
+        const expiresAt = session.expires_at;
+        const timeRemaining = expiresAt ? expiresAt - Math.floor(Date.now() / 1000) : Infinity;
+        if (timeRemaining < 60) {
+            try {
+                const { data } = await supabase.auth.refreshSession();
+                return data?.session?.access_token || session.access_token;
+            } catch (e) {
+                console.warn('[API] Supabase proactive refresh failed:', e.message);
+            }
+        }
+        return session.access_token;
+    }
+    return null;
+}
+
 api.interceptors.request.use(async (config) => {
     try {
         const isPublic = PUBLIC_ENDPOINTS.some((ep) => config.url?.includes(ep));
         if (!isPublic) {
-            let {
-                data: { session },
-            } = await supabase.auth.getSession();
-            
-            if (session) {
-                const expiresAt = session.expires_at;
-                const timeRemaining = expiresAt ? expiresAt - Math.floor(Date.now() / 1000) : Infinity;
-                
-                // Proactive refresh if token expires in less than 60 seconds
-                if (timeRemaining < 60) {
-                    try {
-                        const { data } = await supabase.auth.refreshSession();
-                        session = data?.session || session;
-                    } catch (e) {
-                        console.warn('[API] Proactive refresh failed:', e.message);
-                    }
-                }
-            }
-
-            if (session?.access_token) {
-                config.headers.Authorization = `Bearer ${session.access_token}`;
+            const token = await getAccessTokenForRequest();
+            if (token) {
+                config.headers.Authorization = `Bearer ${token}`;
             }
         }
         config.metadata = { startTime: new Date() };
@@ -66,7 +98,6 @@ api.interceptors.request.use(async (config) => {
     }
 });
 
-// ─── Response Interceptor: 401 queue, 429, 500+, timeout, network ──────────
 api.interceptors.response.use(
     (response) => response,
     async (error) => {
@@ -74,10 +105,8 @@ api.interceptors.response.use(
         const url = req?.url || '';
         const isAuth = url.includes('/auth/');
 
-        // ── 401: Token refresh with queue ───────────────────────────
         if (error.response?.status === 401 && !req._retry && !isAuth) {
             if (isRefreshing) {
-                // Queue this request until refresh completes
                 return new Promise((resolve, reject) => {
                     failedQueue.push({ resolve, reject });
                 })
@@ -92,6 +121,26 @@ api.interceptors.response.use(
             isRefreshing = true;
 
             try {
+                const apiTok = await getApiTokens();
+                if (apiTok?.refresh_token) {
+                    try {
+                        const { data } = await rawApi.post('/auth/refresh', {
+                            refresh_token: apiTok.refresh_token,
+                        });
+                        const s = data.session;
+                        await saveApiTokens({
+                            access_token: s.access_token,
+                            refresh_token: s.refresh_token,
+                            expires_at: s.expires_at,
+                        });
+                        processQueue(null, s.access_token);
+                        req.headers.Authorization = `Bearer ${s.access_token}`;
+                        return api(req);
+                    } catch {
+                        await clearApiTokens();
+                    }
+                }
+
                 const {
                     data: { session },
                 } = await supabase.auth.refreshSession();
@@ -102,30 +151,27 @@ api.interceptors.response.use(
                 }
             } catch (refreshError) {
                 processQueue(refreshError, null);
+                await clearApiTokens();
                 await supabase.auth.signOut();
             } finally {
                 isRefreshing = false;
             }
         }
 
-        // ── 429: Too Many Requests ──────────────────────────────────
         if (error.response?.status === 429) {
-            // Let the original error or response data flow through, 
-            // but attach retry-after for custom handling later if needed
             error.retryAfter = error.response.headers?.['retry-after'] || 60;
             return Promise.reject(error);
         }
 
-        // For all other errors (500+, Network, Timeout), pass the raw error to parseError downstream
         return Promise.reject(error);
     }
 );
 
-// ─── Users App API Service ──────────────────────────
 export const apiService = {
     auth: {
         login: (creds) => api.post('/auth/login', creds),
         register: (data) => api.post('/auth/register', data),
+        refresh: (refreshToken) => api.post('/auth/refresh', { refresh_token: refreshToken }),
         getProfile: (config) => api.get('/auth/me', config),
         updateProfile: (data) => api.put('/auth/me', data),
         updatePatientCity: (data) => api.put('/auth/patient-city', data),
@@ -137,7 +183,6 @@ export const apiService = {
         setPassword: (newPassword) => api.post('/auth/set-password', { newPassword }),
     },
 
-    // Patient-specific endpoints
     patients: {
         getCities: () => api.get('/users/patients/cities'),
         searchLocation: (query) => api.get(`/users/patients/location/search?q=${encodeURIComponent(query)}`),
@@ -165,7 +210,11 @@ export const apiService = {
         getMyCalls: (params) => api.get('/users/patients/me/calls', { params }),
         getMyMedications: () => api.get('/users/patients/me/medications'),
         flagIssue: (data) => api.post('/users/patients/me/flag-issue', data),
-        requestMedicationModification: (data) => api.post('/users/patients/me/flag-issue', { type: 'medication_modification', description: data?.description || 'Patient requests medication review/modification on next call.' }),
+        requestMedicationModification: (data) =>
+            api.post('/users/patients/me/flag-issue', {
+                type: 'medication_modification',
+                description: data?.description || 'Patient requests medication review/modification on next call.',
+            }),
         getPreviousCallers: () => api.get('/users/patients/me/previous-callers'),
         getVitals: (params) => api.get('/users/patients/me/vitals', { params }),
         logVitals: (data) => api.post('/users/patients/me/vitals', data),
@@ -176,12 +225,10 @@ export const apiService = {
         getNotifications: () => api.get('/users/patients/me/notifications'),
         markNotificationRead: (id) => api.put(`/users/patients/me/notifications/${id}/read`),
         getAIPrediction: () => api.get('/users/patients/me/ai-prediction'),
-        // Health Connect / HealthKit sync
         syncVitals: (data) => api.post('/vitals/sync', data),
         getSyncStatus: () => api.get('/vitals/sync/status'),
     },
 
-    // Caller-specific endpoints
     callers: {
         getMe: () => api.get('/users/callers/me'),
         getTodayPatients: () => api.get('/users/callers/me/patients/today'),
@@ -190,7 +237,6 @@ export const apiService = {
         getStats: () => api.get('/users/callers/me/stats'),
     },
 
-    // Medicine tracking
     medicines: {
         getToday: () => api.get('/users/medicines/today'),
         markMedicine: (data) => api.put('/users/medicines/mark', data),
@@ -210,4 +256,5 @@ export const handleApiError = (error) => {
     };
 };
 
+export { clearApiTokens, saveApiTokens, getApiTokens };
 export default api;

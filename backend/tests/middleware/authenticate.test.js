@@ -1,3 +1,5 @@
+process.env.AUTH_ENABLE_SUPABASE_FALLBACK = 'true';
+
 /**
  * Tests for src/middleware/authenticate.js
  *

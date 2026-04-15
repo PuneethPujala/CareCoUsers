@@ -2,6 +2,11 @@ const mongoose = require('mongoose');
 const RolePermission = require('../models/RolePermission');
 const AuditLog = require('../models/AuditLog');
 
+function auditUid(profile) {
+  if (!profile) return 'anonymous';
+  return profile.supabaseUid || profile.supabase_uid || 'anonymous';
+}
+
 /**
  * Authorization middleware factory - checks if current user's role has permission
  * for a given resource + action combination.
@@ -39,7 +44,7 @@ const authorize = (resource, action, options = {}) => {
         // Log authorization failure if enabled
         if (logFailures) {
           await AuditLog.createLog({
-            supabaseUid: req.profile.supabaseUid,
+            supabaseUid: auditUid(req.profile),
             action: 'permission_denied',
             resourceType: resource,
             ipAddress: req.ip,
@@ -66,7 +71,7 @@ const authorize = (resource, action, options = {}) => {
       // Log successful authorization for sensitive operations
       if (['create', 'update', 'delete', 'assign', 'revoke'].includes(action)) {
         await AuditLog.createLog({
-          supabaseUid: req.profile.supabaseUid,
+          supabaseUid: auditUid(req.profile),
           action: `${action}_authorized`,
           resourceType: resource,
           ipAddress: req.ip,
@@ -86,7 +91,7 @@ const authorize = (resource, action, options = {}) => {
 
       // Log system error
       await AuditLog.createLog({
-        supabaseUid: req.profile?.supabaseUid || 'anonymous',
+        supabaseUid: auditUid(req.profile),
         action: 'authorization_error',
         resourceType: 'system',
         ipAddress: req.ip,
@@ -147,7 +152,7 @@ const authorizeAny = (permissions, options = {}) => {
       if (!hasAnyPermission) {
         if (logFailures) {
           await AuditLog.createLog({
-            supabaseUid: req.profile.supabaseUid,
+            supabaseUid: auditUid(req.profile),
             action: 'permission_denied',
             resourceType: 'system',
             ipAddress: req.ip,
@@ -172,7 +177,7 @@ const authorizeAny = (permissions, options = {}) => {
 
       // Log successful authorization
       await AuditLog.createLog({
-        supabaseUid: req.profile.supabaseUid,
+        supabaseUid: auditUid(req.profile),
         action: `${grantedPermission.action}_authorized`,
         resourceType: grantedPermission.resource,
         ipAddress: req.ip,
@@ -233,7 +238,7 @@ const authorizeAll = (permissions, options = {}) => {
 
         if (logFailures) {
           await AuditLog.createLog({
-            supabaseUid: req.profile.supabaseUid,
+            supabaseUid: auditUid(req.profile),
             action: 'permission_denied',
             resourceType: 'system',
             ipAddress: req.ip,
@@ -260,7 +265,7 @@ const authorizeAll = (permissions, options = {}) => {
 
       // Log successful authorization
       await AuditLog.createLog({
-        supabaseUid: req.profile.supabaseUid,
+        supabaseUid: auditUid(req.profile),
         action: 'multiple_actions_authorized',
         resourceType: 'system',
         ipAddress: req.ip,

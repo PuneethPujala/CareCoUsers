@@ -68,7 +68,7 @@ function mockPatient(overrides = {}) {
         accountLockedUntil:  overrides.accountLockedUntil  || null,
         isLocked:            overrides.isLocked            !== undefined ? overrides.isLocked : false,
         // Mongoose instance methods used by routes
-        resetFailedLogin:    jest.fn().mockResolvedValue(true),
+        resetFailedLogin:     jest.fn().mockResolvedValue(true),
         incrementFailedLogin: jest.fn().mockResolvedValue(true),
         save:   jest.fn().mockResolvedValue(true),
         toJSON: function () {
@@ -162,7 +162,8 @@ function mockProfile(overrides = {}) {
         isLocked:       false,
         passwordHistory: overrides.passwordHistory || [],
         // Mongoose instance methods used by middleware/routes
-        resetFailedLogin: jest.fn().mockResolvedValue(true),
+        resetFailedLogin:    jest.fn().mockResolvedValue(true),
+        incrementFailedLogin: jest.fn().mockResolvedValue(true),
         save:             jest.fn().mockResolvedValue(true),
         toJSON: function () {
             const { save, toJSON, resetFailedLogin, ...rest } = this;

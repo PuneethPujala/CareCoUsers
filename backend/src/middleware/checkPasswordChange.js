@@ -9,6 +9,7 @@ const checkPasswordChange = (req, res, next) => {
         '/api/auth/change-password',
         '/api/auth/me',
         '/api/auth/logout',
+        '/api/auth/refresh',
     ];
 
     // Use req.originalUrl which always has the full path (req.path is relative inside routers)
