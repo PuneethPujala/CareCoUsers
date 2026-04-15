@@ -31,6 +31,10 @@ const MedicineLogSchema = new mongoose.Schema(
                     enum: ['patient', 'caller', 'system'],
                     default: 'patient',
                 },
+                is_active: {
+                    type: Boolean,
+                    default: true,
+                },
             },
         ],
     },

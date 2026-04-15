@@ -458,8 +458,29 @@ router.put('/me/conditions', authenticateSession, updateProfileArray('conditions
 router.put('/me/allergies', authenticateSession, updateProfileArray('allergies'));
 router.put('/me/vaccinations', authenticateSession, updateProfileArray('vaccinations'));
 router.put('/me/appointments', authenticateSession, updateProfileArray('appointments'));
-router.put('/me/medications', authenticateSession, updateProfileArray('medications'));
 router.put('/me/medical-history', authenticateSession, updateProfileArray('medical_history'));
+
+/**
+ * POST /api/users/patients/me/prescriptions
+ * Uploads a securely backed prescription file URL from the client
+ */
+router.post('/me/prescriptions', authenticateSession, async (req, res) => {
+    try {
+        const { file_url, file_name } = req.body;
+        if (!file_url) return res.status(400).json({ error: 'file_url is required' });
+
+        const patient = await Patient.findOne({ supabase_uid: req.user.id });
+        if (!patient) return res.status(404).json({ error: 'Patient not found' });
+
+        patient.uploaded_prescriptions.push({ file_url, file_name });
+        await patient.save();
+
+        res.status(201).json({ message: 'Prescription uploaded successfully', uploaded_prescriptions: patient.uploaded_prescriptions });
+    } catch (err) {
+        console.error('Upload prescription error:', err);
+        res.status(500).json({ error: 'Server Error' });
+    }
+});
 
 router.put('/me/lifestyle', authenticateSession, async (req, res) => {
     try {

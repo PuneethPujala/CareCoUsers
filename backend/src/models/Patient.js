@@ -225,6 +225,16 @@ const PatientSchema = new mongoose.Schema(
                 instructions: String,
             },
         ],
+        uploaded_prescriptions: [
+            {
+                file_url: { type: String, required: true },
+                file_name: String,
+                status: { type: String, enum: ['pending', 'reviewed', 'rejected'], default: 'pending' },
+                uploaded_at: { type: Date, default: Date.now },
+                reviewed_by: String,
+                reviewer_notes: String,
+            }
+        ],
         emergency_contact: {
             name: { type: String, trim: true },
             phone: { type: String, trim: true },

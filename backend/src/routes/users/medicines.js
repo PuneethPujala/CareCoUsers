@@ -51,6 +51,7 @@ router.get('/today', authenticate, async (req, res) => {
         const preferences = patient.medication_call_preferences || { morning: '09:00', afternoon: '14:00', night: '20:00' };
         
         if (logObj.medicines) {
+            logObj.medicines = logObj.medicines.filter(m => m.is_active !== false);
             logObj.medicines = logObj.medicines.map(m => {
                 const patMed = patient.medications?.find(p => p.name === m.medicine_name);
                 return {

@@ -227,6 +227,89 @@ router.get('/me/patients/:patientId', authenticate, async (req, res) => {
 });
 
 /**
+ * PATCH /api/users/callers/me/patients/:patientId/medications
+ * Caller updates a patient's medication list
+ */
+router.patch('/me/patients/:patientId/medications', authenticate, async (req, res) => {
+    try {
+        const caller = await Caller.findOne({ supabase_uid: req.user.id });
+        if (!caller) return res.status(404).json({ error: 'Caller profile not found' });
+
+        const { patientId } = req.params;
+        if (!caller.patient_ids.map(String).includes(patientId)) {
+            return res.status(403).json({ error: 'Patient not assigned to you' });
+        }
+
+        const { medications } = req.body;
+        if (!Array.isArray(medications)) {
+            return res.status(400).json({ error: 'Medications must be an array' });
+        }
+
+        const patient = await Patient.findById(patientId);
+        if (!patient) return res.status(404).json({ error: 'Patient not found' });
+
+        // Update core patient profile
+        patient.medications = medications;
+        await patient.save();
+
+        // Safely synchronize today's MedicineLog
+        const MedicineLog = require('../../models/MedicineLog');
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+
+        const log = await MedicineLog.findOne({
+            patient_id: patientId,
+            date: { $gte: today, $lt: tomorrow }
+        });
+
+        if (log) {
+            // Log exists, sync it
+            const activeProfileMeds = new Map();
+            medications.forEach(med => {
+                if (med.is_active !== false && med.times) {
+                    med.times.forEach(time => {
+                        const VALID_TIMES = ['morning', 'afternoon', 'evening', 'night', 'as_needed'];
+                        const mTime = VALID_TIMES.includes(time) ? time : 'morning';
+                        activeProfileMeds.set(`${med.name}_${mTime}`, { name: med.name, time: mTime });
+                    });
+                }
+            });
+
+            // Mark old/removed medications as inactive
+            log.medicines.forEach(logMed => {
+                const key = `${logMed.medicine_name}_${logMed.scheduled_time}`;
+                if (!activeProfileMeds.has(key)) {
+                    logMed.is_active = false;
+                } else {
+                    logMed.is_active = true;
+                    // Remove from our active map so we only process completely NEW ones next
+                    activeProfileMeds.delete(key);
+                }
+            });
+
+            // Add newly added medications
+            activeProfileMeds.forEach(({ name, time }) => {
+                log.medicines.push({
+                    medicine_name: name,
+                    scheduled_time: time,
+                    taken: false,
+                    is_active: true
+                });
+            });
+
+            await log.save();
+        }
+
+        res.json({ message: 'Medications updated successfully', medications: patient.medications });
+    } catch (error) {
+        console.error('Update medications error:', error);
+        res.status(500).json({ error: 'Failed to update medications' });
+    }
+});
+
+/**
  * GET /api/users/callers/me/stats
  * Caller reads their performance stats
  */

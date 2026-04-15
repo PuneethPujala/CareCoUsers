@@ -198,8 +198,8 @@ export const apiService = {
         updateLifestyle: (data) => api.put('/users/patients/me/lifestyle', data),
         updateVaccinations: (data) => api.put('/users/patients/me/vaccinations', data),
         updateAppointments: (data) => api.put('/users/patients/me/appointments', data),
-        updateMedications: (data) => api.put('/users/patients/me/medications', data),
         updateMedicalHistory: (data) => api.put('/users/patients/me/medical-history', data),
+        uploadPrescription: (data) => api.post('/users/patients/me/prescriptions', data),
         updatePrimaryDoctor: (data) => api.put('/users/patients/me/primary-doctor', data),
         deleteHealthItem: (collection, id) => api.delete(`/users/patients/me/${collection}/${id}`),
         updateCallPreferences: (data) => api.put('/users/patients/me/call-preferences', data),
@@ -234,6 +234,7 @@ export const apiService = {
         getTodayPatients: () => api.get('/users/callers/me/patients/today'),
         logCall: (data) => api.post('/users/callers/me/calls', data),
         getPatientProfile: (id) => api.get(`/users/callers/me/patients/${id}`),
+        updatePatientMedications: (id, medications) => api.patch(`/users/callers/me/patients/${id}/medications`, { medications }),
         getStats: () => api.get('/users/callers/me/stats'),
     },
 

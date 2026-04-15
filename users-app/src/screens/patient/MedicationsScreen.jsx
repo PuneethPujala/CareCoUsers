@@ -6,6 +6,10 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Circle as SvgCircle, Defs, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg';
 import { colors } from '../../theme';
 import { apiService } from '../../lib/api';
+import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
+import { supabase } from '../../lib/supabase';
+import { Upload } from 'lucide-react-native';
 
 const { width } = Dimensions.get('window');
 
@@ -323,6 +327,7 @@ export default function MedicationsScreen({ navigation }) {
     const [activePicker, setActivePicker] = useState(null);
     const [requestingMod, setRequestingMod] = useState(false);
     const [modRequested, setModRequested] = useState(false);
+    const [uploadingImage, setUploadingImage] = useState(false);
 
     // Confirmation & Optimistic UI State
     const [confirmingMed, setConfirmingMed] = useState(null);
@@ -330,6 +335,7 @@ export default function MedicationsScreen({ navigation }) {
 
     const staggerAnims = useRef([...Array(10)].map(() => new Animated.Value(0))).current;
     const lastFetchRef = useRef(0);
+    const optimisticMedsRef = useRef({});
 
     const runAnimations = useCallback(() => {
         staggerAnims.forEach(anim => anim.setValue(0));
@@ -361,20 +367,51 @@ export default function MedicationsScreen({ navigation }) {
                 const markedMeds = todayRes.data.log?.medicines || [];
                 const profileMeds = pRes.data.patient?.medications || [];
 
-                // Merge: Baseline from profile + status from today's log
-                const mergedMeds = profileMeds.map(pm => {
-                    const marked = markedMeds.find(mm => mm.medicine_name === pm.name && mm.scheduled_time === pm.type);
-                    return {
-                        id: `${pm.name}_${pm.type}`,
-                        name: pm.name,
-                        dosage: pm.dosage || (pm.type === 'morning' ? '500mg' : pm.type === 'afternoon' ? '5mg' : '10mg'),
-                        instructions: pm.instructions || (pm.type === 'morning' ? 'Take with food' : pm.type === 'afternoon' ? 'Take after lunch' : 'Take before sleep'),
-                        type: pm.type,
-                        taken: marked ? marked.taken : false,
-                        marked_by: marked ? marked.marked_by : null,
-                        accent: ACCENT_MAP[pm.type] || '#6366F1',
-                        scheduled_times: pm.scheduledTimes || [],
-                    };
+                // Merge: Unroll profile medications by their 'times' array (morning, afternoon, night)
+                const mergedMeds = [];
+                
+                profileMeds.forEach(pm => {
+                    // If times is missing but scheduledTimes exists, infer the times
+                    let timeTypes = pm.times && pm.times.length > 0 ? pm.times : [];
+                    if (timeTypes.length === 0 && pm.scheduledTimes && pm.scheduledTimes.length > 0) {
+                        pm.scheduledTimes.forEach(st => {
+                            const hr = parseInt(st.split(':')[0], 10);
+                            if (hr < 12 && !timeTypes.includes('morning')) timeTypes.push('morning');
+                            else if (hr >= 12 && hr < 17 && !timeTypes.includes('afternoon')) timeTypes.push('afternoon');
+                            else if (hr >= 17 && !timeTypes.includes('night')) timeTypes.push('night');
+                        });
+                    }
+                    
+                    timeTypes.forEach(type => {
+                        const id = `${pm.name}_${type}`;
+                        const optTs = optimisticMedsRef.current[id];
+                        let isTaken = false;
+                        
+                        const marked = markedMeds.find(mm => mm.medicine_name === pm.name && mm.scheduled_time === type);
+                        if (marked) isTaken = marked.taken;
+
+                        if (optTs) {
+                            if (isTaken) {
+                                delete optimisticMedsRef.current[id];
+                            } else if (Date.now() - optTs < 60000) {
+                                isTaken = true;
+                            } else {
+                                delete optimisticMedsRef.current[id];
+                            }
+                        }
+
+                        mergedMeds.push({
+                            id,
+                            name: pm.name,
+                            dosage: pm.dosage || (type === 'morning' ? '500mg' : type === 'afternoon' ? '5mg' : '10mg'),
+                            instructions: pm.instructions || (type === 'morning' ? 'Take with food' : type === 'afternoon' ? 'Take after lunch' : 'Take before sleep'),
+                            type: type,
+                            taken: isTaken,
+                            marked_by: marked ? marked.marked_by : null,
+                            accent: ACCENT_MAP[type] || '#6366F1',
+                            scheduled_times: pm.scheduledTimes || [],
+                        });
+                    });
                 });
 
                 // Fallback for any meds in log not in profile (edge case)
@@ -441,6 +478,7 @@ export default function MedicationsScreen({ navigation }) {
     useEffect(() => {
         const medsSub = DeviceEventEmitter.addListener('MEDS_UPDATED', (payload) => {
             if (payload && payload.id) {
+                optimisticMedsRef.current[payload.id] = Date.now();
                 // Optimistically update
                 setSchedule(prev => {
                     const next = { ...prev };
@@ -502,6 +540,8 @@ export default function MedicationsScreen({ navigation }) {
             return d;
         }));
 
+        optimisticMedsRef.current[med.id] = Date.now();
+
         // 3. Fire API call
         try {
             await apiService.medicines.markMedicine({ 
@@ -509,7 +549,7 @@ export default function MedicationsScreen({ navigation }) {
                 scheduled_time: med.type, 
                 taken: targetTaken 
             });
-            DeviceEventEmitter.emit('MEDS_UPDATED');
+            DeviceEventEmitter.emit('MEDS_UPDATED', { id: med.id, type: med.type, taken: targetTaken });
         } catch (err) {
             console.warn('[Optimistic] Mark failed, rolling back:', err.message);
             // ROLLBACK
@@ -561,6 +601,69 @@ export default function MedicationsScreen({ navigation }) {
             </LinearGradient>
         );
     }
+
+    const handleUploadPrescription = async () => {
+        try {
+            const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+            if (status !== 'granted') {
+                if (Platform.OS === 'web') window.alert('Permission needed to upload prescriptions.');
+                else Alert.alert('Permission needed', 'Sorry, we need camera roll permissions to make this work!');
+                return;
+            }
+
+            const result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsEditing: true,
+                quality: 0.8,
+            });
+
+            if (!result.canceled && result.assets[0]) {
+                setUploadingImage(true);
+                const asset = result.assets[0];
+                const ext = 'jpg'; // Manipulation forces it to JPEG standard
+                
+                // Privacy & Scaling logic: Store inside a folder named by their UUID, 
+                // and give the file a random hash instead of identifiable details.
+                const randomHash = Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
+                const fileName = `${patient.supabase_uid}/${randomHash}.${ext}`;
+
+                // --- FRONTEND COMPRESSION ---
+                // Resize image to max 1200px width and compress quality by 30% to crush file size
+                const manipResult = await ImageManipulator.manipulateAsync(
+                    asset.uri,
+                    [{ resize: { width: 1200 } }], 
+                    { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
+                );
+
+                const response = await fetch(manipResult.uri);
+                const blob = await response.blob();
+
+                // Double check size mapping bounds for safety before sending
+                if (blob.size > 3 * 1024 * 1024) throw new Error("Image too large even after compression.");
+
+                const { data, error } = await supabase.storage
+                    .from('prescriptions')
+                    .upload(fileName, blob, { contentType: `image/${ext}` });
+
+                if (error) throw error;
+
+                const publicUrl = supabase.storage.from('prescriptions').getPublicUrl(fileName).data.publicUrl;
+
+                await apiService.patients.uploadPrescription({ file_url: publicUrl, file_name: fileName });
+                
+                if (Platform.OS === 'web') window.alert('Success: Prescription securely uploaded for caregiver review.');
+                else Alert.alert('Success', 'Prescription securely uploaded for caregiver review.');
+                
+                loadMedicinesData(true);
+            }
+        } catch (error) {
+            console.error('Upload Error:', error);
+            if (Platform.OS === 'web') window.alert('Upload Failed: There was an issue uploading your file.');
+            else Alert.alert('Upload Failed', 'There was an issue uploading your file. Ensure your connection is stable.');
+        } finally {
+            setUploadingImage(false);
+        }
+    };
 
     return (
         <LinearGradient colors={['#F8FAFC', '#EEF2FF']} style={styles.container}>
@@ -631,6 +734,44 @@ export default function MedicationsScreen({ navigation }) {
                                 </>
                             )}
                         </Pressable>
+
+                        {/* Direct Prescription Upload in Empty State */}
+                        <Pressable 
+                            style={[styles.requestModifyBtn, { marginTop: 12, width: '100%', backgroundColor: '#FFF', borderColor: '#D1D5DB' }]} 
+                            disabled={uploadingImage}
+                            onPress={handleUploadPrescription}
+                        >
+                            {uploadingImage ? (
+                                <ActivityIndicator size="small" color="#10B981" />
+                            ) : (
+                                <>
+                                    <Upload size={18} color="#10B981" strokeWidth={2.5} />
+                                    <Text style={[styles.requestModifyTxt, { color: '#10B981' }]}>Upload Physical Prescription</Text>
+                                </>
+                            )}
+                        </Pressable>
+
+                        {patient?.uploaded_prescriptions?.length > 0 && (
+                            <View style={{ marginTop: 24, width: '100%' }}>
+                                <Text style={{ fontFamily: 'Inter_600SemiBold', fontSize: 13, color: '#64748B', marginBottom: 8 }}>RECENT UPLOADS</Text>
+                                {patient.uploaded_prescriptions.map((upload, idx) => (
+                                    <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 12, backgroundColor: '#FFF', borderRadius: 12, marginBottom: 8, borderWidth: 1, borderColor: '#F1F5F9' }}>
+                                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                            <View style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: upload.status === 'reviewed' ? '#DCFCE7' : upload.status === 'rejected' ? '#FEE2E2' : '#FEF9C3', alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+                                                {upload.status === 'reviewed' ? <CheckCircle2 size={16} color="#16A34A" /> : upload.status === 'rejected' ? <X size={16} color="#DC2626" /> : <Clock size={16} color="#CA8A04" />}
+                                            </View>
+                                            <View>
+                                                <Text style={{ fontFamily: 'Inter_500Medium', fontSize: 14, color: '#0F172A' }}>Prescription Slip</Text>
+                                                <Text style={{ fontFamily: 'Inter_400Regular', fontSize: 12, color: '#64748B' }}>{new Date(upload.uploaded_at).toLocaleDateString()}</Text>
+                                            </View>
+                                        </View>
+                                        <Text style={{ fontFamily: 'Inter_600SemiBold', fontSize: 12, color: upload.status === 'reviewed' ? '#16A34A' : upload.status === 'rejected' ? '#DC2626' : '#CA8A04', textTransform: 'capitalize' }}>
+                                            {upload.status}
+                                        </Text>
+                                    </View>
+                                ))}
+                            </View>
+                        )}
                     </Animated.View>
                 ) : (
                     <>
@@ -734,6 +875,43 @@ export default function MedicationsScreen({ navigation }) {
                                     </>
                                 )}
                             </Pressable>
+
+                            <Pressable 
+                                style={[styles.requestModifyBtn, { marginTop: 12, backgroundColor: '#FFF', borderColor: '#D1D5DB' }]} 
+                                disabled={uploadingImage}
+                                onPress={handleUploadPrescription}
+                            >
+                                {uploadingImage ? (
+                                    <ActivityIndicator size="small" color="#10B981" />
+                                ) : (
+                                    <>
+                                        <Upload size={18} color="#10B981" strokeWidth={2.5} />
+                                        <Text style={[styles.requestModifyTxt, { color: '#10B981' }]}>Upload New Prescription</Text>
+                                    </>
+                                )}
+                            </Pressable>
+
+                            {patient?.uploaded_prescriptions?.length > 0 && (
+                                <View style={{ marginTop: 24, paddingHorizontal: 4 }}>
+                                    <Text style={{ fontFamily: 'Inter_600SemiBold', fontSize: 13, color: '#64748B', marginBottom: 12 }}>UPLOADED PRESCRIPTIONS</Text>
+                                    {patient.uploaded_prescriptions.map((upload, idx) => (
+                                        <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, backgroundColor: '#FFFFFF', borderRadius: 16, marginBottom: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.02, shadowRadius: 8, elevation: 1 }}>
+                                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                                <View style={{ width: 40, height: 40, borderRadius: 10, backgroundColor: upload.status === 'reviewed' ? '#DCFCE7' : upload.status === 'rejected' ? '#FEE2E2' : '#FEF9C3', alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+                                                    {upload.status === 'reviewed' ? <CheckCircle2 size={20} color="#16A34A" /> : upload.status === 'rejected' ? <X size={20} color="#DC2626" /> : <Clock size={20} color="#CA8A04" />}
+                                                </View>
+                                                <View>
+                                                    <Text style={{ fontFamily: 'Inter_600SemiBold', fontSize: 15, color: '#0F172A' }}>Doctor's Slip</Text>
+                                                    <Text style={{ fontFamily: 'Inter_500Medium', fontSize: 13, color: '#64748B' }}>{new Date(upload.uploaded_at).toLocaleDateString()}</Text>
+                                                </View>
+                                            </View>
+                                            <Text style={{ fontFamily: 'Inter_600SemiBold', fontSize: 13, color: upload.status === 'reviewed' ? '#16A34A' : upload.status === 'rejected' ? '#DC2626' : '#CA8A04', textTransform: 'capitalize' }}>
+                                                {upload.status}
+                                            </Text>
+                                        </View>
+                                    ))}
+                                </View>
+                            )}
                         </Animated.View>
                     </>
                 )}

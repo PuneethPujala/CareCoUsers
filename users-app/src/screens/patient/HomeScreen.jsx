@@ -158,8 +158,8 @@ export default function PatientHomeScreen({ navigation }) {
         ).start();
     }, [staggerAnims]);
 
-
     const lastFetchRef = useRef(0);
+    const optimisticMedsRef = useRef({}); // Stores { med_id: timestamp }
 
     const fetchData = useCallback(async (skipCache = false) => {
         try {
@@ -206,16 +206,34 @@ export default function PatientHomeScreen({ navigation }) {
             setVitalsHistory(vHistRes.data.vitals || []);
             setAiPrediction(aiRes.data.prediction);
 
-            const freshMeds = (medsRes.data.log?.medicines || []).map((m) => ({
-                id: `${m.medicine_name}_${m.scheduled_time}`,
-                name: m.medicine_name,
-                dosage: m.dosage || (m.scheduled_time === 'morning' ? '500mg' : m.scheduled_time === 'afternoon' ? '5mg' : '10mg'),
-                instructions: m.instructions || (m.scheduled_time === 'morning' ? 'Take with food' : m.scheduled_time === 'afternoon' ? 'Take after lunch' : 'Take before sleep'),
-                time: TIME_LABELS[m.scheduled_time] || m.scheduled_time,
-                type: m.scheduled_time,
-                taken: m.taken,
-                accent: ACCENT_MAP[m.scheduled_time] || colors.accent,
-            }));
+            const freshMeds = (medsRes.data.log?.medicines || []).map((m) => {
+                const id = `${m.medicine_name}_${m.scheduled_time}`;
+                const optTs = optimisticMedsRef.current[id];
+                let isTaken = m.taken;
+                
+                if (optTs) {
+                    if (isTaken) {
+                        delete optimisticMedsRef.current[id];
+                    } else if (Date.now() - optTs < 60000) {
+                        // Optimistic update within last 60 seconds - preserve it!
+                        isTaken = true;
+                    } else {
+                        // Expired - DB probably failed, let it revert
+                        delete optimisticMedsRef.current[id];
+                    }
+                }
+
+                return {
+                    id,
+                    name: m.medicine_name,
+                    dosage: m.dosage || (m.scheduled_time === 'morning' ? '500mg' : m.scheduled_time === 'afternoon' ? '5mg' : '10mg'),
+                    instructions: m.instructions || (m.scheduled_time === 'morning' ? 'Take with food' : m.scheduled_time === 'afternoon' ? 'Take after lunch' : 'Take before sleep'),
+                    time: TIME_LABELS[m.scheduled_time] || m.scheduled_time,
+                    type: m.scheduled_time,
+                    taken: isTaken,
+                    accent: ACCENT_MAP[m.scheduled_time] || colors.accent,
+                };
+            });
             setMeds(freshMeds);
             setIsCached(false);
 
@@ -291,6 +309,7 @@ export default function PatientHomeScreen({ navigation }) {
     useEffect(() => {
         const medsSub = DeviceEventEmitter.addListener('MEDS_UPDATED', (payload) => {
             if (payload && payload.id) {
+                optimisticMedsRef.current[payload.id] = Date.now();
                 setMeds(prev => prev.map(m => m.id === payload.id ? { ...m, taken: payload.taken } : m));
             } else {
                 lastFetchRef.current = 0;
@@ -356,6 +375,7 @@ export default function PatientHomeScreen({ navigation }) {
         if (med.taken) return; // ONE-WAY
 
         const newTaken = true;
+        optimisticMedsRef.current[med.id] = Date.now();
         setMeds(prev => prev.map(m => m.id === med.id ? { ...m, taken: newTaken } : m));
         try {
             await apiService.medicines.markMedicine({ medicine_name: med.name, scheduled_time: med.type, taken: newTaken });
