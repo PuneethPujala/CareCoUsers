@@ -26,8 +26,8 @@ const assignPatientToCaretaker = async (callerProfile, caretakerId, patientId, a
     throw new Error('Caretaker and Patient must exist');
   }
 
-  if (caretaker.role !== 'caretaker') {
-    throw new Error('Assigned caretaker must have caretaker role');
+  if (!['caretaker', 'caller', 'care_manager'].includes(caretaker.role)) {
+    throw new Error('Assigned user must have a caretaking role (caretaker, caller, care_manager)');
   }
 
   if (patient.role !== 'patient') {

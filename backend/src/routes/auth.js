@@ -4,21 +4,24 @@ const { createClient } = require('@supabase/supabase-js');
 const Profile = require('../models/Profile');
 const Organization = require('../models/Organization');
 const AuditLog = require('../models/AuditLog');
+const PasswordResetOtp = require('../models/PasswordResetOtp');
 const { authenticate } = require('../middleware/authenticate');
 const { authorize } = require('../middleware/authorize');
 const { checkPasswordChange } = require('../middleware/checkPasswordChange');
 const { logEvent, logSecurityEvent } = require('../services/auditService');
-const { sendTempPasswordEmail, sendPasswordChangedEmail } = require('../services/emailService');
+const { sendTempPasswordEmail, sendPasswordChangedEmail, sendOtpEmail } = require('../services/emailService');
 
 const router = express.Router();
 
-// ─── Helper: generate temp password (4 uppercase + 4 digits) ────
+// ─── Helper: generate temp password (3 uppercase + 3 lowercase + 2 digits) ────
 function generateTempPassword() {
   const upper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const lower = 'abcdefghijklmnopqrstuvwxyz';
   const digits = '0123456789';
   let pwd = '';
-  for (let i = 0; i < 4; i++) pwd += upper[Math.floor(Math.random() * upper.length)];
-  for (let i = 0; i < 4; i++) pwd += digits[Math.floor(Math.random() * digits.length)];
+  for (let i = 0; i < 3; i++) pwd += upper[Math.floor(Math.random() * upper.length)];
+  for (let i = 0; i < 3; i++) pwd += lower[Math.floor(Math.random() * lower.length)];
+  for (let i = 0; i < 2; i++) pwd += digits[Math.floor(Math.random() * digits.length)];
   // Shuffle
   return pwd.split('').sort(() => Math.random() - 0.5).join('');
 }
@@ -90,7 +93,7 @@ router.post('/register', async (req, res) => {
     // Verify organization exists if provided
     if (organizationId) {
       const organization = await Organization.findById(organizationId);
-      if (!organization || !organization.isActive) {
+      if (!organization || organization.isActive === false) {
         return res.status(400).json({
           error: 'Invalid or inactive organization'
         });
@@ -151,6 +154,13 @@ router.post('/register', async (req, res) => {
       organizationId
     });
 
+    // Invalidate dashboard caches so new stats reflect immediately
+    const { invalidateCache, CacheKeys } = require('../config/redis');
+    await invalidateCache(CacheKeys.adminDashboard());
+    if (organizationId) {
+      await invalidateCache(CacheKeys.orgDashboard(organizationId));
+    }
+
     // Return user data without sensitive information
     const { password: _, ...userResponse } = authData.user;
     res.status(201).json({
@@ -181,6 +191,33 @@ router.post('/register', async (req, res) => {
 });
 
 /**
+ * POST /api/auth/detect-role
+ * Detect user's role from MongoDB by email — used by Admin Portal for auto-login
+ */
+router.post('/detect-role', async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+
+    const profile = await Profile.findOne({
+      email: email.toLowerCase().trim(),
+      isActive: true
+    });
+
+    if (!profile) {
+      return res.status(404).json({ error: 'No account found with this email.', code: 'PROFILE_NOT_FOUND' });
+    }
+
+    res.json({ role: profile.role, email: profile.email });
+  } catch (error) {
+    console.error('Detect role error:', error);
+    res.status(500).json({ error: 'Failed to detect role' });
+  }
+});
+
+/**
  * POST /api/auth/login
  * Authenticate user (handled by Supabase, we just verify and return profile)
  */
@@ -205,7 +242,7 @@ router.post('/login', async (req, res) => {
       email: email.toLowerCase().trim(),
       role: role,
       isActive: true
-    }).populate('organizationId', 'name type');
+    }).populate('organizationId', 'name type isActive');
 
     if (!profile) {
       // Check if the email exists at all with a different role
@@ -225,6 +262,14 @@ router.post('/login', async (req, res) => {
       return res.status(403).json({
         error: 'No account found with this email. Please contact your administrator.',
         code: 'PROFILE_NOT_FOUND'
+      });
+    }
+
+    // Check if organization is suspended
+    if (profile.organizationId && profile.organizationId.isActive === false && role !== 'super_admin') {
+      return res.status(403).json({
+        error: 'Your organization is deactivated. It will be activated soon.',
+        code: 'ORGANIZATION_SUSPENDED'
       });
     }
 
@@ -516,7 +561,7 @@ router.post('/create-user', authenticate, checkPasswordChange, async (req, res) 
     if (targetOrgId) {
       const Organization = require('../models/Organization');
       const org = await Organization.findById(targetOrgId);
-      if (!org || !org.isActive) {
+      if (!org || org.isActive === false) {
         return res.status(400).json({ error: 'Invalid or inactive organization' });
       }
     }
@@ -524,30 +569,56 @@ router.post('/create-user', authenticate, checkPasswordChange, async (req, res) 
     // Check if a profile with this email already exists in MongoDB
     const existingProfile = await Profile.findOne({ email: email.toLowerCase().trim() });
     if (existingProfile) {
-      return res.status(400).json({ error: `A user with the email "${email}" already exists.` });
+      // If existing profile is soft-deleted (isActive: false), purge it completely so email can be reused
+      if (existingProfile.isActive === false) {
+        // Hard delete from Supabase first
+        if (existingProfile.supabaseUid) {
+          await supabase.auth.admin.deleteUser(existingProfile.supabaseUid).catch(() => {});
+        }
+        // Hard delete from MongoDB
+        await existingProfile.deleteOne();
+        console.log(`Purged soft-deleted profile for ${email} to allow recreation`);
+      } else {
+        return res.status(400).json({ error: `A user with the email "${email}" already exists and is active.` });
+      }
     }
 
     // Generate temp password
     const tempPassword = generateTempPassword();
 
-    // Create Supabase user
-    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+    // Try to create the Supabase user. If it fails due to duplicate, clean up orphan and retry once.
+    let authData, authError;
+    const createPayload = {
       email,
       password: tempPassword,
       user_metadata: { full_name: fullName, role },
-      email_confirm: true, // Auto-confirm since admin is creating
-    });
+      email_confirm: true,
+    };
+
+    ({ data: authData, error: authError } = await supabase.auth.admin.createUser(createPayload));
+
+    // If duplicate in Supabase (orphaned user), delete it and retry once
+    if (authError && (authError.message || '').toLowerCase().includes('already')) {
+      // Look up the orphaned Supabase user by listing with a small page
+      const { data: listData } = await supabase.auth.admin.listUsers({ page: 1, perPage: 50 });
+      const orphan = listData?.users?.find(u => u.email?.toLowerCase() === email.toLowerCase().trim());
+      if (orphan) {
+        await supabase.auth.admin.deleteUser(orphan.id).catch(() => {});
+        console.log(`Purged orphaned Supabase user for ${email}`);
+        // Retry creation
+        ({ data: authData, error: authError } = await supabase.auth.admin.createUser(createPayload));
+      }
+    }
 
     if (authError) {
       await logEvent(req.profile.supabaseUid, 'create_user_failed', 'profile', null, req, {
         targetEmail: email, targetRole: role, reason: authError.message,
       });
 
-      // Return user-friendly error messages
       let userMessage = 'Failed to create user account';
       const msg = (authError.message || '').toLowerCase();
       if (msg.includes('already') || msg.includes('duplicate') || msg.includes('exists') || msg.includes('unique')) {
-        userMessage = 'A user with this email address already exists.';
+        userMessage = 'A user with this email address already exists in the authentication system. Please contact support.';
       } else if (msg.includes('invalid email') || msg.includes('email')) {
         userMessage = 'The email address provided is invalid.';
       } else if (msg.includes('password')) {
@@ -582,6 +653,80 @@ router.post('/create-user', authenticate, checkPasswordChange, async (req, res) 
     await logEvent(req.profile.supabaseUid, 'create_user', 'profile', profile._id, req, {
       targetEmail: email, targetRole: role, createdByRole: callerRole,
     });
+
+    // --- [START] ROUND-ROBIN RECONCILIATION for new callers ---
+    // When a new caller joins, auto-assign any unassigned patients in their org
+    if (['caller', 'caretaker'].includes(role) && targetOrgId) {
+      try {
+        const Patient = require('../models/Patient');
+        const CaretakerPatient = require('../models/CaretakerPatient');
+
+        // Find all patients in this org that have NO active caretaker assignment
+        const assignedPatientIds = await CaretakerPatient.find({ status: 'active' }).distinct('patientId');
+        const unassignedPatients = await Patient.find({
+          organization_id: targetOrgId,
+          is_active: true,
+          _id: { $nin: assignedPatientIds }
+        });
+
+        if (unassignedPatients.length > 0) {
+          // Get all active callers in this org (including the newly created one)
+          const allCallers = await Profile.find({
+            organizationId: targetOrgId,
+            role: { $in: ['caller', 'caretaker'] },
+            isActive: { $ne: false }
+          });
+
+          if (allCallers.length > 0) {
+            // Get current assignment counts per caller
+            const callerIds = allCallers.map(c => c._id);
+            const counts = await CaretakerPatient.aggregate([
+              { $match: { caretakerId: { $in: callerIds }, status: 'active' } },
+              { $group: { _id: '$caretakerId', count: { $sum: 1 } } }
+            ]);
+            const countMap = {};
+            counts.forEach(d => { countMap[d._id.toString()] = d.count; });
+
+            // Assign each unassigned patient to the least-loaded caller
+            for (const patient of unassignedPatients) {
+              let bestCaller = allCallers[0];
+              let bestCount = countMap[bestCaller._id.toString()] || 0;
+              for (const c of allCallers) {
+                const cc = countMap[c._id.toString()] || 0;
+                if (cc < bestCount) { bestCount = cc; bestCaller = c; }
+              }
+
+              if (bestCount < 30) {
+                await CaretakerPatient.findOneAndUpdate(
+                  { caretakerId: bestCaller._id, patientId: patient._id },
+                  {
+                    caretakerId: bestCaller._id,
+                    patientId: patient._id,
+                    assignedBy: req.profile._id,
+                    status: 'active',
+                    notes: [{ content: 'System Auto-Assigned (Reconciliation) on new caller creation', addedBy: req.profile._id }],
+                    schedule: { startDate: new Date() }
+                  },
+                  { upsert: true, new: true, setDefaultsOnInsert: true }
+                );
+                countMap[bestCaller._id.toString()] = (countMap[bestCaller._id.toString()] || 0) + 1;
+                console.log(`[Reconciliation] Patient ${patient.name} → Caller ${bestCaller.fullName}`);
+              }
+            }
+          }
+        }
+      } catch (reconErr) {
+        console.error('[Reconciliation] Failed silently:', reconErr.message);
+      }
+    }
+    // --- [END] ROUND-ROBIN RECONCILIATION ---
+
+    // Invalidate dashboard caches to reflect new user count immediately
+    const { invalidateCache, CacheKeys } = require('../config/redis');
+    await invalidateCache(CacheKeys.adminDashboard());
+    if (targetOrgId) {
+      await invalidateCache(CacheKeys.orgDashboard(targetOrgId));
+    }
 
     res.status(201).json({
       message: `${ROLE_LABELS[role] || role} account created successfully. Temporary password sent to ${email}.`,
@@ -737,6 +882,414 @@ router.put('/me', authenticate, checkPasswordChange, authorize('profile', 'updat
       details: error.message
     });
   }
+});
+
+/**
+ * POST /api/auth/google-login
+ * Handle login after Google OAuth — verify Supabase token, look up MongoDB profile
+ * The frontend performs Google OAuth → exchanges id_token with Supabase → sends access_token here
+ */
+router.post('/google-login', async (req, res) => {
+  try {
+    const { access_token, refresh_token } = req.body;
+
+    if (!access_token) {
+      return res.status(400).json({ error: 'access_token is required' });
+    }
+
+    // Step 1: Verify the token with Supabase and get the user
+    const { data: { user }, error: userError } = await supabase.auth.getUser(access_token);
+
+    if (userError || !user) {
+      console.warn('Google login token verification failed:', userError?.message);
+      return res.status(401).json({
+        error: 'Invalid or expired token. Please try signing in again.',
+        code: 'INVALID_TOKEN'
+      });
+    }
+
+    const email = user.email;
+    if (!email) {
+      return res.status(400).json({ error: 'No email associated with this Google account.' });
+    }
+
+    console.log(`[API] Google login: ${email}`);
+
+    // Step 2: Look up MongoDB profile by supabaseUid or email
+    let profile = await Profile.findOne({
+      supabaseUid: user.id,
+      isActive: true
+    }).populate('organizationId', 'name type');
+
+    // Fallback: match by email if supabaseUid doesn't match
+    // (handles case where admin was created before Google was linked)
+    if (!profile) {
+      profile = await Profile.findOne({
+        email: email.toLowerCase().trim(),
+        isActive: true
+      }).populate('organizationId', 'name type');
+
+      // Link the supabaseUid if we found by email
+      if (profile) {
+        profile.supabaseUid = user.id;
+        await profile.save();
+      }
+    }
+
+    if (!profile) {
+      return res.status(403).json({
+        error: 'No admin account found for this Google account. Please contact your administrator.',
+        code: 'PROFILE_NOT_FOUND'
+      });
+    }
+
+    // Step 3: Verify it's an admin role
+    const ADMIN_ROLES = ['super_admin', 'org_admin', 'care_manager', 'caretaker', 'caller'];
+    if (!ADMIN_ROLES.includes(profile.role)) {
+      return res.status(403).json({
+        error: `Access denied. The role "${ROLE_LABELS[profile.role] || profile.role}" is not permitted on the Admin Portal.`,
+        code: 'ROLE_NOT_ALLOWED'
+      });
+    }
+
+    // Step 4: Log successful login
+    await logEvent(user.id, 'login', 'profile', profile._id, req, {
+      method: 'google_oauth',
+      role: profile.role,
+      organizationId: profile.organizationId?._id
+    });
+
+    // Step 5: Return session + profile (same format as /api/auth/login)
+    res.json({
+      message: 'Login successful',
+      session: {
+        access_token,
+        refresh_token: refresh_token || null,
+        user: {
+          id: user.id,
+          email: user.email,
+          email_verified: user.email_confirmed_at !== null
+        }
+      },
+      profile: {
+        id: profile._id,
+        email: profile.email,
+        fullName: profile.fullName,
+        role: profile.role,
+        organizationId: profile.organizationId,
+        isActive: profile.isActive,
+        emailVerified: profile.emailVerified,
+        mustChangePassword: false // Google auth bypasses password change requirement
+      }
+    });
+
+  } catch (error) {
+    console.error('Google login error:', error);
+    res.status(500).json({
+      error: 'Google login failed. Please try again.',
+      details: error.message
+    });
+  }
+});
+
+// ─── Forgot Password: Send OTP ────
+const ADMIN_ROLES_FORGOT = ['super_admin', 'org_admin', 'care_manager', 'caretaker', 'caller'];
+const OTP_EXPIRY_MINUTES = 10;
+const MAX_OTP_ATTEMPTS = 5;
+
+/**
+ * POST /api/auth/forgot-password/send-otp
+ * Generate a 6-digit OTP, store it hashed, and email it to the admin.
+ */
+router.post('/forgot-password/send-otp', async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ error: 'Please enter your email address.' });
+    }
+
+    const normalizedEmail = email.toLowerCase().trim();
+
+    // Find admin profile by email
+    const profile = await Profile.findOne({
+      email: normalizedEmail,
+      isActive: true,
+    });
+
+    if (!profile) {
+      return res.status(404).json({
+        error: 'No admin account found with this email address. Please check and try again.',
+      });
+    }
+
+    if (!ADMIN_ROLES_FORGOT.includes(profile.role)) {
+      return res.status(403).json({
+        error: 'Password reset is only available for admin accounts. Please contact your administrator.',
+      });
+    }
+
+    // Rate limit: don't send more than 1 OTP per minute to the same email
+    const recentOtp = await PasswordResetOtp.findOne({
+      email: normalizedEmail,
+      used: false,
+      createdAt: { $gte: new Date(Date.now() - 60 * 1000) }, // last 60 seconds
+    });
+
+    if (recentOtp) {
+      return res.status(429).json({
+        error: 'An OTP was already sent recently. Please wait a moment before requesting a new one.',
+      });
+    }
+
+    // Invalidate any existing unused OTPs for this email
+    await PasswordResetOtp.updateMany(
+      { email: normalizedEmail, used: false },
+      { $set: { used: true } }
+    );
+
+    // Generate 6-digit OTP
+    const otpPlain = String(Math.floor(100000 + Math.random() * 900000));
+    const otpHashed = await bcrypt.hash(otpPlain, 10);
+
+    // Store in MongoDB with expiry
+    await PasswordResetOtp.create({
+      email: normalizedEmail,
+      otp: otpHashed,
+      expiresAt: new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000),
+    });
+
+    // Send email
+    await sendOtpEmail(normalizedEmail, profile.fullName, otpPlain);
+
+    console.log(`[Forgot Password] OTP sent to ${normalizedEmail}`);
+
+    res.json({
+      message: `A 6-digit OTP has been sent to ${normalizedEmail}. It is valid for ${OTP_EXPIRY_MINUTES} minutes.`,
+    });
+
+  } catch (error) {
+    console.error('Forgot password send-otp error:', error);
+    res.status(500).json({
+      error: 'Failed to send OTP. Please try again later.',
+    });
+  }
+});
+
+/**
+ * POST /api/auth/forgot-password/verify-otp
+ * Verify the OTP without consuming it — called in step 2 before showing the password form.
+ */
+router.post('/forgot-password/verify-otp', async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+
+    if (!email || !otp) {
+      return res.status(400).json({ error: 'Email and OTP are required.' });
+    }
+
+    if (otp.length !== 6) {
+      return res.status(400).json({ error: 'Please enter a valid 6-digit OTP.' });
+    }
+
+    const normalizedEmail = email.toLowerCase().trim();
+
+    // Find the latest unused, non-expired OTP
+    const otpRecord = await PasswordResetOtp.findOne({
+      email: normalizedEmail,
+      used: false,
+      expiresAt: { $gt: new Date() },
+    }).sort({ createdAt: -1 });
+
+    if (!otpRecord) {
+      return res.status(400).json({
+        error: 'OTP has expired or was already used. Please request a new one.',
+        code: 'OTP_EXPIRED',
+      });
+    }
+
+    // Check max attempts
+    if (otpRecord.attempts >= MAX_OTP_ATTEMPTS) {
+      otpRecord.used = true;
+      await otpRecord.save();
+      return res.status(400).json({
+        error: 'Too many incorrect attempts. Please request a new OTP.',
+        code: 'OTP_MAX_ATTEMPTS',
+      });
+    }
+
+    // Verify OTP hash
+    const isMatch = await bcrypt.compare(otp, otpRecord.otp);
+
+    if (!isMatch) {
+      otpRecord.attempts += 1;
+      await otpRecord.save();
+      const remaining = MAX_OTP_ATTEMPTS - otpRecord.attempts;
+      return res.status(400).json({
+        error: `Invalid OTP. Please check and try again. ${remaining} attempt${remaining !== 1 ? 's' : ''} remaining.`,
+        code: 'OTP_INVALID',
+      });
+    }
+
+    // OTP is valid — don't mark as used yet (reset endpoint will do that)
+    res.json({ message: 'OTP verified successfully.', verified: true });
+
+  } catch (error) {
+    console.error('Forgot password verify-otp error:', error);
+    res.status(500).json({ error: 'Verification failed. Please try again.' });
+  }
+});
+
+/**
+ * POST /api/auth/forgot-password/reset
+ * Verify OTP and reset the password in Supabase + MongoDB.
+ */
+router.post('/forgot-password/reset', async (req, res) => {
+  try {
+    const { email, otp, newPassword } = req.body;
+
+    if (!email || !otp || !newPassword) {
+      return res.status(400).json({ error: 'Email, OTP, and new password are required.' });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters long.' });
+    }
+
+    const normalizedEmail = email.toLowerCase().trim();
+
+    // Find the profile
+    const profile = await Profile.findOne({
+      email: normalizedEmail,
+      isActive: true,
+    });
+
+    if (!profile) {
+      return res.status(404).json({
+        error: 'No admin account found with this email address.',
+      });
+    }
+
+    // Find the latest unused OTP for this email
+    const otpRecord = await PasswordResetOtp.findOne({
+      email: normalizedEmail,
+      used: false,
+      expiresAt: { $gt: new Date() }, // not expired
+    }).sort({ createdAt: -1 });
+
+    if (!otpRecord) {
+      return res.status(400).json({
+        error: 'OTP has expired or was already used. Please request a new one.',
+        code: 'OTP_EXPIRED',
+      });
+    }
+
+    // Check max attempts
+    if (otpRecord.attempts >= MAX_OTP_ATTEMPTS) {
+      otpRecord.used = true;
+      await otpRecord.save();
+      return res.status(400).json({
+        error: 'Too many incorrect attempts. Please request a new OTP.',
+        code: 'OTP_MAX_ATTEMPTS',
+      });
+    }
+
+    // Verify OTP
+    const isMatch = await bcrypt.compare(otp, otpRecord.otp);
+
+    if (!isMatch) {
+      otpRecord.attempts += 1;
+      await otpRecord.save();
+      const remaining = MAX_OTP_ATTEMPTS - otpRecord.attempts;
+      return res.status(400).json({
+        error: `Invalid OTP. Please check and try again. ${remaining} attempt${remaining !== 1 ? 's' : ''} remaining.`,
+        code: 'OTP_INVALID',
+      });
+    }
+
+    // OTP is valid — mark as used
+    otpRecord.used = true;
+    await otpRecord.save();
+
+    // Update password in Supabase
+    const { error: supaError } = await supabase.auth.admin.updateUserById(
+      profile.supabaseUid,
+      { password: newPassword }
+    );
+
+    if (supaError) {
+      console.error('Supabase password update error:', supaError);
+      return res.status(500).json({
+        error: 'Failed to update password. Please try again.',
+      });
+    }
+
+    // Update MongoDB profile
+    profile.mustChangePassword = false;
+    profile.passwordChangedAt = new Date();
+    await profile.save();
+
+    // Send confirmation email
+    await sendPasswordChangedEmail(normalizedEmail, profile.fullName);
+
+    // Audit log
+    await logEvent(profile.supabaseUid, 'password_reset', 'profile', profile._id, req, {
+      method: 'email_otp',
+    });
+
+    console.log(`[Forgot Password] Password reset successful for ${normalizedEmail}`);
+
+    res.json({
+      message: 'Password has been reset successfully. You can now sign in with your new password.',
+    });
+
+  } catch (error) {
+    console.error('Forgot password reset error:', error);
+    res.status(500).json({
+      error: 'Failed to reset password. Please try again later.',
+    });
+  }
+});
+
+/**
+ * GET /api/auth/google-callback
+ * OAuth trampoline — Supabase redirects here after Google sign-in.
+ * This page reads the token hash fragment and redirects to the Expo app deep link.
+ * The app redirect URL is computed from the request IP + EXPO_DEV_PORT env var.
+ */
+router.get('/google-callback', (req, res) => {
+  // Compute the app deep link URL from the request's host IP
+  // req.hostname gets the host from the Host header (dynamic, no hardcoded IP)
+  const host = req.hostname || req.socket?.remoteAddress || 'localhost';
+  const expoPort = process.env.EXPO_DEV_PORT || '8081';
+  const appRedirect = `exp://${host}:${expoPort}/--/auth/callback`;
+
+  console.log(`[OAuth Trampoline] Redirecting to app: ${appRedirect}`);
+
+  res.send(`<!DOCTYPE html>
+<html>
+<head><title>Redirecting...</title></head>
+<body style="display:flex;justify-content:center;align-items:center;height:100vh;font-family:system-ui;color:#333;">
+  <div style="text-align:center">
+    <p style="font-size:18px">✅ Signed in! Redirecting to app...</p>
+    <p style="font-size:13px;color:#888">If nothing happens, close this window and reopen the app.</p>
+  </div>
+  <script>
+    var hash = window.location.hash;
+    var appUrl = "${appRedirect}";
+    if (hash) {
+      window.location.href = appUrl + hash;
+    } else {
+      var query = window.location.search;
+      if (query) {
+        window.location.href = appUrl + query;
+      } else {
+        document.body.innerHTML = '<div style="text-align:center;padding:40px"><p>Authentication complete.</p><p>Please return to the app.</p></div>';
+      }
+    }
+  </script>
+</body>
+</html>`);
 });
 
 module.exports = router;

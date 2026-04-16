@@ -18,10 +18,32 @@ const scopeFilter = (resourceType) => {
           break;
 
         case 'org_admin':
-        case 'care_manager':
-          req.scopeFilter = { organizationId };
-          break;
+        case 'care_manager': {
+          const orgStr = typeof organizationId === 'object' && organizationId !== null 
+            ? (organizationId._id || organizationId.id).toString() 
+            : String(organizationId);
+          
+          if (!orgStr || orgStr === 'undefined') {
+             return res.status(403).json({ error: 'Unauthorized: Organization linkage missing' });
+          }
 
+          if (resourceType === 'patients') {
+             const mongoose = require('mongoose');
+             const conditions = [
+                 { organization_id: orgStr },
+                 { organization_id: orgStr.toString() }
+             ];
+             if (mongoose.Types.ObjectId.isValid(orgStr)) {
+                 conditions.push({ organization_id: new mongoose.Types.ObjectId(orgStr) });
+             }
+             req.scopeFilter = { $or: conditions };
+          } else {
+             req.scopeFilter = { organizationId: orgStr };
+          }
+          break;
+        }
+
+        case 'caller':
         case 'caretaker': {
           if (resourceType === 'patients') {
             const assignments = await CaretakerPatient.find(

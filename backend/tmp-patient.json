@@ -1,0 +1,74 @@
+{
+  "medical_history": [
+    {
+      "event": "Knee Replacement Surgery",
+      "date": "2023-10-15T00:00:00.000Z",
+      "notes": "Right knee, successful recovery.",
+      "_id": "69b66086eddf02e0723a00a1"
+    },
+    {
+      "event": "Diagnosed with Type 2 Diabetes",
+      "date": "2018-01-15T00:00:00.000Z",
+      "notes": "Started on Metformin protocol.",
+      "_id": "69b66086eddf02e0723a00a2"
+    },
+    {
+      "event": "Started BP Medication",
+      "date": "2020-06-10T00:00:00.000Z",
+      "notes": "Amlodipine 5mg daily.",
+      "_id": "69b66086eddf02e0723a00a3"
+    }
+  ],
+  "conditions": [
+    {
+      "name": "Type 2 Diabetes",
+      "diagnosed_on": "2018-01-15T00:00:00.000Z",
+      "status": "managed",
+      "severity": "moderate",
+      "_id": "69bd6bcd8781421048ddaf72"
+    },
+    {
+      "name": "Hypertension",
+      "diagnosed_on": "2020-03-10T00:00:00.000Z",
+      "status": "active",
+      "severity": "moderate",
+      "_id": "69bd6bcd8781421048ddaf73"
+    }
+  ],
+  "allergies": [
+    {
+      "name": "Penicillin",
+      "severity": "mild",
+      "reaction": "Anaphylaxis",
+      "_id": "69bd6bcd8781421048ddaf74"
+    },
+    {
+      "name": "Peanuts",
+      "severity": "moderate",
+      "reaction": "Hives",
+      "_id": "69bd6bcd8781421048ddaf75"
+    }
+  ],
+  "vaccinations": [
+    {
+      "name": "COVID-19 (Covishield)",
+      "date_given": "2021-05-10T00:00:00.000Z",
+      "next_due": null,
+      "administered_by": "Govt. Health Centre",
+      "_id": "69bd6bcd8781421048ddaf76"
+    },
+    {
+      "name": "Influenzaa",
+      "date_given": "2024-10-01T00:00:00.000Z",
+      "next_due": "2025-10-01T00:00:00.000Z",
+      "administered_by": "Dr. Reddy",
+      "_id": "69bd6bcd8781421048ddaf77"
+    },
+    {
+      "name": "Polio",
+      "date_given": "2006-03-20T00:00:00.000Z",
+      "administered_by": "",
+      "_id": "69bd7832f22dce604fa15721"
+    }
+  ]
+}

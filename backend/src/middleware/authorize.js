@@ -82,6 +82,7 @@ const authorize = (resource, action, options = {}) => {
 
       next();
     } catch (err) {
+      require('fs').writeFileSync('authorize_crash.txt', String(err.stack || err));
       console.error('Authorization error:', err);
 
       // Log system error
@@ -320,7 +321,7 @@ const authorizeResource = (resource, action, getResourceOwner) => {
       if (['read', 'update', 'delete'].includes(action) && getResourceOwner) {
         const resourceOwnerId = await getResourceOwner(req);
 
-        if (resourceOwnerId && !resourceOwnerId.equals(req.profile._id)) {
+        if (resourceOwnerId && String(resourceOwnerId) !== String(req.profile._id)) {
           // Check if user has special permissions (e.g., care manager can access patient data)
           const hasSpecialAccess = await checkSpecialAccess(req.profile, resource, action, resourceOwnerId);
 
