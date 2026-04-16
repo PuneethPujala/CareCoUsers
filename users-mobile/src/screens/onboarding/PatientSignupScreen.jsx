@@ -576,7 +576,7 @@ export default function PatientSignupScreen({ navigation, route }) {
                 try {
                     await apiService.auth.register({
                         email: googleUser.email, fullName, role: 'patient',
-                        supabaseUid: googleUser.id, password: null,
+                        supabaseUid: googleUser.id,
                     });
                     const config = { headers: { Authorization: `Bearer ${result.session.access_token}` } };
                     const profileRes = await apiService.auth.getProfile(config);

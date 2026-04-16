@@ -383,9 +383,19 @@ PatientSchema.index({ 'subscription.status': 1 });
 PatientSchema.index({ 'subscription.status': 1, 'subscription.expires_at': 1 });
 
 // ── Middleware ────────────────────────────────────
-// Clear TTL once patient has paid and completed profile
+// Clear TTL once the patient is a legitimate account.
+// Any of these conditions indicates a real user whose record must persist:
+//  - paid + profile_complete (original check)
+//  - active subscription
+//  - has a passwordHash (set via signup or Set Password)
+//  - email verified (completed OTP during signup)
 PatientSchema.pre('save', function (next) {
-    if (this.paid === 1 && this.profile_complete) {
+    const isLegitimate =
+        (this.paid === 1 && this.profile_complete) ||
+        this.subscription?.status === 'active' ||
+        this.passwordHash ||
+        this.emailVerified === true;
+    if (isLegitimate && this.expireAt) {
         this.expireAt = undefined;
     }
     next();

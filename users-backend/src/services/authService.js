@@ -424,6 +424,7 @@ async function refreshSession(rawRefresh, req) {
       refresh_token: tokens.refresh_token,
       expires_in: tokens.expires_in,
       expires_at: tokens.expires_at,
+      user: buildSessionUser(subject, account.email, account.emailVerified),
     },
     profile: buildLoginProfile(account, isPatient),
   };
@@ -546,6 +547,15 @@ async function createStaffUser(body, req, actorProfile) {
   if (existingProfile) {
     const err = new Error(`A user with the email "${email}" already exists.`);
     err.status = 400;
+    throw err;
+  }
+
+  // Cross-collection uniqueness: also check Patient collection
+  const existingPatient = await Patient.findOne({ email: emailNorm, is_active: true });
+  if (existingPatient) {
+    const err = new Error('This email is already associated with a patient account.');
+    err.status = 400;
+    err.code = 'EMAIL_ALREADY_EXISTS';
     throw err;
   }
 
@@ -697,6 +707,14 @@ async function setPassword(newPassword, req, profile, userSubject) {
   const isPatient = profile.role === 'patient';
   const Model = isPatient ? Patient : Profile;
   const account = await Model.findById(profile._id).select('+passwordHash');
+
+  // Security: prevent overwriting an existing password without current-password verification
+  if (account.passwordHash) {
+    const err = new Error('A password is already set on this account. Use "Change Password" instead.');
+    err.status = 400;
+    err.code = 'PASSWORD_ALREADY_SET';
+    throw err;
+  }
 
   account.passwordHash = await passwordService.hashPassword(newPassword);
   await account.save();
