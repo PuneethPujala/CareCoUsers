@@ -33,7 +33,7 @@ const ProfileSchema = new mongoose.Schema(
       type: String,
       validate: {
         validator: function (v) {
-          return !v || /^[\+]?[1-9][\d]{0,15}$/.test(v);
+          return !v || /^[\+]?[0-9\s\-\(\)]{1,20}$/.test(v);
         },
         message: 'Please enter a valid phone number'
       }
@@ -64,6 +64,62 @@ const ProfileSchema = new mongoose.Schema(
       index: true
     },
 
+    // ── Patient-specific fields ──────────────────────────────────
+    dateOfBirth: {
+      type: Date,
+      description: 'Patient date of birth — used to calculate age',
+    },
+    gender: {
+      type: String,
+      enum: ['male', 'female', 'other', 'prefer_not_to_say'],
+    },
+    allergies: [{
+      type: String,
+      trim: true,
+      maxlength: 200,
+    }],
+    conditions: [{
+      type: String,
+      trim: true,
+      maxlength: 200,
+      description: 'Medical conditions (e.g., Diabetes Type 2, Hypertension)',
+    }],
+    emergencyContact: {
+      name: { type: String, trim: true, maxlength: 100 },
+      phone: { type: String, trim: true },
+      relation: { type: String, trim: true, maxlength: 50 },
+    },
+    callerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Profile',
+      description: 'The assigned caller for this patient'
+    },
+    careManagerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Profile',
+      description: 'The assigned care manager for this patient'
+    },
+
+    // ── Caretaker/Staff-specific fields ──────────────────────────
+    languages: [{
+      type: String,
+      trim: true,
+      maxlength: 50,
+      description: 'Languages spoken (applies to caretakers, care managers)',
+    }],
+    hireDate: {
+      type: Date,
+      description: 'Staff hire date (caretakers, care managers)',
+    },
+
+    // ── Shared operational fields ────────────────────────────────
+    managedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Profile',
+      index: true,
+      description: 'Care manager who manages this caretaker, or org_admin who manages this care manager',
+    },
+
     // Temp password management
     mustChangePassword: {
       type: Boolean,
@@ -86,6 +142,20 @@ const ProfileSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Profile',
       description: 'Admin who created this account (null for self-registered)',
+    },
+
+    // ── Address / Location ────────────────────────────────────
+    address: {
+      street: { type: String, trim: true, maxlength: 200 },
+      city: { type: String, trim: true, maxlength: 100 },
+      state: { type: String, trim: true, maxlength: 100 },
+      country: { type: String, trim: true, maxlength: 100 },
+      postalCode: { type: String, trim: true, maxlength: 20 },
+      coordinates: {
+        lat: { type: Number },
+        lng: { type: Number },
+      },
+      formattedAddress: { type: String, trim: true, maxlength: 300 },
     },
 
     // Flexible role-specific metadata
@@ -139,6 +209,20 @@ const ProfileSchema = new mongoose.Schema(
 ProfileSchema.index({ organizationId: 1, role: 1 });
 ProfileSchema.index({ organizationId: 1, isActive: 1 });
 ProfileSchema.index({ role: 1, isActive: 1 });
+ProfileSchema.index({ managedBy: 1, role: 1, isActive: 1 });
+
+// Virtual for patient age (calculated from dateOfBirth)
+ProfileSchema.virtual('age').get(function () {
+  if (!this.dateOfBirth) return null;
+  const today = new Date();
+  const birth = new Date(this.dateOfBirth);
+  let age = today.getFullYear() - birth.getFullYear();
+  const monthDiff = today.getMonth() - birth.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+    age--;
+  }
+  return age;
+});
 
 // Virtual for checking if account is locked
 ProfileSchema.virtual('isLocked').get(function () {

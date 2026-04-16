@@ -11,6 +11,14 @@ const connectDB = async () => {
 
     console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
 
+    // Run auto round-robin patient assignment on startup
+    try {
+      const { runAutoAssignmentForAllOrgs } = require('../utils/autoAssign');
+      setTimeout(() => runAutoAssignmentForAllOrgs(), 2000); // Delay 2s to let models load
+    } catch (e) {
+      console.error('[AutoAssign] Failed to start:', e.message);
+    }
+
     // Handle connection events
     mongoose.connection.on('error', (err) => {
       console.error('❌ MongoDB connection error:', err);
