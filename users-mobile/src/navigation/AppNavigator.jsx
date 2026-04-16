@@ -223,7 +223,7 @@ function AppSplashScreen() {
     );
 }
 
-    export default function AppNavigator() {
+export default function AppNavigator() {
     const { isBootstrapping, onboardingComplete, subscriptionStatus, user, profile } = useAuth();
     const navigation = useNavigation();
 
