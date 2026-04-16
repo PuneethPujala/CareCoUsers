@@ -5,6 +5,14 @@ const { authenticate, requireRole, requireOwnership } = require('../middleware/a
 const { authorize, authorizeResource } = require('../middleware/authorize');
 const { scopeFilter } = require('../middleware/scopeFilter');
 const { logEvent, autoLogAccess } = require('../services/auditService');
+const { invalidateCache, invalidatePattern, CacheKeys } = require('../config/redis');
+const { createClient } = require('@supabase/supabase-js');
+
+// Initialize Supabase client with Service Role for Admin actions (skips RLS)
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
 
 const router = express.Router();
 
@@ -15,7 +23,7 @@ const router = express.Router();
 router.get('/me', authenticate, autoLogAccess('profile', 'read'), async (req, res) => {
   try {
     const profile = await Profile.findById(req.profile._id)
-      .populate('organizationId', 'name type subscriptionPlan settings');
+      .populate('organizationId', 'name type subscriptionPlan settings address');
 
     res.json(profile);
   } catch (error) {
@@ -38,7 +46,7 @@ router.get('/:id',
   async (req, res) => {
     try {
       const profile = await Profile.findById(req.params.id)
-        .populate('organizationId', 'name type subscriptionPlan');
+        .populate('organizationId', 'name type subscriptionPlan address');
 
       if (!profile) {
         return res.status(404).json({ error: 'Profile not found' });
@@ -46,66 +54,78 @@ router.get('/:id',
 
       // Apply additional access control based on role
       const { role } = req.profile;
+      let canAccess = false;
       
       // Super admin can see all profiles
       if (role === 'super_admin') {
-        return res.json(profile);
+        canAccess = true;
       }
-
       // Org admin and care manager can see profiles in their organization
-      if (['org_admin', 'care_manager'].includes(role)) {
-        if (profile.organizationId && 
-            profile.organizationId.equals(req.profile.organizationId)) {
-          return res.json(profile);
+      else if (['org_admin', 'care_manager'].includes(role)) {
+        if (profile.organizationId && profile.organizationId.equals(req.profile.organizationId)) {
+          canAccess = true;
         }
-        return res.status(403).json({ error: 'Access denied to this profile' });
       }
-
       // Caretakers can only see their own profile and assigned patients
-      if (role === 'caretaker') {
+      else if (role === 'caretaker') {
         if (profile._id.equals(req.profile._id)) {
-          return res.json(profile);
+          canAccess = true;
+        } else {
+          const CaretakerPatient = require('../models/CaretakerPatient');
+          const assignment = await CaretakerPatient.findOne({
+            caretakerId: req.profile._id, patientId: profile._id, status: 'active'
+          });
+          if (assignment) canAccess = true;
         }
-        // Check if this patient is assigned to this caretaker
-        const CaretakerPatient = require('../models/CaretakerPatient');
-        const assignment = await CaretakerPatient.findOne({
-          caretakerId: req.profile._id,
-          patientId: profile._id,
-          status: 'active'
-        });
-        if (assignment) {
-          return res.json(profile);
-        }
-        return res.status(403).json({ error: 'Access denied to this profile' });
       }
-
       // Patient mentors can only see their own profile and authorized patients
-      if (role === 'patient_mentor') {
+      else if (role === 'patient_mentor') {
         if (profile._id.equals(req.profile._id)) {
-          return res.json(profile);
+          canAccess = true;
+        } else {
+          const MentorAuthorization = require('../models/MentorAuthorization');
+          const authorization = await MentorAuthorization.findOne({
+            mentorId: req.profile._id, patientId: profile._id, status: 'active'
+          });
+          if (authorization) canAccess = true;
         }
-        // Check if this patient is authorized for this mentor
-        const MentorAuthorization = require('../models/MentorAuthorization');
-        const authorization = await MentorAuthorization.findOne({
-          mentorId: req.profile._id,
-          patientId: profile._id,
-          status: 'active'
-        });
-        if (authorization) {
-          return res.json(profile);
-        }
-        return res.status(403).json({ error: 'Access denied to this profile' });
       }
-
       // Patients can only see their own profile
-      if (role === 'patient') {
+      else if (role === 'patient') {
         if (profile._id.equals(req.profile._id)) {
-          return res.json(profile);
+          canAccess = true;
         }
+      }
+
+      if (!canAccess) {
         return res.status(403).json({ error: 'Access denied to this profile' });
       }
 
-      res.status(403).json({ error: 'Access denied' });
+      const pObj = profile.toJSON();
+      if (['org_admin', 'care_manager'].includes(profile.role) && profile.organizationId) {
+          const mongoose = require('mongoose');
+          const Patient = require('../models/Patient');
+          const orgId = profile.organizationId._id || profile.organizationId;
+          pObj.metadata = pObj.metadata || {};
+          
+          pObj.metadata.patientsCount = await Patient.countDocuments({
+              $or: [
+                  { organization_id: orgId },
+                  { organization_id: orgId.toString() },
+                  { organization_id: new mongoose.Types.ObjectId(orgId) }
+              ],
+              is_active: { $ne: false }
+          });
+          
+          pObj.metadata.callersCount = await Profile.countDocuments({
+              role: { $in: ['care_manager', 'caretaker', 'caller'] },
+              organizationId: orgId,
+              isActive: { $ne: false },
+              _id: { $ne: profile._id }
+          });
+      }
+
+      return res.json(pObj);
 
     } catch (error) {
       console.error('Get profile error:', error);
@@ -138,8 +158,15 @@ router.get('/',
         sortOrder = 'desc'
       } = req.query;
 
-      // Build query
-      let query = { ...req.scopeFilter };
+      // Build query — default to active profiles only (treats missing isActive as active)
+      let query = { ...req.scopeFilter, isActive: { $ne: false } };
+
+      // Allow explicit override to see inactive profiles (admin use)
+      if (req.query.isActive === 'false') {
+        query.isActive = false;
+      } else if (req.query.isActive === 'all') {
+        delete query.isActive;
+      }
 
       // Apply role filter
       if (roleFilter) {
@@ -235,11 +262,30 @@ router.post('/',
       }
 
       // Validate organization access
-      if (organizationId && req.profile.role !== 'super_admin') {
-        if (!req.profile.organizationId.equals(organizationId)) {
-          return res.status(403).json({ 
-            error: 'Cannot create profile in different organization' 
-          });
+      let inheritedAddress = null;
+      if (organizationId) {
+        const orgForAddress = await Organization.findById(organizationId);
+        if (orgForAddress && orgForAddress.address) {
+            inheritedAddress = {
+                street: orgForAddress.address.street || '',
+                city: orgForAddress.address.district || orgForAddress.address.city || '',
+                state: orgForAddress.address.state || '',
+                country: orgForAddress.address.country || '',
+                postalCode: orgForAddress.address.zipCode || '',
+                formattedAddress: [
+                    orgForAddress.address.street,
+                    orgForAddress.address.district || orgForAddress.address.city,
+                    orgForAddress.address.state
+                ].filter(Boolean).join(', ')
+            };
+        }
+
+        if (req.profile.role !== 'super_admin') {
+          if (!req.profile.organizationId.equals(organizationId)) {
+            return res.status(403).json({ 
+              error: 'Cannot create profile in different organization' 
+            });
+          }
         }
       }
 
@@ -266,6 +312,7 @@ router.post('/',
         phone: phone || null,
         avatarUrl: avatarUrl || null,
         metadata: metadata || {},
+        address: inheritedAddress,
         emailVerified: true // Assume verified if created by admin
       });
 
@@ -309,10 +356,18 @@ router.post('/',
  */
 router.put('/:id', 
   authenticate, 
-  authorizeResource('profile', 'update', (req) => req.params.id),
   autoLogAccess('profile', 'update'),
   async (req, res) => {
     try {
+      const profileId = req.params.id;
+      const isSelfEdit = String(req.profile._id) === String(profileId);
+      const isAdmin = ['super_admin', 'org_admin', 'care_manager'].includes(req.profile.role);
+
+      // Users can always edit their own profile; admins can edit others
+      if (!isSelfEdit && !isAdmin) {
+        return res.status(403).json({ error: 'You can only edit your own profile' });
+      }
+
       const {
         fullName,
         phone,
@@ -323,7 +378,6 @@ router.put('/:id',
         metadata
       } = req.body;
 
-      const profileId = req.params.id;
       const profile = await Profile.findById(profileId);
 
       if (!profile) {
@@ -336,6 +390,7 @@ router.put('/:id',
       if (phone !== undefined) updateData.phone = phone;
       if (avatarUrl !== undefined) updateData.avatarUrl = avatarUrl;
       if (metadata !== undefined) updateData.metadata = metadata;
+      if (req.body.address !== undefined) updateData.address = req.body.address;
 
       // Only admins can change these fields
       if (['super_admin', 'org_admin', 'care_manager'].includes(req.profile.role)) {
@@ -354,6 +409,73 @@ router.put('/:id',
         updateData,
         { new: true, runValidators: true }
       ).populate('organizationId', 'name type');
+
+      // --- [START] INACTIVE CALLER COVERAGE PIPELINE ---
+      if (['org_admin', 'care_manager'].includes(req.profile.role) && req.body.isActive !== undefined) {
+         try {
+            const CaretakerPatient = require('../models/CaretakerPatient');
+
+            if (req.body.isActive === false && updatedProfile.role === 'caller') {
+                // Caller marked INACTIVE. We need to deploy Secondary Coverages.
+                const theirAssignments = await CaretakerPatient.find({ caretakerId: profileId, status: 'active', isTemporary: false });
+
+                if (theirAssignments.length > 0) {
+                    const patientIds = theirAssignments.map(a => a.patientId);
+                    
+                    // Fetch all other ACTIVE callers in this org
+                    const OrgIdObject = updatedProfile.organizationId._id || updatedProfile.organizationId;
+                    const availableCallers = await Profile.find({
+                        organizationId: OrgIdObject,
+                        role: 'caller',
+                        isActive: true,
+                        _id: { $ne: profileId }
+                    });
+
+                    if (availableCallers.length > 0) {
+                        const callerIds = availableCallers.map(c => c._id);
+                        const assignmentCounts = await CaretakerPatient.aggregate([
+                            { $match: { caretakerId: { $in: callerIds }, status: 'active' } },
+                            { $group: { _id: '$caretakerId', count: { $sum: 1 } } }
+                        ]);
+                        
+                        const countMap = {};
+                        assignmentCounts.forEach(c => { countMap[c._id.toString()] = c.count; });
+                        
+                        const coverageCallers = availableCallers.map(c => ({ id: c._id, count: countMap[c._id.toString()] || 0 }));
+
+                        for (const pid of patientIds) {
+                            coverageCallers.sort((a, b) => a.count - b.count);
+                            const bestCoverageCaller = coverageCallers[0];
+
+                            if (bestCoverageCaller.count < 30) {
+                                await CaretakerPatient.create({
+                                    caretakerId: bestCoverageCaller.id,
+                                    patientId: pid,
+                                    assignedBy: req.profile._id,
+                                    status: 'active',
+                                    isTemporary: true,
+                                    notes: [{ content: `Temporary System Coverage deployed due to assigned Caller entering sick leave.`, addedBy: req.profile._id }]
+                                });
+                                bestCoverageCaller.count += 1; 
+                            }
+                        }
+                    }
+                }
+            } 
+            else if (req.body.isActive === true && updatedProfile.role === 'caller') {
+                // Caller marked ACTIVE again. Restore operation by purging Temporary Coverages.
+                const primaryAssignments = await CaretakerPatient.find({ caretakerId: profileId, status: 'active', isTemporary: false });
+                const primaryPatientIds = primaryAssignments.map(a => a.patientId);
+                
+                if (primaryPatientIds.length > 0) {
+                    await CaretakerPatient.deleteMany({ patientId: { $in: primaryPatientIds }, isTemporary: true });
+                }
+            }
+         } catch (covErr) {
+             console.error('[Coverage Matrix] Silently failed coverage allocation:', covErr);
+         }
+      }
+      // --- [END] INACTIVE CALLER COVERAGE PIPELINE ---
 
       // Log profile update
       await logEvent(req.profile.supabaseUid, 'profile_updated', 'profile', profile._id, req, {
@@ -402,9 +524,17 @@ router.delete('/:id',
         return res.status(403).json({ error: 'Cannot delete super admin profiles' });
       }
 
-      // Soft delete by deactivating
-      profile.isActive = false;
-      await profile.save();
+      // Hard Delete from Supabase Auth
+      if (profile.supabaseUid) {
+        const { error: authError } = await supabase.auth.admin.deleteUser(profile.supabaseUid);
+        if (authError) {
+          console.error('Failed to delete Supabase Auth user:', authError);
+          // Proceed with MongoDB deletion even if Supabase fails (fallback sync)
+        }
+      }
+
+      // Hard Delete from MongoDB
+      await profile.deleteOne();
 
       // Update organization counts
       if (profile.organizationId) {
@@ -414,6 +544,15 @@ router.delete('/:id',
             ...(profile.role === 'caretaker' && { currentCaretakerCount: -1 })
           }
         });
+        // Invalidate org-specific dashboard cache
+        await invalidateCache(CacheKeys.orgDashboard(profile.organizationId));
+      }
+
+      // Invalidate admin dashboard cache so stats refresh immediately
+      await invalidateCache(CacheKeys.adminDashboard());
+      // Invalidate any manager dashboard cache if applicable
+      if (profile.managedBy) {
+        await invalidateCache(CacheKeys.managerDashboard(profile.managedBy));
       }
 
       // Log profile deletion
@@ -423,13 +562,13 @@ router.delete('/:id',
       });
 
       res.json({
-        message: 'Profile deactivated successfully',
+        message: 'Profile and associated account permanently deleted',
         profile: {
           id: profile._id,
           email: profile.email,
           fullName: profile.fullName,
           role: profile.role,
-          isActive: profile.isActive
+          isActive: false
         }
       });
 

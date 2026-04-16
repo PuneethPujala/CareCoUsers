@@ -1,5 +1,6 @@
 const express = require('express');
 const Profile = require('../models/Profile');
+const Patient = require('../models/Patient');
 const CaretakerPatient = require('../models/CaretakerPatient');
 const MentorAuthorization = require('../models/MentorAuthorization');
 const { authenticate, requireRole } = require('../middleware/authenticate');
@@ -28,20 +29,49 @@ router.get('/',
         search,
         sortBy = 'createdAt',
         sortOrder = 'desc',
-        status = 'active'
+        status = 'active',
+        organizationId,
+        unassigned
       } = req.query;
 
       // Build query for patients only
       let query = { 
-        role: 'patient',
         ...req.scopeFilter,
-        isActive: status === 'active'
+        is_active: status === 'active'
       };
+
+      // Apply super admin isolated organization mapping filter
+      if (organizationId && req.profile.role === 'super_admin') {
+         query.organization_id = organizationId;
+      }
+
+      // 🚨 CRITICAL: Extract Unassigned Queue Interceptor
+      if (unassigned === 'true') {
+        const CaretakerPatient = require('../models/CaretakerPatient');
+        
+        // Target targetOrgId appropriately
+        let targetOrgId = organizationId;
+        if (req.profile.role !== 'super_admin') {
+            targetOrgId = req.profile.organizationId;
+        }
+        
+        // Find all active caretaker assignments inside this Organization
+        // We only care about patients who lack an active mapping!
+        const activeAssignedPatients = await CaretakerPatient.find({ status: 'active' }).distinct('patientId');
+        
+        // Exclude all patients who exist inside active assignment mappings
+        query._id = { $nin: activeAssignedPatients };
+        
+        // Fallback safety to ensure we only show unassigned for the specific manager's organization
+        if (targetOrgId) {
+            query.organization_id = targetOrgId; 
+        }
+      }
 
       // Apply search filter
       if (search) {
         query.$or = [
-          { fullName: { $regex: search, $options: 'i' } },
+          { name: { $regex: search, $options: 'i' } },
           { email: { $regex: search, $options: 'i' } },
           { phone: { $regex: search, $options: 'i' } }
         ];
@@ -52,14 +82,14 @@ router.get('/',
       sort[sortBy] = sortOrder === 'desc' ? -1 : 1;
 
       // Execute query with pagination
-      const patients = await Profile.find(query)
-        .populate('organizationId', 'name type')
+      const patients = await Patient.find(query)
+        .populate('organization_id', 'name type')
         .sort(sort)
         .limit(limit * 1)
         .skip((page - 1) * limit);
 
       // Get total count
-      const total = await Profile.countDocuments(query);
+      const total = await Patient.countDocuments(query);
 
       res.json({
         patients,
@@ -104,14 +134,21 @@ router.get('/:id',
 
       // Org admin and care manager can access patients in their organization
       else if (['org_admin', 'care_manager'].includes(role)) {
-        const patient = await Profile.findById(patientId);
-        canAccess = patient && 
-                   patient.organizationId && 
-                   patient.organizationId.equals(req.profile.organizationId);
+        const patient = await Patient.findById(patientId);
+        
+        const orgIdStr = typeof req.profile.organizationId === 'object' && req.profile.organizationId !== null
+            ? (req.profile.organizationId._id || req.profile.organizationId.id).toString()
+            : String(req.profile.organizationId);
+
+        const patOrgIdStr = typeof patient?.organization_id === 'object' && patient?.organization_id !== null
+            ? (patient.organization_id._id || patient.organization_id.id).toString()
+            : String(patient?.organization_id);
+            
+        canAccess = patient && patOrgIdStr && patOrgIdStr === orgIdStr;
       }
 
-      // Caretaker can access assigned patients
-      else if (role === 'caretaker') {
+      // Caretaker & Caller can access assigned patients
+      else if (role === 'caretaker' || role === 'caller') {
         const assignment = await CaretakerPatient.findOne({
           caretakerId: req.profile._id,
           patientId: patientId,
@@ -139,15 +176,46 @@ router.get('/:id',
         return res.status(403).json({ error: 'Access denied to this patient' });
       }
 
-      // Get patient details
-      const patient = await Profile.findById(patientId)
-        .populate('organizationId', 'name type settings');
+      // Get patient details initially from Patient collection
+      let patient = await Patient.findById(patientId)
+        .populate('organization_id', 'name type settings')
+        .populate('profile_id', 'conditions');
 
-      if (!patient || patient.role !== 'patient') {
-        return res.status(404).json({ error: 'Patient not found' });
+      let patientData;
+      const Medication = require('../models/Medication');
+
+      if (!patient) {
+        const Profile = require('../models/Profile');
+        const profile = await Profile.findById(patientId).populate('organizationId', 'name type settings');
+        if (!profile) {
+            return res.status(404).json({ error: 'Patient not found' });
+        }
+        patientData = profile.toJSON();
+        patientData.name = profile.fullName; // match patient schema
+        patientData.organization_id = profile.organizationId;
+        patientData.is_active = profile.isActive;
+        patientData.metadata = profile.metadata || {};
+      } else {
+        patientData = patient.toJSON();
+        patientData.metadata = patientData.metadata || {};
       }
 
-      res.json(patient);
+      // Merge existing root conditions with profile conditions
+      const existingConditions = Array.isArray(patientData.metadata.conditions) ? patientData.metadata.conditions : (Array.isArray(patientData.conditions) ? patientData.conditions : []);
+      const profileConditions = patient && patient.profile_id && Array.isArray(patient.profile_id.conditions) ? patient.profile_id.conditions : [];
+      patientData.metadata.conditions = [...existingConditions, ...profileConditions];
+      
+      // Merge existing root medications with Medication collection
+      const existingMeds = Array.isArray(patientData.metadata.medications) ? patientData.metadata.medications : (Array.isArray(patientData.medications) ? patientData.medications : []);
+      let externalMeds = [];
+      if (patient && patient.profile_id) {
+          externalMeds = await Medication.find({ patientId: patient.profile_id._id, isActive: true });
+      } else if (!patient) { // Profile DB mapped
+          externalMeds = await Medication.find({ patientId: patientId, isActive: true });
+      }
+      patientData.metadata.medications = [...existingMeds, ...externalMeds];
+
+      res.json(patientData);
 
     } catch (error) {
       console.error('Get patient error:', error);
@@ -198,15 +266,14 @@ router.post('/',
       }
 
       // Create patient profile
-      const patient = new Profile({
-        supabaseUid,
+      const patient = new Patient({
+        supabase_uid: supabaseUid,
         email,
-        fullName,
-        role: 'patient',
-        organizationId: targetOrgId,
+        name: fullName,
+        organization_id: targetOrgId,
         phone: phone || null,
         metadata: metadata || {},
-        emailVerified: true
+        is_active: true
       });
 
       await patient.save();
@@ -216,6 +283,70 @@ router.post('/',
       await Organization.findByIdAndUpdate(targetOrgId, {
         $inc: { currentPatientCount: 1 }
       });
+
+      // --- [START] ZERO-TOUCH ROUND-ROBIN ASSIGNMENT ---
+      try {
+        const Profile = require('../models/Profile');
+        const CaretakerPatient = require('../models/CaretakerPatient');
+
+        // 1. Fetch available callers explicitly mapped to this organization
+        const callers = await Profile.find({
+            organizationId: targetOrgId,
+            role: { $in: ['caller', 'caretaker'] },
+            isActive: { $ne: false }
+        });
+
+        if (callers && callers.length > 0) {
+            // 2. Map and aggregate current active assignments per caller
+            const callerIds = callers.map(c => c._id);
+            const assignmentCounts = await CaretakerPatient.aggregate([
+                { $match: { 
+                    caretakerId: { $in: callerIds },
+                    status: 'active'
+                }},
+                { $group: { _id: '$caretakerId', count: { $sum: 1 } } }
+            ]);
+
+            const mapCounts = {};
+            assignmentCounts.forEach(doc => {
+                mapCounts[doc._id.toString()] = doc.count;
+            });
+
+            // 3. Find the least burdened caller
+            let assignedCaller = callers[0];
+            let minCount = mapCounts[assignedCaller._id.toString()] || 0;
+
+            for (let i = 1; i < callers.length; i++) {
+                const count = mapCounts[callers[i]._id.toString()] || 0;
+                if (count < minCount) {
+                    minCount = count;
+                    assignedCaller = callers[i];
+                }
+            }
+
+            // 4. Directly create CaretakerPatient mapping (bypasses Profile-based validation)
+            if (minCount < 30) {
+                await CaretakerPatient.findOneAndUpdate(
+                    { caretakerId: assignedCaller._id, patientId: patient._id },
+                    {
+                        caretakerId: assignedCaller._id,
+                        patientId: patient._id,
+                        assignedBy: req.profile._id,
+                        status: 'active',
+                        notes: [{ content: 'System Auto-Assigned (Round-Robin) by Load Balancer', addedBy: req.profile._id }],
+                        schedule: { startDate: new Date() }
+                    },
+                    { upsert: true, new: true, setDefaultsOnInsert: true }
+                );
+                console.log(`[Auto-Assign] Patient ${patient.name} → Caller ${assignedCaller.fullName}`);
+            } else {
+                console.warn(`[Auto-Assign Warning] All Callers at full capacity (30 limit) for Org ${targetOrgId}`);
+            }
+        }
+      } catch (autoAssignErr) {
+          console.error('[Auto-Assign] System load-balancer failed routing silently:', autoAssignErr);
+      }
+      // --- [END] ZERO-TOUCH ROUND-ROBIN ASSIGNMENT ---
 
       // Log patient creation
       await logEvent(req.profile.supabaseUid, 'patient_created', 'patient', patient._id, req, {
@@ -264,10 +395,10 @@ router.put('/:id',
       if (role === 'super_admin') {
         canAccess = true;
       } else if (['org_admin', 'care_manager'].includes(role)) {
-        const patient = await Profile.findById(patientId);
+        const patient = await Patient.findById(patientId);
         canAccess = patient && 
-                   patient.organizationId && 
-                   patient.organizationId.equals(req.profile.organizationId);
+                   patient.organization_id && 
+                   patient.organization_id.equals(req.profile.organizationId);
       } else if (role === 'caretaker') {
         const assignment = await CaretakerPatient.findOne({
           caretakerId: req.profile._id,
@@ -292,22 +423,22 @@ router.put('/:id',
 
       // Build update data
       const updateData = {};
-      if (fullName !== undefined) updateData.fullName = fullName;
+      if (fullName !== undefined) updateData.name = fullName;
       if (phone !== undefined) updateData.phone = phone;
-      if (avatarUrl !== undefined) updateData.avatarUrl = avatarUrl;
+      if (avatarUrl !== undefined) updateData.avatar_url = avatarUrl;
       if (metadata !== undefined) updateData.metadata = metadata;
 
       // Only admins can change active status
       if (['super_admin', 'org_admin', 'care_manager'].includes(role)) {
-        if (isActive !== undefined) updateData.isActive = isActive;
+        if (isActive !== undefined) updateData.is_active = isActive;
       }
 
       // Update patient
-      const updatedPatient = await Profile.findByIdAndUpdate(
+      const updatedPatient = await Patient.findByIdAndUpdate(
         patientId,
         updateData,
         { new: true, runValidators: true }
-      ).populate('organizationId', 'name type');
+      ).populate('organization_id', 'name type');
 
       // Log patient update
       await logEvent(req.profile.supabaseUid, 'patient_updated', 'patient', patientId, req, {
@@ -596,6 +727,147 @@ router.get('/:id/mentors',
         error: 'Failed to get patient mentors', 
         details: error.message 
       });
+    }
+  }
+);
+
+/**
+ * POST /api/patients/:id/medications/:medId/toggle
+ * Toggle medication adherence for a specific date
+ */
+router.post('/:id/medications/:medId/toggle',
+  authenticate,
+  async (req, res) => {
+    try {
+      const patientId = req.params.id;
+      const medId = req.params.medId;
+      const { date, time } = req.body;
+
+      if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        return res.status(400).json({ error: 'Valid date required (YYYY-MM-DD format)' });
+      }
+
+      // Role check explicitly allows caller/caretaker/mentor to track, or the patient themselves
+      const { role } = req.profile;
+      let canAccess = false;
+      if (role === 'super_admin') {
+        canAccess = true;
+      } else if (['org_admin', 'care_manager'].includes(role)) {
+        const patient = await Patient.findById(patientId);
+        canAccess = patient && patient.organization_id && patient.organization_id.equals(req.profile.organizationId);
+      } else if (role === 'caretaker' || role === 'caller') {
+        const assignment = await CaretakerPatient.findOne({ caretakerId: req.profile._id, patientId: patientId, status: 'active' });
+        canAccess = !!assignment;
+      } else if (role === 'patient_mentor') {
+        const auth = await MentorAuthorization.findOne({ mentorId: req.profile._id, patientId: patientId, status: 'active' });
+        canAccess = !!auth;
+      } else if (role === 'patient') {
+        canAccess = req.profile._id.toString() === patientId;
+      }
+
+      if (!canAccess) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+
+      const Medication = require('../models/Medication');
+      const mongoose = require('mongoose');
+      let med = null;
+      if (mongoose.Types.ObjectId.isValid(medId)) {
+          med = await Medication.findById(medId);
+      }
+      
+      if (!med) {
+        // Fallback: Check if the medication is embedded inside the Profile model natively
+        const Profile = require('../models/Profile');
+        let fallbackTarget = await Profile.findById(patientId);
+        
+        let foundMed = false;
+        let hasTaken = false;
+        let isProfileMeta = true;
+
+        if (fallbackTarget && fallbackTarget.metadata && fallbackTarget.metadata.medications) {
+            const m = fallbackTarget.metadata.medications.find(x => (x._id && x._id.toString() === medId) || x.id === medId);
+            if (m) {
+                foundMed = true;
+                m.takenLogs = m.takenLogs || [];
+                const existingLogIndex = m.takenLogs.findIndex(l => l.date === date);
+                
+                if (existingLogIndex >= 0) {
+                    m.takenLogs.splice(existingLogIndex, 1);
+                    hasTaken = true;
+                } else {
+                    m.takenLogs.push({ date, timestamp: time ? new Date(date + 'T' + time) : new Date() });
+                }
+                
+                fallbackTarget.markModified('metadata.medications');
+                await fallbackTarget.save();
+                return res.json({ message: 'Toggled successfully', medication: m, isTakenOffset: !hasTaken });
+            }
+        }
+
+        // Second Fallback: Check if the medication is embedded inside the Patient model
+        if (!foundMed) {
+            const PatientModel = require('../models/Patient');
+            fallbackTarget = await PatientModel.findById(patientId);
+            if (fallbackTarget && fallbackTarget.get('medications')) {
+                const medsList = fallbackTarget.get('medications');
+                const m = medsList.find(x => (x._id && x._id.toString() === medId) || x.id === medId);
+                if (m) {
+                    foundMed = true;
+                    m.takenLogs = m.takenLogs || [];
+                    const existingLogIndex = m.takenLogs.findIndex(l => l.date === date);
+                    
+                    if (existingLogIndex >= 0) {
+                        m.takenLogs.splice(existingLogIndex, 1);
+                        hasTaken = true;
+                    } else {
+                        m.takenLogs.push({ date, timestamp: time ? new Date(date + 'T' + time) : new Date() });
+                    }
+                    
+                    fallbackTarget.markModified('medications');
+                    await fallbackTarget.save();
+                    return res.json({ message: 'Toggled successfully', medication: m, isTakenOffset: !hasTaken });
+                }
+            }
+            if (fallbackTarget && fallbackTarget.get('metadata') && fallbackTarget.get('metadata').medications) {
+                const medsList = fallbackTarget.get('metadata').medications;
+                const m = medsList.find(x => (x._id && x._id.toString() === medId) || x.id === medId);
+                if (m) {
+                    foundMed = true;
+                    m.takenLogs = m.takenLogs || [];
+                    const existingLogIndex = m.takenLogs.findIndex(l => l.date === date);
+                    
+                    if (existingLogIndex >= 0) {
+                        m.takenLogs.splice(existingLogIndex, 1);
+                        hasTaken = true;
+                    } else {
+                        m.takenLogs.push({ date, timestamp: time ? new Date(date + 'T' + time) : new Date() });
+                    }
+                    
+                    fallbackTarget.markModified('metadata.medications');
+                    await fallbackTarget.save();
+                    return res.json({ message: 'Toggled successfully', medication: m, isTakenOffset: !hasTaken });
+                }
+            }
+        }
+
+        if (!foundMed) {
+            return res.status(404).json({ error: 'Medication not found in any database' });
+        }
+      } else {
+          const existingLog = med.takenLogs ? med.takenLogs.find(l => l.date === date) : null;
+          let updatedMed;
+          if (existingLog) {
+            updatedMed = await Medication.findByIdAndUpdate(medId, { $pull: { takenLogs: { date: date } } }, { new: true });
+          } else {
+            const timestamp = time ? new Date(date + 'T' + time) : new Date();
+            updatedMed = await Medication.findByIdAndUpdate(medId, { $addToSet: { takenLogs: { date: date, timestamp: timestamp } } }, { new: true });
+          }
+          return res.json({ message: 'Toggled successfully', medication: updatedMed, isTakenOffset: !existingLog });
+      }
+    } catch (error) {
+      console.error('Toggle error:', error);
+      res.status(500).json({ error: 'Failed to toggle medication.' });
     }
   }
 );

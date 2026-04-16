@@ -39,10 +39,10 @@ const OrganizationSchema = new mongoose.Schema(
     // Contact information
     address: {
       street: String,
-      city: String,
+      district: String,
       state: String,
       zipCode: String,
-      country: { type: String, default: 'US' }
+      country: { type: String, default: 'India' }
     },
     phone: {
       type: String,
@@ -93,6 +93,20 @@ const OrganizationSchema = new mongoose.Schema(
       default: 0,
       min: 0
     },
+
+    // Tie-Ups and Financials
+    totalRevenue: {
+      type: Number,
+      default: 0,
+      min: 0
+    },
+    collaborations: [{
+      partnerName: { type: String, required: true },
+      dealAmount: { type: Number, required: true },
+      date: { type: Date, default: Date.now },
+      status: { type: String, enum: ['Active', 'Completed', 'Negotiating'], default: 'Active' },
+      addedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Profile' }
+    }],
 
     // Billing information
     billing: {

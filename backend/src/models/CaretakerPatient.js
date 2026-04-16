@@ -27,6 +27,12 @@ const CaretakerPatientSchema = new mongoose.Schema(
       default: 'active'
     },
     
+    // Parallel Coverage tracking flag
+    isTemporary: {
+      type: Boolean,
+      default: false
+    },
+    
     // Assignment priority (for caretakers with multiple patients)
     priority: {
       type: Number,
@@ -123,29 +129,47 @@ CaretakerPatientSchema.virtual('assignmentDuration').get(function() {
   return Math.ceil((end - start) / (1000 * 60 * 60 * 24));
 });
 
-// Pre-save middleware to validate caretaker and patient are in the same organization
+// Pre-save middleware to validate caretaker and patient exist
 CaretakerPatientSchema.pre('save', async function(next) {
   if (this.isNew || this.isModified('caretakerId') || this.isModified('patientId')) {
     const Profile = mongoose.model('Profile');
     
-    const [caretaker, patient] = await Promise.all([
-      Profile.findById(this.caretakerId),
-      Profile.findById(this.patientId)
-    ]);
+    const caretaker = await Profile.findById(this.caretakerId);
     
-    if (!caretaker || !patient) {
-      return next(new Error('Caretaker and patient must exist'));
+    if (!caretaker) {
+      return next(new Error('Caretaker must exist'));
     }
     
-    if (caretaker.role !== 'caretaker') {
-      return next(new Error('Assigned caretaker must have caretaker role'));
+    if (!['caretaker', 'caller', 'care_manager'].includes(caretaker.role)) {
+      return next(new Error('Assigned user must have a caretaking role (caretaker, caller, or care_manager)'));
+    }
+
+    // Check if patient exists in Profile collection first
+    let patient = await Profile.findById(this.patientId);
+    
+    // If not found in Profile, check the Patient collection (separate collection for patients)
+    if (!patient) {
+      try {
+        const Patient = mongoose.model('Patient');
+        patient = await Patient.findById(this.patientId);
+      } catch (e) {
+        // Patient model may not be registered yet, skip
+      }
     }
     
-    if (patient.role !== 'patient') {
+    if (!patient) {
+      return next(new Error('Patient must exist'));
+    }
+    
+    // Only enforce role check if patient is from Profile collection
+    if (patient.role && patient.role !== 'patient') {
       return next(new Error('Assigned patient must have patient role'));
     }
     
-    if (!caretaker.organizationId.equals(patient.organizationId)) {
+    // Only enforce org check if both have organizationId fields
+    const caretakerOrgId = caretaker.organizationId;
+    const patientOrgId = patient.organizationId || patient.organization_id;
+    if (caretakerOrgId && patientOrgId && !caretakerOrgId.equals(patientOrgId)) {
       return next(new Error('Caretaker and patient must be in the same organization'));
     }
   }
@@ -200,7 +224,7 @@ CaretakerPatientSchema.statics.getAssignmentStats = function(organizationId) {
     },
     {
       $match: {
-        'caretaker.organizationId': mongoose.Types.ObjectId(organizationId)
+        'caretaker.organizationId': new mongoose.Types.ObjectId(organizationId)
       }
     },
     {
