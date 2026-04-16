@@ -1,21 +1,6 @@
-// ── Sentry Error Tracking (must be first) ──────────────────────────────────
+// IMPORTANT: Make sure to import `instrument.js` at the top of your file.
+require('../instrument.js');
 const Sentry = require('@sentry/node');
-if (process.env.SENTRY_DSN) {
-  Sentry.init({
-    dsn: process.env.SENTRY_DSN,
-    environment: process.env.NODE_ENV || 'development',
-    tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.2 : 1.0,
-    // Strip PII from error reports (Audit 9.2)
-    beforeSend(event) {
-      if (event.request?.headers) {
-        delete event.request.headers['authorization'];
-        delete event.request.headers['cookie'];
-      }
-      return event;
-    },
-  });
-}
-
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -42,6 +27,11 @@ const app = express();
 // Enable if you're behind a reverse proxy (Heroku, Bluemix, AWS ELB, Nginx, Render, etc)
 app.set('trust proxy', 1);
 const PORT = process.env.PORT || 3001;
+
+// ── Sentry Test Route (Optional) ───────────────────────────────────────────
+app.get("/debug-sentry", function mainHandler(req, res) {
+  throw new Error("My first Sentry error!");
+});
 
 // Connect to MongoDB (skip in test environment to avoid open handles or missing mocks)
 if (process.env.NODE_ENV !== 'test') {
@@ -124,15 +114,13 @@ app.use('*', (req, res) => {
   res.status(404).json({ error: 'Route not found' });
 });
 
+// The error handler must be registered before any other error middleware and after all controllers
+Sentry.setupExpressErrorHandler(app);
+
 // Global error handler
 // eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
   console.error('Global error:', err);
-
-  // Report to Sentry (Audit 9.2)
-  if (process.env.SENTRY_DSN) {
-    Sentry.captureException(err);
-  }
 
   // Mongoose validation error
   if (err.name === 'ValidationError') {
