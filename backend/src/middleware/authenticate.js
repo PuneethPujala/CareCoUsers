@@ -125,27 +125,30 @@ const authenticate = async (req, res, next) => {
       await profile.resetFailedLogin();
     }
 
+    // Check if the user's organization is active (skip for super_admin)
+    if (profile.role !== 'super_admin' && profile.organizationId) {
+      const Organization = require('../models/Organization');
+      const orgId = profile.organizationId._id || profile.organizationId;
+      const org = await Organization.findById(orgId).select('isActive name').lean();
+      if (org && org.isActive === false) {
+        return res.status(403).json({
+          error: `Your organization "${org.name}" has been suspended. Contact your administrator.`,
+          code: 'ORGANIZATION_SUSPENDED'
+        });
+      }
+    }
+
     // Attach user and profile to request
     req.user = user;         // Supabase user object
     req.profile = profile;   // MongoDB profile with role and org
 
-    // Log successful authentication
-    await AuditLog.createLog({
-      supabaseUid: user.id,
-      action: 'login',
-      resourceType: 'profile',
-      resourceId: profile._id,
-      ipAddress: req.ip,
-      userAgent: req.headers['user-agent'],
-      outcome: 'success',
-      details: {
-        role: profile.role,
-        organizationId: profile.organizationId?._id
-      }
-    });
+    // NOTE: Authentication audit logging is handled in auth routes (login/register).
+    // We do NOT log every authenticated request here — that was causing massive
+    // write overhead and slow API responses on every single dashboard/profile call.
 
     next();
   } catch (err) {
+    require('fs').writeFileSync('authenticate_crash.txt', String(err.stack || err));
     console.error('Authentication error:', err);
 
     // Log system error

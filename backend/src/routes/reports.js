@@ -76,6 +76,52 @@ router.get('/user-activity',
 );
 
 /**
+ * GET /api/reports/system-activity
+ * Get system-wide or organization-wide recent activity log (flat list)
+ */
+router.get('/system-activity',
+  authenticate,
+  async (req, res) => {
+    try {
+      const { days = 7, limit = 100 } = req.query;
+      const { role, organizationId } = req.profile;
+      
+      const query = {
+        createdAt: { $gte: new Date(Date.now() - parseInt(days) * 24 * 60 * 60 * 1000) },
+        $and: [
+          { action: { $nin: ['login_failed', 'permission_denied'] } },
+          { action: { $not: /_read$/ } }
+        ]
+      };
+
+      // Organization admins only see their org's activity
+      if (['org_admin', 'care_manager'].includes(role)) {
+        // Find users in this organization
+        const orgUsers = await Profile.find({ organizationId }).select('supabaseUid');
+        const orgUserIds = orgUsers.map(u => u.supabaseUid);
+        query.supabaseUid = { $in: orgUserIds };
+      } else if (role !== 'super_admin') {
+        // Regular users only see their own
+        query.supabaseUid = req.profile.supabaseUid;
+      }
+
+      const activity = await AuditLog.find(query)
+        .sort({ createdAt: -1 })
+        .limit(parseInt(limit))
+        .populate('supabaseUid', 'fullName email role'); // Populate user details if needed
+
+      res.json({ activity });
+    } catch (error) {
+      console.error('Get system activity report error:', error);
+      res.status(500).json({
+        error: 'Failed to get system activity report',
+        details: error.message
+      });
+    }
+  }
+);
+
+/**
  * GET /api/reports/organization-stats
  * Get organization statistics
  */
@@ -339,7 +385,7 @@ router.get('/assignment-overview',
         { $unwind: '$caretaker' },
         {
           $match: {
-            'caretaker.organizationId': mongoose.Types.ObjectId(targetOrgId)
+            'caretaker.organizationId': new mongoose.Types.ObjectId(targetOrgId)
           }
         },
         {
@@ -385,7 +431,7 @@ router.get('/assignment-overview',
         { $unwind: '$patient' },
         {
           $match: {
-            'patient.organizationId': mongoose.Types.ObjectId(targetOrgId)
+            'patient.organizationId': new mongoose.Types.ObjectId(targetOrgId)
           }
         },
         {
@@ -466,7 +512,7 @@ router.get('/mentor-overview',
         { $unwind: '$mentor' },
         {
           $match: {
-            'mentor.organizationId': mongoose.Types.ObjectId(targetOrgId)
+            'mentor.organizationId': new mongoose.Types.ObjectId(targetOrgId)
           }
         },
         {
@@ -512,7 +558,7 @@ router.get('/mentor-overview',
         { $unwind: '$patient' },
         {
           $match: {
-            'patient.organizationId': mongoose.Types.ObjectId(targetOrgId)
+            'patient.organizationId': new mongoose.Types.ObjectId(targetOrgId)
           }
         },
         {
