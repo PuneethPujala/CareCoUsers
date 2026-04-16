@@ -93,6 +93,8 @@ async function me(req, res) {
 
     if (isPatient) {
       const patient = req.profile;
+      // BUG-6 FIX: Load passwordHash to expose hasPassword flag (never expose the hash itself)
+      const patientWithHash = await Patient.findById(patient._id).select('+passwordHash');
       res.json({
         user: {
           id: req.user.id,
@@ -112,15 +114,15 @@ async function me(req, res) {
           emailVerified: patient.emailVerified,
           lastLoginAt: patient.lastLoginAt,
           subscription_status: patient.subscription?.status || 'pending_payment',
+          hasPassword: !!patientWithHash?.passwordHash,
         },
       });
       return;
     }
 
-    const profile = await Profile.findById(req.profile._id).populate(
-      'organizationId',
-      'name city subscriptionPlan'
-    );
+    const profile = await Profile.findById(req.profile._id)
+      .select('+passwordHash')
+      .populate('organizationId', 'name city subscriptionPlan');
 
     let subscriptionStatus = null;
     if (profile.role === 'caller') {
@@ -158,6 +160,7 @@ async function me(req, res) {
         metadata: profile.metadata,
         mustChangePassword: profile.mustChangePassword || false,
         subscription_status: subscriptionStatus,
+        hasPassword: !!profile.passwordHash,
       },
     });
   } catch (err) {

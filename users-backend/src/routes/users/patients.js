@@ -346,7 +346,11 @@ router.get('/me', authenticateSession, async (req, res) => {
                 return res.status(500).json({ error: 'Failed to auto-seed patient profile', details: seedErr.message || String(seedErr) });
             }
         }
-        res.json({ patient });
+        // BUG-6 FIX: Expose hasPassword flag (never the actual hash)
+        const withHash = await Patient.findById(patient._id).select('+passwordHash');
+        const patientObj = patient.toObject();
+        patientObj.hasPassword = !!withHash?.passwordHash;
+        res.json({ patient: patientObj });
     } catch (error) {
         console.error('Get patient profile error:', error);
         res.status(500).json({ error: 'Failed to get patient profile' });

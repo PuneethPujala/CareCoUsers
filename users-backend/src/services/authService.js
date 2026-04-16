@@ -487,7 +487,8 @@ async function verifyPasswordReset({ email, otp, newPassword }, req) {
     profile.mustChangePassword = false;
     await profile.save();
     await tokenService.revokeAllForUser(profile._id, 'Profile');
-  } else {
+  }
+  if (patient) {
     patient.passwordHash = hash;
     await patient.save();
     await tokenService.revokeAllForUser(patient._id, 'Patient');

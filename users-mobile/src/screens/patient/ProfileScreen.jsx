@@ -487,8 +487,12 @@ export default function PatientProfileScreen({ navigation }) {
                     <Text style={s.sectionTitle}>ACCOUNT & SECURITY</Text>
                     <View style={s.card}>
                         <InfoRow icon={UserRound} iconBg="#EFF6FF" iconColor="#3B82F6" label="Account Details" value={null} placeholder="View details" onPress={() => setAccountModalVisible(true)} />
-                        <InfoRow icon={Shield} iconBg="#F5F3FF" iconColor="#8B5CF6" label="Change Password" value={null} placeholder="Update credentials" onPress={() => setCpModalVisible(true)} />
-                        <InfoRow icon={LockIcon} iconBg="#FEF3C7" iconColor="#F59E0B" label="Set Password" value={null} placeholder="For multi-device login" onPress={() => setSetPassModalVisible(true)} isLast />
+                        {/* BUG-6 FIX: Show the appropriate password option based on whether user already has a password */}
+                        {patient?.hasPassword ? (
+                            <InfoRow icon={Shield} iconBg="#F5F3FF" iconColor="#8B5CF6" label="Change Password" value={null} placeholder="Update credentials" onPress={() => setCpModalVisible(true)} isLast />
+                        ) : (
+                            <InfoRow icon={LockIcon} iconBg="#FEF3C7" iconColor="#F59E0B" label="Set Password" value={null} placeholder="For multi-device login" onPress={() => setSetPassModalVisible(true)} isLast />
+                        )}
                     </View>
                 </Animated.View>
 

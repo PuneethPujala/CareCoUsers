@@ -90,9 +90,26 @@ router.put(
   authController.updateMe
 );
 
-router.post('/send-otp', authController.sendOtp);
+// BUG-7 FIX: Dedicated OTP rate limiters to prevent flooding
+const otpSendLimiter = rateLimit({
+  windowMs: authWindowMs,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many OTP requests. Please try again later.', code: 'RATE_LIMIT' },
+});
 
-router.post('/verify-otp', authController.verifyOtp);
+const otpVerifyLimiter = rateLimit({
+  windowMs: authWindowMs,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many verification attempts. Please try again later.', code: 'RATE_LIMIT' },
+});
+
+router.post('/send-otp', otpSendLimiter, authController.sendOtp);
+
+router.post('/verify-otp', otpVerifyLimiter, authController.verifyOtp);
 
 router.post(
   '/set-password',
