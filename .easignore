@@ -12,32 +12,32 @@ yarn-error.log*
 .env.development.local
 .env.test.local
 .env.production.local
-backend/.env
-backend/.env.local
-backend/.env.development.local
-backend/.env.test.local
-backend/.env.production.local
-users-app/.env
-users-app/.env.local
-users-app/.env.development.local
-users-app/.env.test.local
-users-app/.env.production.local
+users-backend/.env
+users-backend/.env.local
+users-backend/.env.development.local
+users-backend/.env.test.local
+users-backend/.env.production.local
+users-mobile/.env
+users-mobile/.env.local
+users-mobile/.env.development.local
+users-mobile/.env.test.local
+users-mobile/.env.production.local
 
 # Expo / React Native
 .expo/
 dist/
 web-build/
 expo-env.d.ts
-users-app/.expo/
-users-app/dist/
-users-app/web-build/
-users-app/expo-env.d.ts
+users-mobile/.expo/
+users-mobile/dist/
+users-mobile/web-build/
+users-mobile/expo-env.d.ts
 
 # Native Mobile generated folders
 ios/
 android/
-users-app/ios/
-users-app/android/
+users-mobile/ios/
+users-mobile/android/
 
 # Metro
 .metro-health-check*
