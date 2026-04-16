@@ -61,32 +61,74 @@ function buildLoginProfile(account, isPatient) {
 }
 
 async function registerPatient(body, req) {
-  const { email, password, fullName, city, organizationId, phone } = body;
+  const { email, password, fullName, city, organizationId, phone, supabaseUid } = body;
   if (!email || !fullName) {
     const err = new Error('Missing required fields: email, fullName');
     err.status = 400;
     err.code = 'VALIDATION';
     throw err;
   }
-  if (!password) {
+
+  // Google OAuth users register without a password; email-password users must provide one
+  const isOAuth = !!supabaseUid;
+  if (!isOAuth && !password) {
     const err = new Error('Password is required');
     err.status = 400;
     err.code = 'VALIDATION';
     throw err;
   }
 
-  const pwErrors = passwordService.validatePasswordComplexity(password);
-  if (pwErrors.length) {
-    const err = new Error('Password does not meet requirements');
-    err.status = 400;
-    err.code = 'PASSWORD_POLICY';
-    err.details = pwErrors;
-    throw err;
+  if (password) {
+    const pwErrors = passwordService.validatePasswordComplexity(password);
+    if (pwErrors.length) {
+      const err = new Error('Password does not meet requirements');
+      err.status = 400;
+      err.code = 'PASSWORD_POLICY';
+      err.details = pwErrors;
+      throw err;
+    }
   }
 
   const emailNorm = email.toLowerCase().trim();
+
+  // ── Cross-collection email uniqueness ─────────────────────────────────────
+  // Prevent a patient from registering with an email already used by staff
+  const existingStaff = await Profile.findOne({ email: emailNorm, isActive: true });
+  if (existingStaff) {
+    const err = new Error('This email is already associated with a staff account. Please contact your administrator.');
+    err.status = 400;
+    err.code = 'EMAIL_ALREADY_EXISTS';
+    throw err;
+  }
+
+  // ── Merge into existing patient for OAuth ─────────────────────────────────
+  // If a Google user is re-registering (e.g. profile fetch failed previously),
+  // link the Supabase UID to the existing Patient record instead of creating a duplicate.
   const existingPatient = await Patient.findOne({ email: emailNorm, is_active: true });
   if (existingPatient) {
+    if (isOAuth) {
+      // Link the new Supabase UID to the existing record
+      existingPatient.supabase_uid = supabaseUid;
+      if (fullName && !existingPatient.name) existingPatient.name = fullName;
+      await existingPatient.save();
+
+      await logEvent(supabaseUid, 'patient_oauth_linked', 'patient', existingPatient._id, req, {
+        email: emailNorm,
+      });
+
+      return {
+        message: 'Account linked successfully',
+        user: { id: supabaseUid, email: emailNorm },
+        profile: {
+          id: existingPatient._id,
+          email: existingPatient.email,
+          fullName: existingPatient.name,
+          role: existingPatient.role,
+          organizationId: existingPatient.organization_id,
+          isActive: existingPatient.is_active,
+        },
+      };
+    }
     const err = new Error(`An account with the email "${email}" already exists. Please log in instead.`);
     err.status = 400;
     err.code = 'EMAIL_ALREADY_EXISTS';
@@ -125,10 +167,11 @@ async function registerPatient(body, req) {
     throw err;
   }
 
-  const subject = crypto.randomUUID();
-  const passwordHash = await passwordService.hashPassword(password);
+  // For OAuth users use their Supabase UID; for email-password generate a new one
+  const subject = isOAuth ? supabaseUid : crypto.randomUUID();
+  const passwordHash = password ? await passwordService.hashPassword(password) : undefined;
 
-  const patient = new Patient({
+  const patientData = {
     supabase_uid: subject,
     email: emailNorm,
     name: fullName,
@@ -137,8 +180,10 @@ async function registerPatient(body, req) {
     phone: phone || null,
     role: 'patient',
     emailVerified: true,
-    passwordHash,
-  });
+  };
+  if (passwordHash) patientData.passwordHash = passwordHash;
+
+  const patient = new Patient(patientData);
   try {
     await patient.save();
   } catch (e) {
@@ -157,6 +202,7 @@ async function registerPatient(body, req) {
     email: emailNorm,
     role: 'patient',
     organizationId: targetOrgId,
+    authMethod: isOAuth ? 'google_oauth' : 'email_password',
   });
 
   return {
@@ -253,10 +299,21 @@ async function login({ email, password, role }, req) {
       await account.save();
     }
   } else {
-    passwordValid = await passwordService.safeComparePassword(password, null);
+    // Account exists but has no password (Google-only user who never set one)
+    passwordValid = false;
   }
 
   if (!passwordValid) {
+    // Give a more helpful error for Google-only accounts
+    if (!account.passwordHash) {
+      const err = new Error(
+        'This account was created with Google Sign-In and does not have a password yet. ' +
+        'Please log in with Google and set a password in your profile settings.'
+      );
+      err.status = 401;
+      err.code = 'NO_PASSWORD_SET';
+      throw err;
+    }
     await account.incrementFailedLogin();
     await logSecurityEvent('anonymous', 'login_failed', 'medium', `Failed login attempt for ${emailNorm}`, req);
     const err = new Error('Invalid credentials. Please check your password.');

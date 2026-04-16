@@ -336,7 +336,7 @@ export default function LoginScreen({ navigation }) {
                 try {
                     await apiService.auth.register({
                         email: googleUser.email, fullName, role: 'patient',
-                        supabaseUid: googleUser.id, password: null,
+                        supabaseUid: googleUser.id,
                     });
                     const config = { headers: { Authorization: `Bearer ${result.session.access_token}` } };
                     const profileRes = await apiService.auth.getProfile(config);
@@ -398,8 +398,13 @@ export default function LoginScreen({ navigation }) {
             setPassword('');
             analytics.loginSuccess(result?.session?.user?.id);
         } catch (error) {
-            const { general } = parseError(error);
-            setErrorText(general);
+            const code = error?.response?.data?.code;
+            if (code === 'NO_PASSWORD_SET') {
+                setErrorText('This account uses Google Sign-In. Please log in with Google, then set a password in Settings.');
+            } else {
+                const { general } = parseError(error);
+                setErrorText(general);
+            }
             setPassword('');
             analytics.loginFailure(error?.code || 'login_error');
         } finally {

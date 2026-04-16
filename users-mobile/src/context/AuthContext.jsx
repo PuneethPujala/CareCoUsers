@@ -355,12 +355,25 @@ export function AuthProvider({ children }) {
 
             setSession(data.session);
 
+            // Save tokens so the API interceptor can use them for subsequent calls
+            await saveApiTokens({
+                access_token: data.session.access_token,
+                refresh_token: data.session.refresh_token,
+                expires_at: data.session.expires_at,
+            });
+
             try {
                 const config = { headers: { Authorization: `Bearer ${data.session.access_token}` } };
                 const response = await apiService.auth.getProfile(config);
                 const profileData = response.data.profile;
-                if (profileData) profileData.role = 'patient';
 
+                // Profile might be null if user exists in Supabase but not in our DB
+                if (!profileData) {
+                    setLoading(false);
+                    return { isNewUser: true, user: data.user, session: data.session };
+                }
+
+                profileData.role = 'patient';
                 await setProfileAndCache(profileData);
                 await fetchPatientData();
                 setUser(data.user);

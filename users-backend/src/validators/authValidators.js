@@ -3,10 +3,12 @@ const { body } = require('express-validator');
 const register = [
   body('email').isEmail().normalizeEmail().withMessage('Valid email is required'),
   body('password')
+    .optional({ nullable: true, checkFalsy: true })
     .isString()
     .isLength({ min: 8 })
     .withMessage('Password must be at least 8 characters'),
   body('fullName').trim().notEmpty().withMessage('fullName is required'),
+  body('supabaseUid').optional({ nullable: true }).isString().trim(),
   body('city').optional().isString().trim(),
   body('organizationId').optional({ checkFalsy: true }).isMongoId(),
   body('phone').optional().isString().trim(),
