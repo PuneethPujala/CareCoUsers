@@ -89,6 +89,47 @@ async function deleteMe(req, res) {
   }
 }
 
+// SEC-FIX-16: GDPR/DPDPA Data Portability
+async function exportMyData(req, res) {
+  try {
+    const isPatient = req.profile.role === 'patient';
+    const exported = { exportedAt: new Date().toISOString(), format: 'JSON' };
+
+    if (isPatient) {
+      const Patient = require('../models/Patient');
+      const CallLog = require('../models/CallLog');
+      const MedicineLog = require('../models/MedicineLog');
+      const VitalLog = require('../models/VitalLog');
+
+      const patient = await Patient.findById(req.profile._id).lean();
+      // Strip internal fields
+      delete patient.passwordHash;
+      delete patient.__v;
+
+      const calls = await CallLog.find({ patient_id: patient._id }).select('-__v').lean();
+      const medicines = await MedicineLog.find({ patient_id: patient._id }).select('-__v').lean();
+      const vitals = await VitalLog.find({ patient_id: patient._id }).select('-__v').lean();
+
+      exported.profile = patient;
+      exported.callLogs = calls;
+      exported.medicineLogs = medicines;
+      exported.vitalLogs = vitals;
+    } else {
+      const profile = await Profile.findById(req.profile._id).select('-passwordHash -__v -passwordHistory').lean();
+      exported.profile = profile;
+    }
+
+    await logEvent(req.user.id, 'data_exported', isPatient ? 'patient' : 'profile', req.profile._id, req);
+
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename="careco-export-${Date.now()}.json"`);
+    res.json(exported);
+  } catch (err) {
+    console.error('Export data error:', err);
+    res.status(500).json({ error: 'Failed to export data' });
+  }
+}
+
 async function refresh(req, res) {
   try {
     const raw = req.body.refresh_token;
@@ -391,4 +432,5 @@ module.exports = {
   verifyOtp,
   setPassword,
   deleteMe,
+  exportMyData,
 };

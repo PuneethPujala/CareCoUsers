@@ -491,10 +491,18 @@ export default function PatientProfileScreen({ navigation }) {
                         <InfoRow icon={UserRound} iconBg="#EFF6FF" iconColor="#3B82F6" label="Account Details" value={null} placeholder="View details" onPress={() => setAccountModalVisible(true)} />
                         {/* BUG-6 FIX: Show the appropriate password option based on whether user already has a password */}
                         {patient?.hasPassword ? (
-                            <InfoRow icon={Shield} iconBg="#F5F3FF" iconColor="#8B5CF6" label="Change Password" value={null} placeholder="Update credentials" onPress={() => setCpModalVisible(true)} isLast />
+                            <InfoRow icon={Shield} iconBg="#F5F3FF" iconColor="#8B5CF6" label="Change Password" value={null} placeholder="Update credentials" onPress={() => setCpModalVisible(true)} />
                         ) : (
-                            <InfoRow icon={LockIcon} iconBg="#FEF3C7" iconColor="#F59E0B" label="Set Password" value={null} placeholder="For multi-device login" onPress={() => setSetPassModalVisible(true)} isLast />
+                            <InfoRow icon={LockIcon} iconBg="#FEF3C7" iconColor="#F59E0B" label="Set Password" value={null} placeholder="For multi-device login" onPress={() => setSetPassModalVisible(true)} />
                         )}
+                        <InfoRow icon={FileText} iconBg="#F0FDF4" iconColor="#16A34A" label="Download My Data" value={null} placeholder="Export your records" onPress={async () => {
+                            try {
+                                const { data } = await apiService.auth.exportMyData();
+                                Alert.alert('Data Export', 'Your data export has been prepared. In production, this will download as a file.');
+                            } catch (e) {
+                                Alert.alert('Error', 'Failed to export data.');
+                            }
+                        }} isLast />
                     </View>
                 </Animated.View>
 

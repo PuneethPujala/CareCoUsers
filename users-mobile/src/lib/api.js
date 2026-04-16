@@ -182,6 +182,7 @@ export const apiService = {
         verifyOtp: (identifier, otp, type) => api.post('/auth/verify-otp', { identifier, otp, type }),
         setPassword: (newPassword) => api.post('/auth/set-password', { newPassword }),
         deleteAccount: () => api.delete('/auth/me'),
+        exportMyData: () => api.get('/auth/me/export'),
     },
 
     patients: {

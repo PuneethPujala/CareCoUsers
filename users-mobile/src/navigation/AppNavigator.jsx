@@ -22,6 +22,7 @@ import { useAuth } from "../context/AuthContext";
 import { sendDailyWelcomeNotification, registerForPushNotificationsAsync, sendSeamlessExperienceNotification } from "../utils/notifications";
 import { apiService } from "../lib/api";
 import { colors } from "../theme";
+import useIdleTimeout from "../hooks/useIdleTimeout";
 
 // Onboarding screens
 // SplashScreen removed — native splash handles the transition now
@@ -224,8 +225,11 @@ function AppSplashScreen() {
 }
 
 export default function AppNavigator() {
-    const { isBootstrapping, onboardingComplete, subscriptionStatus, user, profile } = useAuth();
+    const { isBootstrapping, onboardingComplete, subscriptionStatus, user, profile, signOut } = useAuth();
     const navigation = useNavigation();
+
+    // SEC-FIX-15: Auto-logout after 15 minutes of inactivity
+    useIdleTimeout(signOut, 15 * 60 * 1000);
 
     const notificationListener = useRef();
     const responseListener = useRef();

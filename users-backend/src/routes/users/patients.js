@@ -8,6 +8,7 @@ const Caller = require('../../models/Caller');
 const Notification = require('../../models/Notification');
 const AIVitalPrediction = require('../../models/AIVitalPrediction');
 const { authenticate, authenticateSession } = require('../../middleware/authenticate');
+const { validateObjectId } = require('../../middleware/validateObjectId');
 
 const router = express.Router();
 
@@ -278,7 +279,7 @@ router.post('/me/addresses', authenticateSession, async (req, res) => {
  * PUT /api/users/patients/me/addresses/:id
  * Update a saved address
  */
-router.put('/me/addresses/:id', authenticateSession, async (req, res) => {
+router.put('/me/addresses/:id', authenticateSession, validateObjectId('id'), async (req, res) => {
     try {
         const { label, title, address_line, flat_no, street, city, state, postcode, lat, lon } = req.body;
         const patient = await Patient.findOneAndUpdate(
@@ -305,7 +306,7 @@ router.put('/me/addresses/:id', authenticateSession, async (req, res) => {
  * DELETE /api/users/patients/me/addresses/:id
  * Delete a saved address
  */
-router.delete('/me/addresses/:id', authenticateSession, async (req, res) => {
+router.delete('/me/addresses/:id', authenticateSession, validateObjectId('id'), async (req, res) => {
     try {
         const patient = await Patient.findOne({ supabase_uid: req.user.id });
         if (!patient) return res.status(404).json({ error: 'Patient profile not found' });
@@ -530,7 +531,7 @@ router.put('/me/primary-doctor', authenticateSession, async (req, res) => {
     }
 });
 
-router.delete('/me/:collection/:id', authenticateSession, async (req, res) => {
+router.delete('/me/:collection/:id', authenticateSession, validateObjectId('id'), async (req, res) => {
     try {
         const patient = await Patient.findOne({ supabase_uid: req.user.id });
         if (!patient) return res.status(404).json({ error: 'Patient not found' });
@@ -668,7 +669,7 @@ router.post('/me/trusted-contacts', authenticateSession, async (req, res) => {
  * PUT /api/users/patients/me/trusted-contacts/:id
  * Patient updates a trusted contact
  */
-router.put('/me/trusted-contacts/:id', authenticateSession, async (req, res) => {
+router.put('/me/trusted-contacts/:id', authenticateSession, validateObjectId('id'), async (req, res) => {
     try {
         const { name, phone, relation, email, is_primary, can_view_data, permissions } = req.body;
         const patient = await Patient.findOneAndUpdate(
@@ -698,7 +699,7 @@ router.put('/me/trusted-contacts/:id', authenticateSession, async (req, res) => 
  * DELETE /api/users/patients/me/trusted-contacts/:id
  * Patient deletes a trusted contact
  */
-router.delete('/me/trusted-contacts/:id', authenticateSession, async (req, res) => {
+router.delete('/me/trusted-contacts/:id', authenticateSession, validateObjectId('id'), async (req, res) => {
     try {
         const patient = await Patient.findOne({ supabase_uid: req.user.id });
         if (!patient) return res.status(404).json({ error: 'Patient profile not found' });
@@ -818,7 +819,7 @@ router.get('/me/notifications', authenticateSession, async (req, res) => {
  * PUT /api/users/patients/me/notifications/:id/read
  * Mark a persistent backend notification as read
  */
-router.put('/me/notifications/:id/read', authenticateSession, async (req, res) => {
+router.put('/me/notifications/:id/read', authenticateSession, validateObjectId('id'), async (req, res) => {
     try {
         const patient = await Patient.findOne({ supabase_uid: req.user.id });
         if (!patient) return res.status(404).json({ error: 'Patient profile not found' });
