@@ -1,0 +1,225 @@
+{
+  "collections": [
+    "cities",
+    "notifications",
+    "profiles",
+    "devicetokens",
+    "patients",
+    "callers",
+    "passwordresets",
+    "medicinelogs",
+    "rolepermissions",
+    "alerts",
+    "organizations",
+    "invoices",
+    "caretakerpatients",
+    "calllogs",
+    "passwordresetotps",
+    "medications",
+    "mentorauthorizations",
+    "escalations",
+    "auditlogs",
+    "vitallogs"
+  ],
+  "patientCount": 5,
+  "samplePatient": {
+    "_id": "69b5a75b5020154ac3c6306a",
+    "supabase_uid": "f450a025-5819-42f6-a8d1-ebf0432a5288",
+    "profile_id": "69b10a255ddcca8c0c140f19",
+    "name": "Puneeth Pujala",
+    "email": "pujalapuneeth@gmail.com",
+    "profile_complete": true,
+    "city": "Amaravati",
+    "address": {
+      "country": "UK"
+    },
+    "organization_id": "69b5a75b5020154ac3c63069",
+    "previous_callers": [],
+    "timezone": "Europe/London",
+    "call_frequency_days": 7,
+    "subscription": {
+      "status": "active",
+      "plan": "basic",
+      "amount": 500,
+      "payment_date": "2026-03-15T07:32:22.212Z",
+      "started_at": "2026-03-15T07:32:22.212Z",
+      "expires_at": "2026-04-14T07:32:22.212Z",
+      "next_billing": "2026-04-14T07:32:22.212Z",
+      "currency": "GBP"
+    },
+    "paid": 1,
+    "conditions": [
+      {
+        "name": "Type 2 Diabetes",
+        "diagnosed_on": "2018-01-15T00:00:00.000Z",
+        "status": "managed",
+        "severity": "moderate",
+        "_id": "69bd6bcd8781421048ddaf72"
+      },
+      {
+        "name": "Hypertension",
+        "diagnosed_on": "2020-03-10T00:00:00.000Z",
+        "status": "active",
+        "severity": "moderate",
+        "_id": "69bd6bcd8781421048ddaf73"
+      }
+    ],
+    "medical_history": [
+      {
+        "event": "Knee Replacement Surgery",
+        "date": "2023-10-15T00:00:00.000Z",
+        "notes": "Right knee, successful recovery.",
+        "_id": "69b66086eddf02e0723a00a1"
+      },
+      {
+        "event": "Diagnosed with Type 2 Diabetes",
+        "date": "2018-01-15T00:00:00.000Z",
+        "notes": "Started on Metformin protocol.",
+        "_id": "69b66086eddf02e0723a00a2"
+      },
+      {
+        "event": "Started BP Medication",
+        "date": "2020-06-10T00:00:00.000Z",
+        "notes": "Amlodipine 5mg daily.",
+        "_id": "69b66086eddf02e0723a00a3"
+      }
+    ],
+    "allergies": [
+      {
+        "name": "Penicillin",
+        "severity": "mild",
+        "reaction": "Anaphylaxis",
+        "_id": "69bd6bcd8781421048ddaf74"
+      },
+      {
+        "name": "Peanuts",
+        "severity": "moderate",
+        "reaction": "Hives",
+        "_id": "69bd6bcd8781421048ddaf75"
+      }
+    ],
+    "medications": [
+      {
+        "name": "Metformin",
+        "dosage": "500mg",
+        "frequency": "daily",
+        "times": [
+          "morning"
+        ],
+        "is_active": true,
+        "prescribed_by": "Dr. Reddy",
+        "instructions": "Take with food",
+        "_id": "69b66086eddf02e0723a00a4"
+      },
+      {
+        "name": "Amlodipine",
+        "dosage": "5mg",
+        "frequency": "daily",
+        "times": [
+          "afternoon"
+        ],
+        "is_active": true,
+        "prescribed_by": "Dr. Rao",
+        "instructions": "Take after lunch",
+        "_id": "69b66086eddf02e0723a00a5"
+      },
+      {
+        "name": "Atorvastatin",
+        "dosage": "10mg",
+        "frequency": "daily",
+        "times": [
+          "night"
+        ],
+        "is_active": true,
+        "prescribed_by": "Dr. Reddy",
+        "instructions": "Take before sleep",
+        "_id": "69b66086eddf02e0723a00a6"
+      },
+      {
+        "name": "Dolo 650",
+        "dosage": "100 mg",
+        "frequency": "",
+        "times": [
+          "morning"
+        ],
+        "is_active": true,
+        "prescribed_by": "",
+        "_id": "69bd716af525a9bb59cc4fa2"
+      }
+    ],
+    "blood_type": "O+",
+    "mobility_level": "wheelchair",
+    "risk_level": "low",
+    "is_active": true,
+    "preferred_call_times": [],
+    "trusted_contacts": [],
+    "created_at": "2026-03-14T18:22:19.752Z",
+    "updated_at": "2026-03-31T07:21:06.654Z",
+    "__v": 9,
+    "assigned_caller_id": "69a7f3ba8d597e51f4f67925",
+    "saved_addresses": [],
+    "alcohol_use": "occasional",
+    "appointments": [
+      {
+        "title": "Diabetes Review",
+        "doctor_name": "Dr. Reddy",
+        "location": "Apollo Hospital",
+        "date": "2026-03-27T15:46:21.657Z",
+        "status": "upcoming",
+        "_id": "69bd6bcd8781421048ddaf78"
+      }
+    ],
+    "date_of_birth": "1977-11-30T00:00:00.000Z",
+    "exercise_frequency": "none",
+    "gp_email": "dr.reddy@apollohyd.in",
+    "gp_name": "Dr. Anand Reddy",
+    "gp_phone": "+914023456789",
+    "height_cm": 180,
+    "smoking_status": "never",
+    "vaccinations": [
+      {
+        "name": "COVID-19 (Covishield)",
+        "date_given": "2021-05-10T00:00:00.000Z",
+        "next_due": null,
+        "administered_by": "Govt. Health Centre",
+        "_id": "69bd6bcd8781421048ddaf76"
+      },
+      {
+        "name": "Influenzaa",
+        "date_given": "2024-10-01T00:00:00.000Z",
+        "next_due": "2025-10-01T00:00:00.000Z",
+        "administered_by": "Dr. Reddy",
+        "_id": "69bd6bcd8781421048ddaf77"
+      },
+      {
+        "name": "Polio",
+        "date_given": "2006-03-20T00:00:00.000Z",
+        "administered_by": "",
+        "_id": "69bd7832f22dce604fa15721"
+      }
+    ],
+    "weight_kg": 77,
+    "phone": "+91 8121662611",
+    "gender": "male",
+    "language": "en_IN"
+  },
+  "profileCounts": [
+    {
+      "_id": "care_manager",
+      "count": 3
+    },
+    {
+      "_id": "org_admin",
+      "count": 3
+    },
+    {
+      "_id": "caller",
+      "count": 1
+    },
+    {
+      "_id": "super_admin",
+      "count": 1
+    }
+  ],
+  "orgCount": 1
+}
