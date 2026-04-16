@@ -200,7 +200,6 @@ const PatientSchema = new mongoose.Schema(
             {
                 name: { type: String, required: true },
                 dosage: String,
-                frequency: String,
                 times: [
                     {
                         type: String,
@@ -208,7 +207,6 @@ const PatientSchema = new mongoose.Schema(
                     },
                 ],
                 scheduledTimes: [String], // NEW - Array of HH:MM strings
-                takenDates: [Date],      // NEW - Array of dates when medicine was taken
                 takenLogs: [             // NEW - Rich audit trail
                     {
                         timestamp: { type: Date, default: Date.now },
@@ -217,11 +215,7 @@ const PatientSchema = new mongoose.Schema(
                         notes: String
                     }
                 ],
-                start_date: { type: Date },
-                end_date: { type: Date },   // null = ongoing
                 is_active: { type: Boolean, default: true },
-                refill_due: { type: Date },
-                prescribed_by: String,
                 instructions: String,
             },
         ],
