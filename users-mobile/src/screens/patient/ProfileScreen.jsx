@@ -8,13 +8,14 @@ import {
     Bell, Settings, LogOut, ChevronRight, UserRound, Phone, X, Save,
     ShieldCheck, Star, MapPin, ClipboardList, FileText, FlaskConical,
     Wallet, CreditCard, Receipt, Heart, Users, BellRing, Clock, Globe,
-    Shield, Droplets, Calendar, User2,
+    Shield, Droplets, Calendar, User2, Trash2
 } from 'lucide-react-native';
 import { colors } from '../../theme';
 import { useAuth } from '../../context/AuthContext';
 import { apiService } from '../../lib/api';
 import { registerForPushNotificationsAsync } from '../../utils/notifications';
 import { Lock as LockIcon } from 'lucide-react-native';
+import * as WebBrowser from 'expo-web-browser';
 
 const C = {
     primary: '#6366F1', primarySoft: '#EEF2FF', dark: '#0F172A', mid: '#334155',
@@ -478,7 +479,8 @@ export default function PatientProfileScreen({ navigation }) {
                                 value={medReminders}
                             />
                         </View>
-                        <InfoRow icon={Globe} iconBg="#EFF6FF" iconColor="#3B82F6" label="Language" value={LANGUAGES.find(l => l.code === selectedLang)?.label || 'English (India)'} placeholder="" onPress={() => setLanguageModalVisible(true)} isLast />
+                        <InfoRow icon={Globe} iconBg="#EFF6FF" iconColor="#3B82F6" label="Language" value={LANGUAGES.find(l => l.code === selectedLang)?.label || 'English (India)'} placeholder="" onPress={() => setLanguageModalVisible(true)} />
+                        <InfoRow icon={Shield} iconBg="#F0FDF4" iconColor="#16A34A" label="Privacy Policy" value={null} placeholder="Read our policy" onPress={() => WebBrowser.openBrowserAsync('https://samvaya.com/privacy-policy')} isLast />
                     </View>
                 </Animated.View>
 
@@ -496,12 +498,31 @@ export default function PatientProfileScreen({ navigation }) {
                     </View>
                 </Animated.View>
 
-                {/* ── Sign Out ── */}
+                {/* ── Sign Out & Delete ── */}
                 <Animated.View style={anim(9)}>
-                    <Pressable style={s.logoutBtn} onPress={() => signOut()}>
-                        <LogOut size={20} color="#E11D48" strokeWidth={2.5} />
-                        <Text style={s.logoutTxt}>Sign Out Account</Text>
-                    </Pressable>
+                    <View style={{ marginBottom: 24, paddingHorizontal: 24, gap: 12 }}>
+                        <Pressable style={s.logoutBtn} onPress={() => signOut()}>
+                            <LogOut size={20} color="#E11D48" strokeWidth={2.5} />
+                            <Text style={s.logoutTxt}>Sign Out Account</Text>
+                        </Pressable>
+                        <Pressable 
+                            style={[s.logoutBtn, { backgroundColor: '#FEF2F2', borderColor: '#FECACA' }]} 
+                            onPress={() => Alert.alert('Delete Account', 'This action is permanent and cannot be undone. All your health data will be deleted.', [
+                                {text: 'Cancel', style: 'cancel'},
+                                {text: 'Delete Permanently', style: 'destructive', onPress: async () => {
+                                    try {
+                                        await apiService.auth.deleteAccount();
+                                        signOut();
+                                    } catch(e) {
+                                        Alert.alert('Error', 'Failed to delete account');
+                                    }
+                                }}
+                            ])}
+                        >
+                            <Trash2 size={20} color="#DC2626" strokeWidth={2.5} />
+                            <Text style={[s.logoutTxt, { color: '#DC2626' }]}>Delete Account</Text>
+                        </Pressable>
+                    </View>
                     <Text style={s.versionTxt}>v1.0.4 • Made with ♥ by Samvaya</Text>
                 </Animated.View>
             </ScrollView>

@@ -7,6 +7,7 @@
  */
 
 const isDev = process.env.EXPO_PUBLIC_ENVIRONMENT === 'development';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Allowed fields (whitelist — no tokens/passwords ever)
 const SAFE_FIELDS = ['userId', 'role', 'errorCode', 'status', 'event', 'screen', 'method'];
@@ -33,15 +34,27 @@ function sanitize(data) {
 }
 
 const analytics = {
+    consentGranted: false,
+
     /**
      * Initialize analytics (call once in App.js)
-     * TODO: Replace with Sentry.init() or Amplitude.init()
      */
-    init() {
+    async init() {
+        try {
+            const consent = await AsyncStorage.getItem('samvaya_tracking_consent');
+            if (consent === 'granted') this.consentGranted = true;
+        } catch {}
+
         if (isDev) {
-            // In dev mode, analytics are logged to console (redacted)
+            // Dev init
         }
-        // Production: Sentry.init({ dsn: '...' }), Amplitude.init('...')
+    },
+
+    async setConsent(granted) {
+        this.consentGranted = granted;
+        try {
+            await AsyncStorage.setItem('samvaya_tracking_consent', granted ? 'granted' : 'denied');
+        } catch {}
     },
 
     /**
@@ -50,6 +63,9 @@ const analytics = {
      * @param {object} data - Event data (userId, errorCode — never tokens/passwords)
      */
     track(event, data = {}) {
+        // SEC-FIX-14: No tracking without explicit user consent (GDPR/DPDPA)
+        if (!this.consentGranted) return;
+
         const safeData = sanitize(data);
         if (isDev) {
             // Dev-only: silent structured log (no sensitive data)
@@ -64,6 +80,7 @@ const analytics = {
      * @param {object} traits - { role, email (hashed) }
      */
     identify(userId, traits = {}) {
+        if (!this.consentGranted) return;
         const safeTraits = sanitize(traits);
         // Production: Sentry.setUser({ id: userId, ...safeTraits });
         // Production: Amplitude.setUserId(userId);

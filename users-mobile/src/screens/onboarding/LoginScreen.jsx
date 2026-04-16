@@ -400,10 +400,12 @@ export default function LoginScreen({ navigation }) {
         } catch (error) {
             const code = error?.response?.data?.code;
             if (code === 'NO_PASSWORD_SET') {
+                // SEC-FIX-1: Server returns generic message, but code lets us show a helpful hint
                 setErrorText('This account uses Google Sign-In. Please log in with Google, then set a password in Settings.');
             } else {
-                const { general } = parseError(error);
-                setErrorText(general);
+                // SEC-FIX-1: Server now returns generic "Invalid email or password" for all failures
+                const msg = error?.response?.data?.error || 'Invalid email or password. Please try again.';
+                setErrorText(msg);
             }
             setPassword('');
             analytics.loginFailure(error?.code || 'login_error');

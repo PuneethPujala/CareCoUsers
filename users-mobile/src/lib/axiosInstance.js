@@ -47,14 +47,15 @@ axiosInstance.interceptors.response.use(
     async (error) => {
         const config = error.config;
 
-        // ── Auto-retry mechanism (max 2 retries, 1s delay) ──────
+        // ── Auto-retry mechanism (max 2 retries, exponential backoff) ──────
         if (config && config._retryCount < 2) {
             config._retryCount += 1;
             if (__DEV__) {
                 console.log(`[API] Retry ${config._retryCount}/2 for ${config.url}`);
             }
-            // Wait 1 second before retrying
-            await new Promise((resolve) => setTimeout(resolve, 1000));
+            // Wait with exponential backoff (1s, 2s)
+            const delay = Math.pow(2, config._retryCount - 1) * 1000;
+            await new Promise((resolve) => setTimeout(resolve, delay));
             return axiosInstance(config);
         }
 

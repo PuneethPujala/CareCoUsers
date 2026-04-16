@@ -31,13 +31,13 @@ import { normaliseStatus, resolveOnboardingStep } from '../utils/authUtils';
 
 async function cacheProfile(profileData) {
     try {
-        await AsyncStorage.setItem(PROFILE_SECURE_KEY, JSON.stringify(profileData));
+        await SecureStore.setItemAsync(PROFILE_SECURE_KEY, JSON.stringify(profileData));
     } catch { }
 }
 
 async function getCachedProfile() {
     try {
-        const raw = await AsyncStorage.getItem(PROFILE_SECURE_KEY);
+        const raw = await SecureStore.getItemAsync(PROFILE_SECURE_KEY);
         return raw ? JSON.parse(raw) : null;
     } catch {
         return null;
@@ -46,7 +46,7 @@ async function getCachedProfile() {
 
 async function clearCachedProfile() {
     try {
-        await AsyncStorage.removeItem(PROFILE_SECURE_KEY);
+        await SecureStore.deleteItemAsync(PROFILE_SECURE_KEY);
     } catch { }
 }
 

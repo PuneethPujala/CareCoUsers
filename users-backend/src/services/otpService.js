@@ -24,7 +24,7 @@ async function createOTP(identifier) {
     await redis.del(key);
     await redis.set(key, otp, 'EX', OTP_TTL_SECONDS);
 
-    console.log(`🔐 OTP created for ${identifier} (expires in ${OTP_TTL_SECONDS}s)`);
+    console.log(`🔐 OTP created securely (expires in ${OTP_TTL_SECONDS}s)`);
     return otp;
 }
 
@@ -47,7 +47,7 @@ async function verifyOTP(identifier, code) {
 
     // Delete after successful verification
     await redis.del(key);
-    console.log(`✅ OTP verified for ${identifier}`);
+    console.log(`✅ OTP verified successfully`);
     return { valid: true };
 }
 

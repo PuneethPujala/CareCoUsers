@@ -34,18 +34,32 @@ if (process.env.NODE_ENV !== 'test') {
 app.use(helmet());
 app.use(compression());
 
-// CORS configuration (MUST be before rate limiter or any route that needs CORS)
-// Mobile apps send no Origin header, so we allow all origins.
-// In production, you can restrict this to specific web domains if needed.
+// CORS configuration
+// Mobile apps send no Origin header, so we allow them (!origin).
+// But we restrict browser origins in production.
 app.use(cors({
   origin: function (origin, callback) {
-    // Allow requests with no origin (mobile apps, curl, etc.)
     if (!origin) return callback(null, true);
-    // Allow all origins — this is a mobile-first API
-    callback(null, true);
+    if (process.env.NODE_ENV === 'production') {
+        const whitelist = [process.env.FRONTEND_URL];
+        if (whitelist.includes(origin) || origin.startsWith('careco-app://') || origin.startsWith('exp://')) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    } else {
+        callback(null, true);
+    }
   },
   credentials: true,
 }));
+
+// Setup strict cache-control for API endpoints
+app.use('/api', (req, res, next) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+  res.set('Pragma', 'no-cache');
+  next();
+});
 
 // Rate limiting
 const limiter = rateLimit({

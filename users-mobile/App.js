@@ -1,6 +1,7 @@
 import { StatusBar } from 'expo-status-bar';
-import { LogBox, Platform } from 'react-native';
-import React, { useEffect } from 'react';
+import { LogBox, Platform, AppState, View, StyleSheet, Text } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { ShieldCheck } from 'lucide-react-native';
 import { useFonts, DMSans_400Regular, DMSans_500Medium, DMSans_600SemiBold, DMSans_700Bold } from '@expo-google-fonts/dm-sans';
 import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, Inter_800ExtraBold, Inter_900Black } from '@expo-google-fonts/inter';
 import * as SplashScreen from 'expo-splash-screen';
@@ -18,6 +19,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { AuthProvider } from './src/context/AuthContext';
 import { NetworkProvider } from './src/context/NetworkContext';
 import AppNavigator from './src/navigation/AppNavigator';
+import ErrorBoundary from './src/components/ErrorBoundary';
 import analytics from './src/utils/analytics';
 import * as Linking from 'expo-linking';
 
@@ -50,6 +52,13 @@ export default function App() {
         Inter_900Black,
     });
 
+    const [appState, setAppState] = useState(AppState.currentState);
+
+    useEffect(() => {
+        const sub = AppState.addEventListener('change', state => setAppState(state));
+        return () => sub.remove();
+    }, []);
+
     useEffect(() => {
         if (fontsLoaded) {
             SplashScreen.hideAsync().catch(() => {});
@@ -58,16 +67,31 @@ export default function App() {
 
     if (!fontsLoaded) return null;
 
+    const showPrivacyOverlay = appState !== 'active';
+
     return (
         <SafeAreaProvider>
-            <NetworkProvider>
-                <AuthProvider>
-                    <NavigationContainer linking={linking}>
-                        <AppNavigator />
-                        <StatusBar style="light" />
-                    </NavigationContainer>
-                </AuthProvider>
-            </NetworkProvider>
+            <ErrorBoundary>
+                <NetworkProvider>
+                    <AuthProvider>
+                        <NavigationContainer linking={linking}>
+                            <AppNavigator />
+                            <StatusBar style="light" />
+                        </NavigationContainer>
+                    </AuthProvider>
+                </NetworkProvider>
+                
+                {/* SEC-FIX-8: Task Switcher Data Privacy Overlay */}
+                {showPrivacyOverlay && (
+                    <View style={StyleSheet.absoluteFill}>
+                        <View style={{flex: 1, backgroundColor: '#0F172A', alignItems: 'center', justifyContent: 'center'}}>
+                            <ShieldCheck color="#3B82F6" size={64} />
+                            <Text style={{color: '#FFFFFF', fontSize: 22, marginTop: 16, fontWeight: '700'}}>CareCo Secure View</Text>
+                            <Text style={{color: '#94A3B8', fontSize: 14, marginTop: 8}}>Protecting your health data</Text>
+                        </View>
+                    </View>
+                )}
+            </ErrorBoundary>
         </SafeAreaProvider>
     );
 }

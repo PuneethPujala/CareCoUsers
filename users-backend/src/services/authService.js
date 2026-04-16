@@ -239,12 +239,6 @@ async function login({ email, password, role }, req) {
   let account;
   if (isPatient) {
     account = await Patient.findOne({ email: emailNorm, is_active: true }).select('+passwordHash');
-    if (!account) {
-      const err = new Error('No account found with this email. Please sign up first.');
-      err.status = 403;
-      err.code = 'PROFILE_NOT_FOUND';
-      throw err;
-    }
   } else {
     const chain = Profile.findOne({
       email: emailNorm,
@@ -252,23 +246,16 @@ async function login({ email, password, role }, req) {
       isActive: true,
     }).select('+passwordHash');
     account = await chain.populate('organizationId', 'name city');
+  }
 
-    if (!account) {
-      const existingProfile = await Profile.findOne({ email: emailNorm, isActive: true });
-      if (existingProfile) {
-        const err = new Error(
-          `No account found for role "${ROLE_LABELS[role] || role}". Please select the correct role.`
-        );
-        err.status = 403;
-        err.code = 'ROLE_MISMATCH';
-        err.hint = 'Please select the role that was assigned to your account.';
-        throw err;
-      }
-      const err = new Error('No account found with this email. Please contact your administrator.');
-      err.status = 403;
-      err.code = 'PROFILE_NOT_FOUND';
-      throw err;
-    }
+  // SEC-FIX-1: Generic error for all "account not found" paths to prevent user enumeration.
+  // We still perform a dummy bcrypt compare to keep response time constant.
+  if (!account) {
+    await passwordService.safeComparePassword(password, null);
+    const err = new Error('Invalid email or password');
+    err.status = 401;
+    err.code = 'INVALID_CREDENTIALS';
+    throw err;
   }
 
   if (account.isLocked) {
@@ -304,19 +291,17 @@ async function login({ email, password, role }, req) {
   }
 
   if (!passwordValid) {
-    // Give a more helpful error for Google-only accounts
+    // SEC-FIX-1: Differentiate Google-only accounts with a specific code
+    // so the mobile app can show a helpful message, but the error text stays generic.
     if (!account.passwordHash) {
-      const err = new Error(
-        'This account was created with Google Sign-In and does not have a password yet. ' +
-        'Please log in with Google and set a password in your profile settings.'
-      );
+      const err = new Error('Invalid email or password');
       err.status = 401;
       err.code = 'NO_PASSWORD_SET';
       throw err;
     }
     await account.incrementFailedLogin();
-    await logSecurityEvent('anonymous', 'login_failed', 'medium', `Failed login attempt for ${emailNorm}`, req);
-    const err = new Error('Invalid credentials. Please check your password.');
+    await logSecurityEvent('anonymous', 'login_failed', 'medium', 'Failed login attempt', req);
+    const err = new Error('Invalid email or password');
     err.status = 401;
     err.code = 'INVALID_CREDENTIALS';
     throw err;

@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { useNavigation } from "@react-navigation/native";
 import * as Notifications from 'expo-notifications';
 import {
     View,
@@ -222,9 +223,9 @@ function AppSplashScreen() {
     );
 }
 
-export default function AppNavigator() {
+    export default function AppNavigator() {
     const { isBootstrapping, onboardingComplete, subscriptionStatus, user, profile } = useAuth();
-
+    const navigation = useNavigation();
 
     const notificationListener = useRef();
     const responseListener = useRef();
@@ -241,7 +242,7 @@ export default function AppNavigator() {
             const screen = response.notification.request.content.data?.screen;
             if (screen) {
                 console.log('📲 Navigate to:', screen);
-                // Navigation can be handled here via a navigation ref if needed
+                navigation.navigate(screen);
             }
         });
 

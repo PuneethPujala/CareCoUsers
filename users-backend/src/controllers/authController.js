@@ -54,6 +54,41 @@ async function logout(req, res) {
   }
 }
 
+async function deleteMe(req, res) {
+  try {
+    const isPatient = req.profile.role === 'patient';
+    const userId = req.profile._id;
+    const { logEvent } = require('../services/auditService');
+
+    // SEC-FIX-9: Account Deletion (DPDPA/GDPR)
+    // We soft-delete to preserve referring medical records but remove all PII and access.
+    if (isPatient) {
+      const Patient = require('../models/Patient');
+      await Patient.findByIdAndUpdate(userId, { 
+        name: 'Deleted User', email: `deleted_${userId}@samvaya.com`, 
+        phone: '', is_active: false 
+      });
+      await logEvent(req.user.id, 'account_deleted', 'patient', userId, req, { softDelete: true });
+    } else {
+      const Profile = require('../models/Profile');
+      await Profile.findByIdAndUpdate(userId, { 
+        fullName: 'Deleted User', email: `deleted_${userId}@samvaya.com`, 
+        phone: '', isActive: false 
+      });
+      await logEvent(req.user.id, 'account_deleted', 'profile', userId, req, { softDelete: true });
+    }
+
+    // Revoke all sessions
+    const subject = req.auth?.subject || req.profile?.supabaseUid || req.profile?.supabase_uid;
+    await authService.logout(subject, userId, isPatient ? 'Patient' : 'Profile', req);
+
+    res.json({ message: 'Account securely deleted' });
+  } catch (err) {
+    console.error('Delete account error:', err);
+    res.status(500).json({ error: 'Failed to delete account' });
+  }
+}
+
 async function refresh(req, res) {
   try {
     const raw = req.body.refresh_token;
@@ -288,6 +323,13 @@ async function sendOtp(req, res) {
       const redis = require('../lib/redis');
       const key = `otp:${identifier.trim()}`;
       await redis.del(key);
+      
+      if (process.env.NODE_ENV === 'production') {
+        // SEC-FIX-7: Hardcoded OTP disabled in production for security.
+        // TODO: Integrate actual SMS provider (Twilio/MSG91) here.
+        return res.status(501).json({ error: 'SMS verification is not configured for production yet.' });
+      }
+
       await redis.set(key, '123456', 'EX', 600);
       res.json({ message: 'Verification code sent to your phone.' });
     } else {
@@ -348,4 +390,5 @@ module.exports = {
   sendOtp,
   verifyOtp,
   setPassword,
+  deleteMe,
 };
