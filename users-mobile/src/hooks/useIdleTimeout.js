@@ -1,16 +1,18 @@
 /**
- * useIdleTimeout.js — SEC-FIX-15
+ * useIdleTimeout.js — SEC-FIX-15 (Soft Lock)
  *
- * Auto-logs out the user after a configurable period of inactivity.
- * Tracks user touches via AppState and a timer. Resets on any interaction.
+ * Shows a gentle "Welcome back" lock overlay after inactivity
+ * instead of logging out. Elderly-friendly — no data loss, no re-login.
+ * Resets on any app state change or manual unlock.
  */
 
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import { AppState } from 'react-native';
 
 const DEFAULT_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes
 
-export default function useIdleTimeout(signOut, timeoutMs = DEFAULT_TIMEOUT_MS) {
+export default function useIdleTimeout(onIdle, timeoutMs = DEFAULT_TIMEOUT_MS) {
+    const [isLocked, setIsLocked] = useState(false);
     const timerRef = useRef(null);
     const appStateRef = useRef(AppState.currentState);
     const backgroundedAtRef = useRef(null);
@@ -18,10 +20,15 @@ export default function useIdleTimeout(signOut, timeoutMs = DEFAULT_TIMEOUT_MS) 
     const resetTimer = useCallback(() => {
         if (timerRef.current) clearTimeout(timerRef.current);
         timerRef.current = setTimeout(() => {
-            console.log('[IdleTimeout] Session expired due to inactivity');
-            signOut();
+            console.log('[IdleTimeout] Soft-locking after inactivity');
+            setIsLocked(true);
         }, timeoutMs);
-    }, [signOut, timeoutMs]);
+    }, [timeoutMs]);
+
+    const unlock = useCallback(() => {
+        setIsLocked(false);
+        resetTimer();
+    }, [resetTimer]);
 
     useEffect(() => {
         resetTimer();
@@ -38,8 +45,8 @@ export default function useIdleTimeout(signOut, timeoutMs = DEFAULT_TIMEOUT_MS) 
                 backgroundedAtRef.current = null;
 
                 if (elapsed >= timeoutMs) {
-                    console.log('[IdleTimeout] Session expired while backgrounded');
-                    signOut();
+                    console.log('[IdleTimeout] Soft-locking after background inactivity');
+                    setIsLocked(true);
                     return;
                 }
                 resetTimer();
@@ -52,8 +59,7 @@ export default function useIdleTimeout(signOut, timeoutMs = DEFAULT_TIMEOUT_MS) 
             if (timerRef.current) clearTimeout(timerRef.current);
             sub.remove();
         };
-    }, [resetTimer, signOut, timeoutMs]);
+    }, [resetTimer, timeoutMs]);
 
-    // Expose resetTimer so screens can call it on user interaction
-    return { resetTimer };
+    return { isLocked, unlock, resetTimer };
 }

@@ -110,6 +110,19 @@ const ProfileSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    // ── MFA / TOTP ────────────────────────────────
+    mfaEnabled: {
+      type: Boolean,
+      default: false,
+    },
+    mfaSecret: {
+      type: String,
+      select: false, // Never returned by default
+    },
+    mfaRecoveryCodes: {
+      type: [String],
+      select: false,
+    },
     failedLoginAttempts: {
       type: Number,
       default: 0,
@@ -128,6 +141,8 @@ const ProfileSchema = new mongoose.Schema(
         delete ret.passwordHash;
         delete ret.failedLoginAttempts;
         delete ret.accountLockedUntil;
+        delete ret.mfaSecret;
+        delete ret.mfaRecoveryCodes;
         return ret;
       },
     },

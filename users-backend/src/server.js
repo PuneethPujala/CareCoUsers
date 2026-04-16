@@ -1,3 +1,21 @@
+// ── Sentry Error Tracking (must be first) ──────────────────────────────────
+const Sentry = require('@sentry/node');
+if (process.env.SENTRY_DSN) {
+  Sentry.init({
+    dsn: process.env.SENTRY_DSN,
+    environment: process.env.NODE_ENV || 'development',
+    tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.2 : 1.0,
+    // Strip PII from error reports (Audit 9.2)
+    beforeSend(event) {
+      if (event.request?.headers) {
+        delete event.request.headers['authorization'];
+        delete event.request.headers['cookie'];
+      }
+      return event;
+    },
+  });
+}
+
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -110,6 +128,11 @@ app.use('*', (req, res) => {
 // eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
   console.error('Global error:', err);
+
+  // Report to Sentry (Audit 9.2)
+  if (process.env.SENTRY_DSN) {
+    Sentry.captureException(err);
+  }
 
   // Mongoose validation error
   if (err.name === 'ValidationError') {

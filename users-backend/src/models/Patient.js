@@ -300,6 +300,19 @@ const PatientSchema = new mongoose.Schema(
             type: Boolean,
             default: false,
         },
+        // ── MFA / TOTP ────────────────────────────────
+        mfaEnabled: {
+            type: Boolean,
+            default: false,
+        },
+        mfaSecret: {
+            type: String,
+            select: false,
+        },
+        mfaRecoveryCodes: {
+            type: [String],
+            select: false,
+        },
         lastLoginAt: {
             type: Date,
         },
@@ -365,6 +378,8 @@ const PatientSchema = new mongoose.Schema(
             virtuals: true,
             transform: function (doc, ret) {
                 delete ret.passwordHash;
+                delete ret.mfaSecret;
+                delete ret.mfaRecoveryCodes;
                 return ret;
             },
         },

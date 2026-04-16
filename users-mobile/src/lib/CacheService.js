@@ -1,12 +1,23 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+let EncryptedStorage = null;
+try {
+    EncryptedStorage = require('react-native-encrypted-storage').default;
+} catch {
+    console.warn('[CacheService] react-native-encrypted-storage not available, using AsyncStorage fallback');
+}
+
 const CACHE_PREFIX = '@careco_cache';
+
+// Keys containing sensitive health data that must be encrypted at rest (Audit 6.14)
+const SENSITIVE_KEYS = ['medications_today', 'health_profile', 'patient_data'];
 
 /**
  * CacheService — User-scoped, offline-first data caching.
  *
  * Every key is prefixed with the user's UID so data never leaks between accounts.
  * Supports optional TTL (time-to-live) for automatic expiration.
+ * Sensitive health data keys use EncryptedStorage when available (Audit 6.14).
  */
 
 let _currentUserId = null;
@@ -27,6 +38,14 @@ function scopedKey(key) {
     return `${CACHE_PREFIX}:${_currentUserId}:${key}`;
 }
 
+/** Choose storage backend based on key sensitivity */
+function getStorage(key) {
+    if (EncryptedStorage && SENSITIVE_KEYS.includes(key)) {
+        return EncryptedStorage;
+    }
+    return AsyncStorage;
+}
+
 /**
  * Save data to cache with an optional TTL (in minutes).
  * @param {string} key - Cache key (e.g. 'home_dashboard')
@@ -40,7 +59,8 @@ export async function setCache(key, data, ttlMinutes = null) {
             cachedAt: Date.now(),
             expiresAt: ttlMinutes ? Date.now() + ttlMinutes * 60 * 1000 : null,
         };
-        await AsyncStorage.setItem(scopedKey(key), JSON.stringify(entry));
+        const storage = getStorage(key);
+        await storage.setItem(scopedKey(key), JSON.stringify(entry));
     } catch (err) {
         console.warn('[CacheService] Failed to write cache:', err.message);
     }
@@ -53,14 +73,15 @@ export async function setCache(key, data, ttlMinutes = null) {
  */
 export async function getCache(key) {
     try {
-        const raw = await AsyncStorage.getItem(scopedKey(key));
+        const storage = getStorage(key);
+        const raw = await storage.getItem(scopedKey(key));
         if (!raw) return null;
 
         const entry = JSON.parse(raw);
 
         // Check TTL expiration
         if (entry.expiresAt && Date.now() > entry.expiresAt) {
-            await AsyncStorage.removeItem(scopedKey(key));
+            await storage.removeItem(scopedKey(key));
             return null;
         }
 
@@ -76,7 +97,8 @@ export async function getCache(key) {
  */
 export async function removeCache(key) {
     try {
-        await AsyncStorage.removeItem(scopedKey(key));
+        const storage = getStorage(key);
+        await storage.removeItem(scopedKey(key));
     } catch (err) {
         console.warn('[CacheService] Failed to remove cache:', err.message);
     }

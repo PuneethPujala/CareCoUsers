@@ -394,6 +394,19 @@ export default function LoginScreen({ navigation }) {
 
         try {
             const result = await signIn(cleanEmail, password, 'patient');
+
+            // §SEC: MFA Challenge Gate (Audit 2.1-2.4)
+            // If backend returns requireMfa, navigate to MFA verify screen
+            if (result?.requireMfa && result?.mfa_token) {
+                setLoading(false);
+                isSubmittingRef.current = false;
+                navigation.navigate('MFAVerify', {
+                    mfaToken: result.mfa_token,
+                    profile: result.profile,
+                });
+                return;
+            }
+
             setEmail('');
             setPassword('');
             analytics.loginSuccess(result?.session?.user?.id);

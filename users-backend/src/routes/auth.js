@@ -125,4 +125,21 @@ router.post(
   authController.setPassword
 );
 
+// ── MFA Routes ──────────────────────────────────────────────────────────────
+const mfaController = require('../controllers/mfaController');
+
+const mfaLimiter = rateLimit({
+  windowMs: authWindowMs,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many MFA attempts. Please try again later.', code: 'RATE_LIMIT' },
+});
+
+router.post('/mfa/setup', authenticate, mfaController.setupMfa);
+router.post('/mfa/verify-setup', authenticate, mfaLimiter, mfaController.verifySetup);
+router.post('/mfa/verify', mfaLimiter, mfaController.verifyLogin); // No authenticate — uses mfa_token
+router.post('/mfa/disable', authenticate, mfaController.disableMfa);
+router.get('/mfa/status', authenticate, mfaController.mfaStatus);
+
 module.exports = router;

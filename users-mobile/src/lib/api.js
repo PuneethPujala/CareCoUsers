@@ -183,6 +183,12 @@ export const apiService = {
         setPassword: (newPassword) => api.post('/auth/set-password', { newPassword }),
         deleteAccount: () => api.delete('/auth/me'),
         exportMyData: () => api.get('/auth/me/export'),
+        // MFA endpoints (Audit 2.1-2.4, 2.8)
+        mfaSetup: () => api.post('/auth/mfa/setup'),
+        mfaVerifySetup: (code) => api.post('/auth/mfa/verify-setup', { code }),
+        mfaVerify: (mfa_token, code) => api.post('/auth/mfa/verify', { mfa_token, code }),
+        mfaDisable: (password) => api.post('/auth/mfa/disable', { password }),
+        mfaStatus: () => api.get('/auth/mfa/status'),
     },
 
     patients: {

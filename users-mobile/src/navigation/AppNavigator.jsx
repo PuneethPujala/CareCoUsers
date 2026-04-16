@@ -8,6 +8,7 @@ import {
     Animated,
     ActivityIndicator,
     TouchableOpacity,
+    Pressable,
 } from "react-native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
@@ -30,6 +31,8 @@ import PatientSignupScreen from "../screens/onboarding/PatientSignupScreen";
 import LoginScreen from "../screens/onboarding/LoginScreen";
 import ResetPasswordScreen from "../screens/onboarding/ResetPasswordScreen";
 import VerifyEmailScreen from "../screens/onboarding/VerifyEmailScreen";
+import MFAVerifyScreen from "../screens/auth/MFAVerifyScreen";
+import MFASetupScreen from "../screens/settings/MFASetupScreen";
 
 // Patient screens
 import PatientHomeScreen from "../screens/patient/HomeScreen";
@@ -176,6 +179,7 @@ const AuthStack = () => (
         <Stack.Screen name="PatientSignup" component={PatientSignupScreen} />
         <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
         <Stack.Screen name="VerifyEmail" component={VerifyEmailScreen} />
+        <Stack.Screen name="MFAVerify" component={MFAVerifyScreen} />
     </Stack.Navigator>
 );
 
@@ -215,6 +219,11 @@ const MainAppStack = () => (
         <Stack.Screen name="SubscribePlans" component={SubscribePlansScreen} />
         <Stack.Screen name="Payment" component={PaymentScreen} />
         <Stack.Screen name="WaitingRoom" component={WaitingScreen} />
+        <Stack.Screen
+            name="MFASetup"
+            component={MFASetupScreen}
+            options={{ presentation: "modal", animation: "slide_from_bottom" }}
+        />
     </Stack.Navigator>
 );
 
@@ -228,8 +237,8 @@ export default function AppNavigator() {
     const { isBootstrapping, onboardingComplete, subscriptionStatus, user, profile, signOut } = useAuth();
     const navigation = useNavigation();
 
-    // SEC-FIX-15: Auto-logout after 15 minutes of inactivity
-    useIdleTimeout(signOut, 15 * 60 * 1000);
+    // SEC-FIX-15: Soft lock after 15 minutes inactivity (elderly-friendly)
+    const { isLocked, unlock } = useIdleTimeout(null, 15 * 60 * 1000);
 
     const notificationListener = useRef();
     const responseListener = useRef();
@@ -312,7 +321,31 @@ export default function AppNavigator() {
         );
     }
 
-    return <MainAppStack />;
+    return (
+        <View style={{ flex: 1 }}>
+            <MainAppStack />
+            {/* Soft Lock Overlay — gentle "welcome back" instead of sign-out */}
+            {isLocked && (
+                <Pressable
+                    style={styles.lockOverlay}
+                    onPress={unlock}
+                >
+                    <View style={styles.lockCard}>
+                        <View style={styles.lockIconWrap}>
+                            <ShieldPlus color="#6366F1" size={40} />
+                        </View>
+                        <Text style={styles.lockTitle}>Welcome Back 💜</Text>
+                        <Text style={styles.lockSubtitle}>
+                            You were away for a while.{"\n"}Tap anywhere to continue.
+                        </Text>
+                        <View style={styles.lockHint}>
+                            <Text style={styles.lockHintText}>Your session is safe</Text>
+                        </View>
+                    </View>
+                </Pressable>
+            )}
+        </View>
+    );
 }
 
 const styles = StyleSheet.create({
@@ -369,5 +402,57 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.35,
         shadowRadius: 8,
         elevation: 8,
+    },
+
+    // ── Soft Lock Overlay (elderly-friendly) ──
+    lockOverlay: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: 'rgba(15, 23, 42, 0.92)',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 9999,
+        elevation: 9999,
+    },
+    lockCard: {
+        backgroundColor: '#1E293B',
+        borderRadius: 32,
+        padding: 40,
+        alignItems: 'center',
+        marginHorizontal: 32,
+        borderWidth: 1,
+        borderColor: 'rgba(99, 102, 241, 0.3)',
+    },
+    lockIconWrap: {
+        width: 80,
+        height: 80,
+        borderRadius: 40,
+        backgroundColor: 'rgba(99, 102, 241, 0.15)',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 20,
+    },
+    lockTitle: {
+        color: '#F8FAFC',
+        fontSize: 24,
+        fontWeight: '700',
+        marginBottom: 10,
+    },
+    lockSubtitle: {
+        color: '#94A3B8',
+        fontSize: 16,
+        textAlign: 'center',
+        lineHeight: 24,
+    },
+    lockHint: {
+        marginTop: 24,
+        backgroundColor: 'rgba(34, 197, 94, 0.12)',
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderRadius: 20,
+    },
+    lockHintText: {
+        color: '#22C55E',
+        fontSize: 13,
+        fontWeight: '600',
     },
 });

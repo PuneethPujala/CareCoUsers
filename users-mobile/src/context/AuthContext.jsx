@@ -272,6 +272,13 @@ export function AuthProvider({ children }) {
         setLoading(true);
         try {
             const response = await apiService.auth.login({ email, password, role });
+
+            // §SEC: MFA Challenge — backend returns requireMfa instead of session
+            if (response.data.requireMfa) {
+                setLoading(false);
+                return response.data; // Return to LoginScreen to navigate to MFAVerify
+            }
+
             const { session: loginSession, profile: profileData } = response.data;
 
             if (profileData) profileData.role = 'patient';
@@ -299,6 +306,37 @@ export function AuthProvider({ children }) {
             return response.data;
         } catch (error) {
             setLoading(false);
+            throw error;
+        }
+    }, [setProfileAndCache, fetchPatientData]);
+
+    // ── Complete MFA Login (after TOTP verification) ────────────────────────
+
+    const completeMfaLogin = useCallback(async (mfaSession, profileData) => {
+        try {
+            if (profileData) profileData.role = 'patient';
+            await setProfileAndCache(profileData);
+
+            await fetchPatientData();
+
+            skipFetchCountRef.current = 2;
+
+            await saveApiTokens({
+                access_token: mfaSession.access_token,
+                refresh_token: mfaSession.refresh_token,
+                expires_at: mfaSession.expires_at,
+            });
+
+            await supabase.auth.setSession({
+                access_token: mfaSession.access_token,
+                refresh_token: mfaSession.refresh_token,
+            });
+
+            setUser(mfaSession.user);
+            setSession(mfaSession);
+            analytics.identify(mfaSession.user.id, { role: 'patient', mfa: true });
+        } catch (error) {
+            console.error('[Auth] completeMfaLogin failed:', error);
             throw error;
         }
     }, [setProfileAndCache, fetchPatientData]);
@@ -459,6 +497,7 @@ export function AuthProvider({ children }) {
         isBootstrapping, onboardingComplete, subscriptionStatus, recoverySessionAt,
         displayName, userRole, userEmail: user?.email,
         signIn, signUp, signOut, resetPassword, signInWithGoogle, completeSignUp, injectSession,
+        completeMfaLogin,
         sendOtp, verifyOtp, refreshPatient: fetchPatientData,
     };
 

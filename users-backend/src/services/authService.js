@@ -1,4 +1,5 @@
 const crypto = require('crypto');
+const jwt = require('jsonwebtoken');
 const { createClient } = require('@supabase/supabase-js');
 const Profile = require('../models/Profile');
 const Patient = require('../models/Patient');
@@ -312,6 +313,40 @@ async function login({ email, password, role }, req) {
   }
 
   const subject = isPatient ? account.supabase_uid : account.supabaseUid;
+
+  // ── MFA Challenge Gate (Audit 2.1-2.4, 2.8) ─────────────────────────────
+  // If MFA is enabled, do NOT issue full tokens yet.
+  // Instead, issue a short-lived mfa_token the client must exchange
+  // via POST /api/auth/mfa/verify with a valid TOTP code.
+  if (account.mfaEnabled) {
+    const jwtConfig = require('../config/jwt');
+    const mfaToken = jwt.sign(
+      {
+        purpose: 'mfa_challenge',
+        userId: account._id.toString(),
+        userType: isPatient ? 'Patient' : 'Profile',
+        subject,
+        role: isPatient ? 'patient' : account.role,
+        email: account.email,
+        emailVerified: account.emailVerified,
+        profileSnapshot: buildLoginProfile(account, isPatient),
+      },
+      jwtConfig.secret,
+      { expiresIn: '5m' }
+    );
+
+    await logEvent(subject, 'login_mfa_required', isPatient ? 'patient' : 'profile', account._id, req, {
+      role: isPatient ? 'patient' : account.role,
+    });
+
+    return {
+      message: 'MFA verification required',
+      requireMfa: true,
+      mfa_token: mfaToken,
+      profile: buildLoginProfile(account, isPatient),
+    };
+  }
+
   const tokens = await tokenService.issueTokenPair(
     {
       userId: account._id,
