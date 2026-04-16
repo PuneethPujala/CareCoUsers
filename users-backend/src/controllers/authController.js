@@ -1,5 +1,6 @@
 const Caller = require('../models/Caller');
 const Profile = require('../models/Profile');
+const Patient = require('../models/Patient');
 const authService = require('../services/authService');
 const { logEvent } = require('../services/auditService');
 

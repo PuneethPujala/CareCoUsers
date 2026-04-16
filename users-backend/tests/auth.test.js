@@ -141,9 +141,14 @@ function findOnePopulateChain(resolvedValue) {
     };
 }
 
-/** Profile.findById(id).populate() */
+/** Profile.findById(id).select().populate() */
 function findByIdPopulateChain(resolvedValue) {
-    return { populate: jest.fn().mockResolvedValue(resolvedValue) };
+    return {
+        select: jest.fn().mockReturnValue({
+            populate: jest.fn().mockResolvedValue(resolvedValue),
+        }),
+        populate: jest.fn().mockResolvedValue(resolvedValue),
+    };
 }
 
 /** Patient.findOne({...}).select('+passwordHash') */
@@ -301,9 +306,8 @@ describe('Auth Routes', () => {
             expect(res.body.code).toBe('VALIDATION');
         });
 
-        it('returns 403 with ROLE_MISMATCH when email exists under a different role', async () => {
-            // Staff login: Call 1: Profile.findOne({email, role:'caller', isActive}).populate() → null
-            // Call 2: Profile.findOne({email, isActive}) → profile with role 'care_manager'
+        it('returns 401 with INVALID_CREDENTIALS when email exists under a different role (user enumeration prevention)', async () => {
+            // SEC-FIX-1: no longer reveals role mismatch — returns generic 401
             const existingProfile = mockProfile({ role: 'care_manager' });
             Profile.findOne = jest.fn()
                 .mockReturnValueOnce(findOnePopulateChain(null))
@@ -313,23 +317,24 @@ describe('Auth Routes', () => {
                 .post('/api/auth/login')
                 .send({ email: 'test@example.com', password: 'Pass12345', role: 'caller' });
 
-            expect(res.status).toBe(403);
-            expect(res.body.code).toBe('ROLE_MISMATCH');
+            expect(res.status).toBe(401);
+            expect(res.body.code).toBe('INVALID_CREDENTIALS');
         });
 
-        it('returns 403 with PROFILE_NOT_FOUND when patient email does not exist', async () => {
+        it('returns 401 with INVALID_CREDENTIALS when patient email does not exist (user enumeration prevention)', async () => {
+            // SEC-FIX-1: no longer reveals whether account exists
             Patient.findOne = jest.fn().mockReturnValue(patientSelectChain(null));
 
             const res = await request(app)
                 .post('/api/auth/login')
                 .send({ email: 'ghost@example.com', password: 'Pass12345', role: 'patient' });
 
-            expect(res.status).toBe(403);
-            expect(res.body.code).toBe('PROFILE_NOT_FOUND');
+            expect(res.status).toBe(401);
+            expect(res.body.code).toBe('INVALID_CREDENTIALS');
         });
 
         it('returns 401 when Supabase rejects credentials', async () => {
-            const profile = mockProfile({ role: 'caller', failedLoginAttempts: 0 });
+            const profile = mockProfile({ role: 'caller', failedLoginAttempts: 0, passwordHash: '$2a$10$fakehash' });
             Object.defineProperty(profile, 'isLocked', { get: () => false });
             Profile.findOne = jest.fn().mockReturnValue(findOnePopulateChain(profile));
 
@@ -542,6 +547,10 @@ describe('Auth Routes', () => {
 
             Profile.findById = jest.fn().mockReturnValue(findByIdPopulateChain(profile));
 
+            // Mock Caller.findOne (used by /me for caller role check)
+            const Caller = require('../src/models/Caller');
+            Caller.findOne = jest.fn().mockResolvedValue(null);
+
             const res = await request(app).get('/api/auth/me');
 
             expect(res.status).toBe(200);
@@ -553,6 +562,11 @@ describe('Auth Routes', () => {
             const patient = mockPatient({ _id: 'patient123', role: 'patient', subscription: { status: 'active', plan: 'basic' } });
             mockAuthState.user    = { id: 'sup-uid-123', email: 'patient@careco.in', email_confirmed_at: new Date().toISOString(), created_at: new Date().toISOString() };
             mockAuthState.profile = patient;
+
+            // me() calls Patient.findById(id).select('+passwordHash') for patients
+            Patient.findById = jest.fn().mockReturnValue({
+                select: jest.fn().mockResolvedValue(patient),
+            });
 
             const res = await request(app).get('/api/auth/me');
 
@@ -624,6 +638,7 @@ describe('Auth Routes', () => {
             Organization.findById          = jest.fn().mockResolvedValue(org);
             Organization.findByIdAndUpdate = jest.fn().mockResolvedValue({});
             Profile.findOne                = jest.fn().mockResolvedValue(null);
+            Patient.findOne                = jest.fn().mockResolvedValue(null); // Cross-collection check
             Profile.prototype.save         = jest.fn().mockResolvedValue({});
 
             const res = await request(app)

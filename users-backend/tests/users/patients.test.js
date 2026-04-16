@@ -163,7 +163,12 @@ describe('User Patients Routes', () => {
 
         it('returns existing patient profile', async () => {
             const patient = makePatient({ name: 'Puneeth Pujala' });
-            Patient.findOne = jest.fn().mockResolvedValue(patient);
+            Patient.findOne = jest.fn().mockReturnValue({
+                populate: jest.fn().mockResolvedValue(patient)
+            });
+            Patient.findById = jest.fn().mockReturnValue({
+                select: jest.fn().mockResolvedValue(patient)
+            });
 
             const res = await request(app).get('/api/users/patients/me');
 
@@ -173,8 +178,13 @@ describe('User Patients Routes', () => {
 
         it('auto-creates patient profile on first visit', async () => {
             const newPatient = makePatient({ name: 'Test Patient' });
-            Patient.findOne = jest.fn().mockResolvedValue(null); // not found
+            Patient.findOne = jest.fn().mockReturnValue({
+                populate: jest.fn().mockResolvedValue(null)
+            }); 
             Patient.create  = jest.fn().mockResolvedValue(newPatient);
+            Patient.findById = jest.fn().mockReturnValue({
+                select: jest.fn().mockResolvedValue(newPatient)
+            });
 
             const res = await request(app).get('/api/users/patients/me');
 
@@ -183,7 +193,9 @@ describe('User Patients Routes', () => {
         });
 
         it('returns 500 when auto-seed fails', async () => {
-            Patient.findOne = jest.fn().mockResolvedValue(null);
+            Patient.findOne = jest.fn().mockReturnValue({
+                populate: jest.fn().mockResolvedValue(null)
+            });
             Patient.create  = jest.fn().mockRejectedValue(new Error('Seed failed'));
 
             const res = await request(app).get('/api/users/patients/me');
@@ -193,7 +205,9 @@ describe('User Patients Routes', () => {
         });
 
         it('returns 500 on unexpected error', async () => {
-            Patient.findOne = jest.fn().mockRejectedValue(new Error('DB error'));
+            Patient.findOne = jest.fn().mockReturnValue({
+                populate: jest.fn().mockRejectedValue(new Error('DB error'))
+            });
 
             const res = await request(app).get('/api/users/patients/me');
 
@@ -213,8 +227,8 @@ describe('User Patients Routes', () => {
     describe('PUT /api/users/patients/me', () => {
 
         it('updates name and city successfully', async () => {
-            const updated = makePatient({ name: 'New Name', city: 'Chennai' });
-            Patient.findOneAndUpdate = jest.fn().mockResolvedValue(updated);
+            const patientToUpdate = makePatient({ name: 'Old', city: 'Old' });
+            Patient.findOne = jest.fn().mockResolvedValue(patientToUpdate);
 
             const res = await request(app)
                 .put('/api/users/patients/me')
@@ -222,15 +236,13 @@ describe('User Patients Routes', () => {
 
             expect(res.status).toBe(200);
             expect(res.body.message).toBe('Profile updated successfully');
-            expect(Patient.findOneAndUpdate).toHaveBeenCalledWith(
-                { supabase_uid: 'sup-uid-patient' },
-                { $set: { name: 'New Name', city: 'Chennai' } },
-                { new: true }
-            );
+            expect(patientToUpdate.save).toHaveBeenCalled();
+            expect(patientToUpdate.name).toBe('New Name');
+            expect(patientToUpdate.city).toBe('Chennai');
         });
 
         it('returns 404 when patient not found', async () => {
-            Patient.findOneAndUpdate = jest.fn().mockResolvedValue(null);
+            Patient.findOne = jest.fn().mockResolvedValue(null);
 
             const res = await request(app)
                 .put('/api/users/patients/me')
