@@ -13,6 +13,7 @@ const crypto = require('crypto');
 const Profile = require('../models/Profile');
 const Patient = require('../models/Patient');
 const { logEvent, logSecurityEvent } = require('./auditService');
+const redis = require('../lib/redis');
 
 const APP_NAME = 'CareCo (Samvaya)';
 
@@ -136,6 +137,13 @@ async function verifyCode(userId, userType, code) {
     return { valid: true, method: 'recovery_code' };
   }
 
+  // Check if TOTP code was already used (Replay Protection)
+  const replayKey = `totp_used:${userId}:${code}`;
+  if (redis.status === 'ready' || redis.status === 'connecting') {
+    const used = await redis.get(replayKey);
+    if (used) return { valid: false };
+  }
+
   // Standard TOTP verification
   const verified = speakeasy.totp.verify({
     secret: account.mfaSecret,
@@ -146,6 +154,11 @@ async function verifyCode(userId, userType, code) {
 
   if (!verified) {
     return { valid: false };
+  }
+
+  // Mark token as used to prevent replay within the valid window (90s)
+  if (redis.status === 'ready' || redis.status === 'connecting') {
+    await redis.set(replayKey, '1', 'EX', 90);
   }
 
   return { valid: true, method: 'totp' };

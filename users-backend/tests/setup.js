@@ -10,3 +10,11 @@ process.env.PORT = '0'; // random port for tests
 afterEach(() => {
   jest.restoreAllMocks();
 });
+
+afterAll(async () => {
+    // Teardown the global redis connection to prevent open handles warnings
+    const redis = require('../src/lib/redis');
+    if (redis.status !== 'end') {
+        await redis.quit();
+    }
+});

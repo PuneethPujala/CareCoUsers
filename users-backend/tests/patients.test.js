@@ -42,6 +42,7 @@ const mockAuthState = {
 
 jest.mock('../src/middleware/authenticate', () => ({
     authenticate: (req, res, next) => { req.user = mockAuthState.user; req.profile = mockAuthState.profile; next(); },
+    authenticateSession: (req, res, next) => { req.user = mockAuthState.user; req.profile = mockAuthState.profile; next(); },
     requireRole: (...allowed) => (req, res, next) => {
         if (!allowed.includes(req.profile.role)) return res.status(403).json({ error: 'Insufficient role permissions', code: 'INSUFFICIENT_ROLE' });
         next();

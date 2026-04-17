@@ -54,6 +54,60 @@ const PatientSchema = new mongoose.Schema(
             default: false,
         },
 
+        // ── Auth & Security ───────────────────────────
+        emailVerified: {
+            type: Boolean,
+            default: false,
+        },
+        lastLoginAt: {
+            type: Date,
+        },
+        twoFactorEnabled: {
+            type: Boolean,
+            default: false,
+        },
+        mfaEnabled: {
+            type: Boolean,
+            default: false,
+        },
+        mfaSecret: {
+            type: String,
+            select: false,
+        },
+        mfaRecoveryCodes: {
+            type: [String],
+            select: false,
+        },
+        failedLoginAttempts: {
+            type: Number,
+            default: 0,
+        },
+        accountLockedUntil: {
+            type: Date,
+        },
+
+        // ── Notifications ─────────────────────────────
+        expo_push_token: {
+            type: String,
+            trim: true,
+        },
+        push_notifications_enabled: {
+            type: Boolean,
+            default: true,
+        },
+        notification_limits: {
+            max_daily: { type: Number, default: 3 },
+            quiet_hours_start: { type: String, default: '21:00' },
+            quiet_hours_end: { type: String, default: '08:00' },
+        },
+        daily_notifications_sent: {
+            type: Number,
+            default: 0,
+        },
+        last_notification_date: {
+            type: Date,
+        },
+
         // ── Location ──────────────────────────────────
         city: {
             type: String,

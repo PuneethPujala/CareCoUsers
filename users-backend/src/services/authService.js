@@ -387,7 +387,6 @@ async function refreshSession(rawRefresh, req) {
   const tokenHash = RefreshToken.hashToken(rawRefresh);
   const doc = await RefreshToken.findOne({
     tokenHash,
-    revokedAt: null,
     expiresAt: { $gt: new Date() },
   });
 
@@ -395,6 +394,16 @@ async function refreshSession(rawRefresh, req) {
     const err = new Error('Invalid or expired refresh token');
     err.status = 401;
     err.code = 'INVALID_REFRESH_TOKEN';
+    throw err;
+  }
+
+  // Detect token reuse
+  if (doc.revokedAt != null) {
+    await tokenService.revokeAllForUser(doc.userId, doc.userType);
+    await logSecurityEvent('anonymous', 'refresh_token_reuse', 'critical', 'Attempted reuse of revoked refresh token', req);
+    const err = new Error('Security alert: Token reuse detected. All sessions revoked.');
+    err.status = 401;
+    err.code = 'TOKEN_REUSE_DETECTED';
     throw err;
   }
 
@@ -451,6 +460,11 @@ async function refreshSession(rawRefresh, req) {
 }
 
 async function logout(subject, userId, userType, req) {
+  const authHeader = req.headers?.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const token = authHeader.split(' ')[1];
+    await tokenService.denylistAccessToken(token);
+  }
   await tokenService.revokeAllForUser(userId, userType);
   await logEvent(subject, 'logout', userType === 'Patient' ? 'patient' : 'profile', userId, req);
 }
@@ -507,11 +521,13 @@ async function verifyPasswordReset({ email, otp, newPassword }, req) {
     profile.mustChangePassword = false;
     await profile.save();
     await tokenService.revokeAllForUser(profile._id, 'Profile');
+    await tokenService.revokeAllSessionsGlobally(profile.supabaseUid);
   }
   if (patient) {
     patient.passwordHash = hash;
     await patient.save();
     await tokenService.revokeAllForUser(patient._id, 'Patient');
+    await tokenService.revokeAllSessionsGlobally(patient.supabase_uid);
   }
 
   const fullName = profile ? profile.fullName : patient.name;
@@ -705,6 +721,7 @@ async function changePassword({ currentPassword, newPassword }, req, profile, us
   await account.save();
 
   await tokenService.revokeAllForUser(account._id, isPatient ? 'Patient' : 'Profile');
+  await tokenService.revokeAllSessionsGlobally(userSubject);
 
   const fullName = isPatient ? account.name : account.fullName;
   sendPasswordChangedEmail(account.email, fullName);

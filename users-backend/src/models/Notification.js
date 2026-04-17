@@ -10,7 +10,7 @@ const NotificationSchema = new mongoose.Schema(
         },
         type: {
             type: String,
-            enum: ['system', 'message', 'alert', 'account'],
+            enum: ['health_tips', 'mental_wellness', 'activity', 'reminders', 'critical_alerts', 'system'],
             default: 'system',
         },
         title: {
@@ -30,6 +30,19 @@ const NotificationSchema = new mongoose.Schema(
         target_screen: {
             type: String,
             default: 'HomeScreen',
+        },
+        is_pinned: {
+            type: Boolean,
+            default: false,
+        },
+        push_delivered: {
+            type: Boolean,
+            default: false,
+        },
+        ai_context: {
+            trigger: String,
+            streak_impact: String,
+            rule_matched: String,
         },
     },
     {

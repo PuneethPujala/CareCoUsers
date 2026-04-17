@@ -15,23 +15,8 @@ const testCases = [
     { input: 'New Delhi', expected: 'New Delhi' },
 ];
 
-console.log('🧪 Running tests for normalizeCity...\n');
-
-let passed = 0;
-testCases.forEach(({ input, expected }, index) => {
-    const result = normalizeCity(input);
-    if (result === expected) {
-        console.log(`✅ Test ${index + 1} passed: "${input}" -> "${result}"`);
-        passed++;
-    } else {
-        console.error(`❌ Test ${index + 1} failed: "${input}" expected "${expected}", but got "${result}"`);
-    }
+describe('locationUtils', () => {
+    test.each(testCases)('normalizeCity: "$input" -> "$expected"', ({ input, expected }) => {
+        expect(normalizeCity(input)).toBe(expected);
+    });
 });
-
-console.log(`\n📊 Summary: ${passed}/${testCases.length} tests passed.`);
-
-if (passed === testCases.length) {
-    process.exit(0);
-} else {
-    process.exit(1);
-}

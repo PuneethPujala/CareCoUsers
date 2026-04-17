@@ -200,6 +200,7 @@ describe('User Callers Routes', () => {
             Caller.findOne = jest.fn().mockResolvedValue(caller);
             CallLog.mockImplementation(() => callLog);
             CallLog.countDocuments = jest.fn().mockResolvedValue(0);
+            Patient.findById = jest.fn().mockReturnValue(makePatientFindChain(makePatient()));
 
             const res = await request(app)
                 .post('/api/users/callers/me/calls')
@@ -230,6 +231,7 @@ describe('User Callers Routes', () => {
             CallLog.mockImplementation(() => callLog);
             CallLog.countDocuments  = jest.fn().mockResolvedValue(3); // 3 misses
             Alert.mockImplementation(() => alert);
+            Patient.findById = jest.fn().mockReturnValue(makePatientFindChain(makePatient()));
 
             await request(app)
                 .post('/api/users/callers/me/calls')
@@ -247,6 +249,7 @@ describe('User Callers Routes', () => {
             CallLog.mockImplementation(() => callLog);
             CallLog.countDocuments  = jest.fn().mockResolvedValue(2); // only 2 misses
             Alert.mockImplementation(() => alert);
+            Patient.findById = jest.fn().mockReturnValue(makePatientFindChain(makePatient()));
 
             await request(app)
                 .post('/api/users/callers/me/calls')
@@ -264,6 +267,7 @@ describe('User Callers Routes', () => {
             CallLog.mockImplementation(() => callLog);
             CallLog.countDocuments  = jest.fn().mockResolvedValue(3); // 3 refusals
             Alert.mockImplementation(() => alert);
+            Patient.findById = jest.fn().mockReturnValue(makePatientFindChain(makePatient()));
 
             await request(app)
                 .post('/api/users/callers/me/calls')

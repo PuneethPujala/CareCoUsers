@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const jwtConfig = require('../config/jwt');
 const RefreshToken = require('../models/RefreshToken');
+const redis = require('../lib/redis');
 
 function assertSecrets() {
   if (!jwtConfig.accessSecret) {
@@ -93,12 +94,60 @@ async function revokeRefreshToken(rawToken) {
   );
 }
 
+async function revokeAllSessionsGlobally(userId) {
+  const key = `user_invalidated_before:${userId}`;
+  const nowUnix = Math.floor(Date.now() / 1000);
+  const ttl = parseExpiresInSeconds(jwtConfig.accessExpiresIn);
+  try {
+    await redis.set(key, nowUnix, 'EX', ttl);
+  } catch (err) {
+    console.warn(`Failed to set global invalidation for ${userId}:`, err.message);
+  }
+}
+
+async function denylistAccessToken(token) {
+  if (!token) return;
+  const ttl = parseExpiresInSeconds(jwtConfig.accessExpiresIn);
+  const hash = crypto.createHash('sha256').update(token).digest('hex');
+  const key = `denylist:jwt:${hash}`;
+  try {
+    await redis.set(key, '1', 'EX', ttl);
+  } catch (err) {
+    console.warn('Failed to denylist JWT:', err.message);
+  }
+}
+
+async function checkRedisSessionValidity(token, payload) {
+  if (redis.status !== 'ready' && redis.status !== 'connecting') return true;
+  
+  // Check global user invalidation (all sessions prior to X)
+  const userId = payload.sub || ''; 
+  const globalKey = `user_invalidated_before:${userId}`;
+  const globalTimestamp = await redis.get(globalKey);
+  if (globalTimestamp && payload.iat && payload.iat < parseInt(globalTimestamp, 10)) {
+    return false;
+  }
+  
+  // Check specific token denylist
+  const hash = crypto.createHash('sha256').update(token).digest('hex');
+  const denylistKey = `denylist:jwt:${hash}`;
+  const isDenylisted = await redis.get(denylistKey);
+  if (isDenylisted) {
+    return false;
+  }
+  
+  return true;
+}
+
 module.exports = {
   signAccessToken,
   verifyAccessToken,
   generateRawRefreshToken,
   issueTokenPair,
   revokeAllForUser,
+  revokeAllSessionsGlobally,
+  denylistAccessToken,
+  checkRedisSessionValidity,
   revokeRefreshToken,
   getRefreshExpiryDate,
   parseExpiresInSeconds,

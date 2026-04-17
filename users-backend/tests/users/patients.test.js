@@ -80,6 +80,10 @@ function makePatient(overrides = {}) {
         medications:        overrides.medications || [],
         conditions:         overrides.conditions || [],
         save:               jest.fn().mockResolvedValue(true),
+        toObject: function () {
+            const { save, toObject, ...rest } = this;
+            return rest;
+        },
         ...overrides,
     };
 }

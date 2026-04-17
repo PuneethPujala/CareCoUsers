@@ -34,6 +34,8 @@ async function attachJwtUser(token, req) {
   let payload;
   try {
     payload = tokenService.verifyAccessToken(token);
+    const isValid = await tokenService.checkRedisSessionValidity(token, payload);
+    if (!isValid) return false;
   } catch {
     return false;
   }

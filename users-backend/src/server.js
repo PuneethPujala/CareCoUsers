@@ -20,6 +20,7 @@ const reportRoutes = require('./routes/reports');
 const usersPatientRoutes = require('./routes/users/patients');
 const usersCallerRoutes = require('./routes/users/callers');
 const usersMedicineRoutes = require('./routes/users/medicines');
+const notificationsRoutes = require('./routes/users/notifications');
 const vitalsRoutes = require('./routes/vitalsRoutes');
 const vitalsSyncRoutes = require('./routes/vitalsSync');
 
@@ -36,6 +37,7 @@ app.get("/debug-sentry", function mainHandler(req, res) {
 // Connect to MongoDB (skip in test environment to avoid open handles or missing mocks)
 if (process.env.NODE_ENV !== 'test') {
   connectDB();
+  require('./jobs/notificationJob').startNotificationCron();
 }
 
 // Security middleware
@@ -104,6 +106,7 @@ app.use('/api/reports', reportRoutes);
 
 // ─── Users App API Gateway ─────────────────────
 app.use('/api/users/patients', usersPatientRoutes);
+app.use('/api/users/patients/notifications', notificationsRoutes);
 app.use('/api/users/callers', usersCallerRoutes);
 app.use('/api/users/medicines', usersMedicineRoutes);
 app.use('/api/vitals', vitalsRoutes);
