@@ -116,9 +116,26 @@ export default function PatientDetailScreen({ navigation, route }) {
     const openEditMedModal = (med) => {
         setEditingMed(med);
         let phase = 'morning';
-        const times = med.scheduledTimes || [];
-        if (times.includes('01:00 PM') || times.some(t => t.includes('PM') && parseInt(t.split(':')[0]) !== 12 && parseInt(t.split(':')[0]) < 5)) phase = 'afternoon';
-        if (times.includes('08:00 PM') || times.some(t => t.includes('PM') && parseInt(t.split(':')[0]) >= 5 && parseInt(t.split(':')[0]) !== 12)) phase = 'night';
+        const times = med.scheduledTimes && med.scheduledTimes.length > 0 ? med.scheduledTimes : (med.times || []);
+        
+        const isAfternoon = times.some(t => {
+            if (t.toLowerCase().includes('afternoon')) return true;
+            if (!t.includes('PM')) return false;
+            let h = parseInt(t.split(':')[0]);
+            if (h === 12) h = 0;
+            return h >= 0 && h < 5;
+        });
+
+        const isNight = times.some(t => {
+            if (t.toLowerCase().includes('night')) return true;
+            if (!t.includes('PM')) return false;
+            let h = parseInt(t.split(':')[0]);
+            if (h === 12) return false;
+            return h >= 5;
+        });
+
+        if (isNight) phase = 'night';
+        else if (isAfternoon) phase = 'afternoon';
 
         setMedForm({
             name: med.name || '',
@@ -210,22 +227,32 @@ export default function PatientDetailScreen({ navigation, route }) {
 
         const currentPhaseObj = getCurrentPhase();
         const phaseMeds = allMeds.filter(med => {
-            const times = med.scheduledTimes || [];
+            const times = med.scheduledTimes && med.scheduledTimes.length > 0 ? med.scheduledTimes : (med.times || []);
+
             if (times.length === 0) return currentPhaseObj === 'Morning';
-            if (currentPhaseObj === 'Morning') return times.some(t => t.includes('AM') || t.toLowerCase().includes('morning'));
-            if (currentPhaseObj === 'Afternoon') return times.some(t => {
-                if (!t.includes('PM')) return false;
-                let h = parseInt(t.split(':')[0]);
-                if (h === 12) h = 0;
-                return h < 5;
-            });
-            if (currentPhaseObj === 'Night') return times.some(t => {
-                if (!t.includes('PM')) return false;
-                let h = parseInt(t.split(':')[0]);
-                if (h === 12) return false;
-                return h >= 5;
-            });
-            return true;
+
+            if (currentPhaseObj === 'Morning') {
+                return times.some(t => t.toLowerCase().includes('morning') || t.includes('AM') || (t.includes('12:') && !t.includes('PM')));
+            }
+            if (currentPhaseObj === 'Afternoon') {
+                return times.some(t => {
+                    if (t.toLowerCase().includes('afternoon')) return true;
+                    if (!t.includes('PM')) return false;
+                    let h = parseInt(t.split(':')[0]);
+                    if (h === 12) h = 0;
+                    return h >= 0 && h < 5;
+                });
+            }
+            if (currentPhaseObj === 'Night') {
+                return times.some(t => {
+                    if (t.toLowerCase().includes('night')) return true;
+                    if (!t.includes('PM')) return false;
+                    let h = parseInt(t.split(':')[0]);
+                    if (h === 12) return false;
+                    return h >= 5;
+                });
+            }
+            return false;
         });
         
         const totalMeds = phaseMeds.length;
@@ -333,22 +360,32 @@ export default function PatientDetailScreen({ navigation, route }) {
     const medications = unique([...(metadata.medications || []), ...rootMeds]);
 
     const phaseMedications = medications.filter(med => {
-        const times = med.scheduledTimes || [];
+        const times = med.scheduledTimes && med.scheduledTimes.length > 0 ? med.scheduledTimes : (med.times || []);
+
         if (times.length === 0) return currentPhase === 'Morning';
-        if (currentPhase === 'Morning') return times.some(t => t.includes('AM') || t.toLowerCase().includes('morning'));
-        if (currentPhase === 'Afternoon') return times.some(t => {
-            if (!t.includes('PM')) return false;
-            let h = parseInt(t.split(':')[0]);
-            if (h === 12) h = 0;
-            return h < 5;
-        });
-        if (currentPhase === 'Night') return times.some(t => {
-            if (!t.includes('PM')) return false;
-            let h = parseInt(t.split(':')[0]);
-            if (h === 12) return false;
-            return h >= 5;
-        });
-        return true;
+
+        if (currentPhase === 'Morning') {
+            return times.some(t => t.toLowerCase().includes('morning') || t.includes('AM') || (t.includes('12:') && !t.includes('PM')));
+        }
+        if (currentPhase === 'Afternoon') {
+            return times.some(t => {
+                if (t.toLowerCase().includes('afternoon')) return true;
+                if (!t.includes('PM')) return false;
+                let h = parseInt(t.split(':')[0]);
+                if (h === 12) h = 0;
+                return h >= 0 && h < 5;
+            });
+        }
+        if (currentPhase === 'Night') {
+            return times.some(t => {
+                if (t.toLowerCase().includes('night')) return true;
+                if (!t.includes('PM')) return false;
+                let h = parseInt(t.split(':')[0]);
+                if (h === 12) return false;
+                return h >= 5;
+            });
+        }
+        return false;
     });
 
     const joinDate = patient.created_at ? new Date(patient.created_at).toLocaleDateString() : 'Unknown';
