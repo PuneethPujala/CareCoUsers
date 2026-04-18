@@ -514,27 +514,34 @@ export default function PatientProfileScreen({ navigation }) {
                             placeholder="" 
                             onPress={() => {
                                 if (mfaEnabled) {
-                                    Alert.alert(
-                                        'Disable MFA',
-                                        'Are you sure you want to disable Two-Factor Authentication? Your account will be less secure.',
-                                        [
-                                            { text: 'Cancel', style: 'cancel' },
-                                            { 
-                                                text: 'Disable', 
-                                                style: 'destructive',
-                                                onPress: async () => {
-                                                    try {
-                                                        // In a real app we'd prompt for password here, but for now we'll pass a dummy or require re-auth
-                                                        await apiService.auth.mfaDisable('dummy_or_ignored');
-                                                        setMfaEnabled(false);
-                                                        Alert.alert('Success', 'MFA has been disabled.');
-                                                    } catch (err) {
-                                                        Alert.alert('Error', 'Failed to disable MFA.');
+                                    Alert.prompt
+                                        ? Alert.prompt(
+                                            'Disable MFA',
+                                            'Enter your password to confirm disabling Two-Factor Authentication.',
+                                            [
+                                                { text: 'Cancel', style: 'cancel' },
+                                                {
+                                                    text: 'Disable',
+                                                    style: 'destructive',
+                                                    onPress: async (pwd) => {
+                                                        if (!pwd) return Alert.alert('Error', 'Password is required.');
+                                                        try {
+                                                            await apiService.auth.mfaDisable(pwd);
+                                                            setMfaEnabled(false);
+                                                            Alert.alert('Success', 'MFA has been disabled.');
+                                                        } catch (err) {
+                                                            Alert.alert('Error', err.response?.data?.error || 'Failed to disable MFA.');
+                                                        }
                                                     }
                                                 }
-                                            }
-                                        ]
-                                    );
+                                            ],
+                                            'secure-text'
+                                        )
+                                        : Alert.alert(
+                                            'Disable MFA',
+                                            'To disable Two-Factor Authentication, please go to Change Password first to verify your identity, then return here.',
+                                            [{ text: 'OK' }]
+                                        );
                                 } else {
                                     navigation.navigate('MFASetup');
                                 }

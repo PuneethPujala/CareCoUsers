@@ -3,12 +3,7 @@ import { View, Text, StyleSheet, FlatList, Platform } from 'react-native';
 import { Activity, AlertOctagon, PhoneMissed, MessageSquare } from 'lucide-react-native';
 import { colors } from '../../theme';
 
-const FEED = [
-    { id: '1', type: 'med_miss', title: 'Missed Medication', patient: 'Meena Devi', desc: 'Missed afternoon Aspirin', time: '1 hour ago', color: colors.warning, Icon: Activity },
-    { id: '2', type: 'call_miss', title: 'Call Not Answered', patient: 'Rajesh Kumar', desc: '3rd attempt failed', time: '3 hours ago', color: colors.danger, Icon: PhoneMissed },
-    { id: '3', type: 'escalation', title: 'Escalation Alert', patient: 'System', desc: 'Manager flagged Sarita Sharma for follow-up', time: 'Yesterday', color: colors.primary, Icon: AlertOctagon },
-    { id: '4', type: 'note', title: 'Manager Note', patient: 'Dr. Vikram Singh', desc: 'Please ensure all pending calls are completed by 4 PM.', time: '2 days ago', color: '#64748B', Icon: MessageSquare },
-];
+const FEED = []; // TODO: Wire to API once backend endpoint is ready
 
 export default function ActivityFeedScreen() {
     return (
@@ -17,32 +12,42 @@ export default function ActivityFeedScreen() {
                 <Text style={styles.headerTitle}>Activity Feed</Text>
             </View>
 
-            <FlatList
-                data={FEED}
-                keyExtractor={item => item.id}
-                contentContainerStyle={styles.listContent}
-                renderItem={({ item }) => {
-                    const { Icon } = item;
-                    return (
-                        <View style={styles.card}>
-                            <View style={[styles.cardAccent, { backgroundColor: item.color }]} />
-
-                            <View style={styles.cardInner}>
-                                <View style={[styles.iconBox, { backgroundColor: item.color + '15' }]}>
-                                    <Icon size={18} color={item.color} />
-                                </View>
-
-                                <View style={styles.cardContent}>
-                                    <Text style={styles.titleTxt}>{item.title}</Text>
-                                    <Text style={styles.patientTxt}>{item.patient}</Text>
-                                    <Text style={styles.bodyTxt}>{item.desc}</Text>
-                                    <Text style={styles.timeTxt}>{item.time}</Text>
+            {FEED.length === 0 ? (
+                <View style={styles.emptyWrap}>
+                    <View style={styles.emptyIconBox}>
+                        <Activity size={36} color={colors.primary} strokeWidth={1.5} />
+                    </View>
+                    <Text style={styles.emptyTitle}>No Activity Yet</Text>
+                    <Text style={styles.emptyBody}>
+                        Missed medications, call alerts, and escalations will appear here as they happen.
+                    </Text>
+                </View>
+            ) : (
+                <FlatList
+                    data={FEED}
+                    keyExtractor={item => item.id}
+                    contentContainerStyle={styles.listContent}
+                    renderItem={({ item }) => {
+                        const { Icon } = item;
+                        return (
+                            <View style={styles.card}>
+                                <View style={[styles.cardAccent, { backgroundColor: item.color }]} />
+                                <View style={styles.cardInner}>
+                                    <View style={[styles.iconBox, { backgroundColor: item.color + '15' }]}>
+                                        <Icon size={18} color={item.color} />
+                                    </View>
+                                    <View style={styles.cardContent}>
+                                        <Text style={styles.titleTxt} numberOfLines={1}>{item.title}</Text>
+                                        <Text style={styles.patientTxt} numberOfLines={1}>{item.patient}</Text>
+                                        <Text style={styles.bodyTxt} numberOfLines={2}>{item.desc}</Text>
+                                        <Text style={styles.timeTxt}>{item.time}</Text>
+                                    </View>
                                 </View>
                             </View>
-                        </View>
-                    );
-                }}
-            />
+                        );
+                    }}
+                />
+            )}
         </View>
     );
 }
@@ -72,4 +77,9 @@ const styles = StyleSheet.create({
     patientTxt: { fontSize: 13, fontWeight: '600', color: colors.accent, marginTop: 4 },
     bodyTxt: { fontSize: 13, color: '#4A5568', marginTop: 4, lineHeight: 18 },
     timeTxt: { fontSize: 11, color: '#94A3B8', marginTop: 6, fontWeight: '500' },
+
+    emptyWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 },
+    emptyIconBox: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#EEF2FF', alignItems: 'center', justifyContent: 'center', marginBottom: 20 },
+    emptyTitle: { fontSize: 18, fontWeight: '700', color: '#1E293B', marginBottom: 8 },
+    emptyBody: { fontSize: 14, fontWeight: '500', color: '#94A3B8', textAlign: 'center', lineHeight: 22 },
 });

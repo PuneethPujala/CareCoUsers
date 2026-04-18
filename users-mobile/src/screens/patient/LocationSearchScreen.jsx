@@ -118,7 +118,6 @@ export default function LocationSearchScreen({ navigation }) {
 
     // ── Direct delete — no Alert.alert (broken on some Android) ────────
     const handleDeleteAddress = async (id) => {
-        console.log('Deleting address:', id);
         setDeletingId(id);
 
         // Optimistic removal
@@ -127,7 +126,6 @@ export default function LocationSearchScreen({ navigation }) {
 
         try {
             await apiService.patients.deleteSavedAddress(id);
-            console.log('Delete successful');
         } catch (err) {
             console.error('Delete failed:', err?.response?.data || err.message);
             setSavedAddresses(backup);
