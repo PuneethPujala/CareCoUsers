@@ -361,17 +361,12 @@ async function sendOtp(req, res) {
       sendOTPEmail(identifier, otp).catch((err) => console.error('OTP email failed:', err.message));
       res.json({ message: 'Verification code sent to your email.' });
     } else if (type === 'phone') {
-      const redis = require('../lib/redis');
-      const key = `otp:${identifier.trim()}`;
-      await redis.del(key);
+      const { createOTP } = require('../services/otpService');
+      const smsService = require('../services/smsService');
       
-      if (process.env.NODE_ENV === 'production') {
-        // SEC-FIX-7: Hardcoded OTP disabled in production for security.
-        // TODO: Integrate actual SMS provider (Twilio/MSG91) here.
-        return res.status(501).json({ error: 'SMS verification is not configured for production yet.' });
-      }
-
-      await redis.set(key, '123456', 'EX', 600);
+      const otp = await createOTP(identifier.trim());
+      await smsService.sendOTP(identifier.trim(), otp);
+      
       res.json({ message: 'Verification code sent to your phone.' });
     } else {
       return res.status(400).json({ error: 'type must be "email" or "phone"' });
