@@ -344,7 +344,7 @@ export default function PatientProfileScreen({ navigation }) {
             </View>
             <View style={s.infoTextCol}>
                 <Text style={s.infoLabel}>{label}</Text>
-                <Text style={[s.infoValue, !value && { color: C.muted }]}>{value || placeholder}</Text>
+                <Text style={[s.infoValue, !value && { color: C.muted }]} numberOfLines={1}>{value || placeholder}</Text>
             </View>
             {rightElement || <ChevronRight size={18} color={C.light} />}
         </Pressable>

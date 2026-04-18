@@ -297,7 +297,7 @@ export default function MyCallerScreen({ navigation }) {
                   <View style={s.onlineDot} />
                 </View>
                 <View style={s.profileInfo}>
-                  <Text style={s.callerName}>{caller.name}</Text>
+                  <Text style={s.callerName} numberOfLines={1}>{caller.name}</Text>
                   <View style={s.metaRow}>
                     <Text style={s.idChipText}>ID: {caller.employee_id}</Text>
                     <View style={s.dotDivider} />
@@ -360,7 +360,7 @@ export default function MyCallerScreen({ navigation }) {
                     </LinearGradient>
                   </View>
                   <View style={s.profileInfo}>
-                    <Text style={s.callerName}>{manager.fullName || 'Manager'}</Text>
+                    <Text style={s.callerName} numberOfLines={1}>{manager.fullName || 'Manager'}</Text>
                     <View style={s.metaRow}>
                       <Text style={s.idChipText}>Manager</Text>
                       <View style={s.dotDivider} />
@@ -421,8 +421,8 @@ export default function MyCallerScreen({ navigation }) {
                     <Text style={[s.contactAvatarTxt, { color: colorTheme.text }]}>{contact.name.charAt(0)}</Text>
                   </View>
                   <View style={s.contactInfo}>
-                    <Text style={s.contactName}>{contact.name}</Text>
-                    <Text style={s.contactSub}>{contact.relation ? `${contact.relation} • ` : ''}{contact.phone}</Text>
+                    <Text style={s.contactName} numberOfLines={1}>{contact.name}</Text>
+                    <Text style={s.contactSub} numberOfLines={1}>{contact.relation ? `${contact.relation} • ` : ''}{contact.phone}</Text>
                   </View>
                   <View style={s.contactActions}>
                     <Pressable style={s.iconActionBtn} onPress={() => openContactModal(contact)}>
@@ -483,7 +483,7 @@ export default function MyCallerScreen({ navigation }) {
               {/* Profile Header */}
               <View style={s.modalHeaderRow}>
                 <View style={s.modalProfileInfo}>
-                  <Text style={s.modalCallerName}>{caller?.name}</Text>
+                  <Text style={s.modalCallerName} numberOfLines={1}>{caller?.name}</Text>
                   <Text style={s.modalIdText}>Support ID: {caller?.employee_id}</Text>
                 </View>
                 <View style={s.avatarWrapLg}>

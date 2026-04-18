@@ -443,8 +443,12 @@ export default function PatientHomeScreen({ navigation }) {
                         <View style={styles.mainHeaderRow}>
                             <View style={styles.headerLeft}>
                                 <View style={styles.greetingGroupCompact}>
-                                    <Text style={styles.greetingGreeting}>{getGreeting()}</Text>
-                                    <Text style={styles.greetingNameCompact}>{(patient?.name || displayName)?.split(' ')[0] || 'User'}</Text>
+                                    <Text style={styles.greetingGreeting} numberOfLines={1}>
+                                        {getGreeting()}
+                                    </Text>
+                                    <Text style={styles.greetingNameCompact} numberOfLines={1}>
+                                        {(patient?.name || displayName)?.split(' ')[0] || 'User'}
+                                    </Text>
                                 </View>
                             </View>
 
@@ -541,7 +545,7 @@ export default function PatientHomeScreen({ navigation }) {
                                 </View>
                                 <View style={styles.syncCardContent}>
                                     <View style={styles.syncTitleRow}>
-                                        <Text style={styles.syncCardTitle}>
+                                        <Text style={styles.syncCardTitle} numberOfLines={1}>
                                             {syncStatus.connected ? 'Wearable Connected' : 'Connect Wearable'}
                                         </Text>
                                         {syncStatus.syncing && (
@@ -750,7 +754,8 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between', 
         alignItems: 'center'
     },
-    headerLeft: { flex: 1 },
+    headerLeft: { flex: 1, flexShrink: 1, marginRight: 10 },
+    greetingGroupCompact: { flexShrink: 1 },
     headerRight: { 
         flexDirection: 'row', 
         alignItems: 'center', 
@@ -862,7 +867,6 @@ const styles = StyleSheet.create({
     vitalsValuePremium: { fontSize: 24, fontWeight: '800', color: '#1E293B' },
     vitalsUnitPremium: { fontSize: 13, fontWeight: '600', color: '#94A3B8' },
 
-    trendContainer: { flexDirection: 'row', alignItems: 'center', gap: 6 },
     trendText: { fontSize: 11, color: '#64748B', fontWeight: '500' },
 
     medCard: { flex: 1, backgroundColor: '#FFFFFF', borderRadius: 24, marginBottom: 16, overflow: 'hidden', shadowColor: '#0F172A', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.03, shadowRadius: 10, elevation: 2, borderWidth: 1, borderColor: '#F1F5F9' },
@@ -895,6 +899,8 @@ const styles = StyleSheet.create({
         borderWidth: 1, borderColor: '#F1F5F9',
         shadowColor: 'rgba(10, 36, 99, 0.1)', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 1, shadowRadius: 20, elevation: 5,
     },
+    syncCardTitle: { fontSize: 16, fontWeight: '800', color: '#1E293B', flexShrink: 1 },
+    syncTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
     chartTitleLog: { fontSize: 16, fontWeight: '800', color: '#1E293B' },
     logToggleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
     addBadge: { backgroundColor: 'rgba(59,134,255,0.1)', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 10 },
