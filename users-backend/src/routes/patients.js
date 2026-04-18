@@ -392,8 +392,8 @@ router.get('/me/caller',
             }
 
             // Get caller user details
-            const User = require('../models/User');
-            const caller = await User.findById(patient.assigned_caller_id);
+            const Caller = require('../models/Caller');
+            const caller = await Caller.findById(patient.assigned_caller_id);
             if (!caller) {
                 return res.status(404).json({ error: 'Caller not found' });
             }
@@ -427,8 +427,8 @@ router.get('/me/calls',
     requireRole('patient'),
     async (req, res) => {
         try {
-            const Call = require('../models/Call');
-            const calls = await Call.find({ patient_id: req.profile._id })
+            const CallLog = require('../models/CallLog');
+            const calls = await CallLog.find({ patient_id: req.profile._id })
                 .sort({ call_date: -1 })
                 .limit(20);
 

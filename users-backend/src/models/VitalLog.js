@@ -7,7 +7,7 @@ const VitalLogSchema = new mongoose.Schema(
     {
         patient_id: {
             type: mongoose.Schema.Types.ObjectId,
-            ref: 'User',
+            ref: 'Patient',
             required: true,
             index: true,
         },
