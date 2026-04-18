@@ -359,11 +359,13 @@ export default function LoginScreen({ navigation }) {
                     } else {
                         setErrorText(regError?.response?.data?.error || 'Failed to create account. Please try again.');
                     }
+                    try { await GoogleSignin.signOut(); } catch { }
                 }
             } else {
                 analytics.loginSuccess(result?.user?.id);
             }
         } catch (error) {
+            try { await GoogleSignin.signOut(); } catch { }
             if (error?.code === statusCodes.SIGN_IN_CANCELLED) {
                 // User cancelled
             } else if (error?.code === statusCodes.IN_PROGRESS) {

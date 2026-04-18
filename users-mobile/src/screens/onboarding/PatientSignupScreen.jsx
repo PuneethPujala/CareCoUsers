@@ -589,9 +589,11 @@ export default function PatientSignupScreen({ navigation, route }) {
                     } else {
                         setErrors({ google: msg });
                     }
+                    try { await GoogleSignin.signOut(); } catch { }
                 }
             }
         } catch (error) {
+            try { await GoogleSignin.signOut(); } catch { }
             if (error?.code === statusCodes.SIGN_IN_CANCELLED) {
                 // User cancelled — do nothing
             } else if (error?.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
