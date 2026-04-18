@@ -264,7 +264,7 @@ const rs = StyleSheet.create({
 
 // ─── Main LoginScreen ─────────────────────────────────────────────────────
 export default function LoginScreen({ navigation }) {
-    const { signIn, signInWithGoogle, resetPassword, injectSession } = useAuth();
+    const { signIn, signInWithGoogle, resetPassword, injectSession, signOut } = useAuth();
 
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -320,6 +320,7 @@ export default function LoginScreen({ navigation }) {
             setTimeout(() => setLoading(true), 0);
             setErrorText('');
             await GoogleSignin.hasPlayServices();
+            try { await GoogleSignin.signOut(); } catch (e) {} // Force picker
             const signInResult = await GoogleSignin.signIn();
             const idToken = signInResult?.data?.idToken;
             if (!idToken) {
@@ -328,38 +329,44 @@ export default function LoginScreen({ navigation }) {
             }
             const result = await signInWithGoogle(idToken);
             if (result?.isNewUser) {
-                // No profile found — auto-create a patient account
+                // No profile found — auto-create/link patient account
                 const googleUser = result.user;
                 const fullName = googleUser.user_metadata?.full_name
                     || googleUser.user_metadata?.name
                     || googleUser.email.split('@')[0];
                 try {
-                    await apiService.auth.register({
+                    // Register returns profile + CareConnect JWT session for OAuth users.
+                    // We pass these CareConnect tokens to injectSession so the API
+                    // interceptor uses verifiable tokens for all subsequent calls.
+                    const regRes = await apiService.auth.register({
                         email: googleUser.email, fullName, role: 'patient',
                         supabaseUid: googleUser.id,
                     });
-                    const config = { headers: { Authorization: `Bearer ${result.session.access_token}` } };
-                    const profileRes = await apiService.auth.getProfile(config);
-                    await injectSession(result.session, profileRes.data.profile);
+                    const regProfile = regRes.data?.profile;
+                    const regSession = regRes.data?.session;
+                    if (regProfile && regSession) {
+                        await injectSession(regSession, regProfile);
+                    } else if (regProfile) {
+                        // Fallback if backend didn't return session (shouldn't happen for OAuth)
+                        await injectSession(result.session, regProfile);
+                    } else {
+                        setErrorText('Registration succeeded but no profile returned. Please try again.');
+                        await signOut();
+                    }
                 } catch (regError) {
                     const code = regError?.response?.data?.code;
-                    if (code === 'EMAIL_ALREADY_EXISTS') {
-                        // User exists in our DB, but profile fetch failed initially (likely missing new supabaseUid link)
-                        // The backend just needs the new session to identify them or we can try fetching again
-                        try {
-                            const config = { headers: { Authorization: `Bearer ${result.session.access_token}` } };
-                            const profileRes = await apiService.auth.getProfile(config);
-                            if (profileRes.data.profile) {
-                                await injectSession(result.session, profileRes.data.profile);
-                                return;
-                            }
-                        } catch (pErr) {
-                            setErrorText('An account with this email already exists. Please try logging in with your password.');
-                        }
+                    const regProfile = regError?.response?.data?.profile;
+                    const regSession = regError?.response?.data?.session;
+                    if (code === 'EMAIL_ALREADY_EXISTS' && regProfile && regSession) {
+                        // Backend linked the accounts and returned CareConnect session
+                        await injectSession(regSession, regProfile);
+                    } else if (code === 'EMAIL_ALREADY_EXISTS') {
+                        setErrorText('An account with this email already exists. Please try logging in with your password.');
+                        await signOut();
                     } else {
                         setErrorText(regError?.response?.data?.error || 'Failed to create account. Please try again.');
+                        await signOut();
                     }
-                    try { await GoogleSignin.signOut(); } catch { }
                 }
             } else {
                 analytics.loginSuccess(result?.user?.id);

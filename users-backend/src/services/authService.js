@@ -92,15 +92,8 @@ async function registerPatient(body, req) {
 
   const emailNorm = email.toLowerCase().trim();
 
-  // ── Cross-collection email uniqueness ─────────────────────────────────────
-  // Prevent a patient from registering with an email already used by staff
-  const existingStaff = await Profile.findOne({ email: emailNorm, isActive: true });
-  if (existingStaff) {
-    const err = new Error('This email is already associated with a staff account. Please contact your administrator.');
-    err.status = 400;
-    err.code = 'EMAIL_ALREADY_EXISTS';
-    throw err;
-  }
+  // NOTE: Cross-collection Profile check removed — this is a patients-only app.
+  // Patient email uniqueness is enforced by the Patient.email unique index below.
 
   // ── Merge into existing patient for OAuth ─────────────────────────────────
   // If a Google user is re-registering (e.g. profile fetch failed previously),
@@ -117,9 +110,30 @@ async function registerPatient(body, req) {
         email: emailNorm,
       });
 
+      // Issue CareConnect JWTs so the mobile has tokens the backend can verify.
+      // Supabase JWTs from Google OAuth can't be verified without the fallback.
+      const tokens = await tokenService.issueTokenPair(
+        {
+          userId: existingPatient._id,
+          userType: 'Patient',
+          subject: supabaseUid,
+          role: 'patient',
+          email: existingPatient.email,
+          emailVerified: existingPatient.emailVerified,
+        },
+        req
+      );
+
       return {
         message: 'Account linked successfully',
         user: { id: supabaseUid, email: emailNorm },
+        session: {
+          access_token: tokens.access_token,
+          refresh_token: tokens.refresh_token,
+          expires_in: tokens.expires_in,
+          expires_at: tokens.expires_at,
+          user: buildSessionUser(supabaseUid, emailNorm, existingPatient.emailVerified),
+        },
         profile: {
           id: existingPatient._id,
           email: existingPatient.email,
@@ -206,7 +220,7 @@ async function registerPatient(body, req) {
     authMethod: isOAuth ? 'google_oauth' : 'email_password',
   });
 
-  return {
+  const result = {
     message: 'Registration successful',
     user: { id: subject, email: emailNorm },
     profile: {
@@ -218,6 +232,31 @@ async function registerPatient(body, req) {
       isActive: patient.is_active,
     },
   };
+
+  // For OAuth users, issue CareConnect JWTs so the mobile has usable tokens.
+  // Email-password users get their tokens from the subsequent login() call.
+  if (isOAuth) {
+    const tokens = await tokenService.issueTokenPair(
+      {
+        userId: patient._id,
+        userType: 'Patient',
+        subject,
+        role: 'patient',
+        email: emailNorm,
+        emailVerified: true,
+      },
+      req
+    );
+    result.session = {
+      access_token: tokens.access_token,
+      refresh_token: tokens.refresh_token,
+      expires_in: tokens.expires_in,
+      expires_at: tokens.expires_at,
+      user: buildSessionUser(subject, emailNorm, true),
+    };
+  }
+
+  return result;
 }
 
 async function login({ email, password, role }, req) {

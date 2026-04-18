@@ -170,7 +170,7 @@ const IconInput = React.memo(React.forwardRef(({ icon: Icon, label, rightIcon, e
                 <TextInput
                     ref={ref}
                     style={styles.textInputEnhanced}
-                    placeholderTextColor="#8899BB"
+                    placeholderTextColor="#94A3B8"
                     onFocus={handleFocus}
                     onBlur={handleBlur}
                     {...rest}
@@ -560,6 +560,7 @@ export default function PatientSignupScreen({ navigation, route }) {
             setTimeout(() => setGoogleLoading(true), 0);
             setErrors({});
             await GoogleSignin.hasPlayServices();
+            try { await GoogleSignin.signOut(); } catch (e) {} // Force picker
             const signInResult = await GoogleSignin.signIn();
             const idToken = signInResult?.data?.idToken;
             if (!idToken) {
@@ -574,22 +575,35 @@ export default function PatientSignupScreen({ navigation, route }) {
                     || googleUser.user_metadata?.name
                     || googleUser.email.split('@')[0];
                 try {
-                    await apiService.auth.register({
+                    // Register returns profile + CareConnect JWT session for OAuth users.
+                    const regRes = await apiService.auth.register({
                         email: googleUser.email, fullName, role: 'patient',
                         supabaseUid: googleUser.id,
                     });
-                    const config = { headers: { Authorization: `Bearer ${result.session.access_token}` } };
-                    const profileRes = await apiService.auth.getProfile(config);
-                    await injectSession(result.session, profileRes.data.profile);
+                    const regProfile = regRes.data?.profile;
+                    const regSession = regRes.data?.session;
+                    if (regProfile && regSession) {
+                        await injectSession(regSession, regProfile);
+                    } else if (regProfile) {
+                        await injectSession(result.session, regProfile);
+                    } else {
+                        setErrors({ google: 'Registration succeeded but no profile returned.' });
+                        await signOut();
+                    }
                 } catch (regError) {
                     const code = regError?.response?.data?.code;
+                    const regProfile = regError?.response?.data?.profile;
+                    const regSession = regError?.response?.data?.session;
                     const msg = regError?.response?.data?.error || regError.message || 'Failed to create account';
-                    if (code === 'EMAIL_ALREADY_EXISTS') {
+                    if (code === 'EMAIL_ALREADY_EXISTS' && regProfile && regSession) {
+                        await injectSession(regSession, regProfile);
+                    } else if (code === 'EMAIL_ALREADY_EXISTS') {
                         setErrors({ google: 'An account with this email already exists. Please log in instead.' });
+                        await signOut();
                     } else {
                         setErrors({ google: msg });
+                        await signOut();
                     }
-                    try { await GoogleSignin.signOut(); } catch { }
                 }
             }
         } catch (error) {

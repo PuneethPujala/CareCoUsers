@@ -393,35 +393,13 @@ export function AuthProvider({ children }) {
 
             setSession(data.session);
 
-            // Save tokens so the API interceptor can use them for subsequent calls
-            await saveApiTokens({
-                access_token: data.session.access_token,
-                refresh_token: data.session.refresh_token,
-                expires_at: data.session.expires_at,
-            });
-
-            try {
-                const config = { headers: { Authorization: `Bearer ${data.session.access_token}` } };
-                const response = await apiService.auth.getProfile(config);
-                const profileData = response.data.profile;
-
-                // Profile might be null if user exists in Supabase but not in our DB
-                if (!profileData) {
-                    setLoading(false);
-                    return { isNewUser: true, user: data.user, session: data.session };
-                }
-
-                profileData.role = 'patient';
-                await setProfileAndCache(profileData);
-                await fetchPatientData();
-                setUser(data.user);
-            } catch {
-                setLoading(false);
-                return { isNewUser: true, user: data.user, session: data.session };
-            }
-
+            // NOTE: We intentionally do NOT save Supabase tokens as API tokens.
+            // Supabase JWTs cannot be verified by our backend (different JWT secret,
+            // AUTH_ENABLE_SUPABASE_FALLBACK is off). The calling screen will call
+            // the public register endpoint which returns CareConnect JWTs that
+            // the backend can actually verify. Those get saved via injectSession().
             setLoading(false);
-            return { isNewUser: false, user: data.user, session: data.session };
+            return { isNewUser: true, user: data.user, session: data.session };
         } catch (error) {
             setLoading(false);
             throw new Error(error?.message || 'Google sign-in failed');
@@ -444,13 +422,15 @@ export function AuthProvider({ children }) {
         if (newProfile) newProfile.role = 'patient';
         await setProfileAndCache(newProfile);
 
-        await fetchPatientData();
-
+        // Save CareConnect JWTs BEFORE fetching patient data so the API
+        // interceptor uses these verifiable tokens instead of stale Supabase ones.
         await saveApiTokens({
             access_token: newSession.access_token,
             refresh_token: newSession.refresh_token,
             expires_at: newSession.expires_at,
         });
+
+        await fetchPatientData();
 
         setUser(newSession.user);
         setSession(newSession);
