@@ -18,31 +18,22 @@ function getShiftLabel(shift) {
     return 'Night (After 5 PM)';
 }
 
-/** Filter medications to only those scheduled for the current shift */
 function filterMedsByShift(medications, shift) {
     return medications.filter(med => {
-        const times = med.scheduledTimes || [];
-        const legacyTimes = med.times || []; // embedded Patient.medications uses 'times'
+        const times = med.scheduledTimes && med.scheduledTimes.length > 0 ? med.scheduledTimes : (med.times || []);
 
-        // Check legacy 'times' field (morning/afternoon/night strings)
-        if (legacyTimes.length > 0) {
-            if (legacyTimes.includes(shift)) return true;
-        }
-
-        // If no scheduled times at all, default to morning
-        if (times.length === 0 && legacyTimes.length === 0) return shift === 'morning';
-        if (times.length === 0) return false;
+        if (times.length === 0) return shift === 'morning';
 
         if (shift === 'morning') {
-            return times.some(t => t.includes('AM') || t.toLowerCase().includes('morning'));
+            return times.some(t => t.toLowerCase().includes('morning') || t.includes('AM') || (t.includes('12:') && !t.includes('PM')));
         }
         if (shift === 'afternoon') {
             return times.some(t => {
                 if (t.toLowerCase().includes('afternoon')) return true;
                 if (!t.includes('PM')) return false;
                 let h = parseInt(t.split(':')[0]);
-                if (h === 12) h = 0; // 12:xx PM is noon
-                return h >= 0 && h < 5; // 12 PM to 4:59 PM
+                if (h === 12) h = 0;
+                return h >= 0 && h < 5;
             });
         }
         if (shift === 'night') {
@@ -50,11 +41,11 @@ function filterMedsByShift(medications, shift) {
                 if (t.toLowerCase().includes('night')) return true;
                 if (!t.includes('PM')) return false;
                 let h = parseInt(t.split(':')[0]);
-                if (h === 12) return false; // 12 PM is noon, not night
-                return h >= 5; // 5 PM onwards
+                if (h === 12) return false;
+                return h >= 5;
             });
         }
-        return true;
+        return false;
     });
 }
 

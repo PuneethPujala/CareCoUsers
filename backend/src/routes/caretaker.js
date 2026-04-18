@@ -49,36 +49,32 @@ function getCurrentShift() {
 /** Filter medication list to only those scheduled for the given shift */
 function filterMedsByShift(medications, shift) {
     return medications.filter(med => {
-        const times = med.scheduledTimes || [];
-        const legacyTimes = med.times || []; // embedded Patient.medications uses 'times'
+        const times = med.scheduledTimes && med.scheduledTimes.length > 0 ? med.scheduledTimes : (med.times || []);
 
-        // Check legacy 'times' field (morning/afternoon/night strings)
-        if (legacyTimes.length > 0) {
-            if (shift === 'morning' && legacyTimes.includes('morning')) return true;
-            if (shift === 'afternoon' && legacyTimes.includes('afternoon')) return true;
-            if (shift === 'night' && legacyTimes.includes('night')) return true;
-            if (legacyTimes.includes(shift)) return true;
+        if (times.length === 0) return shift === 'morning';
+
+        if (shift === 'morning') {
+            return times.some(t => t.toLowerCase().includes('morning') || t.includes('AM') || (t.includes('12:') && !t.includes('PM')));
         }
-
-        if (times.length === 0 && legacyTimes.length === 0) return shift === 'morning';
-        if (times.length === 0) return false; // already matched via legacyTimes above
-
-        if (shift === 'morning') return times.some(t => t.includes('AM') || t.toLowerCase().includes('morning'));
-        if (shift === 'afternoon') return times.some(t => {
-            if (t.toLowerCase().includes('afternoon')) return true;
-            if (!t.includes('PM')) return false;
-            let h = parseInt(t.split(':')[0]);
-            if (h === 12) h = 0;
-            return h >= 0 && h < 5;
-        });
-        if (shift === 'night') return times.some(t => {
-            if (t.toLowerCase().includes('night')) return true;
-            if (!t.includes('PM')) return false;
-            let h = parseInt(t.split(':')[0]);
-            if (h === 12) return false;
-            return h >= 5;
-        });
-        return true;
+        if (shift === 'afternoon') {
+            return times.some(t => {
+                if (t.toLowerCase().includes('afternoon')) return true;
+                if (!t.includes('PM')) return false;
+                let h = parseInt(t.split(':')[0]);
+                if (h === 12) h = 0;
+                return h >= 0 && h < 5;
+            });
+        }
+        if (shift === 'night') {
+            return times.some(t => {
+                if (t.toLowerCase().includes('night')) return true;
+                if (!t.includes('PM')) return false;
+                let h = parseInt(t.split(':')[0]);
+                if (h === 12) return false;
+                return h >= 5;
+            });
+        }
+        return false;
     });
 }
 
@@ -93,32 +89,56 @@ async function getPatientMedications(patientId, activeOnly = true) {
     if (activeOnly) filter.isActive = true;
     let meds = await Medication.find(filter).sort({ name: 1 }).lean();
 
-    // 2. If no meds in collection, check embedded Patient.medications
-    if (meds.length === 0) {
-        const patient = await Patient.findById(patientId).select('medications').lean();
-        if (patient && patient.medications && patient.medications.length > 0) {
-            meds = patient.medications
-                .filter(m => activeOnly ? (m.is_active !== false) : true)
-                .map(m => ({
-                    _id: m._id,
-                    patientId: patientId,
-                    name: m.name,
-                    dosage: m.dosage,
-                    frequency: m.frequency,
-                    route: m.route || 'oral',
-                    scheduledTimes: m.scheduledTimes || [],
-                    times: m.times || [],
-                    instructions: m.instructions || '',
-                    withFood: m.withFood || false,
-                    isActive: m.is_active !== false,
-                    status: m.is_active !== false ? 'active' : 'inactive',
-                    prescribedBy: m.prescribed_by || '',
-                    startDate: m.startDate || null,
-                    takenLogs: m.takenLogs || [],
-                    takenDates: m.takenDates || [],
-                    _embedded: true, // flag to identify source
-                }));
+    // 2. Check embedded Patient.medications and Profile.metadata.medications
+    const [patient, profile] = await Promise.all([
+        Patient.findById(patientId).select('medications metadata').lean(),
+        Profile.findById(patientId).select('metadata').lean()
+    ]);
+
+    let embeddedMeds = [];
+    if (patient) {
+        embeddedMeds = [...(patient.medications || []), ...(patient.metadata?.medications || [])];
+    }
+    if (profile && profile.metadata?.medications) {
+        embeddedMeds = [...embeddedMeds, ...profile.metadata.medications];
+    }
+
+    // Deduplicate by ID
+    const uniqueEmbedded = [];
+    const seen = new Set();
+    for (const m of embeddedMeds) {
+        if (!m) continue;
+        const mId = (m._id || m.id || '').toString();
+        if (mId && !seen.has(mId)) {
+            seen.add(mId);
+            uniqueEmbedded.push(m);
         }
+    }
+
+    if (uniqueEmbedded.length > 0) {
+        const mappedEmbedded = uniqueEmbedded
+            .filter(m => activeOnly ? (m.is_active !== false && m.isActive !== false) : true)
+            .map(m => ({
+                _id: m._id || m.id,
+                patientId: patientId,
+                name: m.name,
+                dosage: m.dosage,
+                frequency: m.frequency,
+                route: m.route || 'oral',
+                scheduledTimes: m.scheduledTimes || [],
+                times: m.times || [],
+                instructions: m.instructions || '',
+                withFood: m.withFood || false,
+                isActive: m.is_active !== false && m.isActive !== false,
+                status: (m.is_active !== false && m.isActive !== false) ? 'active' : 'inactive',
+                prescribedBy: m.prescribed_by || '',
+                startDate: m.startDate || null,
+                takenLogs: m.takenLogs || [],
+                takenDates: m.takenDates || [],
+                _embedded: true, // flag to identify source
+            }));
+        
+        meds = [...meds, ...mappedEmbedded];
     }
 
     return meds;
@@ -300,12 +320,12 @@ router.get('/dashboard', async (req, res) => {
 
         const assignedCount = shiftPatients.length;
 
-        // ── Adherence rate (30 days) ──
+        // ── Adherence rate (Current Shift) ──
         const adherenceResult = await CallLog.aggregate([
             {
                 $match: {
                     caretakerId: new mongoose.Types.ObjectId(caretakerId),
-                    scheduledTime: { $gte: thirtyDaysAgo },
+                    scheduledTime: { $gte: shiftStart, $lte: shiftEnd },
                     status: 'completed',
                 },
             },
@@ -318,12 +338,28 @@ router.get('/dashboard', async (req, res) => {
                 },
             },
         ]);
-        const myAdherence = adherenceResult.length
+        const myAdherence = adherenceResult.length && adherenceResult[0].total > 0
             ? Math.round((adherenceResult[0].confirmed / adherenceResult[0].total) * 100)
             : 0;
 
-        // ── Performance (30 days) ──
-        const performance = await CallLog.getCaretakerPerformance(caretakerId, 30);
+        // ── Performance (Current Shift) ──
+        const performanceResult = await CallLog.aggregate([
+            {
+                $match: {
+                    caretakerId: new mongoose.Types.ObjectId(caretakerId),
+                    scheduledTime: { $gte: shiftStart, $lte: shiftEnd },
+                },
+            },
+            {
+                $group: {
+                    _id: null,
+                    avgDuration: { $avg: '$duration' },
+                    avgRating: { $avg: '$callQuality.rating' },
+                },
+            },
+        ]);
+        
+        const shiftPerformance = performanceResult.length ? performanceResult[0] : { avgDuration: 0, avgRating: 0 };
 
         // ── Next call: first pending patient ──
         let nextCall = null;
@@ -402,10 +438,10 @@ router.get('/dashboard', async (req, res) => {
                     completionRate,
                 },
                 performance: {
-                    completionRate: performance.completionRate,
-                    avgDuration: performance.avgDuration,
-                    avgRating: performance.avgRating,
-                    totalCalls: performance.totalCalls,
+                    completionRate,
+                    avgDuration: shiftPerformance.avgDuration,
+                    avgRating: shiftPerformance.avgRating,
+                    totalCalls: assignedCount,
                 },
             },
             nextCall: nextCall ? {
@@ -805,35 +841,36 @@ router.post('/patients/:id/medications', async (req, res) => {
             return res.status(400).json({ error: 'name, dosage and frequency are required' });
         }
 
-        const newMed = {
-            _id: new mongoose.Types.ObjectId(),
+        // Figure out organizationId for the schema
+        let orgId = req.profile.organizationId;
+        const patient = await Patient.findById(patientId).lean();
+        if (patient && patient.organization_id) {
+            orgId = patient.organization_id;
+        } else {
+            const profile = await Profile.findById(patientId).lean();
+            if (profile && profile.organizationId) {
+                orgId = profile.organizationId;
+            }
+        }
+
+        const newMed = await Medication.create({
+            patientId,
+            organizationId: orgId,
             name,
             dosage,
             frequency,
             route: route || 'oral',
             scheduledTimes: scheduledTimes || [],
-            times: scheduledTimes || [], // embedded legacy fallback mapping
+            times: scheduledTimes || [],
             instructions: instructions || '',
             withFood: !!withFood,
             startDate: startDate || new Date(),
             endDate: endDate || null,
-            prescribedBy: caretakerId,
+            prescribedBy: req.profile.fullName || req.profile.name || 'Caller',
+            addedBy: caretakerId,
             status: 'active',
-            is_active: true,
-            isActive: true,
-        };
-
-        const patient = await Patient.findOneAndUpdate(
-            { _id: patientId },
-            { $push: { medications: newMed } },
-            { new: true }
-        );
-
-        if (!patient) {
-            return res.status(404).json({ error: 'Patient not found' });
-        }
-
-        const med = newMed;
+            isActive: true
+        });
 
         // Audit log
         try {
@@ -841,7 +878,7 @@ router.post('/patients/:id/medications', async (req, res) => {
                 supabaseUid: req.profile.supabaseUid,
                 action: 'medication_created',
                 resourceType: 'medication',
-                resourceId: med._id,
+                resourceId: newMed._id,
                 ipAddress: req.ip,
                 userAgent: req.headers['user-agent'],
                 outcome: 'success',
@@ -849,7 +886,7 @@ router.post('/patients/:id/medications', async (req, res) => {
             });
         } catch (e) { /* ignore audit errors */ }
 
-        res.status(201).json({ medication: med });
+        res.status(201).json({ medication: newMed });
     } catch (error) {
         console.error('Add medication error:', error);
         res.status(500).json({ error: 'Failed to add medication' });
@@ -875,25 +912,72 @@ router.put('/patients/:id/medications/:medId', async (req, res) => {
         const updateFields = {};
         for (const key of allowed) {
             if (req.body[key] !== undefined) {
-                updateFields[`medications.$.${key}`] = req.body[key];
+                updateFields[key] = req.body[key];
             }
         }
-
-        if (req.body.scheduledTimes && req.body.scheduledTimes.length > 0) {
-            updateFields['medications.$.times'] = req.body.scheduledTimes;
+        if (updateFields.status !== undefined) {
+            updateFields.isActive = updateFields.status === 'active';
+            updateFields.is_active = updateFields.status === 'active';
+        }
+        if (updateFields.scheduledTimes !== undefined) {
+            updateFields.times = updateFields.scheduledTimes;
         }
 
-        const patient = await Patient.findOneAndUpdate(
-            { _id: patientId, 'medications._id': medId },
+        // Try updating from Medication collection first
+        let updatedMed = await Medication.findOneAndUpdate(
+            { _id: medId, patientId },
             { $set: updateFields },
             { new: true }
         );
 
-        if (!patient) {
-            return res.status(404).json({ error: 'Medication not found or Patient not active' });
+        if (updatedMed) {
+            return res.json({ medication: updatedMed });
         }
 
-        const med = patient.medications.find(m => m._id.toString() === medId.toString());
+        // If not found in Medication collection, try embedded Patient.medications
+        const embeddedUpdateFields = {};
+        for (const key of allowed) {
+            if (req.body[key] !== undefined) {
+                embeddedUpdateFields[`medications.$.${key}`] = req.body[key];
+            }
+        }
+        if (req.body.scheduledTimes && req.body.scheduledTimes.length > 0) {
+            embeddedUpdateFields['medications.$.times'] = req.body.scheduledTimes;
+        }
+
+        let patient = await Patient.findOneAndUpdate(
+            { _id: patientId, 'medications._id': medId },
+            { $set: embeddedUpdateFields },
+            { new: true }
+        );
+
+        // Try Patient.metadata.medications
+        if (!patient) {
+            const metaUpdateFields = {};
+            for (const key of allowed) {
+                if (req.body[key] !== undefined) {
+                    metaUpdateFields[`metadata.medications.$.${key}`] = req.body[key];
+                }
+            }
+            if (req.body.scheduledTimes && req.body.scheduledTimes.length > 0) {
+                metaUpdateFields['metadata.medications.$.times'] = req.body.scheduledTimes;
+            }
+            patient = await Patient.findOneAndUpdate(
+                { _id: patientId, 'metadata.medications._id': medId },
+                { $set: metaUpdateFields },
+                { new: true }
+            );
+        }
+
+        if (!patient) {
+            return res.status(404).json({ error: 'Medication not found' });
+        }
+
+        let med = patient.medications?.find(m => m._id.toString() === medId.toString());
+        if (!med) {
+            med = patient.metadata?.medications?.find(m => m._id.toString() === medId.toString());
+        }
+        
         res.json({ medication: med });
     } catch (error) {
         console.error('Update medication error:', error);
@@ -916,13 +1000,24 @@ router.delete('/patients/:id/medications/:medId', async (req, res) => {
             return res.status(403).json({ error: 'Patient not assigned to you' });
         }
 
-        const patient = await Patient.findOneAndUpdate(
+        // 1. Try deleting from Medication collection
+        const med = await Medication.findOneAndDelete({ _id: medId, patientId });
+        
+        let found = !!med;
+
+        // 2. Try deleting from embedded arrays
+        const patient1 = await Patient.findOneAndUpdate(
             { _id: patientId },
             { $pull: { medications: { _id: medId } } },
             { new: true }
         );
+        const patient2 = await Patient.findOneAndUpdate(
+            { _id: patientId },
+            { $pull: { 'metadata.medications': { _id: medId } } },
+            { new: true }
+        );
 
-        if (!patient) {
+        if (!found && !patient1 && !patient2) {
             return res.status(404).json({ error: 'Medication or Patient not found' });
         }
 
@@ -971,7 +1066,20 @@ router.post('/calls', async (req, res) => {
             ? outcome
             : (status === 'completed' ? 'answered_completed' : (status === 'no_answer' ? 'no_answer' : 'answered_completed'));
 
-        const orgId = req.profile.organizationId?._id || req.profile.organizationId;
+        let orgId = req.profile.organizationId?._id || req.profile.organizationId;
+        
+        if (!orgId) {
+            const tempPat = await Patient.findById(patientId).lean();
+            if (tempPat && tempPat.organization_id) {
+                orgId = tempPat.organization_id;
+            } else {
+                const Profile = mongoose.model('Profile');
+                const tempProf = await Profile.findById(patientId).lean();
+                if (tempProf && tempProf.organizationId) {
+                    orgId = tempProf.organizationId;
+                }
+            }
+        }
 
         if (log) {
             Object.assign(log, {
@@ -1017,12 +1125,10 @@ router.post('/calls', async (req, res) => {
                     try {
                         const medDoc = await Medication.findById(mc.medicationId);
                         if (medDoc) {
-                            if (!medDoc.adherenceHistory) medDoc.adherenceHistory = [];
-                            medDoc.adherenceHistory.push({
-                                date: new Date(),
-                                taken: true,
-                                notes: mc.notes || '',
-                                callLogId: log._id,
+                            if (!medDoc.takenLogs) medDoc.takenLogs = [];
+                            medDoc.takenLogs.push({
+                                date: today,
+                                timestamp: new Date(),
                             });
                             await medDoc.save();
                             continue; // done for this med
