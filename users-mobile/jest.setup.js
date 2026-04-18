@@ -9,7 +9,16 @@ jest.mock('expo-notifications', () => ({
   setNotificationHandler: jest.fn(),
   addNotificationReceivedListener: jest.fn().mockReturnValue({ remove: jest.fn() }),
   addNotificationResponseReceivedListener: jest.fn().mockReturnValue({ remove: jest.fn() }),
+  getLastNotificationResponseAsync: jest.fn().mockResolvedValue(null),
 }));
+
+// react-native-reanimated
+jest.mock('react-native-reanimated', () => {
+  const Reanimated = require('react-native-reanimated/mock');
+  Reanimated.default.call = () => {};
+  return Reanimated;
+});
+global.ReanimatedDataMock = { now: () => 0 };
 
 // react-native-async-storage
 jest.mock('@react-native-async-storage/async-storage', () => ({
