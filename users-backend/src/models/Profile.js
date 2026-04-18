@@ -106,10 +106,6 @@ const ProfileSchema = new mongoose.Schema(
     lastLoginAt: {
       type: Date,
     },
-    twoFactorEnabled: {
-      type: Boolean,
-      default: false,
-    },
     // ── MFA / TOTP ────────────────────────────────
     mfaEnabled: {
       type: Boolean,

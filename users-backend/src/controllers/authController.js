@@ -233,7 +233,6 @@ async function me(req, res) {
         isActive: profile.isActive,
         emailVerified: profile.emailVerified,
         lastLoginAt: profile.lastLoginAt,
-        twoFactorEnabled: profile.twoFactorEnabled,
         metadata: profile.metadata,
         mustChangePassword: profile.mustChangePassword || false,
         subscription_status: subscriptionStatus,

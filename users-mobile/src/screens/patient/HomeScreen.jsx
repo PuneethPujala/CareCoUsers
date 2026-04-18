@@ -227,8 +227,8 @@ export default function PatientHomeScreen({ navigation }) {
                 return {
                     id,
                     name: m.medicine_name,
-                    dosage: m.dosage || (m.scheduled_time === 'morning' ? '500mg' : m.scheduled_time === 'afternoon' ? '5mg' : '10mg'),
-                    instructions: m.instructions || (m.scheduled_time === 'morning' ? 'Take with food' : m.scheduled_time === 'afternoon' ? 'Take after lunch' : 'Take before sleep'),
+                    dosage: m.dosage || 'As prescribed',
+                    instructions: m.instructions || '',
                     time: TIME_LABELS[m.scheduled_time] || m.scheduled_time,
                     type: m.scheduled_time,
                     taken: isTaken,

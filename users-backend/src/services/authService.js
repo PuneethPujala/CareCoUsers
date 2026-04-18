@@ -696,7 +696,7 @@ async function changePassword({ currentPassword, newPassword }, req, profile, us
     throw err;
   }
 
-  if (!isPatient && account.passwordHistory?.length > 0) {
+  if (account.passwordHistory?.length > 0) {
     for (const oldHash of account.passwordHistory) {
       const matches = await passwordService.verifyPassword(newPassword, oldHash);
       if (matches) {
@@ -711,9 +711,10 @@ async function changePassword({ currentPassword, newPassword }, req, profile, us
   const newHash = await passwordService.hashPassword(newPassword);
   account.passwordHash = newHash;
 
+  const history = [...(account.passwordHistory || []), newHash].slice(-3);
+  account.passwordHistory = history;
+
   if (!isPatient) {
-    const history = [...(account.passwordHistory || []), newHash].slice(-3);
-    account.passwordHistory = history;
     account.mustChangePassword = false;
     account.passwordChangedAt = new Date();
   }

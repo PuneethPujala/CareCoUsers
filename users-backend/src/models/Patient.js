@@ -62,10 +62,6 @@ const PatientSchema = new mongoose.Schema(
         lastLoginAt: {
             type: Date,
         },
-        twoFactorEnabled: {
-            type: Boolean,
-            default: false,
-        },
         mfaEnabled: {
             type: Boolean,
             default: false,
@@ -85,6 +81,8 @@ const PatientSchema = new mongoose.Schema(
         accountLockedUntil: {
             type: Date,
         },
+        // Stores last 3 hashed passwords to prevent reuse (Audit Bug #6)
+        passwordHistory: [{ type: String }],
 
         // ── Notifications ─────────────────────────────
         expo_push_token: {
@@ -92,6 +90,10 @@ const PatientSchema = new mongoose.Schema(
             trim: true,
         },
         push_notifications_enabled: {
+            type: Boolean,
+            default: true,
+        },
+        medication_reminders_enabled: {
             type: Boolean,
             default: true,
         },
@@ -197,7 +199,7 @@ const PatientSchema = new mongoose.Schema(
             },
             plan: {
                 type: String,
-                enum: ['basic', 'premium', 'explore'],
+                enum: ['free', 'basic', 'premium', 'explore'],
                 default: 'basic',
             },
             amount: { type: Number, default: 0 },
@@ -320,18 +322,6 @@ const PatientSchema = new mongoose.Schema(
             enum: ['full', 'limited', 'wheelchair', 'bedridden'],
             default: 'full',
         },
-        push_notifications_enabled: {
-            type: Boolean,
-            default: true,
-        },
-        medication_reminders_enabled: {
-            type: Boolean,
-            default: true,
-        },
-        expo_push_token: {
-            type: String,
-            trim: true,
-        },
 
         // ── Notes & Flags ─────────────────────────────
         notes: { type: String },
@@ -348,35 +338,6 @@ const PatientSchema = new mongoose.Schema(
         },
         deactivated_at: { type: Date },
         deactivated_reason: { type: String },
-
-        // ── Auth & Security ──────────────────────────────
-        emailVerified: {
-            type: Boolean,
-            default: false,
-        },
-        // ── MFA / TOTP ────────────────────────────────
-        mfaEnabled: {
-            type: Boolean,
-            default: false,
-        },
-        mfaSecret: {
-            type: String,
-            select: false,
-        },
-        mfaRecoveryCodes: {
-            type: [String],
-            select: false,
-        },
-        lastLoginAt: {
-            type: Date,
-        },
-        failedLoginAttempts: {
-            type: Number,
-            default: 0,
-        },
-        accountLockedUntil: {
-            type: Date,
-        },
 
         // ── Lifestyle & Extensions ──────────────────
         height_cm: { type: Number },

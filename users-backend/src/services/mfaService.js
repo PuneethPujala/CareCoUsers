@@ -103,9 +103,6 @@ async function verifyAndEnable(userId, userType, code, req) {
 
   account.mfaEnabled = true;
   account.mfaRecoveryCodes = recoveryCodes;
-  if (userType !== 'Patient') {
-    account.twoFactorEnabled = true; // Sync legacy field for Profile
-  }
   await account.save();
 
   const subject = userType === 'Patient' ? account.supabase_uid : account.supabaseUid;
@@ -175,9 +172,6 @@ async function disable(userId, userType, req) {
   account.mfaEnabled = false;
   account.mfaSecret = undefined;
   account.mfaRecoveryCodes = undefined;
-  if (userType !== 'Patient') {
-    account.twoFactorEnabled = false;
-  }
   await account.save();
 
   const subject = userType === 'Patient' ? account.supabase_uid : account.supabaseUid;
