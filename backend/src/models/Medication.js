@@ -53,6 +53,11 @@ const MedicationSchema = new mongoose.Schema(
             trim: true,
             description: 'HH:MM AM/PM format, e.g., "08:00 AM"',
         }],
+        times: [{
+            type: String,
+            trim: true,
+            description: 'Legacy timeframe format, e.g., "morning", "afternoon", "night"',
+        }],
         daysOfWeek: [{
             type: String,
             enum: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'],
