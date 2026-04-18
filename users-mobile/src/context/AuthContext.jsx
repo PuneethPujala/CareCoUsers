@@ -284,10 +284,6 @@ export function AuthProvider({ children }) {
             if (profileData) profileData.role = 'patient';
             await setProfileAndCache(profileData);
 
-            await fetchPatientData();
-
-            skipFetchCountRef.current = 2;
-
             await saveApiTokens({
                 access_token: loginSession.access_token,
                 refresh_token: loginSession.refresh_token,
@@ -298,6 +294,10 @@ export function AuthProvider({ children }) {
                 access_token: loginSession.access_token,
                 refresh_token: loginSession.refresh_token,
             });
+
+            await fetchPatientData();
+
+            skipFetchCountRef.current = 2;
 
             setUser(loginSession.user);
             setSession(loginSession);
@@ -317,10 +317,6 @@ export function AuthProvider({ children }) {
             if (profileData) profileData.role = 'patient';
             await setProfileAndCache(profileData);
 
-            await fetchPatientData();
-
-            skipFetchCountRef.current = 2;
-
             await saveApiTokens({
                 access_token: mfaSession.access_token,
                 refresh_token: mfaSession.refresh_token,
@@ -331,6 +327,10 @@ export function AuthProvider({ children }) {
                 access_token: mfaSession.access_token,
                 refresh_token: mfaSession.refresh_token,
             });
+
+            await fetchPatientData();
+
+            skipFetchCountRef.current = 2;
 
             setUser(mfaSession.user);
             setSession(mfaSession);
@@ -354,8 +354,6 @@ export function AuthProvider({ children }) {
             setUser(signUpSession.user);
             await setProfileAndCache(profileData);
 
-            await fetchPatientData();
-
             await saveApiTokens({
                 access_token: signUpSession.access_token,
                 refresh_token: signUpSession.refresh_token,
@@ -366,6 +364,8 @@ export function AuthProvider({ children }) {
                 access_token: signUpSession.access_token,
                 refresh_token: signUpSession.refresh_token,
             });
+
+            await fetchPatientData();
 
             setSession(signUpSession);
             analytics.identify(signUpSession.user.id, { role: profileData.role });
