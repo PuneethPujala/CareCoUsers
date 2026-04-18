@@ -1517,7 +1517,7 @@ const styles = StyleSheet.create({
         shadowColor: '#6366F1', shadowOpacity: 0.1, shadowRadius: 10,
     },
     inputErrorEnhanced: { borderColor: '#EF4444', backgroundColor: '#FEF2F2' },
-    textInputEnhanced: { flex: 1, fontSize: 16, color: '#0F172A', ...FONT.semibold },
+    textInputEnhanced: { flex: 1, fontSize: 16, color: '#0F172A', ...FONT.semibold, paddingVertical: 0 },
     textPrefixStyle: { fontSize: 16, color: '#0F172A', ...FONT.bold, marginRight: 8 },
     rightIconWrap: { marginLeft: 10 },
     errorTextRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6, marginLeft: 4 },
@@ -1676,7 +1676,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 16, height: 48,
         borderWidth: 1, borderColor: '#E2E8F0',
     },
-    searchInput: { flex: 1, fontSize: 15, color: '#0F172A', ...FONT.medium },
+    searchInput: { flex: 1, fontSize: 15, color: '#0F172A', ...FONT.medium, paddingVertical: 0 },
 
     emptyState: { alignItems: 'center', paddingVertical: 40 },
     emptyTitle: { fontSize: 16, ...FONT.bold, color: '#64748B', marginTop: 12 },

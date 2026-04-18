@@ -250,7 +250,7 @@ const rs = StyleSheet.create({
     title: { fontSize: 20, ...FONT.heavy, color: '#0D1B4B' },
     subtitle: { fontSize: 14, ...FONT.medium, color: C.muted, lineHeight: 22, marginBottom: 20 },
     inputWrap: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', borderWidth: 1.5, borderColor: C.borderMid, borderRadius: 16, height: 56, paddingHorizontal: 16, marginBottom: 14, gap: 12 },
-    input: { flex: 1, fontSize: 16, color: C.dark, ...FONT.semibold },
+    input: { flex: 1, fontSize: 16, color: C.dark, ...FONT.semibold, paddingVertical: 0 },
     btn: { backgroundColor: '#6366F1', borderRadius: 16, height: 54, alignItems: 'center', justifyContent: 'center', marginTop: 8 },
     btnText: { color: '#FFF', fontSize: 16, ...FONT.bold },
     errorBox: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: C.dangerBg, borderRadius: 12, padding: 14, marginBottom: 14 },
@@ -679,7 +679,7 @@ const styles = StyleSheet.create({
         shadowColor: '#6366F1', shadowOpacity: 0.15, shadowRadius: 20, shadowOffset: { width: 0, height: 4 },
         elevation: 4,
     },
-    textInput: { flex: 1, fontSize: 15, color: '#0F172A', ...FONT.semibold },
+    textInput: { flex: 1, fontSize: 15, color: '#0F172A', ...FONT.semibold, paddingVertical: 0 },
 
     errorBox: {
         flexDirection: 'row', alignItems: 'center', gap: 8,
