@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
-import { View, Text, StyleSheet, ScrollView, Platform, Pressable, Animated, ActivityIndicator, Dimensions, Alert, Modal, TextInput, RefreshControl, DeviceEventEmitter } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Platform, Pressable, Animated, ActivityIndicator, Dimensions, Alert, Modal, TextInput, RefreshControl, DeviceEventEmitter, InteractionManager } from 'react-native';
 import { Pill, Sunrise, Sun, Moon, CheckCircle2, Circle, Bell, Activity, Plus, Coffee, Utensils, BedDouble, AlertCircle, Calendar, Pencil, Clock, PillBottle, Syringe, X, MessageCircle } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Circle as SvgCircle, Defs, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg';
@@ -460,18 +460,18 @@ export default function MedicationsScreen({ navigation }) {
     const hasAnimated = useRef(false);
     useFocusEffect(
         useCallback(() => {
-            const loadMeds = () => {
+            // Defer fetch until after screen transition animation completes (60fps fix)
+            const task = InteractionManager.runAfterInteractions(() => {
                 loadMedicinesData(false, true).then(() => {
                     if (!hasAnimated.current) {
                         hasAnimated.current = true;
                         runAnimations();
                     }
                 });
-            };
-            loadMeds();
-            // Poll every 15 seconds to sync data from the admin side
-            const interval = setInterval(() => loadMedicinesData(true, true), 15000);
-            return () => clearInterval(interval);
+            });
+            // Poll every 2 minutes (was 15s — caused JS thread congestion)
+            const interval = setInterval(() => loadMedicinesData(true, true), 120000);
+            return () => { task.cancel(); clearInterval(interval); };
         }, [loadMedicinesData, runAnimations])
     );
 

@@ -250,12 +250,25 @@ export default function AppNavigator() {
             console.log('🔔 Notification received:', notification.request.content.title);
         });
 
-        // Listen for user tapping on a notification
+        // Listen for user tapping on a notification (Background state)
         responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
             const screen = response.notification.request.content.data?.screen;
             if (screen) {
                 console.log('📲 Navigate to:', screen);
                 navigation.navigate(screen);
+            }
+        });
+
+        // Handle KILLED state: app was launched by tapping a notification
+        // This catches the case where the app was fully closed
+        Notifications.getLastNotificationResponseAsync().then(response => {
+            if (response) {
+                const screen = response.notification.request.content.data?.screen;
+                if (screen) {
+                    console.log('🚀 Launched from notification, routing to:', screen);
+                    // Small delay to let the navigation tree mount
+                    setTimeout(() => navigation.navigate(screen), 500);
+                }
             }
         });
 

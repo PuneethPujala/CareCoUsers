@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, Platform, Pressable, Animated, ActivityIndicator, TextInput, KeyboardAvoidingView, TouchableOpacity, DeviceEventEmitter } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Platform, Pressable, Animated, ActivityIndicator, TextInput, KeyboardAvoidingView, TouchableOpacity, DeviceEventEmitter, InteractionManager } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
     Pill, PhoneCall, CalendarCheck, Sunrise, Sun, Moon,
@@ -129,6 +129,7 @@ export default function PatientHomeScreen({ navigation }) {
     const [aiPrediction, setAiPrediction] = useState(null);
     const [loading, setLoading] = useState(true);
     const [isCached, setIsCached] = useState(false);
+    const [unreadCount, setUnreadCount] = useState(0);
 
     // Log vitals form state
     const [isLogging, setIsLogging] = useState(false);
@@ -330,18 +331,22 @@ export default function PatientHomeScreen({ navigation }) {
     const hasAnimated = useRef(false);
     useFocusEffect(
         useCallback(() => {
-            const doFetch = () => {
+            // Defer data fetch until after screen transition animation completes (60fps fix)
+            const task = InteractionManager.runAfterInteractions(() => {
                 fetchData(true).then(() => {
                     if (!hasAnimated.current) {
                         hasAnimated.current = true;
                         runAnimations();
                     }
                 });
-            };
-            doFetch();
-            // Poll every 15 seconds to sync data from the admin side
-            const interval = setInterval(() => fetchData(true), 15000);
-            return () => clearInterval(interval);
+                // Also fetch unread notification count for badge
+                apiService.patients.getNotificationsUnreadCount()
+                    .then(res => setUnreadCount(res.data?.count || 0))
+                    .catch(() => {});
+            });
+            // Poll every 2 minutes (was 15s — caused JS thread congestion during tab switches)
+            const interval = setInterval(() => fetchData(true), 120000);
+            return () => { task.cancel(); clearInterval(interval); };
         }, [fetchData, runAnimations])
     );
 
@@ -449,7 +454,7 @@ export default function PatientHomeScreen({ navigation }) {
                                     onPress={() => navigation.navigate('Notifications')}
                                 >
                                     <Bell size={20} color={colors.primary} strokeWidth={2.5} />
-                                    <View style={styles.bellBadgePremium} />
+                                    {unreadCount > 0 && <View style={styles.bellBadgePremium} />}
                                 </Pressable>
                                 
                                 <TouchableOpacity 
