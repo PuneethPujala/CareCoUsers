@@ -612,8 +612,7 @@ export default function MyCallerScreen({ navigation }) {
         animationType="none"
         onRequestClose={closeContactModal}
       >
-        <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
-          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+        <View style={{ flex: 1 }}>
             <TouchableWithoutFeedback onPress={closeContactModal}>
               <Animated.View style={[s.backdrop, { opacity: backdropAnim }]} />
             </TouchableWithoutFeedback>
@@ -629,7 +628,8 @@ export default function MyCallerScreen({ navigation }) {
               ]}>
                 <View style={s.modalHandleWrap}><View style={s.modalHandle} /></View>
 
-                <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 8, paddingBottom: 40 }}>
+                <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+                  <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 8, paddingBottom: Platform.OS === 'ios' ? 40 : 24 }}>
                   {/* Header */}
                   <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
@@ -738,10 +738,10 @@ export default function MyCallerScreen({ navigation }) {
                     }
                   </Pressable>
                 </ScrollView>
+                </KeyboardAvoidingView>
               </Animated.View>
             </View>
-          </KeyboardAvoidingView>
-        </TouchableWithoutFeedback>
+        </View>
       </Modal>
 
       {/* Country Code Picker Modal */}

@@ -1315,7 +1315,7 @@ export default function PatientSignupScreen({ navigation, route }) {
 
     const renderCityModal = () => (
         <Modal visible={cityModalVisible} animationType="slide" transparent>
-            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+            <View style={{ flex: 1 }}>
                 <View style={styles.modalOverlay}>
                     <View style={[styles.modalSheet, { height: '80%', padding: 0 }]}>
                         <View style={[styles.modalHeader, { padding: 24, paddingBottom: 16 }]}>
@@ -1338,8 +1338,9 @@ export default function PatientSignupScreen({ navigation, route }) {
                                 {citySearchQuery.length > 0 && <Pressable onPress={() => setCitySearchQuery('')}><X size={16} color="#8899BB" /></Pressable>}
                             </View>
                         </View>
-                        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 40 }}>
-                            {loadingCities ? (
+                        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+                            <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 40 }}>
+                                {loadingCities ? (
                                 <ActivityIndicator size="large" color="#3B5BDB" style={{ marginTop: 40 }} />
                             ) : filteredCities.length === 0 ? (
                                 <View style={styles.emptyState}>
@@ -1371,9 +1372,10 @@ export default function PatientSignupScreen({ navigation, route }) {
                                 </Pressable>
                             ))}
                         </ScrollView>
+                        </KeyboardAvoidingView>
                     </View>
                 </View>
-            </KeyboardAvoidingView>
+            </View>
         </Modal>
     );
 

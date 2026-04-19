@@ -23,7 +23,7 @@ import { useAuth } from "../context/AuthContext";
 import { sendDailyWelcomeNotification, registerForPushNotificationsAsync, sendSeamlessExperienceNotification } from "../utils/notifications";
 import { apiService } from "../lib/api";
 import { colors } from "../theme";
-import useIdleTimeout from "../hooks/useIdleTimeout";
+
 
 // Onboarding screens
 // SplashScreen removed — native splash handles the transition now
@@ -237,9 +237,6 @@ export default function AppNavigator() {
     const { isBootstrapping, onboardingComplete, subscriptionStatus, user, profile, signOut } = useAuth();
     const navigation = useNavigation();
 
-    // SEC-FIX-15: Soft lock after 15 minutes inactivity (elderly-friendly)
-    const { isLocked, unlock } = useIdleTimeout(null, 15 * 60 * 1000);
-
     const notificationListener = useRef();
     const responseListener = useRef();
     const hasNotified = useRef(false);
@@ -337,26 +334,6 @@ export default function AppNavigator() {
     return (
         <View style={{ flex: 1 }}>
             <MainAppStack />
-            {/* Soft Lock Overlay — gentle "welcome back" instead of sign-out */}
-            {isLocked && (
-                <Pressable
-                    style={styles.lockOverlay}
-                    onPress={unlock}
-                >
-                    <View style={styles.lockCard}>
-                        <View style={styles.lockIconWrap}>
-                            <ShieldPlus color="#6366F1" size={40} />
-                        </View>
-                        <Text style={styles.lockTitle}>Welcome Back 💜</Text>
-                        <Text style={styles.lockSubtitle}>
-                            You were away for a while.{"\n"}Tap anywhere to continue.
-                        </Text>
-                        <View style={styles.lockHint}>
-                            <Text style={styles.lockHintText}>Your session is safe</Text>
-                        </View>
-                    </View>
-                </Pressable>
-            )}
         </View>
     );
 }

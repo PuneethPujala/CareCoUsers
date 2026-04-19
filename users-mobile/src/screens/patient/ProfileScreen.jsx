@@ -478,7 +478,7 @@ export default function PatientProfileScreen({ navigation }) {
                 {/* ── Samvaya Plan Banner (Upgrade hidden) ── */}
                 <Animated.View style={anim(2)}>
                     <Text style={s.sectionTitle}>SAMVAYA PLAN</Text>
-                    <View style={s.premiumCard}>
+                    <Pressable style={s.premiumCard} onPress={() => navigation.navigate('SubscribePlans')}>
                         <View style={s.premiumLeft}>
                             <View style={s.starBadge}><Star size={18} color="#FFF" fill="#FFF" /></View>
                             <View style={{ flexShrink: 1 }}>
@@ -489,7 +489,7 @@ export default function PatientProfileScreen({ navigation }) {
                         <View style={[s.premiumBtn, { backgroundColor: planBg }]}>
                             <Text style={[s.premiumBtnTxt, { color: planColor }]}>Active</Text>
                         </View>
-                    </View>
+                    </Pressable>
                 </Animated.View>
 
                 {/* ── Personal Information ── */}
