@@ -178,6 +178,18 @@ export default function PatientProfileScreen({ navigation }) {
     );
 
     /* ── Handlers ─────────────────────────────── */
+    const handleRemoveEC = async () => {
+        setSaving(true);
+        try {
+            await apiService.patients.updateEmergencyContact({ name: '', phone: '', relation: '' });
+            setPatient(prev => ({ ...prev, emergency_contact: {} }));
+            setEcName(''); setEcPhone(''); setEcPhoneCode('+91'); setEcRelation('');
+            setEcModalVisible(false);
+            Alert.alert('Success', 'Emergency contact removed.');
+        } catch { Alert.alert('Error', 'Failed to remove emergency contact.'); }
+        finally { setSaving(false); }
+    };
+
     const handleSaveEC = async () => {
         if (ecPhone) {
             const phoneErr = validatePhone(ecPhone, ecPhoneCode);
@@ -736,56 +748,70 @@ export default function PatientProfileScreen({ navigation }) {
 
             {/* ── Phone Edit ── */}
             <Modal visible={phoneModalVisible} animationType="slide" transparent onRequestClose={() => setPhoneModalVisible(false)}>
-                <KeyboardAvoidingView style={s.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-                    <View style={s.modalContent}>
-                        <View style={s.modalHeader}>
-                            <Text style={s.modalTitle}>Phone Number</Text>
-                            <Pressable onPress={() => setPhoneModalVisible(false)} hitSlop={10}><X size={24} color="#64748B" /></Pressable>
-                        </View>
-                        <Text style={s.inputLabel}>Phone</Text>
-                        <View style={s.phoneInputRow}>
-                            <Pressable style={s.countryCodeBtn} onPress={() => openCountryCodePicker('personal')}>
-                                <Text style={s.countryCodeFlag}>{COUNTRY_CODES.find(c => c.code === editPhoneCode)?.flag || '🌍'}</Text>
-                                <Text style={s.countryCodeTxt}>{editPhoneCode}</Text>
-                                <ChevronDown size={14} color={C.muted} />
-                            </Pressable>
-                            <TextInput style={[s.input, { flex: 1 }]} value={editPhone} onChangeText={(t) => setEditPhone(t.replace(/[^0-9]/g, ''))} placeholder="Phone number" placeholderTextColor="#94A3B8" keyboardType="phone-pad" maxLength={COUNTRY_CODES.find(c => c.code === editPhoneCode)?.maxDigits || 12} />
-                        </View>
-                        <Pressable style={s.saveBtn} onPress={handleSavePhone} disabled={saving}>
-                            <Save size={18} color="#FFFFFF" />
-                            <Text style={s.saveBtnTxt}>{saving ? 'Saving...' : 'Save Phone'}</Text>
-                        </Pressable>
+                <View style={s.modalOverlay}>
+                    <View style={[s.modalContent, { padding: 0 }]}>
+                        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+                            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 24, paddingBottom: Platform.OS === 'ios' ? 40 : 24 }}>
+                                <View style={s.modalHeader}>
+                                    <Text style={s.modalTitle}>Phone Number</Text>
+                                    <Pressable onPress={() => setPhoneModalVisible(false)} hitSlop={10}><X size={24} color="#64748B" /></Pressable>
+                                </View>
+                                <Text style={s.inputLabel}>Phone</Text>
+                                <View style={s.phoneInputRow}>
+                                    <Pressable style={s.countryCodeBtn} onPress={() => openCountryCodePicker('personal')}>
+                                        <Text style={s.countryCodeFlag}>{COUNTRY_CODES.find(c => c.code === editPhoneCode)?.flag || '🌍'}</Text>
+                                        <Text style={s.countryCodeTxt}>{editPhoneCode}</Text>
+                                        <ChevronDown size={14} color={C.muted} />
+                                    </Pressable>
+                                    <TextInput style={[s.input, { flex: 1 }]} value={editPhone} onChangeText={(t) => setEditPhone(t.replace(/[^0-9]/g, ''))} placeholder="Phone number" placeholderTextColor="#94A3B8" keyboardType="phone-pad" maxLength={COUNTRY_CODES.find(c => c.code === editPhoneCode)?.maxDigits || 12} />
+                                </View>
+                                <Pressable style={s.saveBtn} onPress={handleSavePhone} disabled={saving}>
+                                    <Save size={18} color="#FFFFFF" />
+                                    <Text style={s.saveBtnTxt}>{saving ? 'Saving...' : 'Save Phone'}</Text>
+                                </Pressable>
+                            </ScrollView>
+                        </KeyboardAvoidingView>
                     </View>
-                </KeyboardAvoidingView>
+                </View>
             </Modal>
 
             {/* ── Emergency Contact ── */}
             <Modal visible={ecModalVisible} animationType="slide" transparent onRequestClose={() => setEcModalVisible(false)}>
-                <KeyboardAvoidingView style={s.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-                    <View style={s.modalContent}>
-                        <View style={s.modalHeader}>
-                            <Text style={s.modalTitle}>Emergency Contact</Text>
-                            <Pressable onPress={() => setEcModalVisible(false)} hitSlop={10}><X size={24} color="#64748B" /></Pressable>
-                        </View>
-                        <Text style={s.inputLabel}>Name</Text>
-                        <TextInput style={s.input} value={ecName} onChangeText={setEcName} placeholder="Contact name" placeholderTextColor="#94A3B8" />
-                        <Text style={s.inputLabel}>Phone</Text>
-                        <View style={s.phoneInputRow}>
-                            <Pressable style={s.countryCodeBtn} onPress={() => openCountryCodePicker('ec')}>
-                                <Text style={s.countryCodeFlag}>{COUNTRY_CODES.find(c => c.code === ecPhoneCode)?.flag || '🌍'}</Text>
-                                <Text style={s.countryCodeTxt}>{ecPhoneCode}</Text>
-                                <ChevronDown size={14} color={C.muted} />
-                            </Pressable>
-                            <TextInput style={[s.input, { flex: 1 }]} value={ecPhone} onChangeText={(t) => setEcPhone(t.replace(/[^0-9]/g, ''))} placeholder="Phone number" placeholderTextColor="#94A3B8" keyboardType="phone-pad" maxLength={COUNTRY_CODES.find(c => c.code === ecPhoneCode)?.maxDigits || 12} />
-                        </View>
-                        <Text style={s.inputLabel}>Relation</Text>
-                        <TextInput style={s.input} value={ecRelation} onChangeText={setEcRelation} placeholder="e.g. Son, Daughter, Spouse" placeholderTextColor="#94A3B8" />
-                        <Pressable style={s.saveBtn} onPress={handleSaveEC} disabled={saving}>
-                            <Save size={18} color="#FFFFFF" />
-                            <Text style={s.saveBtnTxt}>{saving ? 'Saving...' : 'Save Contact'}</Text>
-                        </Pressable>
+                <View style={s.modalOverlay}>
+                    <View style={[s.modalContent, { padding: 0 }]}>
+                        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+                            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 24, paddingBottom: Platform.OS === 'ios' ? 40 : 24 }}>
+                                <View style={s.modalHeader}>
+                                    <Text style={s.modalTitle}>Emergency Contact</Text>
+                                    <Pressable onPress={() => setEcModalVisible(false)} hitSlop={10}><X size={24} color="#64748B" /></Pressable>
+                                </View>
+                                <Text style={s.inputLabel}>Name</Text>
+                                <TextInput style={s.input} value={ecName} onChangeText={setEcName} placeholder="Contact name" placeholderTextColor="#94A3B8" />
+                                <Text style={s.inputLabel}>Phone</Text>
+                                <View style={s.phoneInputRow}>
+                                    <Pressable style={s.countryCodeBtn} onPress={() => openCountryCodePicker('ec')}>
+                                        <Text style={s.countryCodeFlag}>{COUNTRY_CODES.find(c => c.code === ecPhoneCode)?.flag || '🌍'}</Text>
+                                        <Text style={s.countryCodeTxt}>{ecPhoneCode}</Text>
+                                        <ChevronDown size={14} color={C.muted} />
+                                    </Pressable>
+                                    <TextInput style={[s.input, { flex: 1 }]} value={ecPhone} onChangeText={(t) => setEcPhone(t.replace(/[^0-9]/g, ''))} placeholder="Phone number" placeholderTextColor="#94A3B8" keyboardType="phone-pad" maxLength={COUNTRY_CODES.find(c => c.code === ecPhoneCode)?.maxDigits || 12} />
+                                </View>
+                                <Text style={s.inputLabel}>Relation</Text>
+                                <TextInput style={s.input} value={ecRelation} onChangeText={setEcRelation} placeholder="e.g. Son, Daughter, Spouse" placeholderTextColor="#94A3B8" />
+                                <Pressable style={s.saveBtn} onPress={handleSaveEC} disabled={saving}>
+                                    <Save size={18} color="#FFFFFF" />
+                                    <Text style={s.saveBtnTxt}>{saving ? 'Saving...' : 'Save Contact'}</Text>
+                                </Pressable>
+                                {patient?.emergency_contact?.name && (
+                                    <Pressable style={[s.saveBtn, { backgroundColor: '#FEE2E2', marginTop: 12 }]} onPress={handleRemoveEC} disabled={saving}>
+                                        <Trash2 size={18} color="#EF4444" />
+                                        <Text style={[s.saveBtnTxt, { color: '#B91C1C' }]}>{saving ? 'Removing...' : 'Remove Contact'}</Text>
+                                    </Pressable>
+                                )}
+                            </ScrollView>
+                        </KeyboardAvoidingView>
                     </View>
-                </KeyboardAvoidingView>
+                </View>
             </Modal>
 
             {/* ── Account Details ── */}
@@ -814,65 +840,77 @@ export default function PatientProfileScreen({ navigation }) {
 
             {/* ── Edit Account ── */}
             <Modal visible={editAccountModalVisible} animationType="slide" transparent onRequestClose={() => setEditAccountModalVisible(false)}>
-                <KeyboardAvoidingView style={s.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-                    <View style={s.modalContent}>
-                        <View style={s.modalHeader}>
-                            <Text style={s.modalTitle}>Edit Profile</Text>
-                            <Pressable onPress={() => setEditAccountModalVisible(false)} hitSlop={10}><X size={24} color="#64748B" /></Pressable>
-                        </View>
-                        <Text style={s.inputLabel}>Full Name</Text>
-                        <TextInput style={s.input} value={editName} onChangeText={setEditName} placeholder="Your name" placeholderTextColor="#94A3B8" />
-                        <Text style={s.inputLabel}>City</Text>
-                        <TextInput style={s.input} value={editCity} onChangeText={setEditCity} placeholder="e.g. Hyderabad" placeholderTextColor="#94A3B8" />
-                        <Pressable style={s.saveBtn} onPress={handleSaveAccount} disabled={savingAccount}>
-                            <Save size={18} color="#FFFFFF" />
-                            <Text style={s.saveBtnTxt}>{savingAccount ? 'Saving...' : 'Save Profile'}</Text>
-                        </Pressable>
+                <View style={s.modalOverlay}>
+                    <View style={[s.modalContent, { padding: 0 }]}>
+                        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+                            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 24, paddingBottom: Platform.OS === 'ios' ? 40 : 24 }}>
+                                <View style={s.modalHeader}>
+                                    <Text style={s.modalTitle}>Edit Profile</Text>
+                                    <Pressable onPress={() => setEditAccountModalVisible(false)} hitSlop={10}><X size={24} color="#64748B" /></Pressable>
+                                </View>
+                                <Text style={s.inputLabel}>Full Name</Text>
+                                <TextInput style={s.input} value={editName} onChangeText={setEditName} placeholder="Your name" placeholderTextColor="#94A3B8" />
+                                <Text style={s.inputLabel}>City</Text>
+                                <TextInput style={s.input} value={editCity} onChangeText={setEditCity} placeholder="e.g. Hyderabad" placeholderTextColor="#94A3B8" />
+                                <Pressable style={s.saveBtn} onPress={handleSaveAccount} disabled={savingAccount}>
+                                    <Save size={18} color="#FFFFFF" />
+                                    <Text style={s.saveBtnTxt}>{savingAccount ? 'Saving...' : 'Save Profile'}</Text>
+                                </Pressable>
+                            </ScrollView>
+                        </KeyboardAvoidingView>
                     </View>
-                </KeyboardAvoidingView>
+                </View>
             </Modal>
 
             {/* ── Change Password ── */}
             <Modal visible={cpModalVisible} animationType="slide" transparent onRequestClose={() => setCpModalVisible(false)}>
-                <KeyboardAvoidingView style={s.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-                    <View style={s.modalContent}>
-                        <View style={s.modalHeader}>
-                            <Text style={s.modalTitle}>Change Password</Text>
-                            <Pressable onPress={() => setCpModalVisible(false)} hitSlop={10}><X size={24} color="#64748B" /></Pressable>
-                        </View>
-                        <Text style={s.inputLabel}>Current Password</Text>
-                        <TextInput style={s.input} value={currentPassword} onChangeText={setCurrentPassword} placeholder="Enter current password" placeholderTextColor="#94A3B8" secureTextEntry />
-                        <Text style={s.inputLabel}>New Password</Text>
-                        <TextInput style={s.input} value={newPassword} onChangeText={setNewPassword} placeholder="Enter new password" placeholderTextColor="#94A3B8" secureTextEntry />
-                        <Text style={s.inputLabel}>Confirm Password</Text>
-                        <TextInput style={s.input} value={confirmPassword} onChangeText={setConfirmPassword} placeholder="Confirm new password" placeholderTextColor="#94A3B8" secureTextEntry />
-                        <Pressable style={s.saveBtn} onPress={handleChangePassword} disabled={savingCp}>
-                            <Save size={18} color="#FFFFFF" />
-                            <Text style={s.saveBtnTxt}>{savingCp ? 'Changing...' : 'Change Password'}</Text>
-                        </Pressable>
+                <View style={s.modalOverlay}>
+                    <View style={[s.modalContent, { padding: 0 }]}>
+                        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+                            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 24, paddingBottom: Platform.OS === 'ios' ? 40 : 24 }}>
+                                <View style={s.modalHeader}>
+                                    <Text style={s.modalTitle}>Change Password</Text>
+                                    <Pressable onPress={() => setCpModalVisible(false)} hitSlop={10}><X size={24} color="#64748B" /></Pressable>
+                                </View>
+                                <Text style={s.inputLabel}>Current Password</Text>
+                                <TextInput style={s.input} value={currentPassword} onChangeText={setCurrentPassword} placeholder="Enter current password" placeholderTextColor="#94A3B8" secureTextEntry />
+                                <Text style={s.inputLabel}>New Password</Text>
+                                <TextInput style={s.input} value={newPassword} onChangeText={setNewPassword} placeholder="Enter new password" placeholderTextColor="#94A3B8" secureTextEntry />
+                                <Text style={s.inputLabel}>Confirm Password</Text>
+                                <TextInput style={s.input} value={confirmPassword} onChangeText={setConfirmPassword} placeholder="Confirm new password" placeholderTextColor="#94A3B8" secureTextEntry />
+                                <Pressable style={s.saveBtn} onPress={handleChangePassword} disabled={savingCp}>
+                                    <Save size={18} color="#FFFFFF" />
+                                    <Text style={s.saveBtnTxt}>{savingCp ? 'Changing...' : 'Change Password'}</Text>
+                                </Pressable>
+                            </ScrollView>
+                        </KeyboardAvoidingView>
                     </View>
-                </KeyboardAvoidingView>
+                </View>
             </Modal>
 
             {/* ── Set Password (Google Users) ── */}
             <Modal visible={setPassModalVisible} animationType="slide" transparent onRequestClose={() => setSetPassModalVisible(false)}>
-                <KeyboardAvoidingView style={s.modalOverlay} behavior="padding">
-                    <View style={s.modalContent}>
-                        <View style={s.modalHeader}>
-                            <Text style={s.modalTitle}>Set Password</Text>
-                            <Pressable onPress={() => setSetPassModalVisible(false)} hitSlop={10}><X size={24} color="#64748B" /></Pressable>
-                        </View>
-                        <Text style={s.modalSubTxt}>Set a password so you can log in with your email on any device, even without Google.</Text>
-                        <Text style={s.inputLabel}>New Password</Text>
-                        <TextInput style={s.input} value={setPassNew} onChangeText={setSetPassNew} placeholder="Min 8 chars, 1 uppercase, 1 number" placeholderTextColor="#94A3B8" secureTextEntry />
-                        <Text style={s.inputLabel}>Confirm Password</Text>
-                        <TextInput style={s.input} value={setPassConfirm} onChangeText={setSetPassConfirm} placeholder="Re-enter password" placeholderTextColor="#94A3B8" secureTextEntry />
-                        <Pressable style={s.saveBtn} onPress={handleSetPassword} disabled={savingSetPass}>
-                            <Save size={18} color="#FFFFFF" />
-                            <Text style={s.saveBtnTxt}>{savingSetPass ? 'Setting...' : 'Set Password'}</Text>
-                        </Pressable>
+                <View style={s.modalOverlay}>
+                    <View style={[s.modalContent, { padding: 0 }]}>
+                        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+                            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 24, paddingBottom: Platform.OS === 'ios' ? 40 : 24 }}>
+                                <View style={s.modalHeader}>
+                                    <Text style={s.modalTitle}>Set Password</Text>
+                                    <Pressable onPress={() => setSetPassModalVisible(false)} hitSlop={10}><X size={24} color="#64748B" /></Pressable>
+                                </View>
+                                <Text style={s.modalSubTxt}>Set a password so you can log in with your email on any device, even without Google.</Text>
+                                <Text style={s.inputLabel}>New Password</Text>
+                                <TextInput style={s.input} value={setPassNew} onChangeText={setSetPassNew} placeholder="Min 8 chars, 1 uppercase, 1 number" placeholderTextColor="#94A3B8" secureTextEntry />
+                                <Text style={s.inputLabel}>Confirm Password</Text>
+                                <TextInput style={s.input} value={setPassConfirm} onChangeText={setSetPassConfirm} placeholder="Re-enter password" placeholderTextColor="#94A3B8" secureTextEntry />
+                                <Pressable style={s.saveBtn} onPress={handleSetPassword} disabled={savingSetPass}>
+                                    <Save size={18} color="#FFFFFF" />
+                                    <Text style={s.saveBtnTxt}>{savingSetPass ? 'Setting...' : 'Set Password'}</Text>
+                                </Pressable>
+                            </ScrollView>
+                        </KeyboardAvoidingView>
                     </View>
-                </KeyboardAvoidingView>
+                </View>
             </Modal>
 
 
@@ -993,40 +1031,44 @@ export default function PatientProfileScreen({ navigation }) {
 
             {/* ── Add Address ── */}
             <Modal visible={addAddressModalVisible} animationType="slide" transparent onRequestClose={() => setAddAddressModalVisible(false)}>
-                <KeyboardAvoidingView style={s.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-                    <View style={s.modalContent}>
-                        <View style={s.modalHeader}>
-                            <Text style={s.modalTitle}>Add Address</Text>
-                            <Pressable onPress={() => setAddAddressModalVisible(false)} hitSlop={10}><X size={24} color="#64748B" /></Pressable>
-                        </View>
-                        <Text style={s.inputLabel}>Label</Text>
-                        <View style={s.labelRow}>
-                            {['Home', 'Office', 'Family', 'Other'].map(l => (
-                                <Pressable key={l} style={[s.labelChip, addrLabel === l && s.labelChipActive]} onPress={() => setAddrLabel(l)}>
-                                    <Text style={[s.labelChipTxt, addrLabel === l && s.labelChipTxtActive]}>{l}</Text>
+                <View style={s.modalOverlay}>
+                    <View style={[s.modalContent, { padding: 0 }]}>
+                        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+                            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 24, paddingBottom: Platform.OS === 'ios' ? 40 : 24 }}>
+                                <View style={s.modalHeader}>
+                                    <Text style={s.modalTitle}>Add Address</Text>
+                                    <Pressable onPress={() => setAddAddressModalVisible(false)} hitSlop={10}><X size={24} color="#64748B" /></Pressable>
+                                </View>
+                                <Text style={s.inputLabel}>Label</Text>
+                                <View style={s.labelRow}>
+                                    {['Home', 'Office', 'Family', 'Other'].map(l => (
+                                        <Pressable key={l} style={[s.labelChip, addrLabel === l && s.labelChipActive]} onPress={() => setAddrLabel(l)}>
+                                            <Text style={[s.labelChipTxt, addrLabel === l && s.labelChipTxtActive]}>{l}</Text>
+                                        </Pressable>
+                                    ))}
+                                </View>
+                                <Text style={s.inputLabel}>Full Address</Text>
+                                <TextInput style={s.input} value={addrLine} onChangeText={setAddrLine} placeholder="e.g. 12-4-82, Flat 301, Banjara Hills" placeholderTextColor="#94A3B8" />
+                                <View style={s.dobRow}>
+                                    <View style={s.dobCol}>
+                                        <Text style={s.inputLabel}>City</Text>
+                                        <TextInput style={s.input} value={addrCity} onChangeText={setAddrCity} placeholder="City" placeholderTextColor="#94A3B8" />
+                                    </View>
+                                    <View style={s.dobCol}>
+                                        <Text style={s.inputLabel}>State</Text>
+                                        <TextInput style={s.input} value={addrState} onChangeText={setAddrState} placeholder="State" placeholderTextColor="#94A3B8" />
+                                    </View>
+                                </View>
+                                <Text style={s.inputLabel}>Postcode</Text>
+                                <TextInput style={s.input} value={addrPostcode} onChangeText={setAddrPostcode} placeholder="500034" placeholderTextColor="#94A3B8" keyboardType="number-pad" />
+                                <Pressable style={s.saveBtn} onPress={handleAddAddress} disabled={saving}>
+                                    <Save size={18} color="#FFFFFF" />
+                                    <Text style={s.saveBtnTxt}>{saving ? 'Saving...' : 'Save Address'}</Text>
                                 </Pressable>
-                            ))}
-                        </View>
-                        <Text style={s.inputLabel}>Full Address</Text>
-                        <TextInput style={s.input} value={addrLine} onChangeText={setAddrLine} placeholder="e.g. 12-4-82, Flat 301, Banjara Hills" placeholderTextColor="#94A3B8" />
-                        <View style={s.dobRow}>
-                            <View style={s.dobCol}>
-                                <Text style={s.inputLabel}>City</Text>
-                                <TextInput style={s.input} value={addrCity} onChangeText={setAddrCity} placeholder="City" placeholderTextColor="#94A3B8" />
-                            </View>
-                            <View style={s.dobCol}>
-                                <Text style={s.inputLabel}>State</Text>
-                                <TextInput style={s.input} value={addrState} onChangeText={setAddrState} placeholder="State" placeholderTextColor="#94A3B8" />
-                            </View>
-                        </View>
-                        <Text style={s.inputLabel}>Postcode</Text>
-                        <TextInput style={s.input} value={addrPostcode} onChangeText={setAddrPostcode} placeholder="500034" placeholderTextColor="#94A3B8" keyboardType="number-pad" />
-                        <Pressable style={s.saveBtn} onPress={handleAddAddress} disabled={saving}>
-                            <Save size={18} color="#FFFFFF" />
-                            <Text style={s.saveBtnTxt}>{saving ? 'Saving...' : 'Save Address'}</Text>
-                        </Pressable>
+                            </ScrollView>
+                        </KeyboardAvoidingView>
                     </View>
-                </KeyboardAvoidingView>
+                </View>
             </Modal>
 
             {/* ── Family Profiles ── */}

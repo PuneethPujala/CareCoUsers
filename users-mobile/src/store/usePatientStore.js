@@ -335,9 +335,13 @@ const usePatientStore = create((set, get) => ({
      * then refreshes the store with the response.
      */
     saveCallPreferences: async (prefs) => {
+        // Optimistically apply preferences locally for instant UI update
+        set({ callPreferences: prefs });
         const res = await apiService.patients.updateCallPreferences(prefs);
-        set({ callPreferences: res.data.preferences });
-        // Refresh medications to pick up any scheduledTimes changes
+        if (res.data?.preferences) {
+            set({ callPreferences: res.data.preferences });
+        }
+        // Background refresh to catch updated scheduled_times 
         get().fetchMedications();
         return res.data;
     },

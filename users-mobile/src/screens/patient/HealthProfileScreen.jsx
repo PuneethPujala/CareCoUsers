@@ -261,9 +261,14 @@ export default function HealthProfileScreen({ navigation }) {
         }
         
         // ── Date Range Validation ──
-        if (['history', 'condition', 'allergy', 'vaccination'].includes(editingType) && formState.date) {
+        if (['history', 'condition', 'allergy'].includes(editingType) && formState.date) {
             if (new Date(formState.date) > new Date()) {
                 return Alert.alert('Invalid Date', 'Date cannot be in the future.');
+            }
+        }
+        if (editingType === 'vaccination' && formState.date_given) {
+            if (new Date(formState.date_given) > new Date()) {
+                return Alert.alert('Invalid Date', 'Vaccination date cannot be in the future.');
             }
         }
         if (editingType === 'appointment' && formState.date) {
@@ -490,30 +495,7 @@ export default function HealthProfileScreen({ navigation }) {
                     </View>
                 </Animated.View>
 
-                {/* 4. CURRENT MEDS (Read-Only — managed via Medications screen) */}
-                <Animated.View style={{ opacity: staggerAnims[4], transform: [{ translateY: staggerAnims[4].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>
-                    <View style={s.section}>
-                        <View style={s.sectionHeaderRow}>
-                            <Text style={s.sectionHeaderBase}>ACTIVE MEDICATIONS</Text>
-                        </View>
-                        <View style={s.cardStack}>
-                            {medications.map((m, i) => (
-                                <View key={i} style={s.rowItemEnhanced}>
-                                    <View style={[s.iconBg, { backgroundColor: C.primarySoft }]}><HeartPulse size={18} color={C.primaryDark} /></View>
-                                    <View style={s.rowInfo}>
-                                        <Text style={s.rowTitle}>{m.name} — {m.dosage}</Text>
-                                        <Text style={[s.rowSub, {textTransform:'capitalize', color:C.muted, fontSize: 13, ...FONT.medium}]}>{m.frequency} • {(m.times||[]).join(', ')}</Text>
-                                    </View>
-                                </View>
-                            ))}
-                            {medications.length === 0 && <Text style={s.emptyRowTxt}>No active medications</Text>}
-                            <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, backgroundColor: '#FFFBEB', borderRadius: 12, margin: 8, gap: 8 }}>
-                                <AlertTriangle size={16} color="#B45309" />
-                                <Text style={{ flex: 1, fontSize: 13, color: '#92400E', ...FONT.medium }}>Medications are managed by your care team. Go to the Medications tab to request changes.</Text>
-                            </View>
-                        </View>
-                    </View>
-                </Animated.View>
+
 
                 {/* 5. VACCINATIONS */}
                 <Animated.View style={{ opacity: staggerAnims[5], transform: [{ translateY: staggerAnims[5].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>
@@ -648,15 +630,14 @@ export default function HealthProfileScreen({ navigation }) {
 
             {/* Dynamic Modal Form */}
             <Modal visible={modalVisible} transparent animationType="none" onRequestClose={closeModal}>
-                <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-                    <TouchableWithoutFeedback onPress={closeModal}>
-                        <Animated.View style={[s.backdrop, { opacity: backdropAnim }]} />
-                    </TouchableWithoutFeedback>
-                    <View style={s.modalWrapper}>
-                        <Animated.View style={[s.modalSheet, { transform: [{ translateY: modalAnim.interpolate({ inputRange: [0, 1], outputRange: [800, 0] }) }] }]}>
-                        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+                <TouchableWithoutFeedback onPress={closeModal}>
+                    <Animated.View style={[s.backdrop, { opacity: backdropAnim }]} />
+                </TouchableWithoutFeedback>
+                <View style={s.modalWrapper}>
+                    <Animated.View style={[s.modalSheet, { transform: [{ translateY: modalAnim.interpolate({ inputRange: [0, 1], outputRange: [800, 0] }) }], maxHeight: '85%' }]}>
+                        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
                             <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
-                            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={s.modalBody}>
+                            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={[s.modalBody, { flexGrow: 1, paddingBottom: 60 }]}>
                                 <View style={s.modalHeader}>
                                     <Text style={[s.modalTitle, {textTransform:'capitalize', fontSize: 20, ...FONT.heavy, color: C.dark}]}>
                                         {formState._id ? 'Edit ' : 'Update '}
@@ -845,7 +826,10 @@ export default function HealthProfileScreen({ navigation }) {
                                         <Text style={s.pickerLabel}>Birth Year</Text>
                                         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.yearScroll}>
                                             {Array.from({length: 101}, (_, i) => new Date().getFullYear() - i).map(y => (
-                                                <Pressable key={y} onPress={() => setFormState({...formState, year: y})} style={[s.yearChip, formState.year === y && s.yearChipActive]}>
+                                                <Pressable key={y} onPress={() => {
+                                                    const maxDays = new Date(y, formState.month + 1, 0).getDate();
+                                                    setFormState({...formState, year: y, day: Math.min(formState.day || 1, maxDays)});
+                                                }} style={[s.yearChip, formState.year === y && s.yearChipActive]}>
                                                     <Text style={[s.yearChipTxt, formState.year === y && s.yearChipTxtActive]}>{y}</Text>
                                                 </Pressable>
                                             ))}
@@ -854,7 +838,10 @@ export default function HealthProfileScreen({ navigation }) {
                                         <Text style={[s.pickerLabel, {marginTop: 20}]}>Month</Text>
                                         <View style={s.monthGrid}>
                                             {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((m, i) => (
-                                                <Pressable key={m} onPress={() => setFormState({...formState, month: i})} style={[s.monthChip, formState.month === i && s.monthChipActive]}>
+                                                <Pressable key={m} onPress={() => {
+                                                    const maxDays = new Date(formState.year, i + 1, 0).getDate();
+                                                    setFormState({...formState, month: i, day: Math.min(formState.day || 1, maxDays)});
+                                                }} style={[s.monthChip, formState.month === i && s.monthChipActive]}>
                                                     <Text style={[s.monthChipTxt, formState.month === i && s.monthChipTxtActive]}>{m}</Text>
                                                 </Pressable>
                                             ))}
@@ -880,7 +867,6 @@ export default function HealthProfileScreen({ navigation }) {
                         </KeyboardAvoidingView>
                         </Animated.View>
                     </View>
-                </KeyboardAvoidingView>
             </Modal>
 
             {/* Country Code Picker Modal */}

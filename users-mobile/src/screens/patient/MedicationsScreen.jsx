@@ -11,6 +11,7 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import { supabase } from '../../lib/supabase';
 import { Upload } from 'lucide-react-native';
 import usePatientStore from '../../store/usePatientStore';
+import { Buffer } from 'buffer';
 
 const { width } = Dimensions.get('window');
 
@@ -484,17 +485,13 @@ export default function MedicationsScreen({ navigation }) {
                 const base64Data = manipResult.base64;
                 if (!base64Data) throw new Error('Failed to generate base64 from image.');
 
-                const binaryStr = atob(base64Data);
-                const bytes = new Uint8Array(binaryStr.length);
-                for (let i = 0; i < binaryStr.length; i++) {
-                    bytes[i] = binaryStr.charCodeAt(i);
-                }
+                const buffer = Buffer.from(base64Data, 'base64');
 
-                if (bytes.length > 3 * 1024 * 1024) throw new Error('Image too large even after compression.');
+                if (buffer.length > 3 * 1024 * 1024) throw new Error('Image too large even after compression.');
 
                 const { data, error } = await supabase.storage
                     .from('prescriptions')
-                    .upload(fileName, bytes.buffer, { contentType: 'image/jpeg' });
+                    .upload(fileName, buffer, { contentType: 'image/jpeg' });
 
                 if (error) throw error;
 
