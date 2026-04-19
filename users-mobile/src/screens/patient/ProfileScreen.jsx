@@ -5,10 +5,11 @@ import {
     TextInput, Alert, Switch, Animated, StatusBar, FlatList, KeyboardAvoidingView,
 } from 'react-native';
 import {
-    Bell, Settings, LogOut, ChevronRight, UserRound, Phone, X, Save,
+    Bell, Settings, LogOut, ChevronRight, ChevronDown, UserRound, Phone, X, Save,
     ShieldCheck, Star, MapPin, ClipboardList, FileText, FlaskConical,
     Wallet, CreditCard, Receipt, Heart, Users, BellRing, Clock, Globe,
-    Shield, Droplets, Calendar, User2, Trash2, ShieldCheck as ShieldCheckIcon, Smartphone
+    Shield, Droplets, Calendar, User2, Trash2, ShieldCheck as ShieldCheckIcon, Smartphone,
+    Mail
 } from 'lucide-react-native';
 import { colors } from '../../theme';
 import { useAuth } from '../../context/AuthContext';
@@ -30,6 +31,45 @@ const GENDER_OPTIONS = ['male', 'female', 'other', 'prefer_not_to_say'];
 const GENDER_LABELS = { male: 'Male', female: 'Female', other: 'Other', prefer_not_to_say: 'Prefer not to say' };
 const BLOOD_OPTIONS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'unknown'];
 
+const COUNTRY_CODES = [
+    { code: '+91', flag: '🇮🇳', name: 'India', maxDigits: 10 },
+    { code: '+1', flag: '🇺🇸', name: 'USA / Canada', maxDigits: 10 },
+    { code: '+44', flag: '🇬🇧', name: 'United Kingdom', maxDigits: 11 },
+    { code: '+971', flag: '🇦🇪', name: 'UAE', maxDigits: 9 },
+    { code: '+966', flag: '🇸🇦', name: 'Saudi Arabia', maxDigits: 9 },
+    { code: '+65', flag: '🇸🇬', name: 'Singapore', maxDigits: 8 },
+    { code: '+61', flag: '🇦🇺', name: 'Australia', maxDigits: 9 },
+    { code: '+49', flag: '🇩🇪', name: 'Germany', maxDigits: 11 },
+    { code: '+33', flag: '🇫🇷', name: 'France', maxDigits: 9 },
+    { code: '+81', flag: '🇯🇵', name: 'Japan', maxDigits: 10 },
+    { code: '+86', flag: '🇨🇳', name: 'China', maxDigits: 11 },
+    { code: '+82', flag: '🇰🇷', name: 'South Korea', maxDigits: 10 },
+    { code: '+60', flag: '🇲🇾', name: 'Malaysia', maxDigits: 10 },
+    { code: '+977', flag: '🇳🇵', name: 'Nepal', maxDigits: 10 },
+    { code: '+94', flag: '🇱🇰', name: 'Sri Lanka', maxDigits: 9 },
+    { code: '+880', flag: '🇧🇩', name: 'Bangladesh', maxDigits: 10 },
+];
+
+const parsePhoneWithCode = (fullPhone) => {
+    if (!fullPhone) return { code: '+91', number: '' };
+    for (const cc of COUNTRY_CODES) {
+        if (fullPhone.startsWith(cc.code)) {
+            return { code: cc.code, number: fullPhone.slice(cc.code.length).trim() };
+        }
+    }
+    // If no prefix matched, assume raw digits
+    return { code: '+91', number: fullPhone.replace(/[^0-9]/g, '') };
+};
+
+const validatePhone = (digits, countryCode) => {
+    const cc = COUNTRY_CODES.find(c => c.code === countryCode);
+    const cleanDigits = digits.replace(/[^0-9]/g, '');
+    if (!cleanDigits) return 'Please enter a phone number.';
+    if (cc && cleanDigits.length !== cc.maxDigits) return `Phone number must be ${cc.maxDigits} digits for ${cc.name}.`;
+    if (countryCode === '+91' && !/^[6-9]/.test(cleanDigits)) return 'Indian numbers must start with 6, 7, 8, or 9.';
+    return null;
+};
+
 export default function PatientProfileScreen({ navigation }) {
     const { signOut, displayName, userEmail } = useAuth();
     const [patient, setPatient] = useState(null);
@@ -45,6 +85,8 @@ export default function PatientProfileScreen({ navigation }) {
     const [genderModalVisible, setGenderModalVisible] = useState(false);
     const [bloodModalVisible, setBloodModalVisible] = useState(false);
     const [phoneModalVisible, setPhoneModalVisible] = useState(false);
+    const [countryCodeModalVisible, setCountryCodeModalVisible] = useState(false);
+    const [activePhoneField, setActivePhoneField] = useState('personal'); // 'personal' | 'ec'
     const [dobModalVisible, setDobModalVisible] = useState(false);
     const [languageModalVisible, setLanguageModalVisible] = useState(false);
     const [addressModalVisible, setAddressModalVisible] = useState(false);
@@ -66,6 +108,8 @@ export default function PatientProfileScreen({ navigation }) {
     const [editName, setEditName] = useState('');
     const [editCity, setEditCity] = useState('');
     const [editPhone, setEditPhone] = useState('');
+    const [editPhoneCode, setEditPhoneCode] = useState('+91');
+    const [ecPhoneCode, setEcPhoneCode] = useState('+91');
     const [savingAccount, setSavingAccount] = useState(false);
 
     // DOB Form
@@ -131,7 +175,13 @@ export default function PatientProfileScreen({ navigation }) {
                     }
                     setEditName(data.patient?.name || displayName || '');
                     setEditCity(data.patient?.city || '');
-                    setEditPhone(data.patient?.phone || '');
+                    const parsed = parsePhoneWithCode(data.patient?.phone || '');
+                    setEditPhoneCode(parsed.code);
+                    setEditPhone(parsed.number);
+                    if (data.patient?.emergency_contact?.phone) {
+                        const ecParsed = parsePhoneWithCode(data.patient.emergency_contact.phone);
+                        setEcPhoneCode(ecParsed.code);
+                    }
                     setSavedAddresses(data.patient?.saved_addresses || []);
                     if (data.patient?.language) setSelectedLang(data.patient.language);
                     if (data.patient?.date_of_birth) {
@@ -166,10 +216,15 @@ export default function PatientProfileScreen({ navigation }) {
 
     /* ── Handlers ─────────────────────────────── */
     const handleSaveEC = async () => {
+        if (ecPhone) {
+            const phoneErr = validatePhone(ecPhone, ecPhoneCode);
+            if (phoneErr) { Alert.alert('Invalid Phone', phoneErr); return; }
+        }
         setSaving(true);
+        const fullEcPhone = ecPhone ? `${ecPhoneCode}${ecPhone.replace(/[^0-9]/g, '')}` : '';
         try {
-            await apiService.patients.updateEmergencyContact({ name: ecName, phone: ecPhone, relation: ecRelation });
-            setPatient(prev => ({ ...prev, emergency_contact: { name: ecName, phone: ecPhone, relation: ecRelation } }));
+            await apiService.patients.updateEmergencyContact({ name: ecName, phone: fullEcPhone, relation: ecRelation });
+            setPatient(prev => ({ ...prev, emergency_contact: { name: ecName, phone: fullEcPhone, relation: ecRelation } }));
             setEcModalVisible(false);
             Alert.alert('Success', 'Emergency contact updated.');
         } catch { Alert.alert('Error', 'Failed to update emergency contact.'); }
@@ -178,12 +233,21 @@ export default function PatientProfileScreen({ navigation }) {
 
     const handleSaveAccount = async () => {
         setSavingAccount(true);
+        // Optimistic update
+        setPatient(prev => ({ ...prev, name: editName, city: editCity }));
         try {
-            const { data } = await apiService.patients.updateMe({ name: editName, city: editCity });
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 12000);
+            const { data } = await apiService.patients.updateMe({ name: editName, city: editCity }, { signal: controller.signal });
+            clearTimeout(timeout);
             setPatient(data.patient);
             setEditAccountModalVisible(false);
         } catch (err) {
-            Alert.alert('Error', 'Failed to update profile.');
+            if (err?.name === 'AbortError' || err?.code === 'ECONNABORTED') {
+                Alert.alert('Slow Connection', 'The server is waking up. Your changes were saved locally — please try again in a few seconds.');
+            } else {
+                Alert.alert('Error', 'Failed to update profile.');
+            }
         } finally {
             setSavingAccount(false);
         }
@@ -251,14 +315,28 @@ export default function PatientProfileScreen({ navigation }) {
     };
 
     const handleSavePhone = async () => {
+        const phoneErr = validatePhone(editPhone, editPhoneCode);
+        if (phoneErr) { Alert.alert('Invalid Phone', phoneErr); return; }
+        const fullPhone = `${editPhoneCode}${editPhone.replace(/[^0-9]/g, '')}`;
         setSaving(true);
         try {
-            await apiService.patients.updateMe({ phone: editPhone });
-            setPatient(prev => ({ ...prev, phone: editPhone }));
+            await apiService.patients.updateMe({ phone: fullPhone });
+            setPatient(prev => ({ ...prev, phone: fullPhone }));
             setPhoneModalVisible(false);
             Alert.alert('Success', 'Phone number updated.');
         } catch { Alert.alert('Error', 'Failed to update phone number.'); }
         finally { setSaving(false); }
+    };
+
+    const openCountryCodePicker = (field) => {
+        setActivePhoneField(field);
+        setCountryCodeModalVisible(true);
+    };
+
+    const handleSelectCountryCode = (code) => {
+        if (activePhoneField === 'personal') setEditPhoneCode(code);
+        else if (activePhoneField === 'ec') setEcPhoneCode(code);
+        setCountryCodeModalVisible(false);
     };
 
     const handleSelectGender = async (g) => {
@@ -422,23 +500,21 @@ export default function PatientProfileScreen({ navigation }) {
                     </View>
                 </Animated.View>
 
-                {/* ── Samvaya Premium Banner ── */}
+                {/* ── Samvaya Plan Banner (Upgrade hidden) ── */}
                 <Animated.View style={anim(2)}>
                     <Text style={s.sectionTitle}>SAMVAYA PLAN</Text>
-                    <Pressable style={s.premiumCard}>
+                    <View style={s.premiumCard}>
                         <View style={s.premiumLeft}>
                             <View style={s.starBadge}><Star size={18} color="#FFF" fill="#FFF" /></View>
-                            <View>
+                            <View style={{ flexShrink: 1 }}>
                                 <Text style={s.premiumPlan}>{planLabel}</Text>
-                                <Text style={s.premiumSub}>Upgrade for priority care & discounts</Text>
+                                <Text style={s.premiumSub}>Your active care plan</Text>
                             </View>
                         </View>
                         <View style={[s.premiumBtn, { backgroundColor: planBg }]}>
-                            <Text style={[s.premiumBtnTxt, { color: planColor }]}>
-                                {patient?.subscription?.plan === 'basic' ? 'Upgrade' : 'Active'}
-                            </Text>
+                            <Text style={[s.premiumBtnTxt, { color: planColor }]}>Active</Text>
                         </View>
-                    </Pressable>
+                    </View>
                 </Animated.View>
 
                 {/* ── Personal Information ── */}
@@ -446,10 +522,10 @@ export default function PatientProfileScreen({ navigation }) {
                     <Text style={s.sectionTitle}>PERSONAL INFORMATION</Text>
                     <View style={s.card}>
                         <InfoRow icon={User2} iconBg="#EFF6FF" iconColor="#3B82F6" label="Full Name" value={patient?.name || displayName} placeholder="Add Name" onPress={() => { setEditName(patient?.name || ''); setEditAccountModalVisible(true); }} />
-                        <InfoRow icon={Phone} iconBg="#F0FDF4" iconColor="#22C55E" label="Phone Number" value={patient?.phone} placeholder="Add Phone" onPress={() => { setEditPhone(patient?.phone || ''); setPhoneModalVisible(true); }}
+                        <InfoRow icon={Phone} iconBg="#F0FDF4" iconColor="#22C55E" label="Phone Number" value={patient?.phone} placeholder="Add Phone" onPress={() => { const p = parsePhoneWithCode(patient?.phone || ''); setEditPhoneCode(p.code); setEditPhone(p.number); setPhoneModalVisible(true); }}
                             rightElement={patient?.phone ? <View style={s.verifiedBadge}><ShieldCheck size={16} color={C.success} /></View> : <ChevronRight size={18} color={C.light} />}
                         />
-                        <InfoRow icon={X} iconBg="#EFF6FF" iconColor="#6366F1" label="Email Address" value={userEmail} placeholder="Add Email" onPress={() => {}} rightElement={null} />
+                        <InfoRow icon={Mail} iconBg="#EFF6FF" iconColor="#6366F1" label="Email Address" value={userEmail} placeholder="Add Email" onPress={() => Alert.alert('Email Locked', 'Your email is linked to your login credentials and cannot be changed. Contact support if you need assistance.')} rightElement={<View style={s.verifiedBadge}><LockIcon size={14} color={C.muted} /></View>} />
                         <InfoRow icon={Calendar} iconBg="#EFF6FF" iconColor="#3B82F6" label="Date of Birth" value={dobStr} placeholder="Add DOB" onPress={() => setDobModalVisible(true)} />
                         <InfoRow icon={Users} iconBg="#EEF2FF" iconColor="#6366F1" label="Gender" value={genderStr} placeholder="Not specified" onPress={() => setGenderModalVisible(true)} />
                         <InfoRow icon={Droplets} iconBg="#FFF1F2" iconColor="#EF4444" label="Blood Group" value={bloodStr} placeholder="Add Blood Group" onPress={() => setBloodModalVisible(true)} />
@@ -671,7 +747,14 @@ export default function PatientProfileScreen({ navigation }) {
                             <Pressable onPress={() => setPhoneModalVisible(false)} hitSlop={10}><X size={24} color="#64748B" /></Pressable>
                         </View>
                         <Text style={s.inputLabel}>Phone</Text>
-                        <TextInput style={s.input} value={editPhone} onChangeText={setEditPhone} placeholder="+91 XXXXX XXXXX" placeholderTextColor="#94A3B8" keyboardType="phone-pad" />
+                        <View style={s.phoneInputRow}>
+                            <Pressable style={s.countryCodeBtn} onPress={() => openCountryCodePicker('personal')}>
+                                <Text style={s.countryCodeFlag}>{COUNTRY_CODES.find(c => c.code === editPhoneCode)?.flag || '🌍'}</Text>
+                                <Text style={s.countryCodeTxt}>{editPhoneCode}</Text>
+                                <ChevronDown size={14} color={C.muted} />
+                            </Pressable>
+                            <TextInput style={[s.input, { flex: 1 }]} value={editPhone} onChangeText={(t) => setEditPhone(t.replace(/[^0-9]/g, ''))} placeholder="Phone number" placeholderTextColor="#94A3B8" keyboardType="phone-pad" maxLength={COUNTRY_CODES.find(c => c.code === editPhoneCode)?.maxDigits || 12} />
+                        </View>
                         <Pressable style={s.saveBtn} onPress={handleSavePhone} disabled={saving}>
                             <Save size={18} color="#FFFFFF" />
                             <Text style={s.saveBtnTxt}>{saving ? 'Saving...' : 'Save Phone'}</Text>
@@ -691,7 +774,14 @@ export default function PatientProfileScreen({ navigation }) {
                         <Text style={s.inputLabel}>Name</Text>
                         <TextInput style={s.input} value={ecName} onChangeText={setEcName} placeholder="Contact name" placeholderTextColor="#94A3B8" />
                         <Text style={s.inputLabel}>Phone</Text>
-                        <TextInput style={s.input} value={ecPhone} onChangeText={setEcPhone} placeholder="+91 XXXXX XXXXX" placeholderTextColor="#94A3B8" keyboardType="phone-pad" />
+                        <View style={s.phoneInputRow}>
+                            <Pressable style={s.countryCodeBtn} onPress={() => openCountryCodePicker('ec')}>
+                                <Text style={s.countryCodeFlag}>{COUNTRY_CODES.find(c => c.code === ecPhoneCode)?.flag || '🌍'}</Text>
+                                <Text style={s.countryCodeTxt}>{ecPhoneCode}</Text>
+                                <ChevronDown size={14} color={C.muted} />
+                            </Pressable>
+                            <TextInput style={[s.input, { flex: 1 }]} value={ecPhone} onChangeText={(t) => setEcPhone(t.replace(/[^0-9]/g, ''))} placeholder="Phone number" placeholderTextColor="#94A3B8" keyboardType="phone-pad" maxLength={COUNTRY_CODES.find(c => c.code === ecPhoneCode)?.maxDigits || 12} />
+                        </View>
                         <Text style={s.inputLabel}>Relation</Text>
                         <TextInput style={s.input} value={ecRelation} onChangeText={setEcRelation} placeholder="e.g. Son, Daughter, Spouse" placeholderTextColor="#94A3B8" />
                         <Pressable style={s.saveBtn} onPress={handleSaveEC} disabled={saving}>
@@ -968,6 +1058,35 @@ export default function PatientProfileScreen({ navigation }) {
                     </View>
                 </View>
             </Modal>
+
+            {/* ── Country Code Picker ── */}
+            <Modal visible={countryCodeModalVisible} animationType="slide" transparent onRequestClose={() => setCountryCodeModalVisible(false)}>
+                <View style={s.modalOverlay}>
+                    <View style={[s.modalContent, { maxHeight: '70%' }]}>
+                        <View style={s.modalHeader}>
+                            <Text style={s.modalTitle}>Select Country</Text>
+                            <Pressable onPress={() => setCountryCodeModalVisible(false)} hitSlop={10}><X size={24} color="#64748B" /></Pressable>
+                        </View>
+                        <ScrollView showsVerticalScrollIndicator={false}>
+                            {COUNTRY_CODES.map(cc => {
+                                const isSelected = (activePhoneField === 'personal' ? editPhoneCode : ecPhoneCode) === cc.code;
+                                return (
+                                    <Pressable key={cc.code} style={[s.optionRow, isSelected && s.optionRowActive]} onPress={() => handleSelectCountryCode(cc.code)}>
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                                            <Text style={{ fontSize: 22 }}>{cc.flag}</Text>
+                                            <View>
+                                                <Text style={[s.optionTxt, isSelected && s.optionTxtActive]}>{cc.name}</Text>
+                                                <Text style={{ fontSize: 13, color: C.muted, fontWeight: '600', marginTop: 2 }}>{cc.code}</Text>
+                                            </View>
+                                        </View>
+                                        {isSelected && <ShieldCheck size={18} color={C.primary} />}
+                                    </Pressable>
+                                );
+                            })}
+                        </ScrollView>
+                    </View>
+                </View>
+            </Modal>
         </View>
     );
 }
@@ -1003,12 +1122,18 @@ const s = StyleSheet.create({
 
     /* Premium Card */
     premiumCard: { backgroundColor: C.white, borderRadius: 20, padding: 16, marginBottom: 24, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderColor: C.border },
-    premiumLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
-    starBadge: { width: 40, height: 40, borderRadius: 14, backgroundColor: '#F59E0B', alignItems: 'center', justifyContent: 'center' },
+    premiumLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1, flexShrink: 1 },
+    starBadge: { width: 40, height: 40, borderRadius: 14, backgroundColor: '#F59E0B', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
     premiumPlan: { fontSize: 15, fontWeight: '700', color: C.dark },
     premiumSub: { fontSize: 12, color: C.muted, fontWeight: '500', marginTop: 2 },
-    premiumBtn: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20 },
+    premiumBtn: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, flexShrink: 0, marginLeft: 8 },
     premiumBtnTxt: { fontSize: 13, fontWeight: '800' },
+
+    /* Phone Input with Country Code */
+    phoneInputRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+    countryCodeBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#F1F5F9', borderRadius: 16, paddingHorizontal: 14, paddingVertical: 14, minWidth: 100 },
+    countryCodeFlag: { fontSize: 20 },
+    countryCodeTxt: { fontSize: 15, fontWeight: '700', color: C.dark },
 
     /* Card Group */
     card: { backgroundColor: C.white, borderRadius: 20, marginBottom: 24, borderWidth: 1, borderColor: C.border, overflow: 'hidden' },

@@ -172,25 +172,6 @@ export default function SubscribePlansScreen({ navigation }) {
                     </View>
                 </ScrollView>
             </Animated.View>
-
-            {/* CTA Button */}
-            <View style={styles.ctaContainer}>
-                <Pressable
-                    onPress={() => navigation.navigate('Payment', { plan: selectedPlan })}
-                >
-                    <LinearGradient
-                        colors={selectedPlan.gradient}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 0 }}
-                        style={styles.ctaBtn}
-                    >
-                        <Text style={styles.ctaBtnText}>
-                            Subscribe to {selectedPlan.name} — {selectedPlan.price}/mo
-                        </Text>
-                        <ChevronRight size={20} color="#FFFFFF" />
-                    </LinearGradient>
-                </Pressable>
-            </View>
         </View>
     );
 }
@@ -273,10 +254,10 @@ const styles = StyleSheet.create({
         width: 48, height: 48, borderRadius: 14,
         alignItems: 'center', justifyContent: 'center', marginRight: 12,
     },
-    planTitleGroup: { flex: 1 },
+    planTitleGroup: { flex: 1, flexShrink: 1 },
     planName: { fontSize: 20, fontWeight: '700', color: '#1A202C' },
     planTagline: { fontSize: 13, fontWeight: '500', marginTop: 2 },
-    planPriceGroup: { alignItems: 'flex-end' },
+    planPriceGroup: { alignItems: 'flex-end', flexShrink: 0, marginLeft: 8 },
     planPrice: { fontSize: 24, fontWeight: '800' },
     planPeriod: { fontSize: 12, color: '#94A3B8', marginTop: 2 },
 

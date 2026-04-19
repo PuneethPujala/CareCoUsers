@@ -249,6 +249,12 @@ export default function HealthProfileScreen({ navigation }) {
         if (editingType === 'appointment' && (!formState.title || !formState.doctor_name)) {
             return Platform.OS === 'web' ? window.alert('Please provide appointment details.') : Alert.alert('Missing Field', 'Please provide appointment details.');
         }
+        if (editingType === 'gp' && formState.gp_phone) {
+            const cleanDigits = formState.gp_phone.replace(/[^0-9]/g, '');
+            if (cleanDigits.length < 7 || cleanDigits.length > 15) {
+                return Alert.alert('Invalid Phone', 'Please enter a valid phone number (7-15 digits).');
+            }
+        }
 
         // ── Vitals range validation ──
         if (editingType === 'vitals') {
