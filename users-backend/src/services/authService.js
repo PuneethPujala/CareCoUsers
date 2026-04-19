@@ -150,6 +150,16 @@ async function registerPatient(body, req) {
     throw err;
   }
 
+  // Check for deactivated accounts — user should log in to reactivate, not re-register
+  const deactivatedPatient = await Patient.findOne({ email: emailNorm, is_active: false, deactivated_reason: 'user_requested' });
+  if (deactivatedPatient) {
+    const err = new Error('Your account was deactivated. Please log in with your credentials to reactivate it.');
+    err.status = 400;
+    err.code = 'ACCOUNT_DEACTIVATED';
+    err.hint = 'Log in with your existing credentials to reactivate your account.';
+    throw err;
+  }
+
   let targetOrgId = organizationId;
   if (city && !targetOrgId) {
     const org = await Organization.findOne({ city, isActive: true });
@@ -279,6 +289,22 @@ async function login({ email, password, role }, req) {
   let account;
   if (isPatient) {
     account = await Patient.findOne({ email: emailNorm, is_active: true }).select('+passwordHash');
+    
+    // If no active account found, check for a deactivated one and reactivate it
+    if (!account) {
+      const deactivated = await Patient.findOne({ email: emailNorm, is_active: false }).select('+passwordHash');
+      if (deactivated && deactivated.deactivated_reason === 'user_requested') {
+        // Reactivate the account
+        deactivated.is_active = true;
+        deactivated.deactivated_at = undefined;
+        deactivated.deactivated_reason = undefined;
+        await deactivated.save();
+        account = deactivated;
+        await logEvent(deactivated.supabase_uid, 'account_reactivated', 'patient', deactivated._id, req, {
+          method: 'login',
+        });
+      }
+    }
   } else {
     const chain = Profile.findOne({
       email: emailNorm,

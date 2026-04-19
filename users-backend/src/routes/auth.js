@@ -55,8 +55,11 @@ router.post(
 
 router.get('/me', authenticate, authController.me);
 
-// SEC-FIX-9: Account deletion (GDPR/DPDPA compliance)
+// SEC-FIX-9: Account deletion (GDPR/DPDPA compliance) — permanent hard delete
 router.delete('/me', authenticate, authController.deleteMe);
+
+// Account deactivation — preserves data, user can reactivate by logging in
+router.post('/me/deactivate', authenticate, authController.deactivateMe);
 
 // SEC-FIX-16: Data export (GDPR/DPDPA portability)
 router.get('/me/export', authenticate, authController.exportMyData);

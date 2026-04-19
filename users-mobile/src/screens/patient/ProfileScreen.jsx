@@ -670,7 +670,7 @@ export default function PatientProfileScreen({ navigation }) {
                     </View>
                 </Animated.View>
 
-                {/* ── Sign Out & Delete ── */}
+                {/* ── Sign Out, Deactivate & Delete ── */}
                 <Animated.View style={anim(9)}>
                     <View style={{ marginBottom: 24, paddingHorizontal: 24, gap: 12 }}>
                         <Pressable style={s.logoutBtn} onPress={() => signOut()}>
@@ -678,21 +678,54 @@ export default function PatientProfileScreen({ navigation }) {
                             <Text style={s.logoutTxt}>Sign Out Account</Text>
                         </Pressable>
                         <Pressable 
+                            style={[s.logoutBtn, { backgroundColor: '#FFFBEB', borderColor: '#FDE68A' }]} 
+                            onPress={() => Alert.alert(
+                                'Deactivate Account',
+                                'Your account will be paused and you will be signed out.\n\n• All your health data will be safely preserved\n• You can reactivate anytime by logging in again\n• Your callers and care team won\'t be able to reach you',
+                                [
+                                    {text: 'Cancel', style: 'cancel'},
+                                    {text: 'Deactivate', style: 'default', onPress: async () => {
+                                        try {
+                                            await apiService.auth.deactivateAccount();
+                                            Alert.alert('Account Deactivated', 'Your account has been paused. Log in anytime to reactivate.');
+                                            signOut();
+                                        } catch(e) {
+                                            Alert.alert('Error', 'Failed to deactivate account. Please try again.');
+                                        }
+                                    }}
+                                ]
+                            )}
+                        >
+                            <Shield size={20} color="#D97706" strokeWidth={2.5} />
+                            <Text style={[s.logoutTxt, { color: '#D97706' }]}>Deactivate Account</Text>
+                        </Pressable>
+                        <Pressable 
                             style={[s.logoutBtn, { backgroundColor: '#FEF2F2', borderColor: '#FECACA' }]} 
-                            onPress={() => Alert.alert('Delete Account', 'This action is permanent and cannot be undone. All your health data will be deleted.', [
-                                {text: 'Cancel', style: 'cancel'},
-                                {text: 'Delete Permanently', style: 'destructive', onPress: async () => {
-                                    try {
-                                        await apiService.auth.deleteAccount();
-                                        signOut();
-                                    } catch(e) {
-                                        Alert.alert('Error', 'Failed to delete account');
-                                    }
-                                }}
-                            ])}
+                            onPress={() => Alert.alert(
+                                'Delete Account Permanently',
+                                '⚠️ This action CANNOT be undone.\n\nAll your data will be permanently deleted:\n• Health records & vitals\n• Medications & prescriptions\n• Call history & appointments\n• Profile information\n\nYou can create a new account with the same email later, but as a fresh start.',
+                                [
+                                    {text: 'Cancel', style: 'cancel'},
+                                    {text: 'Delete Forever', style: 'destructive', onPress: () => {
+                                        // Double confirmation for permanent deletion
+                                        Alert.alert('Are you absolutely sure?', 'Type DELETE in your mind and confirm. This is irreversible.', [
+                                            {text: 'Go Back', style: 'cancel'},
+                                            {text: 'Yes, Delete Everything', style: 'destructive', onPress: async () => {
+                                                try {
+                                                    await apiService.auth.deleteAccount();
+                                                    Alert.alert('Account Deleted', 'Your account and all data have been permanently removed.');
+                                                    signOut();
+                                                } catch(e) {
+                                                    Alert.alert('Error', 'Failed to delete account. Please try again.');
+                                                }
+                                            }}
+                                        ]);
+                                    }}
+                                ]
+                            )}
                         >
                             <Trash2 size={20} color="#DC2626" strokeWidth={2.5} />
-                            <Text style={[s.logoutTxt, { color: '#DC2626' }]}>Delete Account</Text>
+                            <Text style={[s.logoutTxt, { color: '#DC2626' }]}>Delete Account Permanently</Text>
                         </Pressable>
                     </View>
                     <Text style={s.versionTxt}>v1.0.4 • Made with ♥ by Samvaya</Text>

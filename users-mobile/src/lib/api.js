@@ -182,6 +182,7 @@ export const apiService = {
         verifyOtp: (identifier, otp, type) => api.post('/auth/verify-otp', { identifier, otp, type }),
         setPassword: (newPassword) => api.post('/auth/set-password', { newPassword }),
         deleteAccount: () => api.delete('/auth/me'),
+        deactivateAccount: () => api.post('/auth/me/deactivate'),
         exportMyData: () => api.get('/auth/me/export'),
         // MFA endpoints (Audit 2.1-2.4, 2.8)
         mfaSetup: () => api.post('/auth/mfa/setup'),

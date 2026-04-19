@@ -59,34 +59,78 @@ async function deleteMe(req, res) {
   try {
     const isPatient = req.profile.role === 'patient';
     const userId = req.profile._id;
-    const { logEvent } = require('../services/auditService');
-
-    // SEC-FIX-9: Account Deletion (DPDPA/GDPR)
-    // We soft-delete to preserve referring medical records but remove all PII and access.
-    if (isPatient) {
-      const Patient = require('../models/Patient');
-      await Patient.findByIdAndUpdate(userId, { 
-        name: 'Deleted User', email: `deleted_${userId}@samvaya.com`, 
-        phone: '', is_active: false 
-      });
-      await logEvent(req.user.id, 'account_deleted', 'patient', userId, req, { softDelete: true });
-    } else {
-      const Profile = require('../models/Profile');
-      await Profile.findByIdAndUpdate(userId, { 
-        fullName: 'Deleted User', email: `deleted_${userId}@samvaya.com`, 
-        phone: '', isActive: false 
-      });
-      await logEvent(req.user.id, 'account_deleted', 'profile', userId, req, { softDelete: true });
-    }
-
-    // Revoke all sessions
     const subject = req.auth?.subject || req.profile?.supabaseUid || req.profile?.supabase_uid;
+
+    // Revoke all sessions first (while auth still works)
     await authService.logout(subject, userId, isPatient ? 'Patient' : 'Profile', req);
 
-    res.json({ message: 'Account securely deleted' });
+    if (isPatient) {
+      // Hard-delete: permanently remove ALL patient data
+      const CallLog = require('../models/CallLog');
+      const MedicineLog = require('../models/MedicineLog');
+      const VitalLog = require('../models/VitalLog');
+      const Notification = require('../models/Notification');
+      const RefreshToken = require('../models/RefreshToken');
+      const AIVitalPrediction = require('../models/AIVitalPrediction');
+
+      // Delete all associated records
+      await Promise.all([
+        CallLog.deleteMany({ patient_id: userId }),
+        MedicineLog.deleteMany({ patient_id: userId }),
+        VitalLog.deleteMany({ patient_id: userId }),
+        Notification.deleteMany({ patient_id: userId }),
+        RefreshToken.deleteMany({ userId, userType: 'Patient' }),
+        AIVitalPrediction.deleteMany({ patient_id: userId }),
+      ]);
+
+      // Delete the patient record itself — frees email & phone for re-registration
+      await Patient.findByIdAndDelete(userId);
+
+      await logEvent(subject, 'account_hard_deleted', 'patient', userId, req, {
+        permanent: true,
+        purgedCollections: ['CallLog', 'MedicineLog', 'VitalLog', 'Notification', 'RefreshToken', 'AIVitalPrediction', 'Patient'],
+      });
+    } else {
+      await Profile.findByIdAndDelete(userId);
+      const RefreshToken = require('../models/RefreshToken');
+      await RefreshToken.deleteMany({ userId, userType: 'Profile' });
+      await logEvent(subject, 'account_hard_deleted', 'profile', userId, req, { permanent: true });
+    }
+
+    res.json({ message: 'Account permanently deleted. You may register again with the same email.' });
   } catch (err) {
     console.error('Delete account error:', err);
     res.status(500).json({ error: 'Failed to delete account' });
+  }
+}
+
+async function deactivateMe(req, res) {
+  try {
+    const isPatient = req.profile.role === 'patient';
+    const userId = req.profile._id;
+    const subject = req.auth?.subject || req.profile?.supabaseUid || req.profile?.supabase_uid;
+
+    if (isPatient) {
+      await Patient.findByIdAndUpdate(userId, {
+        is_active: false,
+        deactivated_at: new Date(),
+        deactivated_reason: 'user_requested',
+      });
+      await logEvent(subject, 'account_deactivated', 'patient', userId, req);
+    } else {
+      await Profile.findByIdAndUpdate(userId, {
+        isActive: false,
+      });
+      await logEvent(subject, 'account_deactivated', 'profile', userId, req);
+    }
+
+    // Revoke all sessions so user is logged out
+    await authService.logout(subject, userId, isPatient ? 'Patient' : 'Profile', req);
+
+    res.json({ message: 'Account deactivated. Your data is preserved — log in anytime to reactivate.' });
+  } catch (err) {
+    console.error('Deactivate account error:', err);
+    res.status(500).json({ error: 'Failed to deactivate account' });
   }
 }
 
@@ -427,5 +471,6 @@ module.exports = {
   verifyOtp,
   setPassword,
   deleteMe,
+  deactivateMe,
   exportMyData,
 };
