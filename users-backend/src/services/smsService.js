@@ -8,13 +8,14 @@ class SmsService {
         try {
             const sid = process.env.TWILIO_ACCOUNT_SID;
             const token = process.env.TWILIO_AUTH_TOKEN;
-            this.fromNumber = process.env.TWILIO_PHONE_NUMBER;
+            this.verifyServiceSid = process.env.TWILIO_VERIFY_SERVICE_SID;
 
-            if (sid && token && this.fromNumber) {
+            if (sid && token && this.verifyServiceSid) {
                 this.client = twilio(sid, token);
                 this.isConfigured = true;
+                console.log(`[Twilio] Initialized with Verify Service: ${this.verifyServiceSid}`);
             } else {
-                console.warn('[Twilio] Missing credentials in .env. SMS will not be sent.');
+                console.warn('[Twilio] Missing credentials or Verify Service SID in .env. SMS will not be sent.');
             }
         } catch (err) {
             console.error('[Twilio] Initialization failed:', err.message);
@@ -22,30 +23,58 @@ class SmsService {
     }
 
     /**
-     * Send an OTP to a phone number.
-     * Overrides for dummy local simulation if unconfigured.
+     * Send an OTP via Twilio Verify
      */
-    async sendOTP(phoneNumber, otpCode) {
+    async sendVerification(phoneNumber) {
         if (!this.isConfigured) {
-            console.log(`[Twilio Mock] 📲 Would send SMS to ${phoneNumber}: "Your Samvaya verification code is ${otpCode}"`);
+            console.log(`[Twilio Mock] 📲 Would send verify SMS to ${phoneNumber}`);
             return { success: true, mocked: true };
         }
 
         try {
-            // Formatting safeguard (ensure + is prefixed for E.164 if missing, simplistic approach)
             const formattedPhone = phoneNumber.startsWith('+') ? phoneNumber : `+91${phoneNumber}`;
-
-            const message = await this.client.messages.create({
-                body: `Your Samvaya verification code is: ${otpCode}. It is valid for 10 minutes.`,
-                from: this.fromNumber,
-                to: formattedPhone
-            });
-
-            console.log(`[Twilio] SMS sent successfully. SID: ${message.sid}`);
-            return { success: true, sid: message.sid };
+            
+            const verification = await this.client.verify.v2
+                .services(this.verifyServiceSid)
+                .verifications.create({ to: formattedPhone, channel: 'sms' });
+                
+            console.log(`[Twilio] Verify SMS sent successfully. Status: ${verification.status}`);
+            return { success: true, status: verification.status };
         } catch (err) {
-            console.error('[Twilio] Failed to send SMS:', err.message);
-            throw new Error('Failed to send SMS via Twilio. Check your credentials and quota.');
+            console.error('[Twilio] Failed to send Verify SMS:', err.message);
+            throw new Error('Failed to send SMS via Twilio. Check your credentials and verify service.');
+        }
+    }
+    
+    /**
+     * Check an OTP via Twilio Verify
+     */
+    async checkVerification(phoneNumber, code) {
+        if (!this.isConfigured) {
+            console.log(`[Twilio Mock] 📲 Would check verify SMS for ${phoneNumber} with code ${code}`);
+            return { valid: true, mocked: true };
+        }
+
+        try {
+            const formattedPhone = phoneNumber.startsWith('+') ? phoneNumber : `+91${phoneNumber}`;
+            
+            const verificationCheck = await this.client.verify.v2
+                .services(this.verifyServiceSid)
+                .verificationChecks.create({ to: formattedPhone, code });
+                
+            console.log(`[Twilio] Verification check status: ${verificationCheck.status}`);
+            
+            if (verificationCheck.status === 'approved') {
+                 return { valid: true };
+            } else {
+                 return { valid: false, reason: 'Invalid OTP. Please check and try again.' };
+            }
+        } catch (err) {
+            console.error('[Twilio] Failed to check Verify SMS:', err.message);
+            if (err.status === 404) {
+                 return { valid: false, reason: 'OTP expired or not found. Please request a new one.' };
+            }
+            throw new Error('Verification failed. Server error.');
         }
     }
 }

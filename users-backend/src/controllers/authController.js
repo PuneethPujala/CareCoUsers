@@ -405,11 +405,10 @@ async function sendOtp(req, res) {
       sendOTPEmail(identifier, otp).catch((err) => console.error('OTP email failed:', err.message));
       res.json({ message: 'Verification code sent to your email.' });
     } else if (type === 'phone') {
-      const { createOTP } = require('../services/otpService');
       const smsService = require('../services/smsService');
       
-      const otp = await createOTP(identifier.trim());
-      await smsService.sendOTP(identifier.trim(), otp);
+      // Use Twilio Verify - no need to generate or store our own OTP
+      await smsService.sendVerification(identifier.trim());
       
       res.json({ message: 'Verification code sent to your phone.' });
     } else {
@@ -417,7 +416,7 @@ async function sendOtp(req, res) {
     }
   } catch (err) {
     console.error('Send OTP error:', err);
-    res.status(500).json({ error: 'Failed to send verification code' });
+    res.status(500).json({ error: err.message || 'Failed to send verification code' });
   }
 }
 
@@ -428,9 +427,16 @@ async function verifyOtp(req, res) {
       return res.status(400).json({ error: 'identifier and otp are required' });
     }
 
-    const { verifyOTP } = require('../services/otpService');
-    const key = type === 'phone' ? identifier.trim() : identifier.toLowerCase().trim();
-    const result = await verifyOTP(key, otp);
+    let result;
+    if (type === 'phone') {
+      const smsService = require('../services/smsService');
+      // Twilio Verify handles checking the OTP code for us
+      result = await smsService.checkVerification(identifier.trim(), otp);
+    } else {
+      const { verifyOTP } = require('../services/otpService');
+      const key = identifier.toLowerCase().trim();
+      result = await verifyOTP(key, otp);
+    }
 
     if (!result.valid) {
       return res.status(400).json({ error: result.reason });
