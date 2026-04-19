@@ -2,16 +2,17 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Platform,
   Pressable, ActivityIndicator, Linking, Animated,
-  Modal, TouchableOpacity, TouchableWithoutFeedback, Alert, TextInput, Keyboard,
+  Modal, TouchableOpacity, TouchableWithoutFeedback, Alert, TextInput, Keyboard, KeyboardAvoidingView, FlatList,
 } from 'react-native';
 import {
   Phone, PhoneIncoming, AlertTriangle, ShieldCheck,
-  Flag, Clock, Globe, Calendar, ChevronRight, X, Users, Heart,
+  Flag, Clock, Globe, Calendar, ChevronRight, ChevronDown, X, Users, Heart,
   Plus, Edit2, Bell
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors } from '../../theme';
 import { apiService } from '../../lib/api';
+import { COUNTRY_CODES, parsePhoneWithCode, validatePhone } from '../../utils/phoneUtils';
 
 const C = {
   primary: '#6366F1',     // Indigo
@@ -61,8 +62,9 @@ export default function MyCallerScreen({ navigation }) {
   const [contacts, setContacts] = useState([]);
   const [contactModal, setContactModal] = useState(false);
   const [editingContact, setEditingContact] = useState(null);
-  const [contactForm, setContactForm] = useState({ name: '', phone: '', relation: '', email: '' });
+  const [contactForm, setContactForm] = useState({ name: '', phone: '', phoneCode: '+91', relation: '', email: '' });
   const [isSavingContact, setIsSavingContact] = useState(false);
+  const [countryCodeModal, setCountryCodeModal] = useState(false);
   const contactModalAnim = useRef(new Animated.Value(0)).current;
 
   const staggerAnims = useRef([...Array(20)].map(() => new Animated.Value(0))).current;
@@ -140,10 +142,11 @@ export default function MyCallerScreen({ navigation }) {
   const openContactModal = (contact = null) => {
     if (contact) {
       setEditingContact(contact);
-      setContactForm({ name: contact.name, phone: contact.phone, relation: contact.relation || '', email: contact.email || '' });
+      const parsed = parsePhoneWithCode(contact.phone);
+      setContactForm({ name: contact.name, phone: parsed.number, phoneCode: parsed.code, relation: contact.relation || '', email: contact.email || '' });
     } else {
       setEditingContact(null);
-      setContactForm({ name: '', phone: '', relation: '', email: '' });
+      setContactForm({ name: '', phone: '', phoneCode: '+91', relation: '', email: '' });
     }
     setContactModal(true);
     Animated.parallel([
@@ -167,26 +170,37 @@ export default function MyCallerScreen({ navigation }) {
       Alert.alert('Required', 'Please enter the contact\'s name.');
       return;
     }
-    if (!contactForm.phone?.trim() || contactForm.phone.replace(/[^0-9]/g, '').length < 10) {
-      Alert.alert('Required', 'Please enter a valid phone number (at least 10 digits).');
+    
+    const phoneErr = validatePhone(contactForm.phone, contactForm.phoneCode);
+    if (phoneErr) {
+      Alert.alert('Invalid Phone', phoneErr);
       return;
     }
+
+    if (contactForm.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactForm.email.trim())) {
+      Alert.alert('Invalid Email', 'Please enter a valid email address.');
+      return;
+    }
+
+    const fullPhone = `${contactForm.phoneCode}${contactForm.phone.replace(/[^0-9]/g, '')}`;
+
     // Duplicate check
     if (!editingContact) {
-      const phoneDigits = contactForm.phone.replace(/[^0-9]/g, '');
-      const isDup = contacts.some(c => c.phone.replace(/[^0-9]/g, '') === phoneDigits);
+      const isDup = contacts.some(c => c.phone.replace(/[^0-9]/g, '') === fullPhone.replace(/[^0-9]/g, ''));
       if (isDup) {
         Alert.alert('Duplicate', 'A contact with this phone number already exists.');
         return;
       }
     }
+    
     setIsSavingContact(true);
     try {
+      const payload = { ...contactForm, phone: fullPhone };
       let res;
       if (editingContact) {
-        res = await apiService.patients.updateTrustedContact(editingContact._id, contactForm);
+        res = await apiService.patients.updateTrustedContact(editingContact._id, payload);
       } else {
-        res = await apiService.patients.addTrustedContact(contactForm);
+        res = await apiService.patients.addTrustedContact(payload);
       }
       setContacts(res.data.trusted_contacts);
       closeContactModal();
@@ -599,7 +613,7 @@ export default function MyCallerScreen({ navigation }) {
         onRequestClose={closeContactModal}
       >
         <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
-          <View style={{ flex: 1 }}>
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
             <TouchableWithoutFeedback onPress={closeContactModal}>
               <Animated.View style={[s.backdrop, { opacity: backdropAnim }]} />
             </TouchableWithoutFeedback>
@@ -645,15 +659,29 @@ export default function MyCallerScreen({ navigation }) {
                   {/* Phone */}
                   <View style={s.formGroup}>
                     <Text style={s.formLabel}>Phone Number *</Text>
-                    <TextInput
-                      style={s.formInput}
-                      placeholder="+91 98765 43210"
-                      placeholderTextColor="#94A3B8"
-                      keyboardType="phone-pad"
-                      value={contactForm.phone}
-                      onChangeText={(t) => setContactForm({ ...contactForm, phone: t })}
-                      returnKeyType="next"
-                    />
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <Pressable
+                        style={{
+                          flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, paddingVertical: 14,
+                          backgroundColor: '#F8FAFC', borderRadius: 12, borderWidth: 1, borderColor: '#E2E8F0', height: 48,
+                        }}
+                        onPress={() => setCountryCodeModal(true)}
+                      >
+                        <Text style={{ fontSize: 16 }}>{COUNTRY_CODES.find(c => c.code === contactForm.phoneCode)?.flag}</Text>
+                        <Text style={{ fontSize: 15, color: '#334155', fontWeight: '500' }}>{contactForm.phoneCode}</Text>
+                        <ChevronDown size={14} color="#94A3B8" />
+                      </Pressable>
+                      <TextInput
+                        style={[s.formInput, { flex: 1, marginTop: 0 }]}
+                        placeholder="98765 43210"
+                        placeholderTextColor="#94A3B8"
+                        keyboardType="phone-pad"
+                        value={contactForm.phone}
+                        onChangeText={(t) => setContactForm({ ...contactForm, phone: t.replace(/[^0-9]/g, '') })}
+                        maxLength={COUNTRY_CODES.find(c => c.code === contactForm.phoneCode)?.maxDigits || 12}
+                        returnKeyType="next"
+                      />
+                    </View>
                   </View>
 
                   {/* Relationship — Chip Selector */}
@@ -712,8 +740,38 @@ export default function MyCallerScreen({ navigation }) {
                 </ScrollView>
               </Animated.View>
             </View>
-          </View>
+          </KeyboardAvoidingView>
         </TouchableWithoutFeedback>
+      </Modal>
+
+      {/* Country Code Picker Modal */}
+      <Modal visible={countryCodeModal} transparent animationType="slide">
+        <View style={s.countryModalWrap}>
+          <View style={s.countryModalHeader}>
+            <Text style={s.countryModalTitle}>Select Country Code</Text>
+            <Pressable onPress={() => setCountryCodeModal(false)} style={s.closeIconBtn}>
+              <X size={20} color={C.mid} />
+            </Pressable>
+          </View>
+          <FlatList
+            data={COUNTRY_CODES}
+            keyExtractor={item => item.code}
+            contentContainerStyle={{ padding: 16 }}
+            renderItem={({ item }) => (
+              <Pressable 
+                style={s.countryOption} 
+                onPress={() => {
+                  setContactForm({ ...contactForm, phoneCode: item.code });
+                  setCountryCodeModal(false);
+                }}
+              >
+                <Text style={s.countryFlag}>{item.flag}</Text>
+                <Text style={s.countryName}>{item.name}</Text>
+                <Text style={s.countryCodeText}>{item.code}</Text>
+              </Pressable>
+            )}
+          />
+        </View>
       </Modal>
     </LinearGradient>
   );

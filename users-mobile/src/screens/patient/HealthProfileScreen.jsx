@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, Platform, ActivityIndicator, Animated, Pressable, Linking, Modal, TouchableWithoutFeedback, TextInput, KeyboardAvoidingView, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Platform, ActivityIndicator, Animated, Pressable, Linking, Modal, TouchableWithoutFeedback, TextInput, KeyboardAvoidingView, Alert, FlatList, Switch } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { TriangleAlert, ShieldCheck, HeartPulse, Activity, Stethoscope, Droplet, User, CalendarDays, Watch, Flame, Phone, Plus, Edit2, X, Trash2, CheckCircle2, RefreshCw, AlertTriangle } from 'lucide-react-native';
+import { TriangleAlert, ShieldCheck, HeartPulse, Activity, Stethoscope, Droplet, User, CalendarDays, Watch, Flame, Phone, Plus, Edit2, X, Trash2, CheckCircle2, RefreshCw, AlertTriangle, ChevronDown, Upload } from 'lucide-react-native';
 import { apiService } from '../../lib/api';
 import { initializeHealthPlatform, requestHealthPermissions, fetchDailyVitalsSummary, isHealthSupported } from '../../lib/healthIntegration';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { COUNTRY_CODES, parsePhoneWithCode, validatePhone } from '../../utils/phoneUtils';
 
 const C = {
   primary: '#6366F1', primaryDark: '#4338CA', primarySoft: '#EEF2FF',
@@ -124,6 +125,7 @@ export default function HealthProfileScreen({ navigation }) {
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [showTimePicker, setShowTimePicker] = useState(false);
     const [datePickerField, setDatePickerField] = useState(null); // 'date' | 'date_given'
+    const [countryCodeModal, setCountryCodeModal] = useState(false);
     
     const backdropAnim = useRef(new Animated.Value(0)).current;
     const modalAnim = useRef(new Animated.Value(0)).current;
@@ -170,7 +172,12 @@ export default function HealthProfileScreen({ navigation }) {
     const openModal = (type, item = null) => {
         setEditingType(type);
         if (item) {
-            setFormState({ ...item });
+            if (type === 'gp' && item.gp_phone) {
+                const parsed = parsePhoneWithCode(item.gp_phone);
+                setFormState({ ...item, gp_phone: parsed.number, gp_phoneCode: parsed.code });
+            } else {
+                setFormState({ ...item });
+            }
         } else {
             // defaults
             if (type === 'condition') setFormState({ name: '', status: 'managed', severity: 'moderate', notes: '' });
@@ -178,7 +185,10 @@ export default function HealthProfileScreen({ navigation }) {
             else if (type === 'vitals') setFormState({ height_cm: profile?.lifestyle?.height_cm || '', weight_kg: profile?.lifestyle?.weight_kg || '' });
             else if (type === 'habits') setFormState({ smoking_status: profile?.lifestyle?.smoking_status || 'never', alcohol_use: profile?.lifestyle?.alcohol_use || 'none' });
             else if (type === 'activity') setFormState({ exercise_frequency: profile?.lifestyle?.exercise_frequency || 'none', mobility_level: profile?.lifestyle?.mobility_level || 'full' });
-            else if (type === 'gp') setFormState({ gp_name: profile?.gp?.name || '', gp_phone: profile?.gp?.phone || '', gp_email: profile?.gp?.email || '' });
+            else if (type === 'gp') {
+                const parsed = parsePhoneWithCode(profile?.gp?.phone || '');
+                setFormState({ gp_name: profile?.gp?.name || '', gp_phone: parsed.number, gp_phoneCode: parsed.code, gp_email: profile?.gp?.email || '' });
+            }
             else if (type === 'history') setFormState({ event: '', date: '', notes: '' });
             else if (type === 'medication') setFormState({ name: '', dosage: '', frequency: 'daily', times: ['morning'], prescribed_by: '', is_active: true });
             else if (type === 'vaccination') setFormState({ name: '', administered_by: '' });
@@ -249,10 +259,25 @@ export default function HealthProfileScreen({ navigation }) {
         if (editingType === 'appointment' && (!formState.title || !formState.doctor_name)) {
             return Platform.OS === 'web' ? window.alert('Please provide appointment details.') : Alert.alert('Missing Field', 'Please provide appointment details.');
         }
+        
+        // ── Date Range Validation ──
+        if (['history', 'condition', 'allergy', 'vaccination'].includes(editingType) && formState.date) {
+            if (new Date(formState.date) > new Date()) {
+                return Alert.alert('Invalid Date', 'Date cannot be in the future.');
+            }
+        }
+        if (editingType === 'appointment' && formState.date) {
+            const today = new Date();
+            today.setHours(0,0,0,0);
+            if (new Date(formState.date) < today && formState.status === 'upcoming') {
+                return Alert.alert('Invalid Date', 'Upcoming appointment date cannot be in the past.');
+            }
+        }
+
         if (editingType === 'gp' && formState.gp_phone) {
-            const cleanDigits = formState.gp_phone.replace(/[^0-9]/g, '');
-            if (cleanDigits.length < 7 || cleanDigits.length > 15) {
-                return Alert.alert('Invalid Phone', 'Please enter a valid phone number (7-15 digits).');
+            const phoneErr = validatePhone(formState.gp_phone, formState.gp_phoneCode);
+            if (phoneErr) {
+                return Alert.alert('Invalid Phone', phoneErr);
             }
         }
 
@@ -265,6 +290,12 @@ export default function HealthProfileScreen({ navigation }) {
             }
             if (formState.weight_kg && (w < 10 || w > 500)) {
                 return Platform.OS === 'web' ? window.alert('Weight must be between 10–500 kg.') : Alert.alert('Invalid Weight', 'Weight must be between 10 and 500 kg.');
+            }
+            if (h && w) {
+                const bmi = w / Math.pow(h / 100, 2);
+                if (bmi < 10 || bmi > 60) {
+                    return Alert.alert('Invalid Vitals', `The calculated BMI of ${bmi.toFixed(1)} seems highly unlikely. Please verify your height and weight inputs.`);
+                }
             }
         }
 
@@ -292,6 +323,10 @@ export default function HealthProfileScreen({ navigation }) {
         try {
             let payload = { ...formState };
             
+            if (editingType === 'gp' && formState.gp_phone) {
+                payload.gp_phone = `${formState.gp_phoneCode}${formState.gp_phone.replace(/[^0-9]/g, '')}`;
+            }
+
             if (['vitals', 'habits', 'activity'].includes(editingType)) {
                 payload = { ...profile?.lifestyle, ...formState };
             }
@@ -619,8 +654,9 @@ export default function HealthProfileScreen({ navigation }) {
                     </TouchableWithoutFeedback>
                     <View style={s.modalWrapper}>
                         <Animated.View style={[s.modalSheet, { transform: [{ translateY: modalAnim.interpolate({ inputRange: [0, 1], outputRange: [800, 0] }) }] }]}>
-                            <View style={s.modalHandleWrap}><View style={s.modalHandle} /></View>
-                            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.modalBody}>
+                        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+                            <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
+                            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={s.modalBody}>
                                 <View style={s.modalHeader}>
                                     <Text style={[s.modalTitle, {textTransform:'capitalize', fontSize: 20, ...FONT.heavy, color: C.dark}]}>
                                         {formState._id ? 'Edit ' : 'Update '}
@@ -695,7 +731,31 @@ export default function HealthProfileScreen({ navigation }) {
                                 {editingType === 'gp' && (
                                     <>
                                         <View style={s.formGroup}><Text style={s.formLabel}>Doctor's Name</Text><TextInput style={s.input} placeholderTextColor={C.muted} value={formState.gp_name} onChangeText={(t) => setFormState({...formState, gp_name: t})} placeholder="Dr. John Doe" /></View>
-                                        <View style={s.formGroup}><Text style={s.formLabel}>Phone Number</Text><TextInput style={s.input} placeholderTextColor={C.muted} keyboardType="phone-pad" value={formState.gp_phone} onChangeText={(t) => setFormState({...formState, gp_phone: t})} placeholder="+91 999 999 9999" /></View>
+                                        <View style={s.formGroup}>
+                                            <Text style={s.formLabel}>Contact Number</Text>
+                                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                                <Pressable
+                                                    style={{
+                                                        flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, paddingVertical: 14,
+                                                        backgroundColor: '#F8FAFC', borderRadius: 12, borderWidth: 1, borderColor: '#E2E8F0', height: 48,
+                                                    }}
+                                                    onPress={() => setCountryCodeModal(true)}
+                                                >
+                                                    <Text style={{ fontSize: 16 }}>{COUNTRY_CODES.find(c => c.code === formState.gp_phoneCode)?.flag || '🇮🇳'}</Text>
+                                                    <Text style={{ fontSize: 15, color: '#334155', fontWeight: '500' }}>{formState.gp_phoneCode || '+91'}</Text>
+                                                    <ChevronDown size={14} color="#94A3B8" />
+                                                </Pressable>
+                                                <TextInput 
+                                                    style={[s.input, { flex: 1, marginTop: 0 }]} 
+                                                    placeholderTextColor={C.muted} 
+                                                    keyboardType="phone-pad" 
+                                                    value={formState.gp_phone} 
+                                                    onChangeText={(t) => setFormState({...formState, gp_phone: t.replace(/[^0-9]/g, '')})} 
+                                                    maxLength={COUNTRY_CODES.find(c => c.code === formState.gp_phoneCode)?.maxDigits || 12}
+                                                    placeholder="98765 43210" 
+                                                />
+                                            </View>
+                                        </View>
                                         <View style={s.formGroup}><Text style={s.formLabel}>Email</Text><TextInput style={s.input} placeholderTextColor={C.muted} keyboardType="email-address" autoCapitalize="none" value={formState.gp_email} onChangeText={(t) => setFormState({...formState, gp_email: t})} placeholder="doctor@clinic.com" /></View>
                                     </>
                                 )}
@@ -719,6 +779,23 @@ export default function HealthProfileScreen({ navigation }) {
                                                     )
                                                 })}
                                             </View>
+                                        </View>
+                                        <View style={s.formGroup}><Text style={s.formLabel}>Prescribed By</Text><TextInput style={s.input} placeholderTextColor={C.muted} value={formState.prescribed_by} onChangeText={(t) => setFormState({...formState, prescribed_by: t})} placeholder="Doctor's Name" /></View>
+                                        <View style={[s.formGroup, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 }]}>
+                                            <Text style={s.formLabel}>Currently Active</Text>
+                                            <Switch
+                                                trackColor={{ false: '#E2E8F0', true: '#818CF8' }}
+                                                thumbColor={formState.is_active ? '#4338CA' : '#F8FAFC'}
+                                                onValueChange={(val) => setFormState({ ...formState, is_active: val })}
+                                                value={formState.is_active !== false}
+                                            />
+                                        </View>
+                                        <View style={s.formGroup}>
+                                            <Text style={s.formLabel}>Prescription Details</Text>
+                                            <Pressable style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#F8FAFC', padding: 14, borderRadius: 12, borderWidth: 1, borderColor: '#E2E8F0', borderStyle: 'dashed' }} onPress={() => Alert.alert('Coming Soon', 'Upload functionality will be added in a future update.')}>
+                                                <Upload size={18} color={C.primary} />
+                                                <Text style={{ color: C.primary, fontSize: 15, fontWeight: '600' }}>Upload Prescription</Text>
+                                            </Pressable>
                                         </View>
                                     </>
                                 )}
@@ -799,9 +876,41 @@ export default function HealthProfileScreen({ navigation }) {
                                 </Pressable>
                                 <View style={{height: 40}} />
                             </ScrollView>
+                            </TouchableWithoutFeedback>
+                        </KeyboardAvoidingView>
                         </Animated.View>
                     </View>
                 </KeyboardAvoidingView>
+            </Modal>
+
+            {/* Country Code Picker Modal */}
+            <Modal visible={countryCodeModal} transparent animationType="slide">
+                <View style={s.countryModalWrap}>
+                    <View style={s.countryModalHeader}>
+                        <Text style={s.countryModalTitle}>Select Country Code</Text>
+                        <Pressable onPress={() => setCountryCodeModal(false)} style={s.closeIconBtn}>
+                            <X size={20} color={C.mid} />
+                        </Pressable>
+                    </View>
+                    <FlatList
+                        data={COUNTRY_CODES}
+                        keyExtractor={item => item.code}
+                        contentContainerStyle={{ padding: 16 }}
+                        renderItem={({ item }) => (
+                            <Pressable 
+                                style={s.countryOption} 
+                                onPress={() => {
+                                    setFormState({ ...formState, gp_phoneCode: item.code });
+                                    setCountryCodeModal(false);
+                                }}
+                            >
+                                <Text style={s.countryFlag}>{item.flag}</Text>
+                                <Text style={s.countryName}>{item.name}</Text>
+                                <Text style={s.countryCodeText}>{item.code}</Text>
+                            </Pressable>
+                        )}
+                    />
+                </View>
             </Modal>
 
             {/* Native Date Picker overlay */}
