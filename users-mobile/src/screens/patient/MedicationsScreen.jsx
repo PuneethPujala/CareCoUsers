@@ -703,7 +703,7 @@ export default function MedicationsScreen({ navigation }) {
 
                         {/* Request Modification in Empty State */}
                         <Pressable 
-                            style={[styles.requestModifyBtn, { marginTop: 16, width: '100%' }, modRequested && { borderColor: '#86EFAC', backgroundColor: '#F0FDF4' }]} 
+                            style={[styles.requestModifyBtn, { marginTop: 16, alignSelf: 'stretch' }, modRequested && { borderColor: '#86EFAC', backgroundColor: '#F0FDF4' }]} 
                             disabled={requestingMod || modRequested}
                             onPress={async () => {
                                 setRequestingMod(true);
@@ -737,7 +737,7 @@ export default function MedicationsScreen({ navigation }) {
 
                         {/* Direct Prescription Upload in Empty State */}
                         <Pressable 
-                            style={[styles.requestModifyBtn, { marginTop: 12, width: '100%', backgroundColor: '#FFF', borderColor: '#D1D5DB' }]} 
+                            style={[styles.requestModifyBtn, { marginTop: 12, alignSelf: 'stretch', backgroundColor: '#FFF', borderColor: '#D1D5DB' }]} 
                             disabled={uploadingImage}
                             onPress={handleUploadPrescription}
                         >
@@ -1102,8 +1102,8 @@ const styles = StyleSheet.create({
     saveBtnTxt: { fontSize: 16, fontWeight: '700', color: '#FFF' },
 
     // Request Modify
-    requestModifyBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 16, backgroundColor: '#EFF6FF', borderRadius: 16, borderWidth: 1, borderColor: '#BFDBFE', borderStyle: 'dashed' },
-    requestModifyTxt: { fontSize: 15, fontWeight: '700', color: '#3B82F6', marginLeft: 8 },
+    requestModifyBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 16, paddingHorizontal: 12, backgroundColor: '#EFF6FF', borderRadius: 16, borderWidth: 1, borderColor: '#BFDBFE', borderStyle: 'dashed' },
+    requestModifyTxt: { fontSize: 14, fontWeight: '700', color: '#3B82F6', marginLeft: 8, flexShrink: 1, textAlign: 'center' },
 
     // Confirmation Modal
     confirmOverlay: { flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.6)', justifyContent: 'center', alignItems: 'center', padding: 24 },

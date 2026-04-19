@@ -871,11 +871,21 @@ router.put('/me/medications', authenticateSession, async (req, res) => {
         const patient = await Patient.findOne({ supabase_uid: req.user.id });
         if (!patient) return res.status(404).json({ error: 'Patient profile not found' });
 
+        // Auto-sync abstract times to concrete scheduledTimes based on preferences
+        let scheduledTimes = [];
+        if (times && times.length > 0) {
+            const prefs = patient.medication_call_preferences || { morning: '09:00', afternoon: '14:00', night: '20:00' };
+            if (times.includes('morning')) scheduledTimes.push(prefs.morning);
+            if (times.includes('afternoon') || times.includes('evening')) scheduledTimes.push(prefs.afternoon);
+            if (times.includes('night')) scheduledTimes.push(prefs.night);
+            scheduledTimes = [...new Set(scheduledTimes)].sort();
+        }
+
         if (_id) {
             const item = patient.medications.id(_id);
-            if (item) item.set({ name, dosage, frequency, times, start_date, end_date, is_active, instructions, prescribed_by });
+            if (item) item.set({ name, dosage, frequency, times, scheduledTimes, start_date, end_date, is_active, instructions, prescribed_by });
         } else {
-            patient.medications.push({ name, dosage, frequency, times, start_date, end_date, is_active, instructions, prescribed_by });
+            patient.medications.push({ name, dosage, frequency, times, scheduledTimes, start_date, end_date, is_active, instructions, prescribed_by });
         }
         await patient.save();
         res.json({ medications: patient.medications });
@@ -900,6 +910,29 @@ router.put('/me/call-preferences', authenticateSession, async (req, res) => {
             afternoon: afternoon || patient.medication_call_preferences?.afternoon || '14:00',
             night: night || patient.medication_call_preferences?.night || '20:00'
         };
+
+        // Sync abstract call preferences to the actual scheduledTimes in each medication
+        if (patient.medications && patient.medications.length > 0) {
+            patient.medications.forEach(med => {
+                const newScheduledTimes = [];
+                const prefs = patient.medication_call_preferences;
+                if (med.times && med.times.length > 0) {
+                    if (med.times.includes('morning')) newScheduledTimes.push(prefs.morning);
+                    if (med.times.includes('afternoon') || med.times.includes('evening')) newScheduledTimes.push(prefs.afternoon);
+                    if (med.times.includes('night')) newScheduledTimes.push(prefs.night);
+                } else if (med.scheduledTimes && med.scheduledTimes.length > 0) {
+                    med.scheduledTimes.forEach(st => {
+                        const hr = parseInt(st.split(':')[0], 10);
+                        if (hr < 12) newScheduledTimes.push(prefs.morning);
+                        else if (hr >= 12 && hr < 17) newScheduledTimes.push(prefs.afternoon);
+                        else newScheduledTimes.push(prefs.night);
+                    });
+                }
+                if (newScheduledTimes.length > 0) {
+                    med.scheduledTimes = [...new Set(newScheduledTimes)].sort();
+                }
+            });
+        }
 
         await patient.save();
         res.json({ preferences: patient.medication_call_preferences, message: 'Preferences updated successfully' });
