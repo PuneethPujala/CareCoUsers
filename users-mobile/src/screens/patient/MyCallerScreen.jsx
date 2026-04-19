@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Platform,
   Pressable, ActivityIndicator, Linking, Animated,
-  Modal, TouchableOpacity, TouchableWithoutFeedback, Alert, TextInput, KeyboardAvoidingView,
+  Modal, TouchableOpacity, TouchableWithoutFeedback, Alert, TextInput, Keyboard,
 } from 'react-native';
 import {
   Phone, PhoneIncoming, AlertTriangle, ShieldCheck,
@@ -163,9 +163,22 @@ export default function MyCallerScreen({ navigation }) {
   };
 
   const saveContact = async () => {
-    if (!contactForm.name || !contactForm.phone) {
-      Alert.alert('Required', 'Name and Phone are required fields.');
+    if (!contactForm.name?.trim()) {
+      Alert.alert('Required', 'Please enter the contact\'s name.');
       return;
+    }
+    if (!contactForm.phone?.trim() || contactForm.phone.replace(/[^0-9]/g, '').length < 10) {
+      Alert.alert('Required', 'Please enter a valid phone number (at least 10 digits).');
+      return;
+    }
+    // Duplicate check
+    if (!editingContact) {
+      const phoneDigits = contactForm.phone.replace(/[^0-9]/g, '');
+      const isDup = contacts.some(c => c.phone.replace(/[^0-9]/g, '') === phoneDigits);
+      if (isDup) {
+        Alert.alert('Duplicate', 'A contact with this phone number already exists.');
+        return;
+      }
     }
     setIsSavingContact(true);
     try {
@@ -585,62 +598,122 @@ export default function MyCallerScreen({ navigation }) {
         animationType="none"
         onRequestClose={closeContactModal}
       >
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
-          <TouchableWithoutFeedback onPress={closeContactModal}>
-            <Animated.View style={[s.backdrop, { opacity: backdropAnim }]} />
-          </TouchableWithoutFeedback>
+        <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
+          <View style={{ flex: 1 }}>
+            <TouchableWithoutFeedback onPress={closeContactModal}>
+              <Animated.View style={[s.backdrop, { opacity: backdropAnim }]} />
+            </TouchableWithoutFeedback>
 
-          <View style={s.modalWrapper}>
-            <Animated.View style={[
-              s.modalSheet,
-              {
-                height: 'auto',
-                maxHeight: '90%',
-                transform: [{
-                  translateY: contactModalAnim.interpolate({ inputRange: [0, 1], outputRange: [800, 0] }),
-                }],
-              },
-            ]}>
-              <View style={s.modalHandleWrap}>
-                <View style={s.modalHandle} />
-              </View>
+            <View style={s.modalWrapper}>
+              <Animated.View style={[
+                s.contactFormSheet,
+                {
+                  transform: [{
+                    translateY: contactModalAnim.interpolate({ inputRange: [0, 1], outputRange: [800, 0] }),
+                  }],
+                },
+              ]}>
+                <View style={s.modalHandleWrap}><View style={s.modalHandle} /></View>
 
-              <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.modalBody}>
-                <View style={[s.modalHeaderRow, { marginBottom: 16 }]}>
-                  <Text style={[s.modalCallerName, { fontSize: 22 }]}>{editingContact ? 'Edit Contact' : 'Add Contact'}</Text>
-                  <Pressable onPress={closeContactModal} style={s.modalCloseBtn}>
-                    <X size={22} color="#64748B" />
+                <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 8, paddingBottom: 40 }}>
+                  {/* Header */}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                      <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: '#EEF2FF', alignItems: 'center', justifyContent: 'center' }}>
+                        <Users size={20} color={C.primary} />
+                      </View>
+                      <Text style={{ fontSize: 20, fontWeight: '800', color: C.dark, letterSpacing: -0.3 }}>{editingContact ? 'Edit Contact' : 'New Contact'}</Text>
+                    </View>
+                    <Pressable onPress={closeContactModal} style={s.modalCloseBtn}>
+                      <X size={20} color="#64748B" />
+                    </Pressable>
+                  </View>
+
+                  {/* Name */}
+                  <View style={s.formGroup}>
+                    <Text style={s.formLabel}>Full Name *</Text>
+                    <TextInput
+                      style={s.formInput}
+                      placeholder="e.g. Ramesh Kumar"
+                      placeholderTextColor="#94A3B8"
+                      value={contactForm.name}
+                      onChangeText={(t) => setContactForm({ ...contactForm, name: t })}
+                      returnKeyType="next"
+                    />
+                  </View>
+
+                  {/* Phone */}
+                  <View style={s.formGroup}>
+                    <Text style={s.formLabel}>Phone Number *</Text>
+                    <TextInput
+                      style={s.formInput}
+                      placeholder="+91 98765 43210"
+                      placeholderTextColor="#94A3B8"
+                      keyboardType="phone-pad"
+                      value={contactForm.phone}
+                      onChangeText={(t) => setContactForm({ ...contactForm, phone: t })}
+                      returnKeyType="next"
+                    />
+                  </View>
+
+                  {/* Relationship — Chip Selector */}
+                  <View style={s.formGroup}>
+                    <Text style={s.formLabel}>Relationship</Text>
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                      {['Son', 'Daughter', 'Spouse', 'Sibling', 'Friend', 'Neighbour', 'Other'].map(opt => {
+                        const isActive = contactForm.relation === opt;
+                        return (
+                          <Pressable
+                            key={opt}
+                            onPress={() => setContactForm({ ...contactForm, relation: opt })}
+                            style={{
+                              paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20,
+                              backgroundColor: isActive ? C.primary : '#F1F5F9',
+                              borderWidth: 1, borderColor: isActive ? C.primary : '#E2E8F0',
+                            }}
+                          >
+                            <Text style={{ fontSize: 13, fontWeight: '600', color: isActive ? '#FFF' : C.mid }}>{opt}</Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  </View>
+
+                  {/* Email */}
+                  <View style={s.formGroup}>
+                    <Text style={s.formLabel}>Email (Optional)</Text>
+                    <TextInput
+                      style={s.formInput}
+                      placeholder="email@example.com"
+                      placeholderTextColor="#94A3B8"
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                      value={contactForm.email}
+                      onChangeText={(t) => setContactForm({ ...contactForm, email: t })}
+                      returnKeyType="done"
+                    />
+                  </View>
+
+                  {/* Save button */}
+                  <Pressable
+                    style={({ pressed }) => [{
+                      flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
+                      borderRadius: 20, height: 56, backgroundColor: C.primary, marginTop: 8,
+                      shadowColor: C.primary, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.25, shadowRadius: 12, elevation: 6,
+                    }, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]}
+                    onPress={saveContact}
+                    disabled={isSavingContact}
+                  >
+                    {isSavingContact
+                      ? <ActivityIndicator color="#FFF" />
+                      : <><Heart size={18} color="#FFF" /><Text style={{ fontSize: 16, fontWeight: '700', color: '#FFF' }}>{editingContact ? 'Update Contact' : 'Save Contact'}</Text></>
+                    }
                   </Pressable>
-                </View>
-
-                <View style={s.formGroup}>
-                  <Text style={s.formLabel}>Full Name *</Text>
-                  <TextInput style={s.formInput} placeholder="e.g. Ramesh Kumar" placeholderTextColor="#94A3B8" value={contactForm.name} onChangeText={(t) => setContactForm({ ...contactForm, name: t })} />
-                </View>
-                <View style={s.formGroup}>
-                  <Text style={s.formLabel}>Phone Number *</Text>
-                  <TextInput style={s.formInput} placeholder="+919876543210" placeholderTextColor="#94A3B8" keyboardType="phone-pad" value={contactForm.phone} onChangeText={(t) => setContactForm({ ...contactForm, phone: t })} />
-                </View>
-                <View style={s.formGroup}>
-                  <Text style={s.formLabel}>Relationship</Text>
-                  <TextInput style={s.formInput} placeholder="e.g. Son, Daughter, Friend" placeholderTextColor="#94A3B8" value={contactForm.relation} onChangeText={(t) => setContactForm({ ...contactForm, relation: t })} />
-                </View>
-                <View style={s.formGroup}>
-                  <Text style={s.formLabel}>Email (Optional)</Text>
-                  <TextInput style={s.formInput} placeholder="Optional" placeholderTextColor="#94A3B8" keyboardType="email-address" value={contactForm.email} onChangeText={(t) => setContactForm({ ...contactForm, email: t })} />
-                </View>
-
-                <Pressable
-                  style={({ pressed }) => [s.btnCallLg, { marginTop: 10, backgroundColor: C.primary }, pressed && s.btnCallPressedLg]}
-                  onPress={saveContact}
-                  disabled={isSavingContact}
-                >
-                  {isSavingContact ? <ActivityIndicator color="#FFF" /> : <Text style={s.btnCallTextLg}>Save Contact</Text>}
-                </Pressable>
-              </ScrollView>
-            </Animated.View>
+                </ScrollView>
+              </Animated.View>
+            </View>
           </View>
-        </KeyboardAvoidingView>
+        </TouchableWithoutFeedback>
       </Modal>
     </LinearGradient>
   );
@@ -807,6 +880,13 @@ const s = StyleSheet.create({
     borderTopRightRadius: 40,
     height: '90%',
     shadowColor: '#000', shadowOffset: { width: 0, height: -10 }, shadowOpacity: 0.1, shadowRadius: 30, elevation: 20,
+  },
+  contactFormSheet: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    maxHeight: '85%',
+    shadowColor: '#000', shadowOffset: { width: 0, height: -8 }, shadowOpacity: 0.08, shadowRadius: 24, elevation: 16,
   },
   modalHandleWrap: { width: '100%', alignItems: 'center', paddingVertical: 14 },
   modalHandle: { width: 48, height: 5, borderRadius: 3, backgroundColor: '#CBD5E1' },

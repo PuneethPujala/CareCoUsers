@@ -249,6 +249,38 @@ export default function HealthProfileScreen({ navigation }) {
         if (editingType === 'appointment' && (!formState.title || !formState.doctor_name)) {
             return Platform.OS === 'web' ? window.alert('Please provide appointment details.') : Alert.alert('Missing Field', 'Please provide appointment details.');
         }
+
+        // ── Vitals range validation ──
+        if (editingType === 'vitals') {
+            const h = Number(formState.height_cm);
+            const w = Number(formState.weight_kg);
+            if (formState.height_cm && (h < 50 || h > 300)) {
+                return Platform.OS === 'web' ? window.alert('Height must be between 50–300 cm.') : Alert.alert('Invalid Height', 'Height must be between 50 and 300 cm.');
+            }
+            if (formState.weight_kg && (w < 10 || w > 500)) {
+                return Platform.OS === 'web' ? window.alert('Weight must be between 10–500 kg.') : Alert.alert('Invalid Weight', 'Weight must be between 10 and 500 kg.');
+            }
+        }
+
+        // ── Duplicate entry prevention ──
+        if (!formState._id) {
+            const checkDuplicate = (list, key) => list.some(item => item[key]?.toLowerCase().trim() === formState[key]?.toLowerCase().trim());
+            if (editingType === 'condition' && checkDuplicate(conditions, 'name')) {
+                return Platform.OS === 'web' ? window.alert('This condition already exists.') : Alert.alert('Duplicate', 'This condition already exists in your health profile.');
+            }
+            if (editingType === 'allergy' && checkDuplicate(allergies, 'name')) {
+                return Platform.OS === 'web' ? window.alert('This allergy already exists.') : Alert.alert('Duplicate', 'This allergy already exists in your health profile.');
+            }
+            if (editingType === 'medication' && checkDuplicate(medications, 'name')) {
+                return Platform.OS === 'web' ? window.alert('This medication already exists.') : Alert.alert('Duplicate', 'This medication already exists in your health profile.');
+            }
+            if (editingType === 'vaccination' && checkDuplicate(vaccinations, 'name')) {
+                return Platform.OS === 'web' ? window.alert('This vaccination already exists.') : Alert.alert('Duplicate', 'This vaccination already exists in your health profile.');
+            }
+            if (editingType === 'history' && medical_history.some(item => item.event?.toLowerCase().trim() === formState.event?.toLowerCase().trim())) {
+                return Platform.OS === 'web' ? window.alert('This medical history entry already exists.') : Alert.alert('Duplicate', 'This entry already exists in your medical history.');
+            }
+        }
         
         setIsSaving(true);
         try {
@@ -575,7 +607,7 @@ export default function HealthProfileScreen({ navigation }) {
 
             {/* Dynamic Modal Form */}
             <Modal visible={modalVisible} transparent animationType="none" onRequestClose={closeModal}>
-                <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
+                <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
                     <TouchableWithoutFeedback onPress={closeModal}>
                         <Animated.View style={[s.backdrop, { opacity: backdropAnim }]} />
                     </TouchableWithoutFeedback>
@@ -626,8 +658,8 @@ export default function HealthProfileScreen({ navigation }) {
                                 )}
                                 {editingType === 'vitals' && (
                                     <>
-                                        <View style={s.formGroup}><Text style={s.formLabel}>Height (cm)</Text><TextInput style={s.input} placeholderTextColor={C.muted} keyboardType="numeric" value={String(formState.height_cm||'')} onChangeText={(t) => setFormState({...formState, height_cm: Number(t)})} placeholder="170" /></View>
-                                        <View style={s.formGroup}><Text style={s.formLabel}>Weight (kg)</Text><TextInput style={s.input} placeholderTextColor={C.muted} keyboardType="numeric" value={String(formState.weight_kg||'')} onChangeText={(t) => setFormState({...formState, weight_kg: Number(t)})} placeholder="70" /></View>
+                                        <View style={s.formGroup}><Text style={s.formLabel}>Height (cm)</Text><TextInput style={s.input} placeholderTextColor={C.muted} keyboardType="numeric" maxLength={3} value={String(formState.height_cm||'')} onChangeText={(t) => { const v = t.replace(/[^0-9]/g, ''); setFormState({...formState, height_cm: v ? Number(v) : ''}); }} placeholder="e.g. 170" /></View>
+                                        <View style={s.formGroup}><Text style={s.formLabel}>Weight (kg)</Text><TextInput style={s.input} placeholderTextColor={C.muted} keyboardType="numeric" maxLength={3} value={String(formState.weight_kg||'')} onChangeText={(t) => { const v = t.replace(/[^0-9.]/g, ''); setFormState({...formState, weight_kg: v ? Number(v) : ''}); }} placeholder="e.g. 70" /></View>
                                     </>
                                 )}
                                 {editingType === 'habits' && (
