@@ -2,10 +2,10 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, Platform, ActivityIndicator, Animated, Pressable, Linking, Modal, TouchableWithoutFeedback, TextInput, KeyboardAvoidingView, Alert } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { TriangleAlert, ShieldCheck, HeartPulse, Activity, Stethoscope, Droplet, User, CalendarDays, Watch, Flame, Phone, Plus, Edit2, X, Trash2, CheckCircle2, RefreshCw } from 'lucide-react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import { TriangleAlert, ShieldCheck, HeartPulse, Activity, Stethoscope, Droplet, User, CalendarDays, Watch, Flame, Phone, Plus, Edit2, X, Trash2, CheckCircle2, RefreshCw, AlertTriangle } from 'lucide-react-native';
 import { apiService } from '../../lib/api';
 import { initializeHealthPlatform, requestHealthPermissions, fetchDailyVitalsSummary, isHealthSupported } from '../../lib/healthIntegration';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 const C = {
   primary: '#6366F1', primaryDark: '#4338CA', primarySoft: '#EEF2FF',
@@ -123,6 +123,7 @@ export default function HealthProfileScreen({ navigation }) {
     const [isSaving, setIsSaving] = useState(false);
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [showTimePicker, setShowTimePicker] = useState(false);
+    const [datePickerField, setDatePickerField] = useState(null); // 'date' | 'date_given'
     
     const backdropAnim = useRef(new Animated.Value(0)).current;
     const modalAnim = useRef(new Animated.Value(0)).current;
@@ -416,21 +417,27 @@ export default function HealthProfileScreen({ navigation }) {
                     </View>
                 </Animated.View>
 
-                {/* 4. CURRENT MEDS */}
+                {/* 4. CURRENT MEDS (Read-Only — managed via Medications screen) */}
                 <Animated.View style={{ opacity: staggerAnims[4], transform: [{ translateY: staggerAnims[4].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>
                     <View style={s.section}>
-                        {renderHeader('ACTIVE MEDICATIONS', 'medication')}
+                        <View style={s.sectionHeaderRow}>
+                            <Text style={s.sectionHeaderBase}>ACTIVE MEDICATIONS</Text>
+                        </View>
                         <View style={s.cardStack}>
                             {medications.map((m, i) => (
-                                <Pressable key={i} style={s.rowItemEnhanced} onPress={() => openModal('medication', m)}>
+                                <View key={i} style={s.rowItemEnhanced}>
                                     <View style={[s.iconBg, { backgroundColor: C.primarySoft }]}><HeartPulse size={18} color={C.primaryDark} /></View>
                                     <View style={s.rowInfo}>
                                         <Text style={s.rowTitle}>{m.name} — {m.dosage}</Text>
                                         <Text style={[s.rowSub, {textTransform:'capitalize', color:C.muted, fontSize: 13, ...FONT.medium}]}>{m.frequency} • {(m.times||[]).join(', ')}</Text>
                                     </View>
-                                </Pressable>
+                                </View>
                             ))}
                             {medications.length === 0 && <Text style={s.emptyRowTxt}>No active medications</Text>}
+                            <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, backgroundColor: '#FFFBEB', borderRadius: 12, margin: 8, gap: 8 }}>
+                                <AlertTriangle size={16} color="#B45309" />
+                                <Text style={{ flex: 1, fontSize: 13, color: '#92400E', ...FONT.medium }}>Medications are managed by your care team. Go to the Medications tab to request changes.</Text>
+                            </View>
                         </View>
                     </View>
                 </Animated.View>
@@ -680,32 +687,14 @@ export default function HealthProfileScreen({ navigation }) {
                                 {editingType === 'history' && (
                                     <>
                                         <View style={s.formGroup}><Text style={s.formLabel}>Event / Surgery / Diagnosis *</Text><TextInput style={s.input} placeholderTextColor={C.muted} value={formState.event} onChangeText={(t) => setFormState({...formState, event: t})} placeholder="e.g. Knee Replacement" /></View>
-                                        <View style={s.formGroup}><Text style={s.formLabel}>Date (YYYY-MM-DD)</Text><TextInput style={s.input} placeholderTextColor={C.muted} value={formState.date ? formState.date.toString().substring(0,10) : ''} onChangeText={(t) => setFormState({...formState, date: t})} placeholder="2023-10-15" /></View>
+                                        <View style={s.formGroup}><Text style={s.formLabel}>Date *</Text><Pressable style={s.input} onPress={() => { setDatePickerField('date'); setShowDatePicker(true); }}><Text style={{ color: formState.date ? C.dark : C.muted, fontSize: 15 }}>{formState.date ? new Date(formState.date).toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' }) : 'Select date'}</Text></Pressable></View>
                                         <View style={s.formGroup}><Text style={s.formLabel}>Detailed Notes</Text><TextInput style={[s.input, s.inputMulti]} placeholderTextColor={C.muted} multiline value={formState.notes} onChangeText={(t) => setFormState({...formState, notes: t})} placeholder="How did the procedure go? Who was the doctor?" /></View>
                                     </>
                                 )}
                                 {editingType === 'vaccination' && (
                                     <>
                                         <View style={s.formGroup}><Text style={s.formLabel}>Vaccine Name *</Text><TextInput style={s.input} placeholderTextColor={C.muted} value={formState.name} onChangeText={(t) => setFormState({...formState, name: t})} placeholder="e.g. Influenza, COVID-19" /></View>
-                                        <View style={s.formGroup}>
-                                            <Text style={s.formLabel}>Date Given</Text>
-                                            <Pressable style={[s.input, {justifyContent: 'center'}]} onPress={() => setShowDatePicker(true)}>
-                                                <Text style={{color: formState.date_given ? C.dark : C.muted}}>
-                                                    {formState.date_given ? new Date(formState.date_given).toLocaleDateString() : 'Select Date'}
-                                                </Text>
-                                            </Pressable>
-                                            {showDatePicker && (
-                                                <DateTimePicker
-                                                    value={formState.date_given ? new Date(formState.date_given) : new Date()}
-                                                    mode="date"
-                                                    display="default"
-                                                    onChange={(event, selectedDate) => {
-                                                        if (Platform.OS === 'android') setShowDatePicker(false);
-                                                        if (selectedDate) setFormState({...formState, date_given: selectedDate.toISOString()});
-                                                    }}
-                                                />
-                                            )}
-                                        </View>
+                                        <View style={s.formGroup}><Text style={s.formLabel}>Date Given *</Text><Pressable style={s.input} onPress={() => { setDatePickerField('date_given'); setShowDatePicker(true); }}><Text style={{ color: formState.date_given ? C.dark : C.muted, fontSize: 15 }}>{formState.date_given ? new Date(formState.date_given).toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' }) : 'Select date'}</Text></Pressable></View>
                                     </>
                                 )}
                                 {editingType === 'appointment' && (
@@ -713,11 +702,11 @@ export default function HealthProfileScreen({ navigation }) {
                                         <View style={s.formGroup}><Text style={s.formLabel}>Reason / Title *</Text><TextInput style={s.input} placeholderTextColor={C.muted} value={formState.title} onChangeText={(t) => setFormState({...formState, title: t})} placeholder="General Checkup" /></View>
                                         <View style={s.formGroup}><Text style={s.formLabel}>Doctor / Specialist Name *</Text><TextInput style={s.input} placeholderTextColor={C.muted} value={formState.doctor_name} onChangeText={(t) => setFormState({...formState, doctor_name: t})} placeholder="Dr. Smith" /></View>
                                         <View style={s.formGroup}>
-                                            <Text style={s.formLabel}>Date & Time</Text>
+                                            <Text style={s.formLabel}>Date & Time *</Text>
                                             <View style={{flexDirection: 'row', gap: 10}}>
-                                                <Pressable style={[s.input, {flex: 1, justifyContent: 'center'}]} onPress={() => setShowDatePicker(true)}>
+                                                <Pressable style={[s.input, {flex: 1, justifyContent: 'center'}]} onPress={() => { setDatePickerField('date'); setShowDatePicker(true); }}>
                                                     <Text style={{color: formState.date ? C.dark : C.muted}}>
-                                                        {formState.date ? new Date(formState.date).toLocaleDateString() : 'Select Date'}
+                                                        {formState.date ? new Date(formState.date).toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' }) : 'Select Date'}
                                                     </Text>
                                                 </Pressable>
                                                 <Pressable style={[s.input, {flex: 1, justifyContent: 'center'}]} onPress={() => setShowTimePicker(true)}>
@@ -726,21 +715,6 @@ export default function HealthProfileScreen({ navigation }) {
                                                     </Text>
                                                 </Pressable>
                                             </View>
-                                            {showDatePicker && (
-                                                <DateTimePicker
-                                                    value={formState.date ? new Date(formState.date) : new Date()}
-                                                    mode="date"
-                                                    display="default"
-                                                    onChange={(event, selectedDate) => {
-                                                        if (Platform.OS === 'android') setShowDatePicker(false);
-                                                        if (selectedDate) {
-                                                            const currentDate = formState.date ? new Date(formState.date) : new Date();
-                                                            currentDate.setFullYear(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
-                                                            setFormState({...formState, date: currentDate.toISOString()});
-                                                        }
-                                                    }}
-                                                />
-                                            )}
                                             {showTimePicker && (
                                                 <DateTimePicker
                                                     value={formState.date ? new Date(formState.date) : new Date()}
@@ -806,6 +780,22 @@ export default function HealthProfileScreen({ navigation }) {
                     </View>
                 </KeyboardAvoidingView>
             </Modal>
+
+            {/* Native Date Picker overlay */}
+            {showDatePicker && (
+                <DateTimePicker
+                    value={formState[datePickerField] ? new Date(formState[datePickerField]) : new Date()}
+                    mode={editingType === 'appointment' ? 'datetime' : 'date'}
+                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                    maximumDate={editingType === 'appointment' ? undefined : new Date()}
+                    onChange={(event, selectedDate) => {
+                        setShowDatePicker(Platform.OS === 'ios');
+                        if (event.type !== 'dismissed' && selectedDate) {
+                            setFormState(prev => ({ ...prev, [datePickerField]: selectedDate.toISOString() }));
+                        }
+                    }}
+                />
+            )}
         </LinearGradient>
     );
 }

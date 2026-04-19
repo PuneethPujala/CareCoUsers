@@ -16,6 +16,7 @@ import AIPredictionChart from '../../components/vitals/AIPredictionChart';
 import HealthSyncService from '../../services/HealthSyncService';
 import { Watch, Zap } from 'lucide-react-native';
 import { scheduleMedicationReminders, scheduleVitalsReminder, scheduleSubscriptionAlert } from '../../utils/notifications';
+import usePatientStore from '../../store/usePatientStore';
 
 const ACCENT_MAP = { morning: colors.success, afternoon: colors.warning, night: '#8B5CF6' };
 const TIME_LABELS = { morning: 'Morning', afternoon: 'Afternoon', night: 'Night' };
@@ -122,13 +123,19 @@ const MedicationCard = ({ med, onCheck }) => {
 
 export default function PatientHomeScreen({ navigation }) {
     const { displayName, profile } = useAuth();
-    const [patient, setPatient] = useState(null);
-    const [meds, setMeds] = useState([]);
-    const [vitals, setVitals] = useState(null);
-    const [vitalsHistory, setVitalsHistory] = useState([]);
-    const [aiPrediction, setAiPrediction] = useState(null);
+
+    // ── Zustand store subscriptions ─────────────────────────────
+    const patient = usePatientStore((s) => s.patient);
+    const vitals = usePatientStore((s) => s.vitals);
+    const vitalsHistory = usePatientStore((s) => s.vitalsHistory);
+    const aiPrediction = usePatientStore((s) => s.aiPrediction);
+    const meds = usePatientStore((s) => s.dashboardMeds);
+    const isCached = usePatientStore((s) => s.isCached);
+    const storeFetchDashboard = usePatientStore((s) => s.fetchDashboard);
+    const storeOptimisticToggle = usePatientStore((s) => s.optimisticToggleMed);
+
+    // Local-only UI state
     const [loading, setLoading] = useState(true);
-    const [isCached, setIsCached] = useState(false);
     const [unreadCount, setUnreadCount] = useState(0);
 
     // Log vitals form state
@@ -160,118 +167,31 @@ export default function PatientHomeScreen({ navigation }) {
     }, [staggerAnims]);
 
     const lastFetchRef = useRef(0);
-    const optimisticMedsRef = useRef({}); // Stores { med_id: timestamp }
 
     const fetchData = useCallback(async (skipCache = false) => {
         try {
-            // ── Step 1: Load from cache instantly ──────────────────────
-            if (!skipCache) {
-                const cached = await getCache(CACHE_KEYS.HOME_DASHBOARD);
-                if (cached) {
-                    const { patient: cPatient, vitals: cVitals, meds: cMeds } = cached.data;
-                    setPatient(cPatient);
-                    setVitals(cVitals);
-                    setMeds(cMeds);
-                    setIsCached(true);
-                    setLoading(false); // Instant — no spinner
-                }
-            }
-
-            // ── Step 2: Fetch fresh data from network ─────────────────
-            const todayStart = new Date();
-            todayStart.setHours(0, 0, 0, 0);
-            const todayEnd = new Date();
-            todayEnd.setHours(23, 59, 59, 999);
-            const historyStart = new Date();
-            historyStart.setDate(historyStart.getDate() - 7);
-
-            const [pRes, vRes, vHistRes, medsRes, aiRes] = await Promise.all([
-                apiService.patients.getMe(),
-                apiService.patients.getVitals({ 
-                    start_date: todayStart.toISOString(), 
-                    end_date: todayEnd.toISOString() 
-                }),
-                apiService.patients.getVitals({
-                    start_date: historyStart.toISOString(),
-                }),
-                apiService.medicines.getToday(),
-                apiService.patients.getAIPrediction().catch(() => ({ data: { prediction: null } }))
-            ]);
-
-            const freshPatient = pRes.data.patient;
-            setPatient(freshPatient);
-
-            const todayVitals = vRes.data.vitals;
-            const freshVitals = (todayVitals && todayVitals.length > 0) ? todayVitals[todayVitals.length - 1] : null;
-            setVitals(freshVitals);
-            setVitalsHistory(vHistRes.data.vitals || []);
-            setAiPrediction(aiRes.data.prediction);
-
-            const freshMeds = (medsRes.data.log?.medicines || []).map((m) => {
-                const id = `${m.medicine_name}_${m.scheduled_time}`;
-                const optTs = optimisticMedsRef.current[id];
-                let isTaken = m.taken;
-                
-                if (optTs) {
-                    if (isTaken) {
-                        delete optimisticMedsRef.current[id];
-                    } else if (Date.now() - optTs < 60000) {
-                        // Optimistic update within last 60 seconds - preserve it!
-                        isTaken = true;
-                    } else {
-                        // Expired - DB probably failed, let it revert
-                        delete optimisticMedsRef.current[id];
+            const result = await storeFetchDashboard(skipCache);
+            if (result) {
+                // Schedule push notifications for dashboard items
+                try {
+                    const rawMeds = [];
+                    const medPrefs = result.patient?.medication_call_preferences || {};
+                    scheduleMedicationReminders(rawMeds, medPrefs);
+                    scheduleVitalsReminder(!!result.vitals);
+                    if (result.patient?.subscription?.expires_at) {
+                        const daysLeft = Math.ceil(
+                            (new Date(result.patient.subscription.expires_at) - new Date()) / (1000 * 60 * 60 * 24)
+                        );
+                        scheduleSubscriptionAlert(daysLeft);
                     }
+                } catch (notifErr) {
+                    console.warn('Notification scheduling error (non-critical):', notifErr.message);
                 }
-
-                return {
-                    id,
-                    name: m.medicine_name,
-                    dosage: m.dosage || 'As prescribed',
-                    instructions: m.instructions || '',
-                    time: TIME_LABELS[m.scheduled_time] || m.scheduled_time,
-                    type: m.scheduled_time,
-                    taken: isTaken,
-                    accent: ACCENT_MAP[m.scheduled_time] || colors.accent,
-                };
-            });
-            setMeds(freshMeds);
-            setIsCached(false);
-
-            // ── Step 3: Persist to cache for offline use ───────────────
-            await setCache(CACHE_KEYS.HOME_DASHBOARD, {
-                patient: freshPatient,
-                vitals: freshVitals,
-                meds: freshMeds,
-            }, 60); // 60-minute TTL
-            // ── Step 4: Schedule push notifications for dashboard items ──
-            try {
-                // Medication reminders — schedule at the configured times
-                const rawMeds = medsRes.data.log?.medicines || [];
-                const medPrefs = freshPatient.medication_call_preferences || {};
-                scheduleMedicationReminders(rawMeds, medPrefs);
-
-                // Vitals reminder — nudge at 10 AM if not logged yet
-                scheduleVitalsReminder(!!freshVitals);
-
-                // Subscription expiry alert
-                if (freshPatient.subscription?.expires_at) {
-                    const daysLeft = Math.ceil(
-                        (new Date(freshPatient.subscription.expires_at) - new Date()) / (1000 * 60 * 60 * 24)
-                    );
-                    scheduleSubscriptionAlert(daysLeft);
-                }
-            } catch (notifErr) {
-                console.warn('Notification scheduling error (non-critical):', notifErr.message);
             }
-        } catch (err) {
-            console.warn('Failed to fetch dashboard data:', err.message);
-            // If network fails but we loaded cached data above, it remains visible.
-            // If no cache was loaded either, the empty state will show.
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [storeFetchDashboard]);
 
     // ─── Submit new vitals ──────────────────────────────────────
     const handleLogVitals = async () => {
@@ -306,26 +226,6 @@ export default function PatientHomeScreen({ navigation }) {
             setSubmitLoading(false);
         }
     };
-
-    useEffect(() => {
-        const medsSub = DeviceEventEmitter.addListener('MEDS_UPDATED', (payload) => {
-            if (payload && payload.id) {
-                optimisticMedsRef.current[payload.id] = Date.now();
-                setMeds(prev => prev.map(m => m.id === payload.id ? { ...m, taken: payload.taken } : m));
-            } else {
-                lastFetchRef.current = 0;
-                fetchData(true);
-            }
-        });
-        const vitalsSub = DeviceEventEmitter.addListener('VITALS_UPDATED', () => {
-            lastFetchRef.current = 0;
-            fetchData(true);
-        });
-        return () => {
-            medsSub.remove();
-            vitalsSub.remove();
-        };
-    }, [fetchData]);
 
     // Use focus effect to refresh data when returning from Vitals History/Log
     const hasAnimated = useRef(false);
@@ -378,16 +278,10 @@ export default function PatientHomeScreen({ navigation }) {
 
     const toggleMed = async (med) => {
         if (med.taken) return; // ONE-WAY
-
-        const newTaken = true;
-        optimisticMedsRef.current[med.id] = Date.now();
-        setMeds(prev => prev.map(m => m.id === med.id ? { ...m, taken: newTaken } : m));
         try {
-            await apiService.medicines.markMedicine({ medicine_name: med.name, scheduled_time: med.type, taken: newTaken });
-            DeviceEventEmitter.emit('MEDS_UPDATED', { id: med.id, type: med.type, taken: newTaken });
+            await storeOptimisticToggle(med);
         } catch (err) {
             console.warn('Failed to mark med:', err.message);
-            setMeds(prev => prev.map(m => m.id === med.id ? { ...m, taken: false } : m));
         }
     };
 

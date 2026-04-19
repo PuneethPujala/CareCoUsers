@@ -14,6 +14,8 @@ import { colors } from '../../theme';
 import { useAuth } from '../../context/AuthContext';
 import { apiService } from '../../lib/api';
 import { registerForPushNotificationsAsync } from '../../utils/notifications';
+import * as Notifications from 'expo-notifications';
+import { Linking } from 'react-native';
 import { Lock as LockIcon } from 'lucide-react-native';
 import * as WebBrowser from 'expo-web-browser';
 
@@ -194,14 +196,42 @@ export default function PatientProfileScreen({ navigation }) {
             await apiService.patients.updateMe({ push_notifications_enabled: val });
 
             if (val) {
-                // Try to register and get the push token
-                const { token } = await registerForPushNotificationsAsync();
-                if (token) {
-                    // Send token to backend
-                    await apiService.patients.updateMe({ expo_push_token: token });
+                // Check current permission status
+                const { status: existingStatus } = await Notifications.getPermissionsAsync();
+                
+                if (existingStatus === 'granted') {
+                    // Already granted — just get the token
+                    const { token } = await registerForPushNotificationsAsync();
+                    if (token) {
+                        await apiService.patients.updateMe({ expo_push_token: token });
+                    }
+                } else {
+                    // Try to request permission
+                    const { status, canAskAgain } = await Notifications.requestPermissionsAsync();
+                    
+                    if (status === 'granted') {
+                        const { token } = await registerForPushNotificationsAsync();
+                        if (token) {
+                            await apiService.patients.updateMe({ expo_push_token: token });
+                        }
+                    } else if (!canAskAgain) {
+                        // Permission permanently denied — prompt user to open Settings
+                        setPushEnabled(false);
+                        await apiService.patients.updateMe({ push_notifications_enabled: false });
+                        Alert.alert(
+                            'Notifications Blocked',
+                            'You previously denied notification permissions. Please enable them in your device Settings to receive health reminders.',
+                            [
+                                { text: 'Cancel', style: 'cancel' },
+                                { text: 'Open Settings', onPress: () => Linking.openSettings() },
+                            ]
+                        );
+                    } else {
+                        // User dismissed the prompt — revert the toggle
+                        setPushEnabled(false);
+                        await apiService.patients.updateMe({ push_notifications_enabled: false });
+                    }
                 }
-                // If token is null but permission was denied, revert
-                // (registerForPushNotificationsAsync shows an alert for this)
             } else {
                 // Clear the token on the backend when disabling
                 await apiService.patients.updateMe({ expo_push_token: '' });

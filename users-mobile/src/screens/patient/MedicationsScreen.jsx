@@ -10,6 +10,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { supabase } from '../../lib/supabase';
 import { Upload } from 'lucide-react-native';
+import usePatientStore from '../../store/usePatientStore';
 
 const { width } = Dimensions.get('window');
 
@@ -315,11 +316,17 @@ const AnimatedMedCard = ({ med, onToggle }) => {
 };
 
 export default function MedicationsScreen({ navigation }) {
-    const [patient, setPatient] = useState(null);
-    const [schedule, setSchedule] = useState({ morning: [], afternoon: [], night: [] });
-    const [adherence, setAdherence] = useState([]);
+    // ── Zustand store subscriptions ─────────────────────────
+    const patient = usePatientStore((s) => s.patient);
+    const schedule = usePatientStore((s) => s.medicationSchedule);
+    const adherence = usePatientStore((s) => s.weeklyAdherence);
+    const preferences = usePatientStore((s) => s.callPreferences);
+    const storeFetchMedications = usePatientStore((s) => s.fetchMedications);
+    const storeSavePrefs = usePatientStore((s) => s.saveCallPreferences);
+    const storeOptimisticToggle = usePatientStore((s) => s.optimisticToggleMed);
+
+    // Local-only UI state
     const [loading, setLoading] = useState(true);
-    const [preferences, setPreferences] = useState({ morning: '09:00', afternoon: '14:00', night: '20:00' });
     const [showPrefModal, setShowPrefModal] = useState(false);
     const [tempPrefs, setTempPrefs] = useState({ morning: '09:00', afternoon: '14:00', night: '20:00' });
     const [savingPrefs, setSavingPrefs] = useState(false);
@@ -347,115 +354,16 @@ export default function MedicationsScreen({ navigation }) {
     }, [staggerAnims]);
 
     const loadMedicinesData = useCallback(async (isRefresh = false, isBackground = false) => {
-        const now = Date.now();
-        if (!isRefresh && now - lastFetchRef.current < 60000 && adherence.length > 0) {
-            setLoading(false);
-            if (!isBackground) runAnimations();
-            return;
-        }
-
         try {
-            const pRes = await apiService.patients.getMe();
-            setPatient(pRes.data.patient);
-
-            if (pRes.data.patient?.subscription?.plan !== 'free') {
-                const [todayRes, weeklyRes] = await Promise.all([
-                    apiService.medicines.getToday(),
-                    apiService.medicines.getWeeklyAdherence(),
-                ]);
-
-                const markedMeds = todayRes.data.log?.medicines || [];
-                const profileMeds = pRes.data.patient?.medications || [];
-
-                // Merge: Unroll profile medications by their 'times' array (morning, afternoon, night)
-                const mergedMeds = [];
-                
-                profileMeds.forEach(pm => {
-                    // If times is missing but scheduledTimes exists, infer the times
-                    let timeTypes = pm.times && pm.times.length > 0 ? pm.times : [];
-                    if (timeTypes.length === 0 && pm.scheduledTimes && pm.scheduledTimes.length > 0) {
-                        pm.scheduledTimes.forEach(st => {
-                            const hr = parseInt(st.split(':')[0], 10);
-                            if (hr < 12 && !timeTypes.includes('morning')) timeTypes.push('morning');
-                            else if (hr >= 12 && hr < 17 && !timeTypes.includes('afternoon')) timeTypes.push('afternoon');
-                            else if (hr >= 17 && !timeTypes.includes('night')) timeTypes.push('night');
-                        });
-                    }
-                    
-                    timeTypes.forEach(type => {
-                        const id = `${pm.name}_${type}`;
-                        const optTs = optimisticMedsRef.current[id];
-                        let isTaken = false;
-                        
-                        const marked = markedMeds.find(mm => mm.medicine_name === pm.name && mm.scheduled_time === type);
-                        if (marked) isTaken = marked.taken;
-
-                        if (optTs) {
-                            if (isTaken) {
-                                delete optimisticMedsRef.current[id];
-                            } else if (Date.now() - optTs < 60000) {
-                                isTaken = true;
-                            } else {
-                                delete optimisticMedsRef.current[id];
-                            }
-                        }
-
-                        mergedMeds.push({
-                            id,
-                            name: pm.name,
-                            dosage: pm.dosage || (type === 'morning' ? '500mg' : type === 'afternoon' ? '5mg' : '10mg'),
-                            instructions: pm.instructions || (type === 'morning' ? 'Take with food' : type === 'afternoon' ? 'Take after lunch' : 'Take before sleep'),
-                            type: type,
-                            taken: isTaken,
-                            marked_by: marked ? marked.marked_by : null,
-                            accent: ACCENT_MAP[type] || '#6366F1',
-                            scheduled_times: pm.scheduledTimes || [],
-                        });
-                    });
-                });
-
-                // Fallback for any meds in log not in profile (edge case)
-                markedMeds.forEach(mm => {
-                    if (!mergedMeds.some(m => m.name === mm.medicine_name && m.type === mm.scheduled_time)) {
-                        mergedMeds.push({
-                            id: `${mm.medicine_name}_${mm.scheduled_time}_log`,
-                            name: mm.medicine_name,
-                            dosage: mm.dosage,
-                            instructions: mm.instructions,
-                            type: mm.scheduled_time,
-                            taken: mm.taken,
-                            marked_by: mm.marked_by,
-                            accent: ACCENT_MAP[mm.scheduled_time],
-                            scheduled_times: mm.scheduled_times || [],
-                        });
-                    }
-                });
-
-                const grouped = { morning: [], afternoon: [], night: [] };
-                mergedMeds.forEach(m => {
-                    if (grouped[m.type]) {
-                        grouped[m.type].push(m);
-                    }
-                });
-                setSchedule(grouped);
-
-                const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-                const weeklyData = (weeklyRes.data.adherence || []).map(d => ({
-                    day: days[new Date(d.date).getDay()],
-                    p: d.rate,
-                    isToday: new Date(d.date).toDateString() === new Date().toDateString(),
-                }));
-                setAdherence(weeklyData);
-                if (!isRefresh && !isBackground) runAnimations();
-            }
-            lastFetchRef.current = Date.now();
+            await storeFetchMedications();
+            if (!isRefresh && !isBackground) runAnimations();
         } catch (err) {
             console.warn('Failed to load medications:', err.message);
         } finally {
             setLoading(false);
             if (isRefresh) setRefreshing(false);
         }
-    }, [runAnimations, adherence]);
+    }, [runAnimations, storeFetchMedications]);
 
     const hasAnimated = useRef(false);
     useFocusEffect(
@@ -476,29 +384,9 @@ export default function MedicationsScreen({ navigation }) {
     );
 
     useEffect(() => {
-        const medsSub = DeviceEventEmitter.addListener('MEDS_UPDATED', (payload) => {
-            if (payload && payload.id) {
-                optimisticMedsRef.current[payload.id] = Date.now();
-                // Optimistically update
-                setSchedule(prev => {
-                    const next = { ...prev };
-                    for (const type of ['morning', 'afternoon', 'night']) {
-                        if (next[type]) {
-                            next[type] = next[type].map(m => m.id === payload.id ? { ...m, taken: payload.taken } : m);
-                        }
-                    }
-                    return next;
-                });
-                
-                // Keep everything else in sync softly
-                loadMedicinesData(true, true);
-            } else {
-                lastFetchRef.current = 0;
-                loadMedicinesData(true);
-            }
-        });
-        return () => medsSub.remove();
-    }, [loadMedicinesData]);
+        // No longer need DeviceEventEmitter — Zustand handles cross-screen sync
+        return () => {};
+    }, []);
 
     const handleRefresh = useCallback(() => {
         setRefreshing(true);
@@ -508,53 +396,14 @@ export default function MedicationsScreen({ navigation }) {
     const handleConfirmToggle = async () => {
         if (!confirmingMed) return;
         const med = confirmingMed;
-        const targetTaken = !med.taken;
         
         setIsConfirmVisible(false);
         setConfirmingMed(null);
 
-        // --- OPTIMISTIC UPDATE ---
-        // 1. Save old state for rollback
-        const oldSchedule = { ...schedule };
-        const oldAdherence = [...adherence];
-
-        // 2. Update local state immediately
-        setSchedule(prev => {
-            const next = { ...prev };
-            next[med.type] = next[med.type].map(m => 
-                m.id === med.id ? { ...m, taken: targetTaken } : m
-            );
-            return next;
-        });
-
-        // Update adherence bar immediately
-        setAdherence(prev => prev.map(d => {
-            if (d.isToday) {
-                const dayMeds = [...(schedule.morning || []), ...(schedule.afternoon || []), ...(schedule.night || [])];
-                const newTaken = dayMeds.reduce((acc, current) => {
-                    const isTheOne = current.id === med.id;
-                    return acc + (isTheOne ? (targetTaken ? 1 : 0) : (current.taken ? 1 : 0));
-                }, 0);
-                return { ...d, p: Math.round((newTaken / dayMeds.length) * 100) };
-            }
-            return d;
-        }));
-
-        optimisticMedsRef.current[med.id] = Date.now();
-
-        // 3. Fire API call
         try {
-            await apiService.medicines.markMedicine({ 
-                medicine_name: med.name, 
-                scheduled_time: med.type, 
-                taken: targetTaken 
-            });
-            DeviceEventEmitter.emit('MEDS_UPDATED', { id: med.id, type: med.type, taken: targetTaken });
+            await storeOptimisticToggle(med);
         } catch (err) {
-            console.warn('[Optimistic] Mark failed, rolling back:', err.message);
-            // ROLLBACK
-            setSchedule(oldSchedule);
-            setAdherence(oldAdherence);
+            console.warn('[Optimistic] Mark failed:', err.message);
             Alert.alert('Update Failed', 'Could not sync with server. Please check your connection.');
         }
     };
@@ -569,10 +418,8 @@ export default function MedicationsScreen({ navigation }) {
     const handleSavePreferences = async () => {
         setSavingPrefs(true);
         try {
-            await apiService.patients.updateCallPreferences(tempPrefs);
+            await storeSavePrefs(tempPrefs);
             setShowPrefModal(false);
-            // Re-fetch to synchronize new preferences across the UI
-            loadMedicinesData(true);
         } catch (err) {
             Alert.alert('Error', 'Failed to save preferences');
         } finally {
@@ -615,40 +462,43 @@ export default function MedicationsScreen({ navigation }) {
                 mediaTypes: ImagePicker.MediaTypeOptions.Images,
                 allowsEditing: true,
                 quality: 0.8,
+                base64: true, // Request base64 for reliable cross-device upload
             });
 
             if (!result.canceled && result.assets[0]) {
                 setUploadingImage(true);
                 const asset = result.assets[0];
-                const ext = 'jpg'; // Manipulation forces it to JPEG standard
+                const ext = 'jpg';
                 
-                // Privacy & Scaling logic: Store inside a folder named by their UUID, 
-                // and give the file a random hash instead of identifiable details.
                 const randomHash = Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
                 const fileName = `${patient.supabase_uid}/${randomHash}.${ext}`;
 
-                // --- FRONTEND COMPRESSION ---
-                // Resize image to max 1200px width and compress quality by 30% to crush file size
+                // Resize + compress
                 const manipResult = await ImageManipulator.manipulateAsync(
                     asset.uri,
                     [{ resize: { width: 1200 } }], 
-                    { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
+                    { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG, base64: true }
                 );
 
-                const response = await fetch(manipResult.uri);
-                const blob = await response.blob();
+                // Convert base64 to ArrayBuffer for reliable upload across all Android devices
+                const base64Data = manipResult.base64;
+                if (!base64Data) throw new Error('Failed to generate base64 from image.');
 
-                // Double check size mapping bounds for safety before sending
-                if (blob.size > 3 * 1024 * 1024) throw new Error("Image too large even after compression.");
+                const binaryStr = atob(base64Data);
+                const bytes = new Uint8Array(binaryStr.length);
+                for (let i = 0; i < binaryStr.length; i++) {
+                    bytes[i] = binaryStr.charCodeAt(i);
+                }
+
+                if (bytes.length > 3 * 1024 * 1024) throw new Error('Image too large even after compression.');
 
                 const { data, error } = await supabase.storage
                     .from('prescriptions')
-                    .upload(fileName, blob, { contentType: `image/${ext}` });
+                    .upload(fileName, bytes.buffer, { contentType: 'image/jpeg' });
 
                 if (error) throw error;
 
                 const publicUrl = supabase.storage.from('prescriptions').getPublicUrl(fileName).data.publicUrl;
-
                 await apiService.patients.uploadPrescription({ file_url: publicUrl, file_name: fileName });
                 
                 if (Platform.OS === 'web') window.alert('Success: Prescription securely uploaded for caregiver review.');
@@ -659,7 +509,7 @@ export default function MedicationsScreen({ navigation }) {
         } catch (error) {
             console.error('Upload Error:', error);
             if (Platform.OS === 'web') window.alert('Upload Failed: There was an issue uploading your file.');
-            else Alert.alert('Upload Failed', 'There was an issue uploading your file. Ensure your connection is stable.');
+            else Alert.alert('Upload Failed', error.message || 'There was an issue uploading your file. Ensure your connection is stable.');
         } finally {
             setUploadingImage(false);
         }
