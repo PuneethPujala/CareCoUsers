@@ -3,6 +3,7 @@ import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform, Alert } from 'react-native';
+import { getRandomTemplate, personalize } from './notificationTemplates';
 
 /**
  * Configure how notifications appear when the app is in the foreground.
@@ -136,12 +137,13 @@ export async function sendDailyWelcomeNotification(userName = 'there', force = f
         else if (hour >= 17) greeting = 'Good evening';
 
         const firstName = userName.split(' ')[0];
+        const randomBody = getRandomTemplate('welcome');
 
         // Send local notification after a short delay
         await Notifications.scheduleNotificationAsync({
             content: {
                 title: `${greeting}, ${firstName}! 👋`,
-                body: 'Welcome back to Samvaya. Stay on top of your health today!',
+                body: randomBody,
                 data: { screen: 'PatientHome' },
                 sound: 'default',
             },
@@ -213,15 +215,18 @@ export async function scheduleMedicationReminders(medicines, prefs = {}) {
             const secondsUntil = Math.round((medTime - now) / 1000);
             if (secondsUntil > 0) {
                 const { names, slotKey } = data;
-                let body = '';
+                let joinedNames = '';
                 
                 if (names.length === 1) {
-                    body = `Time to take your ${names[0]}`;
+                    joinedNames = names[0];
                 } else if (names.length === 2) {
-                    body = `Time to take your ${names[0]} and ${names[1]}`;
+                    joinedNames = `${names[0]} and ${names[1]}`;
                 } else {
-                    body = `Time to take your ${names[0]}, ${names[1]} and ${names.length - 2} others`;
+                    joinedNames = `${names[0]}, ${names[1]} and ${names.length - 2} others`;
                 }
+
+                // Pick a template and replace the placeholder
+                const body = personalize(getRandomTemplate('medications', 'reminders'), { medicineName: joinedNames });
 
                 const capitalizedSlot = slotKey.charAt(0).toUpperCase() + slotKey.slice(1);
                 
@@ -267,10 +272,11 @@ export async function scheduleVitalsReminder(vitalsLoggedToday = false) {
 
         const secondsUntil = Math.round((reminderTime - now) / 1000);
         if (secondsUntil > 0) {
+            const randomBody = getRandomTemplate('vitals', 'reminders');
             await Notifications.scheduleNotificationAsync({
                 content: {
                     title: '❤️ Daily Vitals Reminder',
-                    body: "Don't forget to log your heart rate and blood pressure today!",
+                    body: randomBody,
                     data: { screen: 'PatientHome', type: 'vitals_reminder' },
                     sound: 'default',
                 },
