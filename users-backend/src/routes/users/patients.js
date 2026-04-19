@@ -704,8 +704,8 @@ router.delete('/me/trusted-contacts/:id', authenticateSession, validateObjectId(
         const patient = await Patient.findOne({ supabase_uid: req.user.id });
         if (!patient) return res.status(404).json({ error: 'Patient profile not found' });
         
-        // Use Mongoose subdocument pull which handles casting to ObjectId correctly
-        patient.trusted_contacts.pull({ _id: req.params.id });
+// Use Mongoose subdocument pull
+        patient.trusted_contacts.pull(req.params.id);
         await patient.save();
         
         res.json({ trusted_contacts: patient.trusted_contacts, message: 'Trusted contact deleted successfully' });

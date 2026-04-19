@@ -741,27 +741,12 @@ export default function HealthProfileScreen({ navigation }) {
                                                         {formState.date ? new Date(formState.date).toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' }) : 'Select Date'}
                                                     </Text>
                                                 </Pressable>
-                                                <Pressable style={[s.input, {flex: 1, justifyContent: 'center'}]} onPress={() => setShowTimePicker(true)}>
+                                                <Pressable style={[s.input, {flex: 1, justifyContent: 'center'}]} onPress={() => { setDatePickerField('date'); setShowTimePicker(true); }}>
                                                     <Text style={{color: formState.date ? C.dark : C.muted}}>
                                                         {formState.date ? new Date(formState.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'Select Time'}
                                                     </Text>
                                                 </Pressable>
                                             </View>
-                                            {showTimePicker && (
-                                                <DateTimePicker
-                                                    value={formState.date ? new Date(formState.date) : new Date()}
-                                                    mode="time"
-                                                    display="default"
-                                                    onChange={(event, selectedDate) => {
-                                                        if (Platform.OS === 'android') setShowTimePicker(false);
-                                                        if (selectedDate) {
-                                                            const currentDate = formState.date ? new Date(formState.date) : new Date();
-                                                            currentDate.setHours(selectedDate.getHours(), selectedDate.getMinutes(), 0, 0);
-                                                            setFormState({...formState, date: currentDate.toISOString()});
-                                                        }
-                                                    }}
-                                                />
-                                            )}
                                         </View>
                                     </>
                                 )}
@@ -825,13 +810,44 @@ export default function HealthProfileScreen({ navigation }) {
                     )}
                     <DateTimePicker
                         value={formState[datePickerField] ? new Date(formState[datePickerField]) : new Date()}
-                        mode={editingType === 'appointment' ? 'datetime' : 'date'}
+                        mode="date"
                         display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                         maximumDate={editingType === 'appointment' ? undefined : new Date()}
                         onChange={(event, selectedDate) => {
                             if (Platform.OS === 'android') setShowDatePicker(false);
                             if (event.type !== 'dismissed' && selectedDate) {
+                                if (editingType === 'appointment') {
+                                    // For appointments, keep the existing time intact if updating date
+                                    const current = formState[datePickerField] ? new Date(formState[datePickerField]) : new Date();
+                                    selectedDate.setHours(current.getHours(), current.getMinutes(), 0, 0);
+                                }
                                 setFormState(prev => ({ ...prev, [datePickerField]: selectedDate.toISOString() }));
+                            }
+                        }}
+                    />
+                </View>
+            )}
+            
+            {/* Native Time Picker overlay */}
+            {showTimePicker && (
+                <View style={Platform.OS === 'ios' ? { position: 'absolute', bottom: 0, width: '100%', backgroundColor: '#FFF', borderTopLeftRadius: 20, borderTopRightRadius: 20, shadowColor: '#000', shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.1, shadowRadius: 10, elevation: 10, zIndex: 9999, paddingBottom: 20 } : {}}>
+                    {Platform.OS === 'ios' && (
+                        <View style={{ flexDirection: 'row', justifyContent: 'flex-end', padding: 16, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' }}>
+                            <Pressable onPress={() => setShowTimePicker(false)}>
+                                <Text style={{ color: C.primary, fontWeight: 'bold', fontSize: 16 }}>Done</Text>
+                            </Pressable>
+                        </View>
+                    )}
+                    <DateTimePicker
+                        value={formState[datePickerField] ? new Date(formState[datePickerField]) : new Date()}
+                        mode="time"
+                        display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                        onChange={(event, selectedDate) => {
+                            if (Platform.OS === 'android') setShowTimePicker(false);
+                            if (event.type !== 'dismissed' && selectedDate) {
+                                const current = formState[datePickerField] ? new Date(formState[datePickerField]) : new Date();
+                                current.setHours(selectedDate.getHours(), selectedDate.getMinutes(), 0, 0);
+                                setFormState(prev => ({ ...prev, [datePickerField]: current.toISOString() }));
                             }
                         }}
                     />

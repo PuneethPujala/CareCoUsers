@@ -123,7 +123,7 @@ export default function AddAddressScreen({ navigation, route }) {
 
     return (
         <SafeAreaView style={styles.container}>
-            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
                 {/* Header */}
                 <View style={styles.header}>
                     <Pressable onPress={() => navigation.goBack()} style={styles.backBtn}>
@@ -132,7 +132,7 @@ export default function AddAddressScreen({ navigation, route }) {
                     <Text style={styles.headerTitle}>{isEditing ? 'Edit Address' : 'Add New Address'}</Text>
                 </View>
 
-                <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+                <ScrollView contentContainerStyle={[styles.content, { paddingBottom: 150 }]} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
 
                     {/* ── Step 1: Pincode ──────────────────── */}
                     <View style={styles.stepCard}>
