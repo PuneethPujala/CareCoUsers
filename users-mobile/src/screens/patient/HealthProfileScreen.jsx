@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, Platform, ActivityIndicator, Animat
 import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { TriangleAlert, ShieldCheck, HeartPulse, Activity, Stethoscope, Droplet, User, CalendarDays, Watch, Flame, Phone, Plus, Edit2, X, Trash2, CheckCircle2, RefreshCw } from 'lucide-react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { apiService } from '../../lib/api';
 import { initializeHealthPlatform, requestHealthPermissions, fetchDailyVitalsSummary, isHealthSupported } from '../../lib/healthIntegration';
 
@@ -120,6 +121,8 @@ export default function HealthProfileScreen({ navigation }) {
     const [editingType, setEditingType] = useState(null);
     const [formState, setFormState] = useState({});
     const [isSaving, setIsSaving] = useState(false);
+    const [showDatePicker, setShowDatePicker] = useState(false);
+    const [showTimePicker, setShowTimePicker] = useState(false);
     
     const backdropAnim = useRef(new Animated.Value(0)).current;
     const modalAnim = useRef(new Animated.Value(0)).current;
@@ -196,6 +199,8 @@ export default function HealthProfileScreen({ navigation }) {
             setModalVisible(false);
             setEditingType(null);
             setFormState({});
+            setShowDatePicker(false);
+            setShowTimePicker(false);
         });
     };
     
@@ -682,14 +687,76 @@ export default function HealthProfileScreen({ navigation }) {
                                 {editingType === 'vaccination' && (
                                     <>
                                         <View style={s.formGroup}><Text style={s.formLabel}>Vaccine Name *</Text><TextInput style={s.input} placeholderTextColor={C.muted} value={formState.name} onChangeText={(t) => setFormState({...formState, name: t})} placeholder="e.g. Influenza, COVID-19" /></View>
-                                        <View style={s.formGroup}><Text style={s.formLabel}>Date Given (YYYY-MM-DD)</Text><TextInput style={s.input} placeholderTextColor={C.muted} value={formState.date_given ? formState.date_given.toString().substring(0,10) : ''} onChangeText={(t) => setFormState({...formState, date_given: t})} placeholder="2024-01-01" /></View>
+                                        <View style={s.formGroup}>
+                                            <Text style={s.formLabel}>Date Given</Text>
+                                            <Pressable style={[s.input, {justifyContent: 'center'}]} onPress={() => setShowDatePicker(true)}>
+                                                <Text style={{color: formState.date_given ? C.dark : C.muted}}>
+                                                    {formState.date_given ? new Date(formState.date_given).toLocaleDateString() : 'Select Date'}
+                                                </Text>
+                                            </Pressable>
+                                            {showDatePicker && (
+                                                <DateTimePicker
+                                                    value={formState.date_given ? new Date(formState.date_given) : new Date()}
+                                                    mode="date"
+                                                    display="default"
+                                                    onChange={(event, selectedDate) => {
+                                                        if (Platform.OS === 'android') setShowDatePicker(false);
+                                                        if (selectedDate) setFormState({...formState, date_given: selectedDate.toISOString()});
+                                                    }}
+                                                />
+                                            )}
+                                        </View>
                                     </>
                                 )}
                                 {editingType === 'appointment' && (
                                     <>
                                         <View style={s.formGroup}><Text style={s.formLabel}>Reason / Title *</Text><TextInput style={s.input} placeholderTextColor={C.muted} value={formState.title} onChangeText={(t) => setFormState({...formState, title: t})} placeholder="General Checkup" /></View>
                                         <View style={s.formGroup}><Text style={s.formLabel}>Doctor / Specialist Name *</Text><TextInput style={s.input} placeholderTextColor={C.muted} value={formState.doctor_name} onChangeText={(t) => setFormState({...formState, doctor_name: t})} placeholder="Dr. Smith" /></View>
-                                        <View style={s.formGroup}><Text style={s.formLabel}>Date & Time (YYYY-MM-DD HH:MM)</Text><TextInput style={s.input} placeholderTextColor={C.muted} value={formState.date ? formState.date.toString().substring(0,16).replace('T', ' ') : ''} onChangeText={(t) => setFormState({...formState, date: t})} placeholder="2024-05-15 10:30" /></View>
+                                        <View style={s.formGroup}>
+                                            <Text style={s.formLabel}>Date & Time</Text>
+                                            <View style={{flexDirection: 'row', gap: 10}}>
+                                                <Pressable style={[s.input, {flex: 1, justifyContent: 'center'}]} onPress={() => setShowDatePicker(true)}>
+                                                    <Text style={{color: formState.date ? C.dark : C.muted}}>
+                                                        {formState.date ? new Date(formState.date).toLocaleDateString() : 'Select Date'}
+                                                    </Text>
+                                                </Pressable>
+                                                <Pressable style={[s.input, {flex: 1, justifyContent: 'center'}]} onPress={() => setShowTimePicker(true)}>
+                                                    <Text style={{color: formState.date ? C.dark : C.muted}}>
+                                                        {formState.date ? new Date(formState.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'Select Time'}
+                                                    </Text>
+                                                </Pressable>
+                                            </View>
+                                            {showDatePicker && (
+                                                <DateTimePicker
+                                                    value={formState.date ? new Date(formState.date) : new Date()}
+                                                    mode="date"
+                                                    display="default"
+                                                    onChange={(event, selectedDate) => {
+                                                        if (Platform.OS === 'android') setShowDatePicker(false);
+                                                        if (selectedDate) {
+                                                            const currentDate = formState.date ? new Date(formState.date) : new Date();
+                                                            currentDate.setFullYear(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
+                                                            setFormState({...formState, date: currentDate.toISOString()});
+                                                        }
+                                                    }}
+                                                />
+                                            )}
+                                            {showTimePicker && (
+                                                <DateTimePicker
+                                                    value={formState.date ? new Date(formState.date) : new Date()}
+                                                    mode="time"
+                                                    display="default"
+                                                    onChange={(event, selectedDate) => {
+                                                        if (Platform.OS === 'android') setShowTimePicker(false);
+                                                        if (selectedDate) {
+                                                            const currentDate = formState.date ? new Date(formState.date) : new Date();
+                                                            currentDate.setHours(selectedDate.getHours(), selectedDate.getMinutes(), 0, 0);
+                                                            setFormState({...formState, date: currentDate.toISOString()});
+                                                        }
+                                                    }}
+                                                />
+                                            )}
+                                        </View>
                                     </>
                                 )}
 
