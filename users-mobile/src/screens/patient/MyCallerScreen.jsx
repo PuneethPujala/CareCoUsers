@@ -745,33 +745,37 @@ export default function MyCallerScreen({ navigation }) {
       </Modal>
 
       {/* Country Code Picker Modal */}
-      <Modal visible={countryCodeModal} transparent animationType="slide">
-        <View style={s.countryModalWrap}>
-          <View style={s.countryModalHeader}>
-            <Text style={s.countryModalTitle}>Select Country Code</Text>
-            <Pressable onPress={() => setCountryCodeModal(false)} style={s.closeIconBtn}>
-              <X size={20} color={C.mid} />
+      <Modal visible={countryCodeModal} transparent animationType="slide" onRequestClose={() => setCountryCodeModal(false)}>
+        <Pressable style={s.backdrop} onPress={() => setCountryCodeModal(false)}>
+          <View style={s.modalWrapper}>
+            <Pressable style={s.contactFormSheet} onPress={(e) => e.stopPropagation()}>
+              <View style={[s.modalHeaderRow, { padding: 24, paddingBottom: 12 }]}>
+                <Text style={s.sectionTitle}>Select Country Code</Text>
+                <Pressable onPress={() => setCountryCodeModal(false)} style={s.modalCloseBtn}>
+                  <X size={20} color={C.mid} />
+                </Pressable>
+              </View>
+              <FlatList
+                data={COUNTRY_CODES}
+                keyExtractor={item => item.code}
+                contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
+                renderItem={({ item }) => (
+                  <Pressable 
+                    style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' }} 
+                    onPress={() => {
+                      setContactForm({ ...contactForm, phoneCode: item.code });
+                      setCountryCodeModal(false);
+                    }}
+                  >
+                    <Text style={{ fontSize: 24, marginRight: 12 }}>{item.flag}</Text>
+                    <Text style={{ flex: 1, fontSize: 16, fontWeight: '600', color: '#0F172A' }}>{item.name}</Text>
+                    <Text style={{ fontSize: 16, fontWeight: '700', color: '#64748B' }}>{item.code}</Text>
+                  </Pressable>
+                )}
+              />
             </Pressable>
           </View>
-          <FlatList
-            data={COUNTRY_CODES}
-            keyExtractor={item => item.code}
-            contentContainerStyle={{ padding: 16 }}
-            renderItem={({ item }) => (
-              <Pressable 
-                style={s.countryOption} 
-                onPress={() => {
-                  setContactForm({ ...contactForm, phoneCode: item.code });
-                  setCountryCodeModal(false);
-                }}
-              >
-                <Text style={s.countryFlag}>{item.flag}</Text>
-                <Text style={s.countryName}>{item.name}</Text>
-                <Text style={s.countryCodeText}>{item.code}</Text>
-              </Pressable>
-            )}
-          />
-        </View>
+        </Pressable>
       </Modal>
     </LinearGradient>
   );

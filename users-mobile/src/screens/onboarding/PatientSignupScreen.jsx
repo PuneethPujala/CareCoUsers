@@ -188,59 +188,67 @@ const IconInput = React.memo(React.forwardRef(({ icon: Icon, label, rightIcon, e
 }));
 
 const OTPModal = React.memo(({ visible, onClose, otp, setOtp, onVerify, timer, resend, attempts, field, error, otpLoading }) => (
-    <Modal visible={visible} animationType="fade" transparent>
-        <View style={styles.modalOverlay}>
-            <View style={styles.modalSheet}>
-                <View style={styles.modalHeader}>
-                    <Text style={styles.modalTitle}>Verify {field === 'email' ? 'Email' : 'Phone'}</Text>
-                    <Pressable onPress={onClose} hitSlop={12} disabled={otpLoading}><X size={22} color="#64748B" /></Pressable>
-                </View>
-                <Text style={styles.otpSubtext}>Enter the 6-digit code sent to your {field}.</Text>
-                <View style={[styles.fieldGroup, { marginTop: 20 }]}>
-                    <View style={[styles.inputWrapEnhanced, error && styles.inputErrorEnhanced]}>
-                        <Lock size={18} color="#8899BB" />
-                        <TextInput
-                            style={[styles.textInputEnhanced, { letterSpacing: 8, fontSize: 24, textAlign: 'center' }]}
-                            placeholder="000000"
-                            placeholderTextColor="#CBD5E1"
-                            maxLength={6}
-                            keyboardType="number-pad"
-                            value={otp}
-                            onChangeText={setOtp}
-                            editable={!otpLoading}
-                        />
+    <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
+        <Pressable style={styles.modalOverlay} onPress={onClose}>
+            <KeyboardAvoidingView style={{ flex: 1, width: '100%', justifyContent: 'flex-end' }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+                <Pressable onPress={(e) => e.stopPropagation()} style={styles.modalSheet}>
+                    <View style={styles.modalHeader}>
+                        <Text style={styles.modalTitle}>Verify {field === 'email' ? 'Email' : 'Phone'}</Text>
+                        <Pressable onPress={onClose} hitSlop={12} disabled={otpLoading}><X size={22} color="#64748B" /></Pressable>
                     </View>
-                    {error ? (
-                        <View style={styles.errorTextRow}>
-                            <AlertCircle size={12} color="#EF4444" />
-                            <Text style={styles.fieldErrorEnhanced}>{error}</Text>
+                    <Text style={styles.otpSubtext}>Enter the 6-digit code sent to your {field}.</Text>
+                    <View style={[styles.fieldGroup, { marginTop: 20 }]}>
+                        <View style={[styles.inputWrapEnhanced, error && styles.inputErrorEnhanced]}>
+                            <Lock size={18} color="#8899BB" />
+                            <TextInput
+                                style={[styles.textInputEnhanced, { letterSpacing: 8, fontSize: 24, textAlign: 'center' }]}
+                                placeholder="000000"
+                                placeholderTextColor="#CBD5E1"
+                                maxLength={6}
+                                keyboardType="number-pad"
+                                value={otp}
+                                onChangeText={setOtp}
+                                editable={!otpLoading}
+                            />
                         </View>
-                    ) : null}
-                </View>
-                <View style={styles.resendRow}>
-                    {timer > 0 ? (
-                        <Text style={styles.timerText}>Resend in {timer}s</Text>
-                    ) : (
-                        <Pressable onPress={resend} disabled={otpLoading}>
-                            <Text style={[styles.resendAction, otpLoading && { opacity: 0.5 }]}>Resend Code</Text>
-                        </Pressable>
-                    )}
-                </View>
-                <Pressable style={[styles.primaryBtnEnhanced, otpLoading && { opacity: 0.7 }]} onPress={onVerify} disabled={otpLoading}>
-                    {otpLoading ? (
-                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                            <ActivityIndicator size="small" color="#FFFFFF" />
-                            <Text style={styles.primaryBtnText}>  Verifying...</Text>
-                        </View>
-                    ) : (
-                        <Text style={styles.primaryBtnText}>Verify OTP</Text>
+                        {error ? (
+                            <View style={styles.errorTextRow}>
+                                <AlertCircle size={12} color="#EF4444" />
+                                <Text style={styles.fieldErrorEnhanced}>{error}</Text>
+                            </View>
+                        ) : null}
+                    </View>
+                    <View style={styles.resendRow}>
+                        {timer > 0 ? (
+                            <Text style={styles.timerText}>Resend in {timer}s</Text>
+                        ) : (
+                            <Pressable onPress={resend} disabled={otpLoading}>
+                                <Text style={[styles.resendAction, otpLoading && { opacity: 0.5 }]}>Resend Code</Text>
+                            </Pressable>
+                        )}
+                    </View>
+                    <Pressable style={[styles.primaryBtnEnhanced, otpLoading && { opacity: 0.7 }]} onPress={onVerify} disabled={otpLoading}>
+                        <LinearGradient
+                            colors={['#6366F1', '#4F46E5']}
+                            start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                            style={styles.primaryBtnGradientEnhanced}
+                        >
+                            {otpLoading ? (
+                                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                    <ActivityIndicator size="small" color="#FFFFFF" />
+                                    <Text style={styles.primaryBtnText}>  Verifying...</Text>
+                                </View>
+                            ) : (
+                                <Text style={styles.primaryBtnText}>Verify OTP</Text>
+                            )}
+                        </LinearGradient>
+                    </Pressable>
+                    {attempts > 0 && (
+                        <Text style={styles.attemptsText}>{3 - attempts} attempts remaining</Text>
                     )}
                 </Pressable>
-                {attempts > 0 && (
-                    <Text style={styles.attemptsText}>{3 - attempts} attempts remaining</Text>
-                )}
-            </View>
-        </View>
+            </KeyboardAvoidingView>
+        </Pressable>
     </Modal>
 ));
 
@@ -984,7 +992,7 @@ export default function PatientSignupScreen({ navigation, route }) {
                         autoCorrect={false} spellCheck={false} textContentType="emailAddress"
                         error={errors.email} />
                 </View>
-                <Pressable style={[styles.verifyBtnSmall, isEmailVerified && styles.verifiedBtn, errors.email && { marginTop: -12 }]}
+                <Pressable style={[styles.verifyBtnSmall, isEmailVerified && styles.verifiedBtn]}
                     onPress={handleVerifyEmail} disabled={isEmailVerified}>
                     {isEmailVerified ? <Check size={14} color="#FFFFFF" /> : <Text style={styles.verifyBtnText}>Verify</Text>}
                 </Pressable>
@@ -1000,7 +1008,7 @@ export default function PatientSignupScreen({ navigation, route }) {
                         error={errors.phoneNumber}
                         textPrefix="+91 " />
                 </View>
-                <Pressable style={[styles.verifyBtnSmall, isPhoneVerified && styles.verifiedBtn, errors.phoneNumber && { marginTop: -12 }]}
+                <Pressable style={[styles.verifyBtnSmall, isPhoneVerified && styles.verifiedBtn]}
                     onPress={handleVerifyPhone} disabled={isPhoneVerified}>
                     {isPhoneVerified ? <Check size={14} color="#FFFFFF" /> : <Text style={styles.verifyBtnText}>Verify</Text>}
                 </Pressable>
@@ -1535,8 +1543,8 @@ const styles = StyleSheet.create({
         shadowColor: '#6366F1', shadowOpacity: 0.1, shadowRadius: 10,
     },
     inputErrorEnhanced: { borderColor: '#EF4444', backgroundColor: '#FEF2F2' },
-    textInputEnhanced: { flex: 1, fontSize: 16, color: '#0F172A', ...FONT.semibold, paddingVertical: 0 },
-    textPrefixStyle: { fontSize: 16, color: '#0F172A', ...FONT.bold, marginRight: 8 },
+    textInputEnhanced: { flex: 1, paddingVertical: Platform.OS === 'ios' ? 14 : undefined, height: '100%', fontSize: 16, color: '#0F172A', ...FONT.semibold, includeFontPadding: false },
+    textPrefixStyle: { fontSize: 16, color: '#0F172A', ...FONT.bold, marginRight: 8, paddingVertical: Platform.OS === 'ios' ? 14 : undefined },
     rightIconWrap: { marginLeft: 10 },
     errorTextRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6, marginLeft: 4 },
     fieldErrorEnhanced: { color: '#EF4444', fontSize: 12, ...FONT.medium },

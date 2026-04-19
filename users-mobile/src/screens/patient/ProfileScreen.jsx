@@ -1099,13 +1099,13 @@ export default function PatientProfileScreen({ navigation }) {
 
             {/* ── Country Code Picker ── */}
             <Modal visible={countryCodeModalVisible} animationType="slide" transparent onRequestClose={() => setCountryCodeModalVisible(false)}>
-                <View style={s.modalOverlay}>
-                    <View style={[s.modalContent, { maxHeight: '70%' }]}>
-                        <View style={s.modalHeader}>
+                <Pressable style={s.modalOverlay} onPress={() => setCountryCodeModalVisible(false)}>
+                    <Pressable style={[s.modalContent, { maxHeight: '70%', paddingBottom: 0 }]} onPress={(e) => e.stopPropagation()}>
+                        <View style={[s.modalHeader, { paddingBottom: 12, marginBottom: 0 }]}>
                             <Text style={s.modalTitle}>Select Country</Text>
                             <Pressable onPress={() => setCountryCodeModalVisible(false)} hitSlop={10}><X size={24} color="#64748B" /></Pressable>
                         </View>
-                        <ScrollView showsVerticalScrollIndicator={false}>
+                        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40, paddingTop: 12 }}>
                             {COUNTRY_CODES.map(cc => {
                                 const isSelected = (activePhoneField === 'personal' ? editPhoneCode : ecPhoneCode) === cc.code;
                                 return (
@@ -1122,8 +1122,8 @@ export default function PatientProfileScreen({ navigation }) {
                                 );
                             })}
                         </ScrollView>
-                    </View>
-                </View>
+                    </Pressable>
+                </Pressable>
             </Modal>
         </View>
     );
