@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
     View, Text, StyleSheet, TextInput, Pressable, Platform,
     KeyboardAvoidingView, Animated, ActivityIndicator, Alert, Modal,
-    BackHandler, Dimensions, Image,
+    BackHandler, Dimensions, Image, ScrollView
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Mail, Lock, Eye, EyeOff, HeartPulse, AlertCircle, Smartphone, ChevronRight, X } from 'lucide-react-native';
@@ -445,154 +445,160 @@ export default function LoginScreen({ navigation }) {
             style={styles.container}
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
-            {/* Hero Section — deep, immersive */}
-            <Animated.View style={{ transform: [{ translateY: heroAnim }], opacity: heroOpacity }}>
-                <LinearGradient
-                    colors={['#4F46E5', '#6366F1', '#818CF8']}
-                    start={{ x: 0, y: 0 }} end={{ x: 0.8, y: 1 }}
-                    style={styles.hero}
-                >
-                    <View style={styles.orb1} />
-                    <View style={styles.orb2} />
-                    <View style={styles.orb3} />
-                    <View style={styles.orb4} />
-                    <View style={styles.orb5} />
-
-                    <View style={[styles.heroIconWrap, { backgroundColor: '#FFFFFF' }]}>
-                        <Image 
-                            source={require('../../../assets/logo.png')} 
-                            style={{ width: 44, height: 44 }} 
-                            resizeMode="contain" 
-                        />
-                    </View>
-                    <Text style={styles.heroLabel}>SAMVAYA</Text>
-                    <Text style={styles.heroTitle}>Welcome Back</Text>
-                    <Text style={styles.heroSubtitle}>Your premium health journey continues here</Text>
-                </LinearGradient>
-            </Animated.View>
-
-            {/* Form Card — no ScrollView, fits on screen */}
-            <Animated.View style={[styles.formCard, { transform: [{ translateY: cardAnim }], opacity: cardOpacity }]}>
-
-                {/* Social Logins */}
-                <View style={styles.socialRowPremium}>
-                    <Pressable style={styles.socialBtnPremium} onPress={handleGooglePress} disabled={loading}>
-                        <Text style={styles.googleG}>G</Text>
-                        <Text style={styles.socialBtnTextPremium}>Google</Text>
-                    </Pressable>
-                    <Pressable style={styles.socialBtnPremium} onPress={() => { }} disabled={loading}>
-                        <Smartphone size={20} color={C.mid} />
-                        <Text style={styles.socialBtnTextPremium}>Mobile</Text>
-                    </Pressable>
-                </View>
-
-                {/* Divider */}
-                <View style={styles.dividerRowPremium}>
-                    <View style={styles.dividerLine} />
-                    <Text style={styles.dividerText}>OR LOGIN WITH EMAIL</Text>
-                    <View style={styles.dividerLine} />
-                </View>
-
-                {/* Error */}
-                {errorText ? (
-                    <View style={styles.errorBox}>
-                        <AlertCircle size={16} color={C.danger} />
-                        <Text style={styles.errorMsg}>{errorText}</Text>
-                    </View>
-                ) : null}
-
-                {/* Email Field */}
-                <View style={styles.fieldGroup}>
-                    <Text style={styles.label}>Email Address</Text>
-                    <Pressable
-                        style={[styles.inputWrap, emailFocused && styles.inputFocused]}
-                        onPress={() => emailRef.current?.focus()}
-                    >
-                        <View style={[styles.inlineIconBox, emailFocused && { backgroundColor: C.primarySoft }]}>
-                            <Mail size={18} color={emailFocused ? C.primary : C.muted} />
-                        </View>
-                        <TextInput
-                            ref={emailRef}
-                            style={styles.textInput}
-                            placeholder="name@example.com"
-                            placeholderTextColor={C.muted}
-                            value={email}
-                            onChangeText={handleEmailChange}
-                            autoCapitalize="none"
-                            keyboardType="email-address"
-                            autoCorrect={false}
-                            spellCheck={false}
-                            textContentType="emailAddress"
-                            onFocus={() => setEmailFocused(true)}
-                            onBlur={() => setEmailFocused(false)}
-                            blurOnSubmit={false}
-                        />
-                    </Pressable>
-                </View>
-
-                {/* Password Field */}
-                <View style={styles.fieldGroup}>
-                    <Text style={styles.label}>Password</Text>
-                    <Pressable
-                        style={[styles.inputWrap, passFocused && styles.inputFocused]}
-                        onPress={() => passwordRef.current?.focus()}
-                    >
-                        <View style={[styles.inlineIconBox, passFocused && { backgroundColor: C.primarySoft }]}>
-                            <Lock size={18} color={passFocused ? C.primary : C.muted} />
-                        </View>
-                        <TextInput
-                            ref={passwordRef}
-                            style={styles.textInput}
-                            placeholder="Enter password"
-                            placeholderTextColor={C.muted}
-                            value={password}
-                            onChangeText={handlePasswordChange}
-                            secureTextEntry={!showPassword}
-                            textContentType="password"
-                            onFocus={() => setPassFocused(true)}
-                            onBlur={() => setPassFocused(false)}
-                        />
-                        <Pressable onPress={() => setShowPassword(!showPassword)} hitSlop={12}>
-                            {showPassword ? <Eye size={18} color={C.primary} /> : <EyeOff size={18} color={C.muted} />}
-                        </Pressable>
-                    </Pressable>
-                </View>
-
-                {/* Forgot Password */}
-                <Pressable style={styles.forgotRow} onPress={() => setResetModalVisible(true)}>
-                    <Text style={styles.forgotText}>Forgot Password?</Text>
-                </Pressable>
-
-                {/* Login Button */}
-                <Pressable style={[styles.primaryBtn, loading && { opacity: 0.7 }]} onPress={handleLogin} disabled={loading}>
+            <ScrollView
+                contentContainerStyle={{ flexGrow: 1, paddingBottom: 40 }}
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+            >
+                {/* Hero Section — deep, immersive */}
+                <Animated.View style={{ transform: [{ translateY: heroAnim }], opacity: heroOpacity }}>
                     <LinearGradient
-                        colors={['#6366F1', '#4F46E5']}
-                        start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-                        style={styles.primaryBtnGradient}
+                        colors={['#4F46E5', '#6366F1', '#818CF8']}
+                        start={{ x: 0, y: 0 }} end={{ x: 0.8, y: 1 }}
+                        style={styles.hero}
                     >
-                        {loading ? (
-                            <View style={styles.loadingRow}>
-                                <ActivityIndicator size="small" color="#FFFFFF" />
-                                <Text style={styles.primaryBtnText}>  Verifying...</Text>
-                            </View>
-                        ) : (
-                            <>
-                                <Text style={styles.primaryBtnText}>Sign In to Dashboard</Text>
-                                <ChevronRight size={20} color="#FFFFFF" />
-                            </>
-                        )}
+                        <View style={styles.orb1} />
+                        <View style={styles.orb2} />
+                        <View style={styles.orb3} />
+                        <View style={styles.orb4} />
+                        <View style={styles.orb5} />
+
+                        <View style={[styles.heroIconWrap, { backgroundColor: '#FFFFFF' }]}>
+                            <Image 
+                                source={require('../../../assets/logo.png')} 
+                                style={{ width: 44, height: 44 }} 
+                                resizeMode="contain" 
+                            />
+                        </View>
+                        <Text style={styles.heroLabel}>SAMVAYA</Text>
+                        <Text style={styles.heroTitle}>Welcome Back</Text>
+                        <Text style={styles.heroSubtitle}>Your premium health journey continues here</Text>
                     </LinearGradient>
-                </Pressable>
+                </Animated.View>
 
-                {/* Sign Up Link */}
-                <View style={styles.bottomLink}>
-                    <Text style={styles.bottomLinkText}>Don't have an account?  </Text>
-                    <Pressable onPress={() => navigation.navigate('PatientSignup')}>
-                        <Text style={styles.bottomLinkAction}>Sign Up</Text>
+                {/* Form Card */}
+                <Animated.View style={[styles.formCard, { transform: [{ translateY: cardAnim }], opacity: cardOpacity }]}>
+
+                    {/* Social Logins */}
+                    <View style={styles.socialRowPremium}>
+                        <Pressable style={styles.socialBtnPremium} onPress={handleGooglePress} disabled={loading}>
+                            <Text style={styles.googleG}>G</Text>
+                            <Text style={styles.socialBtnTextPremium}>Google</Text>
+                        </Pressable>
+                        <Pressable style={styles.socialBtnPremium} onPress={() => { }} disabled={loading}>
+                            <Smartphone size={20} color={C.mid} />
+                            <Text style={styles.socialBtnTextPremium}>Mobile</Text>
+                        </Pressable>
+                    </View>
+
+                    {/* Divider */}
+                    <View style={styles.dividerRowPremium}>
+                        <View style={styles.dividerLine} />
+                        <Text style={styles.dividerText}>OR LOGIN WITH EMAIL</Text>
+                        <View style={styles.dividerLine} />
+                    </View>
+
+                    {/* Error */}
+                    {errorText ? (
+                        <View style={styles.errorBox}>
+                            <AlertCircle size={16} color={C.danger} />
+                            <Text style={styles.errorMsg}>{errorText}</Text>
+                        </View>
+                    ) : null}
+
+                    {/* Email Field */}
+                    <View style={styles.fieldGroup}>
+                        <Text style={styles.label}>Email Address</Text>
+                        <Pressable
+                            style={[styles.inputWrap, emailFocused && styles.inputFocused]}
+                            onPress={() => emailRef.current?.focus()}
+                        >
+                            <View style={[styles.inlineIconBox, emailFocused && { backgroundColor: C.primarySoft }]}>
+                                <Mail size={18} color={emailFocused ? C.primary : C.muted} />
+                            </View>
+                            <TextInput
+                                ref={emailRef}
+                                style={styles.textInput}
+                                placeholder="name@example.com"
+                                placeholderTextColor={C.muted}
+                                value={email}
+                                onChangeText={handleEmailChange}
+                                autoCapitalize="none"
+                                keyboardType="email-address"
+                                autoCorrect={false}
+                                spellCheck={false}
+                                textContentType="emailAddress"
+                                onFocus={() => setEmailFocused(true)}
+                                onBlur={() => setEmailFocused(false)}
+                                blurOnSubmit={false}
+                            />
+                        </Pressable>
+                    </View>
+
+                    {/* Password Field */}
+                    <View style={styles.fieldGroup}>
+                        <Text style={styles.label}>Password</Text>
+                        <Pressable
+                            style={[styles.inputWrap, passFocused && styles.inputFocused]}
+                            onPress={() => passwordRef.current?.focus()}
+                        >
+                            <View style={[styles.inlineIconBox, passFocused && { backgroundColor: C.primarySoft }]}>
+                                <Lock size={18} color={passFocused ? C.primary : C.muted} />
+                            </View>
+                            <TextInput
+                                ref={passwordRef}
+                                style={styles.textInput}
+                                placeholder="Enter password"
+                                placeholderTextColor={C.muted}
+                                value={password}
+                                onChangeText={handlePasswordChange}
+                                secureTextEntry={!showPassword}
+                                textContentType="password"
+                                onFocus={() => setPassFocused(true)}
+                                onBlur={() => setPassFocused(false)}
+                            />
+                            <Pressable onPress={() => setShowPassword(!showPassword)} hitSlop={12}>
+                                {showPassword ? <Eye size={18} color={C.primary} /> : <EyeOff size={18} color={C.muted} />}
+                            </Pressable>
+                        </Pressable>
+                    </View>
+
+                    {/* Forgot Password */}
+                    <Pressable style={styles.forgotRow} onPress={() => setResetModalVisible(true)}>
+                        <Text style={styles.forgotText}>Forgot Password?</Text>
                     </Pressable>
-                </View>
 
-            </Animated.View>
+                    {/* Login Button */}
+                    <Pressable style={[styles.primaryBtn, loading && { opacity: 0.7 }]} onPress={handleLogin} disabled={loading}>
+                        <LinearGradient
+                            colors={['#6366F1', '#4F46E5']}
+                            start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                            style={styles.primaryBtnGradient}
+                        >
+                            {loading ? (
+                                <View style={styles.loadingRow}>
+                                    <ActivityIndicator size="small" color="#FFFFFF" />
+                                    <Text style={styles.primaryBtnText}>  Verifying...</Text>
+                                </View>
+                            ) : (
+                                <>
+                                    <Text style={styles.primaryBtnText}>Sign In to Dashboard</Text>
+                                    <ChevronRight size={20} color="#FFFFFF" />
+                                </>
+                            )}
+                        </LinearGradient>
+                    </Pressable>
+
+                    {/* Sign Up Link */}
+                    <View style={styles.bottomLink}>
+                        <Text style={styles.bottomLinkText}>Don't have an account?  </Text>
+                        <Pressable onPress={() => navigation.navigate('PatientSignup')}>
+                            <Text style={styles.bottomLinkAction}>Sign Up</Text>
+                        </Pressable>
+                    </View>
+
+                </Animated.View>
+            </ScrollView>
 
             {/* Reset Password Modal */}
             <ResetPasswordModal

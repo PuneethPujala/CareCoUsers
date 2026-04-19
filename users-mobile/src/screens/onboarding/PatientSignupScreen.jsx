@@ -637,13 +637,11 @@ export default function PatientSignupScreen({ navigation, route }) {
 
     // B4 FIX: validateStep1 no longer returns a curried function.
     // Called directly in handleStep1Continue with the values it needs.
-    const validateStep1 = useCallback((currentForm, currentIsEmailVerified, currentIsPhoneVerified) => {
+    const validateStep1 = useCallback((currentForm) => {
         const e = {};
         if (!currentForm.fullName.trim()) e.fullName = 'Full name is required';
         if (!currentForm.email.trim() || !/\S+@\S+\.\S+/.test(currentForm.email)) e.email = 'Please enter a valid email address';
         if (!currentForm.phoneNumber.trim() || currentForm.phoneNumber.length < 10) e.phoneNumber = 'Enter a valid phone number';
-        if (!currentIsEmailVerified) e.email = 'Please verify your email';
-        if (!currentIsPhoneVerified) e.phoneNumber = 'Please verify your phone number';
         if (currentForm.password.length < 8) e.password = 'Password must be at least 8 characters';
         if (currentForm.password !== currentForm.confirmPassword) e.confirmPassword = 'Passwords do not match';
         setErrors(e);
@@ -699,6 +697,11 @@ export default function PatientSignupScreen({ navigation, route }) {
             setOtpVisible(false);
             setOtp('');
             analytics.track('otp_verification_success', { field: verificationField });
+            
+            // Execute actual signup upon successful phone verification
+            if (verificationField === 'phone') {
+                executeSignup();
+            }
         } catch (error) {
             const newAttempts = otpAttempts + 1;
             setOtpAttempts(newAttempts);
@@ -717,7 +720,7 @@ export default function PatientSignupScreen({ navigation, route }) {
         } finally {
             setOtpLoading(false);
         }
-    }, [otp, verificationField, form.email, form.phoneNumber, verifyOtp, otpAttempts]);
+    }, [otp, verificationField, form.email, form.phoneNumber, verifyOtp, otpAttempts, executeSignup]);
 
     const handleResendOtp = useCallback(async () => {
         if (resendTimer > 0) return;
@@ -774,9 +777,20 @@ export default function PatientSignupScreen({ navigation, route }) {
 
     // ── Step handlers ──────────────────────────────────────────────────────────
 
-    const handleStep1Continue = useCallback(async () => {
-        // B4 FIX: Call validateStep1 directly (no longer curried)
-        if (!validateStep1(form, isEmailVerified, isPhoneVerified)) return;
+    const handleStep1Submit = useCallback(() => {
+        if (!validateStep1(form)) return;
+        if (isSubmittingRef.current) return;
+        
+        // Auto-trigger phone verification instead of requiring explicit press
+        if (!isPhoneVerified) {
+             handleVerifyPress('phone');
+             return;
+        }
+        
+        executeSignup();
+    }, [form, validateStep1, isPhoneVerified, handleVerifyPress]);
+
+    const executeSignup = useCallback(async () => {
         if (isSubmittingRef.current) return;
         isSubmittingRef.current = true;
 
@@ -801,6 +815,7 @@ export default function PatientSignupScreen({ navigation, route }) {
                 setTimeout(() => reject(new Error('SIGNUP_TIMEOUT')), 25000)
             );
             await Promise.race([
+                // We implicitly set emailVerified to false, but phone is fully verified here
                 signUp(cleanEmail, form.password, form.fullName.trim(), 'patient', { phoneNumber: form.phoneNumber }),
                 signUpTimeout,
             ]);
@@ -824,7 +839,7 @@ export default function PatientSignupScreen({ navigation, route }) {
             setSignupLoading(false);
             isSubmittingRef.current = false;
         }
-    }, [form, isEmailVerified, isPhoneVerified, user, signUp, saveProgress, validateStep1, clearProgress]);
+    }, [form, user, signUp, saveProgress, clearProgress]);
 
     // B1 + B3 FIX: The original handleStep2Continue called refreshPatient() which
     // triggered the recovery effect and caused the step 2→4 jump. 
@@ -982,37 +997,21 @@ export default function PatientSignupScreen({ navigation, route }) {
                 value={form.fullName} onChangeText={v => updateField('fullName', v)}
                 error={errors.fullName} />
 
-            <View style={styles.verifyFieldRow}>
-                <View style={{ flex: 1 }}>
-                    <IconInput ref={emailRef} icon={Mail}
-                        label={emailLabel}
-                        placeholder="Enter your email"
-                        value={form.email} onChangeText={v => updateField('email', v)}
-                        autoCapitalize="none" keyboardType="email-address"
-                        autoCorrect={false} spellCheck={false} textContentType="emailAddress"
-                        error={errors.email} />
-                </View>
-                <Pressable style={[styles.verifyBtnSmall, isEmailVerified && styles.verifiedBtn]}
-                    onPress={handleVerifyEmail} disabled={isEmailVerified}>
-                    {isEmailVerified ? <Check size={14} color="#FFFFFF" /> : <Text style={styles.verifyBtnText}>Verify</Text>}
-                </Pressable>
-            </View>
+                <IconInput ref={emailRef} icon={Mail}
+                    label="Email Address"
+                    placeholder="Enter your email"
+                    value={form.email} onChangeText={v => updateField('email', v)}
+                    autoCapitalize="none" keyboardType="email-address"
+                    autoCorrect={false} spellCheck={false} textContentType="emailAddress"
+                    error={errors.email} />
 
-            <View style={styles.verifyFieldRow}>
-                <View style={{ flex: 1 }}>
-                    <IconInput ref={phoneRef} icon={Smartphone}
-                        label={phoneLabel}
-                        placeholder="10-digit number"
-                        value={form.phoneNumber} onChangeText={v => updateField('phoneNumber', v)}
-                        keyboardType="phone-pad" maxLength={10}
-                        error={errors.phoneNumber}
-                        textPrefix="+91 " />
-                </View>
-                <Pressable style={[styles.verifyBtnSmall, isPhoneVerified && styles.verifiedBtn]}
-                    onPress={handleVerifyPhone} disabled={isPhoneVerified}>
-                    {isPhoneVerified ? <Check size={14} color="#FFFFFF" /> : <Text style={styles.verifyBtnText}>Verify</Text>}
-                </Pressable>
-            </View>
+                <IconInput ref={phoneRef} icon={Smartphone}
+                    label={phoneLabel}
+                    placeholder="10-digit number"
+                    value={form.phoneNumber} onChangeText={v => updateField('phoneNumber', v)}
+                    keyboardType="phone-pad" maxLength={10}
+                    error={errors.phoneNumber}
+                    textPrefix="+91 " />
 
             <View style={{ marginTop: 20 }}>
                 <IconInput ref={passwordRef} icon={Lock} label="Password" placeholder="Create a password"
@@ -1033,7 +1032,7 @@ export default function PatientSignupScreen({ navigation, route }) {
                     } />
 
                 <View style={{ marginTop: 10 }}>
-                    <Pressable style={[styles.primaryBtnEnhanced, signupLoading && { opacity: 0.7 }]} onPress={handleStep1Continue} disabled={signupLoading}>
+                    <Pressable style={[styles.primaryBtnEnhanced, signupLoading && { opacity: 0.7 }]} onPress={handleStep1Submit} disabled={signupLoading}>
                         <LinearGradient
                             colors={['#6366F1', '#4F46E5']}
                             start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
