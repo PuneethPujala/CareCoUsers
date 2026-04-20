@@ -748,9 +748,9 @@ export default function PatientProfileScreen({ navigation }) {
 
             {/* ── Phone Edit ── */}
             <Modal visible={phoneModalVisible} animationType="slide" transparent onRequestClose={() => setPhoneModalVisible(false)}>
-                <View style={s.modalOverlay}>
-                    <View style={[s.modalContent, { padding: 0 }]}>
-                        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+                <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+                    <View style={s.modalOverlay}>
+                        <View style={[s.modalContent, { padding: 0 }]}>
                             <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 24, paddingBottom: Platform.OS === 'ios' ? 40 : 24 }}>
                                 <View style={s.modalHeader}>
                                     <Text style={s.modalTitle}>Phone Number</Text>
@@ -770,16 +770,16 @@ export default function PatientProfileScreen({ navigation }) {
                                     <Text style={s.saveBtnTxt}>{saving ? 'Saving...' : 'Save Phone'}</Text>
                                 </Pressable>
                             </ScrollView>
-                        </KeyboardAvoidingView>
+                        </View>
                     </View>
-                </View>
+                </KeyboardAvoidingView>
             </Modal>
 
             {/* ── Emergency Contact ── */}
             <Modal visible={ecModalVisible} animationType="slide" transparent onRequestClose={() => setEcModalVisible(false)}>
-                <View style={s.modalOverlay}>
-                    <View style={[s.modalContent, { padding: 0 }]}>
-                        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+                <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+                    <View style={s.modalOverlay}>
+                        <View style={[s.modalContent, { padding: 0 }]}>
                             <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 24, paddingBottom: Platform.OS === 'ios' ? 40 : 24 }}>
                                 <View style={s.modalHeader}>
                                     <Text style={s.modalTitle}>Emergency Contact</Text>
@@ -864,9 +864,9 @@ export default function PatientProfileScreen({ navigation }) {
 
             {/* ── Change Password ── */}
             <Modal visible={cpModalVisible} animationType="slide" transparent onRequestClose={() => setCpModalVisible(false)}>
-                <View style={s.modalOverlay}>
-                    <View style={[s.modalContent, { padding: 0 }]}>
-                        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+                <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+                    <View style={s.modalOverlay}>
+                        <View style={[s.modalContent, { padding: 0 }]}>
                             <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 24, paddingBottom: Platform.OS === 'ios' ? 40 : 24 }}>
                                 <View style={s.modalHeader}>
                                     <Text style={s.modalTitle}>Change Password</Text>
@@ -883,16 +883,16 @@ export default function PatientProfileScreen({ navigation }) {
                                     <Text style={s.saveBtnTxt}>{savingCp ? 'Changing...' : 'Change Password'}</Text>
                                 </Pressable>
                             </ScrollView>
-                        </KeyboardAvoidingView>
+                        </View>
                     </View>
-                </View>
+                </KeyboardAvoidingView>
             </Modal>
 
             {/* ── Set Password (Google Users) ── */}
             <Modal visible={setPassModalVisible} animationType="slide" transparent onRequestClose={() => setSetPassModalVisible(false)}>
-                <View style={s.modalOverlay}>
-                    <View style={[s.modalContent, { padding: 0 }]}>
-                        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+                <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+                    <View style={s.modalOverlay}>
+                        <View style={[s.modalContent, { padding: 0 }]}>
                             <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 24, paddingBottom: Platform.OS === 'ios' ? 40 : 24 }}>
                                 <View style={s.modalHeader}>
                                     <Text style={s.modalTitle}>Set Password</Text>
@@ -908,9 +908,9 @@ export default function PatientProfileScreen({ navigation }) {
                                     <Text style={s.saveBtnTxt}>{savingSetPass ? 'Setting...' : 'Set Password'}</Text>
                                 </Pressable>
                             </ScrollView>
-                        </KeyboardAvoidingView>
+                        </View>
                     </View>
-                </View>
+                </KeyboardAvoidingView>
             </Modal>
 
 
@@ -1031,9 +1031,9 @@ export default function PatientProfileScreen({ navigation }) {
 
             {/* ── Add Address ── */}
             <Modal visible={addAddressModalVisible} animationType="slide" transparent onRequestClose={() => setAddAddressModalVisible(false)}>
-                <View style={s.modalOverlay}>
-                    <View style={[s.modalContent, { padding: 0 }]}>
-                        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+                <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+                    <View style={s.modalOverlay}>
+                        <View style={[s.modalContent, { padding: 0 }]}>
                             <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 24, paddingBottom: Platform.OS === 'ios' ? 40 : 24 }}>
                                 <View style={s.modalHeader}>
                                     <Text style={s.modalTitle}>Add Address</Text>
@@ -1066,9 +1066,9 @@ export default function PatientProfileScreen({ navigation }) {
                                     <Text style={s.saveBtnTxt}>{saving ? 'Saving...' : 'Save Address'}</Text>
                                 </Pressable>
                             </ScrollView>
-                        </KeyboardAvoidingView>
+                        </View>
                     </View>
-                </View>
+                </KeyboardAvoidingView>
             </Modal>
 
             {/* ── Family Profiles ── */}

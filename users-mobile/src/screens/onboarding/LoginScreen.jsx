@@ -140,105 +140,107 @@ const ResetPasswordModal = ({ visible, onClose, email }) => {
 
     return (
         <Modal visible={visible} animationType="fade" transparent>
-            <View style={rs.overlay}>
-                <View style={rs.sheet}>
-                    <View style={rs.header}>
-                        <Text style={rs.title}>
-                            {step === 'request' ? 'Reset Password' : step === 'otp' ? 'Enter Code & New Password' : 'Success'}
-                        </Text>
-                        <Pressable onPress={onClose} hitSlop={12}><X size={22} color="#64748B" /></Pressable>
-                    </View>
-
-                    {success ? (
-                        <View style={rs.successBox}>
-                            <Text style={rs.successText}>✅ {success}</Text>
+            <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+                <View style={rs.overlay}>
+                    <View style={rs.sheet}>
+                        <View style={rs.header}>
+                            <Text style={rs.title}>
+                                {step === 'request' ? 'Reset Password' : step === 'otp' ? 'Enter Code & New Password' : 'Success'}
+                            </Text>
+                            <Pressable onPress={onClose} hitSlop={12}><X size={22} color="#64748B" /></Pressable>
                         </View>
-                    ) : null}
 
-                    {error ? (
-                        <View style={rs.errorBox}>
-                            <AlertCircle size={16} color={C.danger} />
-                            <Text style={rs.errorText}>{error}</Text>
-                        </View>
-                    ) : null}
+                        {success ? (
+                            <View style={rs.successBox}>
+                                <Text style={rs.successText}>✅ {success}</Text>
+                            </View>
+                        ) : null}
 
-                    {step === 'request' && (
-                        <>
-                            <Text style={rs.subtitle}>Enter your email and we'll send a 6-digit code to reset your password.</Text>
-                            <View style={rs.inputWrap}>
-                                <Mail size={18} color={C.muted} />
-                                <TextInput
-                                    style={rs.input}
-                                    placeholder="name@example.com"
-                                    placeholderTextColor={C.muted}
-                                    value={resetEmail}
-                                    onChangeText={(v) => { setResetEmail(v); setError(''); }}
-                                    autoCapitalize="none"
-                                    keyboardType="email-address"
-                                />
+                        {error ? (
+                            <View style={rs.errorBox}>
+                                <AlertCircle size={16} color={C.danger} />
+                                <Text style={rs.errorText}>{error}</Text>
                             </View>
-                            <Pressable style={[rs.btn, loading && { opacity: 0.7 }]} onPress={handleSendCode} disabled={loading}>
-                                {loading ? <ActivityIndicator size="small" color="#FFF" /> : <Text style={rs.btnText}>Send Reset Code</Text>}
-                            </Pressable>
-                        </>
-                    )}
+                        ) : null}
 
-                    {step === 'otp' && (
-                        <>
-                            <Text style={rs.subtitle}>Enter the code sent to <Text style={{ ...FONT.bold }}>{resetEmail}</Text> and set your new password.</Text>
-                            <View style={rs.inputWrap}>
-                                <Lock size={18} color={C.muted} />
-                                <TextInput
-                                    style={[rs.input, { letterSpacing: 6, fontSize: 22, textAlign: 'center' }]}
-                                    placeholder="000000"
-                                    placeholderTextColor="#CBD5E1"
-                                    maxLength={6}
-                                    keyboardType="number-pad"
-                                    value={otp}
-                                    onChangeText={(v) => { setOtp(v); setError(''); }}
-                                />
-                            </View>
-                            <View style={rs.resendRow}>
-                                {resendTimer > 0 ? (
-                                    <Text style={rs.timerText}>Resend in {resendTimer}s</Text>
-                                ) : (
-                                    <Pressable onPress={handleResend} disabled={loading}>
-                                        <Text style={rs.resendAction}>Resend Code</Text>
-                                    </Pressable>
-                                )}
-                            </View>
-                            <View style={rs.inputWrap}>
-                                <Lock size={18} color={C.muted} />
-                                <TextInput
-                                    style={rs.input}
-                                    placeholder="New password"
-                                    placeholderTextColor={C.muted}
-                                    value={newPassword}
-                                    onChangeText={(v) => { setNewPassword(v); setError(''); }}
-                                    secureTextEntry={!showPass}
-                                />
-                                <Pressable onPress={() => setShowPass(!showPass)} hitSlop={12}>
-                                    {showPass ? <Eye size={18} color={C.primary} /> : <EyeOff size={18} color={C.muted} />}
+                        {step === 'request' && (
+                            <>
+                                <Text style={rs.subtitle}>Enter your email and we'll send a 6-digit code to reset your password.</Text>
+                                <View style={rs.inputWrap}>
+                                    <Mail size={18} color={C.muted} />
+                                    <TextInput
+                                        style={rs.input}
+                                        placeholder="name@example.com"
+                                        placeholderTextColor={C.muted}
+                                        value={resetEmail}
+                                        onChangeText={(v) => { setResetEmail(v); setError(''); }}
+                                        autoCapitalize="none"
+                                        keyboardType="email-address"
+                                    />
+                                </View>
+                                <Pressable style={[rs.btn, loading && { opacity: 0.7 }]} onPress={handleSendCode} disabled={loading}>
+                                    {loading ? <ActivityIndicator size="small" color="#FFF" /> : <Text style={rs.btnText}>Send Reset Code</Text>}
                                 </Pressable>
-                            </View>
-                            <View style={rs.inputWrap}>
-                                <Lock size={18} color={C.muted} />
-                                <TextInput
-                                    style={rs.input}
-                                    placeholder="Confirm new password"
-                                    placeholderTextColor={C.muted}
-                                    value={confirmPassword}
-                                    onChangeText={(v) => { setConfirmPassword(v); setError(''); }}
-                                    secureTextEntry={!showPass}
-                                />
-                            </View>
-                            <Pressable style={[rs.btn, loading && { opacity: 0.7 }]} onPress={handleVerifyAndReset} disabled={loading}>
-                                {loading ? <ActivityIndicator size="small" color="#FFF" /> : <Text style={rs.btnText}>Reset Password</Text>}
-                            </Pressable>
-                        </>
-                    )}
+                            </>
+                        )}
+
+                        {step === 'otp' && (
+                            <>
+                                <Text style={rs.subtitle}>Enter the code sent to <Text style={{ ...FONT.bold }}>{resetEmail}</Text> and set your new password.</Text>
+                                <View style={rs.inputWrap}>
+                                    <Lock size={18} color={C.muted} />
+                                    <TextInput
+                                        style={[rs.input, { letterSpacing: 6, fontSize: 22, textAlign: 'center' }]}
+                                        placeholder="000000"
+                                        placeholderTextColor="#CBD5E1"
+                                        maxLength={6}
+                                        keyboardType="number-pad"
+                                        value={otp}
+                                        onChangeText={(v) => { setOtp(v); setError(''); }}
+                                    />
+                                </View>
+                                <View style={rs.resendRow}>
+                                    {resendTimer > 0 ? (
+                                        <Text style={rs.timerText}>Resend in {resendTimer}s</Text>
+                                    ) : (
+                                        <Pressable onPress={handleResend} disabled={loading}>
+                                            <Text style={rs.resendAction}>Resend Code</Text>
+                                        </Pressable>
+                                    )}
+                                </View>
+                                <View style={rs.inputWrap}>
+                                    <Lock size={18} color={C.muted} />
+                                    <TextInput
+                                        style={rs.input}
+                                        placeholder="New password"
+                                        placeholderTextColor={C.muted}
+                                        value={newPassword}
+                                        onChangeText={(v) => { setNewPassword(v); setError(''); }}
+                                        secureTextEntry={!showPass}
+                                    />
+                                    <Pressable onPress={() => setShowPass(!showPass)} hitSlop={12}>
+                                        {showPass ? <Eye size={18} color={C.primary} /> : <EyeOff size={18} color={C.muted} />}
+                                    </Pressable>
+                                </View>
+                                <View style={rs.inputWrap}>
+                                    <Lock size={18} color={C.muted} />
+                                    <TextInput
+                                        style={rs.input}
+                                        placeholder="Confirm new password"
+                                        placeholderTextColor={C.muted}
+                                        value={confirmPassword}
+                                        onChangeText={(v) => { setConfirmPassword(v); setError(''); }}
+                                        secureTextEntry={!showPass}
+                                    />
+                                </View>
+                                <Pressable style={[rs.btn, loading && { opacity: 0.7 }]} onPress={handleVerifyAndReset} disabled={loading}>
+                                    {loading ? <ActivityIndicator size="small" color="#FFF" /> : <Text style={rs.btnText}>Reset Password</Text>}
+                                </Pressable>
+                            </>
+                        )}
+                    </View>
                 </View>
-            </View>
+            </KeyboardAvoidingView>
         </Modal>
     );
 };

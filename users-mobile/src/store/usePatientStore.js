@@ -282,19 +282,19 @@ const usePatientStore = create((set, get) => ({
         const newOpt = { ...state._optimisticMeds, [med.id]: Date.now() };
         set({ _optimisticMeds: newOpt });
 
-        // Update dashboardMeds
+        // Update dashboardMeds (safe matching by name and type to sync across screens perfectly)
         set((s) => ({
             dashboardMeds: s.dashboardMeds.map((m) =>
-                m.id === med.id ? { ...m, taken: true } : m
+                (m.name === med.name && m.type === med.type) ? { ...m, taken: true } : m
             ),
         }));
 
-        // Update medicationSchedule
+        // Update medicationSchedule perfectly
         set((s) => {
             const schedule = { ...s.medicationSchedule };
             Object.keys(schedule).forEach((slot) => {
                 schedule[slot] = schedule[slot].map((m) =>
-                    m.id === med.id ? { ...m, taken: true } : m
+                    (m.name === med.name && m.type === med.type) ? { ...m, taken: true } : m
                 );
             });
             return { medicationSchedule: schedule };
@@ -314,20 +314,52 @@ const usePatientStore = create((set, get) => ({
             set({
                 _optimisticMeds: revOpt,
                 dashboardMeds: get().dashboardMeds.map((m) =>
-                    m.id === med.id ? { ...m, taken: false } : m
+                    (m.name === med.name && m.type === med.type) ? { ...m, taken: false } : m
                 ),
             });
             set((s) => {
                 const schedule = { ...s.medicationSchedule };
                 Object.keys(schedule).forEach((slot) => {
                     schedule[slot] = schedule[slot].map((m) =>
-                        m.id === med.id ? { ...m, taken: false } : m
+                        (m.name === med.name && m.type === med.type) ? { ...m, taken: false } : m
                     );
                 });
                 return { medicationSchedule: schedule };
             });
             throw err; // Let the caller handle UI feedback
         }
+    },
+
+    /**
+     * optimisticMarkSlotTaken — bulk marks all meds in a time slot when "TAKEN" tapped from OS Notification Background.
+     */
+    optimisticMarkSlotTaken: async (slot) => {
+        const state = get();
+        const medsToMark = state.medicationSchedule[slot]?.filter(m => !m.taken) || [];
+        if (medsToMark.length === 0) return;
+
+        // Optimistically update
+        set((s) => ({
+            dashboardMeds: s.dashboardMeds.map((m) =>
+                m.type === slot ? { ...m, taken: true } : m
+            ),
+        }));
+        set((s) => {
+            const schedule = { ...s.medicationSchedule };
+            if (schedule[slot]) {
+                schedule[slot] = schedule[slot].map((m) => ({ ...m, taken: true }));
+            }
+            return { medicationSchedule: schedule };
+        });
+
+        // Fire all API requests silently in the background
+        Promise.all(medsToMark.map(med => 
+            apiService.medicines.markMedicine({
+                medicine_name: med.name,
+                scheduled_time: med.type,
+                taken: true,
+            }).catch(() => console.warn('Failed to background mark:', med.name))
+        ));
     },
 
     /**

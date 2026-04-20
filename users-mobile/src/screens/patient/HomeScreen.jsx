@@ -15,7 +15,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import AIPredictionChart from '../../components/vitals/AIPredictionChart';
 import HealthSyncService from '../../services/HealthSyncService';
 import { Watch, Zap } from 'lucide-react-native';
-import { scheduleMedicationReminders, scheduleVitalsReminder, scheduleSubscriptionAlert } from '../../utils/notifications';
+import { syncAllSchedules } from '../../utils/notifications';
 import usePatientStore from '../../store/usePatientStore';
 
 const ACCENT_MAP = { morning: colors.success, afternoon: colors.warning, night: '#8B5CF6' };
@@ -174,16 +174,13 @@ export default function PatientHomeScreen({ navigation }) {
             if (result) {
                 // Schedule push notifications for dashboard items
                 try {
-                    const rawMeds = [];
+                    const medsToSync = result.meds || [];
                     const medPrefs = result.patient?.medication_call_preferences || {};
-                    scheduleMedicationReminders(rawMeds, medPrefs);
-                    scheduleVitalsReminder(!!result.vitals);
+                    let daysLeft = null;
                     if (result.patient?.subscription?.expires_at) {
-                        const daysLeft = Math.ceil(
-                            (new Date(result.patient.subscription.expires_at) - new Date()) / (1000 * 60 * 60 * 24)
-                        );
-                        scheduleSubscriptionAlert(daysLeft);
+                        daysLeft = Math.ceil((new Date(result.patient.subscription.expires_at) - new Date()) / (1000 * 60 * 60 * 24));
                     }
+                    syncAllSchedules(medsToSync, medPrefs, daysLeft, !!result.vitals);
                 } catch (notifErr) {
                     console.warn('Notification scheduling error (non-critical):', notifErr.message);
                 }

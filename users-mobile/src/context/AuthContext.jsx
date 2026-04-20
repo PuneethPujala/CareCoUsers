@@ -143,31 +143,65 @@ export function AuthProvider({ children }) {
     useEffect(() => {
         const init = async () => {
             try {
-                const currentSession = await auth.getCurrentSession();
-                if (currentSession?.user) {
-                    setCacheUserId(currentSession.user.id);
-                    setUser(currentSession.user);
-                    setSession(currentSession);
+                // 1. Try to bootstrap using Custom API Tokens first (Primary mechanism)
+                const apiTok = await getApiTokens();
+                if (apiTok?.access_token) {
                     try {
                         const response = await apiService.auth.getProfile();
+                        const user = response.data.user;
                         const profileData = response.data.profile;
                         if (profileData) profileData.role = 'patient';
+                        
+                        setCacheUserId(user?.id);
+                        setUser(user);
+                        setSession({ access_token: apiTok.access_token, user }); 
                         await setProfileAndCache(profileData);
-                        analytics.identify(currentSession.user.id, { role: 'patient' });
-
+                        if (user?.id) analytics.identify(user.id, { role: 'patient' });
                         await fetchPatientData();
-                    } catch (error) {
-                        if (error.response?.status === 403 || error.response?.status === 401) {
+                    } catch (e) {
+                        if (e.response?.status === 403 || e.response?.status === 401) {
                             await signOut();
                             return;
                         }
+                        // Network error or server offline: Fallback to cached profile without signing out!
                         const cached = await getCachedProfile();
                         if (cached) {
                             cached.role = 'patient';
+                            const id = cached.id || cached._id;
+                            setCacheUserId(id);
+                            setUser({ id, email: cached.email });
+                            setSession({ user: { id } });
                             setProfile(cached);
                             profileRef.current = cached;
                         } else {
                             await signOut();
+                        }
+                    }
+                } else {
+                    // 2. Fallback to Supabase (e.g. fresh Google OAuth before injectSession runs)
+                    const currentSession = await auth.getCurrentSession();
+                    if (currentSession?.user) {
+                        setCacheUserId(currentSession.user.id);
+                        setUser(currentSession.user);
+                        setSession(currentSession);
+                        try {
+                            const response = await apiService.auth.getProfile();
+                            const profileData = response.data.profile || null;
+                            if (profileData) profileData.role = 'patient';
+                            if (profileData) await setProfileAndCache(profileData);
+                            analytics.identify(currentSession.user.id, { role: 'patient' });
+                            await fetchPatientData();
+                        } catch (error) {
+                            if (error.response?.status === 403 || error.response?.status === 401) {
+                                await signOut();
+                                return;
+                            }
+                            const cached = await getCachedProfile();
+                            if (cached) {
+                                cached.role = 'patient';
+                                setProfile(cached);
+                                profileRef.current = cached;
+                            }
                         }
                     }
                 }
@@ -192,11 +226,15 @@ export function AuthProvider({ children }) {
 
             // ── SIGNED_OUT ──────────────────────────────────────────
             if (event === 'SIGNED_OUT') {
-                setUser(null);
-                setSession(null);
-                setProfile(null);
-                setPatient(null);
-                profileRef.current = null;
+                // If the user still has ApiTokens for the Custom Backend, ignore Supabase session expiration!
+                const apiTok = await getApiTokens();
+                if (!apiTok) {
+                    setUser(null);
+                    setSession(null);
+                    setProfile(null);
+                    setPatient(null);
+                    profileRef.current = null;
+                }
                 return;
             }
 
@@ -290,10 +328,9 @@ export function AuthProvider({ children }) {
                 expires_at: loginSession.expires_at,
             });
 
-            await supabase.auth.setSession({
-                access_token: loginSession.access_token,
-                refresh_token: loginSession.refresh_token,
-            });
+            // Note: Deliberately skipping supabase.auth.setSession() here
+            // to avoid sending a custom JWT to Supabase which causes unexpected 'SIGNED_OUT'
+            // events when Supabase tries to auto-refresh it on its end!
 
             await fetchPatientData();
 
@@ -321,11 +358,6 @@ export function AuthProvider({ children }) {
                 access_token: mfaSession.access_token,
                 refresh_token: mfaSession.refresh_token,
                 expires_at: mfaSession.expires_at,
-            });
-
-            await supabase.auth.setSession({
-                access_token: mfaSession.access_token,
-                refresh_token: mfaSession.refresh_token,
             });
 
             await fetchPatientData();
@@ -358,11 +390,6 @@ export function AuthProvider({ children }) {
                 access_token: signUpSession.access_token,
                 refresh_token: signUpSession.refresh_token,
                 expires_at: signUpSession.expires_at,
-            });
-
-            await supabase.auth.setSession({
-                access_token: signUpSession.access_token,
-                refresh_token: signUpSession.refresh_token,
             });
 
             await fetchPatientData();

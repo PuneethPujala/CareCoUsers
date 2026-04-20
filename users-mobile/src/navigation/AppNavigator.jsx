@@ -23,6 +23,7 @@ import { useAuth } from "../context/AuthContext";
 import { sendDailyWelcomeNotification, registerForPushNotificationsAsync, sendSeamlessExperienceNotification } from "../utils/notifications";
 import { apiService } from "../lib/api";
 import { colors } from "../theme";
+import usePatientStore from '../store/usePatientStore';
 
 
 // Onboarding screens
@@ -249,10 +250,35 @@ export default function AppNavigator() {
 
         // Listen for user tapping on a notification (Background state)
         responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
-            const screen = response.notification.request.content.data?.screen;
+            const actionId = response.actionIdentifier;
+            const content = response.notification.request.content;
+
+            if (actionId === 'TAKEN') {
+                console.log('✅ Background Action: MARKED TAKEN');
+                // Tick the box natively using the store!
+                const slotKey = content.data?.slot;
+                if (slotKey) {
+                    usePatientStore.getState().optimisticMarkSlotTaken(slotKey);
+                }
+                return;
+            } else if (actionId === 'SNOOZE') {
+                console.log('⏳ Background Action: SNOOZED (+10m)');
+                // 10 minutes exact delay natively scheduled
+                Notifications.scheduleNotificationAsync({
+                    content,
+                    trigger: { seconds: 10 * 60, channelId: 'meds' },
+                });
+                return;
+            }
+
+            const screen = content.data?.screen;
             if (screen) {
                 console.log('📲 Navigate to:', screen);
-                navigation.navigate(screen);
+                // Important: Ensure we use the right stack router ref. AppNavigator wraps <NavigationContainer> inside the root.
+                // Assuming `navigation` is the ref from `<NavigationContainer ref={navigationRef}>`
+                if (navigation && typeof navigation.navigate === 'function') {
+                    navigation.navigate(screen);
+                }
             }
         });
 

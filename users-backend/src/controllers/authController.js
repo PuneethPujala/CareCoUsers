@@ -416,7 +416,7 @@ async function sendOtp(req, res) {
     }
   } catch (err) {
     console.error('Send OTP error:', err);
-    res.status(500).json({ error: err.message || 'Failed to send verification code' });
+    res.status(400).json({ error: err.message || 'Failed to send verification code' });
   }
 }
 
@@ -445,7 +445,7 @@ async function verifyOtp(req, res) {
     res.json({ message: 'Verification successful', verified: true });
   } catch (err) {
     console.error('Verify OTP error:', err);
-    res.status(500).json({ error: 'Verification failed' });
+    res.status(400).json({ error: err.message || 'Verification failed' });
   }
 }
 
