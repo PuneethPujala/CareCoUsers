@@ -19,6 +19,7 @@ import * as Notifications from 'expo-notifications';
 import { Linking } from 'react-native';
 import { Lock as LockIcon } from 'lucide-react-native';
 import * as WebBrowser from 'expo-web-browser';
+import usePatientStore from '../../store/usePatientStore';
 
 const C = {
     primary: '#6366F1', primarySoft: '#EEF2FF', dark: '#0F172A', mid: '#334155',
@@ -112,6 +113,12 @@ export default function PatientProfileScreen({ navigation }) {
     const [setPassNew, setSetPassNew] = useState('');
     const [setPassConfirm, setSetPassConfirm] = useState('');
     const [savingSetPass, setSavingSetPass] = useState(false);
+
+    // Screenshots OTP
+    const [screenshotOTPModalVisible, setScreenshotOTPModalVisible] = useState(false);
+    const [screenshotOTP, setScreenshotOTP] = useState('');
+    const [verifyingScreenshotOTP, setVerifyingScreenshotOTP] = useState(false);
+    const [pendingScreenshotSetting, setPendingScreenshotSetting] = useState(false);
 
     const staggerAnims = React.useRef([...Array(12)].map(() => new Animated.Value(0))).current;
 
@@ -237,7 +244,7 @@ export default function PatientProfileScreen({ navigation }) {
             if (val) {
                 // Check current permission status
                 const { status: existingStatus } = await Notifications.getPermissionsAsync();
-                
+
                 if (existingStatus === 'granted') {
                     // Already granted — just get the token
                     const { token } = await registerForPushNotificationsAsync();
@@ -247,7 +254,7 @@ export default function PatientProfileScreen({ navigation }) {
                 } else {
                     // Try to request permission
                     const { status, canAskAgain } = await Notifications.requestPermissionsAsync();
-                    
+
                     if (status === 'granted') {
                         const { token } = await registerForPushNotificationsAsync();
                         if (token) {
@@ -433,6 +440,37 @@ export default function PatientProfileScreen({ navigation }) {
         </Pressable>
     );
 
+    // Screenshot Handlers
+    const handleToggleScreenshots = async (newValue) => {
+        try {
+            await apiService.patients.requestScreenshotOTP();
+            setPendingScreenshotSetting(newValue);
+            setScreenshotOTP('');
+            setScreenshotOTPModalVisible(true);
+        } catch (err) {
+            Alert.alert('Error', err.response?.data?.error || 'Failed to request OTP. Please try again later.');
+        }
+    };
+
+    const handleVerifyScreenshotOTP = async () => {
+        if (!screenshotOTP || screenshotOTP.length !== 6) {
+            Alert.alert('Invalid', 'Please enter a valid 6-digit OTP.');
+            return;
+        }
+        setVerifyingScreenshotOTP(true);
+        try {
+            const res = await apiService.patients.verifyScreenshotOTP({ otp: screenshotOTP, allow: pendingScreenshotSetting });
+            usePatientStore.getState().setPatient(res.data.patient);
+            setPatient(res.data.patient);
+            setScreenshotOTPModalVisible(false);
+            Alert.alert('Security Updated', res.data.message);
+        } catch (err) {
+            Alert.alert('Verification Failed', err.response?.data?.error || 'Invalid or expired OTP.');
+        } finally {
+            setVerifyingScreenshotOTP(false);
+        }
+    };
+
     const anim = (i) => ({
         opacity: staggerAnims[i],
         transform: [{ translateY: staggerAnims[i].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }],
@@ -584,15 +622,32 @@ export default function PatientProfileScreen({ navigation }) {
                         ) : (
                             <InfoRow icon={LockIcon} iconBg="#FEF3C7" iconColor="#F59E0B" label="Set Password" value={null} placeholder="For multi-device login" onPress={() => setSetPassModalVisible(true)} />
                         )}
-                        
+
+                        {/* §SEC: Allow Screenshots Setting */}
+                        <View style={[s.infoRow]}>
+                            <View style={[s.iconBox, { backgroundColor: '#F1F5F9' }]}>
+                                <Smartphone size={20} color="#475569" strokeWidth={2} />
+                            </View>
+                            <View style={s.infoTextCol}>
+                                <Text style={s.infoLabel}>Allow Screenshots</Text>
+                                <Text style={[s.infoValue, { color: C.muted }]}>{patient?.allow_screenshots ? 'Allowed' : 'Blocked (Secure)'}</Text>
+                            </View>
+                            <Switch
+                                trackColor={{ false: '#E2E8F0', true: '#818CF8' }}
+                                thumbColor={patient?.allow_screenshots ? '#4338CA' : '#F8FAFC'}
+                                onValueChange={handleToggleScreenshots}
+                                value={patient?.allow_screenshots || false}
+                            />
+                        </View>
+
                         {/* §SEC: Two-Factor Authentication (Audit 2.1-2.4) */}
-                        <InfoRow 
-                            icon={Smartphone} 
-                            iconBg="#EEF2FF" 
-                            iconColor="#6366F1" 
-                            label="Two-Factor Authentication" 
-                            value={mfaEnabled ? 'Enabled' : 'Disabled'} 
-                            placeholder="" 
+                        <InfoRow
+                            icon={Smartphone}
+                            iconBg="#EEF2FF"
+                            iconColor="#6366F1"
+                            label="Two-Factor Authentication"
+                            value={mfaEnabled ? 'Enabled' : 'Disabled'}
+                            placeholder=""
                             onPress={() => {
                                 if (mfaEnabled) {
                                     Alert.prompt
@@ -626,10 +681,10 @@ export default function PatientProfileScreen({ navigation }) {
                                 } else {
                                     navigation.navigate('MFASetup');
                                 }
-                            }} 
+                            }}
                             rightElement={
-                                mfaEnabled ? 
-                                    <View style={s.verifiedBadge}><ShieldCheckIcon size={16} color={C.success} /></View> : 
+                                mfaEnabled ?
+                                    <View style={s.verifiedBadge}><ShieldCheckIcon size={16} color={C.success} /></View> :
                                     <ChevronRight size={18} color={C.light} />
                             }
                         />
@@ -652,50 +707,56 @@ export default function PatientProfileScreen({ navigation }) {
                             <LogOut size={20} color="#E11D48" strokeWidth={2.5} />
                             <Text style={s.logoutTxt}>Sign Out Account</Text>
                         </Pressable>
-                        <Pressable 
-                            style={[s.logoutBtn, { backgroundColor: '#FFFBEB', borderColor: '#FDE68A' }]} 
+                        <Pressable
+                            style={[s.logoutBtn, { backgroundColor: '#FFFBEB', borderColor: '#FDE68A' }]}
                             onPress={() => Alert.alert(
                                 'Deactivate Account',
                                 'Your account will be paused and you will be signed out.\n\n• All your health data will be safely preserved\n• You can reactivate anytime by logging in again\n• Your callers and care team won\'t be able to reach you',
                                 [
-                                    {text: 'Cancel', style: 'cancel'},
-                                    {text: 'Deactivate', style: 'default', onPress: async () => {
-                                        try {
-                                            await apiService.auth.deactivateAccount();
-                                            Alert.alert('Account Deactivated', 'Your account has been paused. Log in anytime to reactivate.');
-                                            signOut();
-                                        } catch(e) {
-                                            Alert.alert('Error', 'Failed to deactivate account. Please try again.');
+                                    { text: 'Cancel', style: 'cancel' },
+                                    {
+                                        text: 'Deactivate', style: 'default', onPress: async () => {
+                                            try {
+                                                await apiService.auth.deactivateAccount();
+                                                Alert.alert('Account Deactivated', 'Your account has been paused. Log in anytime to reactivate.');
+                                                signOut();
+                                            } catch (e) {
+                                                Alert.alert('Error', 'Failed to deactivate account. Please try again.');
+                                            }
                                         }
-                                    }}
+                                    }
                                 ]
                             )}
                         >
                             <Shield size={20} color="#D97706" strokeWidth={2.5} />
                             <Text style={[s.logoutTxt, { color: '#D97706' }]}>Deactivate Account</Text>
                         </Pressable>
-                        <Pressable 
-                            style={[s.logoutBtn, { backgroundColor: '#FEF2F2', borderColor: '#FECACA' }]} 
+                        <Pressable
+                            style={[s.logoutBtn, { backgroundColor: '#FEF2F2', borderColor: '#FECACA' }]}
                             onPress={() => Alert.alert(
                                 'Delete Account Permanently',
                                 '⚠️ This action CANNOT be undone.\n\nAll your data will be permanently deleted:\n• Health records & vitals\n• Medications & prescriptions\n• Call history & appointments\n• Profile information\n\nYou can create a new account with the same email later, but as a fresh start.',
                                 [
-                                    {text: 'Cancel', style: 'cancel'},
-                                    {text: 'Delete Forever', style: 'destructive', onPress: () => {
-                                        // Double confirmation for permanent deletion
-                                        Alert.alert('Are you absolutely sure?', 'Type DELETE in your mind and confirm. This is irreversible.', [
-                                            {text: 'Go Back', style: 'cancel'},
-                                            {text: 'Yes, Delete Everything', style: 'destructive', onPress: async () => {
-                                                try {
-                                                    await apiService.auth.deleteAccount();
-                                                    Alert.alert('Account Deleted', 'Your account and all data have been permanently removed.');
-                                                    signOut();
-                                                } catch(e) {
-                                                    Alert.alert('Error', 'Failed to delete account. Please try again.');
+                                    { text: 'Cancel', style: 'cancel' },
+                                    {
+                                        text: 'Delete Forever', style: 'destructive', onPress: () => {
+                                            // Double confirmation for permanent deletion
+                                            Alert.alert('Are you absolutely sure?', 'Type DELETE in your mind and confirm. This is irreversible.', [
+                                                { text: 'Go Back', style: 'cancel' },
+                                                {
+                                                    text: 'Yes, Delete Everything', style: 'destructive', onPress: async () => {
+                                                        try {
+                                                            await apiService.auth.deleteAccount();
+                                                            Alert.alert('Account Deleted', 'Your account and all data have been permanently removed.');
+                                                            signOut();
+                                                        } catch (e) {
+                                                            Alert.alert('Error', 'Failed to delete account. Please try again.');
+                                                        }
+                                                    }
                                                 }
-                                            }}
-                                        ]);
-                                    }}
+                                            ]);
+                                        }
+                                    }
                                 ]
                             )}
                         >
@@ -748,9 +809,9 @@ export default function PatientProfileScreen({ navigation }) {
 
             {/* ── Phone Edit ── */}
             <Modal visible={phoneModalVisible} animationType="slide" transparent onRequestClose={() => setPhoneModalVisible(false)}>
-                <View style={s.modalOverlay}>
-                    <View style={[s.modalContent, { padding: 0 }]}>
-                        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+                <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+                    <View style={s.modalOverlay}>
+                        <View style={[s.modalContent, { padding: 0 }]}>
                             <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 24, paddingBottom: Platform.OS === 'ios' ? 40 : 24 }}>
                                 <View style={s.modalHeader}>
                                     <Text style={s.modalTitle}>Phone Number</Text>
@@ -770,16 +831,16 @@ export default function PatientProfileScreen({ navigation }) {
                                     <Text style={s.saveBtnTxt}>{saving ? 'Saving...' : 'Save Phone'}</Text>
                                 </Pressable>
                             </ScrollView>
-                        </KeyboardAvoidingView>
+                        </View>
                     </View>
-                </View>
+                </KeyboardAvoidingView>
             </Modal>
 
             {/* ── Emergency Contact ── */}
             <Modal visible={ecModalVisible} animationType="slide" transparent onRequestClose={() => setEcModalVisible(false)}>
-                <View style={s.modalOverlay}>
-                    <View style={[s.modalContent, { padding: 0 }]}>
-                        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+                <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+                    <View style={s.modalOverlay}>
+                        <View style={[s.modalContent, { padding: 0 }]}>
                             <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 24, paddingBottom: Platform.OS === 'ios' ? 40 : 24 }}>
                                 <View style={s.modalHeader}>
                                     <Text style={s.modalTitle}>Emergency Contact</Text>
@@ -809,9 +870,9 @@ export default function PatientProfileScreen({ navigation }) {
                                     </Pressable>
                                 )}
                             </ScrollView>
-                        </KeyboardAvoidingView>
+                        </View>
                     </View>
-                </View>
+                </KeyboardAvoidingView>
             </Modal>
 
             {/* ── Account Details ── */}
@@ -864,9 +925,9 @@ export default function PatientProfileScreen({ navigation }) {
 
             {/* ── Change Password ── */}
             <Modal visible={cpModalVisible} animationType="slide" transparent onRequestClose={() => setCpModalVisible(false)}>
-                <View style={s.modalOverlay}>
-                    <View style={[s.modalContent, { padding: 0 }]}>
-                        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+                <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+                    <View style={s.modalOverlay}>
+                        <View style={[s.modalContent, { padding: 0 }]}>
                             <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 24, paddingBottom: Platform.OS === 'ios' ? 40 : 24 }}>
                                 <View style={s.modalHeader}>
                                     <Text style={s.modalTitle}>Change Password</Text>
@@ -883,34 +944,71 @@ export default function PatientProfileScreen({ navigation }) {
                                     <Text style={s.saveBtnTxt}>{savingCp ? 'Changing...' : 'Change Password'}</Text>
                                 </Pressable>
                             </ScrollView>
-                        </KeyboardAvoidingView>
+                        </View>
                     </View>
-                </View>
+                </KeyboardAvoidingView>
             </Modal>
 
             {/* ── Set Password (Google Users) ── */}
             <Modal visible={setPassModalVisible} animationType="slide" transparent onRequestClose={() => setSetPassModalVisible(false)}>
-                <View style={s.modalOverlay}>
-                    <View style={[s.modalContent, { padding: 0 }]}>
-                        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+                <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+                    <View style={s.modalOverlay}>
+                        <View style={[s.modalContent, { padding: 0 }]}>
                             <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 24, paddingBottom: Platform.OS === 'ios' ? 40 : 24 }}>
                                 <View style={s.modalHeader}>
                                     <Text style={s.modalTitle}>Set Password</Text>
                                     <Pressable onPress={() => setSetPassModalVisible(false)} hitSlop={10}><X size={24} color="#64748B" /></Pressable>
                                 </View>
-                                <Text style={s.modalSubTxt}>Set a password so you can log in with your email on any device, even without Google.</Text>
                                 <Text style={s.inputLabel}>New Password</Text>
-                                <TextInput style={s.input} value={setPassNew} onChangeText={setSetPassNew} placeholder="Min 8 chars, 1 uppercase, 1 number" placeholderTextColor="#94A3B8" secureTextEntry />
+                                <TextInput style={s.input} value={setPassNew} onChangeText={setSetPassNew} placeholder="Enter password (min 6 chars)" placeholderTextColor="#94A3B8" secureTextEntry />
                                 <Text style={s.inputLabel}>Confirm Password</Text>
-                                <TextInput style={s.input} value={setPassConfirm} onChangeText={setSetPassConfirm} placeholder="Re-enter password" placeholderTextColor="#94A3B8" secureTextEntry />
+                                <TextInput style={s.input} value={setPassConfirm} onChangeText={setSetPassConfirm} placeholder="Confirm new password" placeholderTextColor="#94A3B8" secureTextEntry />
                                 <Pressable style={s.saveBtn} onPress={handleSetPassword} disabled={savingSetPass}>
                                     <Save size={18} color="#FFFFFF" />
-                                    <Text style={s.saveBtnTxt}>{savingSetPass ? 'Setting...' : 'Set Password'}</Text>
+                                    <Text style={s.saveBtnTxt}>{savingSetPass ? 'Saving...' : 'Set Password'}</Text>
                                 </Pressable>
                             </ScrollView>
-                        </KeyboardAvoidingView>
+                        </View>
                     </View>
-                </View>
+                </KeyboardAvoidingView>
+            </Modal>
+
+            {/* ── Screenshots OTP Modal ── */}
+            <Modal visible={screenshotOTPModalVisible} animationType="slide" transparent>
+                <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+                    <View style={s.modalOverlay}>
+                        <View style={[s.modalContent, { padding: 0 }]}>
+                            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 24, paddingBottom: Platform.OS === 'ios' ? 40 : 24 }}>
+                                <View style={s.modalHeader}>
+                                    <View>
+                                        <Text style={s.modalTitle}>Security Verification</Text>
+                                        <Text style={[s.inputLabel, { marginTop: 4, textTransform: 'none' }]}>
+                                            Enter the 6-digit code sent to your email to {pendingScreenshotSetting ? 'allow' : 'block'} screenshots.
+                                        </Text>
+                                    </View>
+                                    <Pressable onPress={() => setScreenshotOTPModalVisible(false)} hitSlop={10}>
+                                        <X size={24} color="#64748B" />
+                                    </Pressable>
+                                </View>
+
+                                <TextInput
+                                    style={[s.input, { fontSize: 24, letterSpacing: 8, textAlign: 'center', fontWeight: '800' }]}
+                                    value={screenshotOTP}
+                                    onChangeText={(t) => setScreenshotOTP(t.replace(/[^0-9]/g, ''))}
+                                    placeholder="••••••"
+                                    placeholderTextColor="#CBD5E1"
+                                    keyboardType="number-pad"
+                                    maxLength={6}
+                                />
+
+                                <Pressable style={[s.saveBtn, { marginTop: 16 }]} onPress={handleVerifyScreenshotOTP} disabled={verifyingScreenshotOTP}>
+                                    <ShieldCheck size={18} color="#FFFFFF" />
+                                    <Text style={s.saveBtnTxt}>{verifyingScreenshotOTP ? 'Verifying...' : 'Verify & Setup'}</Text>
+                                </Pressable>
+                            </ScrollView>
+                        </View>
+                    </View>
+                </KeyboardAvoidingView>
             </Modal>
 
 
@@ -1031,9 +1129,9 @@ export default function PatientProfileScreen({ navigation }) {
 
             {/* ── Add Address ── */}
             <Modal visible={addAddressModalVisible} animationType="slide" transparent onRequestClose={() => setAddAddressModalVisible(false)}>
-                <View style={s.modalOverlay}>
-                    <View style={[s.modalContent, { padding: 0 }]}>
-                        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+                <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+                    <View style={s.modalOverlay}>
+                        <View style={[s.modalContent, { padding: 0 }]}>
                             <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 24, paddingBottom: Platform.OS === 'ios' ? 40 : 24 }}>
                                 <View style={s.modalHeader}>
                                     <Text style={s.modalTitle}>Add Address</Text>
@@ -1066,9 +1164,9 @@ export default function PatientProfileScreen({ navigation }) {
                                     <Text style={s.saveBtnTxt}>{saving ? 'Saving...' : 'Save Address'}</Text>
                                 </Pressable>
                             </ScrollView>
-                        </KeyboardAvoidingView>
+                        </View>
                     </View>
-                </View>
+                </KeyboardAvoidingView>
             </Modal>
 
             {/* ── Family Profiles ── */}

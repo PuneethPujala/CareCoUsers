@@ -143,6 +143,13 @@ export function parseError(error) {
             result.general = mapped[1];
             return result;
         }
+        
+        // If it's a generic "Request failed", hide it
+        if (error.message.includes('failed with status code')) {
+            result.general = 'Server error. Please try again later.';
+            return result;
+        }
+
         result.general = error.message;
         return result;
     }

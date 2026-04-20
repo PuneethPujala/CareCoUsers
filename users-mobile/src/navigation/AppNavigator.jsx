@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigation } from "@react-navigation/native";
 import * as Notifications from 'expo-notifications';
+import * as ScreenCapture from 'expo-screen-capture';
 import {
     View,
     Text,
@@ -23,6 +24,7 @@ import { useAuth } from "../context/AuthContext";
 import { sendDailyWelcomeNotification, registerForPushNotificationsAsync, sendSeamlessExperienceNotification } from "../utils/notifications";
 import { apiService } from "../lib/api";
 import { colors } from "../theme";
+import usePatientStore from '../store/usePatientStore';
 
 
 // Onboarding screens
@@ -236,10 +238,26 @@ function AppSplashScreen() {
 export default function AppNavigator() {
     const { isBootstrapping, onboardingComplete, subscriptionStatus, user, profile, signOut } = useAuth();
     const navigation = useNavigation();
+    const patient = usePatientStore(state => state.patient);
 
     const notificationListener = useRef();
     const responseListener = useRef();
     const hasNotified = useRef(false);
+
+    // ── Global Screenshot Prevention Hook ──
+    useEffect(() => {
+        if (user) {
+            // Block screenshots by default for safety, allow only if setting is explicitly true
+            if (patient?.allow_screenshots === true) {
+                ScreenCapture.allowScreenCaptureAsync().catch(err => console.warn('AppNavigator: allowScreenCaptureAsync failed', err));
+            } else {
+                ScreenCapture.preventScreenCaptureAsync().catch(err => console.warn('AppNavigator: preventScreenCaptureAsync failed', err));
+            }
+        } else {
+            // Allow screenshots on public/auth screens
+            ScreenCapture.allowScreenCaptureAsync().catch(() => {});
+        }
+    }, [user, patient?.allow_screenshots]);
 
     useEffect(() => {
         // Listen for incoming notifications while app is foregrounded
@@ -249,10 +267,35 @@ export default function AppNavigator() {
 
         // Listen for user tapping on a notification (Background state)
         responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
-            const screen = response.notification.request.content.data?.screen;
+            const actionId = response.actionIdentifier;
+            const content = response.notification.request.content;
+
+            if (actionId === 'TAKEN') {
+                console.log('✅ Background Action: MARKED TAKEN');
+                // Tick the box natively using the store!
+                const slotKey = content.data?.slot;
+                if (slotKey) {
+                    usePatientStore.getState().optimisticMarkSlotTaken(slotKey);
+                }
+                return;
+            } else if (actionId === 'SNOOZE') {
+                console.log('⏳ Background Action: SNOOZED (+10m)');
+                // 10 minutes exact delay natively scheduled
+                Notifications.scheduleNotificationAsync({
+                    content,
+                    trigger: { seconds: 10 * 60, channelId: 'meds' },
+                });
+                return;
+            }
+
+            const screen = content.data?.screen;
             if (screen) {
                 console.log('📲 Navigate to:', screen);
-                navigation.navigate(screen);
+                // Important: Ensure we use the right stack router ref. AppNavigator wraps <NavigationContainer> inside the root.
+                // Assuming `navigation` is the ref from `<NavigationContainer ref={navigationRef}>`
+                if (navigation && typeof navigation.navigate === 'function') {
+                    navigation.navigate(screen);
+                }
             }
         });
 

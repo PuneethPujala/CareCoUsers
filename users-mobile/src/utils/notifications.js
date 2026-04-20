@@ -3,6 +3,7 @@ import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform, Alert } from 'react-native';
+import { getRandomTemplate, personalize } from './notificationTemplates';
 
 /**
  * Configure how notifications appear when the app is in the foreground.
@@ -61,7 +62,28 @@ export async function registerForPushNotificationsAsync() {
             lightColor: '#6366F1',
             sound: 'default',
         });
+        // Establish Priority Notification Channel for Medications
+        await Notifications.setNotificationChannelAsync('meds', {
+            name: 'Medication Alerts',
+            importance: Notifications.AndroidImportance.MAX,
+            vibrationPattern: [0, 250, 250, 250],
+            sound: 'default',
+        });
     }
+
+    // Register OS-level Interactivity (Actionable Notifications)
+    await Notifications.setNotificationCategoryAsync('medication_reminder', [
+        {
+            identifier: 'TAKEN',
+            buttonTitle: '✅ I took it',
+            options: { opensAppToForeground: false },
+        },
+        {
+            identifier: 'SNOOZE',
+            buttonTitle: '⏳ Snooze 10m',
+            options: { opensAppToForeground: false },
+        },
+    ]);
 
     // Retrieve the token — try multiple sources for projectId
     try {
@@ -136,12 +158,13 @@ export async function sendDailyWelcomeNotification(userName = 'there', force = f
         else if (hour >= 17) greeting = 'Good evening';
 
         const firstName = userName.split(' ')[0];
+        const randomBody = getRandomTemplate('welcome');
 
         // Send local notification after a short delay
         await Notifications.scheduleNotificationAsync({
             content: {
                 title: `${greeting}, ${firstName}! 👋`,
-                body: 'Welcome back to Samvaya. Stay on top of your health today!',
+                body: randomBody,
                 data: { screen: 'PatientHome' },
                 sound: 'default',
             },
@@ -156,157 +179,100 @@ export async function sendDailyWelcomeNotification(userName = 'there', force = f
     }
 }
 
-const MED_SCHEDULE_KEY = '@samvaya_med_notifs_date';
-
 /**
- * Schedule local push notifications for today's medications.
- * Should be called once per day (e.g. on login or app foreground).
- * 
- * @param {Array} medicines - Array of { medicine_name, scheduled_time, taken }
- * @param {object} prefs - Medication call preferences { morning: '09:00', afternoon: '14:00', night: '20:00' }
+ * Master sync function to reliably configure all repeating schedules natively.
+ * Should be called immediately whenever the user opens the dashboard.
  */
-export async function scheduleMedicationReminders(medicines, prefs = {}) {
+export async function syncAllSchedules(medicines = [], prefs = {}, subscriptionDaysLeft = null, vitalsLoggedToday = false) {
     try {
-        // Only schedule once per day
-        const today = new Date().toDateString();
-        const lastScheduled = await AsyncStorage.getItem(MED_SCHEDULE_KEY);
-        if (lastScheduled === today) return;
-
         const { status } = await Notifications.getPermissionsAsync();
         if (status !== 'granted') return;
 
-        // Cancel previous medication notifications
-        const scheduled = await Notifications.getAllScheduledNotificationsAsync();
-        for (const notif of scheduled) {
-            if (notif.content?.data?.type === 'medication_reminder') {
-                await Notifications.cancelScheduledNotificationAsync(notif.identifier);
-            }
+        // 1. Cancel + reschedule logic (prevent any duplicates, stale alarms)
+        await Notifications.cancelAllScheduledNotificationsAsync();
+        
+        // --- 2. Vitals Reminder (Daily exactly at 10 AM) ---
+        if (!vitalsLoggedToday) {
+            await Notifications.scheduleNotificationAsync({
+                content: {
+                    title: '❤️ Daily Vitals Reminder',
+                    body: getRandomTemplate('vitals', 'reminders') || 'Time to log your daily vitals!',
+                    data: { screen: 'PatientHome', type: 'vitals_reminder' },
+                    sound: 'default',
+                },
+                // Native repeating exact alarm
+                trigger: { hour: 10, minute: 0, repeats: true },
+            });
+            console.log('✅ Daily repeating Vitals reminder synced');
         }
 
-        const now = new Date();
+        // --- 3. Medication Reminders (Daily) ---
         const defaultTimes = { morning: '09:00', afternoon: '14:00', night: '20:00' };
+        const slotsMap = {};
 
-        // 1. Group medications by their scheduled time
-        const slotsMap = {}; // { "09:00": { names: [], slotKey: "morning" } }
-
+        // Parse what medications they actually have from the real backend result
         for (const med of medicines) {
-            if (med.taken) continue;
+            // We ignore med.taken because the alarm repeats every day natively! 
+            // Only skip if explicitly deactivated
+            if (med.status !== 'active' && med.is_active !== true && !med.medicine_name) continue;
 
             const timeKey = med.scheduled_time || 'morning';
             const timePref = prefs[timeKey] || defaultTimes[timeKey] || '09:00';
             
             if (!slotsMap[timePref]) {
-                slotsMap[timePref] = { 
-                    names: [], 
-                    slotKey: timeKey 
-                };
+                slotsMap[timePref] = { names: [], slotKey: timeKey };
             }
-            slotsMap[timePref].names.push(med.medicine_name);
+            const name = med.medicine_name || med.name;
+            if (name) slotsMap[timePref].names.push(name);
         }
 
-        // 2. Schedule one notification per unique time slot
         for (const [timePref, data] of Object.entries(slotsMap)) {
             const [h, m] = timePref.split(':').map(Number);
-            const medTime = new Date();
-            medTime.setHours(h, m, 0, 0);
+            const { names, slotKey } = data;
+            if (!names.length) continue;
 
-            const secondsUntil = Math.round((medTime - now) / 1000);
-            if (secondsUntil > 0) {
-                const { names, slotKey } = data;
-                let body = '';
-                
-                if (names.length === 1) {
-                    body = `Time to take your ${names[0]}`;
-                } else if (names.length === 2) {
-                    body = `Time to take your ${names[0]} and ${names[1]}`;
-                } else {
-                    body = `Time to take your ${names[0]}, ${names[1]} and ${names.length - 2} others`;
-                }
+            let joinedNames = names.length === 1 ? names[0] : 
+                (names.length === 2 ? `${names[0]} and ${names[1]}` : 
+                `${names[0]}, ${names[1]} and ${names.length - 2} others`);
 
-                const capitalizedSlot = slotKey.charAt(0).toUpperCase() + slotKey.slice(1);
-                
-                await Notifications.scheduleNotificationAsync({
-                    content: {
-                        title: `💊 ${capitalizedSlot} Medication`,
-                        body,
-                        data: { screen: 'Medications', type: 'medication_reminder' },
-                        sound: 'default',
-                    },
-                    trigger: { type: 'timeInterval', seconds: secondsUntil },
-                });
-                console.log(`✅ Grouped medication reminder scheduled: ${names.join(', ')} at ${timePref}`);
-            }
-        }
-
-        await AsyncStorage.setItem(MED_SCHEDULE_KEY, today);
-    } catch (error) {
-        console.warn('Medication reminder scheduling failed:', error.message);
-    }
-}
-
-const VITALS_REMINDER_KEY = '@samvaya_vitals_reminder_date';
-
-/**
- * Schedule a daily vitals logging reminder at 10:00 AM if vitals haven't been logged yet.
- * @param {boolean} vitalsLoggedToday - Whether the user has already logged vitals today
- */
-export async function scheduleVitalsReminder(vitalsLoggedToday = false) {
-    try {
-        if (vitalsLoggedToday) return; // No need to remind
-
-        const today = new Date().toDateString();
-        const lastScheduled = await AsyncStorage.getItem(VITALS_REMINDER_KEY);
-        if (lastScheduled === today) return;
-
-        const { status } = await Notifications.getPermissionsAsync();
-        if (status !== 'granted') return;
-
-        const now = new Date();
-        const reminderTime = new Date();
-        reminderTime.setHours(10, 0, 0, 0);
-
-        const secondsUntil = Math.round((reminderTime - now) / 1000);
-        if (secondsUntil > 0) {
+            const body = personalize(getRandomTemplate('medications', 'reminders'), { medicineName: joinedNames });
+            const capitalizedSlot = slotKey.charAt(0).toUpperCase() + slotKey.slice(1);
+            
             await Notifications.scheduleNotificationAsync({
                 content: {
-                    title: '❤️ Daily Vitals Reminder',
-                    body: "Don't forget to log your heart rate and blood pressure today!",
-                    data: { screen: 'PatientHome', type: 'vitals_reminder' },
+                    title: `💊 ${capitalizedSlot} Medication`,
+                    body: body || `Time to take your medication: ${joinedNames}`,
+                    data: { screen: 'Medications', type: 'medication_reminder' },
                     sound: 'default',
+                    categoryIdentifier: 'medication_reminder',
                 },
-                trigger: { type: 'timeInterval', seconds: secondsUntil },
+                // Native repeating exact alarm
+                trigger: { hour: h, minute: m, repeats: true, channelId: 'meds' },
             });
-            console.log('✅ Vitals reminder scheduled for 10:00 AM');
+            console.log(`✅ Daily repeating medication reminder synced for ${timePref} (${names.length} meds)`);
         }
 
-        await AsyncStorage.setItem(VITALS_REMINDER_KEY, today);
+        // --- 4. Subscription Alert (One-off) ---
+        if (subscriptionDaysLeft !== null && subscriptionDaysLeft >= 0 && subscriptionDaysLeft <= 7) {
+            const triggerDate = new Date();
+            triggerDate.setHours(9, 30, 0, 0); 
+            // If it's already past 9:30 AM today, schedule it for 5 seconds from now
+            // so we don't accidentally schedule it in the past (which fires instantly anyway, but 5s is cleaner)
+            const resolvedTrigger = triggerDate > new Date() ? triggerDate : { seconds: 5 };
+            
+            await Notifications.scheduleNotificationAsync({
+                content: {
+                    title: '⚠️ Subscription Expiring Soon',
+                    body: `Your premium subscription expires in ${subscriptionDaysLeft} day${subscriptionDaysLeft !== 1 ? 's' : ''}. Renew to maintain uninterrupted care.`,
+                    data: { screen: 'SubscribePlans', type: 'subscription_alert' },
+                    sound: 'default',
+                },
+                trigger: resolvedTrigger,
+            });
+            console.log('✅ Subscription warning synced');
+        }
+
     } catch (error) {
-        console.warn('Vitals reminder scheduling failed:', error.message);
-    }
-}
-
-/**
- * Schedule a subscription expiry warning push notification.
- * @param {number} daysLeft - Days remaining on subscription
- */
-export async function scheduleSubscriptionAlert(daysLeft) {
-    try {
-        if (daysLeft > 7 || daysLeft < 0) return;
-
-        const { status } = await Notifications.getPermissionsAsync();
-        if (status !== 'granted') return;
-
-        await Notifications.scheduleNotificationAsync({
-            content: {
-                title: '⚠️ Subscription Expiring Soon',
-                body: `Your premium subscription expires in ${daysLeft} day${daysLeft !== 1 ? 's' : ''}. Renew to maintain uninterrupted care.`,
-                data: { screen: 'SubscribePlans', type: 'subscription_alert' },
-                sound: 'default',
-            },
-            trigger: { type: 'timeInterval', seconds: 5 },
-        });
-        console.log(`✅ Subscription alert sent (${daysLeft} days left)`);
-    } catch (error) {
-        console.warn('Subscription alert failed:', error.message);
+        console.warn('Sync All Schedules failed:', error.message);
     }
 }
