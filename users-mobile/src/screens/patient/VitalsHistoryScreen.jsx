@@ -827,7 +827,7 @@ export default function VitalsHistoryScreen({ navigation }) {
     const def = CHART_DEFS.find(c => c.id === activeMetricId);
 
     return (
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
             {renderFullscreenChart()}
             <View style={[styles.container, { backgroundColor: def ? def.bgTint : '#FFFFFF' }]}>
                 {renderHeader()}

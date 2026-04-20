@@ -123,7 +123,7 @@ export default function AddAddressScreen({ navigation, route }) {
 
     return (
         <SafeAreaView style={styles.container}>
-            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
                 {/* Header */}
                 <View style={styles.header}>
                     <Pressable onPress={() => navigation.goBack()} style={styles.backBtn}>

@@ -635,7 +635,7 @@ export default function HealthProfileScreen({ navigation }) {
                 </TouchableWithoutFeedback>
                 <View style={s.modalWrapper}>
                     <Animated.View style={[s.modalSheet, { transform: [{ translateY: modalAnim.interpolate({ inputRange: [0, 1], outputRange: [800, 0] }) }], maxHeight: '85%' }]}>
-                        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+                        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
                             <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
                             <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={[s.modalBody, { flexGrow: 1, paddingBottom: 60 }]}>
                                 <View style={s.modalHeader}>

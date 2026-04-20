@@ -628,7 +628,7 @@ export default function MyCallerScreen({ navigation }) {
               ]}>
                 <View style={s.modalHandleWrap}><View style={s.modalHandle} /></View>
 
-                <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+                <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
                   <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 8, paddingBottom: Platform.OS === 'ios' ? 40 : 24 }}>
                   {/* Header */}
                   <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>

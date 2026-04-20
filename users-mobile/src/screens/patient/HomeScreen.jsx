@@ -309,7 +309,7 @@ export default function PatientHomeScreen({ navigation }) {
     }
 
     return (
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
             <LinearGradient colors={['#F8FAFC', '#EEF2FF']} style={[styles.container, { position: 'relative' }]}>
                 <View style={[styles.headerWrap, { zIndex: 10, elevation: 10 }]}>
                     <Animated.View style={[styles.minimalHeader, { opacity: staggerAnims[0], transform: [{ translateY: staggerAnims[0].interpolate({ inputRange: [0, 1], outputRange: [-20, 0] }) }] }]}>

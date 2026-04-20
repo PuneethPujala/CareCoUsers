@@ -190,7 +190,7 @@ const IconInput = React.memo(React.forwardRef(({ icon: Icon, label, rightIcon, e
 const OTPModal = React.memo(({ visible, onClose, otp, setOtp, onVerify, timer, resend, attempts, field, error, otpLoading }) => (
     <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
         <Pressable style={styles.modalOverlay} onPress={onClose}>
-            <KeyboardAvoidingView style={{ flex: 1, width: '100%', justifyContent: 'flex-end' }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+            <KeyboardAvoidingView style={{ flex: 1, width: '100%', justifyContent: 'flex-end' }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
                 <Pressable onPress={(e) => e.stopPropagation()} style={styles.modalSheet}>
                     <View style={styles.modalHeader}>
                         <Text style={styles.modalTitle}>Verify {field === 'email' ? 'Email' : 'Phone'}</Text>
@@ -1345,7 +1345,7 @@ export default function PatientSignupScreen({ navigation, route }) {
                                 {citySearchQuery.length > 0 && <Pressable onPress={() => setCitySearchQuery('')}><X size={16} color="#8899BB" /></Pressable>}
                             </View>
                         </View>
-                        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+                        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
                             <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 40 }}>
                                 {loadingCities ? (
                                 <ActivityIndicator size="large" color="#3B5BDB" style={{ marginTop: 40 }} />
@@ -1389,7 +1389,7 @@ export default function PatientSignupScreen({ navigation, route }) {
     // ─── Render ────────────────────────────────────────────────────────────────
 
     return (
-        <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
             <ScrollView
                 ref={mainScrollRef}
                 style={styles.scroll}

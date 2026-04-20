@@ -809,7 +809,7 @@ export default function PatientProfileScreen({ navigation }) {
 
             {/* ── Phone Edit ── */}
             <Modal visible={phoneModalVisible} animationType="slide" transparent onRequestClose={() => setPhoneModalVisible(false)}>
-                <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+                <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
                     <View style={s.modalOverlay}>
                         <View style={[s.modalContent, { padding: 0 }]}>
                             <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 24, paddingBottom: Platform.OS === 'ios' ? 40 : 24 }}>
@@ -838,7 +838,7 @@ export default function PatientProfileScreen({ navigation }) {
 
             {/* ── Emergency Contact ── */}
             <Modal visible={ecModalVisible} animationType="slide" transparent onRequestClose={() => setEcModalVisible(false)}>
-                <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+                <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
                     <View style={s.modalOverlay}>
                         <View style={[s.modalContent, { padding: 0 }]}>
                             <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 24, paddingBottom: Platform.OS === 'ios' ? 40 : 24 }}>
@@ -925,7 +925,7 @@ export default function PatientProfileScreen({ navigation }) {
 
             {/* ── Change Password ── */}
             <Modal visible={cpModalVisible} animationType="slide" transparent onRequestClose={() => setCpModalVisible(false)}>
-                <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+                <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
                     <View style={s.modalOverlay}>
                         <View style={[s.modalContent, { padding: 0 }]}>
                             <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 24, paddingBottom: Platform.OS === 'ios' ? 40 : 24 }}>
@@ -951,7 +951,7 @@ export default function PatientProfileScreen({ navigation }) {
 
             {/* ── Set Password (Google Users) ── */}
             <Modal visible={setPassModalVisible} animationType="slide" transparent onRequestClose={() => setSetPassModalVisible(false)}>
-                <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+                <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
                     <View style={s.modalOverlay}>
                         <View style={[s.modalContent, { padding: 0 }]}>
                             <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 24, paddingBottom: Platform.OS === 'ios' ? 40 : 24 }}>
@@ -975,7 +975,7 @@ export default function PatientProfileScreen({ navigation }) {
 
             {/* ── Screenshots OTP Modal ── */}
             <Modal visible={screenshotOTPModalVisible} animationType="slide" transparent>
-                <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+                <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
                     <View style={s.modalOverlay}>
                         <View style={[s.modalContent, { padding: 0 }]}>
                             <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 24, paddingBottom: Platform.OS === 'ios' ? 40 : 24 }}>
@@ -1129,7 +1129,7 @@ export default function PatientProfileScreen({ navigation }) {
 
             {/* ── Add Address ── */}
             <Modal visible={addAddressModalVisible} animationType="slide" transparent onRequestClose={() => setAddAddressModalVisible(false)}>
-                <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+                <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
                     <View style={s.modalOverlay}>
                         <View style={[s.modalContent, { padding: 0 }]}>
                             <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 24, paddingBottom: Platform.OS === 'ios' ? 40 : 24 }}>
