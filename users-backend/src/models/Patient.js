@@ -83,6 +83,11 @@ const PatientSchema = new mongoose.Schema(
         },
         // Stores last 3 hashed passwords to prevent reuse (Audit Bug #6)
         passwordHistory: [{ type: String }],
+        
+        allow_screenshots: {
+            type: Boolean,
+            default: false,
+        },
 
         // ── Notifications ─────────────────────────────
         expo_push_token: {

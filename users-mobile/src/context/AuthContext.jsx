@@ -18,6 +18,7 @@ import { apiService, handleApiError, saveApiTokens, clearApiTokens, getApiTokens
 import { setCacheUserId, clearUserCache } from '../lib/CacheService';
 import analytics from '../utils/analytics';
 import * as WebBrowser from 'expo-web-browser';
+import usePatientStore from '../store/usePatientStore';
 
 const AuthContext = createContext(null);
 
@@ -105,6 +106,7 @@ export function AuthProvider({ children }) {
             const p = res.data?.patient;
             if (p) {
                 setPatient(p);
+                usePatientStore.getState().setPatient(p);
                 return p;
             }
             return null;
@@ -132,6 +134,7 @@ export function AuthProvider({ children }) {
             setSession(null);
             setProfile(null);
             setPatient(null);
+            usePatientStore.getState().setPatient(null);
             setRecoverySessionAt(null);
             profileRef.current = null;
             analytics.reset();
@@ -233,6 +236,7 @@ export function AuthProvider({ children }) {
                     setSession(null);
                     setProfile(null);
                     setPatient(null);
+                    usePatientStore.getState().setPatient(null);
                     profileRef.current = null;
                 }
                 return;

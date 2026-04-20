@@ -264,10 +264,67 @@ const sendPasswordResetEmail = async (to, otp) => {
     return sendEmail(to, 'Samvaya — Reset Your Password', html);
 };
 
+/**
+ * Send security setting change OTP (e.g., Allow Screenshots)
+ */
+const sendSecurityOTPEmail = async (to, otp) => {
+    const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; background: #F8FAFC; }
+        .container { max-width: 520px; margin: 40px auto; background: #fff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 24px rgba(99,102,241,.12); }
+        .header { background: linear-gradient(135deg, #1E293B, #0F172A); padding: 36px 24px; text-align: center; }
+        .header h1 { color: #fff; margin: 0; font-size: 24px; font-weight: 800; }
+        .header p { color: rgba(255,255,255,0.7); margin: 6px 0 0; font-size: 13px; letter-spacing: 1.5px; font-weight: 600; }
+        .body { padding: 36px 32px; }
+        .body p { color: #334155; line-height: 1.7; margin: 0 0 16px; font-size: 15px; }
+        .otp-box { text-align: center; margin: 28px 0; }
+        .otp-code { display: inline-block; background: linear-gradient(135deg, #F1F5F9, #E2E8F0); border: 2px solid #CBD5E1; border-radius: 16px; padding: 20px 40px; font-size: 36px; font-weight: 800; color: #0F172A; letter-spacing: 12px; font-family: 'SF Mono', 'Fira Code', monospace; }
+        .timer { display: inline-block; background: #FEF3C7; border: 1px solid #FDE68A; border-radius: 8px; padding: 8px 16px; margin-top: 12px; font-size: 13px; color: #92400E; font-weight: 600; }
+        .warning { background: #FEF2F2; border: 1px solid #FECACA; border-radius: 12px; padding: 16px; margin: 20px 0; }
+        .warning p { color: #991B1B; margin: 0; font-size: 13px; font-weight: 500; }
+        .footer { text-align: center; padding: 20px 24px; color: #94A3B8; font-size: 12px; border-top: 1px solid #F1F5F9; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <p>SAMVAYA SECURITY</p>
+          <h1>Security Action Verification</h1>
+        </div>
+        <div class="body">
+          <p>Hello,</p>
+          <p>We received a request to modify a critical security setting on your account (Allow Screenshots). Use the code below in the app to authorize this change.</p>
+          
+          <div class="otp-box">
+            <div class="otp-code">${otp}</div>
+            <br />
+            <span class="timer">⏳ Expires in 10 minutes</span>
+          </div>
+
+          <div class="warning">
+            <p>🛡️ If you did not authorize this change, please ignore this email. Your settings remain secure.</p>
+          </div>
+        </div>
+        <div class="footer">
+          &copy; ${new Date().getFullYear()} Team Samvaya &mdash; Your Health, Our Priority
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+    return sendEmail(to, 'Samvaya — Security Action Verification', html);
+};
+
 module.exports = {
     sendEmail,
     sendOTPEmail,
     sendTempPasswordEmail,
     sendPasswordChangedEmail,
     sendPasswordResetEmail,
+    sendSecurityOTPEmail,
 };

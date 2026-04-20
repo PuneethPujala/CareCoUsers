@@ -1085,4 +1085,63 @@ router.delete('/me/:collection/:id', authenticateSession, async (req, res) => {
     }
 });
 
+// ─── Security & Privacy Settings ────────────────────────────
+
+/**
+ * POST /api/users/patients/me/security/screenshots/request-otp
+ * Request an OTP to change the `allow_screenshots` setting.
+ */
+router.post('/me/security/screenshots/request-otp', authenticateSession, async (req, res) => {
+    try {
+        const patient = await Patient.findOne({ supabase_uid: req.user.id });
+        if (!patient) return res.status(404).json({ error: 'Patient not found' });
+
+        const otpService = require('../../services/otpService');
+        const emailService = require('../../services/emailService');
+
+        const otp = await otpService.createOTP(patient.email);
+        await emailService.sendSecurityOTPEmail(patient.email, otp);
+
+        res.json({ message: 'OTP sent successfully to your registered email' });
+    } catch (err) {
+        console.error('Request screenshot OTP error:', err);
+        res.status(500).json({ error: 'Server Error' });
+    }
+});
+
+/**
+ * POST /api/users/patients/me/security/screenshots/verify
+ * Verify OTP and toggle `allow_screenshots` setting.
+ */
+router.post('/me/security/screenshots/verify', authenticateSession, async (req, res) => {
+    try {
+        const { otp, allow } = req.body;
+        if (!otp || typeof allow !== 'boolean') {
+            return res.status(400).json({ error: 'OTP and boolean "allow" parameter are required' });
+        }
+
+        const patient = await Patient.findOne({ supabase_uid: req.user.id });
+        if (!patient) return res.status(404).json({ error: 'Patient not found' });
+
+        const otpService = require('../../services/otpService');
+        const verification = await otpService.verifyOTP(patient.email, otp);
+
+        if (!verification.valid) {
+            return res.status(400).json({ error: verification.reason });
+        }
+
+        patient.allow_screenshots = allow;
+        await patient.save();
+
+        res.json({ 
+            message: allow ? 'Screenshots enabled' : 'Screenshots disabled and secured', 
+            allow_screenshots: patient.allow_screenshots,
+            patient
+        });
+    } catch (err) {
+        console.error('Verify screenshot OTP error:', err);
+        res.status(500).json({ error: 'Server Error' });
+    }
+});
+
 module.exports = router;

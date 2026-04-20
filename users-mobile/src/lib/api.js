@@ -238,6 +238,9 @@ export const apiService = {
         getAIPrediction: () => api.get('/users/patients/me/ai-prediction'),
         syncVitals: (data) => api.post('/vitals/sync', data),
         getSyncStatus: () => api.get('/vitals/sync/status'),
+
+        requestScreenshotOTP: () => api.post('/users/patients/me/security/screenshots/request-otp'),
+        verifyScreenshotOTP: (data) => api.post('/users/patients/me/security/screenshots/verify', data),
     },
 
     callers: {

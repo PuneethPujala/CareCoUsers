@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigation } from "@react-navigation/native";
 import * as Notifications from 'expo-notifications';
+import * as ScreenCapture from 'expo-screen-capture';
 import {
     View,
     Text,
@@ -237,10 +238,26 @@ function AppSplashScreen() {
 export default function AppNavigator() {
     const { isBootstrapping, onboardingComplete, subscriptionStatus, user, profile, signOut } = useAuth();
     const navigation = useNavigation();
+    const patient = usePatientStore(state => state.patient);
 
     const notificationListener = useRef();
     const responseListener = useRef();
     const hasNotified = useRef(false);
+
+    // ── Global Screenshot Prevention Hook ──
+    useEffect(() => {
+        if (user) {
+            // Block screenshots by default for safety, allow only if setting is explicitly true
+            if (patient?.allow_screenshots === true) {
+                ScreenCapture.allowScreenCaptureAsync().catch(err => console.warn('AppNavigator: allowScreenCaptureAsync failed', err));
+            } else {
+                ScreenCapture.preventScreenCaptureAsync().catch(err => console.warn('AppNavigator: preventScreenCaptureAsync failed', err));
+            }
+        } else {
+            // Allow screenshots on public/auth screens
+            ScreenCapture.allowScreenCaptureAsync().catch(() => {});
+        }
+    }, [user, patient?.allow_screenshots]);
 
     useEffect(() => {
         // Listen for incoming notifications while app is foregrounded
