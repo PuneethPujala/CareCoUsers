@@ -222,6 +222,14 @@ const PatientSchema = new mongoose.Schema(
             enum: [0, 1],
         },
 
+        // ── Gamification ──────────────────────────────
+        gamification: {
+            current_streak: { type: Number, default: 0 },
+            longest_streak: { type: Number, default: 0 },
+            last_streak_update: { type: Date },
+            available_freezes: { type: Number, default: 2 },
+        },
+
         // ── Medical Data ──────────────────────────────
         conditions: [
             {

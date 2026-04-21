@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, Platform, Pressable, Animated, ActivityIndicator, TextInput, KeyboardAvoidingView, TouchableOpacity, DeviceEventEmitter, InteractionManager } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
-    Pill, PhoneCall, CalendarCheck, Sunrise, Sun, Moon,
+    Pill, PhoneCall, CalendarCheck, Sunrise, Sun, Moon, Flame,
     Sparkles, ChevronRight, PhoneIncoming, TrendingUp, Activity, CalendarDays, CheckCircle2, Circle, Bell,
     Heart, Wind, Thermometer, Droplets, MapPin, AlertTriangle, PillBottle, Syringe, WifiOff
 } from 'lucide-react-native';
@@ -337,9 +337,19 @@ export default function PatientHomeScreen({ navigation }) {
                                     <Text style={styles.greetingGreeting} numberOfLines={1}>
                                         {getGreeting()}
                                     </Text>
-                                    <Text style={styles.greetingNameCompact} numberOfLines={1}>
-                                        {(patient?.name || displayName)?.split(' ')[0] || 'User'}
-                                    </Text>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                        <Text style={styles.greetingNameCompact} numberOfLines={1}>
+                                            {(patient?.name || displayName)?.split(' ')[0] || 'User'}
+                                        </Text>
+                                        
+                                        {/* 🔥 Unified Care Streak Widget */}
+                                        {(patient?.gamification?.current_streak > 0) && (
+                                            <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF0ED', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, borderWidth: 1, borderColor: '#FFE4E6' }}>
+                                                <Flame size={14} color="#F97316" fill="#FB923C" />
+                                                <Text style={{ marginLeft: 4, fontSize: 13, fontWeight: '800', color: '#EA580C' }}>{patient.gamification.current_streak}</Text>
+                                            </View>
+                                        )}
+                                    </View>
                                 </View>
                             </View>
 

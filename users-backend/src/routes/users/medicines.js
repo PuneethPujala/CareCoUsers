@@ -129,6 +129,12 @@ router.put('/mark', authenticate, async (req, res) => {
             await patient.save();
         }
 
+        // ── Gamification: Increment Care Streak ──
+        if (taken) {
+            const streakService = require('../../../services/streakService');
+            streakService.evaluateAndUpdateStreak(patient._id).catch(e => console.error('Streak Update Failed:', e));
+        }
+
         res.json({ log });
     } catch (error) {
         console.error('Mark medicine error:', error);
