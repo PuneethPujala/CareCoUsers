@@ -79,6 +79,14 @@ exports.evaluateAndUpdateStreak = async (patientId) => {
 
         // Only fire the save transaction if the mathematical state actually changed
         if (streakChanged) {
+            const todayStr = today.format('YYYY-MM-DD');
+            if (!patient.gamification.history_dates) {
+                patient.gamification.history_dates = [];
+            }
+            if (!patient.gamification.history_dates.includes(todayStr)) {
+                patient.gamification.history_dates.push(todayStr);
+            }
+            
             await patient.save();
         }
 

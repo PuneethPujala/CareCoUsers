@@ -50,6 +50,7 @@ import VitalsHistoryScreen from "../screens/patient/VitalsHistoryScreen";
 import LocationSearchScreen from "../screens/patient/LocationSearchScreen";
 import AddAddressScreen from "../screens/patient/AddAddressScreen";
 import HealthConnectSetupScreen from "../screens/patient/HealthConnectSetupScreen";
+import StreakDetailsScreen from "../screens/patient/StreakDetailsScreen";
 
 // Caller screens — removed: this is a patient-only app
 
@@ -217,6 +218,11 @@ const MainAppStack = () => (
             name="HealthConnectSetup"
             component={HealthConnectSetupScreen}
             options={{ presentation: "modal", animation: "slide_from_bottom" }}
+        />
+        <Stack.Screen
+            name="StreakDetails"
+            component={StreakDetailsScreen}
+            options={{ presentation: "modal", animation: "slide_from_bottom", headerShown: false }}
         />
         <Stack.Screen name="SubscribePlans" component={SubscribePlansScreen} />
         <Stack.Screen name="Payment" component={PaymentScreen} />

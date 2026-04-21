@@ -228,6 +228,7 @@ const PatientSchema = new mongoose.Schema(
             longest_streak: { type: Number, default: 0 },
             last_streak_update: { type: Date },
             available_freezes: { type: Number, default: 2 },
+            history_dates: [{ type: String }], // Array of YYYY-MM-DD
         },
 
         // ── Medical Data ──────────────────────────────

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, Platform, Pressable, Animated, ActivityIndicator, TextInput, KeyboardAvoidingView, TouchableOpacity, DeviceEventEmitter, InteractionManager } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Platform, Pressable, Animated, ActivityIndicator, TextInput, KeyboardAvoidingView, TouchableOpacity, DeviceEventEmitter, InteractionManager, Vibration } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
     Pill, PhoneCall, CalendarCheck, Sunrise, Sun, Moon, Flame,
@@ -147,6 +147,33 @@ export default function PatientHomeScreen({ navigation }) {
     const [submitLoading, setSubmitLoading] = useState(false);
 
     const staggerAnims = useRef([...Array(10)].map(() => new Animated.Value(0))).current;
+
+    // Streak Animation State
+    const streakScale = useRef(new Animated.Value(1)).current;
+    const streakRotate = useRef(new Animated.Value(0)).current;
+    const prevStreakRef = useRef(patient?.gamification?.current_streak || 0);
+
+    useEffect(() => {
+        const currentStreak = patient?.gamification?.current_streak || 0;
+        if (currentStreak > prevStreakRef.current) {
+            // Provide haptic feedback!
+            Vibration.vibrate([0, 50, 100, 50]);
+
+            // Animate scale Pop & Wiggle!
+            Animated.parallel([
+                Animated.sequence([
+                    Animated.spring(streakScale, { toValue: 1.4, friction: 2, tension: 40, useNativeDriver: true }),
+                    Animated.spring(streakScale, { toValue: 1, friction: 3, tension: 60, useNativeDriver: true })
+                ]),
+                Animated.sequence([
+                    Animated.timing(streakRotate, { toValue: 1, duration: 100, useNativeDriver: true }),
+                    Animated.timing(streakRotate, { toValue: -1, duration: 100, useNativeDriver: true }),
+                    Animated.timing(streakRotate, { toValue: 0, duration: 100, useNativeDriver: true })
+                ])
+            ]).start();
+        }
+        prevStreakRef.current = currentStreak;
+    }, [patient?.gamification?.current_streak, streakScale, streakRotate]);
 
     // Health sync state
     const [syncStatus, setSyncStatus] = useState({
@@ -343,11 +370,21 @@ export default function PatientHomeScreen({ navigation }) {
                                         </Text>
                                         
                                         {/* 🔥 Unified Care Streak Widget */}
-                                        {(patient?.gamification?.current_streak > 0) && (
-                                            <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF0ED', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, borderWidth: 1, borderColor: '#FFE4E6' }}>
-                                                <Flame size={14} color="#F97316" fill="#FB923C" />
-                                                <Text style={{ marginLeft: 4, fontSize: 13, fontWeight: '800', color: '#EA580C' }}>{patient.gamification.current_streak}</Text>
-                                            </View>
+                                        {(patient?.gamification?.current_streak !== undefined) && (
+                                            <Animated.View style={{ 
+                                                transform: [
+                                                    { scale: streakScale },
+                                                    { rotate: streakRotate.interpolate({ inputRange: [-1, 0, 1], outputRange: ['-15deg', '0deg', '15deg'] }) }
+                                                ] 
+                                            }}>
+                                                <Pressable 
+                                                    onPress={() => navigation.navigate('StreakDetails')}
+                                                    style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF0ED', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, borderWidth: 1, borderColor: '#FFE4E6' }}
+                                                >
+                                                    <Flame size={14} color="#F97316" fill="#FB923C" />
+                                                    <Text style={{ marginLeft: 4, fontSize: 13, fontWeight: '800', color: '#EA580C' }}>{patient.gamification.current_streak}</Text>
+                                                </Pressable>
+                                            </Animated.View>
                                         )}
                                     </View>
                                 </View>
