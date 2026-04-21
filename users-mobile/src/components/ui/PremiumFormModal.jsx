@@ -106,7 +106,7 @@ const PremiumFormModal = ({
                             {
                                 translateY: slideAnim.interpolate({
                                     inputRange: [0, 1],
-                                    outputRange: [800, 0],
+                                    outputRange: [1200, 0],
                                 }),
                             },
                         ],
@@ -187,7 +187,7 @@ const styles = StyleSheet.create({
     },
     sheetContainer: {
         position: 'absolute',
-        top: Platform.OS === 'ios' ? 44 : StatusBar.currentHeight || 40,
+        top: Platform.OS === 'ios' ? 80 : 100, // Provides a nice gap at the top so it doesn't collide
         left: 0,
         right: 0,
         bottom: 0,
