@@ -58,7 +58,12 @@ ehthumbs.db
 *.sw?
 *.log
 
+# Sensitive Files
+*.jks
+*-firebase-adminsdk-*.json
+
 # Misc
 .cache
 *.tgz
 *.zip
+users-backend/src/scratch/

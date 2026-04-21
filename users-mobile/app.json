@@ -16,6 +16,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.careco.users",
+      "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "NSHealthShareUsageDescription": "Samvaya requires access to your health data to monitor your wellbeing.",
         "NSHealthUpdateUsageDescription": "Samvaya requires write access to update your health profile."
@@ -70,9 +71,9 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "5c1e0850-203d-4d30-8392-c33fe5360d6a"
+        "projectId": "72ea4662-12ff-484c-9f35-2138ec21a01a"
       }
     },
-    "owner": "k.karthik018"
+    "owner": "ashwin_kumar_06_t"
   }
 }
