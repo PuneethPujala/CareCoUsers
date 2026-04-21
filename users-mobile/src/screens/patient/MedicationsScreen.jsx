@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { View, Text, StyleSheet, ScrollView, Platform, Pressable, Animated, ActivityIndicator, Dimensions, Alert, Modal, TextInput, RefreshControl, DeviceEventEmitter, InteractionManager } from 'react-native';
+import PremiumFormModal from '../../components/ui/PremiumFormModal';
 import { Pill, Sunrise, Sun, Moon, CheckCircle2, Circle, Bell, Activity, Plus, Coffee, Utensils, BedDouble, AlertCircle, Calendar, Pencil, Clock, PillBottle, Syringe, X, MessageCircle } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Circle as SvgCircle, Defs, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg';
@@ -774,33 +775,26 @@ export default function MedicationsScreen({ navigation }) {
             </Animated.View>
 
             {/* Preferences Modal */}
-            <Modal visible={showPrefModal} transparent animationType="slide">
-                <View style={styles.modalOverlay}>
-                    <View style={styles.modalContent}>
-                        <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>Call Preferences</Text>
-                            <Pressable onPress={() => setShowPrefModal(false)}><X size={24} color="#64748B" /></Pressable>
-                        </View>
-                        <Text style={styles.modalDesc}>Set the time you prefer our team to call you for each medication slot. We'll call within 30 minutes of this time.</Text>
-                        
-                        {['morning', 'afternoon', 'night'].map(slot => (
-                            <View key={slot} style={styles.prefRow}>
-                                <Text style={styles.prefLabel}>{slot.charAt(0).toUpperCase() + slot.slice(1)}</Text>
-                                <Pressable style={styles.timeInputBox} onPress={() => setActivePicker(slot)}>
-                                    <Clock size={16} color="#94A3B8" />
-                                    <Text style={styles.timeInputTxt}>{tempPrefs[slot]}</Text>
-                                </Pressable>
-                            </View>
-                        ))}
-
-                        <Pressable onPress={handleSavePreferences} disabled={savingPrefs} style={[styles.saveBtnWrapper, savingPrefs && {opacity: 0.7}]}>
-                            <LinearGradient colors={['#3B82F6', '#1E3A8A']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.saveBtn}>
-                                {savingPrefs ? <ActivityIndicator color="#FFF" /> : <Text style={styles.saveBtnTxt}>Save Preferences</Text>}
-                            </LinearGradient>
+            <PremiumFormModal
+                visible={showPrefModal}
+                title="Call Preferences"
+                onClose={() => setShowPrefModal(false)}
+                onSave={handleSavePreferences}
+                saveText={savingPrefs ? 'Saving...' : 'Save Preferences'}
+                saving={savingPrefs}
+            >
+                <Text style={styles.modalDesc}>Set the time you prefer our team to call you for each medication slot. We'll call within 30 minutes of this time.</Text>
+                
+                {['morning', 'afternoon', 'night'].map(slot => (
+                    <View key={slot} style={styles.prefRow}>
+                        <Text style={styles.prefLabel}>{slot.charAt(0).toUpperCase() + slot.slice(1)}</Text>
+                        <Pressable style={styles.timeInputBox} onPress={() => setActivePicker(slot)}>
+                            <Clock size={16} color="#94A3B8" />
+                            <Text style={styles.timeInputTxt}>{tempPrefs[slot]}</Text>
                         </Pressable>
                     </View>
-                </View>
-            </Modal>
+                ))}
+            </PremiumFormModal>
 
             <CustomTimePickerModal 
                 visible={!!activePicker} 

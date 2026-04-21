@@ -4,6 +4,7 @@ import {
   Pressable, ActivityIndicator, Linking, Animated,
   Modal, TouchableOpacity, TouchableWithoutFeedback, Alert, TextInput, Keyboard, KeyboardAvoidingView, FlatList,
 } from 'react-native';
+import PremiumFormModal from '../../components/ui/PremiumFormModal';
 import {
   Phone, PhoneIncoming, AlertTriangle, ShieldCheck,
   Flag, Clock, Globe, Calendar, ChevronRight, ChevronDown, X, Users, Heart,
@@ -606,43 +607,14 @@ export default function MyCallerScreen({ navigation }) {
       </Modal>
 
       {/* ── Contact Form Modal ── */}
-      <Modal
+      <PremiumFormModal
         visible={contactModal}
-        transparent
-        animationType="none"
-        onRequestClose={closeContactModal}
+        title={editingContact ? 'Edit Contact' : 'New Contact'}
+        onClose={closeContactModal}
+        onSave={saveContact}
+        saveText={isSavingContact ? 'Saving...' : (editingContact ? 'Update Contact' : 'Save Contact')}
+        saving={isSavingContact}
       >
-        <View style={{ flex: 1 }}>
-            <TouchableWithoutFeedback onPress={closeContactModal}>
-              <Animated.View style={[s.backdrop, { opacity: backdropAnim }]} />
-            </TouchableWithoutFeedback>
-
-            <View style={s.modalWrapper}>
-              <Animated.View style={[
-                s.contactFormSheet,
-                {
-                  transform: [{
-                    translateY: contactModalAnim.interpolate({ inputRange: [0, 1], outputRange: [800, 0] }),
-                  }],
-                },
-              ]}>
-                <View style={s.modalHandleWrap}><View style={s.modalHandle} /></View>
-
-                <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-                  <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 8, paddingBottom: Platform.OS === 'ios' ? 40 : 24 }}>
-                  {/* Header */}
-                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                      <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: '#EEF2FF', alignItems: 'center', justifyContent: 'center' }}>
-                        <Users size={20} color={C.primary} />
-                      </View>
-                      <Text style={{ fontSize: 20, fontWeight: '800', color: C.dark, letterSpacing: -0.3 }}>{editingContact ? 'Edit Contact' : 'New Contact'}</Text>
-                    </View>
-                    <Pressable onPress={closeContactModal} style={s.modalCloseBtn}>
-                      <X size={20} color="#64748B" />
-                    </Pressable>
-                  </View>
-
                   {/* Name */}
                   <View style={s.formGroup}>
                     <Text style={s.formLabel}>Full Name *</Text>
@@ -721,28 +693,7 @@ export default function MyCallerScreen({ navigation }) {
                       returnKeyType="done"
                     />
                   </View>
-
-                  {/* Save button */}
-                  <Pressable
-                    style={({ pressed }) => [{
-                      flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
-                      borderRadius: 20, height: 56, backgroundColor: C.primary, marginTop: 8,
-                      shadowColor: C.primary, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.25, shadowRadius: 12, elevation: 6,
-                    }, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]}
-                    onPress={saveContact}
-                    disabled={isSavingContact}
-                  >
-                    {isSavingContact
-                      ? <ActivityIndicator color="#FFF" />
-                      : <><Heart size={18} color="#FFF" /><Text style={{ fontSize: 16, fontWeight: '700', color: '#FFF' }}>{editingContact ? 'Update Contact' : 'Save Contact'}</Text></>
-                    }
-                  </Pressable>
-                </ScrollView>
-                </KeyboardAvoidingView>
-              </Animated.View>
-            </View>
-        </View>
-      </Modal>
+      </PremiumFormModal>
 
       {/* Country Code Picker Modal */}
       <Modal visible={countryCodeModal} transparent animationType="slide" onRequestClose={() => setCountryCodeModal(false)}>

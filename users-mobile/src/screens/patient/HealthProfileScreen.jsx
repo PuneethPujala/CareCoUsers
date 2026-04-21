@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, Platform, ActivityIndicator, Animated, Pressable, Linking, Modal, TouchableWithoutFeedback, TextInput, KeyboardAvoidingView, Alert, FlatList, Switch } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Platform, ActivityIndicator, Animated, Pressable, Linking, Modal, TouchableWithoutFeedback, TextInput, KeyboardAvoidingView, Alert, FlatList, Switch, Keyboard } from 'react-native';
+import PremiumFormModal from '../../components/ui/PremiumFormModal';
 import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { TriangleAlert, ShieldCheck, HeartPulse, Activity, Stethoscope, Droplet, User, CalendarDays, Watch, Flame, Phone, Plus, Edit2, X, Trash2, CheckCircle2, RefreshCw, AlertTriangle, ChevronDown, Upload } from 'lucide-react-native';
@@ -628,32 +629,23 @@ export default function HealthProfileScreen({ navigation }) {
 
             </ScrollView>
 
-            {/* Dynamic Modal Form */}
-            <Modal visible={modalVisible} transparent animationType="none" onRequestClose={closeModal}>
-                <TouchableWithoutFeedback onPress={closeModal}>
-                    <Animated.View style={[s.backdrop, { opacity: backdropAnim }]} />
-                </TouchableWithoutFeedback>
-                <View style={s.modalWrapper}>
-                    <Animated.View style={[s.modalSheet, { transform: [{ translateY: modalAnim.interpolate({ inputRange: [0, 1], outputRange: [800, 0] }) }], maxHeight: '85%' }]}>
-                        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-                            <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
-                            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={[s.modalBody, { flexGrow: 1, paddingBottom: 60 }]}>
-                                <View style={s.modalHeader}>
-                                    <Text style={[s.modalTitle, {textTransform:'capitalize', fontSize: 20, ...FONT.heavy, color: C.dark}]}>
-                                        {formState._id ? 'Edit ' : 'Update '}
-                                        {['vitals', 'habits', 'activity'].includes(editingType) ? 'Lifestyle' : editingType}
-                                    </Text>
-                                    <View style={{flexDirection: 'row', gap: 12}}>
-                                        {/* Show Trash Can Delete Button Only For Existing Collection Items */}
-                                        {formState._id && ['condition', 'allergy', 'medication', 'vaccination', 'history', 'appointment'].includes(editingType) && (
-                                            <Pressable onPress={() => handleDelete(getCollectionName(editingType), formState._id)} style={s.trashBtn}>
-                                                <Trash2 size={20} color={C.danger} />
-                                            </Pressable>
-                                        )}
-                                        <Pressable onPress={closeModal} style={s.closeIconBtn}><X size={20} color="#64748B" /></Pressable>
-                                    </View>
-                                </View>
-                                
+            {/* Dynamic Modal Form — Premium Full-Screen */}
+            <PremiumFormModal
+                visible={modalVisible}
+                title={`${formState._id ? 'Edit' : 'Update'} ${['vitals', 'habits', 'activity'].includes(editingType) ? 'Lifestyle' : editingType}`}
+                onClose={closeModal}
+                onSave={handleSave}
+                saveText="Save Profile Data"
+                saving={isSaving}
+                headerRight={
+                    formState._id && ['condition', 'allergy', 'medication', 'vaccination', 'history', 'appointment'].includes(editingType) ? (
+                        <Pressable onPress={() => handleDelete(getCollectionName(editingType), formState._id)} style={s.trashBtn}>
+                            <Trash2 size={20} color={C.danger} />
+                        </Pressable>
+                    ) : null
+                }
+            >
+                
                                 {/* Form Fields Matrix */}
                                 {editingType === 'condition' && (
                                     <>
@@ -858,16 +850,7 @@ export default function HealthProfileScreen({ navigation }) {
                                     </View>
                                 )}
 
-                                <Pressable style={s.btnSaveLg} onPress={handleSave} disabled={isSaving}>
-                                    {isSaving ? <ActivityIndicator color="#FFF" /> : <Text style={s.btnSaveTextLg}>Save Profile Data</Text>}
-                                </Pressable>
-                                <View style={{height: 40}} />
-                            </ScrollView>
-                            </TouchableWithoutFeedback>
-                        </KeyboardAvoidingView>
-                        </Animated.View>
-                    </View>
-            </Modal>
+            </PremiumFormModal>
 
             {/* Country Code Picker Modal */}
             <Modal visible={countryCodeModal} transparent animationType="slide">

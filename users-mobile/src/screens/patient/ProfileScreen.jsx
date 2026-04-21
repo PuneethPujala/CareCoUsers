@@ -4,6 +4,7 @@ import {
     View, Text, StyleSheet, ScrollView, Platform, Pressable, Modal,
     TextInput, Alert, Switch, Animated, StatusBar, FlatList, KeyboardAvoidingView,
 } from 'react-native';
+import PremiumFormModal from '../../components/ui/PremiumFormModal';
 import {
     Bell, Settings, LogOut, ChevronRight, ChevronDown, UserRound, Phone, X, Save,
     ShieldCheck, Star, MapPin, ClipboardList, FileText, FlaskConical,
@@ -808,72 +809,54 @@ export default function PatientProfileScreen({ navigation }) {
             </Modal>
 
             {/* ── Phone Edit ── */}
-            <Modal visible={phoneModalVisible} animationType="slide" transparent onRequestClose={() => setPhoneModalVisible(false)}>
-                <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-                    <View style={s.modalOverlay}>
-                        <View style={[s.modalContent, { padding: 0 }]}>
-                            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 24, paddingBottom: Platform.OS === 'ios' ? 40 : 24 }}>
-                                <View style={s.modalHeader}>
-                                    <Text style={s.modalTitle}>Phone Number</Text>
-                                    <Pressable onPress={() => setPhoneModalVisible(false)} hitSlop={10}><X size={24} color="#64748B" /></Pressable>
-                                </View>
-                                <Text style={s.inputLabel}>Phone</Text>
-                                <View style={s.phoneInputRow}>
-                                    <Pressable style={s.countryCodeBtn} onPress={() => openCountryCodePicker('personal')}>
-                                        <Text style={s.countryCodeFlag}>{COUNTRY_CODES.find(c => c.code === editPhoneCode)?.flag || '🌍'}</Text>
-                                        <Text style={s.countryCodeTxt}>{editPhoneCode}</Text>
-                                        <ChevronDown size={14} color={C.muted} />
-                                    </Pressable>
-                                    <TextInput style={[s.input, { flex: 1 }]} value={editPhone} onChangeText={(t) => setEditPhone(t.replace(/[^0-9]/g, ''))} placeholder="Phone number" placeholderTextColor="#94A3B8" keyboardType="phone-pad" maxLength={COUNTRY_CODES.find(c => c.code === editPhoneCode)?.maxDigits || 12} />
-                                </View>
-                                <Pressable style={s.saveBtn} onPress={handleSavePhone} disabled={saving}>
-                                    <Save size={18} color="#FFFFFF" />
-                                    <Text style={s.saveBtnTxt}>{saving ? 'Saving...' : 'Save Phone'}</Text>
-                                </Pressable>
-                            </ScrollView>
-                        </View>
-                    </View>
-                </KeyboardAvoidingView>
-            </Modal>
+            <PremiumFormModal
+                visible={phoneModalVisible}
+                title="Phone Number"
+                onClose={() => setPhoneModalVisible(false)}
+                onSave={handleSavePhone}
+                saveText={saving ? 'Saving...' : 'Save Phone'}
+                saving={saving}
+            >
+                <Text style={s.inputLabel}>Phone</Text>
+                <View style={s.phoneInputRow}>
+                    <Pressable style={s.countryCodeBtn} onPress={() => openCountryCodePicker('personal')}>
+                        <Text style={s.countryCodeFlag}>{COUNTRY_CODES.find(c => c.code === editPhoneCode)?.flag || '🌍'}</Text>
+                        <Text style={s.countryCodeTxt}>{editPhoneCode}</Text>
+                        <ChevronDown size={14} color={C.muted} />
+                    </Pressable>
+                    <TextInput style={[s.input, { flex: 1 }]} value={editPhone} onChangeText={(t) => setEditPhone(t.replace(/[^0-9]/g, ''))} placeholder="Phone number" placeholderTextColor="#94A3B8" keyboardType="phone-pad" maxLength={COUNTRY_CODES.find(c => c.code === editPhoneCode)?.maxDigits || 12} />
+                </View>
+            </PremiumFormModal>
 
             {/* ── Emergency Contact ── */}
-            <Modal visible={ecModalVisible} animationType="slide" transparent onRequestClose={() => setEcModalVisible(false)}>
-                <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-                    <View style={s.modalOverlay}>
-                        <View style={[s.modalContent, { padding: 0 }]}>
-                            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 24, paddingBottom: Platform.OS === 'ios' ? 40 : 24 }}>
-                                <View style={s.modalHeader}>
-                                    <Text style={s.modalTitle}>Emergency Contact</Text>
-                                    <Pressable onPress={() => setEcModalVisible(false)} hitSlop={10}><X size={24} color="#64748B" /></Pressable>
-                                </View>
-                                <Text style={s.inputLabel}>Name</Text>
-                                <TextInput style={s.input} value={ecName} onChangeText={setEcName} placeholder="Contact name" placeholderTextColor="#94A3B8" />
-                                <Text style={s.inputLabel}>Phone</Text>
-                                <View style={s.phoneInputRow}>
-                                    <Pressable style={s.countryCodeBtn} onPress={() => openCountryCodePicker('ec')}>
-                                        <Text style={s.countryCodeFlag}>{COUNTRY_CODES.find(c => c.code === ecPhoneCode)?.flag || '🌍'}</Text>
-                                        <Text style={s.countryCodeTxt}>{ecPhoneCode}</Text>
-                                        <ChevronDown size={14} color={C.muted} />
-                                    </Pressable>
-                                    <TextInput style={[s.input, { flex: 1 }]} value={ecPhone} onChangeText={(t) => setEcPhone(t.replace(/[^0-9]/g, ''))} placeholder="Phone number" placeholderTextColor="#94A3B8" keyboardType="phone-pad" maxLength={COUNTRY_CODES.find(c => c.code === ecPhoneCode)?.maxDigits || 12} />
-                                </View>
-                                <Text style={s.inputLabel}>Relation</Text>
-                                <TextInput style={s.input} value={ecRelation} onChangeText={setEcRelation} placeholder="e.g. Son, Daughter, Spouse" placeholderTextColor="#94A3B8" />
-                                <Pressable style={s.saveBtn} onPress={handleSaveEC} disabled={saving}>
-                                    <Save size={18} color="#FFFFFF" />
-                                    <Text style={s.saveBtnTxt}>{saving ? 'Saving...' : 'Save Contact'}</Text>
-                                </Pressable>
-                                {patient?.emergency_contact?.name && (
-                                    <Pressable style={[s.saveBtn, { backgroundColor: '#FEE2E2', marginTop: 12 }]} onPress={handleRemoveEC} disabled={saving}>
-                                        <Trash2 size={18} color="#EF4444" />
-                                        <Text style={[s.saveBtnTxt, { color: '#B91C1C' }]}>{saving ? 'Removing...' : 'Remove Contact'}</Text>
-                                    </Pressable>
-                                )}
-                            </ScrollView>
-                        </View>
-                    </View>
-                </KeyboardAvoidingView>
-            </Modal>
+            <PremiumFormModal
+                visible={ecModalVisible}
+                title="Emergency Contact"
+                onClose={() => setEcModalVisible(false)}
+                onSave={handleSaveEC}
+                saveText={saving ? 'Saving...' : 'Save Contact'}
+                saving={saving}
+            >
+                <Text style={s.inputLabel}>Name</Text>
+                <TextInput style={s.input} value={ecName} onChangeText={setEcName} placeholder="Contact name" placeholderTextColor="#94A3B8" />
+                <Text style={s.inputLabel}>Phone</Text>
+                <View style={s.phoneInputRow}>
+                    <Pressable style={s.countryCodeBtn} onPress={() => openCountryCodePicker('ec')}>
+                        <Text style={s.countryCodeFlag}>{COUNTRY_CODES.find(c => c.code === ecPhoneCode)?.flag || '🌍'}</Text>
+                        <Text style={s.countryCodeTxt}>{ecPhoneCode}</Text>
+                        <ChevronDown size={14} color={C.muted} />
+                    </Pressable>
+                    <TextInput style={[s.input, { flex: 1 }]} value={ecPhone} onChangeText={(t) => setEcPhone(t.replace(/[^0-9]/g, ''))} placeholder="Phone number" placeholderTextColor="#94A3B8" keyboardType="phone-pad" maxLength={COUNTRY_CODES.find(c => c.code === ecPhoneCode)?.maxDigits || 12} />
+                </View>
+                <Text style={s.inputLabel}>Relation</Text>
+                <TextInput style={s.input} value={ecRelation} onChangeText={setEcRelation} placeholder="e.g. Son, Daughter, Spouse" placeholderTextColor="#94A3B8" />
+                {patient?.emergency_contact?.name && (
+                    <Pressable style={[s.saveBtn, { backgroundColor: '#FEE2E2', marginTop: 12 }]} onPress={handleRemoveEC} disabled={saving}>
+                        <Trash2 size={18} color="#EF4444" />
+                        <Text style={[s.saveBtnTxt, { color: '#B91C1C' }]}>{saving ? 'Removing...' : 'Remove Contact'}</Text>
+                    </Pressable>
+                )}
+            </PremiumFormModal>
 
             {/* ── Account Details ── */}
             <Modal visible={accountModalVisible} animationType="slide" transparent onRequestClose={() => setAccountModalVisible(false)}>
@@ -900,173 +883,127 @@ export default function PatientProfileScreen({ navigation }) {
             </Modal>
 
             {/* ── Edit Account ── */}
-            <Modal visible={editAccountModalVisible} animationType="slide" transparent onRequestClose={() => setEditAccountModalVisible(false)}>
-                <View style={s.modalOverlay}>
-                    <View style={[s.modalContent, { padding: 0 }]}>
-                        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-                            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 24, paddingBottom: Platform.OS === 'ios' ? 40 : 24 }}>
-                                <View style={s.modalHeader}>
-                                    <Text style={s.modalTitle}>Edit Profile</Text>
-                                    <Pressable onPress={() => setEditAccountModalVisible(false)} hitSlop={10}><X size={24} color="#64748B" /></Pressable>
-                                </View>
-                                <Text style={s.inputLabel}>Full Name</Text>
-                                <TextInput style={s.input} value={editName} onChangeText={setEditName} placeholder="Your name" placeholderTextColor="#94A3B8" />
-                                <Text style={s.inputLabel}>City</Text>
-                                <TextInput style={s.input} value={editCity} onChangeText={setEditCity} placeholder="e.g. Hyderabad" placeholderTextColor="#94A3B8" />
-                                <Pressable style={s.saveBtn} onPress={handleSaveAccount} disabled={savingAccount}>
-                                    <Save size={18} color="#FFFFFF" />
-                                    <Text style={s.saveBtnTxt}>{savingAccount ? 'Saving...' : 'Save Profile'}</Text>
-                                </Pressable>
-                            </ScrollView>
-                        </KeyboardAvoidingView>
-                    </View>
-                </View>
-            </Modal>
+            <PremiumFormModal
+                visible={editAccountModalVisible}
+                title="Edit Profile"
+                onClose={() => setEditAccountModalVisible(false)}
+                onSave={handleSaveAccount}
+                saveText={savingAccount ? 'Saving...' : 'Save Profile'}
+                saving={savingAccount}
+            >
+                <Text style={s.inputLabel}>Full Name</Text>
+                <TextInput style={s.input} value={editName} onChangeText={setEditName} placeholder="Your name" placeholderTextColor="#94A3B8" />
+                <Text style={s.inputLabel}>City</Text>
+                <TextInput style={s.input} value={editCity} onChangeText={setEditCity} placeholder="e.g. Hyderabad" placeholderTextColor="#94A3B8" />
+            </PremiumFormModal>
 
             {/* ── Change Password ── */}
-            <Modal visible={cpModalVisible} animationType="slide" transparent onRequestClose={() => setCpModalVisible(false)}>
-                <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-                    <View style={s.modalOverlay}>
-                        <View style={[s.modalContent, { padding: 0 }]}>
-                            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 24, paddingBottom: Platform.OS === 'ios' ? 40 : 24 }}>
-                                <View style={s.modalHeader}>
-                                    <Text style={s.modalTitle}>Change Password</Text>
-                                    <Pressable onPress={() => setCpModalVisible(false)} hitSlop={10}><X size={24} color="#64748B" /></Pressable>
-                                </View>
-                                <Text style={s.inputLabel}>Current Password</Text>
-                                <TextInput style={s.input} value={currentPassword} onChangeText={setCurrentPassword} placeholder="Enter current password" placeholderTextColor="#94A3B8" secureTextEntry />
-                                <Text style={s.inputLabel}>New Password</Text>
-                                <TextInput style={s.input} value={newPassword} onChangeText={setNewPassword} placeholder="Enter new password" placeholderTextColor="#94A3B8" secureTextEntry />
-                                <Text style={s.inputLabel}>Confirm Password</Text>
-                                <TextInput style={s.input} value={confirmPassword} onChangeText={setConfirmPassword} placeholder="Confirm new password" placeholderTextColor="#94A3B8" secureTextEntry />
-                                <Pressable style={s.saveBtn} onPress={handleChangePassword} disabled={savingCp}>
-                                    <Save size={18} color="#FFFFFF" />
-                                    <Text style={s.saveBtnTxt}>{savingCp ? 'Changing...' : 'Change Password'}</Text>
-                                </Pressable>
-                            </ScrollView>
-                        </View>
-                    </View>
-                </KeyboardAvoidingView>
-            </Modal>
+            <PremiumFormModal
+                visible={cpModalVisible}
+                title="Change Password"
+                onClose={() => setCpModalVisible(false)}
+                onSave={handleChangePassword}
+                saveText={savingCp ? 'Changing...' : 'Change Password'}
+                saving={savingCp}
+            >
+                <Text style={s.inputLabel}>Current Password</Text>
+                <TextInput style={s.input} value={currentPassword} onChangeText={setCurrentPassword} placeholder="Enter current password" placeholderTextColor="#94A3B8" secureTextEntry />
+                <Text style={s.inputLabel}>New Password</Text>
+                <TextInput style={s.input} value={newPassword} onChangeText={setNewPassword} placeholder="Enter new password" placeholderTextColor="#94A3B8" secureTextEntry />
+                <Text style={s.inputLabel}>Confirm Password</Text>
+                <TextInput style={s.input} value={confirmPassword} onChangeText={setConfirmPassword} placeholder="Confirm new password" placeholderTextColor="#94A3B8" secureTextEntry />
+            </PremiumFormModal>
 
             {/* ── Set Password (Google Users) ── */}
-            <Modal visible={setPassModalVisible} animationType="slide" transparent onRequestClose={() => setSetPassModalVisible(false)}>
-                <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-                    <View style={s.modalOverlay}>
-                        <View style={[s.modalContent, { padding: 0 }]}>
-                            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 24, paddingBottom: Platform.OS === 'ios' ? 40 : 24 }}>
-                                <View style={s.modalHeader}>
-                                    <Text style={s.modalTitle}>Set Password</Text>
-                                    <Pressable onPress={() => setSetPassModalVisible(false)} hitSlop={10}><X size={24} color="#64748B" /></Pressable>
-                                </View>
-                                <Text style={s.inputLabel}>New Password</Text>
-                                <TextInput style={s.input} value={setPassNew} onChangeText={setSetPassNew} placeholder="Enter password (min 6 chars)" placeholderTextColor="#94A3B8" secureTextEntry />
-                                <Text style={s.inputLabel}>Confirm Password</Text>
-                                <TextInput style={s.input} value={setPassConfirm} onChangeText={setSetPassConfirm} placeholder="Confirm new password" placeholderTextColor="#94A3B8" secureTextEntry />
-                                <Pressable style={s.saveBtn} onPress={handleSetPassword} disabled={savingSetPass}>
-                                    <Save size={18} color="#FFFFFF" />
-                                    <Text style={s.saveBtnTxt}>{savingSetPass ? 'Saving...' : 'Set Password'}</Text>
-                                </Pressable>
-                            </ScrollView>
-                        </View>
-                    </View>
-                </KeyboardAvoidingView>
-            </Modal>
+            <PremiumFormModal
+                visible={setPassModalVisible}
+                title="Set Password"
+                onClose={() => setSetPassModalVisible(false)}
+                onSave={handleSetPassword}
+                saveText={savingSetPass ? 'Saving...' : 'Set Password'}
+                saving={savingSetPass}
+            >
+                <Text style={s.inputLabel}>New Password</Text>
+                <TextInput style={s.input} value={setPassNew} onChangeText={setSetPassNew} placeholder="Enter password (min 6 chars)" placeholderTextColor="#94A3B8" secureTextEntry />
+                <Text style={s.inputLabel}>Confirm Password</Text>
+                <TextInput style={s.input} value={setPassConfirm} onChangeText={setSetPassConfirm} placeholder="Confirm new password" placeholderTextColor="#94A3B8" secureTextEntry />
+            </PremiumFormModal>
 
             {/* ── Screenshots OTP Modal ── */}
-            <Modal visible={screenshotOTPModalVisible} animationType="slide" transparent>
-                <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-                    <View style={s.modalOverlay}>
-                        <View style={[s.modalContent, { padding: 0 }]}>
-                            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 24, paddingBottom: Platform.OS === 'ios' ? 40 : 24 }}>
-                                <View style={s.modalHeader}>
-                                    <View>
-                                        <Text style={s.modalTitle}>Security Verification</Text>
-                                        <Text style={[s.inputLabel, { marginTop: 4, textTransform: 'none' }]}>
-                                            Enter the 6-digit code sent to your email to {pendingScreenshotSetting ? 'allow' : 'block'} screenshots.
-                                        </Text>
-                                    </View>
-                                    <Pressable onPress={() => setScreenshotOTPModalVisible(false)} hitSlop={10}>
-                                        <X size={24} color="#64748B" />
-                                    </Pressable>
-                                </View>
+            <PremiumFormModal
+                visible={screenshotOTPModalVisible}
+                title="Security Verification"
+                onClose={() => setScreenshotOTPModalVisible(false)}
+                onSave={handleVerifyScreenshotOTP}
+                saveText={verifyingScreenshotOTP ? 'Verifying...' : 'Verify & Setup'}
+                saving={verifyingScreenshotOTP}
+            >
+                <Text style={[s.inputLabel, { marginTop: 4, textTransform: 'none' }]}>
+                    Enter the 6-digit code sent to your email to {pendingScreenshotSetting ? 'allow' : 'block'} screenshots.
+                </Text>
 
-                                <TextInput
-                                    style={[s.input, { fontSize: 24, letterSpacing: 8, textAlign: 'center', fontWeight: '800' }]}
-                                    value={screenshotOTP}
-                                    onChangeText={(t) => setScreenshotOTP(t.replace(/[^0-9]/g, ''))}
-                                    placeholder="••••••"
-                                    placeholderTextColor="#CBD5E1"
-                                    keyboardType="number-pad"
-                                    maxLength={6}
-                                />
-
-                                <Pressable style={[s.saveBtn, { marginTop: 16 }]} onPress={handleVerifyScreenshotOTP} disabled={verifyingScreenshotOTP}>
-                                    <ShieldCheck size={18} color="#FFFFFF" />
-                                    <Text style={s.saveBtnTxt}>{verifyingScreenshotOTP ? 'Verifying...' : 'Verify & Setup'}</Text>
-                                </Pressable>
-                            </ScrollView>
-                        </View>
-                    </View>
-                </KeyboardAvoidingView>
-            </Modal>
+                <TextInput
+                    style={[s.input, { fontSize: 24, letterSpacing: 8, textAlign: 'center', fontWeight: '800' }]}
+                    value={screenshotOTP}
+                    onChangeText={(t) => setScreenshotOTP(t.replace(/[^0-9]/g, ''))}
+                    placeholder="••••••"
+                    placeholderTextColor="#CBD5E1"
+                    keyboardType="number-pad"
+                    maxLength={6}
+                />
+            </PremiumFormModal>
 
 
 
             {/* ── DOB Picker (Scroll Wheels) ── */}
-            <Modal visible={dobModalVisible} animationType="slide" transparent onRequestClose={() => setDobModalVisible(false)}>
-                <View style={s.modalOverlay}>
-                    <View style={s.modalContent}>
-                        <View style={s.modalHeader}>
-                            <Text style={s.modalTitle}>Date of Birth</Text>
-                            <Pressable onPress={() => setDobModalVisible(false)} hitSlop={10}><X size={24} color="#64748B" /></Pressable>
-                        </View>
-                        <Text style={s.modalSubTxt}>Scroll to select your date of birth.</Text>
-                        <View style={s.pickerRow}>
-                            {/* Day */}
-                            <View style={s.pickerCol}>
-                                <Text style={s.pickerLabel}>Day</Text>
-                                <ScrollView style={s.pickerScroll} showsVerticalScrollIndicator={false} nestedScrollEnabled>
-                                    {DAYS.map(d => (
-                                        <Pressable key={d} style={[s.pickerItem, dobDay === d && s.pickerItemActive]} onPress={() => setDobDay(d)}>
-                                            <Text style={[s.pickerItemTxt, dobDay === d && s.pickerItemTxtActive]}>{String(d).padStart(2, '0')}</Text>
-                                        </Pressable>
-                                    ))}
-                                </ScrollView>
-                            </View>
-                            {/* Month */}
-                            <View style={[s.pickerCol, { flex: 1.2 }]}>
-                                <Text style={s.pickerLabel}>Month</Text>
-                                <ScrollView style={s.pickerScroll} showsVerticalScrollIndicator={false} nestedScrollEnabled>
-                                    {MONTHS.map((m, i) => (
-                                        <Pressable key={m} style={[s.pickerItem, dobMonth === i + 1 && s.pickerItemActive]} onPress={() => setDobMonth(i + 1)}>
-                                            <Text style={[s.pickerItemTxt, dobMonth === i + 1 && s.pickerItemTxtActive]}>{m}</Text>
-                                        </Pressable>
-                                    ))}
-                                </ScrollView>
-                            </View>
-                            {/* Year */}
-                            <View style={s.pickerCol}>
-                                <Text style={s.pickerLabel}>Year</Text>
-                                <ScrollView style={s.pickerScroll} showsVerticalScrollIndicator={false} nestedScrollEnabled>
-                                    {YEARS.map(y => (
-                                        <Pressable key={y} style={[s.pickerItem, dobYear === y && s.pickerItemActive]} onPress={() => setDobYear(y)}>
-                                            <Text style={[s.pickerItemTxt, dobYear === y && s.pickerItemTxtActive]}>{y}</Text>
-                                        </Pressable>
-                                    ))}
-                                </ScrollView>
-                            </View>
-                        </View>
-                        <View style={s.pickerPreview}>
-                            <Text style={s.pickerPreviewTxt}>{String(dobDay).padStart(2, '0')} {MONTHS[dobMonth - 1]} {dobYear}</Text>
-                        </View>
-                        <Pressable style={s.saveBtn} onPress={handleSaveDob} disabled={saving}>
-                            <Save size={18} color="#FFFFFF" />
-                            <Text style={s.saveBtnTxt}>{saving ? 'Saving...' : 'Save Date of Birth'}</Text>
-                        </Pressable>
+            <PremiumFormModal
+                visible={dobModalVisible}
+                title="Date of Birth"
+                onClose={() => setDobModalVisible(false)}
+                onSave={handleSaveDob}
+                saveText={saving ? 'Saving...' : 'Save Date of Birth'}
+                saving={saving}
+            >
+                <Text style={s.modalSubTxt}>Scroll to select your date of birth.</Text>
+                <View style={s.pickerRow}>
+                    {/* Day */}
+                    <View style={s.pickerCol}>
+                        <Text style={s.pickerLabel}>Day</Text>
+                        <ScrollView style={s.pickerScroll} showsVerticalScrollIndicator={false} nestedScrollEnabled>
+                            {DAYS.map(d => (
+                                <Pressable key={d} style={[s.pickerItem, dobDay === d && s.pickerItemActive]} onPress={() => setDobDay(d)}>
+                                    <Text style={[s.pickerItemTxt, dobDay === d && s.pickerItemTxtActive]}>{String(d).padStart(2, '0')}</Text>
+                                </Pressable>
+                            ))}
+                        </ScrollView>
+                    </View>
+                    {/* Month */}
+                    <View style={[s.pickerCol, { flex: 1.2 }]}>
+                        <Text style={s.pickerLabel}>Month</Text>
+                        <ScrollView style={s.pickerScroll} showsVerticalScrollIndicator={false} nestedScrollEnabled>
+                            {MONTHS.map((m, i) => (
+                                <Pressable key={m} style={[s.pickerItem, dobMonth === i + 1 && s.pickerItemActive]} onPress={() => setDobMonth(i + 1)}>
+                                    <Text style={[s.pickerItemTxt, dobMonth === i + 1 && s.pickerItemTxtActive]}>{m}</Text>
+                                </Pressable>
+                            ))}
+                        </ScrollView>
+                    </View>
+                    {/* Year */}
+                    <View style={s.pickerCol}>
+                        <Text style={s.pickerLabel}>Year</Text>
+                        <ScrollView style={s.pickerScroll} showsVerticalScrollIndicator={false} nestedScrollEnabled>
+                            {YEARS.map(y => (
+                                <Pressable key={y} style={[s.pickerItem, dobYear === y && s.pickerItemActive]} onPress={() => setDobYear(y)}>
+                                    <Text style={[s.pickerItemTxt, dobYear === y && s.pickerItemTxtActive]}>{y}</Text>
+                                </Pressable>
+                            ))}
+                        </ScrollView>
                     </View>
                 </View>
-            </Modal>
+                <View style={s.pickerPreview}>
+                    <Text style={s.pickerPreviewTxt}>{String(dobDay).padStart(2, '0')} {MONTHS[dobMonth - 1]} {dobYear}</Text>
+                </View>
+            </PremiumFormModal>
 
             {/* ── Language Selector ── */}
             <Modal visible={languageModalVisible} animationType="slide" transparent onRequestClose={() => setLanguageModalVisible(false)}>
