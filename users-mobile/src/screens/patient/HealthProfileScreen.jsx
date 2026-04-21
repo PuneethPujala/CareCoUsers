@@ -496,7 +496,25 @@ export default function HealthProfileScreen({ navigation }) {
                     </View>
                 </Animated.View>
 
-
+                {/* 4. MEDICATION LIST */}
+                <Animated.View style={{ opacity: staggerAnims[4], transform: [{ translateY: staggerAnims[4].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>
+                    <View style={s.section}>
+                        {renderHeader('MEDICATIONS', 'medication')}
+                        <View style={s.cardStack}>
+                            {medications.map((m, i) => (
+                                <Pressable key={i} style={s.rowItemEnhanced} onPress={() => openModal('medication', m)}>
+                                    <View style={[s.iconBg, { backgroundColor: m.is_active !== false ? '#EEF2FF' : '#F1F5F9' }]}><Droplet size={18} color={m.is_active !== false ? '#6366F1' : '#94A3B8'} /></View>
+                                    <View style={s.rowInfo}>
+                                        <Text style={s.rowTitle}>{m.name}</Text>
+                                        <Text style={s.rowSub}>{m.dosage} • {m.frequency}</Text>
+                                    </View>
+                                    {!m.is_active && <View style={[s.pill, { backgroundColor: '#F1F5F9' }]}><Text style={[s.pillTxt, { color: '#64748B' }]}>Inactive</Text></View>}
+                                </Pressable>
+                            ))}
+                            {medications.length === 0 && <Text style={s.emptyRowTxt}>No medications added</Text>}
+                        </View>
+                    </View>
+                </Animated.View>
 
                 {/* 5. VACCINATIONS */}
                 <Animated.View style={{ opacity: staggerAnims[5], transform: [{ translateY: staggerAnims[5].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>
@@ -510,9 +528,6 @@ export default function HealthProfileScreen({ navigation }) {
                                         <Text style={s.rowTitle}>{vac.name}</Text>
                                         <Text style={s.rowSub}>Given: {vac.date_given ? new Date(vac.date_given).toLocaleDateString() : 'Unknown'}</Text>
                                     </View>
-                                    {vac.next_due && new Date(vac.next_due) > new Date() && (
-                                        <View style={[s.pill, { backgroundColor: '#FEF3C7' }]}><Text style={[s.pillTxt, { color: '#B45309' }]}>Due {new Date(vac.next_due).getFullYear()}</Text></View>
-                                    )}
                                 </Pressable>
                             ))}
                             {vaccinations.length === 0 && <Text style={s.emptyRowTxt}>No vaccinations recorded</Text>}
@@ -626,7 +641,6 @@ export default function HealthProfileScreen({ navigation }) {
                         </View>
                     </View>
                 </Animated.View>
-
             </ScrollView>
 
             {/* Dynamic Modal Form — Premium Full-Screen */}
@@ -645,211 +659,205 @@ export default function HealthProfileScreen({ navigation }) {
                     ) : null
                 }
             >
-                
-                                {/* Form Fields Matrix */}
-                                {editingType === 'condition' && (
-                                    <>
-                                        <View style={s.formGroup}><Text style={s.formLabel}>Condition Name *</Text><TextInput style={s.input} placeholderTextColor={C.muted} value={formState.name} onChangeText={(t) => setFormState({...formState, name: t})} placeholder="e.g. Type 2 Diabetes" /></View>
-                                        <View style={s.formGroup}>
-                                            <Text style={s.formLabel}>Status</Text>
-                                            <ChipSelector options={statusOptions} selected={formState.status} onSelect={v => setFormState({...formState, status: v})} />
-                                        </View>
-                                        <View style={s.formGroup}>
-                                            <Text style={s.formLabel}>Severity</Text>
-                                            <ChipSelector options={severityOptions} selected={formState.severity} onSelect={v => setFormState({...formState, severity: v})} />
-                                        </View>
-                                        <View style={s.formGroup}><Text style={s.formLabel}>Notes</Text><TextInput style={[s.input, s.inputMulti]} placeholderTextColor={C.muted} multiline value={formState.notes} onChangeText={(t) => setFormState({...formState, notes: t})} placeholder="Write any personal notes here..." /></View>
-                                    </>
-                                )}
-                                {editingType === 'allergy' && (
-                                    <>
-                                        <View style={s.formGroup}><Text style={s.formLabel}>Allergy Name *</Text><TextInput style={s.input} placeholderTextColor={C.muted} value={formState.name} onChangeText={(t) => setFormState({...formState, name: t})} placeholder="e.g. Peanuts, Penicillin" /></View>
-                                        <View style={s.formGroup}>
-                                            <Text style={s.formLabel}>Severity</Text>
-                                            <ChipSelector options={severityOptions} selected={formState.severity} onSelect={v => setFormState({...formState, severity: v})} />
-                                        </View>
-                                        <View style={s.formGroup}><Text style={s.formLabel}>Reaction Details</Text><TextInput style={[s.input, s.inputMulti]} placeholderTextColor={C.muted} multiline value={formState.reaction} onChangeText={(t) => setFormState({...formState, reaction: t})} placeholder="Describe the physical reaction (e.g., Hives, Anaphylaxis)" /></View>
-                                    </>
-                                )}
-                                {editingType === 'vitals' && (
-                                    <>
-                                        <View style={s.formGroup}><Text style={s.formLabel}>Height (cm)</Text><TextInput style={s.input} placeholderTextColor={C.muted} keyboardType="numeric" maxLength={3} value={String(formState.height_cm||'')} onChangeText={(t) => { const v = t.replace(/[^0-9]/g, ''); setFormState({...formState, height_cm: v ? Number(v) : ''}); }} placeholder="e.g. 170" /></View>
-                                        <View style={s.formGroup}><Text style={s.formLabel}>Weight (kg)</Text><TextInput style={s.input} placeholderTextColor={C.muted} keyboardType="numeric" maxLength={3} value={String(formState.weight_kg||'')} onChangeText={(t) => { const v = t.replace(/[^0-9.]/g, ''); setFormState({...formState, weight_kg: v ? Number(v) : ''}); }} placeholder="e.g. 70" /></View>
-                                    </>
-                                )}
-                                {editingType === 'habits' && (
-                                    <>
-                                        <View style={s.formGroup}>
-                                            <Text style={s.formLabel}>Smoking Habits</Text>
-                                            <ChipSelector options={smokeOptions} selected={formState.smoking_status} onSelect={v => setFormState({...formState, smoking_status: v})} />
-                                        </View>
-                                        <View style={s.formGroup}>
-                                            <Text style={s.formLabel}>Drinking Habits</Text>
-                                            <ChipSelector options={alcoholOptions} selected={formState.alcohol_use} onSelect={v => setFormState({...formState, alcohol_use: v})} />
-                                        </View>
-                                    </>
-                                )}
-                                {editingType === 'activity' && (
-                                    <>
-                                        <View style={s.formGroup}>
-                                            <Text style={s.formLabel}>Mobility Level</Text>
-                                            <ChipSelector options={mobilityOptions} selected={formState.mobility_level} onSelect={v => setFormState({...formState, mobility_level: v})} />
-                                        </View>
-                                        <View style={s.formGroup}>
-                                            <Text style={s.formLabel}>Activity Intensity & Duration</Text>
-                                            <ChipSelector vertical options={exerciseOptions} selected={formState.exercise_frequency} onSelect={v => setFormState({...formState, exercise_frequency: v})} />
-                                        </View>
-                                    </>
-                                )}
-                                {editingType === 'gp' && (
-                                    <>
-                                        <View style={s.formGroup}><Text style={s.formLabel}>Doctor's Name</Text><TextInput style={s.input} placeholderTextColor={C.muted} value={formState.gp_name} onChangeText={(t) => setFormState({...formState, gp_name: t})} placeholder="Dr. John Doe" /></View>
-                                        <View style={s.formGroup}>
-                                            <Text style={s.formLabel}>Contact Number</Text>
-                                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                                                <Pressable
-                                                    style={{
-                                                        flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, paddingVertical: 14,
-                                                        backgroundColor: '#F8FAFC', borderRadius: 12, borderWidth: 1, borderColor: '#E2E8F0', height: 48,
-                                                    }}
-                                                    onPress={() => setCountryCodeModal(true)}
-                                                >
-                                                    <Text style={{ fontSize: 16 }}>{COUNTRY_CODES.find(c => c.code === formState.gp_phoneCode)?.flag || '🇮🇳'}</Text>
-                                                    <Text style={{ fontSize: 15, color: '#334155', fontWeight: '500' }}>{formState.gp_phoneCode || '+91'}</Text>
-                                                    <ChevronDown size={14} color="#94A3B8" />
-                                                </Pressable>
-                                                <TextInput 
-                                                    style={[s.input, { flex: 1, marginTop: 0 }]} 
-                                                    placeholderTextColor={C.muted} 
-                                                    keyboardType="phone-pad" 
-                                                    value={formState.gp_phone} 
-                                                    onChangeText={(t) => setFormState({...formState, gp_phone: t.replace(/[^0-9]/g, '')})} 
-                                                    maxLength={COUNTRY_CODES.find(c => c.code === formState.gp_phoneCode)?.maxDigits || 12}
-                                                    placeholder="98765 43210" 
-                                                />
-                                            </View>
-                                        </View>
-                                        <View style={s.formGroup}><Text style={s.formLabel}>Email</Text><TextInput style={s.input} placeholderTextColor={C.muted} keyboardType="email-address" autoCapitalize="none" value={formState.gp_email} onChangeText={(t) => setFormState({...formState, gp_email: t})} placeholder="doctor@clinic.com" /></View>
-                                    </>
-                                )}
-                                {editingType === 'medication' && (
-                                    <>
-                                        <View style={s.formGroup}><Text style={s.formLabel}>Medication Name *</Text><TextInput style={s.input} placeholderTextColor={C.muted} value={formState.name} onChangeText={(t) => setFormState({...formState, name: t})} placeholder="e.g. Paracetamol" /></View>
-                                        <View style={s.formGroup}><Text style={s.formLabel}>Dosage</Text><TextInput style={s.input} placeholderTextColor={C.muted} value={formState.dosage} onChangeText={(t) => setFormState({...formState, dosage: t})} placeholder="e.g. 500mg" /></View>
-                                        <View style={s.formGroup}>
-                                            <Text style={s.formLabel}>Frequency</Text>
-                                            <ChipSelector options={frequencyOptions} selected={formState.frequency} onSelect={v => setFormState({...formState, frequency: v})} />
-                                        </View>
-                                        <View style={s.formGroup}>
-                                            <Text style={s.formLabel}>Times of Day (Select Multiple)</Text>
-                                            <View style={{flexDirection: 'row', flexWrap: 'wrap', gap: 10}}>
-                                                {timeOptions.map(opt => {
-                                                    const isSelected = (formState.times || []).includes(opt.value);
-                                                    return (
-                                                        <Pressable key={opt.value} onPress={() => toggleTime(opt.value)} style={[s.selectChip, isSelected && s.selectChipActive]}>
-                                                            <Text style={[s.selectChipTxt, isSelected && s.selectChipTxtActive]}>{opt.label}</Text>
-                                                        </Pressable>
-                                                    )
-                                                })}
-                                            </View>
-                                        </View>
-                                        <View style={s.formGroup}><Text style={s.formLabel}>Prescribed By</Text><TextInput style={s.input} placeholderTextColor={C.muted} value={formState.prescribed_by} onChangeText={(t) => setFormState({...formState, prescribed_by: t})} placeholder="Doctor's Name" /></View>
-                                        <View style={[s.formGroup, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 }]}>
-                                            <Text style={s.formLabel}>Currently Active</Text>
-                                            <Switch
-                                                trackColor={{ false: '#E2E8F0', true: '#818CF8' }}
-                                                thumbColor={formState.is_active ? '#4338CA' : '#F8FAFC'}
-                                                onValueChange={(val) => setFormState({ ...formState, is_active: val })}
-                                                value={formState.is_active !== false}
-                                            />
-                                        </View>
-                                        <View style={s.formGroup}>
-                                            <Text style={s.formLabel}>Prescription Details</Text>
-                                            <Pressable style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#F8FAFC', padding: 14, borderRadius: 12, borderWidth: 1, borderColor: '#E2E8F0', borderStyle: 'dashed' }} onPress={() => Alert.alert('Coming Soon', 'Upload functionality will be added in a future update.')}>
-                                                <Upload size={18} color={C.primary} />
-                                                <Text style={{ color: C.primary, fontSize: 15, fontWeight: '600' }}>Upload Prescription</Text>
-                                            </Pressable>
-                                        </View>
-                                    </>
-                                )}
-                                {editingType === 'history' && (
-                                    <>
-                                        <View style={s.formGroup}><Text style={s.formLabel}>Event / Surgery / Diagnosis *</Text><TextInput style={s.input} placeholderTextColor={C.muted} value={formState.event} onChangeText={(t) => setFormState({...formState, event: t})} placeholder="e.g. Knee Replacement" /></View>
-                                        <View style={s.formGroup}><Text style={s.formLabel}>Date *</Text><Pressable style={s.input} onPress={() => { setDatePickerField('date'); setShowDatePicker(true); }}><Text style={{ color: formState.date ? C.dark : C.muted, fontSize: 15 }}>{formState.date ? new Date(formState.date).toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' }) : 'Select date'}</Text></Pressable></View>
-                                        <View style={s.formGroup}><Text style={s.formLabel}>Detailed Notes</Text><TextInput style={[s.input, s.inputMulti]} placeholderTextColor={C.muted} multiline value={formState.notes} onChangeText={(t) => setFormState({...formState, notes: t})} placeholder="How did the procedure go? Who was the doctor?" /></View>
-                                    </>
-                                )}
-                                {editingType === 'vaccination' && (
-                                    <>
-                                        <View style={s.formGroup}><Text style={s.formLabel}>Vaccine Name *</Text><TextInput style={s.input} placeholderTextColor={C.muted} value={formState.name} onChangeText={(t) => setFormState({...formState, name: t})} placeholder="e.g. Influenza, COVID-19" /></View>
-                                        <View style={s.formGroup}><Text style={s.formLabel}>Date Given *</Text><Pressable style={s.input} onPress={() => { setDatePickerField('date_given'); setShowDatePicker(true); }}><Text style={{ color: formState.date_given ? C.dark : C.muted, fontSize: 15 }}>{formState.date_given ? new Date(formState.date_given).toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' }) : 'Select date'}</Text></Pressable></View>
-                                    </>
-                                )}
-                                {editingType === 'appointment' && (
-                                    <>
-                                        <View style={s.formGroup}><Text style={s.formLabel}>Reason / Title *</Text><TextInput style={s.input} placeholderTextColor={C.muted} value={formState.title} onChangeText={(t) => setFormState({...formState, title: t})} placeholder="General Checkup" /></View>
-                                        <View style={s.formGroup}><Text style={s.formLabel}>Doctor / Specialist Name *</Text><TextInput style={s.input} placeholderTextColor={C.muted} value={formState.doctor_name} onChangeText={(t) => setFormState({...formState, doctor_name: t})} placeholder="Dr. Smith" /></View>
-                                        <View style={s.formGroup}>
-                                            <Text style={s.formLabel}>Date & Time *</Text>
-                                            <View style={{flexDirection: 'row', gap: 10}}>
-                                                <Pressable style={[s.input, {flex: 1, justifyContent: 'center'}]} onPress={() => { setDatePickerField('date'); setShowDatePicker(true); }}>
-                                                    <Text style={{color: formState.date ? C.dark : C.muted}}>
-                                                        {formState.date ? new Date(formState.date).toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' }) : 'Select Date'}
-                                                    </Text>
-                                                </Pressable>
-                                                <Pressable style={[s.input, {flex: 1, justifyContent: 'center'}]} onPress={() => { setDatePickerField('date'); setShowTimePicker(true); }}>
-                                                    <Text style={{color: formState.date ? C.dark : C.muted}}>
-                                                        {formState.date ? new Date(formState.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'Select Time'}
-                                                    </Text>
-                                                </Pressable>
-                                            </View>
-                                        </View>
-                                    </>
-                                )}
-
-                                {editingType === 'dob' && (
-                                    <View style={s.pickerContainer}>
-                                        <View style={s.pickerHeader}>
-                                            <Text style={s.pickerPreview}>
-                                                {new Date(formState.year, formState.month, formState.day).toLocaleDateString('en-IN', { day:'numeric', month:'long', year:'numeric' })}
-                                            </Text>
-                                        </View>
-                                        
-                                        <Text style={s.pickerLabel}>Birth Year</Text>
-                                        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.yearScroll}>
-                                            {Array.from({length: 101}, (_, i) => new Date().getFullYear() - i).map(y => (
-                                                <Pressable key={y} onPress={() => {
-                                                    const maxDays = new Date(y, formState.month + 1, 0).getDate();
-                                                    setFormState({...formState, year: y, day: Math.min(formState.day || 1, maxDays)});
-                                                }} style={[s.yearChip, formState.year === y && s.yearChipActive]}>
-                                                    <Text style={[s.yearChipTxt, formState.year === y && s.yearChipTxtActive]}>{y}</Text>
-                                                </Pressable>
-                                            ))}
-                                        </ScrollView>
-
-                                        <Text style={[s.pickerLabel, {marginTop: 20}]}>Month</Text>
-                                        <View style={s.monthGrid}>
-                                            {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((m, i) => (
-                                                <Pressable key={m} onPress={() => {
-                                                    const maxDays = new Date(formState.year, i + 1, 0).getDate();
-                                                    setFormState({...formState, month: i, day: Math.min(formState.day || 1, maxDays)});
-                                                }} style={[s.monthChip, formState.month === i && s.monthChipActive]}>
-                                                    <Text style={[s.monthChipTxt, formState.month === i && s.monthChipTxtActive]}>{m}</Text>
-                                                </Pressable>
-                                            ))}
-                                        </View>
-
-                                        <Text style={[s.pickerLabel, {marginTop: 20}]}>Day</Text>
-                                        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.dayScroll}>
-                                            {Array.from({length: new Date(formState.year, formState.month + 1, 0).getDate()}, (_, i) => i + 1).map(d => (
-                                                <Pressable key={d} onPress={() => setFormState({...formState, day: d})} style={[s.dayChip, formState.day === d && s.dayChipActive]}>
-                                                    <Text style={[s.dayChipTxt, formState.day === d && s.dayChipTxtActive]}>{d}</Text>
-                                                </Pressable>
-                                            ))}
-                                        </ScrollView>
-                                    </View>
-                                )}
-
+                {/* Form Fields Matrix */}
+                {editingType === 'condition' && (
+                    <>
+                        <View style={s.formGroup}><Text style={s.formLabel}>Condition Name *</Text><TextInput style={s.input} placeholderTextColor={C.muted} value={formState.name} onChangeText={(t) => setFormState({...formState, name: t})} placeholder="e.g. Type 2 Diabetes" /></View>
+                        <View style={s.formGroup}>
+                            <Text style={s.formLabel}>Status</Text>
+                            <ChipSelector options={statusOptions} selected={formState.status} onSelect={v => setFormState({...formState, status: v})} />
+                        </View>
+                        <View style={s.formGroup}>
+                            <Text style={s.formLabel}>Severity</Text>
+                            <ChipSelector options={severityOptions} selected={formState.severity} onSelect={v => setFormState({...formState, severity: v})} />
+                        </View>
+                        <View style={s.formGroup}><Text style={s.formLabel}>Notes</Text><TextInput style={[s.input, s.inputMulti]} placeholderTextColor={C.muted} multiline value={formState.notes} onChangeText={(t) => setFormState({...formState, notes: t})} placeholder="Write any personal notes here..." /></View>
+                    </>
+                )}
+                {editingType === 'allergy' && (
+                    <>
+                        <View style={s.formGroup}><Text style={s.formLabel}>Allergy Name *</Text><TextInput style={s.input} placeholderTextColor={C.muted} value={formState.name} onChangeText={(t) => setFormState({...formState, name: t})} placeholder="e.g. Peanuts, Penicillin" /></View>
+                        <View style={s.formGroup}>
+                            <Text style={s.formLabel}>Severity</Text>
+                            <ChipSelector options={severityOptions} selected={formState.severity} onSelect={v => setFormState({...formState, severity: v})} />
+                        </View>
+                        <View style={s.formGroup}><Text style={s.formLabel}>Reaction Details</Text><TextInput style={[s.input, s.inputMulti]} placeholderTextColor={C.muted} multiline value={formState.reaction} onChangeText={(t) => setFormState({...formState, reaction: t})} placeholder="Describe the physical reaction (e.g., Hives, Anaphylaxis)" /></View>
+                    </>
+                )}
+                {editingType === 'vitals' && (
+                    <>
+                        <View style={s.formGroup}><Text style={s.formLabel}>Height (cm)</Text><TextInput style={s.input} placeholderTextColor={C.muted} keyboardType="numeric" maxLength={3} value={String(formState.height_cm||'')} onChangeText={(t) => { const v = t.replace(/[^0-9]/g, ''); setFormState({...formState, height_cm: v ? Number(v) : ''}); }} placeholder="e.g. 170" /></View>
+                        <View style={s.formGroup}><Text style={s.formLabel}>Weight (kg)</Text><TextInput style={s.input} placeholderTextColor={C.muted} keyboardType="numeric" maxLength={3} value={String(formState.weight_kg||'')} onChangeText={(t) => { const v = t.replace(/[^0-9.]/g, ''); setFormState({...formState, weight_kg: v ? Number(v) : ''}); }} placeholder="e.g. 70" /></View>
+                    </>
+                )}
+                {editingType === 'habits' && (
+                    <>
+                        <View style={s.formGroup}>
+                            <Text style={s.formLabel}>Smoking Habits</Text>
+                            <ChipSelector options={smokeOptions} selected={formState.smoking_status} onSelect={v => setFormState({...formState, smoking_status: v})} />
+                        </View>
+                        <View style={s.formGroup}>
+                            <Text style={s.formLabel}>Drinking Habits</Text>
+                            <ChipSelector options={alcoholOptions} selected={formState.alcohol_use} onSelect={v => setFormState({...formState, alcohol_use: v})} />
+                        </View>
+                    </>
+                )}
+                {editingType === 'activity' && (
+                    <>
+                        <View style={s.formGroup}>
+                            <Text style={s.formLabel}>Mobility Level</Text>
+                            <ChipSelector options={mobilityOptions} selected={formState.mobility_level} onSelect={v => setFormState({...formState, mobility_level: v})} />
+                        </View>
+                        <View style={s.formGroup}>
+                            <Text style={s.formLabel}>Activity Intensity & Duration</Text>
+                            <ChipSelector vertical options={exerciseOptions} selected={formState.exercise_frequency} onSelect={v => setFormState({...formState, exercise_frequency: v})} />
+                        </View>
+                    </>
+                )}
+                {editingType === 'gp' && (
+                    <>
+                        <View style={s.formGroup}><Text style={s.formLabel}>Doctor's Name</Text><TextInput style={s.input} placeholderTextColor={C.muted} value={formState.gp_name} onChangeText={(t) => setFormState({...formState, gp_name: t})} placeholder="Dr. John Doe" /></View>
+                        <View style={s.formGroup}>
+                            <Text style={s.formLabel}>Contact Number</Text>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                <Pressable
+                                    style={{
+                                        flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, paddingVertical: 14,
+                                        backgroundColor: '#F8FAFC', borderRadius: 12, borderWidth: 1, borderColor: '#E2E8F0', height: 48,
+                                    }}
+                                    onPress={() => setCountryCodeModal(true)}
+                                >
+                                    <Text style={{ fontSize: 16 }}>{COUNTRY_CODES.find(c => c.code === formState.gp_phoneCode)?.flag || '🇮🇳'}</Text>
+                                    <Text style={{ fontSize: 15, color: '#334155', fontWeight: '500' }}>{formState.gp_phoneCode || '+91'}</Text>
+                                    <ChevronDown size={14} color="#94A3B8" />
+                                </Pressable>
+                                <TextInput 
+                                    style={[s.input, { flex: 1, marginTop: 0 }]} 
+                                    placeholderTextColor={C.muted} 
+                                    keyboardType="phone-pad" 
+                                    value={formState.gp_phone} 
+                                    onChangeText={(t) => setFormState({...formState, gp_phone: t.replace(/[^0-9]/g, '')})} 
+                                    maxLength={COUNTRY_CODES.find(c => c.code === formState.gp_phoneCode)?.maxDigits || 12}
+                                    placeholder="98765 43210" 
+                                />
+                            </View>
+                        </View>
+                        <View style={s.formGroup}><Text style={s.formLabel}>Email</Text><TextInput style={s.input} placeholderTextColor={C.muted} keyboardType="email-address" autoCapitalize="none" value={formState.gp_email} onChangeText={(t) => setFormState({...formState, gp_email: t})} placeholder="doctor@clinic.com" /></View>
+                    </>
+                )}
+                {editingType === 'medication' && (
+                    <>
+                        <View style={s.formGroup}><Text style={s.formLabel}>Medication Name *</Text><TextInput style={s.input} placeholderTextColor={C.muted} value={formState.name} onChangeText={(t) => setFormState({...formState, name: t})} placeholder="e.g. Paracetamol" /></View>
+                        <View style={s.formGroup}><Text style={s.formLabel}>Dosage</Text><TextInput style={s.input} placeholderTextColor={C.muted} value={formState.dosage} onChangeText={(t) => setFormState({...formState, dosage: t})} placeholder="e.g. 500mg" /></View>
+                        <View style={s.formGroup}>
+                            <Text style={s.formLabel}>Frequency</Text>
+                            <ChipSelector options={frequencyOptions} selected={formState.frequency} onSelect={v => setFormState({...formState, frequency: v})} />
+                        </View>
+                        <View style={s.formGroup}>
+                            <Text style={s.formLabel}>Times of Day (Select Multiple)</Text>
+                            <View style={{flexDirection: 'row', flexWrap: 'wrap', gap: 10}}>
+                                {timeOptions.map(opt => {
+                                    const isSelected = (formState.times || []).includes(opt.value);
+                                    return (
+                                        <Pressable key={opt.value} onPress={() => toggleTime(opt.value)} style={[s.selectChip, isSelected && s.selectChipActive]}>
+                                            <Text style={[s.selectChipTxt, isSelected && s.selectChipTxtActive]}>{opt.label}</Text>
+                                        </Pressable>
+                                    )
+                                })}
+                            </View>
+                        </View>
+                        <View style={s.formGroup}><Text style={s.formLabel}>Prescribed By</Text><TextInput style={s.input} placeholderTextColor={C.muted} value={formState.prescribed_by} onChangeText={(t) => setFormState({...formState, prescribed_by: t})} placeholder="Doctor's Name" /></View>
+                        <View style={[s.formGroup, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 }]}>
+                            <Text style={s.formLabel}>Currently Active</Text>
+                            <Switch
+                                trackColor={{ false: '#E2E8F0', true: '#818CF8' }}
+                                thumbColor={formState.is_active ? '#4338CA' : '#F8FAFC'}
+                                onValueChange={(val) => setFormState({ ...formState, is_active: val })}
+                                value={formState.is_active !== false}
+                            />
+                        </View>
+                        <View style={s.formGroup}>
+                            <Text style={s.formLabel}>Prescription Details</Text>
+                            <Pressable style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#F8FAFC', padding: 14, borderRadius: 12, borderWidth: 1, borderColor: '#E2E8F0', borderStyle: 'dashed' }} onPress={() => Alert.alert('Coming Soon', 'Upload functionality will be added in a future update.')}>
+                                <Upload size={18} color={C.primary} />
+                                <Text style={{ color: C.primary, fontSize: 15, fontWeight: '600' }}>Upload Prescription</Text>
+                            </Pressable>
+                        </View>
+                    </>
+                )}
+                {editingType === 'history' && (
+                    <>
+                        <View style={s.formGroup}><Text style={s.formLabel}>Event / Surgery / Diagnosis *</Text><TextInput style={s.input} placeholderTextColor={C.muted} value={formState.event} onChangeText={(t) => setFormState({...formState, event: t})} placeholder="e.g. Knee Replacement" /></View>
+                        <View style={s.formGroup}><Text style={s.formLabel}>Date *</Text><Pressable style={s.input} onPress={() => { setDatePickerField('date'); setShowDatePicker(true); }}><Text style={{ color: formState.date ? C.dark : C.muted, fontSize: 15 }}>{formState.date ? new Date(formState.date).toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' }) : 'Select date'}</Text></Pressable></View>
+                        <View style={s.formGroup}><Text style={s.formLabel}>Detailed Notes</Text><TextInput style={[s.input, s.inputMulti]} placeholderTextColor={C.muted} multiline value={formState.notes} onChangeText={(t) => setFormState({...formState, notes: t})} placeholder="How did the procedure go? Who was the doctor?" /></View>
+                    </>
+                )}
+                {editingType === 'vaccination' && (
+                    <>
+                        <View style={s.formGroup}><Text style={s.formLabel}>Vaccine Name *</Text><TextInput style={s.input} placeholderTextColor={C.muted} value={formState.name} onChangeText={(t) => setFormState({...formState, name: t})} placeholder="e.g. Influenza, COVID-19" /></View>
+                        <View style={s.formGroup}><Text style={s.formLabel}>Date Given *</Text><Pressable style={s.input} onPress={() => { setDatePickerField('date_given'); setShowDatePicker(true); }}><Text style={{ color: formState.date_given ? C.dark : C.muted, fontSize: 15 }}>{formState.date_given ? new Date(formState.date_given).toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' }) : 'Select date'}</Text></Pressable></View>
+                    </>
+                )}
+                {editingType === 'appointment' && (
+                    <>
+                        <View style={s.formGroup}><Text style={s.formLabel}>Reason / Title *</Text><TextInput style={s.input} placeholderTextColor={C.muted} value={formState.title} onChangeText={(t) => setFormState({...formState, title: t})} placeholder="General Checkup" /></View>
+                        <View style={s.formGroup}><Text style={s.formLabel}>Doctor / Specialist Name *</Text><TextInput style={s.input} placeholderTextColor={C.muted} value={formState.doctor_name} onChangeText={(t) => setFormState({...formState, doctor_name: t})} placeholder="Dr. Smith" /></View>
+                        <View style={s.formGroup}>
+                            <Text style={s.formLabel}>Date & Time *</Text>
+                            <View style={{flexDirection: 'row', gap: 10}}>
+                                <Pressable style={[s.input, {flex: 1, justifyContent: 'center'}]} onPress={() => { setDatePickerField('date'); setShowDatePicker(true); }}>
+                                    <Text style={{color: formState.date ? C.dark : C.muted}}>
+                                        {formState.date ? new Date(formState.date).toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' }) : 'Select Date'}
+                                    </Text>
+                                </Pressable>
+                                <Pressable style={[s.input, {flex: 1, justifyContent: 'center'}]} onPress={() => { setDatePickerField('date'); setShowTimePicker(true); }}>
+                                    <Text style={{color: formState.date ? C.dark : C.muted}}>
+                                        {formState.date ? new Date(formState.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'Select Time'}
+                                    </Text>
+                                </Pressable>
+                            </View>
+                        </View>
+                    </>
+                )}
+                {editingType === 'dob' && (
+                    <View style={s.pickerContainer}>
+                        <View style={s.pickerHeader}>
+                            <Text style={s.pickerPreview}>
+                                {new Date(formState.year, formState.month, formState.day).toLocaleDateString('en-IN', { day:'numeric', month:'long', year:'numeric' })}
+                            </Text>
+                        </View>
+                        <Text style={s.pickerLabel}>Birth Year</Text>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.yearScroll}>
+                            {Array.from({length: 101}, (_, i) => new Date().getFullYear() - i).map(y => (
+                                <Pressable key={y} onPress={() => {
+                                    const maxDays = new Date(y, formState.month + 1, 0).getDate();
+                                    setFormState({...formState, year: y, day: Math.min(formState.day || 1, maxDays)});
+                                }} style={[s.yearChip, formState.year === y && s.yearChipActive]}>
+                                    <Text style={[s.yearChipTxt, formState.year === y && s.yearChipTxtActive]}>{y}</Text>
+                                </Pressable>
+                            ))}
+                        </ScrollView>
+                        <Text style={[s.pickerLabel, {marginTop: 20}]}>Month</Text>
+                        <View style={s.monthGrid}>
+                            {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((m, i) => (
+                                <Pressable key={m} onPress={() => {
+                                    const maxDays = new Date(formState.year, i + 1, 0).getDate();
+                                    setFormState({...formState, month: i, day: Math.min(formState.day || 1, maxDays)});
+                                }} style={[s.monthChip, formState.month === i && s.monthChipActive]}>
+                                    <Text style={[s.monthChipTxt, formState.month === i && s.monthChipTxtActive]}>{m}</Text>
+                                </Pressable>
+                            ))}
+                        </View>
+                        <Text style={[s.pickerLabel, {marginTop: 20}]}>Day</Text>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.dayScroll}>
+                            {Array.from({length: new Date(formState.year, formState.month + 1, 0).getDate()}, (_, i) => i + 1).map(d => (
+                                <Pressable key={d} onPress={() => setFormState({...formState, day: d})} style={[s.dayChip, formState.day === d && s.dayChipActive]}>
+                                    <Text style={[s.dayChipTxt, formState.day === d && s.dayChipTxtActive]}>{d}</Text>
+                                </Pressable>
+                            ))}
+                        </ScrollView>
+                    </View>
+                )}
             </PremiumFormModal>
 
             {/* Country Code Picker Modal */}
@@ -1004,7 +1012,7 @@ const s = StyleSheet.create({
     // Modal Details
     backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(15,23,42,0.5)' },
     modalWrapper: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, justifyContent: 'flex-end' },
-    modalSheet: { backgroundColor: '#FFF', borderTopLeftRadius: 36, borderTopRightRadius: 36, maxHeight: '85%', shadowColor: '#000', shadowOffset: { width: 0, height: -10 }, shadowOpacity: 0.1, shadowRadius: 20, elevation: 12 },
+    modalSheet: { backgroundColor: '#FFF', borderTopLeftRadius: 36, borderTopRightRadius: 36, maxHeight: '92%', marginTop: 60, shadowColor: '#000', shadowOffset: { width: 0, height: -10 }, shadowOpacity: 0.1, shadowRadius: 20, elevation: 12 },
     modalHandleWrap: { alignItems: 'center', paddingVertical: 16 },
     modalHandle: { width: 48, height: 6, borderRadius: 3, backgroundColor: '#E2E8F0' },
     modalBody: { paddingHorizontal: 24, paddingBottom: 40 },
@@ -1047,5 +1055,14 @@ const s = StyleSheet.create({
     dayChipTxt: { fontSize: 16, ...FONT.bold, color: C.mid },
     dayChipTxtActive: { color: '#FFF' },
     syncBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: C.primary, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20 },
-    syncBtnTxt: { color: '#FFF', ...FONT.bold, fontSize: 14 }
+    syncBtnTxt: { color: '#FFF', ...FONT.bold, fontSize: 14 },
+
+    // Country Picker
+    countryModalWrap: { backgroundColor: '#FFF', borderTopLeftRadius: 32, borderTopRightRadius: 32, maxHeight: '80%', marginTop: 'auto', shadowColor: '#000', shadowOffset: { width: 0, height: -10 }, shadowOpacity: 0.1, shadowRadius: 20, elevation: 12 },
+    countryModalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 24, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+    countryModalTitle: { fontSize: 18, ...FONT.bold, color: C.dark },
+    countryOption: { flexDirection: 'row', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: '#F8FAFC' },
+    countryFlag: { fontSize: 24, marginRight: 12 },
+    countryName: { flex: 1, fontSize: 16, color: C.dark, ...FONT.medium },
+    countryCodeText: { fontSize: 16, color: C.primary, ...FONT.bold }
 });

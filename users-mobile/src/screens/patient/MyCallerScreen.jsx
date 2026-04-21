@@ -8,7 +8,7 @@ import PremiumFormModal from '../../components/ui/PremiumFormModal';
 import {
   Phone, PhoneIncoming, AlertTriangle, ShieldCheck,
   Flag, Clock, Globe, Calendar, ChevronRight, ChevronDown, X, Users, Heart,
-  Plus, Edit2, Bell
+  Plus, Edit2, Bell, Trash2
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors } from '../../theme';
@@ -171,7 +171,7 @@ export default function MyCallerScreen({ navigation }) {
       Alert.alert('Required', 'Please enter the contact\'s name.');
       return;
     }
-    
+
     const phoneErr = validatePhone(contactForm.phone, contactForm.phoneCode);
     if (phoneErr) {
       Alert.alert('Invalid Phone', phoneErr);
@@ -193,7 +193,7 @@ export default function MyCallerScreen({ navigation }) {
         return;
       }
     }
-    
+
     setIsSavingContact(true);
     try {
       const payload = { ...contactForm, phone: fullPhone };
@@ -289,7 +289,7 @@ export default function MyCallerScreen({ navigation }) {
               <Text style={s.headerTitle}>Care Team</Text>
             </View>
             <View style={s.headerRight}>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={s.headerRightBtn}
                 onPress={() => navigation.navigate('Notifications')}
               >
@@ -316,51 +316,51 @@ export default function MyCallerScreen({ navigation }) {
               }],
             }}>
               <Pressable onPress={openModal} style={({ pressed }) => [s.callerCard, pressed && s.callerCardPressed]}>
-              {/* Avatar + name row */}
-              <View style={s.profileRow}>
-                <View style={s.avatarWrap}>
-                  <LinearGradient colors={['#3B82F6', '#1E40AF']} style={s.avatar}>
-                    <Text style={s.avatarLetter}>{caller.name?.charAt(0)}</Text>
-                  </LinearGradient>
-                  <View style={s.onlineDot} />
-                </View>
-                <View style={s.profileInfo}>
-                  <Text style={s.callerName} numberOfLines={1}>{caller.name}</Text>
-                  <View style={s.metaRow}>
-                    <Text style={s.idChipText}>ID: {caller.employee_id}</Text>
-                    <View style={s.dotDivider} />
-                    <View style={s.onlinePill}>
-                      <View style={s.onlinePillDot} />
-                      <Text style={s.onlinePillText}>Online</Text>
+                {/* Avatar + name row */}
+                <View style={s.profileRow}>
+                  <View style={s.avatarWrap}>
+                    <LinearGradient colors={['#3B82F6', '#1E40AF']} style={s.avatar}>
+                      <Text style={s.avatarLetter}>{caller.name?.charAt(0)}</Text>
+                    </LinearGradient>
+                    <View style={s.onlineDot} />
+                  </View>
+                  <View style={s.profileInfo}>
+                    <Text style={s.callerName} numberOfLines={1}>{caller.name}</Text>
+                    <View style={s.metaRow}>
+                      <Text style={s.idChipText}>ID: {caller.employee_id}</Text>
+                      <View style={s.dotDivider} />
+                      <View style={s.onlinePill}>
+                        <View style={s.onlinePillDot} />
+                        <Text style={s.onlinePillText}>Online</Text>
+                      </View>
                     </View>
                   </View>
+                  <View style={s.chevronWrap}>
+                    <ChevronRight size={20} color={C.light} strokeWidth={2.5} />
+                  </View>
                 </View>
-                <View style={s.chevronWrap}>
-                  <ChevronRight size={20} color={C.light} strokeWidth={2.5} />
-                </View>
-              </View>
 
-              {/* Action buttons */}
-              <View style={s.actionRow}>
-                <Pressable
-                  style={({ pressed }) => [s.btnCall, pressed && s.btnCallPressed]}
-                  onPress={(e) => {
-                    e.stopPropagation?.();
-                    caller?.phone && Linking.openURL(`tel:${caller.phone}`);
-                  }}
-                >
-                  <Phone size={16} color="#FFF" strokeWidth={2.5} />
-                  <Text style={s.btnCallText}>Call Now</Text>
-                </Pressable>
-                <Pressable
-                  style={({ pressed }) => [s.btnFlag, pressed && s.btnFlagPressed]}
-                  onPress={(e) => { e.stopPropagation?.(); handleFlagIssue(); }}
-                >
-                  <Flag size={16} color={C.danger} strokeWidth={2.2} />
-                  <Text style={s.btnFlagText}>{flagging ? 'Flagging…' : 'Flag Issue'}</Text>
-                </Pressable>
-              </View>
-            </Pressable>
+                {/* Action buttons */}
+                <View style={s.actionRow}>
+                  <Pressable
+                    style={({ pressed }) => [s.btnCall, pressed && s.btnCallPressed]}
+                    onPress={(e) => {
+                      e.stopPropagation?.();
+                      caller?.phone && Linking.openURL(`tel:${caller.phone}`);
+                    }}
+                  >
+                    <Phone size={16} color="#FFF" strokeWidth={2.5} />
+                    <Text style={s.btnCallText}>Call Now</Text>
+                  </Pressable>
+                  <Pressable
+                    style={({ pressed }) => [s.btnFlag, pressed && s.btnFlagPressed]}
+                    onPress={(e) => { e.stopPropagation?.(); handleFlagIssue(); }}
+                  >
+                    <Flag size={16} color={C.danger} strokeWidth={2.2} />
+                    <Text style={s.btnFlagText}>{flagging ? 'Flagging…' : 'Flag Issue'}</Text>
+                  </Pressable>
+                </View>
+              </Pressable>
             </Animated.View>
           ) : (
             <View style={s.emptyCard}>
@@ -431,7 +431,7 @@ export default function MyCallerScreen({ navigation }) {
                 <Text style={s.addBtnLabel}>Add</Text>
               </Pressable>
             </View>
-            
+
             {contacts.length === 0 ? (
               <LinearGradient colors={['#F8FAFC', '#F1F5F9']} style={s.emptyCardPremium}>
                 <View style={s.emptyIconWrapPremium}>
@@ -444,24 +444,25 @@ export default function MyCallerScreen({ navigation }) {
               contacts.map((contact, idx) => {
                 const colorTheme = AVATAR_COLORS[idx % AVATAR_COLORS.length];
                 return (
-                <View key={contact._id} style={s.contactCard}>
-                  <View style={[s.contactAvatar, { backgroundColor: colorTheme.bg }]}>
-                    <Text style={[s.contactAvatarTxt, { color: colorTheme.text }]}>{contact.name.charAt(0)}</Text>
+                  <View key={contact._id} style={s.contactCard}>
+                    <View style={[s.contactAvatar, { backgroundColor: colorTheme.bg }]}>
+                      <Text style={[s.contactAvatarTxt, { color: colorTheme.text }]}>{contact.name.charAt(0)}</Text>
+                    </View>
+                    <View style={s.contactInfo}>
+                      <Text style={s.contactName} numberOfLines={1}>{contact.name}</Text>
+                      <Text style={s.contactSub} numberOfLines={1}>{contact.relation ? `${contact.relation} • ` : ''}{contact.phone}</Text>
+                    </View>
+                    <View style={s.contactActions}>
+                      <Pressable style={s.iconActionBtn} onPress={() => openContactModal(contact)}>
+                        <Edit2 size={16} color={C.light} />
+                      </Pressable>
+                      <Pressable style={s.iconActionBtn} onPress={() => confirmRemoveContact(contact._id)}>
+                        <X size={18} color={C.danger} />
+                      </Pressable>
+                    </View>
                   </View>
-                  <View style={s.contactInfo}>
-                    <Text style={s.contactName} numberOfLines={1}>{contact.name}</Text>
-                    <Text style={s.contactSub} numberOfLines={1}>{contact.relation ? `${contact.relation} • ` : ''}{contact.phone}</Text>
-                  </View>
-                  <View style={s.contactActions}>
-                    <Pressable style={s.iconActionBtn} onPress={() => openContactModal(contact)}>
-                      <Edit2 size={16} color={C.light} />
-                    </Pressable>
-                    <Pressable style={s.iconActionBtn} onPress={() => confirmRemoveContact(contact._id)}>
-                      <X size={18} color={C.danger} />
-                    </Pressable>
-                  </View>
-                </View>
-              )})
+                )
+              })
             )}
           </View>
         </Animated.View>
@@ -612,87 +613,94 @@ export default function MyCallerScreen({ navigation }) {
         title={editingContact ? 'Edit Contact' : 'New Contact'}
         onClose={closeContactModal}
         onSave={saveContact}
-        saveText={isSavingContact ? 'Saving...' : (editingContact ? 'Update Contact' : 'Save Contact')}
+        saveText={editingContact ? 'Update Contact' : 'Add Contact'}
         saving={isSavingContact}
+        headerRight={
+          editingContact && (
+            <Pressable onPress={() => confirmRemoveContact(editingContact._id)} style={{ padding: 8 }}>
+              <Trash2 size={20} color={C.danger} />
+            </Pressable>
+          )
+        }
       >
-                  {/* Name */}
-                  <View style={s.formGroup}>
-                    <Text style={s.formLabel}>Full Name *</Text>
-                    <TextInput
-                      style={s.formInput}
-                      placeholder="e.g. Ramesh Kumar"
-                      placeholderTextColor="#94A3B8"
-                      value={contactForm.name}
-                      onChangeText={(t) => setContactForm({ ...contactForm, name: t })}
-                      returnKeyType="next"
-                    />
-                  </View>
+        {/* Name */}
+        <View style={s.formGroup}>
+          <Text style={s.formLabel}>Full Name *</Text>
+          <TextInput
+            style={s.formInput}
+            placeholder="e.g. Ramesh Kumar"
+            placeholderTextColor="#94A3B8"
+            value={contactForm.name}
+            onChangeText={(t) => setContactForm({ ...contactForm, name: t })}
+            returnKeyType="next"
+          />
+        </View>
 
-                  {/* Phone */}
-                  <View style={s.formGroup}>
-                    <Text style={s.formLabel}>Phone Number *</Text>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                      <Pressable
-                        style={{
-                          flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, paddingVertical: 14,
-                          backgroundColor: '#F8FAFC', borderRadius: 12, borderWidth: 1, borderColor: '#E2E8F0', height: 48,
-                        }}
-                        onPress={() => setCountryCodeModal(true)}
-                      >
-                        <Text style={{ fontSize: 16 }}>{COUNTRY_CODES.find(c => c.code === contactForm.phoneCode)?.flag}</Text>
-                        <Text style={{ fontSize: 15, color: '#334155', fontWeight: '500' }}>{contactForm.phoneCode}</Text>
-                        <ChevronDown size={14} color="#94A3B8" />
-                      </Pressable>
-                      <TextInput
-                        style={[s.formInput, { flex: 1, marginTop: 0 }]}
-                        placeholder="98765 43210"
-                        placeholderTextColor="#94A3B8"
-                        keyboardType="phone-pad"
-                        value={contactForm.phone}
-                        onChangeText={(t) => setContactForm({ ...contactForm, phone: t.replace(/[^0-9]/g, '') })}
-                        maxLength={COUNTRY_CODES.find(c => c.code === contactForm.phoneCode)?.maxDigits || 12}
-                        returnKeyType="next"
-                      />
-                    </View>
-                  </View>
+        {/* Phone */}
+        <View style={s.formGroup}>
+          <Text style={s.formLabel}>Phone Number *</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Pressable
+              style={{
+                flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, paddingVertical: 14,
+                backgroundColor: '#F8FAFC', borderRadius: 12, borderWidth: 1, borderColor: '#E2E8F0', height: 48,
+              }}
+              onPress={() => setCountryCodeModal(true)}
+            >
+              <Text style={{ fontSize: 16 }}>{COUNTRY_CODES.find(c => c.code === contactForm.phoneCode)?.flag}</Text>
+              <Text style={{ fontSize: 15, color: '#334155', fontWeight: '500' }}>{contactForm.phoneCode}</Text>
+              <ChevronDown size={14} color="#94A3B8" />
+            </Pressable>
+            <TextInput
+              style={[s.formInput, { flex: 1, marginTop: 0 }]}
+              placeholder="98765 43210"
+              placeholderTextColor="#94A3B8"
+              keyboardType="phone-pad"
+              value={contactForm.phone}
+              onChangeText={(t) => setContactForm({ ...contactForm, phone: t.replace(/[^0-9]/g, '') })}
+              maxLength={COUNTRY_CODES.find(c => c.code === contactForm.phoneCode)?.maxDigits || 12}
+              returnKeyType="next"
+            />
+          </View>
+        </View>
 
-                  {/* Relationship — Chip Selector */}
-                  <View style={s.formGroup}>
-                    <Text style={s.formLabel}>Relationship</Text>
-                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                      {['Son', 'Daughter', 'Spouse', 'Sibling', 'Friend', 'Neighbour', 'Other'].map(opt => {
-                        const isActive = contactForm.relation === opt;
-                        return (
-                          <Pressable
-                            key={opt}
-                            onPress={() => setContactForm({ ...contactForm, relation: opt })}
-                            style={{
-                              paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20,
-                              backgroundColor: isActive ? C.primary : '#F1F5F9',
-                              borderWidth: 1, borderColor: isActive ? C.primary : '#E2E8F0',
-                            }}
-                          >
-                            <Text style={{ fontSize: 13, fontWeight: '600', color: isActive ? '#FFF' : C.mid }}>{opt}</Text>
-                          </Pressable>
-                        );
-                      })}
-                    </View>
-                  </View>
+        {/* Relationship — Chip Selector */}
+        <View style={s.formGroup}>
+          <Text style={s.formLabel}>Relationship</Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+            {['Son', 'Daughter', 'Spouse', 'Sibling', 'Friend', 'Neighbour', 'Other'].map(opt => {
+              const isActive = contactForm.relation === opt;
+              return (
+                <Pressable
+                  key={opt}
+                  onPress={() => setContactForm({ ...contactForm, relation: opt })}
+                  style={{
+                    paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20,
+                    backgroundColor: isActive ? C.primary : '#F1F5F9',
+                    borderWidth: 1, borderColor: isActive ? C.primary : '#E2E8F0',
+                  }}
+                >
+                  <Text style={{ fontSize: 13, fontWeight: '600', color: isActive ? '#FFF' : C.mid }}>{opt}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
 
-                  {/* Email */}
-                  <View style={s.formGroup}>
-                    <Text style={s.formLabel}>Email (Optional)</Text>
-                    <TextInput
-                      style={s.formInput}
-                      placeholder="email@example.com"
-                      placeholderTextColor="#94A3B8"
-                      keyboardType="email-address"
-                      autoCapitalize="none"
-                      value={contactForm.email}
-                      onChangeText={(t) => setContactForm({ ...contactForm, email: t })}
-                      returnKeyType="done"
-                    />
-                  </View>
+        {/* Email */}
+        <View style={s.formGroup}>
+          <Text style={s.formLabel}>Email (Optional)</Text>
+          <TextInput
+            style={s.formInput}
+            placeholder="email@example.com"
+            placeholderTextColor="#94A3B8"
+            keyboardType="email-address"
+            autoCapitalize="none"
+            value={contactForm.email}
+            onChangeText={(t) => setContactForm({ ...contactForm, email: t })}
+            returnKeyType="done"
+          />
+        </View>
       </PremiumFormModal>
 
       {/* Country Code Picker Modal */}
@@ -711,8 +719,8 @@ export default function MyCallerScreen({ navigation }) {
                 keyExtractor={item => item.code}
                 contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
                 renderItem={({ item }) => (
-                  <Pressable 
-                    style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' }} 
+                  <Pressable
+                    style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' }}
                     onPress={() => {
                       setContactForm({ ...contactForm, phoneCode: item.code });
                       setCountryCodeModal(false);
@@ -733,12 +741,12 @@ export default function MyCallerScreen({ navigation }) {
 }
 
 const FONT = {
-  regular:  { fontFamily: 'Inter_400Regular' },
-  medium:   { fontFamily: 'Inter_500Medium' },
+  regular: { fontFamily: 'Inter_400Regular' },
+  medium: { fontFamily: 'Inter_500Medium' },
   semibold: { fontFamily: 'Inter_600SemiBold' },
-  bold:     { fontFamily: 'Inter_700Bold' }, 
-  heavy:    { fontFamily: 'Inter_800ExtraBold' }, 
-  black:    { fontFamily: 'Inter_900Black' },
+  bold: { fontFamily: 'Inter_700Bold' },
+  heavy: { fontFamily: 'Inter_800ExtraBold' },
+  black: { fontFamily: 'Inter_900Black' },
 };
 
 const s = StyleSheet.create({
@@ -853,7 +861,7 @@ const s = StyleSheet.create({
   emptyIconWrapPremium: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', marginBottom: 20, shadowColor: C.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 },
   emptyTitle: { fontSize: 18, fontWeight: '700', color: C.dark, marginBottom: 8 },
   emptyBody: { fontSize: 14, fontWeight: '500', color: C.muted, textAlign: 'center', lineHeight: 22 },
-  
+
   upgradeIconWrap: {
     width: 80, height: 80, borderRadius: 40, backgroundColor: C.primarySoft,
     alignItems: 'center', justifyContent: 'center', marginBottom: 24,
@@ -870,7 +878,7 @@ const s = StyleSheet.create({
     position: 'absolute', top: 0, bottom: 0, left: 0, right: 0,
     justifyContent: 'flex-end',
   },
-  
+
   // Floating Close Button
   floatingCloseWrap: {
     alignItems: 'flex-end',
@@ -898,14 +906,15 @@ const s = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 32,
     borderTopRightRadius: 32,
-    maxHeight: '85%',
+    maxHeight: '92%',
+    marginTop: 60,
     shadowColor: '#000', shadowOffset: { width: 0, height: -8 }, shadowOpacity: 0.08, shadowRadius: 24, elevation: 16,
   },
   modalHandleWrap: { width: '100%', alignItems: 'center', paddingVertical: 14 },
   modalHandle: { width: 48, height: 5, borderRadius: 3, backgroundColor: '#CBD5E1' },
-  
+
   modalBody: { paddingHorizontal: 24, paddingTop: 10, paddingBottom: 60 },
-  
+
   // ── Modal Profile Area ──
   modalHeaderRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
@@ -914,7 +923,7 @@ const s = StyleSheet.create({
   modalProfileInfo: { flex: 1, paddingRight: 16 },
   modalCallerName: { fontSize: 28, ...FONT.heavy, color: '#0F172A', marginBottom: 6, letterSpacing: -0.5 },
   modalIdText: { fontSize: 14, ...FONT.medium, color: '#64748B' },
-  
+
   avatarWrapLg: { position: 'relative' },
   avatarLg: { width: 80, height: 80, borderRadius: 40, alignItems: 'center', justifyContent: 'center' },
   avatarLetterLg: { fontSize: 32, ...FONT.bold, color: '#FFF' },
@@ -978,17 +987,17 @@ const s = StyleSheet.create({
   historyBody: { flex: 1, paddingRight: 10 },
   historyDate: { fontSize: 14, ...FONT.bold, color: '#0F172A', marginBottom: 4 },
   historyNote: { fontSize: 13, ...FONT.medium, color: '#64748B' },
-  
+
   badgeBox: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 12 },
   badgeText: { fontSize: 12, ...FONT.bold },
-  
+
   emptyHistoryWrap: {
     backgroundColor: '#FFF', borderRadius: 24, padding: 32, alignItems: 'center',
   },
-  
-  modalCloseBtn: { 
-    width: 44, height: 44, borderRadius: 22, 
-    backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center' 
+
+  modalCloseBtn: {
+    width: 44, height: 44, borderRadius: 22,
+    backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center'
   },
   formGroup: { marginBottom: 16 },
   formLabel: { fontSize: 13, ...FONT.bold, color: '#475569', marginBottom: 6 },

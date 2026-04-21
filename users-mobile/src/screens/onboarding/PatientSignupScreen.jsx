@@ -190,8 +190,8 @@ const IconInput = React.memo(React.forwardRef(({ icon: Icon, label, rightIcon, e
 const OTPModal = React.memo(({ visible, onClose, otp, setOtp, onVerify, timer, resend, attempts, field, error, otpLoading }) => (
     <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
         <Pressable style={styles.modalOverlay} onPress={onClose}>
-            <KeyboardAvoidingView style={{ flex: 1, width: '100%', justifyContent: 'flex-end' }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-                <Pressable onPress={(e) => e.stopPropagation()} style={styles.modalSheet}>
+            <KeyboardAvoidingView style={{ flex: 1, width: '100%', justifyContent: 'flex-end' }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+                <Pressable onPress={(e) => e.stopPropagation()} style={[styles.modalSheet, { maxHeight: '92%', marginTop: 60 }]}>
                     <View style={styles.modalHeader}>
                         <Text style={styles.modalTitle}>Verify {field === 'email' ? 'Email' : 'Phone'}</Text>
                         <Pressable onPress={onClose} hitSlop={12} disabled={otpLoading}><X size={22} color="#64748B" /></Pressable>
@@ -1654,7 +1654,7 @@ const styles = StyleSheet.create({
     finalCardText: { fontSize: 15, ...FONT.semibold, color: '#334155' },
 
     modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-    modalSheet: { backgroundColor: '#FFFFFF', borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 24, paddingBottom: 40 },
+    modalSheet: { backgroundColor: '#FFFFFF', borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 24, paddingBottom: 40, maxHeight: '92%', marginTop: 60 },
     modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
     modalTitle: { fontSize: 20, ...FONT.heavy, color: '#1E293B' },
     modalSub: { fontSize: 13, color: '#94A3B8', ...FONT.medium, marginTop: 2 },
