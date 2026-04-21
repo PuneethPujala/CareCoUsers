@@ -369,23 +369,21 @@ export default function PatientHomeScreen({ navigation }) {
                                             {(patient?.name || displayName)?.split(' ')[0] || 'User'}
                                         </Text>
                                         
-                                        {/* 🔥 Unified Care Streak Widget */}
-                                        {(patient?.gamification?.current_streak !== undefined) && (
-                                            <Animated.View style={{ 
-                                                transform: [
-                                                    { scale: streakScale },
-                                                    { rotate: streakRotate.interpolate({ inputRange: [-1, 0, 1], outputRange: ['-15deg', '0deg', '15deg'] }) }
-                                                ] 
-                                            }}>
-                                                <Pressable 
-                                                    onPress={() => navigation.navigate('StreakDetails')}
-                                                    style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF0ED', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, borderWidth: 1, borderColor: '#FFE4E6' }}
-                                                >
-                                                    <Flame size={14} color="#F97316" fill="#FB923C" />
-                                                    <Text style={{ marginLeft: 4, fontSize: 13, fontWeight: '800', color: '#EA580C' }}>{patient.gamification.current_streak}</Text>
-                                                </Pressable>
-                                            </Animated.View>
-                                        )}
+                                        {/* 🔥 Unified Care Streak Widget — Always visible */}
+                                        <Animated.View style={{ 
+                                            transform: [
+                                                { scale: streakScale },
+                                                { rotate: streakRotate.interpolate({ inputRange: [-1, 0, 1], outputRange: ['-15deg', '0deg', '15deg'] }) }
+                                            ] 
+                                        }}>
+                                            <Pressable 
+                                                onPress={() => navigation.navigate('StreakDetails')}
+                                                style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: (patient?.gamification?.current_streak || 0) > 0 ? '#FFF0ED' : '#F1F5F9', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, borderWidth: 1, borderColor: (patient?.gamification?.current_streak || 0) > 0 ? '#FFE4E6' : '#E2E8F0' }}
+                                            >
+                                                <Flame size={14} color={(patient?.gamification?.current_streak || 0) > 0 ? '#F97316' : '#94A3B8'} fill={(patient?.gamification?.current_streak || 0) > 0 ? '#FB923C' : '#CBD5E1'} />
+                                                <Text style={{ marginLeft: 4, fontSize: 13, fontWeight: '800', color: (patient?.gamification?.current_streak || 0) > 0 ? '#EA580C' : '#94A3B8' }}>{patient?.gamification?.current_streak || 0}</Text>
+                                            </Pressable>
+                                        </Animated.View>
                                     </View>
                                 </View>
                             </View>
