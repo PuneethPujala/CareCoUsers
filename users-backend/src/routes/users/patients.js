@@ -15,47 +15,59 @@ const router = express.Router();
 // --- TEMPORARY TEST SEED ROUTE ---
 router.get('/seed-test-data', async (req, res) => {
     try {
-        const patient = await Patient.findOne({ email: 'puneethpujala@gmail.com' });
-        if (!patient) return res.status(404).json({ error: 'Patient not found' });
-
-        // Hard reset arrays before assignment to guarantee no Mongoose appending quirks
-        patient.set('medications', []);
-        patient.set('conditions', []);
-        patient.set('allergies', []);
-        patient.set('medical_history', []);
-        await patient.save();
-
-        patient.medications = [
-            {
-                name: 'Metformin', dosage: '500mg', frequency: 'twice_daily', times: ['morning', 'night'], scheduledTimes: ['09:00', '20:00'],
-                start_date: new Date('2026-03-01'), is_active: true, instructions: 'Take with food to avoid stomach upset', prescribed_by: 'Dr. Sharma'
-            },
-            {
-                name: 'Amlodipine', dosage: '5mg', frequency: 'once_daily', times: ['morning'], scheduledTimes: ['09:00'],
-                start_date: new Date('2026-02-15'), is_active: true, instructions: 'Take on empty stomach', prescribed_by: 'Dr. Patel'
-            },
-            {
-                name: 'Vitamin D3', dosage: '60000 IU', frequency: 'once_weekly', times: ['morning'], scheduledTimes: ['09:00'],
-                start_date: new Date('2026-01-01'), is_active: true, instructions: 'Take once every Sunday', prescribed_by: 'Dr. Sharma'
-            }
+        const emailsToSeed = [
+            'puneethpujala@gmail.com',
+            'priyankamedisetty05@gmail.com',
+            'ashwinthondepu0606@gmail.com'
         ];
+        
+        const seededAccounts = [];
 
-        patient.conditions = [
-            { name: 'Type 2 Diabetes', diagnosed_date: new Date('2024-05-15'), status: 'active', notes: 'Managed with Metformin and diet' },
-            { name: 'Hypertension', diagnosed_date: new Date('2025-01-10'), status: 'active', notes: 'Under control' }
-        ];
+        for (const targetEmail of emailsToSeed) {
+            const patient = await Patient.findOne({ email: targetEmail.toLowerCase() });
+            if (!patient) continue; // Skip if they haven't created an account yet
 
-        patient.allergies = [
-            { name: 'Penicillin', severity: 'severe', reaction: 'Hives and swelling' },
-            { name: 'Peanuts', severity: 'mild', reaction: 'Mild skin rash' }
-        ];
+            // Hard reset arrays before assignment to guarantee no Mongoose appending quirks
+            patient.set('medications', []);
+            patient.set('conditions', []);
+            patient.set('allergies', []);
+            patient.set('medical_history', []);
+            await patient.save();
 
-        patient.medical_history = [
-            { event: 'Appendicitis / Appendectomy surgery', date: new Date('2018-03-14'), notes: 'Dr. Gupta' }
-        ];
+            patient.medications = [
+                {
+                    name: 'Metformin', dosage: '500mg', frequency: 'twice_daily', times: ['morning', 'night'], scheduledTimes: ['09:00', '20:00'],
+                    start_date: new Date('2026-03-01'), is_active: true, instructions: 'Take with food to avoid stomach upset', prescribed_by: 'Dr. Sharma'
+                },
+                {
+                    name: 'Amlodipine', dosage: '5mg', frequency: 'once_daily', times: ['morning'], scheduledTimes: ['09:00'],
+                    start_date: new Date('2026-02-15'), is_active: true, instructions: 'Take on empty stomach', prescribed_by: 'Dr. Patel'
+                },
+                {
+                    name: 'Vitamin D3', dosage: '60000 IU', frequency: 'once_weekly', times: ['morning'], scheduledTimes: ['09:00'],
+                    start_date: new Date('2026-01-01'), is_active: true, instructions: 'Take once every Sunday', prescribed_by: 'Dr. Sharma'
+                }
+            ];
 
-        await patient.save();
-        res.json({ success: true, message: 'Successfully seeded without duplicates!', data: patient });
+            patient.conditions = [
+                { name: 'Type 2 Diabetes', diagnosed_date: new Date('2024-05-15'), status: 'active', notes: 'Managed with Metformin and diet' },
+                { name: 'Hypertension', diagnosed_date: new Date('2025-01-10'), status: 'active', notes: 'Under control' }
+            ];
+
+            patient.allergies = [
+                { name: 'Penicillin', severity: 'severe', reaction: 'Hives and swelling' },
+                { name: 'Peanuts', severity: 'mild', reaction: 'Mild skin rash' }
+            ];
+
+            patient.medical_history = [
+                { event: 'Appendicitis / Appendectomy surgery', date: new Date('2018-03-14'), notes: 'Dr. Gupta' }
+            ];
+
+            await patient.save();
+            seededAccounts.push(targetEmail);
+        }
+
+        res.json({ success: true, message: 'Successfully seeded without duplicates!', seeded: seededAccounts });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
