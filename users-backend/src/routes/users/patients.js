@@ -717,23 +717,44 @@ router.delete('/me/trusted-contacts/:id', authenticateSession, validateObjectId(
 
 /**
  * GET /api/users/patients/me/caller
- * Patient gets their assigned caller's info
+ * Patient gets their assigned caller's info + manager info.
+ * Performs a two-way lookup: first checks patient.assigned_caller_id,
+ * then falls back to searching Caller.patient_ids for this patient.
  */
 router.get('/me/caller', authenticateSession, async (req, res) => {
     try {
-        const patient = await Patient.findOne({ supabase_uid: req.user.id });
-        if (!patient || !patient.assigned_caller_id) {
-            return res.status(200).json({ caller: null, message: 'No caller assigned yet' });
+        const patient = await Patient.findOne({ supabase_uid: req.user.id })
+            .populate('assigned_manager_id', 'fullName email phone');
+
+        if (!patient) {
+            return res.status(200).json({ caller: null, manager: null, message: 'Patient profile not found' });
         }
 
-        const caller = await Caller.findById(patient.assigned_caller_id)
-            .select('name employee_id profile_photo_url languages_spoken experience_years phone city');
+        let caller = null;
 
+        // 1. Primary lookup: direct assigned_caller_id on Patient
+        if (patient.assigned_caller_id) {
+            caller = await Caller.findById(patient.assigned_caller_id)
+                .select('name employee_id profile_photo_url languages_spoken experience_years phone city');
+        }
+
+        // 2. Fallback lookup: search Caller whose patient_ids includes this patient
         if (!caller) {
-            return res.status(200).json({ caller: null, message: 'Assigned caller not found' });
+            caller = await Caller.findOne({ patient_ids: patient._id, is_active: true })
+                .select('name employee_id profile_photo_url languages_spoken experience_years phone city');
+            
+            // Auto-heal: sync the relationship back to the Patient document
+            if (caller) {
+                patient.assigned_caller_id = caller._id;
+                await patient.save();
+                console.log(`[Auto-heal] Synced assigned_caller_id for patient ${patient.email} → Caller ${caller.name}`);
+            }
         }
 
-        res.json({ caller });
+        // Build manager object from populated field
+        const manager = patient.assigned_manager_id || null;
+
+        res.json({ caller: caller || null, manager: manager || null });
     } catch (error) {
         console.error('Get assigned caller error:', error);
         res.status(500).json({ error: 'Failed to get assigned caller' });

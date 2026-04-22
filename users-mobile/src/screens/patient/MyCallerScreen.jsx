@@ -117,19 +117,24 @@ export default function MyCallerScreen({ navigation }) {
     }
   };
 
+  const [manager, setManager] = useState(null);
+
   useEffect(() => {
     (async () => {
       try {
         const pRes = await apiService.patients.getMe();
-        setPatient(pRes.data.patient);
-        if (pRes.data.patient?.subscription?.plan !== 'free') {
+        const p = pRes.data.patient;
+        setPatient(p);
+        if (p?.subscription?.plan !== 'free') {
           const [callerRes, callsRes] = await Promise.all([
             apiService.patients.getMyCaller(),
             apiService.patients.getMyCalls(),
           ]);
           setCaller(callerRes.data.caller);
           setCalls(callsRes.data.calls || []);
-          setContacts(pRes.data.patient?.trusted_contacts || []);
+          setContacts(p?.trusted_contacts || []);
+          // Use manager from caller endpoint first, fall back to patient document
+          setManager(callerRes.data.manager || p?.assigned_manager_id || null);
           runAnimations();
         }
       } catch (err) {
@@ -276,7 +281,6 @@ export default function MyCallerScreen({ navigation }) {
     );
   }
 
-  const manager = patient?.assigned_manager_id || patient?.assigned_manager;
 
   return (
     <LinearGradient colors={['#F8FAFC', '#EEF2FF']} style={s.container}>
