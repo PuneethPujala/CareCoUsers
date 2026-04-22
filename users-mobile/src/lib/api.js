@@ -257,6 +257,7 @@ export const apiService = {
         markMedicine: (data) => api.put('/users/medicines/mark', data),
         getWeeklyAdherence: () => api.get('/users/medicines/adherence/weekly'),
         getMonthlyAdherence: () => api.get('/users/medicines/adherence/monthly'),
+        getAdherenceDetails: () => api.get('/users/medicines/adherence/details'),
     },
 };
 

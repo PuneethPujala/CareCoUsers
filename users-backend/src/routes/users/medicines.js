@@ -129,11 +129,11 @@ router.put('/mark', authenticate, async (req, res) => {
             await patient.save();
         }
 
-        // ── Gamification: Increment Care Streak ──
-        if (taken) {
-            const streakService = require('../../../services/streakService');
-            streakService.evaluateAndUpdateStreak(patient._id).catch(e => console.error('Streak Update Failed:', e));
-        }
+        // ── DEPRECATED: Streak gamification removed in favour of adherence tracking ──
+        // if (taken) {
+        //     const streakService = require('../../../services/streakService');
+        //     streakService.evaluateAndUpdateStreak(patient._id).catch(e => console.error('Streak Update Failed:', e));
+        // }
 
         res.json({ log });
     } catch (error) {
@@ -219,6 +219,169 @@ router.get('/adherence/monthly', authenticate, async (req, res) => {
     } catch (error) {
         console.error('Get monthly adherence error:', error);
         res.status(500).json({ error: 'Failed to get monthly adherence' });
+    }
+});
+
+/**
+ * GET /api/users/medicines/adherence/details
+ * Full adherence details for the AdherenceScreen:
+ *   score, level, momentum, today, daily_log, achievements, weekly_summary
+ */
+router.get('/adherence/details', authenticate, async (req, res) => {
+    try {
+        const patient = await Patient.findOne({ supabase_uid: req.user.id });
+        if (!patient) {
+            return res.status(404).json({ error: 'Patient profile not found' });
+        }
+
+        // ── Fetch last 30 days of logs ──────────────────────────
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        thirtyDaysAgo.setHours(0, 0, 0, 0);
+
+        const logs = await MedicineLog.find({
+            patient_id: patient._id,
+            date: { $gte: thirtyDaysAgo },
+        }).sort({ date: 1 });
+
+        // ── Build daily log with status ─────────────────────────
+        const dailyLog = logs.map((log) => {
+            const total = log.medicines.filter(m => m.is_active !== false).length;
+            const taken = log.medicines.filter(m => m.taken && m.is_active !== false).length;
+            const rate = total > 0 ? Math.round((taken / total) * 100) : 0;
+            let status = 'none';
+            if (total === 0) status = 'none';
+            else if (rate === 100) status = 'complete';
+            else if (rate >= 50) status = 'partial';
+            else if (rate > 0) status = 'partial';
+            else status = 'missed';
+            return {
+                date: log.date.toISOString().slice(0, 10),
+                taken,
+                total,
+                rate,
+                status,
+            };
+        });
+
+        // ── Score calculations ──────────────────────────────────
+        const last7 = dailyLog.slice(-7);
+        const last30 = dailyLog;
+
+        const calcScore = (arr) => {
+            if (arr.length === 0) return 0;
+            const totalMeds = arr.reduce((s, d) => s + d.total, 0);
+            const takenMeds = arr.reduce((s, d) => s + d.taken, 0);
+            return totalMeds > 0 ? Math.round((takenMeds / totalMeds) * 100) : 0;
+        };
+
+        const weeklyScore = calcScore(last7);
+        const monthlyScore = calcScore(last30);
+
+        // ── Consistency Level ───────────────────────────────────
+        let level;
+        if (monthlyScore >= 90) level = { key: 'optimal', label: 'Optimal', emoji: '🏆' };
+        else if (monthlyScore >= 70) level = { key: 'consistent', label: 'Consistent', emoji: '🌳' };
+        else if (monthlyScore >= 50) level = { key: 'improving', label: 'Improving', emoji: '🌿' };
+        else level = { key: 'beginner', label: 'Beginner', emoji: '🌱' };
+
+        // ── Momentum (last 3 days trend) ────────────────────────
+        const last3 = dailyLog.slice(-3);
+        const last3Avg = calcScore(last3);
+        let momentum = 'steady';
+        if (last3Avg >= 80) momentum = 'rising';
+        else if (last3Avg < 60) momentum = 'falling';
+
+        // ── Today's progress ────────────────────────────────────
+        const todayEntry = dailyLog.find(d => d.date === new Date().toISOString().slice(0, 10));
+        const today = todayEntry || { taken: 0, total: 0, completed: false };
+        today.completed = today.total > 0 && today.taken === today.total;
+
+        // ── Weekly summary ──────────────────────────────────────
+        const weekTaken = last7.reduce((s, d) => s + d.taken, 0);
+        const weekMissed = last7.reduce((s, d) => s + (d.total - d.taken), 0);
+        // Compare to the 7 days before
+        const prev7 = dailyLog.slice(-14, -7);
+        const prevScore = calcScore(prev7);
+        const improvement = weeklyScore - prevScore;
+
+        const weeklySummary = {
+            taken: weekTaken,
+            missed: weekMissed,
+            improvement,
+        };
+
+        // ── Achievements ────────────────────────────────────────
+        const achievements = [];
+        const perfectDays = dailyLog.filter(d => d.rate === 100);
+        const has3Consecutive = (() => {
+            let count = 0;
+            for (const d of dailyLog) {
+                if (d.rate >= 80) { count++; if (count >= 3) return true; }
+                else count = 0;
+            }
+            return false;
+        })();
+        const morningLogs = logs.every(log =>
+            log.medicines.filter(m => m.scheduled_time === 'morning' && m.is_active !== false)
+                .every(m => m.taken)
+        );
+
+        achievements.push({
+            key: 'first_perfect_day',
+            label: 'First 100% Day',
+            description: 'Complete all doses in a single day',
+            emoji: '🟢',
+            unlocked: perfectDays.length >= 1,
+        });
+        achievements.push({
+            key: '3_day_consistent',
+            label: '3 Days Consistent',
+            description: 'Score 80%+ for 3 consecutive days',
+            emoji: '🟡',
+            unlocked: has3Consecutive,
+        });
+        achievements.push({
+            key: 'never_missed_morning',
+            label: 'Morning Champion',
+            description: 'Never miss a morning dose',
+            emoji: '🔵',
+            unlocked: logs.length >= 3 && morningLogs,
+        });
+        achievements.push({
+            key: 'weekly_90',
+            label: 'Weekly 90%+',
+            description: 'Achieve 90%+ in a week',
+            emoji: '🟣',
+            unlocked: weeklyScore >= 90,
+        });
+        achievements.push({
+            key: '7_perfect_days',
+            label: 'Perfect Week',
+            description: '7 days with 100% adherence',
+            emoji: '💎',
+            unlocked: perfectDays.length >= 7,
+        });
+        achievements.push({
+            key: 'monthly_consistent',
+            label: 'Monthly Warrior',
+            description: 'Maintain 80%+ for 30 days',
+            emoji: '🏅',
+            unlocked: monthlyScore >= 80 && last30.length >= 25,
+        });
+
+        res.json({
+            score: { weekly: weeklyScore, monthly: monthlyScore },
+            level,
+            momentum,
+            today,
+            daily_log: dailyLog,
+            achievements,
+            weekly_summary: weeklySummary,
+        });
+    } catch (error) {
+        console.error('Get adherence details error:', error);
+        res.status(500).json({ error: 'Failed to get adherence details' });
     }
 });
 

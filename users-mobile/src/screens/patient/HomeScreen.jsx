@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, Platform, Pressable, Animated, ActivityIndicator, TextInput, KeyboardAvoidingView, TouchableOpacity, DeviceEventEmitter, InteractionManager, Vibration } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
-    Pill, PhoneCall, CalendarCheck, Sunrise, Sun, Moon, Flame,
+    Pill, PhoneCall, CalendarCheck, Sunrise, Sun, Moon, Package,
     Sparkles, ChevronRight, PhoneIncoming, TrendingUp, Activity, CalendarDays, CheckCircle2, Circle, Bell,
     Heart, Wind, Thermometer, Droplets, MapPin, AlertTriangle, PillBottle, Syringe, WifiOff
 } from 'lucide-react-native';
@@ -147,33 +147,6 @@ export default function PatientHomeScreen({ navigation }) {
     const [submitLoading, setSubmitLoading] = useState(false);
 
     const staggerAnims = useRef([...Array(10)].map(() => new Animated.Value(0))).current;
-
-    // Streak Animation State
-    const streakScale = useRef(new Animated.Value(1)).current;
-    const streakRotate = useRef(new Animated.Value(0)).current;
-    const prevStreakRef = useRef(patient?.gamification?.current_streak || 0);
-
-    useEffect(() => {
-        const currentStreak = patient?.gamification?.current_streak || 0;
-        if (currentStreak > prevStreakRef.current) {
-            // Provide haptic feedback!
-            Vibration.vibrate([0, 50, 100, 50]);
-
-            // Animate scale Pop & Wiggle!
-            Animated.parallel([
-                Animated.sequence([
-                    Animated.spring(streakScale, { toValue: 1.4, friction: 2, tension: 40, useNativeDriver: true }),
-                    Animated.spring(streakScale, { toValue: 1, friction: 3, tension: 60, useNativeDriver: true })
-                ]),
-                Animated.sequence([
-                    Animated.timing(streakRotate, { toValue: 1, duration: 100, useNativeDriver: true }),
-                    Animated.timing(streakRotate, { toValue: -1, duration: 100, useNativeDriver: true }),
-                    Animated.timing(streakRotate, { toValue: 0, duration: 100, useNativeDriver: true })
-                ])
-            ]).start();
-        }
-        prevStreakRef.current = currentStreak;
-    }, [patient?.gamification?.current_streak, streakScale, streakRotate]);
 
     // Health sync state
     const [syncStatus, setSyncStatus] = useState({
@@ -336,7 +309,7 @@ export default function PatientHomeScreen({ navigation }) {
     }
 
     return (
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
             <LinearGradient colors={['#F8FAFC', '#EEF2FF']} style={[styles.container, { position: 'relative' }]}>
                 <View style={[styles.headerWrap, { zIndex: 10, elevation: 10 }]}>
                     <Animated.View style={[styles.minimalHeader, { opacity: staggerAnims[0], transform: [{ translateY: staggerAnims[0].interpolate({ inputRange: [0, 1], outputRange: [-20, 0] }) }] }]}>
@@ -368,22 +341,6 @@ export default function PatientHomeScreen({ navigation }) {
                                         <Text style={styles.greetingNameCompact} numberOfLines={1}>
                                             {(patient?.name || displayName)?.split(' ')[0] || 'User'}
                                         </Text>
-                                        
-                                        {/* 🔥 Unified Care Streak Widget — Always visible */}
-                                        <Animated.View style={{ 
-                                            transform: [
-                                                { scale: streakScale },
-                                                { rotate: streakRotate.interpolate({ inputRange: [-1, 0, 1], outputRange: ['-15deg', '0deg', '15deg'] }) }
-                                            ] 
-                                        }}>
-                                            <Pressable 
-                                                onPress={() => navigation.navigate('StreakDetails')}
-                                                style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: (patient?.gamification?.current_streak || 0) > 0 ? '#FFF0ED' : '#F1F5F9', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, borderWidth: 1, borderColor: (patient?.gamification?.current_streak || 0) > 0 ? '#FFE4E6' : '#E2E8F0' }}
-                                            >
-                                                <Flame size={14} color={(patient?.gamification?.current_streak || 0) > 0 ? '#F97316' : '#94A3B8'} fill={(patient?.gamification?.current_streak || 0) > 0 ? '#FB923C' : '#CBD5E1'} />
-                                                <Text style={{ marginLeft: 4, fontSize: 13, fontWeight: '800', color: (patient?.gamification?.current_streak || 0) > 0 ? '#EA580C' : '#94A3B8' }}>{patient?.gamification?.current_streak || 0}</Text>
-                                            </Pressable>
-                                        </Animated.View>
                                     </View>
                                 </View>
                             </View>
@@ -432,11 +389,11 @@ export default function PatientHomeScreen({ navigation }) {
                     </View>
                 )}
                 <Animated.View style={[styles.headerStatsRow, { opacity: staggerAnims[1], transform: [{ translateY: staggerAnims[1].interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) }] }]}>
-                    <View style={styles.statMiniCardEnhanced}>
+                    <Pressable onPress={() => navigation.navigate('AdherenceDetails')} style={styles.statMiniCardEnhanced}>
                         <View style={[styles.statIconBox, { backgroundColor: 'rgba(14,165,233,0.1)' }]}><Pill size={18} color="#0EA5E9" /></View>
                         <Text style={styles.statMiniVal}>{takenCount}/{meds.length}</Text>
                         <Text style={styles.statMiniLabel}>Meds Taken</Text>
-                    </View>
+                    </Pressable>
                     <View style={styles.statMiniCardEnhanced}>
                         <View style={[styles.statIconBox, { backgroundColor: 'rgba(34,197,94,0.1)' }]}><PhoneCall size={18} color="#22C55E" /></View>
                         <Text style={styles.statMiniVal}>{callsFreq}</Text>
@@ -633,8 +590,8 @@ export default function PatientHomeScreen({ navigation }) {
 
                             <Pressable style={styles.quickCardEnhanced} onPress={() => navigation.navigate('Medications')}>
                                 <View style={styles.quickContent}>
-                                    <View style={[styles.quickIconBoxEnhanced, { backgroundColor: '#DCFCE7' }]}><TrendingUp size={20} color="#16A34A" /></View>
-                                    <View style={styles.quickTextView}><Text style={styles.quickCardTitle}>Adherence</Text><Text style={styles.quickCardSub}>94% Weekly</Text></View>
+                                    <View style={[styles.quickIconBoxEnhanced, { backgroundColor: '#E0F2FE' }]}><Package size={20} color="#0284C7" /></View>
+                                    <View style={styles.quickTextView}><Text style={styles.quickCardTitle}>Med Delivery</Text><Text style={styles.quickCardSub}>Order & Track</Text></View>
                                 </View><ChevronRight size={18} color="#CBD5E1" />
                             </Pressable>
 
@@ -645,7 +602,7 @@ export default function PatientHomeScreen({ navigation }) {
                                 </View><ChevronRight size={18} color="#CBD5E1" />
                             </Pressable>
 
-                            <Pressable style={styles.quickCardEnhanced}>
+                            <Pressable style={styles.quickCardEnhanced} onPress={() => navigation.navigate('HealthProfile')}>
                                 <View style={styles.quickContent}>
                                     <View style={[styles.quickIconBoxEnhanced, { backgroundColor: '#FEF3C7' }]}><CalendarDays size={20} color="#D97706" /></View>
                                     <View style={styles.quickTextView}><Text style={styles.quickCardTitle}>Schedule</Text><Text style={styles.quickCardSub}>Next Appt</Text></View>

@@ -10,6 +10,7 @@ const PredictionSchema = new mongoose.Schema(
         },
         oxygen_saturation: { type: Number, required: true },
         hydration: { type: Number, required: true },
+        temperature: { type: Number },
     },
     { _id: false }
 );
@@ -30,6 +31,12 @@ const AIVitalPredictionSchema = new mongoose.Schema(
         consecutive_critical_days: {
             type: Number,
             default: 0,
+        },
+        confidence_score: {
+            type: Number,
+            min: 0,
+            max: 1,
+            default: null,
         },
         predictions: [PredictionSchema],
     },

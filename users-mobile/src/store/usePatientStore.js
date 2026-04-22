@@ -26,6 +26,7 @@ const usePatientStore = create((set, get) => ({
     // Detailed schedule meds (grouped for MedicationsScreen)
     medicationSchedule: { morning: [], afternoon: [], night: [] },
     weeklyAdherence: [],
+    adherenceDetails: null,
     callPreferences: { morning: '09:00', afternoon: '14:00', night: '20:00' },
 
     // State flags
@@ -43,6 +44,21 @@ const usePatientStore = create((set, get) => ({
      * a profile save) without doing a full refetch.
      */
     setPatient: (patient) => set({ patient }),
+
+    /**
+     * fetchAdherenceDetails — Full fetch for AdherenceScreen.
+     * Populates score, level, momentum, daily_log, achievements.
+     */
+    fetchAdherenceDetails: async () => {
+        try {
+            const { data } = await apiService.medicines.getAdherenceDetails();
+            set({ adherenceDetails: data });
+            return data;
+        } catch (err) {
+            console.warn('[Store] fetchAdherenceDetails error:', err.message);
+            return null;
+        }
+    },
 
     /**
      * fetchProfile — Lightweight fetch of just /me.

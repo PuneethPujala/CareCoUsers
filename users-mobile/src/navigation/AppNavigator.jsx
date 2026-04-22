@@ -50,7 +50,7 @@ import VitalsHistoryScreen from "../screens/patient/VitalsHistoryScreen";
 import LocationSearchScreen from "../screens/patient/LocationSearchScreen";
 import AddAddressScreen from "../screens/patient/AddAddressScreen";
 import HealthConnectSetupScreen from "../screens/patient/HealthConnectSetupScreen";
-import StreakDetailsScreen from "../screens/patient/StreakDetailsScreen";
+import AdherenceScreen from "../screens/patient/AdherenceScreen";
 
 // Caller screens — removed: this is a patient-only app
 
@@ -220,8 +220,8 @@ const MainAppStack = () => (
             options={{ presentation: "modal", animation: "slide_from_bottom" }}
         />
         <Stack.Screen
-            name="StreakDetails"
-            component={StreakDetailsScreen}
+            name="AdherenceDetails"
+            component={AdherenceScreen}
             options={{ presentation: "modal", animation: "slide_from_bottom", headerShown: false }}
         />
         <Stack.Screen name="SubscribePlans" component={SubscribePlansScreen} />

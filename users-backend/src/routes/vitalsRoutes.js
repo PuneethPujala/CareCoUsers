@@ -60,9 +60,9 @@ router.post('/', vitalsValidators, validate, async (req, res) => {
 
         await vitalLog.save();
         
-        // ── Gamification: Increment Care Streak ──
-        const streakService = require('../services/streakService');
-        await streakService.evaluateAndUpdateStreak(patient_id);
+        // ── DEPRECATED: Streak gamification removed in favour of adherence tracking ──
+        // const streakService = require('../services/streakService');
+        // await streakService.evaluateAndUpdateStreak(patient_id);
 
         res.status(201).json({ message: 'Vitals saved successfully', vitals: vitalLog });
     } catch (error) {

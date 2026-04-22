@@ -22,7 +22,6 @@ const VitalLogSchema = new mongoose.Schema(
         },
         heart_rate: {
             type: Number,
-            required: true,
             min: [30, 'Heart rate must be at least 30 bpm'],
             max: [250, 'Heart rate cannot exceed 250 bpm'],
         },
@@ -48,6 +47,16 @@ const VitalLogSchema = new mongoose.Schema(
             min: [0, 'Hydration cannot be below 0%'],
             max: [100, 'Hydration cannot exceed 100%'],
         },
+        temperature: {
+            type: Number,
+            min: [90, 'Temperature must be at least 90°F'],
+            max: [110, 'Temperature cannot exceed 110°F'],
+        },
+        notes: {
+            type: String,
+            maxlength: [500, 'Notes cannot exceed 500 characters'],
+            trim: true,
+        },
         source: {
             type: String,
             enum: ['manual', 'health_connect', 'healthkit'],
@@ -62,9 +71,12 @@ const VitalLogSchema = new mongoose.Schema(
 );
 
 // ─── Conditional validation ─────────────────────────────────────
-// Manual entries must have all fields; device sources only need heart_rate
+// Manual entries must have core fields; device sources may send partial data
 VitalLogSchema.pre('validate', function (next) {
     if (this.source === 'manual') {
+        if (this.heart_rate == null) {
+            return next(new Error('Heart rate is required for manual entries'));
+        }
         if (this.blood_pressure?.systolic == null || this.blood_pressure?.diastolic == null) {
             return next(new Error('Blood pressure (systolic & diastolic) is required for manual entries'));
         }

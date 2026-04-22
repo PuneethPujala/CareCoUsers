@@ -10,7 +10,7 @@ import {
     ShieldCheck, Star, MapPin, ClipboardList, FileText, FlaskConical,
     Wallet, CreditCard, Receipt, Heart, Users, BellRing, Clock, Globe,
     Shield, Droplets, Calendar, User2, Trash2, ShieldCheck as ShieldCheckIcon, Smartphone,
-    Mail, Flame
+    Mail, TrendingUp
 } from 'lucide-react-native';
 import { colors } from '../../theme';
 import { useAuth } from '../../context/AuthContext';
@@ -560,7 +560,7 @@ export default function PatientProfileScreen({ navigation }) {
                     <Text style={s.sectionTitle}>CARE & RECORDS</Text>
                     <View style={s.card}>
                         <InfoRow icon={ClipboardList} iconBg="#EFF6FF" iconColor="#3B82F6" label="Care Logs" value="Track your care interactions" placeholder="" onPress={() => navigation.navigate('MyCaller')} />
-                        <InfoRow icon={Flame} iconBg="#FFF0ED" iconColor="#F97316" label="My Care Streak" value={patient?.gamification?.current_streak ? `${patient.gamification.current_streak} days` : "Start a streak today!"} placeholder="" onPress={() => navigation.navigate('StreakDetails')} />
+                        <InfoRow icon={TrendingUp} iconBg="#F0FDF4" iconColor="#16A34A" label="Medication Adherence" value="View consistency" placeholder="" onPress={() => navigation.navigate('AdherenceDetails')} />
                         <InfoRow icon={FileText} iconBg="#F0FDF4" iconColor="#22C55E" label="My Medications" value="View active prescriptions" placeholder="" onPress={() => navigation.navigate('Medications')} />
                         <InfoRow icon={FlaskConical} iconBg="#FFF7ED" iconColor="#F97316" label="Vitals & Lab Reports" value="Digital storage for test results" placeholder="" onPress={() => navigation.navigate('HealthProfile')} isLast />
                     </View>

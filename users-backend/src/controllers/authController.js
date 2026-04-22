@@ -35,12 +35,11 @@ async function login(req, res) {
   try {
     const data = await authService.login(req.body, req);
     
-    // ── Gamification: Increment Care Streak ──
-    if (data.profile && data.profile.role === 'patient') {
-        const streakService = require('../services/streakService');
-        // Fire asynchronously to avoid blocking the login response
-        streakService.evaluateAndUpdateStreak(data.profile._id).catch(e => console.error('Streak Update Failed:', e));
-    }
+    // ── DEPRECATED: Streak gamification removed in favour of adherence tracking ──
+    // if (data.profile && data.profile.role === 'patient') {
+    //     const streakService = require('../services/streakService');
+    //     streakService.evaluateAndUpdateStreak(data.profile._id).catch(e => console.error('Streak Update Failed:', e));
+    // }
 
     res.json(data);
   } catch (err) {

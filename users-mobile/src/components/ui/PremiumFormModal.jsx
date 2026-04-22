@@ -97,10 +97,10 @@ const PremiumFormModal = ({
                 <Animated.View style={[styles.backdrop, { opacity: backdropAnim }]} />
             </TouchableWithoutFeedback>
 
-            {/* Full-screen sheet */}
+            {/* Bottom-anchored sheet — wraps to content with maxHeight cap */}
             <Animated.View
                 style={[
-                    styles.sheetContainer,
+                    styles.sheetWrapper,
                     {
                         transform: [
                             {
@@ -112,11 +112,13 @@ const PremiumFormModal = ({
                         ],
                     },
                 ]}
+                pointerEvents="box-none"
             >
+              <View style={styles.sheetContainer}>
                 <KeyboardAvoidingView
                     style={{ flex: 1 }}
-                    behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-                    keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+                    behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
+                    keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 0}
                 >
                     {/* Drag Handle */}
                     <View style={styles.handleWrap}>
@@ -175,6 +177,7 @@ const PremiumFormModal = ({
                         </View>
                     )}
                 </KeyboardAvoidingView>
+              </View>
             </Animated.View>
         </Modal>
     );
@@ -185,12 +188,17 @@ const styles = StyleSheet.create({
         ...StyleSheet.absoluteFillObject,
         backgroundColor: 'rgba(15, 23, 42, 0.55)',
     },
-    sheetContainer: {
+    sheetWrapper: {
         position: 'absolute',
-        top: Platform.OS === 'ios' ? 80 : 100, // Provides a nice gap at the top so it doesn't collide
         left: 0,
         right: 0,
         bottom: 0,
+        top: 0,
+        justifyContent: 'flex-end',
+    },
+    sheetContainer: {
+        maxHeight: '92%',
+        minHeight: 200,
         backgroundColor: '#FFFFFF',
         borderTopLeftRadius: 28,
         borderTopRightRadius: 28,
