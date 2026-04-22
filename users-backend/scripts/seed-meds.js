@@ -8,8 +8,7 @@ const Patient = require('../src/models/Patient');
 
 async function seed() {
     // Note: If connection fails, whitelist your IP in MongoDB Atlas -> Security -> Network Access
-    const directURI = 'mongodb://Prakash45:prakash4533@ac-zhof8tf-shard-00-00.faidhae.mongodb.net:27017,ac-zhof8tf-shard-00-01.faidhae.mongodb.net:27017,ac-zhof8tf-shard-00-02.faidhae.mongodb.net:27017/careconnect?ssl=true&replicaSet=atlas-zhof8tf-shard-0&authSource=admin&retryWrites=true&w=majority';
-    await mongoose.connect(directURI);
+    await mongoose.connect(process.env.MONGODB_URI);
     console.log('Connected to MongoDB');
 
     const patient = await Patient.findOne({ email: 'puneethpujala@gmail.com' });
