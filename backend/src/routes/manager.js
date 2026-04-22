@@ -520,6 +520,84 @@ router.get('/caretakers', async (req, res) => {
 });
 
 // ═══════════════════════════════════════════════════════════════
+// NEW: DELETE /api/manager/caretakers/:id — Soft-delete caller
+// ═══════════════════════════════════════════════════════════════
+router.delete('/caretakers/:id', async (req, res) => {
+    try {
+        const callerId = req.params.id;
+        const managerId = req.profile._id;
+        const orgId = req.profile.organizationId;
+
+        if (!mongoose.Types.ObjectId.isValid(callerId)) {
+            return res.status(400).json({ error: 'Invalid caller ID' });
+        }
+
+        const caller = await Profile.findOne({ 
+            _id: callerId, 
+            organizationId: orgId,
+            role: { $in: ['caller', 'caretaker'] }
+        });
+
+        if (!caller) return res.status(404).json({ error: 'Caller not found or access denied.' });
+        if (!caller.isActive && caller.fullName.includes('[Deleted]')) return res.status(400).json({ error: 'Caller is already deleted.' });
+
+        const assignments = await CaretakerPatient.find({ caretakerId: callerId, status: 'active' });
+        const patientIds = assignments.map(a => a.patientId);
+
+        await CaretakerPatient.updateMany(
+            { caretakerId: callerId },
+            { $set: { status: 'terminated' } }
+        );
+
+        await Profile.updateMany({ _id: { $in: patientIds } }, { $unset: { caller_id: 1, assigned_caller_id: 1 } });
+        try {
+            await mongoose.model('Patient').updateMany(
+                { _id: { $in: patientIds } },
+                { $unset: { caller_id: 1, assigned_caller_id: 1 } }
+            );
+        } catch(e) {}
+
+        caller.isActive = false;
+        caller.fullName = `${caller.fullName} [Deleted]`;
+        await caller.save();
+
+        const reconResult = await reconcileUnassignedPatients(orgId, managerId);
+
+        if (reconResult.remaining > 0) {
+            await Notification.create({
+                recipientId: managerId,
+                title: '⚠️ Critical Caller Shortage',
+                body: `You deleted a caller, and ${reconResult.remaining} patients could not be reassigned. Please hire/add more callers immediately.`,
+                type: 'system_announcement',
+                isRead: false
+            });
+        }
+
+        await AuditLog.createLog({
+            supabaseUid: req.profile.supabaseUid,
+            action: 'delete_caller',
+            resourceType: 'profile',
+            resourceId: caller._id,
+            ipAddress: req.ip,
+            userAgent: req.headers['user-agent'],
+            outcome: 'success',
+            details: { strandedPatients: patientIds.length, reallocated: reconResult.assigned }
+        });
+
+        res.json({
+            message: 'Caller successfully removed. Reallocation algorithm triggered.',
+            patientsStranded: patientIds.length,
+            patientsReallocated: reconResult.assigned,
+            shortageWarning: reconResult.remaining > 0
+        });
+
+    } catch (error) {
+        console.error('Delete caller error:', error);
+        res.status(500).json({ error: 'Failed to process caller deletion workflow.' });
+    }
+});
+
+// ═══════════════════════════════════════════════════════════════
 // 5. GET /api/manager/patients — Patients under supervision
 // ═══════════════════════════════════════════════════════════════
 router.get('/patients', async (req, res) => {
@@ -649,6 +727,20 @@ router.post('/patients/assign', async (req, res) => {
             schedule: schedule || { startDate: new Date() },
         });
 
+        // Mirror assignments directly onto the Profile and Patient documents for User App compatability!
+        await Profile.findByIdAndUpdate(patientId, {
+            caller_id: caretakerId,
+            assigned_caller_id: caretakerId
+        });
+        try {
+            await mongoose.model('Patient').updateOne(
+                { _id: patientId }, 
+                { $set: { caller_id: caretakerId, assigned_caller_id: caretakerId } }
+            );
+        } catch (e) {
+            // Patient model fallback ignoring
+        }
+
         // Notify caretaker
         await Notification.create({
             recipientId: caretakerId,
@@ -744,6 +836,20 @@ router.put('/patients/:id/reassign', async (req, res) => {
             schedule: { startDate: new Date() },
             careInstructions: currentAssignment?.careInstructions || '',
         });
+
+        // Mirror re-assignments directly onto the Profile and Patient documents for User App compatability!
+        await Profile.findByIdAndUpdate(patientId, {
+            caller_id: newCaretakerId,
+            assigned_caller_id: newCaretakerId
+        });
+        try {
+            await mongoose.model('Patient').updateOne(
+                { _id: patientId }, 
+                { $set: { caller_id: newCaretakerId, assigned_caller_id: newCaretakerId } }
+            );
+        } catch (e) {
+            // Patient model fallback ignoring
+        }
 
         // Notify both caretakers
         const notifications = [

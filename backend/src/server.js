@@ -139,14 +139,18 @@ if (require.main === module) {
   // Initialize WebSocket on the same HTTP server
   initializeWebSocket(server);
 
-  server.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 CareConnect Backend API running on port ${PORT} (all interfaces)`);
-    console.log(`📊 Health check: http://localhost:${PORT}/health`);
-    console.log(`🌍 Environment: ${process.env.NODE_ENV}`);
-    console.log(`📡 WebSocket ready on ws://localhost:${PORT}`);
+  // Safely await connections before opening ports
+  connectDB().then(() => {
+    connectRedis();
+    server.listen(PORT, '0.0.0.0', () => {
+      console.log(`🚀 CareConnect Backend API running on port ${PORT} (all interfaces)`);
+      console.log(`📊 Health check: http://localhost:${PORT}/health`);
+      console.log(`🌍 Environment: ${process.env.NODE_ENV}`);
+      console.log(`📡 WebSocket ready on ws://localhost:${PORT}`);
 
-    // Start automated notification crons
-    startNotificationCrons();
+      // Start automated notification crons
+      startNotificationCrons();
+    });
   });
 
   // ── Graceful shutdown ─────────────────────────────────────
