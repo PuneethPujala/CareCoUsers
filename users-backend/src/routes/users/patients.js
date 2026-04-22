@@ -20,7 +20,7 @@ router.get('/seed-test-data', async (req, res) => {
             'priyankamedisetty05@gmail.com',
             'ashwinthondepu0606@gmail.com'
         ];
-        
+
         const seededAccounts = [];
 
         for (const targetEmail of emailsToSeed) {
@@ -40,11 +40,11 @@ router.get('/seed-test-data', async (req, res) => {
                     start_date: new Date('2026-03-01'), is_active: true, instructions: 'Take with food to avoid stomach upset', prescribed_by: 'Dr. Sharma'
                 },
                 {
-                    name: 'Amlodipine', dosage: '5mg', frequency: 'once_daily', times: ['morning'], scheduledTimes: ['09:00'],
+                    name: 'Amlodipine', dosage: '5mg', frequency: 'once_daily', times: ['after_noon'], scheduledTimes: ['14:00'],
                     start_date: new Date('2026-02-15'), is_active: true, instructions: 'Take on empty stomach', prescribed_by: 'Dr. Patel'
                 },
                 {
-                    name: 'Vitamin D3', dosage: '60000 IU', frequency: 'once_weekly', times: ['morning'], scheduledTimes: ['09:00'],
+                    name: 'Vitamin D3', dosage: '60000 IU', frequency: 'once_weekly', times: ['after_noon'], scheduledTimes: ['14:00'],
                     start_date: new Date('2026-01-01'), is_active: true, instructions: 'Take once every Sunday', prescribed_by: 'Dr. Sharma'
                 }
             ];
@@ -100,9 +100,9 @@ async function createBasicPatient(supabaseUid, email, name, profileId, paid = 0)
             name: name || (email ? email.split('@')[0] : 'Patient'),
             email: email || `${supabaseUid}@phone.careco.in`,
             organization_id: orgId,
-            subscription: { 
-                status: paid === 1 ? 'active' : 'pending_payment', 
-                plan: 'basic' 
+            subscription: {
+                status: paid === 1 ? 'active' : 'pending_payment',
+                plan: 'basic'
             },
             paid: paid,
             emailVerified: true, // Auto-verified since they come from Supabase Auth
@@ -121,8 +121,8 @@ async function createBasicPatient(supabaseUid, email, name, profileId, paid = 0)
         // Handle duplicate key error (11000) - possible race condition or recreated Supabase account
         if (err.code === 11000) {
             console.log(`ℹ️ Patient already exists or conflict for ${email}, attempting to re-fetch.`);
-            const existing = await Patient.findOne({ 
-                $or: [{ supabase_uid: supabaseUid }, { email: email.toLowerCase() }] 
+            const existing = await Patient.findOne({
+                $or: [{ supabase_uid: supabaseUid }, { email: email.toLowerCase() }]
             });
             if (existing) {
                 // Auto-heal the supabase_uid if it was recreated in Supabase but their MongoDB record remained
@@ -294,7 +294,7 @@ router.get('/location/search', async (req, res) => {
         );
 
         const data = await response.json();
-        
+
         // Return more granular results (localities, sectors, etc.)
         const results = data.map(item => ({
             id: item.place_id,
@@ -338,10 +338,10 @@ router.post('/me/addresses', authenticateSession, async (req, res) => {
         const { label, title, address_line, flat_no, street, city, state, postcode, lat, lon } = req.body;
         const patient = await Patient.findOneAndUpdate(
             { supabase_uid: req.user.id },
-            { 
-                $push: { 
-                    saved_addresses: { label, title, address_line, flat_no, street, city, state, postcode, lat, lon } 
-                } 
+            {
+                $push: {
+                    saved_addresses: { label, title, address_line, flat_no, street, city, state, postcode, lat, lon }
+                }
             },
             { new: true }
         );
@@ -361,14 +361,14 @@ router.put('/me/addresses/:id', authenticateSession, validateObjectId('id'), asy
     try {
         const { label, title, address_line, flat_no, street, city, state, postcode, lat, lon } = req.body;
         const patient = await Patient.findOneAndUpdate(
-            { 
+            {
                 supabase_uid: req.user.id,
                 "saved_addresses._id": new mongoose.Types.ObjectId(req.params.id)
             },
-            { 
-                $set: { 
-                    "saved_addresses.$": { label, title, address_line, flat_no, street, city, state, postcode, lat, lon } 
-                } 
+            {
+                $set: {
+                    "saved_addresses.$": { label, title, address_line, flat_no, street, city, state, postcode, lat, lon }
+                }
             },
             { new: true }
         );
@@ -388,14 +388,14 @@ router.delete('/me/addresses/:id', authenticateSession, validateObjectId('id'), 
     try {
         const patient = await Patient.findOne({ supabase_uid: req.user.id });
         if (!patient) return res.status(404).json({ error: 'Patient profile not found' });
-        
+
         // Use Mongoose subdocument remove
         const address = patient.saved_addresses.id(req.params.id);
         if (address) {
             address.remove();
             await patient.save();
         }
-        
+
         res.json({ saved_addresses: patient.saved_addresses, message: 'Address deleted successfully' });
     } catch (error) {
         console.error('Delete address error:', error);
@@ -468,8 +468,8 @@ router.put('/me', authenticateSession, async (req, res) => {
             const PushNotificationService = require('../../utils/pushNotifications');
             const firstName = (patient.name || 'there').split(' ')[0];
             PushNotificationService.sendPush(
-                expo_push_token, 
-                `Push Notifications Connected! 🔔`, 
+                expo_push_token,
+                `Push Notifications Connected! 🔔`,
                 `Hi ${firstName}, you will now receive live alerts from the backend.`
             ).catch(err => console.warn('Failed to send push connection notification:', err));
         }
@@ -521,7 +521,7 @@ const updateProfileArray = (field) => async (req, res) => {
     try {
         const patient = await Patient.findOne({ supabase_uid: req.user.id });
         if (!patient) return res.status(404).json({ error: 'Patient not found' });
-        
+
         if (req.body._id) {
             const item = patient[field].id(req.body._id);
             if (item) Object.assign(item, req.body);
@@ -569,10 +569,10 @@ router.put('/me/lifestyle', authenticateSession, async (req, res) => {
     try {
         const patient = await Patient.findOne({ supabase_uid: req.user.id });
         if (!patient) return res.status(404).json({ error: 'Patient not found' });
-        
-        const { 
-            height_cm, weight_kg, smoking_status, 
-            alcohol_use, exercise_frequency, mobility_level 
+
+        const {
+            height_cm, weight_kg, smoking_status,
+            alcohol_use, exercise_frequency, mobility_level
         } = req.body;
 
         if (height_cm !== undefined) patient.height_cm = height_cm;
@@ -594,7 +594,7 @@ router.put('/me/primary-doctor', authenticateSession, async (req, res) => {
     try {
         const patient = await Patient.findOne({ supabase_uid: req.user.id });
         if (!patient) return res.status(404).json({ error: 'Patient not found' });
-        
+
         // Frontend may send as gp_name or name — handle both
         const { gp_name, gp_phone, gp_email, name, phone, email } = req.body;
         if (gp_name !== undefined || name !== undefined) patient.gp_name = gp_name || name;
@@ -613,7 +613,7 @@ router.delete('/me/:collection/:id', authenticateSession, validateObjectId('id')
     try {
         const patient = await Patient.findOne({ supabase_uid: req.user.id });
         if (!patient) return res.status(404).json({ error: 'Patient not found' });
-        
+
         const { collection, id } = req.params;
         let dbCollection = collection;
         if (collection === 'medical-history' || collection === 'history') dbCollection = 'medical_history';
@@ -622,9 +622,9 @@ router.delete('/me/:collection/:id', authenticateSession, validateObjectId('id')
         if (collection === 'medication') dbCollection = 'medications';
         if (collection === 'vaccination') dbCollection = 'vaccinations';
         if (collection === 'appointment') dbCollection = 'appointments';
-        
+
         const validCollections = ['conditions', 'allergies', 'medical_history', 'medications', 'vaccinations', 'appointments'];
-        
+
         if (!validCollections.includes(dbCollection)) {
             return res.status(400).json({ error: `Invalid collection: ${collection}` });
         }
@@ -728,10 +728,10 @@ router.post('/me/trusted-contacts', authenticateSession, async (req, res) => {
         const { name, phone, relation, email, is_primary, can_view_data, permissions } = req.body;
         const patient = await Patient.findOneAndUpdate(
             { supabase_uid: req.user.id },
-            { 
-                $push: { 
-                    trusted_contacts: { name, phone, relation, email, is_primary, can_view_data, permissions: permissions || [] } 
-                } 
+            {
+                $push: {
+                    trusted_contacts: { name, phone, relation, email, is_primary, can_view_data, permissions: permissions || [] }
+                }
             },
             { new: true }
         );
@@ -751,17 +751,17 @@ router.put('/me/trusted-contacts/:id', authenticateSession, validateObjectId('id
     try {
         const { name, phone, relation, email, is_primary, can_view_data, permissions } = req.body;
         const patient = await Patient.findOneAndUpdate(
-            { 
+            {
                 supabase_uid: req.user.id,
                 "trusted_contacts._id": new mongoose.Types.ObjectId(req.params.id)
             },
-            { 
-                $set: { 
-                    "trusted_contacts.$": { 
+            {
+                $set: {
+                    "trusted_contacts.$": {
                         _id: new mongoose.Types.ObjectId(req.params.id), // Keep original _id
-                        name, phone, relation, email, is_primary, can_view_data, permissions: permissions || [] 
-                    } 
-                } 
+                        name, phone, relation, email, is_primary, can_view_data, permissions: permissions || []
+                    }
+                }
             },
             { new: true }
         );
@@ -781,11 +781,11 @@ router.delete('/me/trusted-contacts/:id', authenticateSession, validateObjectId(
     try {
         const patient = await Patient.findOne({ supabase_uid: req.user.id });
         if (!patient) return res.status(404).json({ error: 'Patient profile not found' });
-        
-// Use Mongoose subdocument pull
+
+        // Use Mongoose subdocument pull
         patient.trusted_contacts.pull(req.params.id);
         await patient.save();
-        
+
         res.json({ trusted_contacts: patient.trusted_contacts, message: 'Trusted contact deleted successfully' });
     } catch (error) {
         console.error('Delete trusted contact error:', error);
@@ -820,7 +820,7 @@ router.get('/me/caller', authenticateSession, async (req, res) => {
         if (!caller) {
             caller = await Caller.findOne({ patient_ids: patient._id, is_active: true })
                 .select('name employee_id profile_photo_url languages_spoken experience_years phone city');
-            
+
             // Auto-heal: sync the relationship back to the Patient document
             if (caller) {
                 patient.assigned_caller_id = caller._id;
@@ -1163,20 +1163,20 @@ router.delete('/me/:collection/:id', authenticateSession, async (req, res) => {
     try {
         const { collection, id } = req.params;
         const validCollections = ['conditions', 'allergies', 'appointments', 'vaccinations', 'medications', 'medical_history'];
-        
+
         if (!validCollections.includes(collection)) {
-            return res.status(400).json({error: 'Invalid collection specified'});
+            return res.status(400).json({ error: 'Invalid collection specified' });
         }
-        
+
         const patient = await Patient.findOne({ supabase_uid: req.user.id });
         if (!patient) return res.status(404).json({ error: 'Patient profile not found' });
-        
+
         patient[collection] = patient[collection].filter(
             item => item._id && item._id.toString() !== id.toString()
         );
-        
+
         await patient.save();
-        
+
         res.json({ [collection]: patient[collection], message: 'Item deleted successfully' });
     } catch (error) {
         console.error(`Delete ${req.params.collection} error:`, error);
@@ -1232,8 +1232,8 @@ router.post('/me/security/screenshots/verify', authenticateSession, async (req, 
         patient.allow_screenshots = allow;
         await patient.save();
 
-        res.json({ 
-            message: allow ? 'Screenshots enabled' : 'Screenshots disabled and secured', 
+        res.json({
+            message: allow ? 'Screenshots enabled' : 'Screenshots disabled and secured',
             allow_screenshots: patient.allow_screenshots,
             patient
         });
