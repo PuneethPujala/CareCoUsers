@@ -162,7 +162,7 @@ export default function ActiveCallScreen({ navigation, route }) {
             endedAt: new Date().toISOString(),
             duration: seconds,
             notes,
-            patientMood: isCallMade ? mood : 'neutral',
+            patientMood: isCallMade ? (mood === 'good' ? 'happy' : mood === 'bad' ? 'sad' : mood) : 'neutral',
             followUpRequired: false,
             medicationConfirmations: medConfirmations,
             callQuality: { rating: 5, issues: [] }
