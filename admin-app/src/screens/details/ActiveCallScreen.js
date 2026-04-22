@@ -52,7 +52,7 @@ function filterMedsByShift(medications, shift) {
 export default function ActiveCallScreen({ navigation, route }) {
     // Route now expects: { callId (optional), patientId, patientName, scheduledTime (optional) }
     const { callId, patientId, patientName, scheduledTime } = route?.params?.patient 
-        ? { patientId: 'mock', patientName: route.params.patient.name } // fallback for safety if old route format was used occasionally
+        ? { patientId: route.params.patient._id || route.params.patient.id, patientName: route.params.patient.name } // fallback for safety if old route format was used occasionally
         : route?.params || {};
         
     const [loading, setLoading] = useState(true);
@@ -165,7 +165,7 @@ export default function ActiveCallScreen({ navigation, route }) {
             patientMood: isCallMade ? mood : 'neutral',
             followUpRequired: false,
             medicationConfirmations: medConfirmations,
-            callQuality: 5
+            callQuality: { rating: 5, issues: [] }
         };
 
         try {

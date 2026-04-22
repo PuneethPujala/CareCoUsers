@@ -102,6 +102,7 @@ const OrganizationSchema = new mongoose.Schema(
     },
     collaborations: [{
       partnerName: { type: String, required: true },
+      type: { type: String, enum: ['hospital', 'clinic'], default: 'hospital' },
       dealAmount: { type: Number, required: true },
       date: { type: Date, default: Date.now },
       status: { type: String, enum: ['Active', 'Completed', 'Negotiating'], default: 'Active' },

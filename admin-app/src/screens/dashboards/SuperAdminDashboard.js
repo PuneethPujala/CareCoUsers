@@ -132,8 +132,8 @@ export default function SuperAdminDashboard({ navigation }) {
                                 key={kpi.type}
                                 type={kpi.type}
                                 value={stats.stats?.[kpi.key] || 0}
-                                change={kpi.change}
-                                progress={kpi.progress}
+                                change={stats.stats?.[`${kpi.key}_change`] || 0}
+                                progress={Math.min(100, Math.max(0, 50 + (stats.stats?.[`${kpi.key}_change`] || 0)))}
                                 index={index}
                                 width={CARD_WIDTH}
                                 onClick={() => {

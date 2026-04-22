@@ -90,10 +90,11 @@ async function getPatientMedications(patientId, activeOnly = true) {
     let meds = await Medication.find(filter).sort({ name: 1 }).lean();
 
     // 2. Check embedded Patient.medications and Profile.metadata.medications
-    const [patient, profile] = await Promise.all([
-        Patient.findById(patientId).select('medications metadata').lean(),
-        Profile.findById(patientId).select('metadata').lean()
-    ]);
+    let patient = await Patient.findById(patientId).select('medications metadata').lean();
+    if (!patient) {
+        patient = await Patient.findOne({ profile_id: patientId }).select('medications metadata').lean();
+    }
+    const profile = await Profile.findById(patientId).select('metadata').lean();
 
     let embeddedMeds = [];
     if (patient) {
@@ -886,6 +887,31 @@ router.post('/patients/:id/medications', async (req, res) => {
             });
         } catch (e) { /* ignore audit errors */ }
 
+        // Sync into Patient array for users-app visibility
+        let pDoc = await Patient.findById(patientId);
+        if (!pDoc) {
+            pDoc = await Patient.findOne({ profile_id: patientId });
+        }
+        if (pDoc) {
+            if (!pDoc.medications) pDoc.medications = [];
+            pDoc.medications.push({
+                _id: newMed._id,
+                name: newMed.name,
+                dosage: newMed.dosage,
+                times: [],
+                scheduledTimes: newMed.scheduledTimes,
+                route: newMed.route,
+                instructions: newMed.instructions,
+                prescribed_by: newMed.prescribedBy,
+                start_date: newMed.startDate,
+                end_date: newMed.endDate,
+                is_active: newMed.isActive,
+                takenLogs: [],
+                takenDates: []
+            });
+            await pDoc.save();
+        }
+
         res.status(201).json({ medication: newMed });
     } catch (error) {
         console.error('Add medication error:', error);
@@ -930,9 +956,7 @@ router.put('/patients/:id/medications/:medId', async (req, res) => {
             { new: true }
         );
 
-        if (updatedMed) {
-            return res.json({ medication: updatedMed });
-        }
+        // We deliberately do NOT return early here so that we can also sync the embedded docs in Patient.medications
 
         // If not found in Medication collection, try embedded Patient.medications
         const embeddedUpdateFields = {};
@@ -942,11 +966,11 @@ router.put('/patients/:id/medications/:medId', async (req, res) => {
             }
         }
         if (req.body.scheduledTimes && req.body.scheduledTimes.length > 0) {
-            embeddedUpdateFields['medications.$.times'] = req.body.scheduledTimes;
+            embeddedUpdateFields['medications.$.scheduledTimes'] = req.body.scheduledTimes;
         }
 
         let patient = await Patient.findOneAndUpdate(
-            { _id: patientId, 'medications._id': medId },
+            { $or: [{ _id: patientId }, { profile_id: patientId }], 'medications._id': medId },
             { $set: embeddedUpdateFields },
             { new: true }
         );
@@ -960,16 +984,19 @@ router.put('/patients/:id/medications/:medId', async (req, res) => {
                 }
             }
             if (req.body.scheduledTimes && req.body.scheduledTimes.length > 0) {
-                metaUpdateFields['metadata.medications.$.times'] = req.body.scheduledTimes;
+                metaUpdateFields['metadata.medications.$.scheduledTimes'] = req.body.scheduledTimes;
             }
             patient = await Patient.findOneAndUpdate(
-                { _id: patientId, 'metadata.medications._id': medId },
+                { $or: [{ _id: patientId }, { profile_id: patientId }], 'metadata.medications._id': medId },
                 { $set: metaUpdateFields },
                 { new: true }
             );
         }
 
         if (!patient) {
+            if (updatedMed) {
+                return res.json({ medication: updatedMed });
+            }
             return res.status(404).json({ error: 'Medication not found' });
         }
 
@@ -1007,12 +1034,12 @@ router.delete('/patients/:id/medications/:medId', async (req, res) => {
 
         // 2. Try deleting from embedded arrays
         const patient1 = await Patient.findOneAndUpdate(
-            { _id: patientId },
+            { $or: [{ _id: patientId }, { profile_id: patientId }] },
             { $pull: { medications: { _id: medId } } },
             { new: true }
         );
         const patient2 = await Patient.findOneAndUpdate(
-            { _id: patientId },
+            { $or: [{ _id: patientId }, { profile_id: patientId }] },
             { $pull: { 'metadata.medications': { _id: medId } } },
             { new: true }
         );
@@ -1176,7 +1203,7 @@ router.post('/calls', async (req, res) => {
         res.status(201).json({ callLog: log });
     } catch (error) {
         console.error('Log call error:', error);
-        res.status(500).json({ error: 'Failed to log call' });
+        res.status(500).json({ error: 'Failed to log call', details: error.message, stack: error.stack });
     }
 });
 

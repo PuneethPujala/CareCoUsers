@@ -14,10 +14,7 @@ import GradientHeader from '../components/common/GradientHeader';
 const { width: SW } = Dimensions.get('window');
 
 // Limited to the 2 requested options
-const ORG_TYPES = [
-    { value: 'hospital', label: 'Hospital', icon: 'business', color: '#4F46E5' }, // Changed to Indigo for consistency
-    { value: 'clinic', label: 'Pharmacy', icon: 'medical', color: '#10B981' },
-];
+
 
 const AP_DISTRICTS = [
     "Anantapur", "Chittoor", "East Godavari", "Guntur", "YSR Kadapa", "Krishna", 
@@ -29,7 +26,6 @@ export default function CreateOrganizationScreen({ navigation, route }) {
     const { editMode, orgData } = route?.params || {};
     
     const [name, setName] = useState(orgData?.name || '');
-    const [type, setType] = useState(orgData?.type || '');
     const [email, setEmail] = useState(orgData?.email || '');
     const [phone, setPhone] = useState(orgData?.phone || '');
     const [district, setDistrict] = useState(orgData?.district || orgData?.address?.district || '');
@@ -43,7 +39,6 @@ export default function CreateOrganizationScreen({ navigation, route }) {
     const validate = () => {
         const errs = {};
         if (!name.trim()) errs.name = 'Please provide an entity name.';
-        if (!type) errs.type = 'Please select a facility type.';
         if (!district.trim()) errs.district = 'Operating District is required.';
         if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errs.email = 'Enter a valid email structure.';
         return errs;
@@ -60,7 +55,7 @@ export default function CreateOrganizationScreen({ navigation, route }) {
         try {
             const payload = { 
                 name: name.trim(), 
-                type, 
+                type: 'clinic', 
                 subscriptionPlan: 'starter', // Default hardcoded
                 district: district.trim(),
                 address: { district: district.trim() }
@@ -93,36 +88,7 @@ export default function CreateOrganizationScreen({ navigation, route }) {
             <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
                 <ScrollView style={s.body} contentContainerStyle={s.scrollContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
 
-                    {/* ─── FACILITY TYPE (Horizontal Full-Width Cards) ─── */}
-                    <Text style={s.sectionHeader}>Select Organization Type</Text>
-                    
-                    <View style={s.typeList}>
-                        {ORG_TYPES.map(t => {
-                            const isSelected = type === t.value;
-                            return (
-                                <TouchableOpacity key={t.value} activeOpacity={0.8}
-                                    onPress={() => { setType(t.value); setErrors(e => ({ ...e, type: undefined })); }}
-                                    style={[
-                                        s.typeCard, 
-                                        isSelected ? { borderColor: t.color, backgroundColor: `${t.color}0A` } : {}
-                                    ]}>
-                                        
-                                    <View style={[s.typeIconBox, isSelected ? { backgroundColor: t.color } : { backgroundColor: '#F1F5F9' }]}>
-                                        <Ionicons name={t.icon} size={28} color={isSelected ? '#FFFFFF' : '#94A3B8'} />
-                                    </View>
-                                    
-                                    <Text style={[s.typeCardLabel, isSelected ? { color: '#0F172A' } : {}]}>{t.label}</Text>
-                                    
-                                    <View style={[s.typeRadioCircle, isSelected && { borderColor: t.color }]}>
-                                        {isSelected && <View style={[s.typeRadioInner, { backgroundColor: t.color }]} />}
-                                    </View>
-                                </TouchableOpacity>
-                            );
-                        })}
-                    </View>
-                    {errors.type && <Text style={s.errorMessage}>{errors.type}</Text>}
-
-                    <Text style={[s.sectionHeader, { marginTop: 32 }]}>Organization Details</Text>
+                    <Text style={[s.sectionHeader, { marginTop: 12 }]}>Organization Details</Text>
                     
                     <View style={s.masterCard}>
                         {/* Name Input */}
@@ -269,31 +235,7 @@ const s = StyleSheet.create({
     
     sectionHeader: { fontSize: 12, fontWeight: '800', color: '#64748B', marginTop: 24, marginBottom: 14, textTransform: 'uppercase', letterSpacing: 1.5, marginLeft: 6 },
 
-    // Fancy Full-Width Type Cards
-    typeList: { gap: 14 },
-    typeCard: {
-        flexDirection: 'row', alignItems: 'center',
-        backgroundColor: '#FFFFFF',
-        borderRadius: 24,
-        paddingVertical: 14, paddingHorizontal: 16,
-        borderWidth: 2, borderColor: '#F1F5F9',
-        ...Shadows.sm
-    },
-    typeIconBox: {
-        width: 56, height: 56,
-        borderRadius: 18,
-        justifyContent: 'center', alignItems: 'center',
-        marginRight: 16
-    },
-    typeCardLabel: { flex: 1, fontSize: 18, fontWeight: '800', color: '#64748B', letterSpacing: -0.3 },
-    
-    typeRadioCircle: {
-        width: 24, height: 24,
-        borderRadius: 12, borderWidth: 2, borderColor: '#CBD5E1',
-        justifyContent: 'center', alignItems: 'center',
-        marginRight: 6
-    },
-    typeRadioInner: { width: 12, height: 12, borderRadius: 6 },
+
 
     // The Master Input Card
     masterCard: {

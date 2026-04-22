@@ -207,12 +207,16 @@ router.get('/:id',
       
       // Merge existing root medications with Medication collection
       const existingMeds = Array.isArray(patientData.metadata.medications) ? patientData.metadata.medications : (Array.isArray(patientData.medications) ? patientData.medications : []);
-      let externalMeds = [];
+      
+      const searchIds = [patientId];
       if (patient && patient.profile_id) {
-          externalMeds = await Medication.find({ patientId: patient.profile_id._id, isActive: true });
-      } else if (!patient) { // Profile DB mapped
-          externalMeds = await Medication.find({ patientId: patientId, isActive: true });
+          const profileIdStr = typeof patient.profile_id === 'object' ? (patient.profile_id._id || patient.profile_id).toString() : patient.profile_id.toString();
+          if (profileIdStr !== patientId.toString()) {
+              searchIds.push(profileIdStr);
+          }
       }
+      
+      const externalMeds = await Medication.find({ patientId: { $in: searchIds }, isActive: true });
       patientData.metadata.medications = [...existingMeds, ...externalMeds];
 
       res.json(patientData);
@@ -338,6 +342,12 @@ router.post('/',
                     },
                     { upsert: true, new: true, setDefaultsOnInsert: true }
                 );
+                
+                // Sync with Patient model for users app visibility
+                patient.assigned_caller_id = assignedCaller._id;
+                patient.caller_id = assignedCaller._id;
+                await patient.save();
+
                 console.log(`[Auto-Assign] Patient ${patient.name} → Caller ${assignedCaller.fullName}`);
             } else {
                 console.warn(`[Auto-Assign Warning] All Callers at full capacity (30 limit) for Org ${targetOrgId}`);
@@ -863,6 +873,50 @@ router.post('/:id/medications/:medId/toggle',
             const timestamp = time ? new Date(date + 'T' + time) : new Date();
             updatedMed = await Medication.findByIdAndUpdate(medId, { $addToSet: { takenLogs: { date: date, timestamp: timestamp } } }, { new: true });
           }
+
+          // --- SYNC TO EMBEDDED PATIENT DOCS FOR USERS-APP VISIBILITY ---
+          try {
+              const PatientModel = require('../models/Patient');
+              let pTarget = await PatientModel.findById(patientId);
+              if (pTarget) {
+                  let synced = false;
+                  if (pTarget.get('medications')) {
+                      const mList = pTarget.get('medications');
+                      const m = mList.find(x => (x._id && x._id.toString() === medId) || x.id === medId);
+                      if (m) {
+                          m.takenLogs = m.takenLogs || [];
+                          const idx = m.takenLogs.findIndex(l => l.date === date);
+                          if (idx >= 0 && existingLog) {
+                              m.takenLogs.splice(idx, 1);
+                          } else if (!existingLog && idx < 0) {
+                              m.takenLogs.push({ date, timestamp: time ? new Date(date + 'T' + time) : new Date() });
+                          }
+                          pTarget.markModified('medications');
+                          synced = true;
+                      }
+                  }
+                  if (pTarget.get('metadata') && pTarget.get('metadata').medications) {
+                      const mList = pTarget.get('metadata').medications;
+                      const m = mList.find(x => (x._id && x._id.toString() === medId) || x.id === medId);
+                      if (m) {
+                          m.takenLogs = m.takenLogs || [];
+                          const idx = m.takenLogs.findIndex(l => l.date === date);
+                          if (idx >= 0 && existingLog) {
+                              m.takenLogs.splice(idx, 1);
+                          } else if (!existingLog && idx < 0) {
+                              m.takenLogs.push({ date, timestamp: time ? new Date(date + 'T' + time) : new Date() });
+                          }
+                          pTarget.markModified('metadata.medications');
+                          synced = true;
+                      }
+                  }
+                  if (synced) await pTarget.save();
+              }
+          } catch(syncErr) {
+              console.error('Patient embedded sync error during toggle:', syncErr);
+          }
+          // -------------------------------------------------------------
+
           return res.json({ message: 'Toggled successfully', medication: updatedMed, isTakenOffset: !existingLog });
       }
     } catch (error) {

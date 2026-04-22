@@ -52,108 +52,95 @@ router.get('/stats', async (req, res) => {
     try {
         const now = new Date();
         const thirtyDaysAgo = new Date(now - 30 * 24 * 60 * 60 * 1000);
-        const sevenDaysAgo = new Date(now - 7 * 24 * 60 * 60 * 1000);
         const startOfToday = new Date(now);
         startOfToday.setHours(0, 0, 0, 0);
 
+        // Advanced Net-Change Algorithm to support true Negative (-) Growth Percentages
+        // netChange = (Created Today) - (Deactivated Today)
+        const getNetGrowth = (activeNow, newToday, deactivatedToday) => {
+            const netChange = newToday - deactivatedToday;
+            const prevTotal = activeNow - netChange; // mathematical count exactly 24h ago
+            return prevTotal > 0 ? (netChange / prevTotal) * 100 : (netChange > 0 ? 100 : 0);
+        };
+
         const [
-            totalOrganizations,
-            activeOrganizations,
-            totalUsers,
-            totalPatients,
-            totalCaretakers,
-            totalCareManagers,
-            totalOrgAdmins,
-            totalMentors,
-            newUsersThisMonth,
-            newOrgsThisMonth,
-            totalCallsToday,
-            completedCallsToday,
-            missedCallsToday,
-            totalCallsThisMonth,
-            openEscalations,
-            criticalEscalations,
-            totalMedications,
-            revenueThisMonth,
+            // Current Active
+            totalOrganizations, totalOrgAdmins, totalCareManagers, activeCallers, totalPatients,
+            
+            // New Today
+            newOrgs, newOrgAdmins, newCareManagers, newCallers, newPatients,
+            
+            // Deactivated Today
+            lostOrgs, lostOrgAdmins, lostCareManagers, lostCallers, lostPatients,
+            
+            // Revenue
+            revenueData, prevRevenueData,
         ] = await Promise.all([
-            Organization.countDocuments(),
+            // 1. Current Active
             Organization.countDocuments({ isActive: true }),
-            Profile.countDocuments({ isActive: true }),
-            Profile.countDocuments({ role: 'patient', isActive: true }),
-            Profile.countDocuments({ role: { $in: ['caretaker', 'caller'] }, isActive: true }),
-            Profile.countDocuments({ role: 'care_manager', isActive: true }),
             Profile.countDocuments({ role: 'org_admin', isActive: true }),
-            Profile.countDocuments({ role: 'patient_mentor', isActive: true }),
-            Profile.countDocuments({ isActive: true, createdAt: { $gte: thirtyDaysAgo } }),
-            Organization.countDocuments({ createdAt: { $gte: thirtyDaysAgo } }),
-            CallLog.countDocuments({ scheduledTime: { $gte: startOfToday } }),
-            CallLog.countDocuments({ scheduledTime: { $gte: startOfToday }, status: 'completed' }),
-            CallLog.countDocuments({ scheduledTime: { $gte: startOfToday }, status: { $in: ['missed', 'no_answer'] } }),
-            CallLog.countDocuments({ scheduledTime: { $gte: thirtyDaysAgo } }),
-            Escalation.countDocuments({ status: { $in: ['open', 'acknowledged', 'in_progress'] } }),
-            Escalation.countDocuments({ priority: 'critical', status: { $in: ['open', 'acknowledged', 'in_progress'] } }),
-            Medication.countDocuments({ isActive: true }),
+            Profile.countDocuments({ role: 'care_manager', isActive: true }),
+            Profile.countDocuments({ role: { $in: ['caretaker', 'caller'] }, isActive: true }),
+            Profile.countDocuments({ role: 'patient', isActive: true }),
+
+            // 2. New Today
+            Organization.countDocuments({ isActive: true, createdAt: { $gte: startOfToday } }),
+            Profile.countDocuments({ role: 'org_admin', isActive: true, createdAt: { $gte: startOfToday } }),
+            Profile.countDocuments({ role: 'care_manager', isActive: true, createdAt: { $gte: startOfToday } }),
+            Profile.countDocuments({ role: { $in: ['caretaker', 'caller'] }, isActive: true, createdAt: { $gte: startOfToday } }),
+            Profile.countDocuments({ role: 'patient', isActive: true, createdAt: { $gte: startOfToday } }),
+
+            // 3. Deactivated Today (Loss/Churn tracking for negatives!)
+            Organization.countDocuments({ isActive: false, updatedAt: { $gte: startOfToday } }),
+            Profile.countDocuments({ role: 'org_admin', isActive: false, updatedAt: { $gte: startOfToday } }),
+            Profile.countDocuments({ role: 'care_manager', isActive: false, updatedAt: { $gte: startOfToday } }),
+            Profile.countDocuments({ role: { $in: ['caretaker', 'caller'] }, isActive: false, updatedAt: { $gte: startOfToday } }),
+            Profile.countDocuments({ role: 'patient', isActive: false, updatedAt: { $gte: startOfToday } }),
+
+            // 4. Revenue (Only Counting Active Orgs!)
             Invoice.aggregate([
-                { $match: { status: 'paid', paidAt: { $gte: thirtyDaysAgo } } },
-                { $group: { _id: null, total: { $sum: '$total' } } },
+                { $match: { status: 'paid' } },
+                { $lookup: { from: 'organizations', localField: 'organizationId', foreignField: '_id', as: 'org' } },
+                { $unwind: '$org' },
+                { $match: { 'org.isActive': true } },
+                { $group: { _id: null, total: { $sum: '$total' } } }
+            ]),
+            Invoice.aggregate([
+                { $match: { status: 'paid', paidAt: { $lt: startOfToday } } },
+                { $lookup: { from: 'organizations', localField: 'organizationId', foreignField: '_id', as: 'org' } },
+                { $unwind: '$org' },
+                { $match: { 'org.isActive': true } },
+                { $group: { _id: null, total: { $sum: '$total' } } }
             ]),
         ]);
 
-        // Platform-wide adherence (last 30 days)
-        const adherenceResult = await CallLog.aggregate([
-            {
-                $match: {
-                    scheduledTime: { $gte: thirtyDaysAgo },
-                    status: { $in: ['completed', 'missed', 'no_answer'] },
-                },
-            },
-            { $unwind: { path: '$medicationConfirmations', preserveNullAndEmptyArrays: false } },
-            {
-                $group: {
-                    _id: null,
-                    total: { $sum: 1 },
-                    confirmed: { $sum: { $cond: ['$medicationConfirmations.confirmed', 1, 0] } },
-                },
-            },
-        ]);
-        const platformAdherence = adherenceResult.length
-            ? Math.round((adherenceResult[0].confirmed / adherenceResult[0].total) * 100)
-            : 0;
+        const totalRevenue = revenueData.length ? revenueData[0].total : 0;
+        const prevRevenue = prevRevenueData.length ? prevRevenueData[0].total : 0;
+        const revenueGrowth = prevRevenue > 0 ? ((totalRevenue - prevRevenue) / prevRevenue) * 100 : (totalRevenue > 0 ? 100 : 0);
 
-        // Call completion rate (using data already fetched above)
-        const completedCallsThisMonth = totalCallsThisMonth > 0
-            ? await CallLog.countDocuments({
-                scheduledTime: { $gte: thirtyDaysAgo },
-                status: 'completed',
-            })
-            : 0;
-        const callCompletionRate = totalCallsThisMonth > 0
-            ? Math.round((completedCallsThisMonth / totalCallsThisMonth) * 100)
-            : 0;
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
 
         res.json({
             stats: {
-                organizations: { total: totalOrganizations, active: activeOrganizations, newThisMonth: newOrgsThisMonth },
-                users: {
-                    total: totalUsers,
-                    patients: totalPatients,
-                    caretakers: totalCaretakers,
-                    careManagers: totalCareManagers,
-                    orgAdmins: totalOrgAdmins,
-                    mentors: totalMentors,
-                    newThisMonth: newUsersThisMonth,
-                },
-                calls: {
-                    today: { total: totalCallsToday, completed: completedCallsToday, missed: missedCallsToday },
-                    thisMonth: totalCallsThisMonth,
-                    completionRate: callCompletionRate,
-                },
-                adherence: { platformAverage: platformAdherence },
-                escalations: { open: openEscalations, critical: criticalEscalations },
-                medications: { active: totalMedications },
-                revenue: {
-                    thisMonth: revenueThisMonth.length ? revenueThisMonth[0].total : 0,
-                },
+                totalOrganizations,
+                totalOrganizations_change: parseFloat(getNetGrowth(totalOrganizations, newOrgs, lostOrgs).toFixed(1)),
+                
+                totalOrgAdmins,
+                totalOrgAdmins_change: parseFloat(getNetGrowth(totalOrgAdmins, newOrgAdmins, lostOrgAdmins).toFixed(1)),
+                
+                totalCareManagers,
+                totalCareManagers_change: parseFloat(getNetGrowth(totalCareManagers, newCareManagers, lostCareManagers).toFixed(1)),
+                
+                activeCallers,
+                activeCallers_change: parseFloat(getNetGrowth(activeCallers, newCallers, lostCallers).toFixed(1)),
+                
+                totalPatients,
+                totalPatients_change: parseFloat(getNetGrowth(totalPatients, newPatients, lostPatients).toFixed(1)),
+                
+                totalRevenue,
+                totalRevenue_change: parseFloat(revenueGrowth.toFixed(1)),
             },
         });
     } catch (error) {
@@ -605,7 +592,7 @@ router.get('/analytics/revenue', async (req, res) => {
         const startDate = new Date();
         startDate.setMonth(startDate.getMonth() - months);
 
-        // Monthly revenue breakdown
+        // Monthly revenue breakdown (Active Orgs Only)
         const revenueByMonth = await Invoice.aggregate([
             {
                 $match: {
@@ -613,6 +600,9 @@ router.get('/analytics/revenue', async (req, res) => {
                     paidAt: { $gte: startDate },
                 },
             },
+            { $lookup: { from: 'organizations', localField: 'organizationId', foreignField: '_id', as: 'org' } },
+            { $unwind: '$org' },
+            { $match: { 'org.isActive': true } },
             {
                 $group: {
                     _id: {
@@ -643,6 +633,7 @@ router.get('/analytics/revenue', async (req, res) => {
                 },
             },
             { $unwind: '$org' },
+            { $match: { 'org.isActive': true } },
             {
                 $group: {
                     _id: '$org.subscriptionPlan',
@@ -659,13 +650,16 @@ router.get('/analytics/revenue', async (req, res) => {
             },
         ]);
 
-        // Outstanding balance
+        // Outstanding balance (Active Orgs Only)
         const outstanding = await Invoice.aggregate([
             {
                 $match: {
                     status: { $in: ['pending', 'overdue'] },
                 },
             },
+            { $lookup: { from: 'organizations', localField: 'organizationId', foreignField: '_id', as: 'org' } },
+            { $unwind: '$org' },
+            { $match: { 'org.isActive': true } },
             {
                 $group: {
                     _id: '$status',

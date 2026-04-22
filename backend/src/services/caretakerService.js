@@ -2,6 +2,7 @@ const CaretakerPatient = require('../models/CaretakerPatient');
 const Profile = require('../models/Profile');
 const AuditLog = require('../models/AuditLog');
 const Organization = require('../models/Organization');
+const Patient = require('../models/Patient');
 
 /**
  * Assign a patient to a caretaker
@@ -70,6 +71,20 @@ const assignPatientToCaretaker = async (callerProfile, caretakerId, patientId, a
     { path: 'assignedBy', select: 'fullName' }
   ]);
 
+  // Sync with Patient model for users app visibility
+  const patientModel = await Patient.findOne({ profile_id: patientId }) || await Patient.findById(patientId);
+  if (patientModel) {
+    if (caretaker.role === 'care_manager') {
+      patientModel.assigned_manager_id = caretakerId;
+      patientModel.care_manager_id = caretakerId;
+      patientModel.assigned_manager = caretakerId;
+    } else if (['caller', 'caretaker'].includes(caretaker.role)) {
+      patientModel.assigned_caller_id = caretakerId;
+      patientModel.caller_id = caretakerId;
+    }
+    await patientModel.save();
+  }
+
   // Log the assignment
   await AuditLog.createLog({
     supabaseUid: callerProfile.supabaseUid,
@@ -108,7 +123,7 @@ const unassignPatientFromCaretaker = async (callerProfile, caretakerId, patientI
 
   const assignment = await CaretakerPatient.findOne({ caretakerId, patientId })
     .populate([
-      { path: 'caretakerId', select: 'fullName email phone organizationId' },
+      { path: 'caretakerId', select: 'fullName email phone organizationId role' },
       { path: 'patientId', select: 'fullName email phone organizationId' }
     ]);
 
@@ -133,6 +148,20 @@ const unassignPatientFromCaretaker = async (callerProfile, caretakerId, patientI
   });
 
   await assignment.save();
+
+  // Sync removal with Patient model
+  const patientModel = await Patient.findOne({ profile_id: patientId }) || await Patient.findById(patientId);
+  if (patientModel && assignment.caretakerId) {
+    if (assignment.caretakerId.role === 'care_manager') {
+      patientModel.assigned_manager_id = null;
+      patientModel.care_manager_id = null;
+      patientModel.assigned_manager = null;
+    } else {
+      patientModel.assigned_caller_id = null;
+      patientModel.caller_id = null;
+    }
+    await patientModel.save();
+  }
 
   // Log the unassignment
   await AuditLog.createLog({

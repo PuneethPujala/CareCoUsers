@@ -5,6 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Theme } from '../theme/theme';
 import { Shadows } from '../theme/colors';
 import { useAuth } from '../context/AuthContext';
+import { apiService } from '../lib/api';
 import GradientHeader from '../components/common/GradientHeader';
 
 const ROLE_LABELS = {
@@ -15,6 +16,8 @@ const ROLE_LABELS = {
     mentor: 'Patient Mentor',
     patient: 'Member Patient',
 };
+
+const PHONE_REQUIRED_ROLES = ['org_admin', 'care_manager', 'caller'];
 
 function InfoRow({ icon, label, value, onPress, action }) {
     return (
@@ -56,6 +59,8 @@ export default function ProfileScreen({ navigation }) {
     const initial = displayName.charAt(0).toUpperCase();
     const currentRole = profile?.role || 'patient';
     const realPhone = profile?.phone || user?.phone || 'Not provided';
+    const isPhoneVerified = profile?.phoneVerified || false;
+    const needsPhoneVerification = PHONE_REQUIRED_ROLES.includes(currentRole);
 
     const [editProfileVisible, setEditProfileVisible] = useState(false);
     const [editNameValue, setEditNameValue] = useState(profile?.fullName || '');
@@ -63,6 +68,14 @@ export default function ProfileScreen({ navigation }) {
     const [saving, setSaving] = useState(false);
     const [statusBanner, setStatusBanner] = useState(null);
     const [confirmLogout, setConfirmLogout] = useState(false);
+
+    // Phone verification states
+    const [verifyMode, setVerifyMode] = useState(false); // true when verifying phone
+    const [otpValues, setOtpValues] = useState(['', '', '', '', '', '']);
+    const [verifyLoading, setVerifyLoading] = useState(false);
+    const [verifyError, setVerifyError] = useState('');
+    const [verifyCooldown, setVerifyCooldown] = useState(0);
+    const otpInputRefs = useRef([]);
 
     // Animations
     const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -75,22 +88,153 @@ export default function ProfileScreen({ navigation }) {
         ]).start();
     }, []);
 
+    // Cooldown timer for resend
+    useEffect(() => {
+        if (verifyCooldown <= 0) return;
+        const timer = setInterval(() => setVerifyCooldown(c => c - 1), 1000);
+        return () => clearInterval(timer);
+    }, [verifyCooldown]);
+
     const handleLogout = () => {
         setConfirmLogout(true);
+    };
+
+    const formatPhoneE164 = (phone) => {
+        let cleaned = phone.replace(/[^0-9]/g, '');
+        if (cleaned.startsWith('0')) cleaned = cleaned.substring(1);
+        if (cleaned.length === 10) return `+91${cleaned}`;
+        if (cleaned.startsWith('91') && cleaned.length === 12) return `+${cleaned}`;
+        if (phone.startsWith('+')) return phone.replace(/[^+0-9]/g, '');
+        return `+91${cleaned}`;
     };
 
     const handleSaveProfile = async () => {
         try {
             setSaving(true);
-            const { apiService } = require('../lib/api');
-            const targetId = profile?._id || profile?.id;
-            await apiService.profiles.update(targetId, { fullName: editNameValue, phone: editPhoneValue });
-            setStatusBanner({ type: 'success', message: 'Profile details updated successfully.' });
+            const response = await apiService.auth.updateProfile({ fullName: editNameValue, phone: editPhoneValue });
+            
+            const phoneChanged = response.data?.phoneChanged;
+            if (phoneChanged && needsPhoneVerification) {
+                setStatusBanner({ type: 'warning', message: 'Phone number changed. Please verify your new number.' });
+            } else {
+                setStatusBanner({ type: 'success', message: 'Profile details updated successfully.' });
+            }
             setEditProfileVisible(false);
             if (refreshProfile) await refreshProfile();
         } catch (error) {
             setStatusBanner({ type: 'error', message: error?.response?.data?.error || 'Could not update profile.' });
         } finally { setSaving(false); }
+    };
+
+    // ── Phone Verification Flow ──
+    const handleSendVerifyOtp = async () => {
+        try {
+            setVerifyLoading(true);
+            setVerifyError('');
+            const fullPhone = formatPhoneE164(realPhone);
+            await apiService.auth.sendPhoneOtp({ phone: fullPhone });
+            setVerifyMode(true);
+            setVerifyCooldown(300);
+        } catch (err) {
+            setVerifyError(err.response?.data?.error || 'Failed to send OTP.');
+        } finally {
+            setVerifyLoading(false);
+        }
+    };
+
+    const handleOtpChange = (text, index) => {
+        // Handle paste of full OTP
+        if (text.length > 1) {
+            const digits = text.replace(/[^0-9]/g, '').slice(0, 6).split('');
+            const newOtp = [...otpValues];
+            digits.forEach((d, i) => { if (i < 6) newOtp[i] = d; });
+            setOtpValues(newOtp);
+            const nextIdx = Math.min(digits.length, 5);
+            otpInputRefs.current[nextIdx]?.focus();
+            return;
+        }
+
+        const newOtp = [...otpValues];
+        newOtp[index] = text;
+        setOtpValues(newOtp);
+
+        if (text && index < 5) {
+            otpInputRefs.current[index + 1]?.focus();
+        }
+    };
+
+    const handleOtpKeyPress = (e, index) => {
+        if (e.nativeEvent.key === 'Backspace' && !otpValues[index] && index > 0) {
+            otpInputRefs.current[index - 1]?.focus();
+        }
+    };
+
+    const handleVerifyOtp = async () => {
+        const code = otpValues.join('');
+        if (code.length !== 6) {
+            setVerifyError('Please enter the complete 6-digit code.');
+            return;
+        }
+        try {
+            setVerifyLoading(true);
+            setVerifyError('');
+            const fullPhone = formatPhoneE164(realPhone);
+            await apiService.auth.verifyPhoneOtp({ phone: fullPhone, code });
+            setVerifyMode(false);
+            setOtpValues(['', '', '', '', '', '']);
+            setStatusBanner({ type: 'success', message: 'Phone number verified successfully! ✅' });
+            if (refreshProfile) await refreshProfile();
+        } catch (err) {
+            setVerifyError(err.response?.data?.error || 'Verification failed.');
+        } finally {
+            setVerifyLoading(false);
+        }
+    };
+
+    const handleResendOtp = async () => {
+        if (verifyCooldown > 0) return;
+        try {
+            setVerifyLoading(true);
+            setVerifyError('');
+            setOtpValues(['', '', '', '', '', '']);
+            const fullPhone = formatPhoneE164(realPhone);
+            await apiService.auth.sendPhoneOtp({ phone: fullPhone });
+            setVerifyCooldown(300);
+        } catch (err) {
+            setVerifyError(err.response?.data?.error || 'Failed to resend code.');
+        } finally {
+            setVerifyLoading(false);
+        }
+    };
+
+    // Phone verification status badge
+    const PhoneVerifyBadge = () => {
+        if (!needsPhoneVerification) return null;
+        if (isPhoneVerified) {
+            return (
+                <View style={s.verifiedBadge}>
+                    <Feather name="check-circle" size={12} color="#10B981" />
+                    <Text style={s.verifiedText}>Verified</Text>
+                </View>
+            );
+        }
+        return (
+            <TouchableOpacity 
+                style={s.unverifiedBadge} 
+                onPress={handleSendVerifyOtp}
+                disabled={verifyLoading}
+                activeOpacity={0.7}
+            >
+                {verifyLoading ? (
+                    <ActivityIndicator size="small" color="#F59E0B" />
+                ) : (
+                    <>
+                        <Feather name="alert-circle" size={12} color="#F59E0B" />
+                        <Text style={s.unverifiedText}>Verify Now</Text>
+                    </>
+                )}
+            </TouchableOpacity>
+        );
     };
 
     return (
@@ -142,7 +286,13 @@ export default function ProfileScreen({ navigation }) {
                         <View style={s.cardDivider} />
                         <InfoRow icon="mail" label="E-mail Address" value={user?.email || 'admin@careconnect.ai'} onPress={() => Linking.openURL(`mailto:${user?.email}`)} />
                         <View style={s.cardDivider} />
-                        <InfoRow icon="phone" label="Contact Number" value={realPhone} onPress={() => { if (realPhone !== 'Not provided') Linking.openURL(`tel:${realPhone}`); }} />
+                        <InfoRow 
+                            icon="phone" 
+                            label="Contact Number" 
+                            value={realPhone} 
+                            onPress={() => { if (realPhone !== 'Not provided') Linking.openURL(`tel:${realPhone}`); }} 
+                            action={<PhoneVerifyBadge />}
+                        />
                         
                         {profile?.organizationId && (
                             <>
@@ -162,6 +312,73 @@ export default function ProfileScreen({ navigation }) {
                         )}
                     </View>
 
+                    {/* ── Inline Phone Verification OTP ── */}
+                    {verifyMode && (
+                        <View style={s.verifyCard}>
+                            <View style={s.verifyHeader}>
+                                <View style={s.verifyIconWrap}>
+                                    <Feather name="smartphone" size={24} color="#4F46E5" />
+                                </View>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={s.verifyTitle}>Verify Phone Number</Text>
+                                    <Text style={s.verifySubtitle}>Enter the 6-digit code sent to {realPhone}</Text>
+                                </View>
+                                <TouchableOpacity onPress={() => { setVerifyMode(false); setVerifyError(''); }} style={s.verifyCloseBtn}>
+                                    <Feather name="x" size={18} color="#94A3B8" />
+                                </TouchableOpacity>
+                            </View>
+
+                            <View style={s.otpRow}>
+                                {otpValues.map((digit, idx) => (
+                                    <TextInput
+                                        key={idx}
+                                        ref={(r) => (otpInputRefs.current[idx] = r)}
+                                        style={[
+                                            s.otpBox,
+                                            digit && s.otpBoxFilled,
+                                            verifyError && s.otpBoxError,
+                                        ]}
+                                        value={digit}
+                                        onChangeText={(t) => handleOtpChange(t, idx)}
+                                        onKeyPress={(e) => handleOtpKeyPress(e, idx)}
+                                        keyboardType="number-pad"
+                                        maxLength={idx === 0 ? 6 : 1}
+                                        autoFocus={idx === 0}
+                                        selectTextOnFocus
+                                    />
+                                ))}
+                            </View>
+
+                            {verifyError ? <Text style={s.verifyErrorText}>{verifyError}</Text> : null}
+
+                            <View style={s.verifyActions}>
+                                <View style={s.resendRow}>
+                                    {verifyCooldown > 0 ? (
+                                        <Text style={s.cooldownText}>
+                                            Resend in <Text style={s.cooldownBold}>{Math.floor(verifyCooldown / 60)}:{String(verifyCooldown % 60).padStart(2, '0')}</Text>
+                                        </Text>
+                                    ) : (
+                                        <TouchableOpacity onPress={handleResendOtp} disabled={verifyLoading}>
+                                            <Text style={s.resendLink}>Resend Code</Text>
+                                        </TouchableOpacity>
+                                    )}
+                                </View>
+                                <TouchableOpacity 
+                                    onPress={handleVerifyOtp} 
+                                    disabled={verifyLoading} 
+                                    style={s.verifyBtn}
+                                    activeOpacity={0.8}
+                                >
+                                    {verifyLoading ? (
+                                        <ActivityIndicator size="small" color="#FFFFFF" />
+                                    ) : (
+                                        <Text style={s.verifyBtnText}>Verify</Text>
+                                    )}
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    )}
+
                     {/* ── Preferences ── */}
                     <Text style={[s.sectionTitle, Theme.typography.common, { marginTop: 32, marginBottom: 16 }]}>Security Settings</Text>
                     <View style={s.premiumCard}>
@@ -174,9 +391,9 @@ export default function ProfileScreen({ navigation }) {
 
                     {/* ── Session Control ── */}
                     {statusBanner && (
-                        <View style={[s.sBanner, statusBanner.type === 'success' ? s.sBannerOk : s.sBannerErr]}>
+                        <View style={[s.sBanner, statusBanner.type === 'success' ? s.sBannerOk : statusBanner.type === 'warning' ? s.sBannerWarn : s.sBannerErr]}>
                             <View style={s.sBannerIconWrap}>
-                                <Feather name={statusBanner.type === 'success' ? 'check' : 'alert-circle'} size={14} color={statusBanner.type === 'success' ? '#10B981' : '#EF4444'} />
+                                <Feather name={statusBanner.type === 'success' ? 'check' : statusBanner.type === 'warning' ? 'alert-triangle' : 'alert-circle'} size={14} color={statusBanner.type === 'success' ? '#10B981' : statusBanner.type === 'warning' ? '#F59E0B' : '#EF4444'} />
                             </View>
                             <Text style={s.sBannerText}>{statusBanner.message}</Text>
                             <TouchableOpacity onPress={() => setStatusBanner(null)} style={{ padding: 4 }}>
@@ -253,6 +470,16 @@ export default function ProfileScreen({ navigation }) {
                                 placeholderTextColor="#CBD5E1" 
                             />
                         </View>
+
+                        {/* Phone change warning */}
+                        {editPhoneValue !== (realPhone === 'Not provided' ? '' : realPhone) && needsPhoneVerification && (
+                            <View style={s.phoneChangeWarning}>
+                                <Feather name="alert-triangle" size={14} color="#F59E0B" />
+                                <Text style={s.phoneChangeWarningText}>
+                                    Changing your phone number will require re-verification via OTP.
+                                </Text>
+                            </View>
+                        )}
                         
                         <View style={s.modalActions}>
                             <TouchableOpacity onPress={() => setEditProfileVisible(false)} style={s.modalCancelBtn}>
@@ -308,7 +535,7 @@ const s = StyleSheet.create({
         overflow: 'hidden'
     },
     cardDivider: { height: 1, backgroundColor: '#F8FAFC', marginHorizontal: 20 },
-    cardDividerMenu: { height: 1, backgroundColor: '#F8FAFC', marginLeft: 68, marginRight: 20 }, // specialized for menu list
+    cardDividerMenu: { height: 1, backgroundColor: '#F8FAFC', marginLeft: 68, marginRight: 20 },
 
     infoRow: { flexDirection: 'row', alignItems: 'center', padding: 20 },
     infoIconWrap: { width: 44, height: 44, borderRadius: 12, backgroundColor: '#EEF2FF', justifyContent: 'center', alignItems: 'center', marginRight: 16 },
@@ -322,14 +549,75 @@ const s = StyleSheet.create({
     menuLabel: { fontSize: 15, fontWeight: '700', color: '#0F172A' },
     menuValue: { fontSize: 13, fontWeight: '600', color: '#94A3B8', marginRight: 12 },
 
+    // ── Phone Verification Badges ──
+    verifiedBadge: {
+        flexDirection: 'row', alignItems: 'center', gap: 4,
+        backgroundColor: '#F0FDF4', paddingHorizontal: 10, paddingVertical: 6,
+        borderRadius: 10, borderWidth: 1, borderColor: '#D1FAE5',
+    },
+    verifiedText: { fontSize: 11, fontWeight: '800', color: '#10B981', textTransform: 'uppercase', letterSpacing: 0.3 },
+    unverifiedBadge: {
+        flexDirection: 'row', alignItems: 'center', gap: 4,
+        backgroundColor: '#FFFBEB', paddingHorizontal: 10, paddingVertical: 6,
+        borderRadius: 10, borderWidth: 1, borderColor: '#FDE68A',
+    },
+    unverifiedText: { fontSize: 11, fontWeight: '800', color: '#F59E0B', textTransform: 'uppercase', letterSpacing: 0.3 },
+
+    // ── Inline Verify Card ──
+    verifyCard: {
+        backgroundColor: '#FFFFFF', borderRadius: 20, padding: 20, marginTop: 16,
+        borderWidth: 1, borderColor: '#E0E7FF', ...Shadows.md, shadowColor: '#4F46E5', shadowOpacity: 0.08,
+    },
+    verifyHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
+    verifyIconWrap: {
+        width: 48, height: 48, borderRadius: 14, backgroundColor: '#EEF2FF',
+        justifyContent: 'center', alignItems: 'center', marginRight: 14,
+    },
+    verifyTitle: { fontSize: 16, fontWeight: '800', color: '#0F172A' },
+    verifySubtitle: { fontSize: 12, fontWeight: '500', color: '#64748B', marginTop: 2 },
+    verifyCloseBtn: {
+        width: 32, height: 32, borderRadius: 10, backgroundColor: '#F8FAFC',
+        justifyContent: 'center', alignItems: 'center',
+    },
+    otpRow: {
+        flexDirection: 'row', justifyContent: 'center', gap: 8, marginBottom: 16,
+    },
+    otpBox: {
+        width: 46, height: 54, borderRadius: 14, borderWidth: 2, borderColor: '#E2E8F0',
+        backgroundColor: '#F8FAFC', textAlign: 'center', fontSize: 22, fontWeight: '800',
+        color: '#0F172A',
+    },
+    otpBoxFilled: { borderColor: '#4F46E5', backgroundColor: '#EEF2FF' },
+    otpBoxError: { borderColor: '#EF4444', backgroundColor: '#FEF2F2' },
+    verifyErrorText: { color: '#EF4444', fontSize: 13, fontWeight: '600', textAlign: 'center', marginBottom: 12 },
+    verifyActions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    resendRow: {},
+    cooldownText: { fontSize: 13, fontWeight: '500', color: '#94A3B8' },
+    cooldownBold: { fontWeight: '800', color: '#4F46E5' },
+    resendLink: { fontSize: 13, fontWeight: '700', color: '#4F46E5' },
+    verifyBtn: {
+        backgroundColor: '#4F46E5', paddingHorizontal: 28, paddingVertical: 14,
+        borderRadius: 14, ...Shadows.sm, shadowColor: '#4F46E5',
+    },
+    verifyBtnText: { fontSize: 14, fontWeight: '800', color: '#FFFFFF' },
+
+    // ── Phone Change Warning ──
+    phoneChangeWarning: {
+        flexDirection: 'row', alignItems: 'center', gap: 8,
+        backgroundColor: '#FFFBEB', padding: 12, borderRadius: 12,
+        borderWidth: 1, borderColor: '#FDE68A', marginBottom: 20,
+    },
+    phoneChangeWarningText: { flex: 1, fontSize: 12, fontWeight: '600', color: '#92400E' },
+
     // ── System Status Banners ──
     sBanner: { flexDirection: 'row', alignItems: 'center', padding: 16, borderRadius: 16, marginTop: 24, borderWidth: 1 },
     sBannerOk: { backgroundColor: '#F0FDF4', borderColor: '#D1FAE5' },
     sBannerErr: { backgroundColor: '#FEF2F2', borderColor: '#FECACA' },
+    sBannerWarn: { backgroundColor: '#FFFBEB', borderColor: '#FDE68A' },
     sBannerIconWrap: { width: 24, height: 24, borderRadius: 8, backgroundColor: '#FFFFFF', justifyContent: 'center', alignItems: 'center', marginRight: 12, ...Shadows.sm },
     sBannerText: { flex: 1, fontSize: 13, fontWeight: '600', color: '#0F172A' },
 
-    // ── Logout UI (Sleek Redesigned) ──
+    // ── Logout UI ──
     logoutStandardBtn: {
         flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
         backgroundColor: '#EF4444', borderWidth: 0,
@@ -337,7 +625,6 @@ const s = StyleSheet.create({
     },
     logoutStandardText: { fontSize: 16, fontWeight: '800', color: '#FFFFFF', textTransform: 'uppercase', letterSpacing: 0.5 },
 
-    // Beautiful New Danger Card
     logoutDangerCard: { 
         backgroundColor: '#FFFFFF', borderRadius: 24, padding: 24, 
         marginTop: 40, borderWidth: 1, borderColor: '#FEE2E2', 

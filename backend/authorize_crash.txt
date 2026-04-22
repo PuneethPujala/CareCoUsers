@@ -1,5 +1,0 @@
-ValidationError: AuditLog validation failed: resourceType: `organizations` is not a valid enum value for path `resourceType`.
-    at Document.invalidate (C:\Users\praka\Downloads\IIEC-Project\backend\node_modules\mongoose\lib\document.js:3381:32)
-    at C:\Users\praka\Downloads\IIEC-Project\backend\node_modules\mongoose\lib\document.js:3142:17
-    at C:\Users\praka\Downloads\IIEC-Project\backend\node_modules\mongoose\lib\schemaType.js:1446:9
-    at process.processTicksAndRejections (node:internal/process/task_queues:85:11)

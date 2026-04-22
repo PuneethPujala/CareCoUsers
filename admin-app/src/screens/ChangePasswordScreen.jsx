@@ -64,6 +64,7 @@ export default function ChangePasswordScreen({ navigation, route }) {
 
         setLoading(true);
         try {
+            // Password change auto-invalidates Supabase token → user gets logged out
             await changePassword(currentPassword, newPassword);
         } catch (error) {
             const msg = error?.message || error?.error || 'Failed to change password';

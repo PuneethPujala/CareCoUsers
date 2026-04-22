@@ -6,12 +6,13 @@ import { Colors } from '../theme/colors';
 
 import AuthNavigator from './AuthNavigator';
 import DashboardNavigator from './DashboardNavigator';
-import OrgAdminNavigator from './OrgAdminNavigator';
+import ChangePasswordScreen from '../screens/ChangePasswordScreen';
+import PhoneVerificationScreen from '../screens/PhoneVerificationScreen';
 
 const Stack = createNativeStackNavigator();
 
 export default function RootNavigator() {
-    const { profile, initializing } = useAuth();
+    const { profile, initializing, mustChangePassword, mustVerifyPhone } = useAuth();
 
     if (initializing) {
         return (
@@ -25,6 +26,19 @@ export default function RootNavigator() {
         <Stack.Navigator screenOptions={{ headerShown: false }}>
             {!profile ? (
                 <Stack.Screen name="Auth" component={AuthNavigator} />
+            ) : mustVerifyPhone ? (
+                /* Gate 1: Phone verification first (session stays alive) */
+                <Stack.Screen 
+                    name="ForcePhoneVerification" 
+                    component={PhoneVerificationScreen} 
+                />
+            ) : mustChangePassword ? (
+                /* Gate 2: Password change second (Supabase auto-invalidates token → auto-logout) */
+                <Stack.Screen 
+                    name="ForceChangePassword" 
+                    component={ChangePasswordScreen} 
+                    initialParams={{ forced: true }}
+                />
             ) : (
                 <Stack.Screen name="Dashboard" component={DashboardNavigator} />
             )}

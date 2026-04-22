@@ -582,8 +582,8 @@ export default function PatientDetailScreen({ navigation, route }) {
 
                 {/* Overall Medications Management */}
                 <View style={{ marginTop: 24 }}>
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <Text style={[s.sectionTitle, Theme.typography.common, { marginTop: 0 }]}>All Prescribed Medications</Text>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                        <Text style={[s.sectionTitle, Theme.typography.common, { marginTop: 0, marginBottom: 0 }]}>All Prescribed Medications</Text>
                         <TouchableOpacity style={s.addMedBtn} onPress={openAddMedModal}>
                             <Feather name="plus" size={14} color="#FFF" />
                             <Text style={s.addMedBtnText}>Add Med</Text>
