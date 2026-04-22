@@ -394,11 +394,7 @@ export default function PatientHomeScreen({ navigation }) {
                         <Text style={styles.statMiniVal}>{takenCount}/{meds.length}</Text>
                         <Text style={styles.statMiniLabel}>Meds Taken</Text>
                     </Pressable>
-                    <View style={styles.statMiniCardEnhanced}>
-                        <View style={[styles.statIconBox, { backgroundColor: 'rgba(34,197,94,0.1)' }]}><PhoneCall size={18} color="#22C55E" /></View>
-                        <Text style={styles.statMiniVal}>{callsFreq}</Text>
-                        <Text style={styles.statMiniLabel}>Days/Call</Text>
-                    </View>
+
                     <View style={styles.statMiniCardEnhanced}>
                         <View style={[styles.statIconBox, { backgroundColor: 'rgba(234,179,8,0.1)' }]}><CalendarCheck size={18} color="#EAB308" /></View>
                         <Text style={styles.statMiniVal}>{daysPremiumRemaining}</Text>
@@ -581,10 +577,10 @@ export default function PatientHomeScreen({ navigation }) {
                     <View style={styles.section}>
                         <Text style={styles.sectionHeader}>QUICK ACTIONS</Text>
                         <View style={styles.quickGrid}>
-                            <Pressable style={styles.quickCardEnhanced} onPress={() => navigation.navigate('MyCaller')}>
+                            <Pressable style={styles.quickCardEnhanced} onPress={() => navigation.navigate('AdherenceDetails')}>
                                 <View style={styles.quickContent}>
-                                    <View style={[styles.quickIconBoxEnhanced, { backgroundColor: '#E0F2FE' }]}><PhoneIncoming size={20} color="#0284C7" /></View>
-                                    <View style={styles.quickTextView}><Text style={styles.quickCardTitle}>Call History</Text><Text style={styles.quickCardSub}>View logs</Text></View>
+                                    <View style={[styles.quickIconBoxEnhanced, { backgroundColor: '#F0FDF4' }]}><CheckCircle2 size={20} color="#16A34A" /></View>
+                                    <View style={styles.quickTextView}><Text style={styles.quickCardTitle}>Med Adherence</Text><Text style={styles.quickCardSub}>Progress</Text></View>
                                 </View><ChevronRight size={18} color="#CBD5E1" />
                             </Pressable>
 

@@ -225,7 +225,7 @@ router.get('/adherence/monthly', authenticate, async (req, res) => {
 /**
  * GET /api/users/medicines/adherence/details
  * Full adherence details for the AdherenceScreen:
- *   score, level, momentum, today, daily_log, achievements, weekly_summary
+ *   score, level, momentum, today, daily_log, achievements, weekly_summary, vitals_adherence, insights
  */
 router.get('/adherence/details', authenticate, async (req, res) => {
     try {
@@ -233,6 +233,8 @@ router.get('/adherence/details', authenticate, async (req, res) => {
         if (!patient) {
             return res.status(404).json({ error: 'Patient profile not found' });
         }
+
+        const VitalLog = require('../../models/VitalLog');
 
         // ── Fetch last 30 days of logs ──────────────────────────
         const thirtyDaysAgo = new Date();
@@ -244,23 +246,51 @@ router.get('/adherence/details', authenticate, async (req, res) => {
             date: { $gte: thirtyDaysAgo },
         }).sort({ date: 1 });
 
+        const vitals = await VitalLog.find({
+            patient_id: patient._id,
+            date: { $gte: thirtyDaysAgo },
+        }).sort({ date: 1 });
+
+        // Map vitals by date string
+        const vitalsMap = {};
+        for (const v of vitals) {
+            const dateStr = v.date.toISOString().slice(0, 10);
+            vitalsMap[dateStr] = v;
+        }
+
         // ── Build daily log with status ─────────────────────────
         const dailyLog = logs.map((log) => {
-            const total = log.medicines.filter(m => m.is_active !== false).length;
-            const taken = log.medicines.filter(m => m.taken && m.is_active !== false).length;
+            const dateStr = log.date.toISOString().slice(0, 10);
+            const activeMeds = log.medicines.filter(m => m.is_active !== false);
+            const total = activeMeds.length;
+            const taken = activeMeds.filter(m => m.taken).length;
             const rate = total > 0 ? Math.round((taken / total) * 100) : 0;
+            
             let status = 'none';
             if (total === 0) status = 'none';
             else if (rate === 100) status = 'complete';
             else if (rate >= 50) status = 'partial';
             else if (rate > 0) status = 'partial';
             else status = 'missed';
+            
             return {
-                date: log.date.toISOString().slice(0, 10),
+                date: dateStr,
                 taken,
                 total,
                 rate,
                 status,
+                medicines: activeMeds.map(m => ({
+                    name: m.medicine_name,
+                    taken: m.taken,
+                    time: m.scheduled_time
+                })),
+                vitals: vitalsMap[dateStr] ? {
+                    heart_rate: vitalsMap[dateStr].heart_rate,
+                    systolic: vitalsMap[dateStr].blood_pressure?.systolic,
+                    diastolic: vitalsMap[dateStr].blood_pressure?.diastolic,
+                    oxygen_saturation: vitalsMap[dateStr].oxygen_saturation,
+                    hydration: vitalsMap[dateStr].hydration
+                } : null
             };
         });
 
@@ -277,6 +307,13 @@ router.get('/adherence/details', authenticate, async (req, res) => {
 
         const weeklyScore = calcScore(last7);
         const monthlyScore = calcScore(last30);
+
+        // Vitals adherence (last 30)
+        let vitalsAdherence = 0;
+        if (last30.length > 0) {
+            const vitalsDays = last30.filter(d => d.vitals).length;
+            vitalsAdherence = Math.round((vitalsDays / last30.length) * 100);
+        }
 
         // ── Consistency Level ───────────────────────────────────
         let level;
@@ -300,7 +337,6 @@ router.get('/adherence/details', authenticate, async (req, res) => {
         // ── Weekly summary ──────────────────────────────────────
         const weekTaken = last7.reduce((s, d) => s + d.taken, 0);
         const weekMissed = last7.reduce((s, d) => s + (d.total - d.taken), 0);
-        // Compare to the 7 days before
         const prev7 = dailyLog.slice(-14, -7);
         const prevScore = calcScore(prev7);
         const improvement = weeklyScore - prevScore;
@@ -346,7 +382,7 @@ router.get('/adherence/details', authenticate, async (req, res) => {
             label: 'Morning Champion',
             description: 'Never miss a morning dose',
             emoji: '🔵',
-            unlocked: logs.length >= 3 && morningLogs,
+            unlocked: logs.length >= 3 && morningLogs && logs[0]?.medicines?.some(m => m.scheduled_time === 'morning'),
         });
         achievements.push({
             key: 'weekly_90',
@@ -370,6 +406,39 @@ router.get('/adherence/details', authenticate, async (req, res) => {
             unlocked: monthlyScore >= 80 && last30.length >= 25,
         });
 
+        // ── AI Insights ─────────────────────────────────────────
+        const insights = [];
+        if (monthlyScore >= 90) {
+            insights.push("Excellent consistency! Your medication routine is well-established.");
+        } else {
+            // Find most missed medication time
+            const times = { morning: { total: 0, taken: 0 }, afternoon: { total: 0, taken: 0 }, night: { total: 0, taken: 0 } };
+            logs.forEach(log => {
+                log.medicines.forEach(m => {
+                    if (m.is_active !== false && times[m.scheduled_time]) {
+                        times[m.scheduled_time].total++;
+                        if (m.taken) times[m.scheduled_time].taken++;
+                    }
+                });
+            });
+            let lowestRate = 100;
+            let lowestTime = null;
+            Object.keys(times).forEach(k => {
+                if (times[k].total > 0) {
+                    const r = (times[k].taken / times[k].total) * 100;
+                    if (r < lowestRate && r < 80) { lowestRate = r; lowestTime = k; }
+                }
+            });
+            if (lowestTime) {
+                insights.push(`Insight: You frequently miss your ${lowestTime} doses (${Math.round(lowestRate)}%). Consider setting an extra reminder!`);
+            } else if (monthlyScore > 0) {
+                insights.push("Keep it up! Every dose counts toward your long-term health goals.");
+            }
+        }
+
+        if (vitalsAdherence >= 80) insights.push("Great job consistently logging your vitals alongside your medications.");
+        else if (vitalsAdherence < 30) insights.push("Try to log your vitals more frequently to build a complete health profile.");
+
         res.json({
             score: { weekly: weeklyScore, monthly: monthlyScore },
             level,
@@ -378,6 +447,8 @@ router.get('/adherence/details', authenticate, async (req, res) => {
             daily_log: dailyLog,
             achievements,
             weekly_summary: weeklySummary,
+            vitals_adherence: vitalsAdherence,
+            insights
         });
     } catch (error) {
         console.error('Get adherence details error:', error);

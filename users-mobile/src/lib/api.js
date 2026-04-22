@@ -103,9 +103,14 @@ api.interceptors.response.use(
     async (error) => {
         const req = error.config;
         const url = req?.url || '';
-        const isAuth = url.includes('/auth/');
+        const isSkipRefreshEndpoint = 
+            url.includes('/auth/login') || 
+            url.includes('/auth/register') || 
+            url.includes('/auth/refresh') || 
+            url.includes('/auth/send-otp') || 
+            url.includes('/auth/verify-otp');
 
-        if (error.response?.status === 401 && !req._retry && !isAuth) {
+        if (error.response?.status === 401 && !req._retry && !isSkipRefreshEndpoint) {
             if (isRefreshing) {
                 return new Promise((resolve, reject) => {
                     failedQueue.push({ resolve, reject });

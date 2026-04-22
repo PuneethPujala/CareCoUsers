@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useMemo, useCallback, useState } from 'react';
 import {
     View, Text, StyleSheet, Animated, Pressable, ScrollView, SafeAreaView,
-    Platform, ActivityIndicator, Dimensions, Easing, RefreshControl,
+    Platform, ActivityIndicator, Dimensions, Easing, RefreshControl, Modal,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
@@ -110,15 +110,26 @@ const CircularProgress = ({ progress, size = 160, strokeWidth = 12, color }) => 
                     extrapolate: 'clamp',
                 }),
             }} />
-            {/* Glow effect for high scores */}
+            {/* Pulsing Glow effect for high scores */}
             {progress >= 90 && (
                 <View style={[StyleSheet.absoluteFill, {
                     alignItems: 'center', justifyContent: 'center',
                 }]}>
-                    <View style={{
+                    <Animated.View style={{
                         width: size + 16, height: size + 16, borderRadius: (size + 16) / 2,
-                        backgroundColor: finalColor + '08',
+                        backgroundColor: finalColor + '15',
                         position: 'absolute',
+                        transform: [{
+                            scale: animValue.interpolate({
+                                inputRange: [0, 50, 100],
+                                outputRange: [1, 1.02, 1.05],
+                            })
+                        }],
+                        opacity: animValue.interpolate({
+                            inputRange: [90, 100],
+                            outputRange: [0, 1],
+                            extrapolate: 'clamp',
+                        })
                     }} />
                 </View>
             )}
@@ -248,6 +259,24 @@ const AchievementBadge = ({ achievement, index }) => {
     );
 };
 
+// ── Skeleton Loader ──────────────────────────────────────────
+const SkeletonItem = ({ width, height, borderRadius = 8, style }) => {
+    const anim = useRef(new Animated.Value(0.3)).current;
+
+    useEffect(() => {
+        Animated.loop(
+            Animated.sequence([
+                Animated.timing(anim, { toValue: 1, duration: 800, useNativeDriver: true }),
+                Animated.timing(anim, { toValue: 0.3, duration: 800, useNativeDriver: true })
+            ])
+        ).start();
+    }, []);
+
+    return (
+        <Animated.View style={[{ width, height, borderRadius, backgroundColor: '#E2E8F0', opacity: anim }, style]} />
+    );
+};
+
 // ════════════════════════════════════════════════════════════
 // ══ MAIN SCREEN ════════════════════════════════════════════
 // ════════════════════════════════════════════════════════════
@@ -297,6 +326,8 @@ export default function AdherenceScreen({ navigation }) {
     const dailyLog = data.daily_log || [];
     const achievements = data.achievements || [];
     const weeklySummary = data.weekly_summary || { taken: 0, missed: 0, improvement: 0 };
+    const vitalsAdherence = data.vitals_adherence || 0;
+    const insights = data.insights || [];
 
     const feedback = getFeedbackMessage(score.monthly, momentum);
 
@@ -326,16 +357,33 @@ export default function AdherenceScreen({ navigation }) {
 
     if (loading) {
         return (
-            <SafeAreaView style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-                <ActivityIndicator size="large" color={C.primary} />
-                <Text style={{ color: C.muted, marginTop: 12, fontSize: 14 }}>Loading your progress…</Text>
+            <SafeAreaView style={[styles.container, { backgroundColor: '#FFFFFF' }]}>
+                <View style={[styles.header, { borderBottomWidth: 0 }]}>
+                    <SkeletonItem width={40} height={40} borderRadius={12} />
+                    <SkeletonItem width={180} height={24} style={{ marginLeft: 10 }} />
+                </View>
+                <View style={{ padding: 20 }}>
+                    <SkeletonItem width="100%" height={80} borderRadius={16} style={{ marginBottom: 16 }} />
+                    <SkeletonItem width="100%" height={120} borderRadius={20} style={{ marginBottom: 16 }} />
+                    <SkeletonItem width="100%" height={200} borderRadius={20} style={{ marginBottom: 16 }} />
+                    <View style={{ flexDirection: 'row', gap: 10 }}>
+                        <SkeletonItem width="30%" height={100} borderRadius={16} />
+                        <SkeletonItem width="30%" height={100} borderRadius={16} />
+                        <SkeletonItem width="30%" height={100} borderRadius={16} />
+                    </View>
+                </View>
             </SafeAreaView>
         );
     }
 
     return (
-        <SafeAreaView style={styles.container}>
-            {/* ── Header ── */}
+        <View style={{ flex: 1, backgroundColor: '#FAFBFD' }}>
+            {/* Dynamic Mesh Background Simulation */}
+            <Animated.View style={{ position: 'absolute', top: -100, left: -50, width: 300, height: 300, borderRadius: 150, backgroundColor: C.primary, opacity: 0.04, transform: [{ scale: staggerAnims[0].interpolate({ inputRange: [0, 1], outputRange: [1, 1.5] }) }] }} />
+            <Animated.View style={{ position: 'absolute', top: 250, right: -100, width: 250, height: 250, borderRadius: 125, backgroundColor: score.monthly >= 80 ? C.success : C.primary, opacity: 0.04, transform: [{ scale: staggerAnims[2].interpolate({ inputRange: [0, 1], outputRange: [1, 2] }) }] }} />
+
+            <SafeAreaView style={styles.container}>
+                {/* ── Header ── */}
             <View style={styles.header}>
                 <Pressable onPress={() => navigation.goBack()} style={styles.backBtn}>
                     <ChevronLeft size={24} color={C.dark} />
@@ -361,6 +409,17 @@ export default function AdherenceScreen({ navigation }) {
                         <Heart size={16} color={feedback.color} fill={feedback.color + '30'} />
                         <Text style={[styles.feedbackText, { color: feedback.color }]}>{feedback.text}</Text>
                     </View>
+                    
+                    {insights.length > 0 && (
+                        <View style={styles.insightsContainer}>
+                            {insights.map((insight, idx) => (
+                                <View key={idx} style={styles.insightRow}>
+                                    <Sparkles size={14} color={C.purple} />
+                                    <Text style={styles.insightText}>{insight}</Text>
+                                </View>
+                            ))}
+                        </View>
+                    )}
                 </Animated.View>
 
                 {/* ── 2. Today's Quest ── */}
@@ -455,6 +514,19 @@ export default function AdherenceScreen({ navigation }) {
                                 <Text style={styles.weeklyStatLabel}>vs Last Week</Text>
                             </View>
                         </View>
+                        
+                        {/* Vitals Adherence Mini-Bar */}
+                        <View style={styles.vitalsAdherenceRow}>
+                            <View style={styles.vitalsAdherenceHeader}>
+                                <Heart size={14} color={C.danger} />
+                                <Text style={styles.vitalsAdherenceLabel}>Vitals Logging Consistency</Text>
+                                <Text style={styles.vitalsAdherenceValue}>{vitalsAdherence}%</Text>
+                            </View>
+                            <View style={styles.questBarBg}>
+                                <View style={[styles.questBarFill, { width: `${vitalsAdherence}%`, backgroundColor: vitalsAdherence >= 70 ? C.success : vitalsAdherence >= 40 ? C.warning : C.danger }]} />
+                            </View>
+                        </View>
+                        
                     </View>
                 </Animated.View>
 
@@ -504,15 +576,6 @@ export default function AdherenceScreen({ navigation }) {
                             ))}
                         </View>
 
-                        {/* Selected Day Detail */}
-                        {selectedDay && (
-                            <View style={styles.dayDetail}>
-                                <Text style={styles.dayDetailDate}>{selectedDay.date}</Text>
-                                <Text style={styles.dayDetailStat}>
-                                    {selectedDay.taken}/{selectedDay.total} doses • {selectedDay.rate}%
-                                </Text>
-                            </View>
-                        )}
                     </View>
                 </Animated.View>
 
@@ -535,6 +598,66 @@ export default function AdherenceScreen({ navigation }) {
                 <View style={{ height: 120 }} />
             </ScrollView>
         </SafeAreaView>
+
+        {/* ── Seamless Slide-Up Modal Date Details ── */}
+        <Modal
+            visible={!!selectedDay}
+            animationType="slide"
+            transparent={true}
+            onRequestClose={() => setSelectedDay(null)}
+        >
+            <View style={styles.modalOverlay}>
+                <Pressable style={styles.modalBackdrop} onPress={() => setSelectedDay(null)} />
+                <View style={styles.dayDetail}>
+                    <View style={styles.modalDragHandleContainer}>
+                        <View style={styles.modalDragHandle} />
+                    </View>
+                    
+                    {selectedDay && (
+                        <>
+                            <View style={styles.dayDetailHeader}>
+                                <Text style={styles.dayDetailDate}>{format(parseISO(selectedDay.date), 'EEEE, MMMM do yyyy')}</Text>
+                                <View style={[styles.dayDetailBadge, { backgroundColor: STATUS_COLORS[selectedDay.status] + '20' }]}>
+                                    <Text style={[styles.dayDetailBadgeText, { color: STATUS_COLORS[selectedDay.status] }]}>
+                                        {selectedDay.rate}% Adherence
+                                    </Text>
+                                </View>
+                            </View>
+                            
+                            {selectedDay.medicines && selectedDay.medicines.length > 0 ? (
+                                <View style={styles.dayDetailMeds}>
+                                    <Text style={styles.dayDetailSectionTitle}>Medications</Text>
+                                    {selectedDay.medicines.map((med, idx) => (
+                                        <View key={idx} style={styles.dayDetailMedRow}>
+                                            {med.taken ? <CheckCircle2 size={16} color={C.success} /> : <X size={16} color={C.danger} />}
+                                            <Text style={[styles.dayDetailMedName, med.taken ? { color: C.dark } : { color: C.muted, textDecorationLine: 'line-through' }]}>
+                                                {med.name} <Text style={{ color: C.light, fontSize: 11 }}>({med.time})</Text>
+                                            </Text>
+                                        </View>
+                                    ))}
+                                </View>
+                            ) : (
+                                <Text style={styles.dayDetailEmpty}>No medications scheduled for this day.</Text>
+                            )}
+                            
+                            {selectedDay.vitals && (
+                                <View style={styles.dayDetailVitals}>
+                                    <Text style={styles.dayDetailSectionTitle}>Vitals Logged</Text>
+                                    <Text style={styles.dayDetailVitalText}>
+                                        {selectedDay.vitals.heart_rate ? `💓 ${selectedDay.vitals.heart_rate} bpm   ` : ''}
+                                        {selectedDay.vitals.systolic ? `🩸 ${selectedDay.vitals.systolic}/${selectedDay.vitals.diastolic}   ` : ''}
+                                        {selectedDay.vitals.oxygen_saturation ? `💨 ${selectedDay.vitals.oxygen_saturation}%   ` : ''}
+                                        {selectedDay.vitals.hydration ? `💧 ${selectedDay.vitals.hydration}%` : ''}
+                                    </Text>
+                                </View>
+                            )}
+                        </>
+                    )}
+                </View>
+            </View>
+        </Modal>
+
+        </View>
     );
 }
 
@@ -597,7 +720,7 @@ const styles = StyleSheet.create({
 
     // ── Quest Card ──
     questCard: {
-        backgroundColor: C.card,
+        backgroundColor: 'rgba(255, 255, 255, 0.75)',
         borderRadius: 20,
         padding: 20,
         marginBottom: 16,
@@ -632,7 +755,7 @@ const styles = StyleSheet.create({
 
     // ── Ring Card ──
     ringCard: {
-        backgroundColor: C.card,
+        backgroundColor: 'rgba(255, 255, 255, 0.75)',
         borderRadius: 20,
         padding: 24,
         marginBottom: 16,
@@ -657,7 +780,7 @@ const styles = StyleSheet.create({
 
     // ── Weekly Card ──
     weeklyCard: {
-        backgroundColor: C.card,
+        backgroundColor: 'rgba(255, 255, 255, 0.75)',
         borderRadius: 20,
         padding: 20,
         marginBottom: 16,
@@ -684,7 +807,7 @@ const styles = StyleSheet.create({
 
     // ── Calendar ──
     calendarCard: {
-        backgroundColor: C.card,
+        backgroundColor: 'rgba(255, 255, 255, 0.75)',
         borderRadius: 20,
         padding: 20,
         marginBottom: 16,
@@ -708,9 +831,9 @@ const styles = StyleSheet.create({
         flexDirection: 'row', flexWrap: 'wrap',
     },
     dayCell: {
-        flex: 1, borderRadius: 10,
+        flex: 1, borderRadius: 20,
         alignItems: 'center', justifyContent: 'center',
-        backgroundColor: '#F8FAFC',
+        backgroundColor: 'transparent',
     },
     dayText: { fontSize: 13, fontWeight: '600', color: C.mid },
     legendRow: {
@@ -720,12 +843,45 @@ const styles = StyleSheet.create({
     legendItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
     legendDot: { width: 8, height: 8, borderRadius: 4 },
     legendText: { fontSize: 11, fontWeight: '600', color: C.light },
+    
+    // ── Modal Bottom Sheet ──
+    modalOverlay: { flex: 1, justifyContent: 'flex-end' },
+    modalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(15, 23, 42, 0.4)' },
+    modalDragHandleContainer: { alignItems: 'center', marginBottom: 20 },
+    modalDragHandle: { width: 40, height: 5, borderRadius: 3, backgroundColor: '#CBD5E1' },
+    
     dayDetail: {
-        marginTop: 12, padding: 12, backgroundColor: C.primarySoft,
-        borderRadius: 12, alignItems: 'center',
+        padding: 24, paddingBottom: Platform.OS === 'ios' ? 40 : 24, backgroundColor: '#FFFFFF',
+        borderTopLeftRadius: 32, borderTopRightRadius: 32,
+        shadowColor: '#000', shadowOffset: { width: 0, height: -10 },
+        shadowOpacity: 0.1, shadowRadius: 20, elevation: 10,
     },
-    dayDetailDate: { fontSize: 14, fontWeight: '700', color: C.primary },
-    dayDetailStat: { fontSize: 13, fontWeight: '500', color: C.mid, marginTop: 2 },
+    dayDetailHeader: {
+        flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+        paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: C.border, marginBottom: 12,
+    },
+    dayDetailDate: { fontSize: 16, fontWeight: '700', color: C.dark },
+    dayDetailBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 },
+    dayDetailBadgeText: { fontSize: 11, fontWeight: '700' },
+    
+    dayDetailSectionTitle: { fontSize: 12, fontWeight: '700', color: C.light, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 },
+    dayDetailMeds: { marginBottom: 16 },
+    dayDetailMedRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
+    dayDetailMedName: { fontSize: 14, fontWeight: '600' },
+    dayDetailEmpty: { fontSize: 13, color: C.muted, fontStyle: 'italic', marginBottom: 16 },
+    
+    dayDetailVitals: { backgroundColor: '#F8FAFC', padding: 12, borderRadius: 12 },
+    dayDetailVitalText: { fontSize: 14, fontWeight: '500', color: C.mid, lineHeight: 22 },
+
+    // ── Vitals & Insights ──
+    insightsContainer: { marginTop: 12, gap: 8 },
+    insightRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, backgroundColor: '#FFFFFF', padding: 12, borderRadius: 12, borderWidth: 1, borderColor: C.purpleBg },
+    insightText: { flex: 1, fontSize: 13, color: C.mid, fontWeight: '500', lineHeight: 18 },
+    
+    vitalsAdherenceRow: { marginTop: 24, paddingTop: 16, borderTopWidth: 1, borderTopColor: C.border },
+    vitalsAdherenceHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 },
+    vitalsAdherenceLabel: { flex: 1, fontSize: 13, fontWeight: '700', color: C.dark },
+    vitalsAdherenceValue: { fontSize: 14, fontWeight: '800', color: C.primary },
 
     // ── Achievements ──
     achievementsSection: {
@@ -737,7 +893,7 @@ const styles = StyleSheet.create({
     },
     achievementCard: {
         width: (SCREEN_WIDTH - 40 - 24) / 3,
-        backgroundColor: C.card,
+        backgroundColor: 'rgba(255, 255, 255, 0.75)',
         borderRadius: 16,
         padding: 12,
         alignItems: 'center',
