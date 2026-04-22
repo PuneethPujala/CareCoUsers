@@ -4,7 +4,7 @@ const Profile = require('../models/Profile');
 const Organization = require('../models/Organization');
 const AuditLog = require('../models/AuditLog');
 const { authenticate, requireRole } = require('../middleware/authenticate');
-const { getCachedOrFetch, CacheKeys, TTL } = require('../config/redis');
+const { getCachedOrFetch, invalidateCache, CacheKeys, TTL } = require('../config/redis');
 
 const router = express.Router();
 
@@ -18,6 +18,11 @@ router.get('/super-admin-stats',
     requireRole('super_admin'),
     async (req, res) => {
         try {
+            // If _t cache-bust param is present, invalidate stale cache first
+            if (req.query._t) {
+                await invalidateCache(CacheKeys.adminDashboard());
+            }
+
             const result = await getCachedOrFetch(
                 CacheKeys.adminDashboard(),
                 async () => {
@@ -150,7 +155,7 @@ router.get('/super-admin-stats',
                     const patientRevenue = revenueAgg.length > 0 ? revenueAgg[0].total : 0;
                     
                     const tieupRevenueAgg = await Organization.aggregate([
-                        { $match: { totalRevenue: { $type: "number" } } },
+                        { $match: { totalRevenue: { $type: "number" }, isActive: { $ne: false } } },
                         { $group: { _id: null, total: { $sum: "$totalRevenue" } } }
                     ]);
                     const tieupRevenue = tieupRevenueAgg.length > 0 ? tieupRevenueAgg[0].total : 0;
@@ -193,9 +198,16 @@ router.get('/org-admin-stats',
     requireRole('org_admin'),
     async (req, res) => {
         try {
-            const organizationId = req.profile.organizationId;
+            const org = req.profile.organizationId;
+            const organizationId = typeof org === 'object' ? (org._id || org).toString() : org;
+            
             if (!organizationId) {
                 return res.status(400).json({ error: 'Organization ID not found for this admin.' });
+            }
+
+            // If _t cache-bust param is present, invalidate stale cache first
+            if (req.query._t) {
+                await invalidateCache(CacheKeys.orgDashboard(organizationId));
             }
 
             const result = await getCachedOrFetch(
@@ -250,16 +262,40 @@ router.get('/org-admin-stats',
                         .lean();
 
                     const workloads = await Promise.all(managers.map(async (mgr) => {
-                        const assignments = await CaretakerPatient.find({ assignedBy: mgr._id, status: 'active' });
-                        const patientsCount = assignments.length;
-                        const callersCount = await Profile.countDocuments({ organizationId, role: 'caller', isActive: true });
+                        // Real data: count patients assigned via this manager
+                        const assignedPatients = await CaretakerPatient.countDocuments({ assignedBy: mgr._id, status: 'active' });
+                        
+                        // Count callers managed by this manager
+                        const managedCallers = await Profile.countDocuments({ 
+                            organizationId, 
+                            role: 'caller', 
+                            managedBy: mgr._id, 
+                            isActive: true 
+                        });
+                        
+                        // If no callers are directly managed, fallback to proportional split
+                        const totalCallersOrg = await Profile.countDocuments({ organizationId, role: 'caller', isActive: true });
+                        const callers = managedCallers > 0 ? managedCallers : Math.floor(totalCallersOrg / Math.max(managers.length, 1));
+                        
+                        // Max capacity: 30 patients per caller under this manager
+                        const maxCapacity = Math.max(callers * 30, 20); // minimum 20 even with no callers
+                        const load = Math.min(Math.round((assignedPatients / maxCapacity) * 100), 100);
+                        
+                        // Production-accurate status tiers
+                        let status;
+                        if (assignedPatients === 0) status = 'IDLE';
+                        else if (load < 40) status = 'LOW';
+                        else if (load < 70) status = 'OPTIMAL';
+                        else if (load < 85) status = 'HIGH';
+                        else status = 'OVERLOADED';
 
                         return {
                             id: mgr._id,
                             name: mgr.fullName,
-                            patients: patientsCount,
-                            callers: Math.floor(callersCount / Math.max(managers.length, 1)),
-                            load: Math.min(Math.floor((patientsCount / 20) * 100), 100)
+                            patients: assignedPatients,
+                            callers,
+                            load,
+                            status
                         };
                     }));
 
@@ -335,14 +371,52 @@ router.get('/org-admin-stats',
                     })
                     .sort({ 'subscription.startDate': -1, 'created_at': -1 })
                     .limit(20)
-                    .project({ first_name: 1, last_name: 1, 'subscription.amount': 1, 'subscription.startDate': 1, created_at: 1 })
+                    .project({ name: 1, first_name: 1, last_name: 1, 'subscription.amount': 1, 'subscription.startDate': 1, created_at: 1 })
                     .toArray();
                     
-                    const orgDoc = await Organization.findById(organizationId).select('totalRevenue').lean();
+                    const orgDoc = await Organization.findById(organizationId).select('totalRevenue collaborations').lean();
                     const tieupRevenue = orgDoc?.totalRevenue || 0;
                     
                     const patientRevenue = revenueAgg.length > 0 ? revenueAgg[0].total : 0;
                     const revenue = patientRevenue + tieupRevenue;
+
+                    // ── 24H Growth Rate Calculation ──
+                    const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
+                    
+                    const recentStatsAgg = await Profile.aggregate([
+                        { $match: { organizationId: { $in: [organizationId, organizationId.toString(), objId] }, role: { $in: roles }, isActive: { $ne: false }, createdAt: { $gte: yesterday } } },
+                        { $group: { _id: '$role', count: { $sum: 1 } } }
+                    ]);
+                    
+                    const recentPatientCount = await mongoose.connection.db.collection('patients').countDocuments({
+                        $or: [ { organization_id: organizationId }, { organization_id: organizationId.toString() }, { organization_id: objId } ],
+                        is_active: { $ne: false },
+                        created_at: { $gte: yesterday }
+                    });
+
+                    const recentRevenueAgg = await mongoose.connection.db.collection('patients').aggregate([
+                        { $match: { 
+                            'subscription.status': 'active',
+                            'subscription.startDate': { $gte: yesterday },
+                            $or: [ { organization_id: organizationId }, { organization_id: organizationId.toString() }, { organization_id: objId } ]
+                        } },
+                        { $group: { _id: null, total: { $sum: '$subscription.amount' } } }
+                    ]).toArray();
+                    const recentPatientRevenue = recentRevenueAgg.length > 0 ? recentRevenueAgg[0].total : 0;
+                    
+                    const recentTieupRevenue = (orgDoc?.collaborations || [])
+                        .filter(c => c.status === 'Active' && new Date(c.date) >= yesterday)
+                        .reduce((sum, c) => sum + (c.dealAmount || 0), 0);
+                    
+                    const recentRevenueTotal = recentPatientRevenue + recentTieupRevenue;
+
+                    // ── 24H Change: raw count of new additions (production-accurate) ──
+                    // Percentage growth is misleading for small orgs. Instead, show the
+                    // actual number of new items added in the last 24 hours.
+                    stats.care_manager_change = recentStatsAgg.find(r => r._id === 'care_manager')?.count || 0;
+                    stats.caller_change = recentStatsAgg.find(r => r._id === 'caller')?.count || 0;
+                    stats.patient_change = recentPatientCount;
+                    stats.revenue_change = recentRevenueTotal;
 
                     return {
                         stats: { ...stats, revenue, patientRevenue, tieupRevenue },
@@ -383,6 +457,11 @@ router.get('/care-manager-stats',
             const CaretakerPatient = require('../models/CaretakerPatient');
             const CallLog = require('../models/CallLog');
 
+            // If _t cache-bust param is present, invalidate stale cache first
+            if (req.query._t) {
+                await invalidateCache(CacheKeys.managerDashboard(managerId));
+            }
+
             const result = await getCachedOrFetch(
                 CacheKeys.managerDashboard(managerId),
                 async () => {
@@ -407,20 +486,44 @@ router.get('/care-manager-stats',
                         _id: { $nin: activeAssignedPatients }
                     });
 
-                    // ── Capacity Forecasting Engine ──
+                    // ── Capacity Forecasting Engine (Enhanced) ──
                     const MAX_PATIENTS_PER_CALLER = 30;
                     const maxCapacity = totalCallers * MAX_PATIENTS_PER_CALLER;
                     const availableSlots = Math.max(0, maxCapacity - assignedCount);
                     const utilizationPct = maxCapacity > 0 ? Math.round((assignedCount / maxCapacity) * 100) : 0;
 
-                    // Growth rate: count patients created in last 7 days
+                    // Growth rate: use multiple windows for accuracy
                     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+                    const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+                    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
                     const patientsLast7Days = await Patient.countDocuments({
                         organization_id: req.profile.organizationId,
                         is_active: true,
                         createdAt: { $gte: sevenDaysAgo }
                     });
-                    const dailyGrowthRate = Math.round((patientsLast7Days / 7) * 10) / 10; // 1 decimal
+                    const patientsLast14Days = await Patient.countDocuments({
+                        organization_id: req.profile.organizationId,
+                        is_active: true,
+                        createdAt: { $gte: fourteenDaysAgo }
+                    });
+                    const patientsLast30Days = await Patient.countDocuments({
+                        organization_id: req.profile.organizationId,
+                        is_active: true,
+                        createdAt: { $gte: thirtyDaysAgo }
+                    });
+
+                    // Use 30-day average for stable rate, 7-day for recent trend
+                    const dailyGrowth30d = Math.round((patientsLast30Days / 30) * 10) / 10;
+                    const dailyGrowth7d = Math.round((patientsLast7Days / 7) * 10) / 10;
+                    // Use recent trend if available, else long-term average
+                    const dailyGrowthRate = dailyGrowth7d > 0 ? dailyGrowth7d : dailyGrowth30d;
+
+                    // Week-over-week trend (this week vs last week)
+                    const prevWeekPatients = patientsLast14Days - patientsLast7Days;
+                    let weekTrend = 'stable'; // stable, growing, declining
+                    if (patientsLast7Days > prevWeekPatients && prevWeekPatients >= 0) weekTrend = 'growing';
+                    else if (patientsLast7Days < prevWeekPatients) weekTrend = 'declining';
 
                     // Prediction: days until callers are fully loaded
                     let daysUntilFull = -1; // -1 means stable / no growth
@@ -442,8 +545,6 @@ router.get('/care-manager-stats',
                     if (totalCallers === 0 && totalPatients > 0) {
                         callersNeeded = Math.max(1, Math.ceil(totalPatients / MAX_PATIENTS_PER_CALLER));
                     }
-
-                    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
                     // ── Top Performers — batch aggregation instead of N+1 ──
                     const callers = await Profile.find({
@@ -501,7 +602,10 @@ router.get('/care-manager-stats',
                             availableSlots,
                             utilizationPct,
                             patientsLast7Days,
+                            patientsLast30Days,
                             dailyGrowthRate,
+                            dailyGrowth30d,
+                            weekTrend,
                             daysUntilFull,
                             callersNeeded
                         },

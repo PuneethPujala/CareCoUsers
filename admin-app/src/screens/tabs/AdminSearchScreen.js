@@ -22,6 +22,8 @@ export default function AdminSearchScreen({ navigation }) {
     const [deleteText, setDeleteText] = useState('');
     const [deleting, setDeleting] = useState(false);
     const [statusBanner, setStatusBanner] = useState(null);
+    const [replaceName, setReplaceName] = useState('');
+    const [replaceEmail, setReplaceEmail] = useState('');
 
     const handleSearch = useCallback(async (query) => {
         setSearch(query);
@@ -30,10 +32,14 @@ export default function AdminSearchScreen({ navigation }) {
             setLoading(true);
             const res = await apiService.profiles.getAll({ search: query, limit: 50 });
             const profiles = res.data?.profiles || res.data || [];
-            setResults(profiles.filter(p => ['super_admin', 'org_admin', 'care_manager', 'caller'].includes(p.role)));
+            const myId = myProfile?._id || myProfile?.id;
+            setResults(profiles.filter(p => 
+                ['super_admin', 'org_admin', 'care_manager', 'caller'].includes(p.role) &&
+                (p._id || p.id) !== myId
+            ));
         } catch (error) { console.error('[AdminSearch] Failed:', error);
         } finally { setLoading(false); }
-    }, []);
+    }, [myProfile]);
 
     const handleSelectAdmin = useCallback(async (admin) => {
         try { setLoadingProfile(true);
@@ -50,21 +56,64 @@ export default function AdminSearchScreen({ navigation }) {
 
     const isOwn = selectedAdmin && myProfile && (selectedAdmin._id === myProfile._id || selectedAdmin.supabaseUid === myProfile.supabaseUid);
 
+    // Determine if the selected admin can be replaced (vs just deleted)
+    // - super_admin can replace org_admins
+    // - org_admin can replace care_managers
+    const isReplaceable = (admin) => {
+        if (!admin || !myProfile) return false;
+        if (myProfile.role === 'super_admin' && admin.role === 'org_admin') return true;
+        if (myProfile.role === 'org_admin' && admin.role === 'care_manager') return true;
+        return false;
+    };
+
+    const getReplacementRoleLabel = (admin) => {
+        if (admin?.role === 'org_admin') return 'Organization Admin';
+        if (admin?.role === 'care_manager') return 'Care Manager';
+        return 'User';
+    };
+
     const handleDeleteAdmin = async () => {
         if (deleteText !== 'DELETE') return;
         setDeleting(true);
         try {
-            await apiService.profiles.delete(selectedAdmin._id || selectedAdmin.id);
+            let replaceWithId = null;
+
+            // Step 1: If replaceable role, generate new replacement profile
+            if (isReplaceable(selectedAdmin)) {
+                if (!replaceName || !replaceEmail || !replaceEmail.includes('@')) {
+                    setStatusBanner({ type: 'error', message: `You must provide a valid Name and Email for the replacement ${getReplacementRoleLabel(selectedAdmin)}.` });
+                    setDeleting(false);
+                    return;
+                }
+                const newPayload = {
+                    fullName: replaceName.trim(),
+                    email: replaceEmail.trim().toLowerCase(),
+                    role: selectedAdmin.role,
+                    organizationId: selectedAdmin.organizationId?._id || selectedAdmin.organizationId
+                };
+                
+                const createRes = await apiService.auth.createUser(newPayload);
+                replaceWithId = createRes.data?.profile?.id || createRes.data?.profile?._id;
+                
+                if (!replaceWithId) throw new Error('Replacement logic failed to acquire new identification context.');
+            }
+
+            // Step 2: Delete Old Profile + Reallocate
+            await apiService.profiles.delete(selectedAdmin._id || selectedAdmin.id, replaceWithId);
+            
             setDeleteModalVisible(false);
-            setStatusBanner({ type: 'success', message: 'Administrator successfully deleted.' });
-            setTimeout(() => { setSelectedAdmin(null); handleSearch(search); }, 1500);
+            setStatusBanner({ type: 'success', message: replaceWithId ? 'Reallocation and Deletion operations succeeded.' : 'Administrator successfully deleted.' });
+            
+            setTimeout(() => { setSelectedAdmin(null); handleSearch(search); }, 2000);
         } catch (error) {
             console.error('Failed to delete admin:', error);
-            const msg = error.response?.data?.error || error.response?.data?.message || 'Failed to delete administrator.';
+            const msg = error.response?.data?.error || error.response?.data?.message || error.message || 'Failed to delete administrator.';
             setDeleteModalVisible(false);
             setStatusBanner({ type: 'error', message: msg });
         } finally {
             setDeleting(false);
+            setReplaceName('');
+            setReplaceEmail('');
         }
     };
 
@@ -172,21 +221,29 @@ export default function AdminSearchScreen({ navigation }) {
                                 <View style={s.dangerCard}>
                                     <View style={s.dangerHeader}>
                                         <View style={s.dangerIconWrap}>
-                                            <Feather name="shield" size={20} color="#EF4444" />
+                                            <Feather name={isReplaceable(a) ? "refresh-cw" : "shield"} size={20} color="#EF4444" />
                                         </View>
                                         <View style={{ flex: 1 }}>
-                                            <Text style={s.dangerActionTitle}>Delete Administrator</Text>
+                                            <Text style={s.dangerActionTitle}>
+                                                {isReplaceable(a) ? `Replace & Delete ${getReplacementRoleLabel(a)}` : 'Delete Administrator'}
+                                            </Text>
                                             <Text style={s.dangerActionDesc}>
-                                                Remove this user from the platform permanently. They will lose all access.
+                                                {isReplaceable(a)
+                                                ? `Remove this ${getReplacementRoleLabel(a)} and instantly transfer their workload to a new replacement.`
+                                                : 'Remove this user from the platform permanently. They will lose all access.'}
                                             </Text>
                                         </View>
                                     </View>
                                     <TouchableOpacity style={s.deleteBtn} activeOpacity={0.8} onPress={() => {
                                         setDeleteText('');
+                                        setReplaceName('');
+                                        setReplaceEmail('');
                                         setDeleteModalVisible(true);
                                     }}>
-                                        <Feather name="trash-2" size={18} color="#FFFFFF" style={{ marginRight: 10 }} />
-                                        <Text style={s.deleteBtnText}>Delete User</Text>
+                                        <Feather name={isReplaceable(a) ? "refresh-cw" : "trash-2"} size={18} color="#FFFFFF" style={{ marginRight: 10 }} />
+                                        <Text style={s.deleteBtnText}>
+                                            {isReplaceable(a) ? 'Replace & Delete' : 'Delete User'}
+                                        </Text>
                                     </TouchableOpacity>
                                 </View>
                             </View>
@@ -203,23 +260,65 @@ export default function AdminSearchScreen({ navigation }) {
                             
                             <View style={s.modalHeaderBlock}>
                                 <View style={s.modalIconWrapAlert}>
-                                    <Feather name="alert-triangle" size={32} color="#EF4444" />
+                                    <Feather name={isReplaceable(selectedAdmin) ? "refresh-cw" : "alert-triangle"} size={32} color="#EF4444" />
                                 </View>
-                                <Text style={s.modalTitleAlert}>Confirm Deletion</Text>
+                                <Text style={s.modalTitleAlert}>
+                                    {isReplaceable(selectedAdmin) ? 'Replacement Configuration' : 'Confirm Deletion'}
+                                </Text>
                                 <Text style={s.modalDescAlert}>
-                                    This action cannot be undone. Type <Text style={{ fontWeight: '800', color: '#EF4444' }}>DELETE</Text> to proceed.
+                                    {isReplaceable(selectedAdmin)
+                                        ? `Provide credentials for the new ${getReplacementRoleLabel(selectedAdmin)}. The system will create their account and transfer all assignments.`
+                                        : <>This action cannot be undone. Type <Text style={{ fontWeight: '800', color: '#EF4444' }}>DELETE</Text> to proceed.</>}
                                 </Text>
                             </View>
                             
-                            <TextInput 
-                                style={[s.modalInput, { borderColor: deleteText === 'DELETE' ? '#EF4444' : '#E2E8F0' }]}
-                                placeholder="Type DELETE to confirm"
-                                placeholderTextColor="#94A3B8"
-                                value={deleteText}
-                                onChangeText={setDeleteText}
-                                autoCapitalize="characters"
-                                autoCorrect={false}
-                            />
+                            {isReplaceable(selectedAdmin) ? (
+                                <View style={{ width: '100%', marginBottom: 28, gap: 12 }}>
+                                    <View style={s.inputWrapStatic}>
+                                        <Feather name="user" size={18} color="#64748B" style={{marginRight: 12}} />
+                                        <TextInput 
+                                            style={s.inputNativeFlex}
+                                            placeholder={`New ${getReplacementRoleLabel(selectedAdmin)} Full Name`}
+                                            placeholderTextColor="#94A3B8"
+                                            value={replaceName}
+                                            onChangeText={setReplaceName}
+                                            autoCapitalize="words"
+                                        />
+                                    </View>
+                                    <View style={s.inputWrapStatic}>
+                                        <Feather name="mail" size={18} color="#64748B" style={{marginRight: 12}} />
+                                        <TextInput 
+                                            style={s.inputNativeFlex}
+                                            placeholder={`New ${getReplacementRoleLabel(selectedAdmin)} Email`}
+                                            placeholderTextColor="#94A3B8"
+                                            value={replaceEmail}
+                                            onChangeText={setReplaceEmail}
+                                            keyboardType="email-address"
+                                            autoCapitalize="none"
+                                            autoCorrect={false}
+                                        />
+                                    </View>
+                                    <TextInput 
+                                        style={[s.modalInput, { borderColor: deleteText === 'DELETE' ? '#EF4444' : '#E2E8F0', marginTop: 10, marginBottom: 0 }]}
+                                        placeholder="Type DELETE to confirm"
+                                        placeholderTextColor="#94A3B8"
+                                        value={deleteText}
+                                        onChangeText={setDeleteText}
+                                        autoCapitalize="characters"
+                                        autoCorrect={false}
+                                    />
+                                </View>
+                            ) : (
+                                <TextInput 
+                                    style={[s.modalInput, { borderColor: deleteText === 'DELETE' ? '#EF4444' : '#E2E8F0' }]}
+                                    placeholder="Type DELETE to confirm"
+                                    placeholderTextColor="#94A3B8"
+                                    value={deleteText}
+                                    onChangeText={setDeleteText}
+                                    autoCapitalize="characters"
+                                    autoCorrect={false}
+                                />
+                            )}
 
                             <View style={s.modalActions}>
                                 <TouchableOpacity style={s.modalCancelBtn} onPress={() => setDeleteModalVisible(false)}>
@@ -416,6 +515,8 @@ const s = StyleSheet.create({
     modalDescAlert: { fontSize: 15, fontWeight: '600', color: '#64748B', textAlign: 'center', lineHeight: 22, paddingHorizontal: 10 },
     
     modalInput: { width: '100%', backgroundColor: '#F8FAFC', borderWidth: 2, borderRadius: 20, padding: 20, fontSize: 18, fontWeight: '800', textAlign: 'center', color: '#0F172A', marginBottom: 28 },
+    inputWrapStatic: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAFC', borderRadius: 20, borderWidth: 1.5, borderColor: '#E2E8F0', paddingHorizontal: 16, height: 64 },
+    inputNativeFlex: { flex: 1, fontSize: 16, fontWeight: '600', color: '#0F172A', ...Platform.select({ web: { outlineStyle: 'none' } }) },
     
     modalActions: { flexDirection: 'row', gap: 12, width: '100%' },
     modalCancelBtn: { flex: 1, paddingVertical: 18, borderRadius: 20, backgroundColor: '#F8FAFC', alignItems: 'center', borderWidth: 1, borderColor: '#E2E8F0' },

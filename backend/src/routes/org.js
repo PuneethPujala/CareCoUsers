@@ -57,6 +57,45 @@ function getTimeAgo(date) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// NEW: DELETE /api/org/deactivate — Org Admin cancels subscription (tie-up)
+// ═══════════════════════════════════════════════════════════════
+router.delete('/deactivate', async (req, res) => {
+    try {
+        const orgId = getOrgId(req);
+        if (!orgId) return res.status(400).json({ error: 'Organization ID not found' });
+
+        const org = await Organization.findById(orgId);
+        if (!org) return res.status(404).json({ error: 'Organization not found' });
+
+        // Soft delete the organization
+        org.isActive = false;
+        await org.save();
+
+        // Recursively deactivate all users belonging to this Org so they can't login
+        const deactivatedUsers = await Profile.updateMany(
+            { organizationId: orgId, isActive: true },
+            { $set: { isActive: false } }
+        );
+
+        await AuditLog.createLog({
+            supabaseUid: req.profile.supabaseUid,
+            action: 'deactivate_organization',
+            resourceType: 'organization',
+            resourceId: org._id,
+            ipAddress: req.ip,
+            userAgent: req.headers['user-agent'],
+            outcome: 'success',
+            details: { orgName: org.name, usersDeactivated: deactivatedUsers.modifiedCount }
+        });
+
+        res.json({ message: 'Organization successfully deactivated. All staff access has been disabled.' });
+    } catch (error) {
+        console.error('Org deactivation error:', error);
+        res.status(500).json({ error: 'Failed to deactivate organization tie-up.' });
+    }
+});
+
+// ═══════════════════════════════════════════════════════════════
 // 1. GET /api/org/dashboard — Org-scoped KPIs
 // ═══════════════════════════════════════════════════════════════
 router.get('/dashboard', async (req, res) => {

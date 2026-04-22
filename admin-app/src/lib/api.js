@@ -166,7 +166,7 @@ export const apiService = {
     logout: () => api.post('/auth/logout'),
     refreshToken: (refreshToken) => api.post('/auth/refresh', { refresh_token: refreshToken }),
     resetPassword: (email) => api.post('/auth/reset-password', { email }),
-    getProfile: () => api.get('/auth/me'),
+    getProfile: () => api.get('/auth/me', { params: { _t: Date.now() } }),
     updateProfile: (data) => api.put('/auth/me', data),
     changePassword: (data) => api.post('/auth/change-password', data),
     createUser: (data) => api.post('/auth/create-user', data),
@@ -174,13 +174,15 @@ export const apiService = {
     sendResetOtp: (data) => api.post('/auth/forgot-password/send-otp', data),
     verifyResetOtp: (data) => api.post('/auth/forgot-password/verify-otp', data),
     resetPasswordWithOtp: (data) => api.post('/auth/forgot-password/reset', data),
+    sendPhoneOtp: (data) => api.post('/auth/phone/send-otp', data),
+    verifyPhoneOtp: (data) => api.post('/auth/phone/verify-otp', data),
   },
 
   // Dashboard endpoints
   dashboard: {
-    getSuperAdminStats: () => api.get('/dashboard/super-admin-stats'),
-    getOrgAdminStats: () => api.get('/dashboard/org-admin-stats'),
-    getCareManagerStats: () => api.get('/dashboard/care-manager-stats'),
+    getSuperAdminStats: () => api.get('/dashboard/super-admin-stats', { params: { _t: Date.now() } }),
+    getOrgAdminStats: () => api.get('/dashboard/org-admin-stats', { params: { _t: Date.now() } }),
+    getCareManagerStats: () => api.get('/dashboard/care-manager-stats', { params: { _t: Date.now() } }),
   },
 
   // Profile endpoints
@@ -190,7 +192,7 @@ export const apiService = {
     getAll: (params) => api.get('/profile', { params }),
     create: (data) => api.post('/profile', data),
     update: (id, data) => api.put(`/profile/${id}`, data),
-    delete: (id) => api.delete(`/profile/${id}`),
+    delete: (id, replaceWithId) => api.delete(`/profile/${id}${replaceWithId ? `?replaceWith=${replaceWithId}` : ''}`),
     getByOrganization: (orgId, params) => api.get(`/profile/organization/${orgId}`, { params }),
   },
 
@@ -222,6 +224,7 @@ export const apiService = {
   org: {
     getDashboard: () => api.get('/org/dashboard'),
     reconcile: () => api.post('/org/reconcile'),
+    deactivate: () => api.delete('/org/deactivate'),
   },
 
   // Caretaker endpoints (Admin managing caretakers)
@@ -271,6 +274,7 @@ export const apiService = {
     getUsers: (id, params) => api.get(`/organizations/${id}/users`, { params }),
     getStats: (id) => api.get(`/organizations/${id}/stats`),
     addCollaboration: (id, data) => api.post(`/organizations/${id}/collaborations`, data),
+    removeCollaborations: (id, collabIds) => api.delete(`/organizations/${id}/collaborations`, { data: { collabIds } }),
   },
 
   // Reports endpoints

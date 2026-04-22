@@ -86,6 +86,20 @@ async function reconcileUnassignedPatients(orgId, assignedById) {
             { upsert: true, new: true, setDefaultsOnInsert: true }
         );
 
+        // Mirror assignments directly onto the Profile and Patient documents for User App compatability!
+        try {
+            await Profile.findByIdAndUpdate(patient._id, {
+                caller_id: bestCaller._id,
+                assigned_caller_id: bestCaller._id
+            });
+            await Patient.findByIdAndUpdate(patient._id, {
+                caller_id: bestCaller._id,
+                assigned_caller_id: bestCaller._id
+            });
+        } catch (e) {
+            console.error('[Reconciliation] Failed to mirror ID to patient:', e.message);
+        }
+
         countMap[bestCaller._id.toString()] = (countMap[bestCaller._id.toString()] || 0) + 1;
         assignedCount++;
         console.log(`[Reconciliation] Patient ${patient.name} -> Caller ${bestCaller.fullName}`);
