@@ -117,8 +117,8 @@ const PremiumFormModal = ({
               <View style={styles.sheetContainer}>
                 <KeyboardAvoidingView
                     style={{ flex: 1 }}
-                    behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
-                    keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 0}
+                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                    keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 20}
                 >
                     {/* Drag Handle */}
                     <View style={styles.handleWrap}>
@@ -150,10 +150,9 @@ const PremiumFormModal = ({
                         keyboardShouldPersistTaps="handled"
                         keyboardDismissMode="interactive"
                         bounces={true}
+                        nestedScrollEnabled={true}
                     >
-                        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-                            <View>{children}</View>
-                        </TouchableWithoutFeedback>
+                        {children}
                     </ScrollView>
 
                     {/* Sticky Save Button — always above keyboard */}
@@ -256,7 +255,7 @@ const styles = StyleSheet.create({
     scrollContent: {
         paddingHorizontal: 24,
         paddingTop: 20,
-        paddingBottom: 40,
+        paddingBottom: 80,
     },
     stickyFooter: {
         paddingHorizontal: 24,
