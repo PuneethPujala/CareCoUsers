@@ -1,0 +1,29 @@
+appId: com.careco.users
+---
+- launchApp
+- clearState
+
+# 1. Login with Active Account
+- assertVisible: "Welcome Back"
+- assertVisible: "SAMVAYA"
+- tapOn: "Email Address"
+- inputText: "active_user@careco.in"
+- hideKeyboard
+- tapOn: "Password"
+- inputText: "TestAuth123!"
+- hideKeyboard
+- tapOn: "Sign In to Dashboard"
+
+# 2. Wait for Home Screen to Load
+- assertVisible: "TODAY'S MEDICATIONS"
+- assertVisible: "MY VITALS"
+
+# 3. Navigate to Profile tab and Sign Out
+- tapOn:
+    id: "tab-Profile"
+- assertVisible: "Sign Out Account"
+- tapOn: "Sign Out Account"
+
+# 4. Verify returned to Login screen
+- assertVisible: "Welcome Back"
+- assertVisible: "SAMVAYA"
