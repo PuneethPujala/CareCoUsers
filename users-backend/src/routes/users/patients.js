@@ -40,11 +40,11 @@ router.get('/seed-test-data', async (req, res) => {
                     start_date: new Date('2026-03-01'), is_active: true, instructions: 'Take with food to avoid stomach upset', prescribed_by: 'Dr. Sharma'
                 },
                 {
-                    name: 'Amlodipine', dosage: '5mg', frequency: 'once_daily', times: ['after_noon'], scheduledTimes: ['14:00'],
+                    name: 'Amlodipine', dosage: '5mg', frequency: 'once_daily', times: ['afternoon'], scheduledTimes: ['14:00'],
                     start_date: new Date('2026-02-15'), is_active: true, instructions: 'Take on empty stomach', prescribed_by: 'Dr. Patel'
                 },
                 {
-                    name: 'Vitamin D3', dosage: '60000 IU', frequency: 'once_weekly', times: ['after_noon'], scheduledTimes: ['14:00'],
+                    name: 'Vitamin D3', dosage: '60000 IU', frequency: 'once_weekly', times: ['afternoon'], scheduledTimes: ['14:00'],
                     start_date: new Date('2026-01-01'), is_active: true, instructions: 'Take once every Sunday', prescribed_by: 'Dr. Sharma'
                 }
             ];
