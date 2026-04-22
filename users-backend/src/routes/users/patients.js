@@ -39,12 +39,12 @@ router.get('/seed-test-data', async (req, res) => {
         ];
 
         patient.allergies = [
-            { allergen_name: 'Penicillin', severity: 'high', reaction: 'Hives and swelling', identified_date: new Date('2015-06-01') },
-            { allergen_name: 'Peanuts', severity: 'mild', reaction: 'Mild skin rash', identified_date: new Date('2010-09-12') }
+            { name: 'Penicillin', severity: 'severe', reaction: 'Hives and swelling' },
+            { name: 'Peanuts', severity: 'mild', reaction: 'Mild skin rash' }
         ];
 
         patient.medical_history = [
-            { condition_name: 'Appendicitis', diagnosis_date: new Date('2018-03-14'), resolved_date: new Date('2018-04-01'), treatment: 'Appendectomy surgery', doctor_name: 'Dr. Gupta' }
+            { event: 'Appendicitis / Appendectomy surgery', date: new Date('2018-03-14'), notes: 'Dr. Gupta' }
         ];
 
         await patient.save();
