@@ -43,3 +43,6 @@ yarn-error.*
 .env
 backend/.env
 backend/.env.example
+backend/test*.js
+backend/*.txt
+backend/*.json
