@@ -2,7 +2,7 @@ const express = require('express');
 const Profile = require('../models/Profile');
 const Organization = require('../models/Organization');
 const { authenticate, requireRole, requireOwnership } = require('../middleware/authenticate');
-const { authorize, authorizeResource } = require('../middleware/authorize');
+const { authorize, authorizeResource, authorizeAny } = require('../middleware/authorize');
 const { scopeFilter } = require('../middleware/scopeFilter');
 const { logEvent, autoLogAccess } = require('../services/auditService');
 const { invalidateCache, invalidatePattern, CacheKeys } = require('../config/redis');
@@ -335,6 +335,12 @@ router.post('/',
         organizationId
       });
 
+      if (organizationId) {
+        const orgStrId = typeof organizationId === 'object' ? (organizationId._id || organizationId).toString() : organizationId.toString();
+        await invalidateCache(CacheKeys.orgDashboard(orgStrId));
+      }
+      await invalidateCache(CacheKeys.adminDashboard());
+
       res.status(201).json({
         message: 'Profile created successfully',
         profile
@@ -504,7 +510,11 @@ router.put('/:id',
  */
 router.delete('/:id', 
   authenticate, 
-  authorize('profile', 'delete'),
+  authorizeAny([
+    { resource: 'profile', action: 'delete' },
+    { resource: 'care_managers', action: 'delete' },
+    { resource: 'caretakers', action: 'delete' }
+  ]),
   autoLogAccess('profile', 'delete'),
   async (req, res) => {
     try {
@@ -519,17 +529,64 @@ router.delete('/:id',
         return res.status(400).json({ error: 'Cannot delete your own profile' });
       }
 
+      // Enforce organization boundaries
+      if (req.profile.role !== 'super_admin') {
+        const reqOrgId = req.profile.organizationId?._id || req.profile.organizationId;
+        const profileOrgId = profile.organizationId?._id || profile.organizationId;
+        if (!profileOrgId || !reqOrgId || profileOrgId.toString() !== reqOrgId.toString()) {
+           return res.status(403).json({ error: 'Cannot delete profiles outside your organization' });
+        }
+      }
+
       // Cannot delete super admins (only other super admins can)
       if (profile.role === 'super_admin' && req.profile.role !== 'super_admin') {
         return res.status(403).json({ error: 'Cannot delete super admin profiles' });
       }
 
+      // Execute Manager Replacement Reallocation if required
+      if (req.query.replaceWith) {
+        const replaceWithId = req.query.replaceWith;
+        const newManager = await Profile.findById(replaceWithId);
+
+        if (!newManager || newManager.role !== profile.role) {
+          return res.status(400).json({ error: 'Replacement manager is invalid or does not have the same role.' });
+        }
+        const newMgrOrgId = newManager.organizationId?._id || newManager.organizationId;
+        const oldMgrOrgId = profile.organizationId?._id || profile.organizationId;
+        if (!newMgrOrgId || !oldMgrOrgId || newMgrOrgId.toString() !== oldMgrOrgId.toString()) {
+          return res.status(400).json({ error: 'Replacement manager must be part of the same organization.' });
+        }
+
+        try {
+          const Patient = require('../models/Patient');
+          const CaretakerPatient = require('../models/CaretakerPatient');
+
+          // 1. Transfer Profile.managedBy
+          await Profile.updateMany({ managedBy: profile._id }, { managedBy: newManager._id });
+          
+          // 2. Transfer CaretakerPatient.assignedBy
+          await CaretakerPatient.updateMany({ assignedBy: profile._id }, { assignedBy: newManager._id });
+          
+          // 3. Transfer Patient.care_manager_id
+          await Patient.updateMany({ care_manager_id: profile._id }, { care_manager_id: newManager._id });
+
+          console.log(`[Reallocation] successfully migrated records from ${profile._id} to ${newManager._id}`);
+        } catch (reallErr) {
+          console.error('[Reallocation Protocol Failed]', reallErr);
+          return res.status(500).json({ error: 'Failed to reallocate managed assets during deletion.' });
+        }
+      }
+
       // Hard Delete from Supabase Auth
-      if (profile.supabaseUid) {
-        const { error: authError } = await supabase.auth.admin.deleteUser(profile.supabaseUid);
-        if (authError) {
-          console.error('Failed to delete Supabase Auth user:', authError);
-          // Proceed with MongoDB deletion even if Supabase fails (fallback sync)
+      if (profile.supabaseUid && supabase) {
+        try {
+            const { error: authError } = await supabase.auth.admin.deleteUser(profile.supabaseUid);
+            if (authError) {
+              console.error('Failed to delete Supabase Auth user:', authError);
+              // Proceed with MongoDB deletion even if Supabase fails (fallback sync)
+            }
+        } catch (e) {
+            console.error('Supabase fetch error:', e);
         }
       }
 
@@ -598,7 +655,8 @@ router.get('/organization/:orgId',
 
       // Check organization access
       if (req.profile.role !== 'super_admin') {
-        if (!req.profile.organizationId.equals(orgId)) {
+        const myOrgId = (req.profile.organizationId?._id || req.profile.organizationId || '').toString();
+        if (myOrgId !== orgId.toString()) {
           return res.status(403).json({ 
             error: 'Cannot access profiles from different organization' 
           });

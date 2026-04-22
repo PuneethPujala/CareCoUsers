@@ -10,6 +10,7 @@ const { authorize } = require('../middleware/authorize');
 const { checkPasswordChange } = require('../middleware/checkPasswordChange');
 const { logEvent, logSecurityEvent } = require('../services/auditService');
 const { sendTempPasswordEmail, sendPasswordChangedEmail, sendOtpEmail } = require('../services/emailService');
+const { sendOtp: sendSmsOtp, verifyOtp: verifySmsOtp } = require('../services/smsService');
 
 const router = express.Router();
 
@@ -330,8 +331,10 @@ router.post('/login', async (req, res) => {
         fullName: profile.fullName,
         role: profile.role,
         organizationId: profile.organizationId,
+        phone: profile.phone || null,
         isActive: profile.isActive,
         emailVerified: profile.emailVerified,
+        phoneVerified: profile.phoneVerified || false,
         mustChangePassword: profile.mustChangePassword || false
       }
     });
@@ -514,6 +517,7 @@ router.get('/me', authenticate, async (req, res) => {
         avatarUrl: profile.avatarUrl,
         isActive: profile.isActive,
         emailVerified: profile.emailVerified,
+        phoneVerified: profile.phoneVerified || false,
         lastLoginAt: profile.lastLoginAt,
         twoFactorEnabled: profile.twoFactorEnabled,
         metadata: profile.metadata,
@@ -709,6 +713,12 @@ router.post('/create-user', authenticate, checkPasswordChange, async (req, res) 
                   },
                   { upsert: true, new: true, setDefaultsOnInsert: true }
                 );
+                
+                // Sync with Patient model for users app visibility
+                patient.assigned_caller_id = bestCaller._id;
+                patient.caller_id = bestCaller._id;
+                await patient.save();
+
                 countMap[bestCaller._id.toString()] = (countMap[bestCaller._id.toString()] || 0) + 1;
                 console.log(`[Reconciliation] Patient ${patient.name} → Caller ${bestCaller.fullName}`);
               }
@@ -846,8 +856,17 @@ router.put('/me', authenticate, checkPasswordChange, authorize('profile', 'updat
     const updateData = {};
 
     if (fullName !== undefined) updateData.fullName = fullName;
-    if (phone !== undefined) updateData.phone = phone;
     if (avatarUrl !== undefined) updateData.avatarUrl = avatarUrl;
+
+    // If phone number changed, reset phoneVerified so user must re-verify
+    if (phone !== undefined) {
+      const currentProfile = await Profile.findById(req.profile._id).select('phone phoneVerified');
+      updateData.phone = phone;
+      if (phone !== currentProfile.phone) {
+        updateData.phoneVerified = false;
+        console.log(`📱 Phone changed for ${req.profile.email}: re-verification required`);
+      }
+    }
 
     const profile = await Profile.findByIdAndUpdate(
       req.profile._id,
@@ -862,6 +881,7 @@ router.put('/me', authenticate, checkPasswordChange, authorize('profile', 'updat
 
     res.json({
       message: 'Profile updated successfully',
+      phoneChanged: updateData.phoneVerified === false,
       profile: {
         id: profile._id,
         email: profile.email,
@@ -871,7 +891,8 @@ router.put('/me', authenticate, checkPasswordChange, authorize('profile', 'updat
         phone: profile.phone,
         avatarUrl: profile.avatarUrl,
         isActive: profile.isActive,
-        emailVerified: profile.emailVerified
+        emailVerified: profile.emailVerified,
+        phoneVerified: profile.phoneVerified || false,
       }
     });
 
@@ -1290,6 +1311,116 @@ router.get('/google-callback', (req, res) => {
   </script>
 </body>
 </html>`);
+});
+
+// ── Phone Verification Routes ──────────────────────────────────────────
+
+// Roles that require mandatory phone verification
+const PHONE_REQUIRED_ROLES = ['org_admin', 'care_manager', 'caller'];
+
+/**
+ * POST /api/auth/phone/send-otp
+ * Send OTP to user's phone number via Twilio Verify
+ */
+router.post('/phone/send-otp', authenticate, async (req, res) => {
+  try {
+    const { phone } = req.body;
+
+    if (!phone) {
+      return res.status(400).json({ error: 'Phone number is required.' });
+    }
+
+    // Normalize phone to E.164 format: +91XXXXXXXXXX
+    let digits = phone.replace(/[^0-9]/g, '');
+    if (digits.startsWith('0')) digits = digits.substring(1);
+    if (digits.startsWith('91') && digits.length === 12) digits = digits.substring(2);
+    
+    if (digits.length !== 10 || !/^[6-9]\d{9}$/.test(digits)) {
+      return res.status(400).json({ 
+        error: 'Invalid phone number. Please enter a valid 10-digit Indian mobile number.' 
+      });
+    }
+    const cleaned = `+91${digits}`;
+
+    // Check if phone is already verified by another user
+    const existingUser = await Profile.findOne({ 
+      phone: cleaned, 
+      phoneVerified: true, 
+      _id: { $ne: req.profile._id } 
+    });
+    if (existingUser) {
+      return res.status(400).json({ 
+        error: 'This phone number is already verified by another account.' 
+      });
+    }
+
+    // Send OTP via Twilio Verify
+    const result = await sendSmsOtp(cleaned);
+
+    if (!result.success) {
+      return res.status(400).json({ error: result.error });
+    }
+
+    // Save phone to profile (unverified yet)
+    await Profile.findByIdAndUpdate(req.profile._id, { phone: cleaned });
+
+    res.json({ 
+      message: 'Verification code sent successfully.', 
+      status: result.status 
+    });
+
+  } catch (error) {
+    console.error('Phone OTP send error:', error);
+    res.status(500).json({ error: 'Failed to send verification code.' });
+  }
+});
+
+/**
+ * POST /api/auth/phone/verify-otp
+ * Verify the OTP and mark phone as verified
+ */
+router.post('/phone/verify-otp', authenticate, async (req, res) => {
+  try {
+    const { phone, code } = req.body;
+
+    if (!phone || !code) {
+      return res.status(400).json({ error: 'Phone number and verification code are required.' });
+    }
+
+    // Normalize phone to E.164
+    let digits = phone.replace(/[^0-9]/g, '');
+    if (digits.startsWith('0')) digits = digits.substring(1);
+    if (digits.startsWith('91') && digits.length === 12) digits = digits.substring(2);
+    const cleaned = `+91${digits}`;
+
+    // Verify OTP via Twilio Verify
+    const result = await verifySmsOtp(cleaned, code);
+
+    if (!result.success) {
+      return res.status(400).json({ error: result.error });
+    }
+
+    // Mark phone as verified in profile
+    const updatedProfile = await Profile.findByIdAndUpdate(
+      req.profile._id,
+      { phone: cleaned, phoneVerified: true },
+      { new: true }
+    );
+
+    // Log the verification event
+    await logEvent(req.profile.supabaseUid, 'phone_verified', 'profile', req.profile._id, req, {
+      phone: cleaned,
+    });
+
+    res.json({ 
+      message: 'Phone number verified successfully!',
+      profile: updatedProfile
+    });
+
+  } catch (error) {
+    console.error('Phone OTP verify error:', error);
+    res.status(500).json({ error: 'Failed to verify phone number.' });
+  }
 });
 
 module.exports = router;

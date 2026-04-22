@@ -69,9 +69,15 @@ export default function StatCard({ type, value, change, progress, index = 0, wid
                             <Feather name={config.icon} size={22} color={config.grad[0]} />
                         </View>
                         <View style={s.trendContainer}>
-                            <Text style={[s.trendText, Theme.typography.common, { color: change >= 0 ? '#10B981' : '#EF4444' }]}>
-                                {change >= 0 ? '+' : ''}{change}%
-                            </Text>
+                            {change > 0 ? (
+                                <Text style={[s.trendText, Theme.typography.common, { color: '#10B981' }]}>
+                                    +{type === 'revenue' ? '₹' : ''}{type === 'revenue' ? change.toLocaleString('en-IN') : change} today
+                                </Text>
+                            ) : (
+                                <Text style={[s.trendText, Theme.typography.common, { color: '#94A3B8' }]}>
+                                    No change
+                                </Text>
+                            )}
                         </View>
                     </View>
 

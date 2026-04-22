@@ -356,7 +356,7 @@ router.post('/:id/collaborations',
   async (req, res) => {
     try {
       const organizationId = req.params.id;
-      const { partnerName, dealAmount, date, status } = req.body;
+      const { partnerName, type, dealAmount, date, status } = req.body;
 
       // Check access permissions
       const { role } = req.profile;
@@ -383,6 +383,7 @@ router.post('/:id/collaborations',
 
       const newCollaboration = {
         partnerName,
+        type: type || 'hospital',
         dealAmount: safeAmount,
         date: date || new Date(),
         status: status || 'Active',
@@ -417,6 +418,68 @@ router.post('/:id/collaborations',
       require('fs').writeFileSync('routes_crash.txt', String(error.stack || error));
       console.error('Add collaboration error:', error);
       res.status(500).json({ error: 'Failed to add collaboration', details: error.message });
+    }
+  }
+);
+
+/**
+ * DELETE /api/organizations/:id/collaborations
+ * Remove specific collaborations/tie-ups and automatically deduct the revenue
+ */
+router.delete('/:id/collaborations',
+  authenticate,
+  authorize('organizations', 'update'),
+  autoLogAccess('organizations', 'update'),
+  async (req, res) => {
+    try {
+      const organizationId = req.params.id;
+      const { collabIds } = req.body;
+
+      // Check access permissions
+      const { role } = req.profile;
+      let canUpdate = false;
+
+      if (role === 'super_admin') {
+        canUpdate = true;
+      } else if (role === 'org_admin') {
+        canUpdate = req.profile.organizationId && (req.profile.organizationId._id || req.profile.organizationId).toString() === String(organizationId);
+      }
+
+      if (!canUpdate) {
+        return res.status(403).json({ error: 'Access denied to update this organization' });
+      }
+
+      if (!collabIds || !Array.isArray(collabIds) || collabIds.length === 0) {
+        return res.status(400).json({ error: 'collabIds array is required' });
+      }
+
+      const organization = await Organization.findById(organizationId);
+      if (!organization) return res.status(404).json({ error: 'Organization not found' });
+
+      let revenueToDeduct = 0;
+      const originalCollabs = organization.collaborations || [];
+      
+      organization.collaborations = originalCollabs.filter(c => {
+        if (collabIds.includes(c._id.toString())) {
+          return false;
+        }
+        return true;
+      });
+
+      await organization.save();
+
+      await logEvent(req.profile.supabaseUid, 'collaborations_removed', 'organization', organizationId, req, {
+        removedCount: collabIds.length,
+        deductedRevenue: revenueToDeduct
+      });
+
+      await invalidateCache(CacheKeys.adminDashboard());
+      await invalidateCache(CacheKeys.orgDashboard(organizationId));
+
+      res.json({ message: 'Tie-Ups removed successfully', organization });
+    } catch (error) {
+      console.error('Delete integrations error:', error);
+      res.status(500).json({ error: 'Failed to delete tie-ups' });
     }
   }
 );

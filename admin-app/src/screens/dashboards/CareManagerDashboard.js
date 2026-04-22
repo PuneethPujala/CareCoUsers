@@ -13,7 +13,10 @@ import { Colors, Shadows, Spacing, Typography, Radius } from '../../theme/colors
 const { width: SW } = Dimensions.get('window');
 
 // ── Helpers ──
-function getCapacityConfig(pct) {
+function getCapacityConfig(pct, stats = {}) {
+    if (stats.totalCallers === 0 && stats.unassignedPatients > 0) return { color: '#EF4444', bg: '#FEF2F2', label: 'ACTION REQUIRED', icon: 'alert-triangle' };
+    if (stats.unassignedPatients > 0) return { color: '#F59E0B', bg: '#FFFBEB', label: 'PENDING ASSIGNMENTS', icon: 'clock' };
+    if (stats.totalCallers === 0) return { color: '#F59E0B', bg: '#FFFBEB', label: 'NO CALLERS', icon: 'user-x' };
     if (pct >= 90) return { color: '#EF4444', bg: '#FEF2F2', label: 'CRITICAL LOAD', icon: 'alert-triangle' };
     if (pct >= 70) return { color: '#F59E0B', bg: '#FFFBEB', label: 'HIGH TRAFFIC', icon: 'trending-up' };
     return { color: '#10B981', bg: '#F0FDF4', label: 'SYSTEM HEALTHY', icon: 'check-circle' };
@@ -67,7 +70,7 @@ export default function CareManagerDashboard({ navigation }) {
     const onRefresh = useCallback(() => { setRefreshing(true); fetchDashboardData(true); }, []);
 
     const pct = capacity?.utilizationPct ?? 0;
-    const capConfig = getCapacityConfig(pct);
+    const capConfig = getCapacityConfig(pct, stats);
 
     const currentDate = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
 
@@ -145,11 +148,20 @@ export default function CareManagerDashboard({ navigation }) {
 
                         {/* ── Predictor Card (Matches System Capacity Theme) ── */}
                         {capacity && capacity.dailyGrowthRate !== undefined && (() => {
-                            const isMaxed = capacity.daysUntilFull === null || capacity.daysUntilFull === 0;
+                            const isMaxed = capacity.daysUntilFull === 0;
                             const isWarning = capacity.daysUntilFull > 0 && capacity.daysUntilFull <= 14;
+                            const isZeroGrowth = capacity.dailyGrowthRate === 0;
 
                             const themeColor = isMaxed ? '#EF4444' : isWarning ? '#F59E0B' : '#10B981';
                             const bgColor = isMaxed ? '#FEF2F2' : isWarning ? '#FFFBEB' : '#ECFDF5';
+
+                            let forecastTitle = `Slots fill in ${capacity.daysUntilFull} days`;
+                            if (isMaxed) forecastTitle = 'Capacity Maxed Out';
+                            else if (isZeroGrowth) forecastTitle = 'Stable (No Recent Growth)';
+                            else if (capacity.daysUntilFull === -1) forecastTitle = 'Healthy Growth Rate';
+
+                            const trendIconLocal = capacity.weekTrend === 'growing' ? 'trending-up' : capacity.weekTrend === 'declining' ? 'trending-down' : 'minus';
+                            const trendColorLocal = capacity.weekTrend === 'growing' ? '#F59E0B' : capacity.weekTrend === 'declining' ? '#10B981' : '#64748B';
 
                             return (
                                 <View style={[s.premiumCard, { marginBottom: 24 }]}>
@@ -157,11 +169,7 @@ export default function CareManagerDashboard({ navigation }) {
                                         <View style={{ flex: 1 }}>
                                             <Text style={s.metricLabel}>AI CAPACITY FORECAST</Text>
                                             <Text style={[s.capacityValue, { fontSize: 24, lineHeight: 30, color: '#0F172A', marginTop: 4 }]}>
-                                                {isMaxed
-                                                    ? 'Capacity Maxed Out'
-                                                    : capacity.daysUntilFull === -1
-                                                        ? 'Healthy Growth Rate'
-                                                        : `Slots fill in ${capacity.daysUntilFull} days`}
+                                                {forecastTitle}
                                             </Text>
                                         </View>
                                         <View style={[s.capacityBadge, { backgroundColor: bgColor }]}>
@@ -174,7 +182,7 @@ export default function CareManagerDashboard({ navigation }) {
                                     
                                     <View style={s.forecastGrid}>
                                         <View style={s.forecastItem}>
-                                            <View style={s.forecastIconWrap}><Feather name="trending-up" size={14} color="#64748B" /></View>
+                                            <View style={s.forecastIconWrap}><Feather name={trendIconLocal} size={14} color={trendColorLocal} /></View>
                                             <Text style={s.forecastVal}>+{capacity.dailyGrowthRate}</Text>
                                             <Text style={s.forecastLbl}>Patients / Day</Text>
                                         </View>
@@ -186,7 +194,9 @@ export default function CareManagerDashboard({ navigation }) {
                                                     ? 'Hire additional callers immediately.' 
                                                     : isWarning 
                                                         ? 'Prepare to scale workforce soon.' 
-                                                        : 'Sufficient caller capacity active.'
+                                                        : isZeroGrowth
+                                                            ? 'No caller capacity actions needed.'
+                                                            : 'Sufficient caller capacity active.'
                                                 }
                                             </Text>
                                         </View>
@@ -221,8 +231,14 @@ export default function CareManagerDashboard({ navigation }) {
                                 </View>
                                 <View style={s.forecastDivider} />
                                 <View style={s.forecastItem}>
-                                    <View style={s.forecastIconWrap}><Feather name="trending-up" size={14} color="#64748B" /></View>
-                                    <Text style={s.forecastVal}>+{capacity?.dailyGrowthRate ?? 0}</Text>
+                                    <View style={s.forecastIconWrap}>
+                                        <Feather 
+                                            name={capacity?.weekTrend === 'growing' ? 'trending-up' : capacity?.weekTrend === 'declining' ? 'trending-down' : 'minus'} 
+                                            size={14} 
+                                            color="#64748B" 
+                                        />
+                                    </View>
+                                    <Text style={s.forecastVal}>{capacity?.dailyGrowthRate > 0 ? '+' : ''}{capacity?.dailyGrowthRate ?? 0}</Text>
                                     <Text style={s.forecastLbl}>Growth / Day</Text>
                                 </View>
                                 <View style={s.forecastDivider} />

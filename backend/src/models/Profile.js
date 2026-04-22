@@ -1,5 +1,27 @@
 const mongoose = require('mongoose');
+const { createClient } = require('@supabase/supabase-js');
 
+let supabaseCache = null;
+const getSupabase = () => {
+  if (!supabaseCache && process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    supabaseCache = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+  }
+  return supabaseCache;
+};
+
+const safeSupabaseDelete = async (uid) => {
+  if (!uid) return;
+  const sb = getSupabase();
+  if (!sb) return;
+  try {
+    const { error } = await sb.auth.admin.deleteUser(uid);
+    if (error && !error.message.includes('User not found')) {
+      console.error(`[Mongoose Hook] Supabase sync deletion failed for uid ${uid}:`, error.message);
+    }
+  } catch (err) {
+    console.error(`[Mongoose Hook] Supabase sync caught exception for uid ${uid}:`, err.message);
+  }
+};
 const ProfileSchema = new mongoose.Schema(
   {
     supabaseUid: {
@@ -175,6 +197,13 @@ const ProfileSchema = new mongoose.Schema(
       type: Date,
     },
 
+    // Phone verification status
+    phoneVerified: {
+      type: Boolean,
+      default: false,
+      description: 'True after user verifies their phone number via OTP',
+    },
+
     // Two-factor authentication status
     twoFactorEnabled: {
       type: Boolean,
@@ -273,5 +302,119 @@ ProfileSchema.methods.resetFailedLogin = function () {
   this.lastLoginAt = new Date();
   return this.save();
 };
+
+// ── Supabase Synchronization Hooks ─────────────────────────────
+ProfileSchema.pre('findOneAndDelete', async function(next) {
+  try {
+    const docToUpdate = await this.model.findOne(this.getFilter());
+    if (docToUpdate && docToUpdate.supabaseUid) {
+      await safeSupabaseDelete(docToUpdate.supabaseUid);
+    }
+  } catch (err) {
+    console.error('[Profile Hook] Error inside findOneAndDelete:', err.message);
+  }
+  next();
+});
+
+ProfileSchema.pre('deleteOne', { document: false, query: true }, async function(next) {
+  try {
+    const docToUpdate = await this.model.findOne(this.getFilter());
+    if (docToUpdate && docToUpdate.supabaseUid) {
+      await safeSupabaseDelete(docToUpdate.supabaseUid);
+    }
+  } catch (err) {
+    console.error('[Profile Hook] Error inside deleteOne query:', err.message);
+  }
+  next();
+});
+
+ProfileSchema.pre('deleteOne', { document: true, query: false }, async function(next) {
+  try {
+    if (this.supabaseUid) {
+      await safeSupabaseDelete(this.supabaseUid);
+    }
+  } catch (err) {
+    console.error('[Profile Hook] Error inside deleteOne document:', err.message);
+  }
+  next();
+});
+
+ProfileSchema.pre('deleteMany', async function(next) {
+  try {
+    const docs = await this.model.find(this.getFilter());
+    for (const doc of docs) {
+      if (doc.supabaseUid) {
+        await safeSupabaseDelete(doc.supabaseUid);
+      }
+    }
+  } catch (err) {
+    console.error('[Profile Hook] Error inside deleteMany:', err.message);
+  }
+  next();
+});
+
+
+// ── Callers Collection Sync Hook ──────────────────────────────
+ProfileSchema.post('save', async function (doc) {
+  if (doc && doc.role === 'caller') {
+    try {
+      const callerData = {
+        _id: doc._id,
+        supabase_uid: doc.supabaseUid,
+        name: doc.fullName || 'Care Caller',
+        employee_id: doc.metadata?.employeeId || doc._id.toString().substring(18),
+        city: doc.metadata?.city || 'Default City',
+        organization_id: doc.organizationId,
+        manager_id: doc.managedBy,
+        profile_photo_url: doc.avatarUrl,
+        languages_spoken: doc.languages && doc.languages.length ? doc.languages : ['English', 'Hindi'],
+        experience_years: doc.metadata?.experience_years || 2,
+        phone: doc.phone,
+        email: doc.email,
+        is_active: doc.isActive,
+        created_at: doc.createdAt,
+        updated_at: doc.updatedAt
+      };
+      await mongoose.connection.collection('callers').updateOne(
+        { _id: doc._id },
+        { $set: callerData },
+        { upsert: true }
+      );
+    } catch (err) {
+      console.error('[Profile Hook] Error syncing caller to callers collection:', err.message);
+    }
+  }
+});
+
+ProfileSchema.post('findOneAndUpdate', async function (doc) {
+  if (doc && doc.role === 'caller') {
+    try {
+      const callerData = {
+        _id: doc._id,
+        supabase_uid: doc.supabaseUid,
+        name: doc.fullName || 'Care Caller',
+        employee_id: doc.metadata?.employeeId || doc._id.toString().substring(18),
+        city: doc.metadata?.city || 'Default City',
+        organization_id: doc.organizationId,
+        manager_id: doc.managedBy,
+        profile_photo_url: doc.avatarUrl,
+        languages_spoken: doc.languages && doc.languages.length ? doc.languages : ['English', 'Hindi'],
+        experience_years: doc.metadata?.experience_years || 2,
+        phone: doc.phone,
+        email: doc.email,
+        is_active: doc.isActive,
+        created_at: doc.createdAt,
+        updated_at: doc.updatedAt
+      };
+      await mongoose.connection.collection('callers').updateOne(
+        { _id: doc._id },
+        { $set: callerData },
+        { upsert: true }
+      );
+    } catch (err) {
+      console.error('[Profile Hook] Error syncing caller to callers collection:', err.message);
+    }
+  }
+});
 
 module.exports = mongoose.model('Profile', ProfileSchema);
