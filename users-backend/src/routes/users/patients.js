@@ -12,6 +12,48 @@ const { validateObjectId } = require('../../middleware/validateObjectId');
 
 const router = express.Router();
 
+// --- TEMPORARY TEST SEED ROUTE ---
+router.get('/seed-test-data', async (req, res) => {
+    try {
+        const patient = await Patient.findOne({ email: 'puneethpujala@gmail.com' });
+        if (!patient) return res.status(404).json({ error: 'Patient not found' });
+
+        patient.medications = [
+            {
+                name: 'Metformin', dosage: '500mg', frequency: 'twice_daily', times: ['morning', 'night'], scheduledTimes: ['09:00', '20:00'],
+                start_date: new Date('2026-03-01'), is_active: true, instructions: 'Take with food to avoid stomach upset', prescribed_by: 'Dr. Sharma'
+            },
+            {
+                name: 'Amlodipine', dosage: '5mg', frequency: 'once_daily', times: ['morning'], scheduledTimes: ['09:00'],
+                start_date: new Date('2026-02-15'), is_active: true, instructions: 'Take on empty stomach', prescribed_by: 'Dr. Patel'
+            },
+            {
+                name: 'Vitamin D3', dosage: '60000 IU', frequency: 'once_weekly', times: ['morning'], scheduledTimes: ['09:00'],
+                start_date: new Date('2026-01-01'), is_active: true, instructions: 'Take once every Sunday', prescribed_by: 'Dr. Sharma'
+            }
+        ];
+
+        patient.conditions = [
+            { name: 'Type 2 Diabetes', diagnosed_date: new Date('2024-05-15'), status: 'active', notes: 'Managed with Metformin and diet' },
+            { name: 'Hypertension', diagnosed_date: new Date('2025-01-10'), status: 'active', notes: 'Under control' }
+        ];
+
+        patient.allergies = [
+            { allergen_name: 'Penicillin', severity: 'high', reaction: 'Hives and swelling', identified_date: new Date('2015-06-01') },
+            { allergen_name: 'Peanuts', severity: 'mild', reaction: 'Mild skin rash', identified_date: new Date('2010-09-12') }
+        ];
+
+        patient.medical_history = [
+            { condition_name: 'Appendicitis', diagnosis_date: new Date('2018-03-14'), resolved_date: new Date('2018-04-01'), treatment: 'Appendectomy surgery', doctor_name: 'Dr. Gupta' }
+        ];
+
+        await patient.save();
+        res.json({ success: true, message: 'Successfully seeded Medications & Health Profile!', data: patient });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // ─── Auto-Seed Basic Profile ────────────────────────────
 async function createBasicPatient(supabaseUid, email, name, profileId, paid = 0) {
     try {
