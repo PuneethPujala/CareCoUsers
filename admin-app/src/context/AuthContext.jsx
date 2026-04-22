@@ -7,6 +7,7 @@ const AuthContext = createContext(null);
 // Admin portal only allows these roles
 const ADMIN_ROLES = ['super_admin', 'org_admin', 'care_manager', 'caretaker', 'caller'];
 const VALID_ROLES = ['super_admin', 'org_admin', 'care_manager', 'caretaker', 'caller', 'mentor', 'patient_mentor', 'patient'];
+const PHONE_REQUIRED_ROLES = ['org_admin', 'care_manager', 'caller'];
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -14,6 +15,7 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(false);
   const [initializing, setInitializing] = useState(true);
   const [mustChangePassword, setMustChangePassword] = useState(false);
+  const [mustVerifyPhone, setMustVerifyPhone] = useState(false);
 
   const skipNextFetchRef = useRef(false);
 
@@ -45,6 +47,7 @@ export function AuthProvider({ children }) {
             }
             setProfile(prof);
             setMustChangePassword(prof.mustChangePassword || false);
+            setMustVerifyPhone(PHONE_REQUIRED_ROLES.includes(prof.role) && !prof.phoneVerified);
             skipNextFetchRef.current = true;
           } catch {
             // Profile fetch failed or timed out — clear session so user re-logs
@@ -74,6 +77,7 @@ export function AuthProvider({ children }) {
         setUser(null);
         setProfile(null);
         setMustChangePassword(false);
+        setMustVerifyPhone(false);
         return;
       }
 
@@ -98,6 +102,7 @@ export function AuthProvider({ children }) {
             }
             setProfile(prof);
             setMustChangePassword(prof.mustChangePassword || false);
+            setMustVerifyPhone(PHONE_REQUIRED_ROLES.includes(prof.role) && !prof.phoneVerified);
           } catch {
             // Don't clear profile here
           }
@@ -134,6 +139,7 @@ export function AuthProvider({ children }) {
       // Set profile BEFORE setting session
       setProfile(profileData);
       setMustChangePassword(profileData.mustChangePassword || false);
+      setMustVerifyPhone(PHONE_REQUIRED_ROLES.includes(profileData.role) && !profileData.phoneVerified);
       skipNextFetchRef.current = true;
 
       // Set Supabase session
@@ -162,6 +168,7 @@ export function AuthProvider({ children }) {
       // Set profile BEFORE setting session (same pattern as signIn)
       setProfile(profileData);
       setMustChangePassword(profileData.mustChangePassword || false);
+      setMustVerifyPhone(PHONE_REQUIRED_ROLES.includes(profileData.role) && !profileData.phoneVerified);
       skipNextFetchRef.current = true;
 
       // Set Supabase session
@@ -189,6 +196,7 @@ export function AuthProvider({ children }) {
     setUser(null);
     setProfile(null);
     setMustChangePassword(false);
+    setMustVerifyPhone(false);
   }, []);
 
   // ─── Other Auth Methods (kept for compatibility) ────
@@ -241,10 +249,12 @@ export function AuthProvider({ children }) {
   const changePassword = useCallback(async (currentPassword, newPassword) => {
     try {
       const response = await apiService.auth.changePassword({ currentPassword, newPassword });
-      await auth.signOut();
+      // Password change in Supabase invalidates current token → auto-logout
+      await auth.signOut().catch(() => {});
       setUser(null);
       setProfile(null);
       setMustChangePassword(false);
+      setMustVerifyPhone(false);
       return response.data;
     } catch (error) {
       const parsed = handleApiError(error);
@@ -269,9 +279,18 @@ export function AuthProvider({ children }) {
   const refreshProfile = useCallback(async () => {
     try {
       const response = await apiService.auth.getProfile();
-      setProfile(response.data.profile);
-      return response.data.profile;
+      const prof = response.data.profile;
+      setProfile(prof);
+      setMustChangePassword(prof.mustChangePassword || false);
+      setMustVerifyPhone(PHONE_REQUIRED_ROLES.includes(prof.role) && !prof.phoneVerified);
+      return prof;
     } catch (error) { throw handleApiError(error); }
+  }, []);
+
+  // Direct state updater — no server call needed, avoids caching issues
+  const markPhoneVerified = useCallback(() => {
+    setMustVerifyPhone(false);
+    setProfile(prev => prev ? { ...prev, phoneVerified: true } : prev);
   }, []);
 
   const hasRole = useCallback((role) => profile?.role === role, [profile]);
@@ -299,9 +318,9 @@ export function AuthProvider({ children }) {
 
   const value = {
     user, profile, loading, initializing,
-    isAuthenticated, isEmailVerified, displayName, organizationId, mustChangePassword,
+    isAuthenticated, isEmailVerified, displayName, organizationId, mustChangePassword, mustVerifyPhone,
     signUp, signIn, signInWithGoogle, signInWithOAuth, signOut,
-    resetPassword, updatePassword, updateProfile, refreshProfile,
+    resetPassword, updatePassword, updateProfile, refreshProfile, markPhoneVerified,
     changePassword, createUser,
     hasRole, hasAnyRole, hasPermission,
     VALID_ROLES,

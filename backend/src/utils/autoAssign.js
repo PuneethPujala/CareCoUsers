@@ -109,6 +109,17 @@ async function autoAssignPatients(orgId) {
                     careInstructions: 'Auto-assigned via round-robin',
                 });
 
+                // Sync with Patient model for users app visibility
+                await Patient.updateOne(
+                    { _id: new mongoose.Types.ObjectId(patientId) },
+                    { 
+                        $set: { 
+                            assigned_caller_id: target.id,
+                            caller_id: target.id 
+                        } 
+                    }
+                );
+
                 target.count += 1;
                 assignedCount++;
                 console.log(`[RoundRobin] Assigned ${allPatientMap[patientId]} -> ${target.name} (now ${target.count} patients)`);
