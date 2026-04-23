@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, Platform, Pressable, Animated, ActivityIndicator, TextInput, KeyboardAvoidingView, TouchableOpacity, DeviceEventEmitter, InteractionManager, Vibration, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Platform, Pressable, Animated, ActivityIndicator, TextInput, KeyboardAvoidingView, TouchableOpacity, DeviceEventEmitter, InteractionManager, Vibration, Alert, SafeAreaView } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
     Pill, PhoneCall, CalendarCheck, Sunrise, Sun, Moon, Package,
@@ -20,6 +20,21 @@ import usePatientStore from '../../store/usePatientStore';
 
 const ACCENT_MAP = { morning: colors.success, afternoon: colors.warning, night: '#8B5CF6' };
 const TIME_LABELS = { morning: 'Morning', afternoon: 'Afternoon', night: 'Night' };
+
+// ── Skeleton Loader ──────────────────────────────────────────
+const SkeletonItem = ({ width, height, borderRadius = 8, style }) => {
+    const anim = useRef(new Animated.Value(0.3)).current;
+    useEffect(() => {
+        Animated.loop(
+            Animated.sequence([
+                Animated.timing(anim, { toValue: 1, duration: 800, useNativeDriver: true }),
+                Animated.timing(anim, { toValue: 0.3, duration: 800, useNativeDriver: true })
+            ])
+        ).start();
+    }, [anim]);
+    return <Animated.View style={[{ width, height, borderRadius, backgroundColor: '#E2E8F0', opacity: anim }, style]} />;
+};
+
 
 const TimeBadge = ({ type, timeStr }) => {
     let IconCmp, bg, color;
@@ -314,9 +329,35 @@ export default function PatientHomeScreen({ navigation }) {
 
     if (loading) {
         return (
-            <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-                <ActivityIndicator size="large" color={colors.accent} />
-            </View>
+            <SafeAreaView style={[styles.container, { backgroundColor: '#F8FAFC' }]}>
+                {/* Header Skeleton */}
+                <View style={[styles.minimalHeader, { paddingHorizontal: 24, paddingVertical: 12 }]}>
+                    <View>
+                        <SkeletonItem width={120} height={14} style={{ marginBottom: 8 }} />
+                        <SkeletonItem width={180} height={28} />
+                    </View>
+                    <View style={{ flexDirection: 'row', gap: 12 }}>
+                        <SkeletonItem width={44} height={44} borderRadius={22} />
+                        <SkeletonItem width={44} height={44} borderRadius={22} />
+                    </View>
+                </View>
+
+                <ScrollView style={{ flex: 1, paddingHorizontal: 24 }} showsVerticalScrollIndicator={false}>
+                    {/* Progress Card Skeleton */}
+                    <SkeletonItem width="100%" height={160} borderRadius={28} style={{ marginTop: 24, marginBottom: 16 }} />
+                    
+                    {/* Section Title */}
+                    <SkeletonItem width={150} height={20} style={{ marginVertical: 16 }} />
+                    
+                    {/* Med Cards Skeletons */}
+                    <SkeletonItem width="100%" height={100} borderRadius={24} style={{ marginBottom: 12 }} />
+                    <SkeletonItem width="100%" height={100} borderRadius={24} style={{ marginBottom: 12 }} />
+                    <SkeletonItem width="100%" height={100} borderRadius={24} style={{ marginBottom: 12 }} />
+
+                    {/* Vitals Summary Skeleton */}
+                    <SkeletonItem width="100%" height={180} borderRadius={28} style={{ marginTop: 12, marginBottom: 40 }} />
+                </ScrollView>
+            </SafeAreaView>
         );
     }
 

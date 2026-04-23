@@ -150,7 +150,10 @@ export function AuthProvider({ children }) {
                 const apiTok = await getApiTokens();
                 if (apiTok?.access_token) {
                     try {
-                        const response = await apiService.auth.getProfile();
+                        const [response] = await Promise.all([
+                            apiService.auth.getProfile(),
+                            fetchPatientData() 
+                        ]);
                         const user = response.data.user;
                         const profileData = response.data.profile;
                         if (profileData) profileData.role = 'patient';
@@ -160,7 +163,6 @@ export function AuthProvider({ children }) {
                         setSession({ access_token: apiTok.access_token, user }); 
                         await setProfileAndCache(profileData);
                         if (user?.id) analytics.identify(user.id, { role: 'patient' });
-                        await fetchPatientData();
                     } catch (e) {
                         if (e.response?.status === 403 || e.response?.status === 401) {
                             await signOut();
@@ -188,12 +190,14 @@ export function AuthProvider({ children }) {
                         setUser(currentSession.user);
                         setSession(currentSession);
                         try {
-                            const response = await apiService.auth.getProfile();
+                            const [response] = await Promise.all([
+                                apiService.auth.getProfile(),
+                                fetchPatientData()
+                            ]);
                             const profileData = response.data.profile || null;
                             if (profileData) profileData.role = 'patient';
                             if (profileData) await setProfileAndCache(profileData);
                             analytics.identify(currentSession.user.id, { role: 'patient' });
-                            await fetchPatientData();
                         } catch (error) {
                             if (error.response?.status === 403 || error.response?.status === 401) {
                                 await signOut();
