@@ -1,9 +1,28 @@
 const express = require('express');
 const Patient = require('../../models/Patient');
 const MedicineLog = require('../../models/MedicineLog');
+const Medication = require('../../models/Medication');
 const { authenticate } = require('../../middleware/authenticate');
 
 const router = express.Router();
+
+function mapTimeToLegacyBucket(timeStr) {
+    if (!timeStr) return 'morning';
+    let isPM = timeStr.toLowerCase().includes('pm');
+    let isAM = timeStr.toLowerCase().includes('am');
+    let match = timeStr.match(/(\d+):(\d+)/);
+    if (match) {
+        let hour = parseInt(match[1]);
+        if (isPM && hour < 12) hour += 12;
+        if (isAM && hour === 12) hour = 0;
+        
+        if (hour >= 5 && hour < 12) return 'morning';
+        if (hour >= 12 && hour < 17) return 'afternoon';
+        if (hour >= 17 && hour < 21) return 'evening';
+        return 'night';
+    }
+    return 'morning';
+}
 
 /**
  * GET /api/users/medicines/today
@@ -24,10 +43,34 @@ router.get('/today', authenticate, async (req, res) => {
             date: today,
         });
 
-        // If no log exists for today, auto-create from the patient's medication schedule
-        if (!log && patient.medications && patient.medications.length > 0) {
+        // 1. Fetch external medications
+        const searchIds = [patient._id];
+        if (patient.profile_id) searchIds.push(patient.profile_id);
+        const externalMeds = await Medication.find({ patientId: { $in: searchIds }, isActive: true });
+
+        // 2. Merge existing and external medications
+        const allMedsRaw = [...(patient.medications || [])];
+        for (const extMed of externalMeds) {
+            if (!allMedsRaw.some(m => m.name === extMed.name)) {
+                let mappedTimes = extMed.times?.length > 0 ? extMed.times : (extMed.scheduledTimes || []).map(mapTimeToLegacyBucket);
+                // Ensure unique times
+                mappedTimes = [...new Set(mappedTimes)];
+                if (mappedTimes.length === 0) mappedTimes = ['morning']; // Default fallback
+                
+                allMedsRaw.push({
+                    name: extMed.name,
+                    dosage: extMed.dosage,
+                    instructions: extMed.instructions,
+                    is_active: extMed.isActive,
+                    times: mappedTimes
+                });
+            }
+        }
+
+        // If no log exists for today, auto-create from the merged medication schedule
+        if (!log && allMedsRaw.length > 0) {
             const medicines = [];
-            for (const med of patient.medications) {
+            for (const med of allMedsRaw) {
                 if (med.is_active !== false) {
                     for (const time of med.times) {
                         medicines.push({
@@ -38,12 +81,14 @@ router.get('/today', authenticate, async (req, res) => {
                     }
                 }
             }
-            log = new MedicineLog({
-                patient_id: patient._id,
-                date: today,
-                medicines,
-            });
-            await log.save();
+            if (medicines.length > 0) {
+                log = new MedicineLog({
+                    patient_id: patient._id,
+                    date: today,
+                    medicines,
+                });
+                await log.save();
+            }
         }
 
         // Attach dosage, instructions, and time preference to the log
@@ -53,7 +98,7 @@ router.get('/today', authenticate, async (req, res) => {
         if (logObj.medicines) {
             logObj.medicines = logObj.medicines.filter(m => m.is_active !== false);
             logObj.medicines = logObj.medicines.map(m => {
-                const patMed = patient.medications?.find(p => p.name === m.medicine_name);
+                const patMed = allMedsRaw.find(p => p.name === m.medicine_name);
                 return {
                     ...m,
                     dosage: patMed?.dosage || '',
@@ -127,6 +172,19 @@ router.put('/mark', authenticate, async (req, res) => {
                 }
             }
             await patient.save();
+        } else {
+            // If it's an external medication, log it there
+            const searchIds = [patient._id];
+            if (patient.profile_id) searchIds.push(patient.profile_id);
+            const extMed = await Medication.findOne({ patientId: { $in: searchIds }, name: medicine_name });
+            if (extMed) {
+                if (!extMed.takenLogs) extMed.takenLogs = [];
+                extMed.takenLogs.push({
+                    date: today.toISOString().split('T')[0],
+                    timestamp: new Date()
+                });
+                await extMed.save();
+            }
         }
 
         // ── DEPRECATED: Streak gamification removed in favour of adherence tracking ──
