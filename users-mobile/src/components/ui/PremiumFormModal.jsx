@@ -98,9 +98,14 @@ const PremiumFormModal = ({
             </TouchableWithoutFeedback>
 
             {/* Bottom-anchored sheet — wraps to content with maxHeight cap */}
-            <Animated.View
+            <KeyboardAvoidingView
+                style={styles.sheetWrapper}
+                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+            >
+              <Animated.View
                 style={[
-                    styles.sheetWrapper,
+                    { flex: 1, justifyContent: 'flex-end' },
                     {
                         transform: [
                             {
@@ -113,13 +118,8 @@ const PremiumFormModal = ({
                     },
                 ]}
                 pointerEvents="box-none"
-            >
-              <View style={styles.sheetContainer}>
-                <KeyboardAvoidingView
-                    style={{ flex: 1 }}
-                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                    keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 20}
-                >
+              >
+                <View style={styles.sheetContainer}>
                     {/* Drag Handle */}
                     <View style={styles.handleWrap}>
                         <View style={styles.handle} />
@@ -175,9 +175,9 @@ const PremiumFormModal = ({
                             </Pressable>
                         </View>
                     )}
-                </KeyboardAvoidingView>
-              </View>
-            </Animated.View>
+                </View>
+              </Animated.View>
+            </KeyboardAvoidingView>
         </Modal>
     );
 };

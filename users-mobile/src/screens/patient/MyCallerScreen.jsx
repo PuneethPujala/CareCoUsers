@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, Platform,
+  View, Text, StyleSheet, ScrollView, Platform, RefreshControl,
   Pressable, ActivityIndicator, Linking, Animated,
   Modal, TouchableOpacity, TouchableWithoutFeedback, Alert, TextInput, Keyboard, KeyboardAvoidingView, FlatList,
 } from 'react-native';
@@ -118,32 +118,41 @@ export default function MyCallerScreen({ navigation }) {
   };
 
   const [manager, setManager] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const loadData = useCallback(async () => {
+    try {
+      const pRes = await apiService.patients.getMe();
+      const p = pRes.data.patient;
+      setPatient(p);
+      if (p?.subscription?.plan !== 'free') {
+        const [callerRes, callsRes] = await Promise.all([
+          apiService.patients.getMyCaller(),
+          apiService.patients.getMyCalls(),
+        ]);
+        setCaller(callerRes.data.caller);
+        setCalls(callsRes.data.calls || []);
+        setContacts(p?.trusted_contacts || []);
+        setManager(callerRes.data.manager || p?.assigned_manager_id || null);
+        runAnimations();
+      }
+    } catch (err) {
+      console.warn('Failed to load caller data:', err.message);
+    }
+  }, [runAnimations]);
 
   useEffect(() => {
     (async () => {
-      try {
-        const pRes = await apiService.patients.getMe();
-        const p = pRes.data.patient;
-        setPatient(p);
-        if (p?.subscription?.plan !== 'free') {
-          const [callerRes, callsRes] = await Promise.all([
-            apiService.patients.getMyCaller(),
-            apiService.patients.getMyCalls(),
-          ]);
-          setCaller(callerRes.data.caller);
-          setCalls(callsRes.data.calls || []);
-          setContacts(p?.trusted_contacts || []);
-          // Use manager from caller endpoint first, fall back to patient document
-          setManager(callerRes.data.manager || p?.assigned_manager_id || null);
-          runAnimations();
-        }
-      } catch (err) {
-        console.warn('Failed to load caller data:', err.message);
-      } finally {
-        setLoading(false);
-      }
+      await loadData();
+      setLoading(false);
     })();
-  }, [runAnimations]);
+  }, [loadData]);
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadData();
+    setRefreshing(false);
+  }, [loadData]);
 
   const openContactModal = (contact = null) => {
     if (contact) {
@@ -308,6 +317,14 @@ export default function MyCallerScreen({ navigation }) {
         style={s.body}
         contentContainerStyle={s.bodyContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={C.primary}
+            colors={[C.primary]}
+          />
+        }
       >
         {/* CALLERS SECTION */}
         <View style={[s.section, { marginTop: -40 }]}>
