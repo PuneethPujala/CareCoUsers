@@ -1,12 +1,13 @@
 import React, { useEffect, useRef, useMemo, useCallback, useState } from 'react';
 import {
     View, Text, StyleSheet, Animated, Pressable, ScrollView, SafeAreaView,
-    Platform, ActivityIndicator, Dimensions, Easing, RefreshControl, Modal,
+    Platform, ActivityIndicator, Dimensions, Easing, RefreshControl, Modal, Share
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { LineChart } from 'react-native-chart-kit';
 import {
     X, TrendingUp, TrendingDown, Minus, Award, Target, Calendar as CalIcon,
-    CheckCircle2, Zap, ChevronLeft, Sparkles, Heart, Star,
+    CheckCircle2, Zap, ChevronLeft, Sparkles, Heart, Star, Share2, Flame, Bell
 } from 'lucide-react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import usePatientStore from '../../store/usePatientStore';
@@ -396,10 +397,11 @@ export default function AdherenceScreen({ navigation }) {
     }
 
     return (
-        <View style={{ flex: 1, backgroundColor: '#FAFBFD' }}>
+        <View style={{ flex: 1, backgroundColor: '#F8FAFC' }}>
+            <LinearGradient colors={['#F8FAFC', '#EEF2FF', '#E0E7FF']} style={StyleSheet.absoluteFillObject} />
             {/* Dynamic Mesh Background Simulation */}
-            <Animated.View style={{ position: 'absolute', top: -100, left: -50, width: 300, height: 300, borderRadius: 150, backgroundColor: C.primary, opacity: 0.04, transform: [{ scale: staggerAnims[0].interpolate({ inputRange: [0, 1], outputRange: [1, 1.5] }) }] }} />
-            <Animated.View style={{ position: 'absolute', top: 250, right: -100, width: 250, height: 250, borderRadius: 125, backgroundColor: score.monthly >= 80 ? C.success : C.primary, opacity: 0.04, transform: [{ scale: staggerAnims[2].interpolate({ inputRange: [0, 1], outputRange: [1, 2] }) }] }} />
+            <Animated.View style={{ position: 'absolute', top: -100, left: -50, width: 300, height: 300, borderRadius: 150, backgroundColor: C.primary, opacity: 0.1, transform: [{ scale: staggerAnims[0].interpolate({ inputRange: [0, 1], outputRange: [1, 1.5] }) }] }} />
+            <Animated.View style={{ position: 'absolute', top: 250, right: -100, width: 250, height: 250, borderRadius: 125, backgroundColor: score.monthly >= 80 ? C.success : C.primary, opacity: 0.1, transform: [{ scale: staggerAnims[2].interpolate({ inputRange: [0, 1], outputRange: [1, 2] }) }] }} />
 
             <SafeAreaView style={styles.container}>
                 {/* ── Header ── */}
@@ -408,12 +410,12 @@ export default function AdherenceScreen({ navigation }) {
                     <ChevronLeft size={24} color={C.dark} />
                 </Pressable>
                 <View style={styles.headerCenter}>
-                    <Text style={styles.headerTitle}>Medication Adherence</Text>
+                    <Text style={styles.headerTitle}>Adherence</Text>
                 </View>
-                <View style={[styles.levelPill, { backgroundColor: levelColor + '15', borderColor: levelColor + '30' }]}>
-                    <Text style={{ fontSize: 14 }}>{level.emoji}</Text>
-                    <Text style={[styles.levelText, { color: levelColor }]}>{level.label}</Text>
-                </View>
+                <Pressable style={[styles.levelPill, { backgroundColor: '#3B82F6', borderColor: '#2563EB', shadowColor: '#3B82F6', shadowOffset: {width:0, height:4}, shadowOpacity:0.3, shadowRadius:8, elevation:4 }]} onPress={() => Share.share({ message: `Check out my medication adherence score: ${score.monthly}% this month!` })}>
+                    <Share2 size={14} color="#FFF" />
+                    <Text style={[styles.levelText, { color: '#FFF' }]}>Share</Text>
+                </Pressable>
             </View>
 
             <ScrollView
@@ -422,9 +424,20 @@ export default function AdherenceScreen({ navigation }) {
                 showsVerticalScrollIndicator={false}
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={C.primary} />}
             >
+                {/* ── 0. Hero Streak Banner ── */}
+                <Animated.View style={anim(0)}>
+                    <View style={[styles.glassCard, { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, paddingVertical: 24, marginBottom: 20 }]}>
+                        <Flame size={32} color="#EF4444" fill="#EF4444" />
+                        <View>
+                            <Text style={{ fontSize: 28, fontWeight: '900', color: '#0F172A', letterSpacing: -1 }}>14 Day Streak</Text>
+                            <Text style={{ fontSize: 13, color: '#64748B', fontWeight: '600' }}>You're on fire! Keep it up. 🔥</Text>
+                        </View>
+                    </View>
+                </Animated.View>
+
                 {/* ── 1. Smart Feedback Banner ── */}
                 <Animated.View style={anim(0)}>
-                    <View style={[styles.feedbackBanner, { backgroundColor: feedback.color + '08', borderColor: feedback.color + '20' }]}>
+                    <View style={[styles.feedbackBanner, { backgroundColor: feedback.color + '10', borderColor: feedback.color + '30' }]}>
                         <Heart size={16} color={feedback.color} fill={feedback.color + '30'} />
                         <Text style={[styles.feedbackText, { color: feedback.color }]}>{feedback.text}</Text>
                     </View>
@@ -432,9 +445,16 @@ export default function AdherenceScreen({ navigation }) {
                     {insights.length > 0 && (
                         <View style={styles.insightsContainer}>
                             {insights.map((insight, idx) => (
-                                <View key={idx} style={styles.insightRow}>
-                                    <Sparkles size={14} color={C.purple} />
-                                    <Text style={styles.insightText}>{insight}</Text>
+                                <View key={idx} style={[styles.insightRow, styles.glassCard]}>
+                                    <View style={{ flex: 1, flexDirection: 'row', gap: 10 }}>
+                                        <Sparkles size={16} color={C.purple} style={{ marginTop: 2 }} />
+                                        <Text style={styles.insightText}>{insight}</Text>
+                                    </View>
+                                    {insight.includes('afternoon') && (
+                                        <Pressable style={{ backgroundColor: '#EEF2FF', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: '#C7D2FE', marginTop: 10, alignSelf: 'flex-start' }}>
+                                            <Text style={{ color: '#4F46E5', fontSize: 12, fontWeight: '700' }}>Set Reminder</Text>
+                                        </Pressable>
+                                    )}
                                 </View>
                             ))}
                         </View>
@@ -501,10 +521,40 @@ export default function AdherenceScreen({ navigation }) {
                     </View>
                 </Animated.View>
 
-                {/* ── 4. Weekly Performance ── */}
+                {/* ── 4. Weekly Performance Spline Chart ── */}
                 <Animated.View style={anim(3)}>
-                    <View style={styles.weeklyCard}>
-                        <Text style={styles.sectionTitle}>WEEKLY REPORT</Text>
+                    <View style={[styles.weeklyCard, styles.glassCard]}>
+                        <Text style={styles.sectionTitle}>7-DAY ADHERENCE TREND</Text>
+                        
+                        <View style={{ alignItems: 'center', marginLeft: -20, marginTop: 10, marginBottom: 20 }}>
+                            <LineChart
+                                data={{
+                                    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                                    datasets: [{ data: [80, 90, 100, 60, 100, 90, 100] }]
+                                }}
+                                width={SCREEN_WIDTH - 40}
+                                height={180}
+                                chartConfig={{
+                                    backgroundColor: 'transparent',
+                                    backgroundGradientFrom: '#FFFFFF',
+                                    backgroundGradientFromOpacity: 0,
+                                    backgroundGradientTo: '#FFFFFF',
+                                    backgroundGradientToOpacity: 0,
+                                    decimalPlaces: 0,
+                                    color: (opacity = 1) => `rgba(59, 130, 246, ${opacity})`,
+                                    labelColor: (opacity = 1) => `rgba(100, 116, 139, ${opacity})`,
+                                    style: { borderRadius: 16 },
+                                    propsForDots: { r: '5', strokeWidth: '2', stroke: '#3B82F6', fill: '#FFF' },
+                                    propsForBackgroundLines: { strokeDasharray: '', strokeWidth: 1, stroke: 'rgba(226, 232, 240, 0.5)' }
+                                }}
+                                bezier
+                                style={{ marginVertical: 8, borderRadius: 16 }}
+                                withInnerLines={true}
+                                withOuterLines={false}
+                                withVerticalLines={false}
+                            />
+                        </View>
+
                         <View style={styles.weeklyStatsRow}>
                             <View style={styles.weeklyStatInline}>
                                 <View style={[styles.weeklyStatDot, { backgroundColor: C.success }]} />
@@ -523,7 +573,7 @@ export default function AdherenceScreen({ navigation }) {
                                 <Text style={[styles.weeklyStatNum, { color: weeklySummary.improvement >= 0 ? C.success : C.danger }]}>
                                     {weeklySummary.improvement >= 0 ? '+' : ''}{weeklySummary.improvement}%
                                 </Text>
-                                <Text style={styles.weeklyStatLabel}>vs Last Week</Text>
+                                <Text style={styles.weeklyStatLabel}>vs Last</Text>
                             </View>
                         </View>
                         
@@ -531,7 +581,7 @@ export default function AdherenceScreen({ navigation }) {
                         <View style={styles.vitalsAdherenceRow}>
                             <View style={styles.vitalsAdherenceHeader}>
                                 <Heart size={14} color={C.danger} />
-                                <Text style={styles.vitalsAdherenceLabel}>Vitals Logging Consistency</Text>
+                                <Text style={styles.vitalsAdherenceLabel}>Vitals Logging</Text>
                                 <Text style={styles.vitalsAdherenceValue}>{vitalsAdherence}%</Text>
                             </View>
                             <View style={styles.questBarBg}>
@@ -689,7 +739,22 @@ export default function AdherenceScreen({ navigation }) {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: C.bg,
+        backgroundColor: 'transparent',
+    },
+    
+    // Glassmorphism Base
+    glassCard: {
+        backgroundColor: 'rgba(255, 255, 255, 0.65)',
+        borderRadius: 24,
+        padding: 20,
+        marginBottom: 20,
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.8)',
+        shadowColor: '#3B82F6',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.08,
+        shadowRadius: 24,
+        elevation: 8,
     },
 
     // ── Header ──
@@ -698,10 +763,8 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         paddingHorizontal: 16,
         paddingTop: Platform.OS === 'android' ? 44 : 8,
-        paddingBottom: 12,
-        backgroundColor: '#FFFFFF',
-        borderBottomWidth: 1,
-        borderBottomColor: C.border,
+        paddingBottom: 16,
+        backgroundColor: 'transparent',
     },
     backBtn: {
         width: 40,
@@ -742,15 +805,17 @@ const styles = StyleSheet.create({
 
     // ── Quest Card ──
     questCard: {
-        backgroundColor: '#FFFFFF',
+        backgroundColor: 'rgba(255, 255, 255, 0.65)',
         borderRadius: 24,
         padding: 20,
-        marginBottom: 16,
-        shadowColor: C.primary,
+        marginBottom: 20,
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.8)',
+        shadowColor: '#3B82F6',
         shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.06,
-        shadowRadius: 20,
-        elevation: 4,
+        shadowOpacity: 0.08,
+        shadowRadius: 24,
+        elevation: 8,
     },
     questHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 },
     questIconBox: {
@@ -775,15 +840,17 @@ const styles = StyleSheet.create({
 
     // ── Ring Card ──
     ringCard: {
-        backgroundColor: '#FFFFFF',
+        backgroundColor: 'rgba(255, 255, 255, 0.65)',
         borderRadius: 24,
         padding: 24,
-        marginBottom: 16,
-        shadowColor: C.primary,
+        marginBottom: 20,
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.8)',
+        shadowColor: '#3B82F6',
         shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.06,
-        shadowRadius: 20,
-        elevation: 4,
+        shadowOpacity: 0.08,
+        shadowRadius: 24,
+        elevation: 8,
     },
     ringRow: { flexDirection: 'row', alignItems: 'center' },
     ringWrap: { alignItems: 'center', justifyContent: 'center', position: 'relative' },
@@ -798,15 +865,17 @@ const styles = StyleSheet.create({
 
     // ── Weekly Card ──
     weeklyCard: {
-        backgroundColor: '#FFFFFF',
+        backgroundColor: 'rgba(255, 255, 255, 0.65)',
         borderRadius: 24,
         padding: 20,
-        marginBottom: 16,
-        shadowColor: C.primary,
+        marginBottom: 20,
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.8)',
+        shadowColor: '#3B82F6',
         shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.06,
-        shadowRadius: 20,
-        elevation: 4,
+        shadowOpacity: 0.08,
+        shadowRadius: 24,
+        elevation: 8,
     },
     sectionTitle: {
         fontSize: 13, fontWeight: '800', color: C.light,
@@ -827,15 +896,17 @@ const styles = StyleSheet.create({
 
     // ── Calendar ──
     calendarCard: {
-        backgroundColor: '#FFFFFF',
+        backgroundColor: 'rgba(255, 255, 255, 0.65)',
         borderRadius: 24,
         padding: 20,
-        marginBottom: 16,
-        shadowColor: C.primary,
+        marginBottom: 20,
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.8)',
+        shadowColor: '#3B82F6',
         shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.06,
-        shadowRadius: 20,
-        elevation: 4,
+        shadowOpacity: 0.08,
+        shadowRadius: 24,
+        elevation: 8,
     },
     calendarHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 },
     weekDaysRow: {
@@ -892,9 +963,9 @@ const styles = StyleSheet.create({
     dayDetailVitalText: { fontSize: 14, fontWeight: '500', color: C.mid, lineHeight: 22 },
 
     // ── Vitals & Insights ──
-    insightsContainer: { marginTop: 12, gap: 8 },
-    insightRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, backgroundColor: '#FFFFFF', padding: 12, borderRadius: 12, borderWidth: 1, borderColor: C.purpleBg },
-    insightText: { flex: 1, fontSize: 13, color: C.mid, fontWeight: '500', lineHeight: 18 },
+    insightsContainer: { marginTop: 16, gap: 12 },
+    insightRow: { flexDirection: 'column', alignItems: 'flex-start' },
+    insightText: { flex: 1, fontSize: 13, color: C.dark, fontWeight: '600', lineHeight: 20 },
     
     vitalsAdherenceRow: { marginTop: 24, paddingTop: 16, borderTopWidth: 1, borderTopColor: C.border },
     vitalsAdherenceHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 },
@@ -911,13 +982,13 @@ const styles = StyleSheet.create({
     },
     achievementCard: {
         width: (SCREEN_WIDTH - 40 - 24) / 3,
-        backgroundColor: '#FFFFFF',
+        backgroundColor: 'rgba(255, 255, 255, 0.7)',
         borderRadius: 18,
         padding: 12,
         paddingTop: 14,
         alignItems: 'center',
         borderWidth: 1,
-        borderColor: '#EEF2FF',
+        borderColor: 'rgba(255, 255, 255, 0.9)',
         shadowColor: '#6366F1',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.06,

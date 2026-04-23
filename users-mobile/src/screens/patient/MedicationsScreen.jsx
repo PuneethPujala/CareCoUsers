@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
-import { View, Text, StyleSheet, ScrollView, Platform, Pressable, Animated, ActivityIndicator, Dimensions, Alert, Modal, TextInput, RefreshControl, DeviceEventEmitter, InteractionManager } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Platform, Pressable, Animated, ActivityIndicator, Dimensions, Alert, Modal, TextInput, RefreshControl, DeviceEventEmitter, InteractionManager, LayoutAnimation, UIManager } from 'react-native';
 import PremiumFormModal from '../../components/ui/PremiumFormModal';
-import { Pill, Sunrise, Sun, Moon, CheckCircle2, Circle, Bell, Activity, Plus, Coffee, Utensils, BedDouble, AlertCircle, Calendar, Pencil, Clock, PillBottle, Syringe, X, MessageCircle } from 'lucide-react-native';
+import { Pill, Sunrise, Sun, Moon, CheckCircle2, Circle, Bell, Activity, Plus, Coffee, Utensils, BedDouble, AlertCircle, Calendar, Pencil, Clock, PillBottle, Syringe, X, MessageCircle, ChevronDown, ChevronUp, Info } from 'lucide-react-native';
+import { Swipeable } from 'react-native-gesture-handler';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Circle as SvgCircle, Defs, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg';
 import { colors } from '../../theme';
@@ -26,6 +27,13 @@ const FONT = {
     bold: { fontFamily: 'Inter_700Bold' },
     heavy: { fontFamily: 'Inter_800ExtraBold' },
 };
+
+if (Platform.OS === 'android') {
+    if (UIManager.setLayoutAnimationEnabledExperimental) {
+        UIManager.setLayoutAnimationEnabledExperimental(true);
+    }
+}
+
 
 const AnimatedCircle = Animated.createAnimatedComponent(SvgCircle);
 
@@ -266,17 +274,12 @@ const TimePill = ({ type, timeStr, timeVal }) => {
 
 const AnimatedMedCard = ({ med, onToggle }) => {
     const scale = useRef(new Animated.Value(1)).current;
+    const [expanded, setExpanded] = useState(false);
+    const swipeableRef = useRef(null);
 
     const handlePress = () => {
-        if (med.taken) return; // ONE-WAY: Cannot unmark
-
-        Animated.sequence([
-            Animated.timing(scale, { toValue: 0.9, duration: 100, useNativeDriver: true }),
-            Animated.timing(scale, { toValue: 1.1, duration: 100, useNativeDriver: true }),
-            Animated.timing(scale, { toValue: 1, duration: 100, useNativeDriver: true }),
-        ]).start();
-        
-        if (onToggle) onToggle(med);
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        setExpanded(!expanded);
     };
 
     const isTakenOpacity = med.taken ? 0.7 : 1;
@@ -285,37 +288,94 @@ const AnimatedMedCard = ({ med, onToggle }) => {
     if (med.type === 'afternoon') IconCmp = PillBottle;
     if (med.type === 'night') IconCmp = Syringe;
 
+    const renderLeftActions = (progress, dragX) => {
+        const trans = dragX.interpolate({
+            inputRange: [0, 50, 100, 101],
+            outputRange: [-20, 0, 0, 1],
+        });
+        return (
+            <Pressable style={styles.swipeLeftAction} onPress={() => { swipeableRef.current?.close(); if(!med.taken) onToggle(med); }}>
+                <Animated.View style={[styles.swipeActionContent, { transform: [{ translateX: trans }] }]}>
+                    <CheckCircle2 size={24} color="#FFF" />
+                    <Text style={styles.swipeActionText}>Take</Text>
+                </Animated.View>
+            </Pressable>
+        );
+    };
+
+    const renderRightActions = (progress, dragX) => {
+        const trans = dragX.interpolate({
+            inputRange: [-100, -50, 0],
+            outputRange: [0, 0, 20],
+        });
+        return (
+            <Pressable style={styles.swipeRightAction} onPress={() => { swipeableRef.current?.close(); Alert.alert('Snoozed', 'Reminder paused for 30 mins.'); }}>
+                <Animated.View style={[styles.swipeActionContent, { transform: [{ translateX: trans }] }]}>
+                    <Clock size={24} color="#FFF" />
+                    <Text style={styles.swipeActionText}>Snooze</Text>
+                </Animated.View>
+            </Pressable>
+        );
+    };
+
     return (
-        <View style={[styles.medCard, { opacity: isTakenOpacity }]}>
-            <View style={styles.medCardInner}>
-                <View style={[styles.medIconBox, { backgroundColor: '#EFF6FF' }]}>
-                    <IconCmp size={20} color="#3B82F6" strokeWidth={2.5} />
-                </View>
-                <View style={styles.medContentMinimal}>
-                    <Text style={[styles.medTitleMinimal, med.taken && styles.textStrikethrough]}>{med.name}</Text>
-                    <View style={styles.medMetaRow}>
-                        <Text style={styles.medSubMinimal}>
-                            {med.scheduled_times?.length > 0 ? `${med.scheduled_times[0]} • ` : ''}
-                            {med.dosage} • {med.instructions}
-                        </Text>
-                        {med.marked_by === 'caller' && (
-                            <View style={styles.verifiedBadge}>
-                                <CheckCircle2 size={10} color="#059669" />
-                                <Text style={styles.verifiedTxt}>Verified</Text>
+        <View style={styles.timelineNodeContainer}>
+            {/* The Timeline Line Segment */}
+            <View style={[styles.timelineLine, med.taken && { backgroundColor: '#3B82F6' }]} />
+            <View style={[styles.timelineDot, med.taken && { backgroundColor: '#3B82F6', borderColor: '#DBEAFE' }]} />
+            
+            <View style={styles.timelineCardWrapper}>
+                <Swipeable 
+                    ref={swipeableRef}
+                    renderLeftActions={med.taken ? null : renderLeftActions} 
+                    renderRightActions={med.taken ? null : renderRightActions}
+                    onSwipeableLeftOpen={() => {
+                        if (!med.taken && onToggle) onToggle(med);
+                        swipeableRef.current?.close();
+                    }}
+                    friction={2}
+                    leftThreshold={40}
+                    rightThreshold={40}
+                >
+                    <Pressable onPress={handlePress} style={[styles.medCard, { opacity: isTakenOpacity }]}>
+                        <View style={styles.medCardInner}>
+                            <View style={[styles.medIconBox, { backgroundColor: '#EFF6FF' }]}>
+                                <IconCmp size={20} color="#3B82F6" strokeWidth={2.5} />
+                            </View>
+                            <View style={styles.medContentMinimal}>
+                                <Text style={[styles.medTitleMinimal, med.taken && styles.textStrikethrough]}>{med.name}</Text>
+                                <View style={styles.medMetaRow}>
+                                    <Text style={styles.medSubMinimal}>
+                                        {med.scheduled_times?.length > 0 ? `${med.scheduled_times[0]} • ` : ''}
+                                        {med.dosage}
+                                    </Text>
+                                    {med.verifiedByCaller && (
+                                        <View style={styles.verifiedBadge}>
+                                            <CheckCircle2 size={10} color="#059669" />
+                                        </View>
+                                    )}
+                                </View>
+                            </View>
+                            <View style={{ padding: 4 }}>
+                                {expanded ? <ChevronUp size={20} color="#94A3B8" /> : <ChevronDown size={20} color="#94A3B8" />}
+                            </View>
+                        </View>
+                        
+                        {expanded && (
+                            <View style={styles.medExpandedSection}>
+                                <View style={styles.instructionBanner}>
+                                    <Info size={16} color="#3B82F6" style={{ marginTop: 2 }} />
+                                    <Text style={styles.instructionText}>{med.instructions || 'No special instructions provided.'}</Text>
+                                </View>
                             </View>
                         )}
-                    </View>
-                </View>
-                <Pressable onPress={handlePress} style={styles.checkboxTouch} disabled={med.taken}>
-                    <Animated.View style={[{ transform: [{ scale }] }, styles.checkboxMinimal, med.taken && { backgroundColor: '#F8FAFC', borderColor: '#F1F5F9' }]}>
-                        {med.taken && <CheckCircle2 color="#10B981" fill="#FFF" size={24} />}
-                        {!med.taken && <CheckCircle2 color="#CBD5E1" size={24} />}
-                    </Animated.View>
-                </Pressable>
+                    </Pressable>
+                </Swipeable>
             </View>
         </View>
     );
 };
+
 
 export default function MedicationsScreen({ navigation }) {
     // ── Zustand store subscriptions ─────────────────────────
@@ -649,12 +709,12 @@ export default function MedicationsScreen({ navigation }) {
                         </Animated.View>
 
                         {/* List Schedule Sections */}
+                        {/* Visual Timeline Schedule Sections */}
                         <Animated.View style={{ opacity: staggerAnims[3], transform: [{ translateY: staggerAnims[3].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>
                             <View style={styles.timelineContainer}>
                                 {/* Morning */}
                                 {schedule.morning.length > 0 && (
                                     <>
-                                        <TimePill type="morning" timeStr="Morning" timeVal={preferences.morning} />
                                         {schedule.morning.map((med, idx) => (
                                             <AnimatedMedCard key={med.id} med={med} onToggle={handleMedIconPress} />
                                         ))}
@@ -664,7 +724,6 @@ export default function MedicationsScreen({ navigation }) {
                                 {/* Afternoon */}
                                 {schedule.afternoon.length > 0 && (
                                     <>
-                                        <TimePill type="afternoon" timeStr="Afternoon" timeVal={preferences.afternoon} />
                                         {schedule.afternoon.map((med, idx) => (
                                             <AnimatedMedCard key={med.id} med={med} onToggle={handleMedIconPress} />
                                         ))}
@@ -674,7 +733,6 @@ export default function MedicationsScreen({ navigation }) {
                                 {/* Night */}
                                 {schedule.night.length > 0 && (
                                     <>
-                                        <TimePill type="night" timeStr="Night" timeVal={preferences.night} />
                                         {schedule.night.map((med, idx) => (
                                             <AnimatedMedCard key={med.id} med={med} onToggle={handleMedIconPress} />
                                         ))}
@@ -895,16 +953,28 @@ const styles = StyleSheet.create({
     chartDayLabelMinimal: { fontSize: 11, color: '#94A3B8', fontWeight: '600', marginTop: 8 },
 
     // Section Headers
-    timelineContainer: { paddingLeft: 0, paddingRight: 0 },
+    timelineContainer: { paddingLeft: 8, paddingRight: 0, marginTop: 16 },
     timeSectionHeaderWrapper: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6, marginTop: 12, paddingHorizontal: 4 },
     timeBadgeMinimal: { flexDirection: 'row', alignItems: 'center' },
     timeBadgeTxt: { fontSize: 14, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5 },
     timeBadgeTime: { fontSize: 13, fontWeight: '700', color: '#94A3B8', letterSpacing: 1 },
     timeSectionDivider: { height: 1, backgroundColor: '#F1F5F9', marginBottom: 20, marginHorizontal: 4 },
 
+    // Timeline Visuals
+    timelineNodeContainer: { flexDirection: 'row', position: 'relative', marginBottom: 16 },
+    timelineLine: { position: 'absolute', left: 8, top: 24, bottom: -40, width: 2, backgroundColor: '#E2E8F0', zIndex: 1 },
+    timelineDot: { position: 'absolute', left: 4, top: 24, width: 10, height: 10, borderRadius: 5, backgroundColor: '#FFF', borderWidth: 2, borderColor: '#CBD5E1', zIndex: 2 },
+    timelineCardWrapper: { flex: 1, paddingLeft: 32 },
+
+    // Swipe Actions
+    swipeLeftAction: { flex: 1, backgroundColor: '#22C55E', justifyContent: 'center', borderRadius: 24, paddingLeft: 24 },
+    swipeRightAction: { flex: 1, backgroundColor: '#F59E0B', justifyContent: 'center', alignItems: 'flex-end', borderRadius: 24, paddingRight: 24 },
+    swipeActionContent: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    swipeActionText: { color: '#FFF', fontWeight: '700', fontSize: 15 },
+
     // Medication Card Minimal
-    medCard: { flex: 1, backgroundColor: '#FFFFFF', borderRadius: 24, marginBottom: 16, overflow: 'hidden', shadowColor: '#0F172A', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.03, shadowRadius: 10, elevation: 2, borderWidth: 1, borderColor: '#F1F5F9' },
-    medCardInner: { flexDirection: 'row', padding: 20, alignItems: 'center' },
+    medCard: { flex: 1, backgroundColor: '#FFFFFF', borderRadius: 24, overflow: 'hidden', shadowColor: '#0F172A', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.03, shadowRadius: 10, elevation: 2, borderWidth: 1, borderColor: '#F1F5F9' },
+    medCardInner: { flexDirection: 'row', padding: 16, alignItems: 'center' },
     medIconBox: { width: 44, height: 44, borderRadius: 14, backgroundColor: '#F0FDFA', alignItems: 'center', justifyContent: 'center', marginRight: 16 },
     medContentMinimal: { flex: 1 },
     medMetaRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' },
@@ -913,6 +983,9 @@ const styles = StyleSheet.create({
     medTitleMinimal: { fontSize: 16, fontWeight: '700', color: '#0F172A', marginBottom: 4 },
     medSubMinimal: { fontSize: 13, color: '#64748B', fontWeight: '500' },
     textStrikethrough: { textDecorationLine: 'line-through', color: '#94A3B8' },
+    medExpandedSection: { paddingHorizontal: 16, paddingBottom: 16, paddingTop: 4 },
+    instructionBanner: { flexDirection: 'row', backgroundColor: '#EFF6FF', padding: 12, borderRadius: 12, gap: 8 },
+    instructionText: { flex: 1, fontSize: 13, color: '#1E3A8A', fontWeight: '500', lineHeight: 18 },
     checkboxTouch: { padding: 4 },
     checkboxMinimal: { width: 36, height: 36, borderRadius: 18, borderWidth: 1, borderColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFF' },
 
