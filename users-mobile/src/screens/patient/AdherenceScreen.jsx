@@ -487,27 +487,20 @@ export default function AdherenceScreen({ navigation }) {
                     <View style={styles.weeklyCard}>
                         <Text style={styles.sectionTitle}>WEEKLY REPORT</Text>
                         <View style={styles.weeklyStatsRow}>
-                            <View style={styles.weeklyStat}>
-                                <View style={[styles.weeklyStatIcon, { backgroundColor: C.successBg }]}>
-                                    <CheckCircle2 size={18} color={C.success} />
-                                </View>
+                            <View style={styles.weeklyStatInline}>
+                                <View style={[styles.weeklyStatDot, { backgroundColor: C.success }]} />
                                 <Text style={styles.weeklyStatNum}>{weeklySummary.taken}</Text>
                                 <Text style={styles.weeklyStatLabel}>Taken</Text>
                             </View>
-                            <View style={styles.weeklyStat}>
-                                <View style={[styles.weeklyStatIcon, { backgroundColor: C.dangerBg }]}>
-                                    <X size={18} color={C.danger} />
-                                </View>
+                            <View style={styles.weeklyStatDivider} />
+                            <View style={styles.weeklyStatInline}>
+                                <View style={[styles.weeklyStatDot, { backgroundColor: C.danger }]} />
                                 <Text style={styles.weeklyStatNum}>{weeklySummary.missed}</Text>
                                 <Text style={styles.weeklyStatLabel}>Missed</Text>
                             </View>
-                            <View style={styles.weeklyStat}>
-                                <View style={[styles.weeklyStatIcon, { backgroundColor: weeklySummary.improvement >= 0 ? C.successBg : C.dangerBg }]}>
-                                    {weeklySummary.improvement >= 0
-                                        ? <TrendingUp size={18} color={C.success} />
-                                        : <TrendingDown size={18} color={C.danger} />
-                                    }
-                                </View>
+                            <View style={styles.weeklyStatDivider} />
+                            <View style={styles.weeklyStatInline}>
+                                <MomentumIcon size={16} color={weeklySummary.improvement >= 0 ? C.success : C.danger} />
                                 <Text style={[styles.weeklyStatNum, { color: weeklySummary.improvement >= 0 ? C.success : C.danger }]}>
                                     {weeklySummary.improvement >= 0 ? '+' : ''}{weeklySummary.improvement}%
                                 </Text>
@@ -555,7 +548,17 @@ export default function AdherenceScreen({ navigation }) {
                                         status={entry?.status}
                                         rate={entry?.rate}
                                         isCurrentMonth={isSameMonth(date, new Date())}
-                                        onPress={() => setSelectedDay(entry || null)}
+                                        onPress={() => {
+                                            // Always allow selection — create synthetic entry for empty days
+                                            const dayEntry = entry || {
+                                                date: dateStr,
+                                                status: 'none',
+                                                rate: 0,
+                                                medicines: [],
+                                                vitals: null,
+                                            };
+                                            setSelectedDay(dayEntry);
+                                        }}
                                     />
                                 );
                             })}
@@ -720,17 +723,15 @@ const styles = StyleSheet.create({
 
     // ── Quest Card ──
     questCard: {
-        backgroundColor: 'rgba(255, 255, 255, 0.75)',
-        borderRadius: 20,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 24,
         padding: 20,
         marginBottom: 16,
-        borderWidth: 1,
-        borderColor: C.border,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.04,
-        shadowRadius: 12,
-        elevation: 3,
+        shadowColor: C.primary,
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.06,
+        shadowRadius: 20,
+        elevation: 4,
     },
     questHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 },
     questIconBox: {
@@ -755,17 +756,15 @@ const styles = StyleSheet.create({
 
     // ── Ring Card ──
     ringCard: {
-        backgroundColor: 'rgba(255, 255, 255, 0.75)',
-        borderRadius: 20,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 24,
         padding: 24,
         marginBottom: 16,
-        borderWidth: 1,
-        borderColor: C.border,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.04,
-        shadowRadius: 12,
-        elevation: 3,
+        shadowColor: C.primary,
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.06,
+        shadowRadius: 20,
+        elevation: 4,
     },
     ringRow: { flexDirection: 'row', alignItems: 'center' },
     ringWrap: { alignItems: 'center', justifyContent: 'center', position: 'relative' },
@@ -780,44 +779,44 @@ const styles = StyleSheet.create({
 
     // ── Weekly Card ──
     weeklyCard: {
-        backgroundColor: 'rgba(255, 255, 255, 0.75)',
-        borderRadius: 20,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 24,
         padding: 20,
         marginBottom: 16,
-        borderWidth: 1,
-        borderColor: C.border,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.04,
-        shadowRadius: 12,
-        elevation: 3,
+        shadowColor: C.primary,
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.06,
+        shadowRadius: 20,
+        elevation: 4,
     },
     sectionTitle: {
         fontSize: 13, fontWeight: '800', color: C.light,
         letterSpacing: 1.2, marginBottom: 16,
     },
-    weeklyStatsRow: { flexDirection: 'row', justifyContent: 'space-around' },
-    weeklyStat: { alignItems: 'center', gap: 6 },
-    weeklyStatIcon: {
-        width: 44, height: 44, borderRadius: 14,
-        alignItems: 'center', justifyContent: 'center',
-    },
-    weeklyStatNum: { fontSize: 22, fontWeight: '800', color: C.dark },
-    weeklyStatLabel: { fontSize: 12, fontWeight: '600', color: C.muted },
+    weeklyStatsRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    weeklyStatInline: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
+    weeklyStatDot: { width: 8, height: 8, borderRadius: 4 },
+    weeklyStatDivider: { width: 1, height: 32, backgroundColor: C.border },
+    weeklyStatNum: { fontSize: 20, fontWeight: '800', color: C.dark },
+    weeklyStatLabel: { fontSize: 11, fontWeight: '600', color: C.muted },
+
+    // ── Vitals Adherence ──
+    vitalsAdherenceRow: { marginTop: 20 },
+    vitalsAdherenceHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 6 },
+    vitalsAdherenceLabel: { flex: 1, fontSize: 13, fontWeight: '700', color: C.muted },
+    vitalsAdherenceValue: { fontSize: 14, fontWeight: '800', color: C.dark },
 
     // ── Calendar ──
     calendarCard: {
-        backgroundColor: 'rgba(255, 255, 255, 0.75)',
-        borderRadius: 20,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 24,
         padding: 20,
         marginBottom: 16,
-        borderWidth: 1,
-        borderColor: C.border,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.04,
-        shadowRadius: 12,
-        elevation: 3,
+        shadowColor: C.primary,
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.06,
+        shadowRadius: 20,
+        elevation: 4,
     },
     calendarHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 },
     weekDaysRow: {
