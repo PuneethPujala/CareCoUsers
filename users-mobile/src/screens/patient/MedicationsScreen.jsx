@@ -486,18 +486,11 @@ export default function MedicationsScreen({ navigation }) {
                 const base64Data = manipResult.base64;
                 if (!base64Data) throw new Error('Failed to generate base64 from image.');
 
-                const buffer = Buffer.from(base64Data, 'base64');
-
-                if (buffer.length > 3 * 1024 * 1024) throw new Error('Image too large even after compression.');
-
-                const { data, error } = await supabase.storage
-                    .from('prescriptions')
-                    .upload(fileName, buffer, { contentType: 'image/jpeg' });
-
-                if (error) throw error;
-
-                const publicUrl = supabase.storage.from('prescriptions').getPublicUrl(fileName).data.publicUrl;
-                await apiService.patients.uploadPrescription({ file_url: publicUrl, file_name: fileName });
+                // Send directly to backend to bypass frontend RLS issues
+                await apiService.patients.uploadPrescription({ 
+                    file_base64: base64Data, 
+                    content_type: 'image/jpeg' 
+                });
                 
                 if (Platform.OS === 'web') window.alert('Success: Prescription securely uploaded for caregiver review.');
                 else Alert.alert('Success', 'Prescription securely uploaded for caregiver review.');

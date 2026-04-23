@@ -118,21 +118,21 @@ const PremiumFormModal = ({
                 <Animated.View style={[styles.backdrop, { opacity: backdropAnim }]} />
             </TouchableWithoutFeedback>
 
-            {/* Bottom-anchored sheet */}
             <KeyboardAvoidingView
-                style={styles.sheetWrapper}
-                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-                keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 0}
+                style={[styles.sheetWrapper, { paddingHorizontal: 20 }]}
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 20}
             >
               <Animated.View
                 style={[
-                    { flex: 1, justifyContent: 'flex-end' },
+                    { flex: 1, justifyContent: 'center' },
                     {
+                        opacity: slideAnim,
                         transform: [
                             {
-                                translateY: slideAnim.interpolate({
+                                scale: slideAnim.interpolate({
                                     inputRange: [0, 1],
-                                    outputRange: [SCREEN_HEIGHT, 0],
+                                    outputRange: [0.95, 1],
                                 }),
                             },
                         ],
@@ -140,12 +140,7 @@ const PremiumFormModal = ({
                 ]}
                 pointerEvents="box-none"
               >
-                <View style={[styles.sheetContainer, androidKeyboardPad > 0 && { maxHeight: SCREEN_HEIGHT - androidKeyboardPad - 40 }]}>
-                    {/* Drag Handle */}
-                    <View style={styles.handleWrap}>
-                        <View style={styles.handle} />
-                    </View>
-
+                <View style={[styles.sheetContainer, androidKeyboardPad > 0 && { maxHeight: SCREEN_HEIGHT - androidKeyboardPad - 80 }]}>
                     {/* Header */}
                     <View style={styles.header}>
                         <Text style={styles.title} numberOfLines={1}>
@@ -220,28 +215,15 @@ const styles = StyleSheet.create({
         justifyContent: 'flex-end',
     },
     sheetContainer: {
-        maxHeight: SCREEN_HEIGHT * 0.88,
-        minHeight: SCREEN_HEIGHT * 0.45,
+        maxHeight: SCREEN_HEIGHT * 0.85,
         backgroundColor: '#FFFFFF',
-        borderTopLeftRadius: 28,
-        borderTopRightRadius: 28,
+        borderRadius: 24,
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: -12 },
+        shadowOffset: { width: 0, height: 12 },
         shadowOpacity: 0.15,
         shadowRadius: 24,
-        elevation: 20,
+        elevation: 24,
         overflow: 'hidden',
-    },
-    handleWrap: {
-        alignItems: 'center',
-        paddingTop: 12,
-        paddingBottom: 4,
-    },
-    handle: {
-        width: 40,
-        height: 5,
-        borderRadius: 3,
-        backgroundColor: '#CBD5E1',
     },
     header: {
         flexDirection: 'row',

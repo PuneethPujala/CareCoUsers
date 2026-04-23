@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, Platform, Pressable, Animated, ActivityIndicator, TextInput, KeyboardAvoidingView, TouchableOpacity, DeviceEventEmitter, InteractionManager, Vibration, Alert, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Platform, Pressable, Animated, ActivityIndicator, TextInput, KeyboardAvoidingView, TouchableOpacity, DeviceEventEmitter, InteractionManager, Vibration, Alert, SafeAreaView, Modal } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
     Pill, PhoneCall, CalendarCheck, Sunrise, Sun, Moon, Package,
     Sparkles, ChevronRight, PhoneIncoming, TrendingUp, Activity, CalendarDays, CheckCircle2, Circle, Bell,
-    Heart, Wind, Thermometer, Droplets, MapPin, AlertTriangle, PillBottle, Syringe, WifiOff
+    Heart, Wind, Thermometer, Droplets, MapPin, AlertTriangle, PillBottle, Syringe, WifiOff, Clock
 } from 'lucide-react-native';
 import { handleAxiosError } from '../../lib/axiosInstance';
 import { colors } from '../../theme';
@@ -99,26 +99,13 @@ const MedicationCard = ({ med, onCheck }) => {
     const handleCheck = () => {
         if (med.taken) return; // ONE-WAY: Cannot unmark
 
-        Alert.alert(
-            "Mark as Taken",
-            `Are you sure you took ${med.name} (${med.dosage || ''})?`,
-            [
-                { text: "Cancel", style: "cancel" },
-                { 
-                    text: "Hold to Confirm", 
-                    style: "default", 
-                    onPress: () => {
-                        Animated.sequence([
-                            Animated.timing(scale, { toValue: 0.9, duration: 100, useNativeDriver: true }),
-                            Animated.timing(scale, { toValue: 1.1, duration: 100, useNativeDriver: true }),
-                            Animated.timing(scale, { toValue: 1, duration: 100, useNativeDriver: true }),
-                        ]).start();
-                        
-                        if (onCheck) onCheck(med);
-                    }
-                }
-            ]
-        );
+        Animated.sequence([
+            Animated.timing(scale, { toValue: 0.9, duration: 100, useNativeDriver: true }),
+            Animated.timing(scale, { toValue: 1.1, duration: 100, useNativeDriver: true }),
+            Animated.timing(scale, { toValue: 1, duration: 100, useNativeDriver: true }),
+        ]).start();
+        
+        if (onCheck) onCheck(med);
     };
 
     const isTakenOpacity = med.taken ? 0.7 : 1;
@@ -172,6 +159,10 @@ export default function PatientHomeScreen({ navigation }) {
     });
     const [formError, setFormError] = useState(null);
     const [submitLoading, setSubmitLoading] = useState(false);
+
+    // Confirmation & Optimistic UI State
+    const [confirmingMed, setConfirmingMed] = useState(null);
+    const [isConfirmVisible, setIsConfirmVisible] = useState(false);
 
     const staggerAnims = useRef([...Array(10)].map(() => new Animated.Value(0))).current;
 
@@ -248,6 +239,21 @@ export default function PatientHomeScreen({ navigation }) {
             setFormError(handleAxiosError(err));
         } finally {
             setSubmitLoading(false);
+        }
+    };
+
+    const handleConfirmToggle = async () => {
+        if (!confirmingMed) return;
+        const med = confirmingMed;
+        
+        setIsConfirmVisible(false);
+        setConfirmingMed(null);
+
+        try {
+            await storeOptimisticToggle(med);
+        } catch (err) {
+            console.warn('[Optimistic] Mark failed:', err.message);
+            Alert.alert('Update Failed', 'Could not sync with server. Please check your connection.');
         }
     };
 
@@ -458,7 +464,16 @@ export default function PatientHomeScreen({ navigation }) {
                 <Animated.View style={{ opacity: staggerAnims[2], transform: [{ translateY: staggerAnims[2].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>
                     <View style={styles.section}>
                         <Text style={styles.sectionHeader}>TODAY'S MEDICATIONS</Text>
-                        {meds.map(med => <MedicationCard key={med.id} med={med} onCheck={toggleMed} />)}
+                        {meds.map(med => (
+                            <MedicationCard 
+                                key={med.id} 
+                                med={med} 
+                                onCheck={(m) => {
+                                    setConfirmingMed(m);
+                                    setIsConfirmVisible(true);
+                                }} 
+                            />
+                        ))}
                         {meds.length === 0 && <Text style={{ color: '#94A3B8', fontStyle: 'italic', marginTop: 10 }}>No medications scheduled for today.</Text>}
                     </View>
                 </Animated.View>
@@ -662,6 +677,49 @@ export default function PatientHomeScreen({ navigation }) {
                 </Animated.View>
             </ScrollView>
             </LinearGradient>
+
+            {/* Premium Confirmation Modal */}
+            <Modal visible={isConfirmVisible} transparent animationType="fade">
+                <View style={styles.confirmOverlay}>
+                    <View style={styles.confirmCard}>
+                        <View style={styles.confirmHeader}>
+                            <View style={[styles.confirmIconWrap, { backgroundColor: confirmingMed?.taken ? '#F1F5F9' : '#DBEAFE' }]}>
+                                {confirmingMed?.taken ? (
+                                    <Clock size={28} color="#64748B" />
+                                ) : (
+                                    <CheckCircle2 size={28} color="#2563EB" />
+                                )}
+                            </View>
+                        </View>
+                        
+                        <Text style={styles.confirmTitle}>
+                            {confirmingMed?.taken ? 'Undo Record?' : 'Confirm Intake'}
+                        </Text>
+                        <Text style={styles.confirmText}>
+                            {confirmingMed?.taken 
+                                ? `Do you want to mark "${confirmingMed?.name}" as not taken?` 
+                                : `Have you taken your "${confirmingMed?.name}" medication?`}
+                        </Text>
+                        
+                        <View style={styles.confirmActionRow}>
+                            <Pressable 
+                                style={styles.confirmCancelBtn} 
+                                onPress={() => { setIsConfirmVisible(false); setConfirmingMed(null); }}
+                            >
+                                <Text style={styles.confirmCancelTxt}>Nevermind</Text>
+                            </Pressable>
+                            <Pressable 
+                                style={[styles.confirmYesBtn, { backgroundColor: confirmingMed?.taken ? '#64748B' : '#2563EB' }]} 
+                                onPress={handleConfirmToggle}
+                            >
+                                <Text style={styles.confirmYesTxt}>
+                                    {confirmingMed?.taken ? 'Yes, Undo' : 'Yes, I took it'}
+                                </Text>
+                            </Pressable>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
         </KeyboardAvoidingView>
     );
 
