@@ -84,11 +84,7 @@ export default function App() {
         return () => sub.remove();
     }, []);
 
-    useEffect(() => {
-        if (fontsLoaded) {
-            SplashScreen.hideAsync().catch(() => {});
-        }
-    }, [fontsLoaded]);
+    // Splash screen is now hidden by AppNavigator after authentication bootstrap completes
 
     if (!fontsLoaded) return null;
 
