@@ -282,8 +282,6 @@ const AnimatedMedCard = ({ med, onToggle }) => {
         setExpanded(!expanded);
     };
 
-    const isTakenOpacity = med.taken ? 0.7 : 1;
-
     let IconCmp = Pill;
     if (med.type === 'afternoon') IconCmp = PillBottle;
     if (med.type === 'night') IconCmp = Syringe;
@@ -321,8 +319,8 @@ const AnimatedMedCard = ({ med, onToggle }) => {
     return (
         <View style={styles.timelineNodeContainer}>
             {/* The Timeline Line Segment */}
-            <View style={[styles.timelineLine, med.taken && { backgroundColor: '#3B82F6' }]} />
-            <View style={[styles.timelineDot, med.taken && { backgroundColor: '#3B82F6', borderColor: '#DBEAFE' }]} />
+            <View style={[styles.timelineLine, med.taken && { backgroundColor: '#22C55E' }]} />
+            <View style={[styles.timelineDot, med.taken && { backgroundColor: '#22C55E', borderColor: '#DCFCE7' }]} />
             
             <View style={styles.timelineCardWrapper}>
                 <Swipeable 
@@ -337,13 +335,25 @@ const AnimatedMedCard = ({ med, onToggle }) => {
                     leftThreshold={40}
                     rightThreshold={40}
                 >
-                    <Pressable onPress={handlePress} style={[styles.medCard, { opacity: isTakenOpacity }]}>
+                    <Pressable onPress={handlePress} style={[styles.medCard, med.taken && styles.medCardTaken]}>
                         <View style={styles.medCardInner}>
-                            <View style={[styles.medIconBox, { backgroundColor: '#EFF6FF' }]}>
-                                <IconCmp size={20} color="#3B82F6" strokeWidth={2.5} />
+                            <View style={[styles.medIconBox, med.taken ? { backgroundColor: '#DCFCE7' } : { backgroundColor: '#EFF6FF' }]}>
+                                {med.taken ? (
+                                    <CheckCircle2 size={20} color="#16A34A" strokeWidth={2.5} />
+                                ) : (
+                                    <IconCmp size={20} color="#3B82F6" strokeWidth={2.5} />
+                                )}
                             </View>
                             <View style={styles.medContentMinimal}>
-                                <Text style={[styles.medTitleMinimal, med.taken && styles.textStrikethrough]}>{med.name}</Text>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                    <Text style={[styles.medTitleMinimal, med.taken && { color: '#16A34A' }]}>{med.name}</Text>
+                                    {med.taken && (
+                                        <View style={styles.takenBadge}>
+                                            <CheckCircle2 size={10} color="#16A34A" />
+                                            <Text style={styles.takenBadgeText}>Taken</Text>
+                                        </View>
+                                    )}
+                                </View>
                                 <View style={styles.medMetaRow}>
                                     <Text style={styles.medSubMinimal}>
                                         {med.scheduled_times?.length > 0 ? `${med.scheduled_times[0]} • ` : ''}
@@ -983,6 +993,15 @@ const styles = StyleSheet.create({
     medTitleMinimal: { fontSize: 16, fontWeight: '700', color: '#0F172A', marginBottom: 4 },
     medSubMinimal: { fontSize: 13, color: '#64748B', fontWeight: '500' },
     textStrikethrough: { textDecorationLine: 'line-through', color: '#94A3B8' },
+    medCardTaken: {
+        backgroundColor: '#F0FDF4',
+        borderColor: '#DCFCE7',
+    },
+    takenBadge: {
+        flexDirection: 'row', alignItems: 'center', gap: 3,
+        backgroundColor: '#DCFCE7', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10,
+    },
+    takenBadgeText: { fontSize: 10, fontWeight: '700', color: '#16A34A' },
     medExpandedSection: { paddingHorizontal: 16, paddingBottom: 16, paddingTop: 4 },
     instructionBanner: { flexDirection: 'row', backgroundColor: '#EFF6FF', padding: 12, borderRadius: 12, gap: 8 },
     instructionText: { flex: 1, fontSize: 13, color: '#1E3A8A', fontWeight: '500', lineHeight: 18 },

@@ -348,6 +348,8 @@ export default function AdherenceScreen({ navigation }) {
     const weeklySummary = data.weekly_summary || { taken: 0, missed: 0, improvement: 0 };
     const vitalsAdherence = data.vitals_adherence || 0;
     const insights = data.insights || [];
+    const streak = data.streak || 0;
+    const weeklyTrend = data.weekly_trend || [];
 
     const feedback = getFeedbackMessage(score.monthly, momentum);
 
@@ -412,7 +414,11 @@ export default function AdherenceScreen({ navigation }) {
                 <View style={styles.headerCenter}>
                     <Text style={styles.headerTitle}>Adherence</Text>
                 </View>
-                <Pressable style={[styles.levelPill, { backgroundColor: '#3B82F6', borderColor: '#2563EB', shadowColor: '#3B82F6', shadowOffset: {width:0, height:4}, shadowOpacity:0.3, shadowRadius:8, elevation:4 }]} onPress={() => Share.share({ message: `Check out my medication adherence score: ${score.monthly}% this month!` })}>
+                <Pressable style={[styles.levelPill, { backgroundColor: '#3B82F6', borderColor: '#2563EB', shadowColor: '#3B82F6', shadowOffset: {width:0, height:4}, shadowOpacity:0.3, shadowRadius:8, elevation:4 }]} onPress={() => {
+                    const unlockedBadges = achievements.filter(a => a.unlocked).map(a => `🏅 ${a.label}`).join('\n');
+                    const shareMsg = `🔥 My CareCo Adherence Stats:\n\n📊 Monthly Score: ${score.monthly}%\n📈 Weekly Score: ${score.weekly}%\n🔥 Current Streak: ${streak} day${streak !== 1 ? 's' : ''}\n💪 Level: ${level.label}\n${unlockedBadges ? `\n🏆 Badges Earned:\n${unlockedBadges}` : ''}\n\nTracking my health with CareCo! 💙`;
+                    Share.share({ message: shareMsg });
+                }}>
                     <Share2 size={14} color="#FFF" />
                     <Text style={[styles.levelText, { color: '#FFF' }]}>Share</Text>
                 </Pressable>
@@ -429,8 +435,10 @@ export default function AdherenceScreen({ navigation }) {
                     <View style={[styles.glassCard, { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, paddingVertical: 24, marginBottom: 20 }]}>
                         <Flame size={32} color="#EF4444" fill="#EF4444" />
                         <View>
-                            <Text style={{ fontSize: 28, fontWeight: '900', color: '#0F172A', letterSpacing: -1 }}>14 Day Streak</Text>
-                            <Text style={{ fontSize: 13, color: '#64748B', fontWeight: '600' }}>You're on fire! Keep it up. 🔥</Text>
+                            <Text style={{ fontSize: 28, fontWeight: '900', color: '#0F172A', letterSpacing: -1 }}>{streak} Day Streak</Text>
+                            <Text style={{ fontSize: 13, color: '#64748B', fontWeight: '600' }}>
+                                {streak >= 7 ? "You're on fire! Keep it up. 🔥" : streak >= 3 ? 'Building momentum! 💪' : streak > 0 ? 'Great start! Keep going! 🌱' : 'Take your meds to start your streak!'}
+                            </Text>
                         </View>
                     </View>
                 </Animated.View>
@@ -529,8 +537,8 @@ export default function AdherenceScreen({ navigation }) {
                         <View style={{ alignItems: 'center', marginLeft: -20, marginTop: 10, marginBottom: 20 }}>
                             <LineChart
                                 data={{
-                                    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-                                    datasets: [{ data: [80, 90, 100, 60, 100, 90, 100] }]
+                                    labels: weeklyTrend.length > 0 ? weeklyTrend.map(d => d.day) : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                                    datasets: [{ data: weeklyTrend.length > 0 ? weeklyTrend.map(d => Math.max(d.rate, 1)) : [1, 1, 1, 1, 1, 1, 1] }]
                                 }}
                                 width={SCREEN_WIDTH - 40}
                                 height={180}
@@ -789,7 +797,7 @@ const styles = StyleSheet.create({
 
     // ── Scroll ──
     scroll: { flex: 1 },
-    scrollContent: { padding: 20, paddingTop: 16 },
+    scrollContent: { padding: 20, paddingTop: 16, paddingBottom: 40 },
 
     // ── Feedback Banner ──
     feedbackBanner: {
@@ -805,17 +813,17 @@ const styles = StyleSheet.create({
 
     // ── Quest Card ──
     questCard: {
-        backgroundColor: 'rgba(255, 255, 255, 0.65)',
+        backgroundColor: '#FFFFFF',
         borderRadius: 24,
-        padding: 20,
+        padding: 24,
         marginBottom: 20,
         borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.8)',
-        shadowColor: '#3B82F6',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.08,
-        shadowRadius: 24,
-        elevation: 8,
+        borderColor: '#F1F5F9',
+        shadowColor: '#0F172A',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.04,
+        shadowRadius: 16,
+        elevation: 3,
     },
     questHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 },
     questIconBox: {
@@ -840,17 +848,17 @@ const styles = StyleSheet.create({
 
     // ── Ring Card ──
     ringCard: {
-        backgroundColor: 'rgba(255, 255, 255, 0.65)',
+        backgroundColor: '#FFFFFF',
         borderRadius: 24,
         padding: 24,
         marginBottom: 20,
         borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.8)',
-        shadowColor: '#3B82F6',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.08,
-        shadowRadius: 24,
-        elevation: 8,
+        borderColor: '#F1F5F9',
+        shadowColor: '#0F172A',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.04,
+        shadowRadius: 16,
+        elevation: 3,
     },
     ringRow: { flexDirection: 'row', alignItems: 'center' },
     ringWrap: { alignItems: 'center', justifyContent: 'center', position: 'relative' },
@@ -865,17 +873,17 @@ const styles = StyleSheet.create({
 
     // ── Weekly Card ──
     weeklyCard: {
-        backgroundColor: 'rgba(255, 255, 255, 0.65)',
+        backgroundColor: '#FFFFFF',
         borderRadius: 24,
-        padding: 20,
+        padding: 24,
         marginBottom: 20,
         borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.8)',
-        shadowColor: '#3B82F6',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.08,
-        shadowRadius: 24,
-        elevation: 8,
+        borderColor: '#F1F5F9',
+        shadowColor: '#0F172A',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.04,
+        shadowRadius: 16,
+        elevation: 3,
     },
     sectionTitle: {
         fontSize: 13, fontWeight: '800', color: C.light,
@@ -896,17 +904,17 @@ const styles = StyleSheet.create({
 
     // ── Calendar ──
     calendarCard: {
-        backgroundColor: 'rgba(255, 255, 255, 0.65)',
+        backgroundColor: '#FFFFFF',
         borderRadius: 24,
-        padding: 20,
+        padding: 24,
         marginBottom: 20,
         borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.8)',
-        shadowColor: '#3B82F6',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.08,
-        shadowRadius: 24,
-        elevation: 8,
+        borderColor: '#F1F5F9',
+        shadowColor: '#0F172A',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.04,
+        shadowRadius: 16,
+        elevation: 3,
     },
     calendarHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 },
     weekDaysRow: {
@@ -982,18 +990,18 @@ const styles = StyleSheet.create({
     },
     achievementCard: {
         width: (SCREEN_WIDTH - 40 - 24) / 3,
-        backgroundColor: 'rgba(255, 255, 255, 0.7)',
+        backgroundColor: '#FFFFFF',
         borderRadius: 18,
         padding: 12,
         paddingTop: 14,
         alignItems: 'center',
         borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.9)',
-        shadowColor: '#6366F1',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.06,
-        shadowRadius: 10,
-        elevation: 3,
+        borderColor: '#F1F5F9',
+        shadowColor: '#0F172A',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.04,
+        shadowRadius: 8,
+        elevation: 2,
     },
     achievementLocked: {
         opacity: 0.5,
