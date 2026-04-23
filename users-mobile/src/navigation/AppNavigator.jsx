@@ -11,6 +11,7 @@ import {
     ActivityIndicator,
     TouchableOpacity,
     Pressable,
+    Image,
 } from "react-native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
@@ -238,7 +239,14 @@ const MainAppStack = () => (
 
 function AppSplashScreen() {
     return (
-        <View style={{ flex: 1, backgroundColor: '#0A2463' }} />
+        <View style={styles.splashContainer}>
+            <Image
+                source={require('../../assets/logo.png')}
+                style={styles.splashLogo}
+                resizeMode="contain"
+            />
+            <ActivityIndicator size="small" color="#FFFFFF" style={styles.splashLoader} />
+        </View>
     );
 }
 
@@ -503,5 +511,18 @@ const styles = StyleSheet.create({
         color: '#22C55E',
         fontSize: 13,
         fontWeight: '600',
+    },
+    splashContainer: {
+        flex: 1,
+        backgroundColor: '#0A2463',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    splashLogo: {
+        width: 140,
+        height: 140,
+    },
+    splashLoader: {
+        marginTop: 24,
     },
 });
