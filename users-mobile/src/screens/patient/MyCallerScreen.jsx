@@ -210,7 +210,15 @@ export default function MyCallerScreen({ navigation }) {
 
     setIsSavingContact(true);
     try {
-      const payload = { ...contactForm, phone: fullPhone };
+      const payload = {
+        name: contactForm.name.trim(),
+        phone: fullPhone,
+        relation: contactForm.relation?.trim() || '',
+        email: contactForm.email?.trim() || '',
+        is_primary: false,
+        can_view_data: false,
+        permissions: [],
+      };
       let res;
       if (editingContact) {
         res = await apiService.patients.updateTrustedContact(editingContact._id, payload);
@@ -384,12 +392,25 @@ export default function MyCallerScreen({ navigation }) {
               </Pressable>
             </Animated.View>
           ) : (
-            <View style={s.emptyCard}>
-              <View style={s.emptyIconWrap}>
-                <PhoneIncoming size={32} color={C.light} strokeWidth={1.5} />
+            <View style={s.pendingCard}>
+              <View style={s.pendingIconWrap}>
+                <LinearGradient colors={['#EEF2FF', '#E0E7FF']} style={s.pendingIconCircle}>
+                  <PhoneIncoming size={28} color={C.primary} strokeWidth={1.5} />
+                </LinearGradient>
               </View>
-              <Text style={s.emptyTitle}>No Caller Assigned</Text>
-              <Text style={s.emptyBody}>Your care team caller will appear here once assigned.</Text>
+              <Text style={s.pendingTitle}>Caregiver Being Assigned</Text>
+              <Text style={s.pendingBody}>
+                Your care manager has been notified and is assigning a dedicated caregiver for you. You'll receive a notification once they're ready!
+              </Text>
+              {manager && (
+                <Pressable
+                  style={({ pressed }) => [s.pendingContactBtn, pressed && { opacity: 0.8 }]}
+                  onPress={() => manager.phone && Linking.openURL(`tel:${manager.phone}`)}
+                >
+                  <Phone size={16} color="#FFF" strokeWidth={2.5} />
+                  <Text style={s.pendingContactBtnText}>Contact Your Manager</Text>
+                </Pressable>
+              )}
             </View>
           )}
         </View>
@@ -882,6 +903,15 @@ const s = StyleSheet.create({
   emptyIconWrapPremium: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', marginBottom: 20, shadowColor: C.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 },
   emptyTitle: { fontSize: 18, fontWeight: '700', color: C.dark, marginBottom: 8 },
   emptyBody: { fontSize: 14, fontWeight: '500', color: C.muted, textAlign: 'center', lineHeight: 22 },
+
+  // Pending caller assignment card
+  pendingCard: { backgroundColor: '#FFFFFF', borderRadius: 24, padding: 32, alignItems: 'center', borderWidth: 1, borderColor: '#E0E7FF', shadowColor: '#6366F1', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.08, shadowRadius: 16, elevation: 4 },
+  pendingIconWrap: { marginBottom: 20 },
+  pendingIconCircle: { width: 80, height: 80, borderRadius: 40, alignItems: 'center', justifyContent: 'center' },
+  pendingTitle: { fontSize: 20, fontWeight: '800', color: C.dark, marginBottom: 8, textAlign: 'center' },
+  pendingBody: { fontSize: 14, fontWeight: '500', color: C.muted, textAlign: 'center', lineHeight: 22, marginBottom: 20 },
+  pendingContactBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#6366F1', paddingHorizontal: 24, paddingVertical: 14, borderRadius: 16, shadowColor: '#6366F1', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 },
+  pendingContactBtnText: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
 
   upgradeIconWrap: {
     width: 80, height: 80, borderRadius: 40, backgroundColor: C.primarySoft,

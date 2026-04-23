@@ -13,6 +13,8 @@ const AlertSchema = new mongoose.Schema(
                 'patient_unreachable_3attempts',
                 'caller_capacity',
                 'team_lead_recommended',
+                'general',
+                'other',
             ],
             required: true,
             index: true,

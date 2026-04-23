@@ -497,6 +497,30 @@ router.get('/adherence/details', authenticate, async (req, res) => {
         if (vitalsAdherence >= 80) insights.push("Great job consistently logging your vitals alongside your medications.");
         else if (vitalsAdherence < 30) insights.push("Try to log your vitals more frequently to build a complete health profile.");
 
+        // ── Streak (consecutive days with rate >= 80, from today backwards) ──
+        let currentStreak = 0;
+        const reversedLog = [...dailyLog].reverse();
+        for (const d of reversedLog) {
+            if (d.total === 0) break; // No meds scheduled = break
+            if (d.rate >= 80) currentStreak++;
+            else break;
+        }
+
+        // ── Weekly Trend (last 7 days' rates with labels for chart) ──
+        const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        const weeklyTrend = [];
+        for (let i = 6; i >= 0; i--) {
+            const d = new Date();
+            d.setDate(d.getDate() - i);
+            const dateStr = d.toISOString().slice(0, 10);
+            const entry = dailyLog.find(e => e.date === dateStr);
+            weeklyTrend.push({
+                day: dayNames[d.getDay()],
+                date: dateStr,
+                rate: entry ? entry.rate : 0,
+            });
+        }
+
         res.json({
             score: { weekly: weeklyScore, monthly: monthlyScore },
             level,
@@ -506,7 +530,9 @@ router.get('/adherence/details', authenticate, async (req, res) => {
             achievements,
             weekly_summary: weeklySummary,
             vitals_adherence: vitalsAdherence,
-            insights
+            insights,
+            streak: currentStreak,
+            weekly_trend: weeklyTrend,
         });
     } catch (error) {
         console.error('Get adherence details error:', error);
