@@ -123,7 +123,7 @@ const usePatientStore = create((set, get) => ({
             const prefs = freshPatient?.medication_call_preferences || { morning: '09:00', afternoon: '14:00', night: '20:00' };
 
             // Build dashboard meds using optimistic tracking
-            const optRef = { ...state._optimisticMeds };
+            const optRef = { ...get()._optimisticMeds };
             const freshMeds = (medsRes.data.log?.medicines || []).map((m) => {
                 const id = `${m.medicine_name}_${m.scheduled_time}`;
                 const optTs = optRef[id];

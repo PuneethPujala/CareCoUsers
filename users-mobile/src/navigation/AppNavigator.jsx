@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { useNavigation } from "@react-navigation/native";
 import * as Notifications from 'expo-notifications';
 import * as ScreenCapture from 'expo-screen-capture';
+import * as SplashScreen from 'expo-splash-screen';
 import {
     View,
     Text,
@@ -237,7 +238,7 @@ const MainAppStack = () => (
 
 function AppSplashScreen() {
     return (
-        <View style={{ flex: 1, backgroundColor: '#0F172A' }} />
+        <View style={{ flex: 1, backgroundColor: '#FFFFFF' }} />
     );
 }
 
@@ -249,6 +250,15 @@ export default function AppNavigator() {
     const notificationListener = useRef();
     const responseListener = useRef();
     const hasNotified = useRef(false);
+
+    useEffect(() => {
+        if (!isBootstrapping) {
+            // Guarantee layout is mounted before hiding the native splash cover
+            setTimeout(() => {
+                SplashScreen.hideAsync().catch(() => {});
+            }, 100);
+        }
+    }, [isBootstrapping]);
 
     // ── Global Screenshot Prevention Hook ──
     useEffect(() => {

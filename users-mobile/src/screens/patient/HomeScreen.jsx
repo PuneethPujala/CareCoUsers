@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, Platform, Pressable, Animated, ActivityIndicator, TextInput, KeyboardAvoidingView, TouchableOpacity, DeviceEventEmitter, InteractionManager, Vibration } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Platform, Pressable, Animated, ActivityIndicator, TextInput, KeyboardAvoidingView, TouchableOpacity, DeviceEventEmitter, InteractionManager, Vibration, Alert } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
     Pill, PhoneCall, CalendarCheck, Sunrise, Sun, Moon, Package,
@@ -84,14 +84,26 @@ const MedicationCard = ({ med, onCheck }) => {
     const handleCheck = () => {
         if (med.taken) return; // ONE-WAY: Cannot unmark
 
-        const newVal = true;
-        Animated.sequence([
-            Animated.timing(scale, { toValue: 0.9, duration: 100, useNativeDriver: true }),
-            Animated.timing(scale, { toValue: 1.1, duration: 100, useNativeDriver: true }),
-            Animated.timing(scale, { toValue: 1, duration: 100, useNativeDriver: true }),
-        ]).start();
-        
-        if (onCheck) onCheck(med);
+        Alert.alert(
+            "Mark as Taken",
+            `Are you sure you took ${med.name} (${med.dosage || ''})?`,
+            [
+                { text: "Cancel", style: "cancel" },
+                { 
+                    text: "Hold to Confirm", 
+                    style: "default", 
+                    onPress: () => {
+                        Animated.sequence([
+                            Animated.timing(scale, { toValue: 0.9, duration: 100, useNativeDriver: true }),
+                            Animated.timing(scale, { toValue: 1.1, duration: 100, useNativeDriver: true }),
+                            Animated.timing(scale, { toValue: 1, duration: 100, useNativeDriver: true }),
+                        ]).start();
+                        
+                        if (onCheck) onCheck(med);
+                    }
+                }
+            ]
+        );
     };
 
     const isTakenOpacity = med.taken ? 0.7 : 1;
