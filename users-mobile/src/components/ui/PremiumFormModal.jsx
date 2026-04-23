@@ -100,7 +100,7 @@ const PremiumFormModal = ({
             {/* Bottom-anchored sheet — wraps to content with maxHeight cap */}
             <KeyboardAvoidingView
                 style={styles.sheetWrapper}
-                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
                 keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
             >
               <Animated.View
@@ -250,7 +250,8 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     scrollBody: {
-        flex: 1,
+        flexGrow: 1,
+        flexShrink: 1,
     },
     scrollContent: {
         paddingHorizontal: 24,

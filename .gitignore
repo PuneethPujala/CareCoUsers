@@ -43,3 +43,7 @@ yarn-error.*
 .env
 backend/.env
 backend/.env.example
+
+# Firebase Admin SDK service account keys
+*firebase-adminsdk*
+*.json.bak
