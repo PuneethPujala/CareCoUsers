@@ -215,6 +215,7 @@ const styles = StyleSheet.create({
         justifyContent: 'flex-end',
     },
     sheetContainer: {
+        minHeight: SCREEN_HEIGHT * 0.4,
         maxHeight: SCREEN_HEIGHT * 0.85,
         backgroundColor: '#FFFFFF',
         borderRadius: 24,
@@ -230,7 +231,7 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         alignItems: 'center',
         paddingHorizontal: 24,
-        paddingTop: 12,
+        paddingTop: 20,
         paddingBottom: 16,
         borderBottomWidth: 1,
         borderBottomColor: '#F1F5F9',
@@ -259,6 +260,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 24,
         paddingTop: 20,
         paddingBottom: 80,
+        flexGrow: 1,
     },
     stickyFooter: {
         paddingHorizontal: 24,
