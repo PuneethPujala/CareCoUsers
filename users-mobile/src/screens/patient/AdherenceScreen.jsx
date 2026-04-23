@@ -215,6 +215,16 @@ const CalendarDay = ({ date, status, rate, isCurrentMonth, onPress }) => {
     );
 };
 
+// ── Achievement Badge Icon Mapping ──────────────────────────
+const BADGE_ICONS = {
+    first_perfect_day: { Icon: CheckCircle2, bg: ['#22C55E', '#16A34A'], iconColor: '#FFFFFF' },
+    '3_day_consistent': { Icon: Zap, bg: ['#F59E0B', '#D97706'], iconColor: '#FFFFFF' },
+    never_missed_morning: { Icon: Star, bg: ['#3B82F6', '#2563EB'], iconColor: '#FFFFFF' },
+    weekly_90: { Icon: Target, bg: ['#8B5CF6', '#7C3AED'], iconColor: '#FFFFFF' },
+    '7_perfect_days': { Icon: Sparkles, bg: ['#06B6D4', '#0891B2'], iconColor: '#FFFFFF' },
+    monthly_consistent: { Icon: Award, bg: ['#F43F5E', '#E11D48'], iconColor: '#FFFFFF' },
+};
+
 // ── Achievement Badge ────────────────────────────────────────
 const AchievementBadge = ({ achievement, index }) => {
     const scaleAnim = useRef(new Animated.Value(0)).current;
@@ -230,6 +240,8 @@ const AchievementBadge = ({ achievement, index }) => {
     }, []);
 
     const unlocked = achievement.unlocked;
+    const badgeConfig = BADGE_ICONS[achievement.key] || { Icon: Award, bg: ['#94A3B8', '#64748B'], iconColor: '#FFF' };
+    const { Icon: BadgeIcon, bg: badgeBg, iconColor } = badgeConfig;
 
     return (
         <Animated.View style={[
@@ -237,8 +249,15 @@ const AchievementBadge = ({ achievement, index }) => {
             !unlocked && styles.achievementLocked,
             { transform: [{ scale: scaleAnim }] },
         ]}>
-            <Text style={styles.achievementEmoji}>{achievement.emoji}</Text>
-            <Text style={[styles.achievementLabel, !unlocked && { color: C.light }]} numberOfLines={1}>
+            <LinearGradient
+                colors={unlocked ? badgeBg : ['#E2E8F0', '#CBD5E1']}
+                style={styles.achievementIconCircle}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+            >
+                <BadgeIcon size={18} color={unlocked ? iconColor : '#94A3B8'} strokeWidth={2.5} />
+            </LinearGradient>
+            <Text style={[styles.achievementLabel, !unlocked && { color: C.light }]} numberOfLines={2}>
                 {achievement.label}
             </Text>
             <Text style={[styles.achievementDesc, !unlocked && { color: '#CBD5E1' }]} numberOfLines={2}>
@@ -892,28 +911,43 @@ const styles = StyleSheet.create({
     },
     achievementCard: {
         width: (SCREEN_WIDTH - 40 - 24) / 3,
-        backgroundColor: 'rgba(255, 255, 255, 0.75)',
-        borderRadius: 16,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 18,
         padding: 12,
+        paddingTop: 14,
         alignItems: 'center',
         borderWidth: 1,
-        borderColor: C.border,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.03,
-        shadowRadius: 6,
-        elevation: 2,
+        borderColor: '#EEF2FF',
+        shadowColor: '#6366F1',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.06,
+        shadowRadius: 10,
+        elevation: 3,
     },
     achievementLocked: {
-        opacity: 0.55,
-        backgroundColor: '#FAFAFA',
+        opacity: 0.5,
+        backgroundColor: '#FAFBFC',
+        borderColor: '#F1F5F9',
+        shadowOpacity: 0,
     },
-    achievementEmoji: { fontSize: 24, marginBottom: 6 },
-    achievementLabel: { fontSize: 11, fontWeight: '700', color: C.dark, textAlign: 'center' },
-    achievementDesc: { fontSize: 9, fontWeight: '500', color: C.muted, textAlign: 'center', marginTop: 2, lineHeight: 12 },
+    achievementIconCircle: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 8,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.15,
+        shadowRadius: 4,
+        elevation: 4,
+    },
+    achievementLabel: { fontSize: 11, fontWeight: '700', color: C.dark, textAlign: 'center', lineHeight: 14 },
+    achievementDesc: { fontSize: 9, fontWeight: '500', color: C.muted, textAlign: 'center', marginTop: 3, lineHeight: 12 },
     unlockedBadge: {
-        flexDirection: 'row', alignItems: 'center', gap: 2,
-        backgroundColor: C.successBg, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8, marginTop: 6,
+        flexDirection: 'row', alignItems: 'center', gap: 3,
+        backgroundColor: C.successBg, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, marginTop: 8,
     },
     unlockedText: { fontSize: 9, fontWeight: '700', color: C.success },
 });

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
     Modal,
     View,
@@ -13,12 +13,14 @@ import {
     TouchableWithoutFeedback,
     Vibration,
     ActivityIndicator,
-    StatusBar,
+    Dimensions,
 } from 'react-native';
 import { X } from 'lucide-react-native';
 
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+
 /**
- * PremiumFormModal — A universal, keyboard-safe, full-screen form wrapper.
+ * PremiumFormModal — A universal, keyboard-safe, bottom-sheet form wrapper.
  *
  * Props:
  *   visible       - boolean controlling modal visibility
@@ -44,6 +46,7 @@ const PremiumFormModal = ({
 }) => {
     const slideAnim = useRef(new Animated.Value(0)).current;
     const backdropAnim = useRef(new Animated.Value(0)).current;
+    const [keyboardHeight, setKeyboardHeight] = useState(0);
 
     useEffect(() => {
         if (visible) {
@@ -65,6 +68,21 @@ const PremiumFormModal = ({
             backdropAnim.setValue(0);
         }
     }, [visible]);
+
+    // Track keyboard on Android for manual padding
+    useEffect(() => {
+        if (Platform.OS !== 'android') return;
+        const showSub = Keyboard.addListener('keyboardDidShow', (e) => {
+            setKeyboardHeight(e.endCoordinates.height);
+        });
+        const hideSub = Keyboard.addListener('keyboardDidHide', () => {
+            setKeyboardHeight(0);
+        });
+        return () => {
+            showSub.remove();
+            hideSub.remove();
+        };
+    }, []);
 
     const handleClose = () => {
         Vibration.vibrate(30);
@@ -90,6 +108,9 @@ const PremiumFormModal = ({
         onSave?.();
     };
 
+    // On Android, we manually handle keyboard offset via bottom padding
+    const androidKeyboardPad = Platform.OS === 'android' ? keyboardHeight : 0;
+
     return (
         <Modal visible={visible} transparent animationType="none" onRequestClose={handleClose} statusBarTranslucent>
             {/* Backdrop */}
@@ -97,11 +118,11 @@ const PremiumFormModal = ({
                 <Animated.View style={[styles.backdrop, { opacity: backdropAnim }]} />
             </TouchableWithoutFeedback>
 
-            {/* Bottom-anchored sheet — wraps to content with maxHeight cap */}
+            {/* Bottom-anchored sheet */}
             <KeyboardAvoidingView
                 style={styles.sheetWrapper}
-                behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
-                keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 0}
             >
               <Animated.View
                 style={[
@@ -111,7 +132,7 @@ const PremiumFormModal = ({
                             {
                                 translateY: slideAnim.interpolate({
                                     inputRange: [0, 1],
-                                    outputRange: [1200, 0],
+                                    outputRange: [SCREEN_HEIGHT, 0],
                                 }),
                             },
                         ],
@@ -119,7 +140,7 @@ const PremiumFormModal = ({
                 ]}
                 pointerEvents="box-none"
               >
-                <View style={styles.sheetContainer}>
+                <View style={[styles.sheetContainer, androidKeyboardPad > 0 && { maxHeight: SCREEN_HEIGHT - androidKeyboardPad - 40 }]}>
                     {/* Drag Handle */}
                     <View style={styles.handleWrap}>
                         <View style={styles.handle} />
@@ -144,8 +165,11 @@ const PremiumFormModal = ({
 
                     {/* Scrollable Form Body */}
                     <ScrollView
-                        style={styles.scrollBody}
-                        contentContainerStyle={styles.scrollContent}
+                        style={{ flex: 1 }}
+                        contentContainerStyle={[
+                            styles.scrollContent,
+                            androidKeyboardPad > 0 && { paddingBottom: 24 },
+                        ]}
                         showsVerticalScrollIndicator={false}
                         keyboardShouldPersistTaps="handled"
                         keyboardDismissMode="interactive"
@@ -157,7 +181,7 @@ const PremiumFormModal = ({
 
                     {/* Sticky Save Button — always above keyboard */}
                     {onSave && (
-                        <View style={styles.stickyFooter}>
+                        <View style={[styles.stickyFooter, androidKeyboardPad > 0 && { paddingBottom: 12 }]}>
                             <Pressable
                                 onPress={handleSave}
                                 disabled={saving || saveDisabled}
@@ -196,8 +220,8 @@ const styles = StyleSheet.create({
         justifyContent: 'flex-end',
     },
     sheetContainer: {
-        maxHeight: '92%',
-        minHeight: 200,
+        maxHeight: SCREEN_HEIGHT * 0.88,
+        minHeight: SCREEN_HEIGHT * 0.45,
         backgroundColor: '#FFFFFF',
         borderTopLeftRadius: 28,
         borderTopRightRadius: 28,
@@ -248,10 +272,6 @@ const styles = StyleSheet.create({
         backgroundColor: '#F1F5F9',
         alignItems: 'center',
         justifyContent: 'center',
-    },
-    scrollBody: {
-        flexGrow: 1,
-        flexShrink: 1,
     },
     scrollContent: {
         paddingHorizontal: 24,
