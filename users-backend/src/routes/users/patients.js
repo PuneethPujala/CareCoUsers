@@ -471,13 +471,40 @@ router.put('/me/medical-history', authenticateSession, updateProfileArray('medic
  */
 router.post('/me/prescriptions', authenticateSession, async (req, res) => {
     try {
-        const { file_url, file_name } = req.body;
-        if (!file_url) return res.status(400).json({ error: 'file_url is required' });
+        const { file_base64, content_type } = req.body;
+        if (!file_base64) return res.status(400).json({ error: 'file_base64 is required' });
 
         const patient = await Patient.findOne({ supabase_uid: req.user.id });
         if (!patient) return res.status(404).json({ error: 'Patient not found' });
 
-        patient.uploaded_prescriptions.push({ file_url, file_name });
+        // Initialize Supabase Admin client to bypass frontend RLS
+        const { createClient } = require('@supabase/supabase-js');
+        const supabaseUrl = process.env.SUPABASE_URL;
+        const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+        
+        if (!supabaseUrl || !supabaseServiceKey) {
+             return res.status(500).json({ error: 'Supabase configuration missing on server' });
+        }
+        
+        const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+        
+        const buffer = Buffer.from(file_base64, 'base64');
+        const ext = content_type === 'image/png' ? 'png' : 'jpg';
+        const randomHash = Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
+        const fileName = `${patient.supabase_uid}/${randomHash}.${ext}`;
+        
+        const { data, error } = await supabaseAdmin.storage
+            .from('prescriptions')
+            .upload(fileName, buffer, { contentType: content_type || 'image/jpeg' });
+            
+        if (error) {
+            console.error('Supabase admin upload error:', error);
+            return res.status(500).json({ error: 'Failed to upload to storage: ' + error.message });
+        }
+        
+        const publicUrl = supabaseAdmin.storage.from('prescriptions').getPublicUrl(fileName).data.publicUrl;
+
+        patient.uploaded_prescriptions.push({ file_url: publicUrl, file_name: fileName });
         await patient.save();
 
         res.status(201).json({ message: 'Prescription uploaded successfully', uploaded_prescriptions: patient.uploaded_prescriptions });
