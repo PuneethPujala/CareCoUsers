@@ -40,6 +40,7 @@ LogBox.ignoreLogs([
 ]);
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { AuthProvider } from './src/context/AuthContext';
 import { NetworkProvider } from './src/context/NetworkContext';
 import SecurityProvider from './src/providers/SecurityProvider';
@@ -91,6 +92,7 @@ export default function App() {
     const showPrivacyOverlay = appState !== 'active';
 
     return (
+        <GestureHandlerRootView style={{ flex: 1 }}>
         <SafeAreaProvider>
             <ErrorBoundary>
             <SecurityProvider>
@@ -116,5 +118,6 @@ export default function App() {
                 )}
             </ErrorBoundary>
         </SafeAreaProvider>
+        </GestureHandlerRootView>
     );
 }
