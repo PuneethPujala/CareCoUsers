@@ -36,7 +36,7 @@ const processQueue = (error, token = null) => {
 };
 
 /**
- * Prefer CareConnect JWTs; fall back to Supabase (e.g. Google sign-in).
+ * Prefer CareMyMednnect JWTs; fall back to Supabase (e.g. Google sign-in).
  */
 async function getAccessTokenForRequest() {
     const apiTok = await getApiTokens();
@@ -57,7 +57,7 @@ async function getAccessTokenForRequest() {
                 });
                 return s.access_token;
             } catch (e) {
-                console.warn('[API] CareConnect proactive refresh failed:', e.message);
+                console.warn('[API] CareMyMednnect proactive refresh failed:', e.message);
             }
         }
         return apiTok.access_token;
@@ -263,6 +263,7 @@ export const apiService = {
         getWeeklyAdherence: () => api.get('/users/medicines/adherence/weekly'),
         getMonthlyAdherence: () => api.get('/users/medicines/adherence/monthly'),
         getAdherenceDetails: () => api.get('/users/medicines/adherence/details'),
+        getAdherenceRecap: (period) => api.get('/users/medicines/adherence/recap', { params: { period } }),
     },
 };
 
