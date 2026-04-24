@@ -76,6 +76,14 @@ const ProfileSchema = new mongoose.Schema(
       default: true,
       index: true,
     },
+    experience_years: {
+      type: Number,
+      default: 0,
+    },
+    languages_spoken: {
+      type: [String],
+      default: ['English'],
+    },
 
     // ── Password Management ───────────────────────
     mustChangePassword: {
