@@ -93,27 +93,13 @@ const VitalsCard = ({ label, value, unit, icon: Icon, color, status = 'Stable' }
     );
 };
 
-const MedicationCard = ({ med, onCheck }) => {
-    const [scale] = useState(new Animated.Value(1));
-
-    const handleCheck = () => {
-        if (med.taken) return; // ONE-WAY: Cannot unmark
-
-        Animated.sequence([
-            Animated.timing(scale, { toValue: 0.9, duration: 100, useNativeDriver: true }),
-            Animated.timing(scale, { toValue: 1.1, duration: 100, useNativeDriver: true }),
-            Animated.timing(scale, { toValue: 1, duration: 100, useNativeDriver: true }),
-        ]).start();
-        
-        if (onCheck) onCheck(med);
-    };
-
+const MedicationCard = ({ med, onPress }) => {
     let IconCmp = Pill;
     if (med.type === 'afternoon') IconCmp = PillBottle;
     if (med.type === 'night') IconCmp = Syringe;
 
     return (
-        <View style={[styles.medCard, med.taken && styles.medCardTaken]}>
+        <Pressable onPress={() => onPress && onPress()} style={[styles.medCard, med.taken && styles.medCardTaken]}>
             <View style={styles.medCardInner}>
                 <View style={[styles.medIconBox, med.taken ? { backgroundColor: '#DCFCE7' } : { backgroundColor: '#EFF6FF' }]}>
                     {med.taken ? (
@@ -134,14 +120,14 @@ const MedicationCard = ({ med, onCheck }) => {
                     </View>
                     <Text style={styles.medSubMinimal}>{med.dosage} {med.instructions ? `• ${med.instructions}` : ''}</Text>
                 </View>
-                <Pressable onPress={handleCheck} style={styles.checkboxTouch} disabled={med.taken}>
-                    <Animated.View style={[{ transform: [{ scale }] }, styles.checkboxMinimal, med.taken && { backgroundColor: '#DCFCE7', borderColor: '#BBF7D0' }]}>
+                <View style={styles.checkboxTouch}>
+                    <View style={[styles.checkboxMinimal, med.taken && { backgroundColor: '#DCFCE7', borderColor: '#BBF7D0' }]}>
                         {med.taken && <CheckCircle2 color="#16A34A" size={24} />}
                         {!med.taken && <CheckCircle2 color="#CBD5E1" size={24} />}
-                    </Animated.View>
-                </Pressable>
+                    </View>
+                </View>
             </View>
-        </View>
+        </Pressable>
     );
 };
 
@@ -478,10 +464,7 @@ export default function PatientHomeScreen({ navigation }) {
                             <MedicationCard 
                                 key={med.id} 
                                 med={med} 
-                                onCheck={(m) => {
-                                    setConfirmingMed(m);
-                                    setIsConfirmVisible(true);
-                                }} 
+                                onPress={() => navigation.navigate('Medications')} 
                             />
                         ))}
                         {meds.length === 0 && <Text style={{ color: '#94A3B8', fontStyle: 'italic', marginTop: 10 }}>No medications scheduled for today.</Text>}
