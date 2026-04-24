@@ -89,6 +89,27 @@ router.get('/today', authenticate, async (req, res) => {
                 });
                 await log.save();
             }
+        } else if (log) {
+            // Reconcile: If log exists, ensure all active medications are present (mid-day additions)
+            let isModified = false;
+            for (const med of allMedsRaw) {
+                if (med.is_active !== false) {
+                    for (const time of med.times) {
+                        const exists = log.medicines.some(m => m.medicine_name === med.name && m.scheduled_time === time);
+                        if (!exists) {
+                            log.medicines.push({
+                                medicine_name: med.name,
+                                scheduled_time: time,
+                                taken: false,
+                            });
+                            isModified = true;
+                        }
+                    }
+                }
+            }
+            if (isModified) {
+                await log.save();
+            }
         }
 
         // Attach dosage, instructions, and time preference to the log
@@ -156,6 +177,7 @@ router.put('/mark', authenticate, async (req, res) => {
         // 2. Update Patient Audit Trail
         const patientMed = patient.medications.find(m => m.name === medicine_name);
         if (patientMed) {
+            if (!patientMed.takenLogs) patientMed.takenLogs = [];
             // Append to takenLogs
             patientMed.takenLogs.push({
                 timestamp: new Date(),
@@ -165,6 +187,7 @@ router.put('/mark', authenticate, async (req, res) => {
 
             // If taken, update takenDates (prevent duplicate for same day)
             if (taken) {
+                if (!patientMed.takenDates) patientMed.takenDates = [];
                 const todayStr = today.toDateString();
                 const alreadyTakenToday = patientMed.takenDates.some(d => new Date(d).toDateString() === todayStr);
                 if (!alreadyTakenToday) {
