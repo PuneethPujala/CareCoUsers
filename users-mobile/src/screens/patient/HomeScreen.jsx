@@ -156,10 +156,6 @@ export default function PatientHomeScreen({ navigation }) {
     const [formError, setFormError] = useState(null);
     const [submitLoading, setSubmitLoading] = useState(false);
 
-    // Confirmation & Optimistic UI State
-    const [confirmingMed, setConfirmingMed] = useState(null);
-    const [isConfirmVisible, setIsConfirmVisible] = useState(false);
-
     const staggerAnims = useRef([...Array(10)].map(() => new Animated.Value(0))).current;
 
     // Health sync state
@@ -238,21 +234,6 @@ export default function PatientHomeScreen({ navigation }) {
         }
     };
 
-    const handleConfirmToggle = async () => {
-        if (!confirmingMed) return;
-        const med = confirmingMed;
-        
-        setIsConfirmVisible(false);
-        setConfirmingMed(null);
-
-        try {
-            await storeOptimisticToggle(med);
-        } catch (err) {
-            console.warn('[Optimistic] Mark failed:', err.message);
-            Alert.alert('Update Failed', 'Could not sync with server. Please check your connection.');
-        }
-    };
-
     // Use focus effect to refresh data when returning from Vitals History/Log
     const hasAnimated = useRef(false);
     useFocusEffect(
@@ -301,15 +282,6 @@ export default function PatientHomeScreen({ navigation }) {
         };
     }, [fetchData]);
 
-
-    const toggleMed = async (med) => {
-        if (med.taken) return; // ONE-WAY
-        try {
-            await storeOptimisticToggle(med);
-        } catch (err) {
-            console.warn('Failed to mark med:', err.message);
-        }
-    };
 
     const takenCount = meds.filter(m => m.taken).length;
     const dateStr = new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' });
@@ -671,48 +643,6 @@ export default function PatientHomeScreen({ navigation }) {
             </ScrollView>
             </LinearGradient>
 
-            {/* Premium Confirmation Modal */}
-            <Modal visible={isConfirmVisible} transparent animationType="fade">
-                <View style={styles.confirmOverlay}>
-                    <View style={styles.confirmCard}>
-                        <View style={styles.confirmHeader}>
-                            <View style={[styles.confirmIconWrap, { backgroundColor: confirmingMed?.taken ? '#F1F5F9' : '#DBEAFE' }]}>
-                                {confirmingMed?.taken ? (
-                                    <Clock size={28} color="#64748B" />
-                                ) : (
-                                    <CheckCircle2 size={28} color="#2563EB" />
-                                )}
-                            </View>
-                        </View>
-                        
-                        <Text style={styles.confirmTitle}>
-                            {confirmingMed?.taken ? 'Undo Record?' : 'Confirm Intake'}
-                        </Text>
-                        <Text style={styles.confirmText}>
-                            {confirmingMed?.taken 
-                                ? `Do you want to mark "${confirmingMed?.name}" as not taken?` 
-                                : `Have you taken your "${confirmingMed?.name}" medication?`}
-                        </Text>
-                        
-                        <View style={styles.confirmActionRow}>
-                            <Pressable 
-                                style={styles.confirmCancelBtn} 
-                                onPress={() => { setIsConfirmVisible(false); setConfirmingMed(null); }}
-                            >
-                                <Text style={styles.confirmCancelTxt}>Nevermind</Text>
-                            </Pressable>
-                            <Pressable 
-                                style={[styles.confirmYesBtn, { backgroundColor: confirmingMed?.taken ? '#64748B' : '#2563EB' }]} 
-                                onPress={handleConfirmToggle}
-                            >
-                                <Text style={styles.confirmYesTxt}>
-                                    {confirmingMed?.taken ? 'Yes, Undo' : 'Yes, I took it'}
-                                </Text>
-                            </Pressable>
-                        </View>
-                    </View>
-                </View>
-            </Modal>
         </KeyboardAvoidingView>
     );
 
