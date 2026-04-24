@@ -356,7 +356,7 @@ const AnimatedMedCard = ({ med, onToggle }) => {
                                 </View>
                                 <View style={styles.medMetaRow}>
                                     <Text style={styles.medSubMinimal}>
-                                        {med.scheduled_times?.length > 0 ? `${med.scheduled_times[0]} • ` : ''}
+                                        {med.preferred_time ? `${med.preferred_time} • ` : ''}
                                         {med.dosage}
                                     </Text>
                                     {med.verifiedByCaller && (
