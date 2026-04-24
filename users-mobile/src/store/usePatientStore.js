@@ -197,6 +197,12 @@ const usePatientStore = create((set, get) => ({
     /**
      * fetchMedications — Full fetch for MedicationsScreen.
      * Builds the grouped schedule and adherence chart.
+     * 
+     * ⚡ Architecture: Uses MedicineLog as the SINGLE source of truth.
+     * The backend's /medicines/today endpoint returns a pre-calculated
+     * daily checklist (MedicineLog document) that is already synchronized
+     * with the master Medication collection. We do NOT loop through
+     * patient.medications on the client side.
      */
     fetchMedications: async () => {
         try {
@@ -214,31 +220,16 @@ const usePatientStore = create((set, get) => ({
                 apiService.medicines.getWeeklyAdherence(),
             ]);
 
-            const markedMeds = todayRes.data.log?.medicines || [];
-            const profileMeds = freshPatient?.medications || [];
+            // MedicineLog is the single source of truth
+            const logMeds = todayRes.data.log?.medicines || [];
             const optRef = { ...get()._optimisticMeds };
 
-            // Merge: Unroll profile medications by their 'times' array
-            const mergedMeds = [];
-            profileMeds.forEach((pm) => {
-                let timeTypes = pm.times?.length > 0 ? [...pm.times] : [];
-                if (timeTypes.length === 0 && pm.scheduledTimes?.length > 0) {
-                    pm.scheduledTimes.forEach((st) => {
-                        const hr = parseInt(st.split(':')[0], 10);
-                        if (hr < 12 && !timeTypes.includes('morning')) timeTypes.push('morning');
-                        else if (hr >= 12 && hr < 17 && !timeTypes.includes('afternoon')) timeTypes.push('afternoon');
-                        else if (hr >= 17 && !timeTypes.includes('night')) timeTypes.push('night');
-                    });
-                }
-                timeTypes.forEach((type) => {
-                    const id = `${pm.name}_${type}`;
+            const mergedMeds = logMeds
+                .filter(m => m.is_active !== false)
+                .map((m) => {
+                    const id = `${m.medicine_name}_${m.scheduled_time}`;
                     const optTs = optRef[id];
-                    let isTaken = false;
-
-                    const marked = markedMeds.find(
-                        (mm) => mm.medicine_name === pm.name && mm.scheduled_time === type
-                    );
-                    if (marked) isTaken = marked.taken;
+                    let isTaken = m.taken;
 
                     if (optTs) {
                         if (isTaken) delete optRef[id];
@@ -246,36 +237,19 @@ const usePatientStore = create((set, get) => ({
                         else delete optRef[id];
                     }
 
-                    mergedMeds.push({
+                    return {
                         id,
-                        name: pm.name,
-                        dosage: pm.dosage || (type === 'morning' ? '500mg' : type === 'afternoon' ? '5mg' : '10mg'),
-                        instructions: pm.instructions || (type === 'morning' ? 'Take with food' : type === 'afternoon' ? 'Take after lunch' : 'Take before sleep'),
-                        type,
+                        name: m.medicine_name,
+                        dosage: m.dosage || 'As prescribed',
+                        instructions: m.instructions || '',
+                        type: m.scheduled_time,
                         taken: isTaken,
-                        marked_by: marked ? marked.marked_by : null,
-                        accent: ACCENT_MAP[type] || '#6366F1',
-                        scheduled_times: pm.scheduledTimes || [],
-                    });
+                        marked_by: m.marked_by || null,
+                        verifiedByCaller: m.marked_by === 'caller',
+                        accent: ACCENT_MAP[m.scheduled_time] || '#6366F1',
+                        preferred_time: m.preferred_time || prefs[m.scheduled_time] || '',
+                    };
                 });
-            });
-
-            // Fallback for log-only meds
-            markedMeds.forEach((mm) => {
-                if (!mergedMeds.some((m) => m.name === mm.medicine_name && m.type === mm.scheduled_time)) {
-                    mergedMeds.push({
-                        id: `${mm.medicine_name}_${mm.scheduled_time}_log`,
-                        name: mm.medicine_name,
-                        dosage: mm.dosage,
-                        instructions: mm.instructions,
-                        type: mm.scheduled_time,
-                        taken: mm.taken,
-                        marked_by: mm.marked_by,
-                        accent: ACCENT_MAP[mm.scheduled_time],
-                        scheduled_times: mm.scheduled_times || [],
-                    });
-                }
-            });
 
             const grouped = { morning: [], afternoon: [], night: [] };
             mergedMeds.forEach((m) => {
