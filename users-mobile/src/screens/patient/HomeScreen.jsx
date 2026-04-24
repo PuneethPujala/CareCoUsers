@@ -108,25 +108,35 @@ const MedicationCard = ({ med, onCheck }) => {
         if (onCheck) onCheck(med);
     };
 
-    const isTakenOpacity = med.taken ? 0.7 : 1;
-
     let IconCmp = Pill;
     if (med.type === 'afternoon') IconCmp = PillBottle;
     if (med.type === 'night') IconCmp = Syringe;
 
     return (
-        <View style={[styles.medCard, { opacity: isTakenOpacity }]}>
+        <View style={[styles.medCard, med.taken && styles.medCardTaken]}>
             <View style={styles.medCardInner}>
-                <View style={[styles.medIconBox, { backgroundColor: '#EFF6FF' }]}>
-                    <IconCmp size={20} color="#3B82F6" strokeWidth={2.5} />
+                <View style={[styles.medIconBox, med.taken ? { backgroundColor: '#DCFCE7' } : { backgroundColor: '#EFF6FF' }]}>
+                    {med.taken ? (
+                        <CheckCircle2 size={20} color="#16A34A" strokeWidth={2.5} />
+                    ) : (
+                        <IconCmp size={20} color="#3B82F6" strokeWidth={2.5} />
+                    )}
                 </View>
                 <View style={styles.medContentMinimal}>
-                    <Text style={[styles.medTitleMinimal, med.taken && styles.textStrikethrough]}>{med.name}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        <Text style={[styles.medTitleMinimal, med.taken && { color: '#16A34A' }]}>{med.name}</Text>
+                        {med.taken && (
+                            <View style={styles.takenBadge}>
+                                <CheckCircle2 size={10} color="#16A34A" />
+                                <Text style={styles.takenBadgeText}>Taken</Text>
+                            </View>
+                        )}
+                    </View>
                     <Text style={styles.medSubMinimal}>{med.dosage} {med.instructions ? `• ${med.instructions}` : ''}</Text>
                 </View>
                 <Pressable onPress={handleCheck} style={styles.checkboxTouch} disabled={med.taken}>
-                    <Animated.View style={[{ transform: [{ scale }] }, styles.checkboxMinimal, med.taken && { backgroundColor: '#F8FAFC', borderColor: '#F1F5F9' }]}>
-                        {med.taken && <CheckCircle2 color="#3B82F6" fill="#FFF" size={24} />}
+                    <Animated.View style={[{ transform: [{ scale }] }, styles.checkboxMinimal, med.taken && { backgroundColor: '#DCFCE7', borderColor: '#BBF7D0' }]}>
+                        {med.taken && <CheckCircle2 color="#16A34A" size={24} />}
                         {!med.taken && <CheckCircle2 color="#CBD5E1" size={24} />}
                     </Animated.View>
                 </Pressable>
@@ -876,6 +886,15 @@ const styles = StyleSheet.create({
     medTitleMinimal: { fontSize: 16, fontWeight: '700', color: '#0F172A', marginBottom: 4 },
     medSubMinimal: { fontSize: 13, color: '#64748B', fontWeight: '500' },
     textStrikethrough: { textDecorationLine: 'line-through', color: '#94A3B8' },
+    medCardTaken: {
+        backgroundColor: '#F0FDF4',
+        borderColor: '#DCFCE7',
+    },
+    takenBadge: {
+        flexDirection: 'row', alignItems: 'center', gap: 3,
+        backgroundColor: '#DCFCE7', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10,
+    },
+    takenBadgeText: { fontSize: 10, fontWeight: '700', color: '#16A34A' },
     checkboxTouch: { padding: 4 },
     checkboxMinimal: { width: 36, height: 36, borderRadius: 18, borderWidth: 1, borderColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFF' },
 

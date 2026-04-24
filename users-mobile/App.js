@@ -54,7 +54,7 @@ analytics.init();
 
 // §7+§6: Deep link configuration for password reset and email verification
 const linking = {
-    prefixes: [Linking.createURL('/'), 'careco-app://'],
+    prefixes: [Linking.createURL('/'), 'CareMyMed-app://'],
     config: {
         screens: {
             ResetPassword: 'reset-password',
@@ -110,8 +110,8 @@ export default function App() {
                 {showPrivacyOverlay && (
                     <View style={StyleSheet.absoluteFill}>
                         <View style={{flex: 1, backgroundColor: '#0F172A', alignItems: 'center', justifyContent: 'center'}}>
-                            <ShieldCheck color="#3B82F6" size={64} />
-                            <Text style={{color: '#FFFFFF', fontSize: 22, marginTop: 16, fontWeight: '700'}}>CareCo Secure View</Text>
+                            <ShieldCheck size={48} color="#FFFFFF" strokeWidth={1.5} />
+                            <Text style={{color: '#FFFFFF', fontSize: 22, marginTop: 16, fontWeight: '700'}}>CareMyMed Secure View</Text>
                             <Text style={{color: '#94A3B8', fontSize: 14, marginTop: 8}}>Protecting your health data</Text>
                         </View>
                     </View>
