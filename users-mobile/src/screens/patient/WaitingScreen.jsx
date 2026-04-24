@@ -115,19 +115,11 @@ export default function WaitingScreen({ navigation, route }) {
                 <Animated.View style={{ opacity: fadeAnim }}>
                     <Text style={styles.sectionEyebrow}>WHILE YOU WAIT</Text>
                     <Text style={styles.sectionTitle}>Discover Samvaya</Text>
-                    <Text style={styles.sectionDesc}>
-                        Samvaya is India's first personalized elderly care platform. We connect
-                        seniors with dedicated care coordinators who call daily, track health,
-                        and provide 24/7 support.
-                    </Text>
-
-                    {/* Hero Image */}
-                    <View style={styles.heroImageWrap}>
-                        <Image
-                            source={require('../../../assets/careco_features.png')}
-                            style={styles.heroImage}
-                            resizeMode="cover"
-                        />
+                    <View style={styles.content}>
+                        <Text style={styles.title}>Welcome to CareMyMed</Text>
+                        <Text style={styles.subtitle}>
+                            Your dedicated platform for personalized health management and continuous care.
+                        </Text>
                         <LinearGradient
                             colors={['transparent', 'rgba(244,247,251,0.9)']}
                             style={styles.heroImageOverlay}

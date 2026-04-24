@@ -7,7 +7,7 @@ try {
     console.warn('[CacheService] react-native-encrypted-storage not available, using AsyncStorage fallback');
 }
 
-const CACHE_PREFIX = '@careco_cache';
+const CACHE_PREFIX = '@CareMyMed_cache';
 
 // Keys containing sensitive health data that must be encrypted at rest (Audit 6.14)
 const SENSITIVE_KEYS = ['medications_today', 'health_profile', 'patient_data'];

@@ -11,6 +11,7 @@ import {
 } from 'lucide-react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import usePatientStore from '../../store/usePatientStore';
+import RecapStoryModal from '../../components/adherence/RecapStoryModal';
 import {
     startOfMonth, endOfMonth, eachDayOfInterval, format, isToday,
     startOfWeek, endOfWeek, isSameMonth, parseISO, isSameDay,
@@ -300,14 +301,22 @@ const SkeletonItem = ({ width, height, borderRadius = 8, style }) => {
 // ════════════════════════════════════════════════════════════
 // ══ MAIN SCREEN ════════════════════════════════════════════
 // ════════════════════════════════════════════════════════════
+const RECAP_TABS = ['weekly', 'monthly', 'yearly'];
+const RECAP_LABELS = { weekly: 'Weekly', monthly: 'Monthly', yearly: 'Yearly' };
+
 export default function AdherenceScreen({ navigation }) {
     const adherenceDetails = usePatientStore((s) => s.adherenceDetails);
+    const adherenceRecap = usePatientStore((s) => s.adherenceRecap);
     const fetchAdherenceDetails = usePatientStore((s) => s.fetchAdherenceDetails);
+    const fetchAdherenceRecap = usePatientStore((s) => s.fetchAdherenceRecap);
     const patient = usePatientStore((s) => s.patient);
 
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [selectedDay, setSelectedDay] = useState(null);
+    const [activeRecapTab, setActiveRecapTab] = useState('weekly');
+    const [showStoryModal, setShowStoryModal] = useState(false);
+    const tabIndicatorAnim = useRef(new Animated.Value(0)).current;
 
     // Stagger animations
     const staggerAnims = useRef([...Array(8)].map(() => new Animated.Value(0))).current;
@@ -320,10 +329,13 @@ export default function AdherenceScreen({ navigation }) {
     }, [staggerAnims]);
 
     const loadData = useCallback(async () => {
-        await fetchAdherenceDetails();
+        await Promise.all([
+            fetchAdherenceDetails(),
+            fetchAdherenceRecap(activeRecapTab),
+        ]);
         setLoading(false);
         runAnimations();
-    }, [fetchAdherenceDetails, runAnimations]);
+    }, [fetchAdherenceDetails, fetchAdherenceRecap, activeRecapTab, runAnimations]);
 
     useFocusEffect(
         useCallback(() => {
@@ -331,9 +343,19 @@ export default function AdherenceScreen({ navigation }) {
         }, [loadData])
     );
 
+    const switchRecapTab = (tab) => {
+        const idx = RECAP_TABS.indexOf(tab);
+        Animated.spring(tabIndicatorAnim, { toValue: idx, friction: 7, useNativeDriver: true }).start();
+        setActiveRecapTab(tab);
+        fetchAdherenceRecap(tab);
+    };
+
     const handleRefresh = async () => {
         setRefreshing(true);
-        await fetchAdherenceDetails();
+        await Promise.all([
+            fetchAdherenceDetails(),
+            fetchAdherenceRecap(activeRecapTab),
+        ]);
         setRefreshing(false);
     };
 
@@ -414,14 +436,27 @@ export default function AdherenceScreen({ navigation }) {
                 <View style={styles.headerCenter}>
                     <Text style={styles.headerTitle}>Adherence</Text>
                 </View>
-                <Pressable style={[styles.levelPill, { backgroundColor: '#3B82F6', borderColor: '#2563EB', shadowColor: '#3B82F6', shadowOffset: {width:0, height:4}, shadowOpacity:0.3, shadowRadius:8, elevation:4 }]} onPress={() => {
-                    const unlockedBadges = achievements.filter(a => a.unlocked).map(a => `🏅 ${a.label}`).join('\n');
-                    const shareMsg = `🔥 My CareCo Adherence Stats:\n\n📊 Monthly Score: ${score.monthly}%\n📈 Weekly Score: ${score.weekly}%\n🔥 Current Streak: ${streak} day${streak !== 1 ? 's' : ''}\n💪 Level: ${level.label}\n${unlockedBadges ? `\n🏆 Badges Earned:\n${unlockedBadges}` : ''}\n\nTracking my health with CareCo! 💙`;
-                    Share.share({ message: shareMsg });
-                }}>
+                <Pressable style={[styles.levelPill, { backgroundColor: '#3B82F6', borderColor: '#2563EB', shadowColor: '#3B82F6', shadowOffset: {width:0, height:4}, shadowOpacity:0.3, shadowRadius:8, elevation:4 }]} onPress={() => setShowStoryModal(true)}>
                     <Share2 size={14} color="#FFF" />
                     <Text style={[styles.levelText, { color: '#FFF' }]}>Share</Text>
                 </Pressable>
+            </View>
+
+            {/* ── Recap Period Tabs ── */}
+            <View style={styles.recapTabsContainer}>
+                <View style={styles.recapTabsInner}>
+                    {RECAP_TABS.map((tab, idx) => (
+                        <Pressable
+                            key={tab}
+                            style={[styles.recapTab, activeRecapTab === tab && styles.recapTabActive]}
+                            onPress={() => switchRecapTab(tab)}
+                        >
+                            <Text style={[styles.recapTabText, activeRecapTab === tab && styles.recapTabTextActive]}>
+                                {RECAP_LABELS[tab]}
+                            </Text>
+                        </Pressable>
+                    ))}
+                </View>
             </View>
 
             <ScrollView
@@ -442,6 +477,49 @@ export default function AdherenceScreen({ navigation }) {
                         </View>
                     </View>
                 </Animated.View>
+
+                {/* ── Recap Stats Summary ── */}
+                {adherenceRecap && (
+                    <Animated.View style={anim(0)}>
+                        <View style={[styles.glassCard, { padding: 20, marginBottom: 16 }]}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                                <Text style={styles.sectionTitle}>
+                                    {activeRecapTab === 'yearly' && adherenceRecap.is_all_time_fallback 
+                                        ? 'ALL TIME RECAP' 
+                                        : `${RECAP_LABELS[activeRecapTab].toUpperCase()} RECAP`}
+                                </Text>
+                                <View style={[styles.levelPill, { backgroundColor: (adherenceRecap.level?.key === 'optimal' ? C.success : adherenceRecap.level?.key === 'consistent' ? C.primary : C.warning) + '15' }]}>
+                                    <Text style={{ fontSize: 12 }}>{adherenceRecap.level?.emoji || '🌱'}</Text>
+                                    <Text style={[styles.levelText, { color: adherenceRecap.level?.key === 'optimal' ? C.success : adherenceRecap.level?.key === 'consistent' ? C.primary : C.warning }]}>{adherenceRecap.level?.label || 'Beginner'}</Text>
+                                </View>
+                            </View>
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                                <View style={{ alignItems: 'center', flex: 1 }}>
+                                    <Text style={{ fontSize: 24, fontWeight: '900', color: C.dark }}>{adherenceRecap.adherence_rate || 0}%</Text>
+                                    <Text style={{ fontSize: 11, color: C.muted, fontWeight: '600', marginTop: 2 }}>Adherence</Text>
+                                </View>
+                                <View style={{ width: 1, backgroundColor: '#F1F5F9' }} />
+                                <View style={{ alignItems: 'center', flex: 1 }}>
+                                    <Text style={{ fontSize: 24, fontWeight: '900', color: C.dark }}>{adherenceRecap.perfect_days || 0}</Text>
+                                    <Text style={{ fontSize: 11, color: C.muted, fontWeight: '600', marginTop: 2 }}>Perfect Days</Text>
+                                </View>
+                                <View style={{ width: 1, backgroundColor: '#F1F5F9' }} />
+                                <View style={{ alignItems: 'center', flex: 1 }}>
+                                    <Text style={{ fontSize: 24, fontWeight: '900', color: C.dark }}>{adherenceRecap.total_doses_taken || 0}</Text>
+                                    <Text style={{ fontSize: 11, color: C.muted, fontWeight: '600', marginTop: 2 }}>Doses Taken</Text>
+                                </View>
+                            </View>
+                            {adherenceRecap.improvement_vs_previous !== 0 && (
+                                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 14, gap: 4 }}>
+                                    {adherenceRecap.improvement_vs_previous > 0 ? <TrendingUp size={14} color={C.success} /> : <TrendingDown size={14} color={C.danger} />}
+                                    <Text style={{ fontSize: 12, fontWeight: '700', color: adherenceRecap.improvement_vs_previous > 0 ? C.success : C.danger }}>
+                                        {adherenceRecap.improvement_vs_previous > 0 ? '+' : ''}{adherenceRecap.improvement_vs_previous}% vs previous {activeRecapTab === 'yearly' ? 'year' : activeRecapTab === 'monthly' ? 'month' : 'week'}
+                                    </Text>
+                                </View>
+                            )}
+                        </View>
+                    </Animated.View>
+                )}
 
                 {/* ── 1. Smart Feedback Banner ── */}
                 <Animated.View style={anim(0)}>
@@ -679,6 +757,14 @@ export default function AdherenceScreen({ navigation }) {
             </ScrollView>
         </SafeAreaView>
 
+        {/* ── Recap Story Modal ── */}
+        <RecapStoryModal
+            visible={showStoryModal}
+            onClose={() => setShowStoryModal(false)}
+            recap={adherenceRecap}
+            period={activeRecapTab}
+        />
+
         {/* ── Seamless Slide-Up Modal Date Details ── */}
         <Modal
             visible={!!selectedDay}
@@ -752,17 +838,51 @@ const styles = StyleSheet.create({
     
     // Glassmorphism Base
     glassCard: {
-        backgroundColor: 'rgba(255, 255, 255, 0.65)',
+        backgroundColor: '#FFFFFF',
         borderRadius: 24,
         padding: 20,
         marginBottom: 20,
         borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.8)',
+        borderColor: '#F1F5F9',
         shadowColor: '#3B82F6',
         shadowOffset: { width: 0, height: 8 },
         shadowOpacity: 0.08,
         shadowRadius: 24,
         elevation: 8,
+    },
+
+    // ── Recap Tabs ──
+    recapTabsContainer: {
+        paddingHorizontal: 20,
+        paddingBottom: 8,
+    },
+    recapTabsInner: {
+        flexDirection: 'row',
+        backgroundColor: '#F1F5F9',
+        borderRadius: 14,
+        padding: 4,
+    },
+    recapTab: {
+        flex: 1,
+        paddingVertical: 10,
+        alignItems: 'center',
+        borderRadius: 12,
+    },
+    recapTabActive: {
+        backgroundColor: '#FFFFFF',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 4,
+        elevation: 3,
+    },
+    recapTabText: {
+        fontSize: 14,
+        fontWeight: '700',
+        color: '#94A3B8',
+    },
+    recapTabTextActive: {
+        color: '#0F172A',
     },
 
     // ── Header ──

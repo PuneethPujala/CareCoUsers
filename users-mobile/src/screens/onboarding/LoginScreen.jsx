@@ -337,8 +337,8 @@ export default function LoginScreen({ navigation }) {
                     || googleUser.user_metadata?.name
                     || googleUser.email.split('@')[0];
                 try {
-                    // Register returns profile + CareConnect JWT session for OAuth users.
-                    // We pass these CareConnect tokens to injectSession so the API
+                    // Register returns profile + CareMyMednnect JWT session for OAuth users.
+                    // We pass these CareMyMednnect tokens to injectSession so the API
                     // interceptor uses verifiable tokens for all subsequent calls.
                     const regRes = await apiService.auth.register({
                         email: googleUser.email, fullName, role: 'patient',
@@ -360,7 +360,7 @@ export default function LoginScreen({ navigation }) {
                     const regProfile = regError?.response?.data?.profile;
                     const regSession = regError?.response?.data?.session;
                     if (code === 'EMAIL_ALREADY_EXISTS' && regProfile && regSession) {
-                        // Backend linked the accounts and returned CareConnect session
+                        // Backend linked the accounts and returned CareMyMednnect session
                         await injectSession(regSession, regProfile);
                     } else if (code === 'EMAIL_ALREADY_EXISTS') {
                         setErrorText('An account with this email already exists. Please try logging in with your password.');

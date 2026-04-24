@@ -583,7 +583,7 @@ export default function PatientSignupScreen({ navigation, route }) {
                     || googleUser.user_metadata?.name
                     || googleUser.email.split('@')[0];
                 try {
-                    // Register returns profile + CareConnect JWT session for OAuth users.
+                    // Register returns profile + CareMyMednnect JWT session for OAuth users.
                     const regRes = await apiService.auth.register({
                         email: googleUser.email, fullName, role: 'patient',
                         supabaseUid: googleUser.id,

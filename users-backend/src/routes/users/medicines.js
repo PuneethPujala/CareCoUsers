@@ -540,4 +540,232 @@ router.get('/adherence/details', authenticate, async (req, res) => {
     }
 });
 
+/**
+ * GET /api/users/medicines/adherence/recap
+ * Period-based adherence recap for AdherenceScreen recap tabs & story sharing.
+ * Query: ?period=weekly|monthly|yearly
+ */
+router.get('/adherence/recap', authenticate, async (req, res) => {
+    try {
+        const patient = await Patient.findOne({ supabase_uid: req.user.id });
+        if (!patient) {
+            return res.status(404).json({ error: 'Patient profile not found' });
+        }
+
+        const VitalLog = require('../../models/VitalLog');
+
+        const period = req.query.period || 'weekly';
+        const now = new Date();
+        let daysBack;
+        if (period === 'yearly') daysBack = 365;
+        else if (period === 'monthly') daysBack = 30;
+        else daysBack = 7;
+
+        let startDate = new Date();
+        startDate.setDate(startDate.getDate() - daysBack);
+        startDate.setHours(0, 0, 0, 0);
+
+        let isAllTimeFallback = false;
+        if (period === 'yearly') {
+            const firstLog = await MedicineLog.findOne({ patient_id: patient._id }).sort({ date: 1 });
+            if (firstLog && firstLog.date > startDate) {
+                startDate = new Date(firstLog.date);
+                startDate.setHours(0, 0, 0, 0);
+                daysBack = Math.max(1, Math.ceil((now - startDate) / (1000 * 60 * 60 * 24)));
+                isAllTimeFallback = true;
+            }
+        }
+
+        const logs = await MedicineLog.find({
+            patient_id: patient._id,
+            date: { $gte: startDate },
+        }).sort({ date: 1 });
+
+        const vitals = await VitalLog.find({
+            patient_id: patient._id,
+            date: { $gte: startDate },
+        });
+
+        // ── Build daily entries ──
+        const dailyEntries = logs.map((log) => {
+            const activeMeds = log.medicines.filter(m => m.is_active !== false);
+            const total = activeMeds.length;
+            const taken = activeMeds.filter(m => m.taken).length;
+            return {
+                date: log.date.toISOString().slice(0, 10),
+                total,
+                taken,
+                rate: total > 0 ? Math.round((taken / total) * 100) : 0,
+                medicines: activeMeds,
+            };
+        });
+
+        // ── Aggregate stats ──
+        let totalScheduled = 0, totalTaken = 0;
+        dailyEntries.forEach(d => { totalScheduled += d.total; totalTaken += d.taken; });
+        const adherenceRate = totalScheduled > 0 ? Math.round((totalTaken / totalScheduled) * 100) : 0;
+
+        // ── Streaks ──
+        let currentStreak = 0, bestStreak = 0, tempStreak = 0;
+        const reversedEntries = [...dailyEntries].reverse();
+        for (const d of reversedEntries) {
+            if (d.total === 0) break;
+            if (d.rate >= 80) currentStreak++;
+            else break;
+        }
+        for (const d of dailyEntries) {
+            if (d.total > 0 && d.rate >= 80) { tempStreak++; bestStreak = Math.max(bestStreak, tempStreak); }
+            else tempStreak = 0;
+        }
+
+        // ── Time-slot analysis ──
+        const times = { morning: { total: 0, taken: 0 }, afternoon: { total: 0, taken: 0 }, night: { total: 0, taken: 0 } };
+        logs.forEach(log => {
+            log.medicines.forEach(m => {
+                if (m.is_active !== false && times[m.scheduled_time]) {
+                    times[m.scheduled_time].total++;
+                    if (m.taken) times[m.scheduled_time].taken++;
+                }
+            });
+        });
+        let mostConsistent = null, mostMissed = null, highestRate = -1, lowestRate = 101;
+        Object.keys(times).forEach(k => {
+            if (times[k].total > 0) {
+                const r = (times[k].taken / times[k].total) * 100;
+                if (r > highestRate) { highestRate = r; mostConsistent = k; }
+                if (r < lowestRate) { lowestRate = r; mostMissed = k; }
+            }
+        });
+
+        // ── Perfect days ──
+        const perfectDays = dailyEntries.filter(d => d.rate === 100).length;
+
+        // ── Level ──
+        let level;
+        if (adherenceRate >= 90) level = { key: 'optimal', label: 'Optimal', emoji: '🏆' };
+        else if (adherenceRate >= 70) level = { key: 'consistent', label: 'Consistent', emoji: '🌳' };
+        else if (adherenceRate >= 50) level = { key: 'improving', label: 'Improving', emoji: '🌿' };
+        else level = { key: 'beginner', label: 'Beginner', emoji: '🌱' };
+
+        // ── Top medication ──
+        const medStats = {};
+        logs.forEach(log => {
+            log.medicines.forEach(m => {
+                if (m.is_active === false) return;
+                if (!medStats[m.medicine_name]) medStats[m.medicine_name] = { total: 0, taken: 0 };
+                medStats[m.medicine_name].total++;
+                if (m.taken) medStats[m.medicine_name].taken++;
+            });
+        });
+        let topMed = null, topRate = -1;
+        Object.keys(medStats).forEach(name => {
+            const r = medStats[name].total > 0 ? Math.round((medStats[name].taken / medStats[name].total) * 100) : 0;
+            if (r > topRate) { topRate = r; topMed = { name, rate: r }; }
+        });
+
+        // ── Improvement vs previous period ──
+        const prevStart = new Date(startDate);
+        prevStart.setDate(prevStart.getDate() - daysBack);
+        const prevLogs = await MedicineLog.find({
+            patient_id: patient._id,
+            date: { $gte: prevStart, $lt: startDate },
+        });
+        let prevTotal = 0, prevTaken = 0;
+        prevLogs.forEach(log => {
+            log.medicines.forEach(m => {
+                if (m.is_active !== false) { prevTotal++; if (m.taken) prevTaken++; }
+            });
+        });
+        const prevRate = prevTotal > 0 ? Math.round((prevTaken / prevTotal) * 100) : 0;
+        const improvement = adherenceRate - prevRate;
+
+        // ── Vitals logged ──
+        const vitalsLoggedDays = vitals.length;
+
+        // ── Badges earned ──
+        const badgesEarned = [
+            perfectDays >= 1,
+            bestStreak >= 3,
+            adherenceRate >= 90,
+            perfectDays >= 7,
+            adherenceRate >= 80 && dailyEntries.length >= 25,
+        ].filter(Boolean).length;
+
+        // ── Motivational message ──
+        const messages = {
+            optimal: ["You're unstoppable! 🔥", "Health champion status achieved! 💪", "Consistency is your superpower! ⭐"],
+            consistent: ["Great momentum — keep pushing! 🚀", "You're building healthy habits! 🌟", "Almost at the top — don't stop! 💫"],
+            improving: ["Every dose counts — you're growing! 🌿", "Progress is progress, no matter how small! 📈", "Keep going, you're on the right track! 🛤️"],
+            beginner: ["Today is a fresh start! 🌅", "One step at a time — you've got this! 💙", "Small steps lead to big changes! 🦋"],
+        };
+        const pool = messages[level.key] || messages.beginner;
+        const motivationalMessage = pool[Math.floor(Math.random() * pool.length)];
+
+        // ── Weekly trend (always include for charts) ──
+        const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        const weeklyTrend = [];
+        for (let i = 6; i >= 0; i--) {
+            const d = new Date();
+            d.setDate(d.getDate() - i);
+            const dateStr = d.toISOString().slice(0, 10);
+            const entry = dailyEntries.find(e => e.date === dateStr);
+            weeklyTrend.push({ day: dayNames[d.getDay()], date: dateStr, rate: entry ? entry.rate : 0 });
+        }
+
+        // ── Monthly trend (daily rates for 30 days) ──
+        const monthlyTrend = [];
+        for (let i = 29; i >= 0; i--) {
+            const d = new Date();
+            d.setDate(d.getDate() - i);
+            const dateStr = d.toISOString().slice(0, 10);
+            const entry = dailyEntries.find(e => e.date === dateStr);
+            monthlyTrend.push({ date: dateStr, day: d.getDate(), rate: entry ? entry.rate : 0 });
+        }
+
+        // ── Yearly trend (monthly averages) ──
+        const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        const yearlyTrend = [];
+        for (let i = 11; i >= 0; i--) {
+            const d = new Date();
+            d.setMonth(d.getMonth() - i);
+            const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+            const monthEntries = dailyEntries.filter(e => e.date.startsWith(monthKey));
+            const monthTotal = monthEntries.reduce((s, e) => s + e.total, 0);
+            const monthTaken = monthEntries.reduce((s, e) => s + e.taken, 0);
+            yearlyTrend.push({
+                month: monthNames[d.getMonth()],
+                rate: monthTotal > 0 ? Math.round((monthTaken / monthTotal) * 100) : 0,
+                days: monthEntries.length,
+            });
+        }
+
+        res.json({
+            period,
+            is_all_time_fallback: isAllTimeFallback,
+            date_range: { start: startDate.toISOString().slice(0, 10), end: now.toISOString().slice(0, 10) },
+            total_doses_scheduled: totalScheduled,
+            total_doses_taken: totalTaken,
+            adherence_rate: adherenceRate,
+            streak_best: bestStreak,
+            streak_current: currentStreak,
+            most_consistent_time: mostConsistent,
+            most_missed_time: mostMissed,
+            perfect_days: perfectDays,
+            total_days_tracked: dailyEntries.length,
+            level,
+            top_medication: topMed,
+            improvement_vs_previous: improvement,
+            vitals_logged_days: vitalsLoggedDays,
+            badges_earned: badgesEarned,
+            motivational_message: motivationalMessage,
+            weekly_trend: weeklyTrend,
+            monthly_trend: monthlyTrend,
+            yearly_trend: yearlyTrend,
+        });
+    } catch (error) {
+        console.error('Get adherence recap error:', error);
+        res.status(500).json({ error: 'Failed to get adherence recap' });
+    }
+});
+
 module.exports = router;

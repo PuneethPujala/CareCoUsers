@@ -431,7 +431,7 @@ export function AuthProvider({ children }) {
             // NOTE: We intentionally do NOT save Supabase tokens as API tokens.
             // Supabase JWTs cannot be verified by our backend (different JWT secret,
             // AUTH_ENABLE_SUPABASE_FALLBACK is off). The calling screen will call
-            // the public register endpoint which returns CareConnect JWTs that
+            // the public register endpoint which returns CareMyMednnect JWTs that
             // the backend can actually verify. Those get saved via injectSession().
             setLoading(false);
             return { isNewUser: true, user: data.user, session: data.session };
@@ -457,7 +457,7 @@ export function AuthProvider({ children }) {
         if (newProfile) newProfile.role = 'patient';
         await setProfileAndCache(newProfile);
 
-        // Save CareConnect JWTs BEFORE fetching patient data so the API
+        // Save CareMyMednnect JWTs BEFORE fetching patient data so the API
         // interceptor uses these verifiable tokens instead of stale Supabase ones.
         await saveApiTokens({
             access_token: newSession.access_token,

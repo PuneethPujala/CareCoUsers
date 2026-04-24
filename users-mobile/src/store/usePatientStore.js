@@ -27,6 +27,7 @@ const usePatientStore = create((set, get) => ({
     medicationSchedule: { morning: [], afternoon: [], night: [] },
     weeklyAdherence: [],
     adherenceDetails: null,
+    adherenceRecap: null,
     callPreferences: { morning: '09:00', afternoon: '14:00', night: '20:00' },
 
     // State flags
@@ -56,6 +57,20 @@ const usePatientStore = create((set, get) => ({
             return data;
         } catch (err) {
             console.warn('[Store] fetchAdherenceDetails error:', err.message);
+            return null;
+        }
+    },
+
+    /**
+     * fetchAdherenceRecap — Fetch period-based recap (weekly/monthly/yearly).
+     */
+    fetchAdherenceRecap: async (period = 'weekly') => {
+        try {
+            const { data } = await apiService.medicines.getAdherenceRecap(period);
+            set({ adherenceRecap: data });
+            return data;
+        } catch (err) {
+            console.warn('[Store] fetchAdherenceRecap error:', err.message);
             return null;
         }
     },

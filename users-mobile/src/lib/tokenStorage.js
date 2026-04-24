@@ -1,12 +1,12 @@
 /**
- * Persists CareConnect API JWT pair (access + refresh) separately from Supabase.
+ * Persists CareMyMednnect API JWT pair (access + refresh) separately from Supabase.
  * Used for email/password auth; Google OAuth continues to use Supabase session only.
  */
 import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
-const STORAGE_KEY = 'careco_api_tokens';
+const STORAGE_KEY = 'CareMyMed_api_tokens';
 
 export async function saveApiTokens(session) {
     if (!session?.access_token) return;

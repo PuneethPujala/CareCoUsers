@@ -215,8 +215,8 @@ const styles = StyleSheet.create({
         justifyContent: 'flex-end',
     },
     sheetContainer: {
-        minHeight: SCREEN_HEIGHT * 0.4,
-        maxHeight: SCREEN_HEIGHT * 0.85,
+        minHeight: SCREEN_HEIGHT * 0.50,
+        maxHeight: SCREEN_HEIGHT * 0.88,
         backgroundColor: '#FFFFFF',
         borderRadius: 24,
         shadowColor: '#000',
@@ -225,6 +225,7 @@ const styles = StyleSheet.create({
         shadowRadius: 24,
         elevation: 24,
         overflow: 'hidden',
+        marginBottom: 20,
     },
     header: {
         flexDirection: 'row',
@@ -259,8 +260,9 @@ const styles = StyleSheet.create({
     scrollContent: {
         paddingHorizontal: 24,
         paddingTop: 20,
-        paddingBottom: 80,
+        paddingBottom: 120,
         flexGrow: 1,
+        gap: 16,
     },
     stickyFooter: {
         paddingHorizontal: 24,
