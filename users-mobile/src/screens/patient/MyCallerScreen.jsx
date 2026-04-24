@@ -58,6 +58,7 @@ export default function MyCallerScreen({ navigation }) {
   const [calls, setCalls] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modalVisible, setModal] = useState(false);
+  const [selectedProfile, setSelectedProfile] = useState(null);
   const [flagging, setFlagging] = useState(false);
   const [flagIssueModalVisible, setFlagIssueModalVisible] = useState(false);
   const [flagDescription, setFlagDescription] = useState('');
@@ -87,7 +88,8 @@ export default function MyCallerScreen({ navigation }) {
     ]).start();
   }, [staggerAnims, cardAnim]);
 
-  const openModal = () => {
+  const openModal = (profile) => {
+    setSelectedProfile(profile);
     setModal(true);
     Animated.parallel([
       Animated.spring(modalAnim, { toValue: 1, friction: 8, tension: 50, useNativeDriver: true }),
@@ -342,13 +344,8 @@ export default function MyCallerScreen({ navigation }) {
         <View style={[s.section, { marginTop: -40 }]}>
           <Text style={s.sectionHeader}>YOUR CALLER</Text>
           {caller ? (
-            <Animated.View style={{
-              opacity: cardAnim,
-              transform: [{
-                translateY: cardAnim.interpolate({ inputRange: [0, 1], outputRange: [40, 0] }),
-              }],
-            }}>
-              <Pressable onPress={openModal} style={({ pressed }) => [s.callerCard, pressed && s.callerCardPressed]}>
+            <Animated.View style={{ opacity: staggerAnims[0], transform: [{ translateY: staggerAnims[0].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>
+              <Pressable onPress={() => openModal(caller)} style={({ pressed }) => [s.callerCard, pressed && s.callerCardPressed]}>
                 {/* Avatar + name row */}
                 <View style={s.profileRow}>
                   <View style={s.avatarWrap}>
@@ -426,7 +423,7 @@ export default function MyCallerScreen({ navigation }) {
               <Text style={s.sectionHeaderBase}>MANAGER</Text>
             </View>
             {manager ? (
-              <View style={s.callerCard}>
+              <Pressable onPress={() => openModal({ ...manager, isManager: true })} style={({ pressed }) => [s.callerCard, pressed && s.callerCardPressed]}>
                 <View style={s.profileRow}>
                   <View style={s.avatarWrap}>
                     <LinearGradient colors={['#64748B', '#334155']} style={s.avatar}>
@@ -454,7 +451,7 @@ export default function MyCallerScreen({ navigation }) {
                     <Text style={s.btnCallText}>Contact Manager</Text>
                   </Pressable>
                 </View>
-              </View>
+              </Pressable>
             ) : (
               <LinearGradient colors={['#F8FAFC', '#F1F5F9']} style={s.emptyCardPremium}>
                 <View style={s.emptyIconWrapPremium}>
@@ -521,6 +518,17 @@ export default function MyCallerScreen({ navigation }) {
         animationType="none"
         onRequestClose={closeModal}
       >
+        {(() => {
+          const isManager = selectedProfile?.isManager;
+          const profileName = isManager ? (selectedProfile.fullName || 'Manager') : (selectedProfile?.name || 'Care Team');
+          const profileIdText = isManager ? 'Role: Care Manager' : `Support ID: ${selectedProfile?.employee_id || 'N/A'}`;
+          const profileGradient = isManager ? ['#64748B', '#334155'] : ['#4338CA', '#312E81'];
+          const profileExp = selectedProfile?.experience_years || 0;
+          const profileLang = (selectedProfile?.languages_spoken?.length || 0) > 0 ? selectedProfile.languages_spoken[0] : 'English';
+          const profilePhone = selectedProfile?.phone;
+
+          return (
+            <>
         <TouchableWithoutFeedback onPress={closeModal}>
           <Animated.View style={[s.backdrop, { opacity: backdropAnim }]} />
         </TouchableWithoutFeedback>
@@ -558,12 +566,12 @@ export default function MyCallerScreen({ navigation }) {
               {/* Profile Header */}
               <View style={s.modalHeaderRow}>
                 <View style={s.modalProfileInfo}>
-                  <Text style={s.modalCallerName} numberOfLines={1}>{caller?.name}</Text>
-                  <Text style={s.modalIdText}>Support ID: {caller?.employee_id}</Text>
+                  <Text style={s.modalCallerName} numberOfLines={1}>{profileName}</Text>
+                  <Text style={s.modalIdText}>{profileIdText}</Text>
                 </View>
                 <View style={s.avatarWrapLg}>
-                  <LinearGradient colors={['#4338CA', '#312E81']} style={s.avatarLg}>
-                    <Text style={s.avatarLetterLg}>{caller?.name?.charAt(0)}</Text>
+                  <LinearGradient colors={profileGradient} style={s.avatarLg}>
+                    <Text style={s.avatarLetterLg}>{profileName.charAt(0)}</Text>
                   </LinearGradient>
                   <View style={s.onlineDotLg} />
                 </View>
@@ -572,15 +580,15 @@ export default function MyCallerScreen({ navigation }) {
               {/* Action buttons (Modal) */}
               <View style={s.modalActionRow}>
                 <Pressable
-                  style={({ pressed }) => [s.btnCallLg, pressed && s.btnCallPressedLg]}
-                  onPress={() => caller?.phone && Linking.openURL(`tel:${caller.phone}`)}
+                  style={({ pressed }) => [s.btnCallLg, { backgroundColor: isManager ? '#334155' : '#4338CA' }, pressed && s.btnCallPressedLg]}
+                  onPress={() => profilePhone && Linking.openURL(`tel:${profilePhone}`)}
                 >
                   <Phone size={18} color="#FFF" strokeWidth={2.5} />
                   <Text style={s.btnCallTextLg}>Call Now</Text>
                 </Pressable>
                 <Pressable
                   style={({ pressed }) => [s.iconBtn, pressed && s.iconBtnPressed]}
-                  onPress={handleFlagIssue}
+                  onPress={() => setFlagIssueModalVisible(true)}
                 >
                   <Flag size={20} color={C.danger} strokeWidth={2.5} />
                 </Pressable>
@@ -592,7 +600,7 @@ export default function MyCallerScreen({ navigation }) {
                   <View style={[s.bentoIcon, { backgroundColor: '#F1F5F9' }]}>
                     <Clock size={16} color="#475569" strokeWidth={2.5} />
                   </View>
-                  <Text style={s.bentoVal}>{caller?.experience_years} yrs</Text>
+                  <Text style={s.bentoVal}>{profileExp} yrs</Text>
                   <Text style={s.bentoLbl}>Experience</Text>
                 </View>
                 <View style={[s.bentoBox, { backgroundColor: '#F8FAFC' }]}>
@@ -600,7 +608,7 @@ export default function MyCallerScreen({ navigation }) {
                     <Globe size={16} color="#475569" strokeWidth={2.5} />
                   </View>
                   <Text style={s.bentoVal} numberOfLines={1}>
-                    {(caller?.languages_spoken?.length || 0) > 0 ? caller.languages_spoken[0] : 'English'}
+                    {profileLang}
                   </Text>
                   <Text style={s.bentoLbl}>Primary Lang</Text>
                 </View>
@@ -613,44 +621,49 @@ export default function MyCallerScreen({ navigation }) {
                 </View>
               </View>
 
-              {/* Call History */}
-              <View style={s.sectionHead}>
-                <Text style={s.sectionTitle}>Recent Calls</Text>
-                <Pressable style={s.seeAllWrap}><Text style={s.seeAllText}>See all</Text></Pressable>
-              </View>
+              {/* Call History (Only for Caller) */}
+              {!isManager && (
+                <>
+                  <View style={s.sectionHead}>
+                    <Text style={s.sectionTitle}>Recent Calls</Text>
+                    <Pressable style={s.seeAllWrap}><Text style={s.seeAllText}>See all</Text></Pressable>
+                  </View>
 
-              {calls.length === 0 ? (
-                <View style={s.emptyHistoryWrap}>
-                  <Text style={s.emptyBody}>No calls recorded yet.</Text>
-                </View>
-              ) : (
-                calls.map((call) => {
-                  const cfg = STATUS_CONFIG[call.status] || STATUS_CONFIG.completed;
-                  const Icon = cfg.Icon;
-                  const duration = formatDuration(call.call_duration_seconds);
-                  return (
-                    <View key={call._id} style={s.historyBentoCard}>
-                      <View style={[s.historyIconBg, { backgroundColor: cfg.bg }]}>
-                        <Icon size={16} color={cfg.color} strokeWidth={2.5} />
-                      </View>
-                      <View style={s.historyBody}>
-                        <Text style={s.historyDate}>{formatDate(call.call_date)}</Text>
-                        <Text style={s.historyNote} numberOfLines={1}>
-                          {call.ai_summary || 'Routine check-in call.'}
-                        </Text>
-                      </View>
-                      <View style={[s.badgeBox, { backgroundColor: duration ? '#EEF2FF' : cfg.bg }]}>
-                        <Text style={[s.badgeText, { color: duration ? '#4338CA' : cfg.color }]}>
-                          {duration || cfg.label}
-                        </Text>
-                      </View>
+                  {calls.length === 0 ? (
+                    <View style={s.emptyHistoryWrap}>
+                      <Text style={s.emptyBody}>No calls recorded yet.</Text>
                     </View>
-                  );
-                })
+                  ) : (
+                    calls.map((call) => {
+                      const cfg = STATUS_CONFIG[call.status] || STATUS_CONFIG.completed;
+                      const Icon = cfg.Icon;
+                      const duration = formatDuration(call.call_duration_seconds);
+                      return (
+                        <View key={call._id} style={s.historyBentoCard}>
+                          <View style={[s.historyIconBg, { backgroundColor: cfg.bg }]}>
+                            <Icon size={20} color={cfg.color} strokeWidth={2} />
+                          </View>
+                          <View style={s.historyBody}>
+                            <Text style={s.historyDate}>
+                              {new Date(call.createdAt).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                            </Text>
+                            <Text style={s.historyNote} numberOfLines={1}>{call.notes || 'Routine check-in'}</Text>
+                          </View>
+                          <View style={[s.badgeBox, { backgroundColor: cfg.bg }]}>
+                            <Text style={[s.badgeText, { color: cfg.color }]}>{duration}</Text>
+                          </View>
+                        </View>
+                      );
+                    })
+                  )}
+                </>
               )}
             </ScrollView>
           </Animated.View>
         </View>
+        </>
+          );
+        })()}
       </Modal>
 
       {/* ── Contact Form Modal ── */}
