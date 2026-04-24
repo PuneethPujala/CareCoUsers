@@ -59,6 +59,8 @@ export default function MyCallerScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [modalVisible, setModal] = useState(false);
   const [flagging, setFlagging] = useState(false);
+  const [flagIssueModalVisible, setFlagIssueModalVisible] = useState(false);
+  const [flagDescription, setFlagDescription] = useState('');
 
   const [contacts, setContacts] = useState([]);
   const [contactModal, setContactModal] = useState(false);
@@ -100,14 +102,16 @@ export default function MyCallerScreen({ navigation }) {
     ]).start(() => setModal(false));
   };
 
-  const handleFlagIssue = async () => {
+  const submitFlagIssue = async () => {
     if (flagging) return;
     setFlagging(true);
     try {
       await apiService.patients.flagIssue({
         type: 'general',
-        description: 'Patient flagged an issue with their caller.',
+        description: flagDescription.trim() || 'Patient flagged an issue with their caller.',
       });
+      setFlagIssueModalVisible(false);
+      setFlagDescription('');
       Alert.alert('Issue Flagged', 'Your issue has been reported to the care team.');
     } catch (err) {
       Alert.alert('Error', 'Failed to flag issue. Please try again.');
@@ -348,7 +352,7 @@ export default function MyCallerScreen({ navigation }) {
                 {/* Avatar + name row */}
                 <View style={s.profileRow}>
                   <View style={s.avatarWrap}>
-                    <LinearGradient colors={['#3B82F6', '#1E40AF']} style={s.avatar}>
+                    <LinearGradient colors={['#4338CA', '#312E81']} style={s.avatar}>
                       <Text style={s.avatarLetter}>{caller.name?.charAt(0)}</Text>
                     </LinearGradient>
                     <View style={s.onlineDot} />
@@ -383,10 +387,10 @@ export default function MyCallerScreen({ navigation }) {
                   </Pressable>
                   <Pressable
                     style={({ pressed }) => [s.btnFlag, pressed && s.btnFlagPressed]}
-                    onPress={(e) => { e.stopPropagation?.(); handleFlagIssue(); }}
+                    onPress={(e) => { e.stopPropagation?.(); setFlagIssueModalVisible(true); }}
                   >
                     <Flag size={16} color={C.danger} strokeWidth={2.2} />
-                    <Text style={s.btnFlagText}>{flagging ? 'Flagging…' : 'Flag Issue'}</Text>
+                    <Text style={s.btnFlagText}>Flag Issue</Text>
                   </Pressable>
                 </View>
               </Pressable>
@@ -425,7 +429,7 @@ export default function MyCallerScreen({ navigation }) {
               <View style={s.callerCard}>
                 <View style={s.profileRow}>
                   <View style={s.avatarWrap}>
-                    <LinearGradient colors={['#9333EA', '#6B21A8']} style={s.avatar}>
+                    <LinearGradient colors={['#64748B', '#334155']} style={s.avatar}>
                       <Text style={s.avatarLetter}>{manager.fullName?.charAt(0) || 'M'}</Text>
                     </LinearGradient>
                   </View>
@@ -443,7 +447,7 @@ export default function MyCallerScreen({ navigation }) {
                 </View>
                 <View style={s.actionRow}>
                   <Pressable
-                    style={({ pressed }) => [s.btnCall, { backgroundColor: '#9333EA' }, pressed && s.btnCallPressed]}
+                    style={({ pressed }) => [s.btnCall, { backgroundColor: '#334155' }, pressed && s.btnCallPressed]}
                     onPress={() => manager.phone && Linking.openURL(`tel:${manager.phone}`)}
                   >
                     <Phone size={16} color="#FFF" strokeWidth={2.5} />
@@ -558,7 +562,7 @@ export default function MyCallerScreen({ navigation }) {
                   <Text style={s.modalIdText}>Support ID: {caller?.employee_id}</Text>
                 </View>
                 <View style={s.avatarWrapLg}>
-                  <LinearGradient colors={['#3B82F6', '#1E40AF']} style={s.avatarLg}>
+                  <LinearGradient colors={['#4338CA', '#312E81']} style={s.avatarLg}>
                     <Text style={s.avatarLetterLg}>{caller?.name?.charAt(0)}</Text>
                   </LinearGradient>
                   <View style={s.onlineDotLg} />
@@ -584,25 +588,25 @@ export default function MyCallerScreen({ navigation }) {
 
               {/* Bento Box Stats */}
               <View style={s.bentoGrid}>
-                <View style={[s.bentoBox, { backgroundColor: '#EFF6FF' }]}>
-                  <View style={[s.bentoIcon, { backgroundColor: '#DBEAFE' }]}>
-                    <Clock size={16} color="#2563EB" strokeWidth={2.5} />
+                <View style={[s.bentoBox, { backgroundColor: '#F8FAFC' }]}>
+                  <View style={[s.bentoIcon, { backgroundColor: '#F1F5F9' }]}>
+                    <Clock size={16} color="#475569" strokeWidth={2.5} />
                   </View>
                   <Text style={s.bentoVal}>{caller?.experience_years} yrs</Text>
                   <Text style={s.bentoLbl}>Experience</Text>
                 </View>
-                <View style={[s.bentoBox, { backgroundColor: '#F5F3FF' }]}>
-                  <View style={[s.bentoIcon, { backgroundColor: '#EDE9FE' }]}>
-                    <Globe size={16} color="#7C3AED" strokeWidth={2.5} />
+                <View style={[s.bentoBox, { backgroundColor: '#F8FAFC' }]}>
+                  <View style={[s.bentoIcon, { backgroundColor: '#F1F5F9' }]}>
+                    <Globe size={16} color="#475569" strokeWidth={2.5} />
                   </View>
                   <Text style={s.bentoVal} numberOfLines={1}>
                     {(caller?.languages_spoken?.length || 0) > 0 ? caller.languages_spoken[0] : 'English'}
                   </Text>
                   <Text style={s.bentoLbl}>Primary Lang</Text>
                 </View>
-                <View style={[s.bentoBox, { backgroundColor: '#ECFDF5' }]}>
-                  <View style={[s.bentoIcon, { backgroundColor: '#D1FAE5' }]}>
-                    <ShieldCheck size={16} color="#059669" strokeWidth={2.5} />
+                <View style={[s.bentoBox, { backgroundColor: '#F8FAFC' }]}>
+                  <View style={[s.bentoIcon, { backgroundColor: '#F1F5F9' }]}>
+                    <ShieldCheck size={16} color="#475569" strokeWidth={2.5} />
                   </View>
                   <Text style={s.bentoVal}>Certified</Text>
                   <Text style={s.bentoLbl}>Status</Text>
@@ -745,6 +749,32 @@ export default function MyCallerScreen({ navigation }) {
         </View>
       </PremiumFormModal>
 
+      {/* Flag Issue Modal */}
+      <PremiumFormModal
+        visible={flagIssueModalVisible}
+        title="Flag an Issue"
+        onClose={() => setFlagIssueModalVisible(false)}
+        onSave={submitFlagIssue}
+        saveText="Submit Report"
+        saving={flagging}
+      >
+        <View style={s.formGroup}>
+          <Text style={s.formLabel}>What went wrong?</Text>
+          <TextInput
+            style={[s.formInput, { height: 120, paddingTop: 16 }]}
+            placeholder="Please describe the issue with your caller..."
+            placeholderTextColor="#94A3B8"
+            multiline
+            textAlignVertical="top"
+            value={flagDescription}
+            onChangeText={setFlagDescription}
+          />
+        </View>
+        <Text style={{ fontSize: 13, color: '#94A3B8', marginTop: 12, lineHeight: 20 }}>
+          Your care manager will review this report and take appropriate action. All reports are strictly confidential.
+        </Text>
+      </PremiumFormModal>
+
       {/* Country Code Picker Modal */}
       <Modal visible={countryCodeModal} transparent animationType="slide" onRequestClose={() => setCountryCodeModal(false)}>
         <Pressable style={s.backdrop} onPress={() => setCountryCodeModal(false)}>
@@ -834,14 +864,13 @@ const s = StyleSheet.create({
 
   // ── Caller Card ──
   callerCard: {
-    backgroundColor: C.cardBg,
-    borderRadius: 24,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 32,
     marginBottom: 24,
     padding: 24,
-    borderWidth: 1, borderColor: C.border,
-    shadowColor: C.primary,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.04, shadowRadius: 16, elevation: 4,
+    shadowColor: '#4338CA',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.06, shadowRadius: 24, elevation: 6,
   },
   callerCardPressed: { opacity: 0.96, transform: [{ scale: 0.98 }] },
 
@@ -851,27 +880,28 @@ const s = StyleSheet.create({
   },
   avatarWrap: { position: 'relative', marginRight: 18 },
   avatar: { width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center' },
-  avatarLetter: { fontSize: 24, fontWeight: '700', color: '#FFF' },
+  avatarLetter: { fontSize: 24, fontWeight: '800', color: '#FFFFFF' },
   onlineDot: {
     position: 'absolute', bottom: 2, right: 2,
     width: 16, height: 16, borderRadius: 8,
-    backgroundColor: '#10B981', borderWidth: 3, borderColor: '#FFF',
+    backgroundColor: '#10B981', borderWidth: 3, borderColor: '#FFFFFF',
   },
   profileInfo: { flex: 1 },
   callerName: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: C.dark,
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#0F172A',
     marginBottom: 4,
+    letterSpacing: -0.5,
   },
   metaRow: { flexDirection: 'row', alignItems: 'center' },
-  idChipText: { fontSize: 13, fontWeight: '500', color: C.muted },
-  dotDivider: { width: 4, height: 4, borderRadius: 2, backgroundColor: C.light, marginHorizontal: 8 },
+  idChipText: { fontSize: 13, fontWeight: '600', color: '#64748B' },
+  dotDivider: { width: 4, height: 4, borderRadius: 2, backgroundColor: '#CBD5E1', marginHorizontal: 8 },
   onlinePill: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   onlinePillDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#10B981' },
-  onlinePillText: { fontSize: 13, fontWeight: '500', color: '#10B981' },
+  onlinePillText: { fontSize: 13, fontWeight: '600', color: '#10B981' },
   chevronWrap: {
-    width: 32, height: 32, borderRadius: 16, backgroundColor: '#F8FAFC',
+    width: 32, height: 32, borderRadius: 16, backgroundColor: '#F1F5F9',
     alignItems: 'center', justifyContent: 'center', marginLeft: 10,
   },
 
@@ -881,19 +911,19 @@ const s = StyleSheet.create({
   },
   btnCall: {
     flex: 1.5, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    borderRadius: 16,
-    height: 48, backgroundColor: C.primary,
+    borderRadius: 20,
+    height: 52, backgroundColor: '#4338CA',
   },
   btnCallPressed: { opacity: 0.85, transform: [{ scale: 0.98 }] },
-  btnCallText: { fontSize: 15, fontWeight: '600', color: '#FFF' },
+  btnCallText: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
 
   btnFlag: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    borderRadius: 16, height: 48, backgroundColor: '#FFF',
-    borderWidth: 1, borderColor: C.dangerBg,
+    borderRadius: 20, height: 52, backgroundColor: '#F8FAFC',
+    borderWidth: 1, borderColor: '#F1F5F9',
   },
-  btnFlagPressed: { backgroundColor: C.dangerBg },
-  btnFlagText: { fontSize: 15, fontWeight: '600', color: C.danger },
+  btnFlagPressed: { backgroundColor: '#F1F5F9' },
+  btnFlagText: { fontSize: 14, fontWeight: '600', color: '#475569' },
 
   // ── Empty / Upgrade state ──
   emptyWrap: { alignItems: 'center', paddingVertical: 60, paddingHorizontal: 20 },
@@ -988,15 +1018,15 @@ const s = StyleSheet.create({
   modalActionRow: { flexDirection: 'row', gap: 12, marginBottom: 32 },
   btnCallLg: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
-    borderRadius: 100, height: 64, backgroundColor: '#6366F1',
-    shadowColor: '#6366F1', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.3, shadowRadius: 16, elevation: 8,
+    borderRadius: 100, height: 64, backgroundColor: '#4338CA',
+    shadowColor: '#4338CA', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.2, shadowRadius: 16, elevation: 8,
   },
   btnCallPressedLg: { opacity: 0.85, transform: [{ scale: 0.98 }] },
   btnCallTextLg: { fontSize: 17, ...FONT.bold, color: '#FFF' },
   iconBtn: {
-    width: 64, height: 64, borderRadius: 32, backgroundColor: '#FFF',
+    width: 64, height: 64, borderRadius: 32, backgroundColor: '#F8FAFC',
     alignItems: 'center', justifyContent: 'center',
-    borderWidth: 2, borderColor: '#FFE4E6',
+    borderWidth: 2, borderColor: '#F1F5F9',
   },
   iconBtnPressed: { backgroundColor: '#FEF2F2', transform: [{ scale: 0.95 }] },
 

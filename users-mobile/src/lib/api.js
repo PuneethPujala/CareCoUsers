@@ -213,6 +213,7 @@ export const apiService = {
         updateVaccinations: (data) => api.put('/users/patients/me/vaccinations', data),
         updateAppointments: (data) => api.put('/users/patients/me/appointments', data),
         updateMedicalHistory: (data) => api.put('/users/patients/me/medical-history', data),
+        updateMedications: (data) => api.put('/users/patients/me/medications', data),
         uploadPrescription: (data) => api.post('/users/patients/me/prescriptions', data),
         updatePrimaryDoctor: (data) => api.put('/users/patients/me/primary-doctor', data),
         deleteHealthItem: (collection, id) => api.delete(`/users/patients/me/${collection}/${id}`),
