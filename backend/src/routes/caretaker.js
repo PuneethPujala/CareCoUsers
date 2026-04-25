@@ -703,14 +703,12 @@ router.get('/patients/:id', async (req, res) => {
         }
 
         // Try Profile first, then Patient
-        let patient = await Profile.findById(patientId)
-            .select('fullName email phone avatarUrl dateOfBirth gender allergies conditions emergencyContact createdAt')
-            .lean();
+        // We do NOT use .select() here because we want the Admin app to have access to the full health profile 
+        // (lifestyle, medical_history, vitals, trusted_contacts, etc.)
+        let patient = await Profile.findById(patientId).lean();
 
         if (!patient) {
-            const rawPatient = await Patient.findById(patientId)
-                .select('name email phone avatar_url avatarUrl date_of_birth dateOfBirth gender allergies conditions emergencyContact createdAt')
-                .lean();
+            const rawPatient = await Patient.findById(patientId).lean();
             if (rawPatient) {
                 patient = {
                     ...rawPatient,
