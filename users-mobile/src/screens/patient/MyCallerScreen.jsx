@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Platform, RefreshControl,
   Pressable, ActivityIndicator, Linking, Animated,
-  Modal, TouchableOpacity, TouchableWithoutFeedback, Alert, TextInput, Keyboard, KeyboardAvoidingView, FlatList,
+  Modal, TouchableOpacity, TouchableWithoutFeedback, Alert, TextInput, Keyboard, KeyboardAvoidingView, FlatList, Switch
 } from 'react-native';
 import PremiumFormModal from '../../components/ui/PremiumFormModal';
 import {
@@ -164,10 +164,10 @@ export default function MyCallerScreen({ navigation }) {
     if (contact) {
       setEditingContact(contact);
       const parsed = parsePhoneWithCode(contact.phone);
-      setContactForm({ name: contact.name, phone: parsed.number, phoneCode: parsed.code, relation: contact.relation || '', email: contact.email || '' });
+      setContactForm({ name: contact.name, phone: parsed.number, phoneCode: parsed.code, relation: contact.relation || '', email: contact.email || '', is_emergency: !!contact.is_emergency, can_view_data: !!contact.can_view_data });
     } else {
       setEditingContact(null);
-      setContactForm({ name: '', phone: '', phoneCode: '+91', relation: '', email: '' });
+      setContactForm({ name: '', phone: '', phoneCode: '+91', relation: '', email: '', is_emergency: false, can_view_data: false });
     }
     setContactModal(true);
     Animated.parallel([
@@ -221,8 +221,9 @@ export default function MyCallerScreen({ navigation }) {
         phone: fullPhone,
         relation: contactForm.relation?.trim() || '',
         email: contactForm.email?.trim() || '',
-        is_primary: false,
-        can_view_data: false,
+        is_emergency: !!contactForm.is_emergency,
+        is_primary: !!contactForm.is_emergency,
+        can_view_data: !!contactForm.can_view_data,
         permissions: [],
       };
       let res;
@@ -464,14 +465,13 @@ export default function MyCallerScreen({ navigation }) {
           </View>
         </Animated.View>
 
-        {/* TRUSTED CONTACTS SECTION */}
+        {/* CARE TEAM & TRUSTED CONTACTS SECTION */}
         <Animated.View style={{ opacity: staggerAnims[2], transform: [{ translateY: staggerAnims[2].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>
           <View style={s.section}>
             <View style={s.sectionHeaderRow}>
-              <Text style={s.sectionHeaderBase}>TRUSTED CONTACTS</Text>
-              <Pressable style={s.addBtnText} onPress={() => openContactModal()}>
-                <Plus size={14} color={C.primary} strokeWidth={2.5} />
-                <Text style={s.addBtnLabel}>Add</Text>
+              <Text style={s.sectionHeaderBase}>CARE TEAM & CONTACTS</Text>
+              <Pressable style={s.addBtn} onPress={() => openContactModal()}>
+                <Plus size={14} color="#FFF" strokeWidth={2.5} />
               </Pressable>
             </View>
 
@@ -488,19 +488,24 @@ export default function MyCallerScreen({ navigation }) {
                 const colorTheme = AVATAR_COLORS[idx % AVATAR_COLORS.length];
                 return (
                   <View key={contact._id} style={s.contactCard}>
-                    <View style={[s.contactAvatar, { backgroundColor: colorTheme.bg }]}>
-                      <Text style={[s.contactAvatarTxt, { color: colorTheme.text }]}>{contact.name.charAt(0)}</Text>
+                    <View style={[s.contactAvatar, { backgroundColor: contact.is_emergency ? C.dangerBg : colorTheme.bg }]}>
+                      <Text style={[s.contactAvatarTxt, { color: contact.is_emergency ? C.danger : colorTheme.text }]}>
+                        {contact.name.charAt(0)}
+                      </Text>
                     </View>
                     <View style={s.contactInfo}>
-                      <Text style={s.contactName} numberOfLines={1}>{contact.name}</Text>
-                      <Text style={s.contactSub} numberOfLines={1}>{contact.relation ? `${contact.relation} • ` : ''}{contact.phone}</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Text style={s.contactName} numberOfLines={1}>{contact.name}</Text>
+                        {contact.is_emergency && <View style={s.miniEmergencyPill}><Text style={s.miniEmergencyTxt}>S.O.S</Text></View>}
+                      </View>
+                      <Text style={s.contactSub} numberOfLines={1}>{contact.relation || 'Contact'} • {contact.phone}</Text>
                     </View>
                     <View style={s.contactActions}>
                       <Pressable style={s.iconActionBtn} onPress={() => openContactModal(contact)}>
-                        <Edit2 size={16} color={C.light} />
+                        <Edit2 size={16} color={C.mid} />
                       </Pressable>
                       <Pressable style={s.iconActionBtn} onPress={() => confirmRemoveContact(contact._id)}>
-                        <X size={18} color={C.danger} />
+                        <Trash2 size={18} color={C.danger} />
                       </Pressable>
                     </View>
                   </View>
@@ -760,6 +765,34 @@ export default function MyCallerScreen({ navigation }) {
             returnKeyType="done"
           />
         </View>
+
+        <View style={s.formGroup}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#F8FAFC', padding: 16, borderRadius: 16, borderWidth: 1, borderColor: '#E2E8F0' }}>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 16, fontWeight: '700', color: C.dark }}>Emergency Contact</Text>
+              <Text style={{ fontSize: 13, color: C.muted }}>Primary person for emergencies</Text>
+            </View>
+            <Switch
+              value={contactForm.is_emergency}
+              onValueChange={(v) => setContactForm({ ...contactForm, is_emergency: v })}
+              trackColor={{ false: '#CBD5E1', true: C.danger }}
+            />
+          </View>
+        </View>
+        
+        <View style={s.formGroup}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#F8FAFC', padding: 16, borderRadius: 16, borderWidth: 1, borderColor: '#E2E8F0' }}>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 16, fontWeight: '700', color: C.dark }}>Can View Health Data</Text>
+              <Text style={{ fontSize: 13, color: C.muted }}>Allow access to vitals & logs</Text>
+            </View>
+            <Switch
+              value={contactForm.can_view_data}
+              onValueChange={(v) => setContactForm({ ...contactForm, can_view_data: v })}
+              trackColor={{ false: '#CBD5E1', true: C.primary }}
+            />
+          </View>
+        </View>
       </PremiumFormModal>
 
       {/* Flag Issue Modal */}
@@ -856,9 +889,10 @@ const s = StyleSheet.create({
   section: { marginBottom: 24, width: '100%' },
   sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, paddingHorizontal: 4 },
   sectionHeader: { fontSize: 13, ...FONT.bold, color: '#94A3B8', letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 16, marginLeft: 4 },
-  sectionHeaderBase: { fontSize: 13, ...FONT.bold, color: '#94A3B8', letterSpacing: 1.5, textTransform: 'uppercase' },
-  addBtnText: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#EFF6FF', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 12 },
-  addBtnLabel: { fontSize: 12, ...FONT.bold, color: '#3B82F6' },
+  sectionHeaderBase: { fontSize: 13, ...FONT.bold, color: '#64748B', letterSpacing: 1.5, textTransform: 'uppercase' },
+  addBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: C.primary, alignItems: 'center', justifyContent: 'center', shadowColor: C.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 },
+  miniEmergencyPill: { backgroundColor: C.dangerBg, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
+  miniEmergencyTxt: { fontSize: 10, ...FONT.bold, color: C.danger },
   bodyContent: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 120 },
 
   // ── Contact Card ──

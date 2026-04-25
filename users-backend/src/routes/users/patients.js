@@ -364,7 +364,7 @@ router.get('/me', authenticateSession, async (req, res) => {
  */
 router.put('/me', authenticateSession, async (req, res) => {
     try {
-        const { name, city, date_of_birth, phone, gender, blood_type, language, push_notifications_enabled, medication_reminders_enabled, expo_push_token, emergency_contact_primary } = req.body;
+        const { name, city, date_of_birth, phone, gender, blood_type, language, push_notifications_enabled, medication_reminders_enabled, expo_push_token } = req.body;
         const updates = {};
         if (name !== undefined) updates.name = name;
         if (city !== undefined) updates.city = city;
@@ -373,7 +373,6 @@ router.put('/me', authenticateSession, async (req, res) => {
         if (gender !== undefined) updates.gender = gender;
         if (blood_type !== undefined) updates.blood_type = blood_type;
         if (language !== undefined) updates.language = language;
-        if (emergency_contact_primary !== undefined) updates.emergency_contact_primary = emergency_contact_primary;
         if (push_notifications_enabled !== undefined) updates.push_notifications_enabled = push_notifications_enabled;
         if (medication_reminders_enabled !== undefined) updates.medication_reminders_enabled = medication_reminders_enabled;
         if (expo_push_token !== undefined) updates.expo_push_token = expo_push_token;
@@ -640,20 +639,38 @@ router.post('/subscribe', authenticateSession, async (req, res) => {
 
 /**
  * PUT /api/users/patients/me/emergency-contact
- * Patient updates their own emergency contact (only editable personal field)
+ * Patient updates their primary emergency contact.
+ * This now looks for the contact in trusted_contacts with is_emergency: true.
  */
 router.put('/me/emergency-contact', authenticateSession, async (req, res) => {
     try {
         const { name, phone, relation } = req.body;
-        const patient = await Patient.findOneAndUpdate(
-            { supabase_uid: req.user.id },
-            { emergency_contact: { name, phone, relation } },
-            { new: true }
-        );
-        if (!patient) {
-            return res.status(404).json({ error: 'Patient profile not found' });
+        
+        // Simple validation
+        if (!name || name.trim().length < 2) return res.status(400).json({ error: 'Valid name is required' });
+        if (!phone || !/^\d{10,15}$/.test(phone.replace(/\D/g, ''))) return res.status(400).json({ error: 'Valid phone number is required' });
+
+        const patient = await Patient.findOne({ supabase_uid: req.user.id });
+        if (!patient) return res.status(404).json({ error: 'Patient profile not found' });
+
+        // Find existing emergency contact
+        let emergencyContact = patient.trusted_contacts.find(c => c.is_emergency);
+
+        if (emergencyContact) {
+            emergencyContact.name = name;
+            emergencyContact.phone = phone;
+            emergencyContact.relation = relation;
+        } else {
+            // Create one if it doesn't exist
+            patient.trusted_contacts.push({
+                name, phone, relation,
+                is_emergency: true,
+                is_primary: true
+            });
         }
-        res.json({ patient });
+
+        await patient.save();
+        res.json({ patient, message: 'Emergency contact updated successfully' });
     } catch (error) {
         console.error('Update emergency contact error:', error);
         res.status(500).json({ error: 'Failed to update emergency contact' });
@@ -681,17 +698,29 @@ router.get('/me/trusted-contacts', authenticateSession, async (req, res) => {
  */
 router.post('/me/trusted-contacts', authenticateSession, async (req, res) => {
     try {
-        const { name, phone, relation, email, is_primary, can_view_data, permissions } = req.body;
-        const patient = await Patient.findOneAndUpdate(
-            { supabase_uid: req.user.id },
-            {
-                $push: {
-                    trusted_contacts: { name, phone, relation, email, is_primary, can_view_data, permissions: permissions || [] }
-                }
-            },
-            { new: true }
-        );
+        const { name, phone, relation, email, is_primary, is_emergency, can_view_data, permissions } = req.body;
+        
+        // Validation
+        if (!name || name.trim().length < 2) return res.status(400).json({ error: 'Valid name is required' });
+        if (!phone || !/^\d{10,15}$/.test(phone.replace(/\D/g, ''))) return res.status(400).json({ error: 'Valid phone number is required' });
+
+        const patient = await Patient.findOne({ supabase_uid: req.user.id });
         if (!patient) return res.status(404).json({ error: 'Patient profile not found' });
+
+        // If this is marked as emergency, unset any other emergency contact
+        if (is_emergency) {
+            patient.trusted_contacts.forEach(c => c.is_emergency = false);
+        }
+
+        patient.trusted_contacts.push({
+            name, phone, relation, email, 
+            is_primary: is_primary || is_emergency, 
+            is_emergency: !!is_emergency,
+            can_view_data: !!can_view_data, 
+            permissions: permissions || []
+        });
+
+        await patient.save();
         res.status(201).json({ trusted_contacts: patient.trusted_contacts, message: 'Trusted contact added successfully' });
     } catch (error) {
         console.error('Add trusted contact error:', error);
@@ -705,23 +734,34 @@ router.post('/me/trusted-contacts', authenticateSession, async (req, res) => {
  */
 router.put('/me/trusted-contacts/:id', authenticateSession, validateObjectId('id'), async (req, res) => {
     try {
-        const { name, phone, relation, email, is_primary, can_view_data, permissions } = req.body;
-        const patient = await Patient.findOneAndUpdate(
-            {
-                supabase_uid: req.user.id,
-                "trusted_contacts._id": new mongoose.Types.ObjectId(req.params.id)
-            },
-            {
-                $set: {
-                    "trusted_contacts.$": {
-                        _id: new mongoose.Types.ObjectId(req.params.id), // Keep original _id
-                        name, phone, relation, email, is_primary, can_view_data, permissions: permissions || []
-                    }
-                }
-            },
-            { new: true }
-        );
-        if (!patient) return res.status(404).json({ error: 'Patient or contact not found' });
+        const { name, phone, relation, email, is_primary, is_emergency, can_view_data, permissions } = req.body;
+        
+        // Validation
+        if (!name || name.trim().length < 2) return res.status(400).json({ error: 'Valid name is required' });
+        if (!phone || !/^\d{10,15}$/.test(phone.replace(/\D/g, ''))) return res.status(400).json({ error: 'Valid phone number is required' });
+
+        const patient = await Patient.findOne({ supabase_uid: req.user.id });
+        if (!patient) return res.status(404).json({ error: 'Patient profile not found' });
+
+        // If this is marked as emergency, unset any other emergency contact
+        if (is_emergency) {
+            patient.trusted_contacts.forEach(c => {
+                if (c._id.toString() !== req.params.id) c.is_emergency = false;
+            });
+        }
+
+        const contact = patient.trusted_contacts.id(req.params.id);
+        if (!contact) return res.status(404).json({ error: 'Contact not found' });
+
+        Object.assign(contact, {
+            name, phone, relation, email,
+            is_primary: is_primary || is_emergency,
+            is_emergency: !!is_emergency,
+            can_view_data: !!can_view_data,
+            permissions: permissions || []
+        });
+
+        await patient.save();
         res.json({ trusted_contacts: patient.trusted_contacts, message: 'Trusted contact updated successfully' });
     } catch (error) {
         console.error('Update trusted contact error:', error);
@@ -1118,7 +1158,7 @@ router.get('/me/vitals', authenticateSession, async (req, res) => {
 router.delete('/me/:collection/:id', authenticateSession, async (req, res) => {
     try {
         const { collection, id } = req.params;
-        const validCollections = ['conditions', 'allergies', 'appointments', 'vaccinations', 'medications', 'medical_history'];
+        const validCollections = ['conditions', 'allergies', 'appointments', 'vaccinations', 'medications', 'medical_history', 'trusted_contacts'];
 
         if (!validCollections.includes(collection)) {
             return res.status(400).json({ error: 'Invalid collection specified' });
