@@ -1,15 +1,30 @@
-# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
+# ==============================================================================
+# CareMyMed — Git Ignore Rules
+# ==============================================================================
 
-# dependencies
+# ── Dependencies ──────────────────────────────────────────────
 node_modules/
 
-# Expo
+# ── Environment / Secrets (CRITICAL — never commit .env files) ─
+.env
+.env.local
+.env.*.local
+backend/.env
+backend/.env.example
+admin-app/.env
+users-backend/.env
+users-mobile/.env
+
+# ── Expo / React Native ──────────────────────────────────────
 .expo/
 dist/
 web-build/
 expo-env.d.ts
+.metro-health-check*
 
-# Native
+# ── Native build artifacts ───────────────────────────────────
+/ios
+/android
 .kotlin/
 *.orig.*
 *.jks
@@ -17,33 +32,56 @@ expo-env.d.ts
 *.p12
 *.key
 *.mobileprovision
+*.pem
 
-# Metro
-.metro-health-check*
-
-# debug
+# ── Debug / Logs ─────────────────────────────────────────────
 npm-debug.*
 yarn-debug.*
 yarn-error.*
+*.log
 
-# macOS
+# ── OS files ─────────────────────────────────────────────────
 .DS_Store
-*.pem
+Thumbs.db
 
-# local env files
-.env*.local
-
-# typescript
+# ── TypeScript ───────────────────────────────────────────────
 *.tsbuildinfo
 
-# generated native folders
-/ios
-/android
+# ── Python cache ─────────────────────────────────────────────
+__pycache__/
+*.pyc
+*.pyo
 
-.env
-backend/.env
-backend/.env.example
+# ── Backend scratch / test / debug files ─────────────────────
+backend/scripts/
+backend/test*.js
+backend/test*.json
+backend/*.txt
+backend/*.json
+!backend/package.json
+!backend/package-lock.json
+backend/cleanup.js
+backend/clear-cache.js
+backend/debug_caller.js
+backend/fix_caretaker.js
+backend/generateTodayCalls.js
+backend/nuke.js
+backend/seed_patients.js
+backend/wipe_profiles.js
+backend/log_dump.json
 
-# Firebase Admin SDK service account keys
+# ── Users-backend scratch files ──────────────────────────────
+users-backend/testAnomalySync.js
+users-backend/testPush.js
+users-backend/reset-users.js
+users-backend/migrate-patient-profiles.js
+
+# ── AI vitals output ─────────────────────────────────────────
+users-ai-vitals/output.txt
+
+# ── Firebase Admin SDK service account keys ──────────────────
 *firebase-adminsdk*
 *.json.bak
+
+# -- Root scratch files ---------------------------------------
+/*.js

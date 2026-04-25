@@ -101,9 +101,11 @@ router.get('/:id',
       // Org admin and care manager can access caretakers in their organization
       else if (['org_admin', 'care_manager'].includes(role)) {
         const caretaker = await Profile.findById(caretakerId);
-        canAccess = caretaker && 
-                   caretaker.organizationId && 
-                   caretaker.organizationId.equals(req.profile.organizationId);
+        if (caretaker && caretaker.organizationId && req.profile.organizationId) {
+            const ctOrgId = typeof caretaker.organizationId === 'object' ? (caretaker.organizationId._id || caretaker.organizationId).toString() : String(caretaker.organizationId);
+            const myOrgId = typeof req.profile.organizationId === 'object' ? (req.profile.organizationId._id || req.profile.organizationId).toString() : String(req.profile.organizationId);
+            canAccess = ctOrgId === myOrgId;
+        }
       }
 
       // Caretaker can access their own profile
@@ -119,7 +121,7 @@ router.get('/:id',
       const caretaker = await Profile.findById(caretakerId)
         .populate('organizationId', 'name type settings');
 
-      if (!caretaker || caretaker.role !== 'caretaker') {
+      if (!caretaker || !['caretaker', 'caller', 'care_manager'].includes(caretaker.role)) {
         return res.status(404).json({ error: 'Caretaker not found' });
       }
 
@@ -156,11 +158,13 @@ router.get('/:id/patients',
         canAccess = true;
       } else if (['org_admin', 'care_manager'].includes(role)) {
         const caretaker = await Profile.findById(caretakerId);
-        canAccess = caretaker && 
-                   caretaker.organizationId && 
-                   caretaker.organizationId.equals(req.profile.organizationId);
-      } else if (role === 'caretaker') {
-        canAccess = req.profile._id.toString() === caretakerId; // Caretaker checking their own assignments
+        if (caretaker && caretaker.organizationId && req.profile.organizationId) {
+            const ctOrgId = typeof caretaker.organizationId === 'object' ? (caretaker.organizationId._id || caretaker.organizationId).toString() : String(caretaker.organizationId);
+            const myOrgId = typeof req.profile.organizationId === 'object' ? (req.profile.organizationId._id || req.profile.organizationId).toString() : String(req.profile.organizationId);
+            canAccess = ctOrgId === myOrgId;
+        }
+      } else if (['caretaker', 'caller'].includes(role)) {
+        canAccess = req.profile._id.toString() === caretakerId; // Caretaker/Caller checking their own assignments
       }
 
       if (!canAccess) {

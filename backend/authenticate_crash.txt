@@ -1,6 +1,0 @@
-MongooseError: Cannot call `profiles.findOne()` before initial connection is complete if `bufferCommands = false`. Make sure you `await mongoose.connect()` if you have `bufferCommands = false`.
-    at NativeCollection.<computed> [as findOne] (C:\Users\praka\Downloads\IIEC-Project\backend\node_modules\mongoose\lib\drivers\node-mongodb-native\collection.js:237:15)
-    at model.Query._findOne (C:\Users\praka\Downloads\IIEC-Project\backend\node_modules\mongoose\lib\query.js:2710:45)
-    at model.Query.exec (C:\Users\praka\Downloads\IIEC-Project\backend\node_modules\mongoose\lib\query.js:4627:80)
-    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
-    at async authenticate (C:\Users\praka\Downloads\IIEC-Project\backend\src\middleware\authenticate.js:60:21)
