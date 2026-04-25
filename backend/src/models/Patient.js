@@ -30,6 +30,7 @@ const PatientSchema = new mongoose.Schema({
   organization_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Organization' },
   caller_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Profile' },
   care_manager_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Profile' },
+  assigned_manager_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Profile' },
   is_active: { type: Boolean, default: true },
   created_at: { type: Date, default: Date.now },
   updated_at: { type: Date },

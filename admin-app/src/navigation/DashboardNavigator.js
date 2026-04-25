@@ -33,6 +33,7 @@ import ManagerDetailScreen from '../screens/details/ManagerDetailScreen';
 import ActiveCallScreen from '../screens/details/ActiveCallScreen';
 import NotificationsScreen from '../screens/details/NotificationsScreen';
 import EmergencyScreen from '../screens/details/EmergencyScreen';
+import OrgAdminDetailScreen from '../screens/details/OrgAdminDetailScreen';
 
 /* Create User / Change Password */
 import CreateUserScreen from '../screens/CreateUserScreen';
@@ -125,6 +126,7 @@ export default function DashboardNavigator() {
             <Stack.Screen name="CallerDetail" component={CallerDetailScreen} />
             <Stack.Screen name="OrgDetail" component={OrgDetailScreen} />
             <Stack.Screen name="ManagerDetail" component={ManagerDetailScreen} />
+            <Stack.Screen name="OrgAdminDetail" component={OrgAdminDetailScreen} />
             <Stack.Screen name="ActiveCall" component={ActiveCallScreen} />
             <Stack.Screen name="Notifications" component={NotificationsScreen} />
             <Stack.Screen name="Emergency" component={EmergencyScreen} />

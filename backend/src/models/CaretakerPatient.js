@@ -14,6 +14,11 @@ const CaretakerPatientSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    careManagerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Profile',
+      index: true,
+    },
     assignedBy: { 
       type: mongoose.Schema.Types.ObjectId, 
       ref: 'Profile',

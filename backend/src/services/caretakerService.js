@@ -18,10 +18,26 @@ const assignPatientToCaretaker = async (callerProfile, caretakerId, patientId, a
     throw new Error('Only Care Managers, Org Admins, and Super Admins can assign patients');
   }
 
-  const [caretaker, patient] = await Promise.all([
-    Profile.findById(caretakerId).populate('organizationId'),
-    Profile.findById(patientId).populate('organizationId')
-  ]);
+  const caretaker = await Profile.findById(caretakerId).populate('organizationId');
+
+  // Try Profile first, then fall back to Patient collection
+  let patient = await Profile.findById(patientId).populate('organizationId');
+  let patientIsFromPatientCollection = false;
+  if (!patient) {
+    const patientDoc = await Patient.findById(patientId).populate('organization_id');
+    if (patientDoc) {
+      patientIsFromPatientCollection = true;
+      // Build a compatible object for validation
+      patient = {
+        _id: patientDoc._id,
+        role: 'patient',
+        fullName: patientDoc.name,
+        organizationId: patientDoc.organization_id,
+        email: patientDoc.email,
+        phone: patientDoc.phone,
+      };
+    }
+  }
 
   if (!caretaker || !patient) {
     throw new Error('Caretaker and Patient must exist');
@@ -35,15 +51,17 @@ const assignPatientToCaretaker = async (callerProfile, caretakerId, patientId, a
     throw new Error('Assigned patient must have patient role');
   }
 
-  // Check organization access permissions
+  // Check organization access permissions (safe string comparison)
+  const caretakerOrgId = (caretaker.organizationId?._id || caretaker.organizationId || '').toString();
+  const patientOrgId = (patient.organizationId?._id || patient.organizationId || '').toString();
+  
   if (callerProfile.role !== 'super_admin') {
-    if (!caretaker.organizationId.equals(callerProfile.organizationId) ||
-        !patient.organizationId.equals(callerProfile.organizationId)) {
+    const callerOrgId = (callerProfile.organizationId?._id || callerProfile.organizationId || '').toString();
+    if (caretakerOrgId !== callerOrgId || patientOrgId !== callerOrgId) {
       throw new Error('Caretaker and Patient must be in the same organization as the caller');
     }
   } else {
-    // Super admin can assign across organizations, but caretaker and patient must be in same org
-    if (!caretaker.organizationId.equals(patient.organizationId)) {
+    if (caretakerOrgId !== patientOrgId) {
       throw new Error('Caretaker and Patient must be in the same organization');
     }
   }
@@ -55,11 +73,21 @@ const assignPatientToCaretaker = async (callerProfile, caretakerId, patientId, a
   }
 
   // Create or update assignment
+  // Resolve the care manager: if assigning a caller, look up their managedBy field
+  let resolvedManagerId = null;
+  if (caretaker.role === 'care_manager') {
+    resolvedManagerId = caretakerId;
+  } else if (['caller', 'caretaker'].includes(caretaker.role)) {
+    const callerWithManager = await Profile.findById(caretakerId).select('managedBy').lean();
+    resolvedManagerId = callerWithManager?.managedBy || callerProfile._id;
+  }
+
   const assignment = await CaretakerPatient.findOneAndUpdate(
     { caretakerId, patientId },
     { 
       caretakerId, 
       patientId, 
+      careManagerId: resolvedManagerId,
       assignedBy: callerProfile._id,
       status: 'active',
       ...assignmentData
@@ -81,6 +109,11 @@ const assignPatientToCaretaker = async (callerProfile, caretakerId, patientId, a
     } else if (['caller', 'caretaker'].includes(caretaker.role)) {
       patientModel.assigned_caller_id = caretakerId;
       patientModel.caller_id = caretakerId;
+      // Also set the manager for the patient app
+      if (resolvedManagerId) {
+        patientModel.assigned_manager_id = resolvedManagerId;
+        patientModel.care_manager_id = resolvedManagerId;
+      }
     }
     await patientModel.save();
   }
@@ -205,7 +238,7 @@ const getCaretakerPatients = async (callerProfile, caretakerId, options = {}) =>
   }
 
   const caretaker = await Profile.findById(caretakerId);
-  if (!caretaker || caretaker.role !== 'caretaker') {
+  if (!caretaker || !['caretaker', 'caller', 'care_manager'].includes(caretaker.role)) {
     throw new Error('Caretaker not found');
   }
 
@@ -223,22 +256,42 @@ const getCaretakerPatients = async (callerProfile, caretakerId, options = {}) =>
     ...statusFilter
   })
   .populate({
-    path: 'patientId',
-    select: 'fullName email phone avatarUrl metadata',
-    match: { isActive: true }
-  })
-  .populate({
     path: 'assignedBy',
     select: 'fullName'
   })
   .sort({ createdAt: -1 })
   .limit(limit)
-  .skip(offset);
+  .skip(offset)
+  .lean();
 
-  // Filter out null patientIds (due to populate match)
-  const validAssignments = assignments.filter(assignment => assignment.patientId);
+  const Patient = require('../models/Patient');
+  
+  const populatedAssignments = [];
+  
+  for (let assignment of assignments) {
+      // First try to populate from Profile
+      let patientDoc = await Profile.findOne({ _id: assignment.patientId, isActive: { $ne: false } }).select('fullName email phone avatarUrl metadata').lean();
+      
+      // If not in Profile, it MUST be in the actual Patient collection!
+      if (!patientDoc) {
+          const pt = await Patient.findOne({ _id: assignment.patientId, is_active: { $ne: false } }).lean();
+          if (pt) {
+              patientDoc = {
+                  _id: pt._id,
+                  fullName: pt.name || pt.first_name + ' ' + pt.last_name,
+                  email: pt.email,
+                  phone: pt.phone,
+              };
+          }
+      }
+      
+      if (patientDoc) {
+          assignment.patientId = patientDoc;
+          populatedAssignments.push(assignment);
+      }
+  }
 
-  return validAssignments;
+  return populatedAssignments;
 };
 
 /**

@@ -1,8 +1,7 @@
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import React, { useState, useRef, useEffect } from 'react';
-import {
-    View, Text, TextInput, TouchableOpacity, ScrollView,
-    StyleSheet, StatusBar, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, Animated
-} from 'react-native';
+import { View, Text, TextInput, TouchableOpacity,
+    StyleSheet, StatusBar, Alert, ActivityIndicator, Platform, Animated } from 'react-native';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -119,96 +118,95 @@ export default function ChangePasswordScreen({ navigation, route }) {
                     <View style={s.headerSpacer} />
                 </View>
 
-                <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-                    <Animated.ScrollView 
-                        style={s.body} 
-                        contentContainerStyle={{ paddingBottom: 80, paddingHorizontal: 20 }} 
-                        showsVerticalScrollIndicator={false} 
-                        keyboardShouldPersistTaps="handled"
-                        bounces={true}
-                    >
-                        <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
+                <KeyboardAwareScrollView 
+                    style={s.body} 
+                    contentContainerStyle={{ paddingBottom: 80, paddingHorizontal: 20 }}
+                    showsVerticalScrollIndicator={false}
+                    enableOnAndroid={true} 
+                    extraScrollHeight={20} 
+                    keyboardShouldPersistTaps="handled"
+                >
+                    <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
                             
-                            {/* ── Centerpiece Hero Graphic ── */}
-                            <View style={s.heroGraphic}>
-                                <View style={s.heroIconRing}>
-                                    <View style={s.heroIconCore}>
-                                        <Feather name="shield" size={40} color="#4F46E5" />
-                                    </View>
-                                    <View style={s.heroCheckBadge}>
-                                        <Feather name="check" size={12} color="#FFFFFF" />
-                                    </View>
+                        {/* ── Centerpiece Hero Graphic ── */}
+                        <View style={s.heroGraphic}>
+                            <View style={s.heroIconRing}>
+                                <View style={s.heroIconCore}>
+                                    <Feather name="shield" size={40} color="#4F46E5" />
                                 </View>
-                                <Text style={s.heroTitle}>{forced ? 'Force Password Update' : 'Update Credentials'}</Text>
-                                <Text style={s.heroSubtitle}>
-                                    {forced 
-                                        ? 'For security reasons, your temporary passcode must be changed immediately.'
-                                        : 'Update your localized encryption strings to keep your CareConnect account fortified.'}
-                                </Text>
-                            </View>
-
-                            {/* ── Polished Form Card ── */}
-                            <View style={s.formCard}>
-                                {renderInput('Current Passcode', currentPassword, setCurrentPassword, 'current', !showCurrent, () => setShowCurrent(!showCurrent), null, () => newRef.current?.focus(), 'Enter current password')}
-
-                                <View style={s.formDivider} />
-
-                                {renderInput('New Passcode', newPassword, setNewPassword, 'new', !showNew, () => setShowNew(!showNew), newRef, () => confirmRef.current?.focus(), 'Create new password')}
-
-                                {/* Beautiful Rules Validation */}
-                                <View style={s.rulesBox}>
-                                    <Text style={s.rulesTitle}>Password must contain:</Text>
-                                    {PASSWORD_RULES.map((rule) => {
-                                        const pass = newPassword.length > 0 && rule.test(newPassword);
-                                        return (
-                                            <View key={rule.label} style={s.ruleRow}>
-                                                {pass ? (
-                                                    <View style={s.ruleCheckPass}>
-                                                        <Feather name="check" size={10} color="#FFFFFF" />
-                                                    </View>
-                                                ) : (
-                                                    <View style={s.ruleCheckWait}>
-                                                        <View style={s.ruleCheckDot} />
-                                                    </View>
-                                                )}
-                                                <Text style={[s.ruleLabel, pass && s.ruleLabelPass]}>{rule.label}</Text>
-                                            </View>
-                                        );
-                                    })}
+                                <View style={s.heroCheckBadge}>
+                                    <Feather name="check" size={12} color="#FFFFFF" />
                                 </View>
-
-                                {renderInput('Confirm New Passcode', confirmPassword, setConfirmPassword, 'confirm', !showConfirm, () => setShowConfirm(!showConfirm), confirmRef, null, 'Re-enter new password')}
                             </View>
-
-                            {/* ── Submit Action ── */}
-                            <TouchableOpacity
-                                onPress={handleSubmit}
-                                disabled={loading}
-                                activeOpacity={0.8}
-                                style={s.submitBtnContainer}
-                            >
-                                <LinearGradient 
-                                    colors={['#0F172A', '#1E293B']} 
-                                    style={[s.submitBtn, loading && s.submitBtnDisabled]}
-                                >
-                                    {loading ? (
-                                        <ActivityIndicator color="#FFFFFF" size="small" />
-                                    ) : (
-                                        <>
-                                            <Feather name="lock" size={16} color="#FFFFFF" />
-                                            <Text style={s.submitText}>Save & Verify</Text>
-                                        </>
-                                    )}
-                                </LinearGradient>
-                            </TouchableOpacity>
-
-                            <Text style={s.hintText}>
-                                A successful update will securely sever all active connection sockets, requiring you to authenticate again.
+                            <Text style={s.heroTitle}>{forced ? 'Force Password Update' : 'Update Credentials'}</Text>
+                            <Text style={s.heroSubtitle}>
+                                {forced 
+                                    ? 'For security reasons, your temporary passcode must be changed immediately.'
+                                    : 'Update your localized encryption strings to keep your CareConnect account fortified.'}
                             </Text>
+                        </View>
 
-                        </Animated.View>
-                    </Animated.ScrollView>
-                </KeyboardAvoidingView>
+                        {/* ── Polished Form Card ── */}
+                        <View style={s.formCard}>
+                            {renderInput('Current Passcode', currentPassword, setCurrentPassword, 'current', !showCurrent, () => setShowCurrent(!showCurrent), null, () => newRef.current?.focus(), 'Enter current password')}
+
+                            <View style={s.formDivider} />
+
+                            {renderInput('New Passcode', newPassword, setNewPassword, 'new', !showNew, () => setShowNew(!showNew), newRef, () => confirmRef.current?.focus(), 'Create new password')}
+
+                            {/* Beautiful Rules Validation */}
+                            <View style={s.rulesBox}>
+                                <Text style={s.rulesTitle}>Password must contain:</Text>
+                                {PASSWORD_RULES.map((rule) => {
+                                    const pass = newPassword.length > 0 && rule.test(newPassword);
+                                    return (
+                                        <View key={rule.label} style={s.ruleRow}>
+                                            {pass ? (
+                                                <View style={s.ruleCheckPass}>
+                                                    <Feather name="check" size={10} color="#FFFFFF" />
+                                                </View>
+                                            ) : (
+                                                <View style={s.ruleCheckWait}>
+                                                    <View style={s.ruleCheckDot} />
+                                                </View>
+                                            )}
+                                            <Text style={[s.ruleLabel, pass && s.ruleLabelPass]}>{rule.label}</Text>
+                                        </View>
+                                    );
+                                })}
+                            </View>
+
+                            {renderInput('Confirm New Passcode', confirmPassword, setConfirmPassword, 'confirm', !showConfirm, () => setShowConfirm(!showConfirm), confirmRef, null, 'Re-enter new password')}
+                        </View>
+
+                        {/* ── Submit Action ── */}
+                        <TouchableOpacity
+                            onPress={handleSubmit}
+                            disabled={loading}
+                            activeOpacity={0.8}
+                            style={s.submitBtnContainer}
+                        >
+                            <LinearGradient 
+                                colors={['#0F172A', '#1E293B']} 
+                                style={[s.submitBtn, loading && s.submitBtnDisabled]}
+                            >
+                                {loading ? (
+                                    <ActivityIndicator color="#FFFFFF" size="small" />
+                                ) : (
+                                    <>
+                                        <Feather name="lock" size={16} color="#FFFFFF" />
+                                        <Text style={s.submitText}>Save & Verify</Text>
+                                    </>
+                                )}
+                            </LinearGradient>
+                        </TouchableOpacity>
+
+                        <Text style={s.hintText}>
+                            A successful update will securely sever all active connection sockets, requiring you to authenticate again.
+                        </Text>
+
+                    </Animated.View>
+                </KeyboardAwareScrollView>
             </SafeAreaView>
         </View>
     );

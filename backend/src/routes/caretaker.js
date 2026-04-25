@@ -8,7 +8,6 @@ const Medication = require('../models/Medication');
 const Notification = require('../models/Notification');
 const AuditLog = require('../models/AuditLog');
 const CaretakerPatient = require('../models/CaretakerPatient');
-const MedicineLog = require('../models/MedicineLog');
 const { authenticate, requireRole } = require('../middleware/authenticate');
 
 const router = express.Router();
@@ -54,29 +53,145 @@ function filterMedsByShift(medications, shift) {
 
         if (times.length === 0) return shift === 'morning';
 
-        if (shift === 'morning') {
-            return times.some(t => t.toLowerCase().includes('morning') || t.includes('AM') || (t.includes('12:') && !t.includes('PM')));
-        }
-        if (shift === 'afternoon') {
-            return times.some(t => {
-                if (t.toLowerCase().includes('afternoon')) return true;
-                if (!t.includes('PM')) return false;
-                let h = parseInt(t.split(':')[0]);
-                if (h === 12) h = 0;
-                return h >= 0 && h < 5;
-            });
-        }
-        if (shift === 'night') {
-            return times.some(t => {
-                if (t.toLowerCase().includes('night')) return true;
-                if (!t.includes('PM')) return false;
-                let h = parseInt(t.split(':')[0]);
-                if (h === 12) return false;
-                return h >= 5;
-            });
-        }
-        return false;
+        return times.some(t => {
+            const lower = (t || '').toLowerCase().trim();
+
+            // Check direct string match
+            if (lower === shift || lower.includes(shift)) return true;
+            if (shift === 'night' && lower.includes('evening')) return true;
+
+            let hour = -1;
+            const match24 = lower.match(/^(\d{1,2}):(\d{2})$/);
+            const match12 = lower.match(/^(\d{1,2}):(\d{2})\s*(am|pm)$/i);
+
+            if (match24) {
+                hour = parseInt(match24[1], 10);
+            } else if (match12) {
+                hour = parseInt(match12[1], 10);
+                const period = match12[3];
+                if (period === 'pm' && hour !== 12) hour += 12;
+                if (period === 'am' && hour === 12) hour = 0;
+            }
+
+            if (hour === -1) {
+                // If it's an unrecognized format, default it to morning shift so it's not lost
+                return shift === 'morning';
+            }
+
+            if (shift === 'morning') return hour >= 0 && hour < 12;
+            if (shift === 'afternoon') return hour >= 12 && hour < 17;
+            if (shift === 'night') return hour >= 17;
+
+            return false;
+        });
     });
+}
+
+/**
+ * Convert scheduledTimes clock strings (e.g. "08:00 AM", "02:30 PM")
+ * into the enum buckets the patient app expects: 'morning' | 'afternoon' | 'night'
+ */
+function mapScheduledTimesToBuckets(scheduledTimes) {
+    if (!scheduledTimes || !Array.isArray(scheduledTimes) || scheduledTimes.length === 0) {
+        return ['morning']; // Default fallback so the med always appears
+    }
+
+    const VALID_ENUMS = ['morning', 'afternoon', 'evening', 'night', 'as_needed'];
+    const buckets = new Set();
+
+    for (const t of scheduledTimes) {
+        const lower = (t || '').toLowerCase().trim();
+
+        // If it's already a valid enum value, pass it through
+        if (VALID_ENUMS.includes(lower)) {
+            buckets.add(lower === 'evening' ? 'night' : lower);
+            continue;
+        }
+
+        // Parse clock time like "08:00 AM", "14:00", "2:30 PM"
+        let hour = -1;
+        const match24 = lower.match(/^(\d{1,2}):(\d{2})$/);
+        const match12 = lower.match(/^(\d{1,2}):(\d{2})\s*(am|pm)$/i);
+
+        if (match24) {
+            hour = parseInt(match24[1], 10);
+        } else if (match12) {
+            hour = parseInt(match12[1], 10);
+            const period = match12[3].toLowerCase();
+            if (period === 'pm' && hour !== 12) hour += 12;
+            if (period === 'am' && hour === 12) hour = 0;
+        }
+
+        if (hour >= 0 && hour < 12) {
+            buckets.add('morning');
+        } else if (hour >= 12 && hour < 17) {
+            buckets.add('afternoon');
+        } else if (hour >= 17 || hour === -1) {
+            buckets.add('night');
+        }
+    }
+
+    return buckets.size > 0 ? Array.from(buckets) : ['morning'];
+}
+
+/**
+ * Sync a medication into today's MedicineLog for instant patient visibility.
+ * @param {ObjectId} patientId - The Patient document _id
+ * @param {string} medName - Medication name
+ * @param {string[]} timeBuckets - Array of enum time buckets ['morning', 'afternoon', 'night']
+ * @param {'add'|'remove'} action - Whether to add or remove the medication
+ */
+async function syncTodayMedicineLog(patientId, medName, timeBuckets, action = 'add') {
+    try {
+        const MedicineLog = mongoose.model('MedicineLog');
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        let log = await MedicineLog.findOne({ patient_id: patientId, date: today });
+
+        if (action === 'add') {
+            if (!log) {
+                // Create today's log with this medication
+                log = new MedicineLog({
+                    patient_id: patientId,
+                    date: today,
+                    medicines: timeBuckets.map(time => ({
+                        medicine_name: medName,
+                        scheduled_time: time,
+                        taken: false,
+                        is_active: true,
+                    })),
+                });
+                await log.save();
+            } else {
+                // Append to existing log (avoid duplicates)
+                for (const time of timeBuckets) {
+                    const exists = log.medicines.some(
+                        m => m.medicine_name === medName && m.scheduled_time === time
+                    );
+                    if (!exists) {
+                        log.medicines.push({
+                            medicine_name: medName,
+                            scheduled_time: time,
+                            taken: false,
+                            is_active: true,
+                        });
+                    }
+                }
+                await log.save();
+            }
+        } else if (action === 'remove' && log) {
+            // Mark as inactive rather than deleting (preserves history)
+            log.medicines.forEach(m => {
+                if (m.medicine_name === medName) {
+                    m.is_active = false;
+                }
+            });
+            await log.save();
+        }
+    } catch (err) {
+        console.warn('[MedicineLog Sync] Non-fatal error:', err.message);
+    }
 }
 
 /**
@@ -139,7 +254,7 @@ async function getPatientMedications(patientId, activeOnly = true) {
                 takenDates: m.takenDates || [],
                 _embedded: true, // flag to identify source
             }));
-        
+
         meds = [...meds, ...mappedEmbedded];
     }
 
@@ -360,7 +475,7 @@ router.get('/dashboard', async (req, res) => {
                 },
             },
         ]);
-        
+
         const shiftPerformance = performanceResult.length ? performanceResult[0] : { avgDuration: 0, avgRating: 0 };
 
         // ── Next call: first pending patient ──
@@ -703,12 +818,14 @@ router.get('/patients/:id', async (req, res) => {
         }
 
         // Try Profile first, then Patient
-        // We do NOT use .select() here because we want the Admin app to have access to the full health profile 
-        // (lifestyle, medical_history, vitals, trusted_contacts, etc.)
-        let patient = await Profile.findById(patientId).lean();
+        let patient = await Profile.findById(patientId)
+            .select('fullName email phone avatarUrl dateOfBirth gender allergies conditions emergencyContact createdAt')
+            .lean();
 
         if (!patient) {
-            const rawPatient = await Patient.findById(patientId).lean();
+            const rawPatient = await Patient.findById(patientId)
+                .select('name email phone avatar_url avatarUrl date_of_birth dateOfBirth gender allergies conditions emergencyContact createdAt')
+                .lean();
             if (rawPatient) {
                 patient = {
                     ...rawPatient,
@@ -786,29 +903,7 @@ router.get('/patients/:id/meds', async (req, res) => {
             medications = filterMedsByShift(medications, shift);
         }
 
-        // ── Check MedicineLog for today (Patient App source of truth) ──
-        // This lets the caller see if the patient already self-marked meds.
-        let todayMedLog = null;
-        try {
-            const todayDate = new Date();
-            todayDate.setHours(0, 0, 0, 0);
-
-            let resolvedPid = patientId;
-            const patDoc = await Patient.findById(patientId).select('_id').lean();
-            if (!patDoc) {
-                const byProfile = await Patient.findOne({ profile_id: patientId }).select('_id').lean();
-                if (byProfile) resolvedPid = byProfile._id;
-            }
-
-            todayMedLog = await MedicineLog.findOne({
-                patient_id: resolvedPid,
-                date: todayDate,
-            }).lean();
-        } catch (e) {
-            console.warn('[CallerSync] MedicineLog read failed:', e.message);
-        }
-
-        // For each med, get the last confirmation from call logs + MedicineLog
+        // For each med, get the last confirmation from call logs
         const enriched = await Promise.all(medications.map(async (med) => {
             const lastConfirmation = await CallLog.findOne({
                 patientId,
@@ -824,28 +919,11 @@ router.get('/patients/:id/meds', async (req, res) => {
                 m => m.medicationId?.toString() === med._id.toString()
             );
 
-            // Check MedicineLog for patient self-marks or prior caller marks
-            let mlConfirmed = null;
-            let mlMarkedBy = null;
-            let mlTakenAt = null;
-            if (todayMedLog) {
-                const mlEntry = todayMedLog.medicines?.find(m =>
-                    m.medicine_name === med.name && m.taken
-                );
-                if (mlEntry) {
-                    mlConfirmed = true;
-                    mlMarkedBy = mlEntry.marked_by || 'patient';
-                    mlTakenAt = mlEntry.taken_at || null;
-                }
-            }
-
             return {
                 ...med,
-                lastConfirmed: mlConfirmed || confirmation?.confirmed || null,
-                lastConfirmedAt: mlTakenAt || lastConfirmation?.scheduledTime || null,
+                lastConfirmed: confirmation?.confirmed ?? null,
+                lastConfirmedAt: lastConfirmation?.scheduledTime || null,
                 lastReason: confirmation?.reason || null,
-                markedBy: mlMarkedBy || (confirmation?.confirmed ? 'caller' : null),
-                patientMarked: mlMarkedBy === 'patient',
             };
         }));
 
@@ -926,6 +1004,7 @@ router.post('/patients/:id/medications', async (req, res) => {
         } catch (e) { /* ignore audit errors */ }
 
         // Sync into Patient array for users-app visibility
+        const timeBuckets = mapScheduledTimesToBuckets(newMed.scheduledTimes);
         let pDoc = await Patient.findById(patientId);
         if (!pDoc) {
             pDoc = await Patient.findOne({ profile_id: patientId });
@@ -936,7 +1015,7 @@ router.post('/patients/:id/medications', async (req, res) => {
                 _id: newMed._id,
                 name: newMed.name,
                 dosage: newMed.dosage,
-                times: [],
+                times: timeBuckets,
                 scheduledTimes: newMed.scheduledTimes,
                 route: newMed.route,
                 instructions: newMed.instructions,
@@ -948,6 +1027,9 @@ router.post('/patients/:id/medications', async (req, res) => {
                 takenDates: []
             });
             await pDoc.save();
+
+            // Sync today's MedicineLog so patient sees it immediately
+            await syncTodayMedicineLog(pDoc._id, newMed.name, timeBuckets, 'add');
         }
 
         res.status(201).json({ medication: newMed });
@@ -984,7 +1066,7 @@ router.put('/patients/:id/medications/:medId', async (req, res) => {
             updateFields.is_active = updateFields.status === 'active';
         }
         if (updateFields.scheduledTimes !== undefined) {
-            updateFields.times = updateFields.scheduledTimes;
+            updateFields.times = mapScheduledTimesToBuckets(updateFields.scheduledTimes);
         }
 
         // Try updating from Medication collection first
@@ -1042,7 +1124,7 @@ router.put('/patients/:id/medications/:medId', async (req, res) => {
         if (!med) {
             med = patient.metadata?.medications?.find(m => m._id.toString() === medId.toString());
         }
-        
+
         res.json({ medication: med });
     } catch (error) {
         console.error('Update medication error:', error);
@@ -1067,7 +1149,7 @@ router.delete('/patients/:id/medications/:medId', async (req, res) => {
 
         // 1. Try deleting from Medication collection
         const med = await Medication.findOneAndDelete({ _id: medId, patientId });
-        
+
         let found = !!med;
 
         // 2. Try deleting from embedded arrays
@@ -1086,6 +1168,14 @@ router.delete('/patients/:id/medications/:medId', async (req, res) => {
             return res.status(404).json({ error: 'Medication or Patient not found' });
         }
 
+        // 3. Sync today's MedicineLog — mark removed med as inactive
+        if (med) {
+            const pDoc = patient1 || patient2 || await Patient.findOne({ $or: [{ _id: patientId }, { profile_id: patientId }] });
+            if (pDoc) {
+                await syncTodayMedicineLog(pDoc._id, med.name, [], 'remove');
+            }
+        }
+
         res.json({ message: 'Medication deleted' });
     } catch (error) {
         console.error('Delete medication error:', error);
@@ -1096,6 +1186,96 @@ router.delete('/patients/:id/medications/:medId', async (req, res) => {
 // ═══════════════════════════════════════════════════════════════
 // 6. POST /api/caretaker/calls — Log a call
 // ═══════════════════════════════════════════════════════════════
+
+// --- Helper to sync with Daily Checklist (MedicineLog) ---
+const syncMedicineLogHelper = async (pId, d, t, mName, isTaken, role) => {
+    try {
+        const mongoose = require('mongoose');
+        const MedicineLog = mongoose.model('MedicineLog');
+        const Patient = mongoose.model('Patient');
+        
+        let actualPatientId = pId;
+        const pt = await Patient.findOne({ $or: [{ _id: pId }, { profile_id: pId }] }).lean();
+        if (pt) actualPatientId = pt._id;
+
+        const targetDate = new Date(d);
+        targetDate.setHours(0, 0, 0, 0);
+
+        let log = await MedicineLog.findOne({
+            patient_id: actualPatientId,
+            date: targetDate
+        });
+
+        let bucket = 'morning';
+        if (t) {
+            const hour = parseInt(t.split(':')[0], 10);
+            if (hour >= 12 && hour < 17) bucket = 'afternoon';
+            else if (hour >= 17) bucket = 'night';
+        }
+
+        if (!log) {
+            const medsToLog = [];
+            if (pt && pt.medications) {
+                for (const m of pt.medications) {
+                    if (m.isActive !== false) {
+                        // Use scheduledTimes first, then fall back to times, then default
+                        const rawTimes = (m.scheduledTimes && m.scheduledTimes.length > 0) ? m.scheduledTimes : (m.times && m.times.length > 0) ? m.times : null;
+                        const timeBuckets = rawTimes ? mapScheduledTimesToBuckets(rawTimes) : ['morning'];
+                        for (const timeBucket of timeBuckets) {
+                            medsToLog.push({
+                                medicine_name: m.name || m.genericName,
+                                scheduled_time: timeBucket,
+                                taken: false,
+                                is_active: true
+                            });
+                        }
+                    }
+                }
+            }
+            if (!medsToLog.some(m => m.medicine_name === mName && m.scheduled_time === bucket)) {
+                medsToLog.push({
+                    medicine_name: mName,
+                    scheduled_time: bucket,
+                    taken: false,
+                    is_active: true
+                });
+            }
+            log = new MedicineLog({
+                patient_id: actualPatientId,
+                date: targetDate,
+                medicines: medsToLog
+            });
+            await log.save();
+        }
+
+        const dailyMed = log.medicines.find(m => 
+            m.medicine_name === mName && m.scheduled_time === bucket
+        ) || log.medicines.find(m => m.medicine_name === mName);
+
+        if (dailyMed) {
+            dailyMed.taken = isTaken;
+            dailyMed.taken_at = isTaken ? (t ? new Date(d + 'T' + t) : new Date()) : null;
+            dailyMed.marked_by = ['caller', 'care_manager', 'org_admin', 'super_admin'].includes(role) ? 'caller' : 'patient';
+            await log.save();
+            console.log(`[MedicineLog Sync] Updated ${mName} to taken=${isTaken} by ${dailyMed.marked_by}`);
+        } else {
+            log.medicines.push({
+                medicine_name: mName,
+                scheduled_time: bucket,
+                taken: isTaken,
+                taken_at: isTaken ? (t ? new Date(d + 'T' + t) : new Date()) : null,
+                marked_by: ['caller', 'care_manager', 'org_admin', 'super_admin'].includes(role) ? 'caller' : 'patient',
+                is_active: true
+            });
+            await log.save();
+            console.log(`[MedicineLog Sync] Dynamically added & updated ${mName} by caller`);
+        }
+    } catch(syncLogErr) {
+        console.error('MedicineLog sync error during toggle:', syncLogErr);
+    }
+};
+// ---------------------------------------------------------
+
 router.post('/calls', async (req, res) => {
     try {
         const caretakerId = req.profile._id;
@@ -1132,7 +1312,7 @@ router.post('/calls', async (req, res) => {
             : (status === 'completed' ? 'answered_completed' : (status === 'no_answer' ? 'no_answer' : 'answered_completed'));
 
         let orgId = req.profile.organizationId?._id || req.profile.organizationId;
-        
+
         if (!orgId) {
             const tempPat = await Patient.findById(patientId).lean();
             if (tempPat && tempPat.organization_id) {
@@ -1196,14 +1376,14 @@ router.post('/calls', async (req, res) => {
                                 timestamp: new Date(),
                             });
                             await medDoc.save();
-                            continue; // done for this med
+                            // continue removed to allow 3-tier sync
                         }
                     } catch (e) { /* not in Medication collection */ }
 
                     // 2. Fallback: Update embedded Patient.medications
                     try {
                         await Patient.updateOne(
-                            { _id: patientId, 'medications._id': mc.medicationId },
+                            { $or: [{ _id: patientId }, { profile_id: patientId }], 'medications._id': mc.medicationId },
                             {
                                 $push: {
                                     'medications.$.takenLogs': {
@@ -1220,63 +1400,15 @@ router.post('/calls', async (req, res) => {
                     } catch (e) {
                         console.error('[CallLog] Failed to update embedded med:', e.message);
                     }
-                }
-            }
-        }
 
-        // ── Sync to MedicineLog (Patient App source of truth) ────────
-        // This ensures the Patient App sees caller-confirmed meds in real-time.
-        if (medicationConfirmations && medicationConfirmations.length > 0) {
-            try {
-                const todayDate = new Date();
-                todayDate.setHours(0, 0, 0, 0);
-
-                // Also try finding by profile_id if direct patientId doesn't match
-                let resolvedPatientId = patientId;
-                const patientDoc = await Patient.findById(patientId).select('_id').lean();
-                if (!patientDoc) {
-                    const byProfile = await Patient.findOne({ profile_id: patientId }).select('_id').lean();
-                    if (byProfile) resolvedPatientId = byProfile._id;
-                }
-
-                const medLog = await MedicineLog.findOne({
-                    patient_id: resolvedPatientId,
-                    date: todayDate,
-                });
-
-                if (medLog) {
-                    let modified = false;
-                    for (const mc of medicationConfirmations) {
-                        if (!mc.confirmed) continue;
-                        const medName = mc.medicationName || '';
-                        if (!medName) continue;
-
-                        // Determine the shift/scheduled_time for this medication
-                        const shift = getCurrentShift();
-
-                        // Find the matching entry in MedicineLog
-                        const logEntry = medLog.medicines.find(m =>
-                            m.medicine_name === medName &&
-                            m.scheduled_time === shift &&
-                            !m.taken
-                        ) || medLog.medicines.find(m =>
-                            m.medicine_name === medName && !m.taken
-                        );
-
-                        if (logEntry) {
-                            logEntry.taken = true;
-                            logEntry.taken_at = new Date();
-                            logEntry.marked_by = 'caller';
-                            modified = true;
-                        }
+                    // 3. 3-Layer Sync: Update the Patient's Daily Checklist (MedicineLog)
+                    let timeString = null;
+                    if (scheduledTime) {
+                        const dObj = new Date(scheduledTime);
+                        timeString = String(dObj.getHours()).padStart(2, '0') + ':' + String(dObj.getMinutes()).padStart(2, '0');
                     }
-                    if (modified) {
-                        await medLog.save();
-                        console.log(`[CallerSync] MedicineLog updated for patient ${resolvedPatientId}`);
-                    }
+                    await syncMedicineLogHelper(patientId, today, timeString, mc.medicationName, true, req.profile.role);
                 }
-            } catch (mlErr) {
-                console.warn('[CallerSync] MedicineLog sync failed (non-blocking):', mlErr.message);
             }
         }
 

@@ -149,13 +149,13 @@ export default function GradientHeader({
     const initial = firstName.charAt(0).toUpperCase();
     const isDashboard = !onBack;
 
-    // Premium Floating Graphic (Subtle)
-    const DecorativeCircle = () => (
+    // Premium Floating Graphic (Dashboard Only)
+    const DecorativeCircle = () => isDashboard ? (
         <View style={{
             position: 'absolute', top: -50, right: -30, width: 140, height: 140, 
             borderRadius: 70, backgroundColor: 'rgba(99, 102, 241, 0.05)', zIndex: -1 
         }} />
-    );
+    ) : null;
 
     // Status bar height for Android (SafeAreaView may not work in Expo Go on all devices)
     const STATUSBAR_HEIGHT = Platform.OS === 'android' ? (StatusBar.currentHeight || 44) : 0;
