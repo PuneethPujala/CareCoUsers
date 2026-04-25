@@ -362,6 +362,7 @@ const AnimatedMedCard = ({ med, onToggle }) => {
                                     {med.verifiedByCaller && (
                                         <View style={styles.verifiedBadge}>
                                             <CheckCircle2 size={10} color="#059669" />
+                                            <Text style={styles.verifiedTxt}>Verified by Care Team</Text>
                                         </View>
                                     )}
                                 </View>
@@ -473,7 +474,7 @@ export default function MedicationsScreen({ navigation }) {
         setConfirmingMed(null);
 
         try {
-            await storeOptimisticToggle(med);
+            await storeOptimisticToggle(med, !med.taken);
         } catch (err) {
             console.warn('[Optimistic] Mark failed:', err.message);
             Alert.alert('Update Failed', 'Could not sync with server. Please check your connection.');
