@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
-import { View, Text, StyleSheet, ScrollView, Platform, Pressable, Animated, ActivityIndicator, Dimensions, Alert, Modal, TextInput, RefreshControl, DeviceEventEmitter, InteractionManager, LayoutAnimation, UIManager } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Platform, Pressable, Animated, ActivityIndicator, Dimensions, Modal, TextInput, RefreshControl, DeviceEventEmitter, InteractionManager, LayoutAnimation, UIManager } from 'react-native';
 import PremiumFormModal from '../../components/ui/PremiumFormModal';
 import { Pill, Sunrise, Sun, Moon, CheckCircle2, Circle, Bell, Activity, Plus, Coffee, Utensils, BedDouble, AlertCircle, Calendar, Pencil, Clock, PillBottle, Syringe, X, MessageCircle, ChevronDown, ChevronUp, Info } from 'lucide-react-native';
 import { Swipeable } from 'react-native-gesture-handler';
@@ -14,6 +14,7 @@ import { supabase } from '../../lib/supabase';
 import { Upload } from 'lucide-react-native';
 import usePatientStore from '../../store/usePatientStore';
 import { Buffer } from 'buffer';
+import * as Notifications from 'expo-notifications';
 
 const { width } = Dimensions.get('window');
 
@@ -272,7 +273,7 @@ const TimePill = ({ type, timeStr, timeVal }) => {
     );
 };
 
-const AnimatedMedCard = ({ med, onToggle }) => {
+const AnimatedMedCard = ({ med, onToggle, onSnooze }) => {
     const scale = useRef(new Animated.Value(1)).current;
     const [expanded, setExpanded] = useState(false);
     const swipeableRef = useRef(null);
@@ -307,7 +308,7 @@ const AnimatedMedCard = ({ med, onToggle }) => {
             outputRange: [0, 0, 20],
         });
         return (
-            <Pressable style={styles.swipeRightAction} onPress={() => { swipeableRef.current?.close(); Alert.alert('Snoozed', 'Reminder paused for 30 mins.'); }}>
+            <Pressable style={styles.swipeRightAction} onPress={() => { swipeableRef.current?.close(); onSnooze(med); }}>
                 <Animated.View style={[styles.swipeActionContent, { transform: [{ translateX: trans }] }]}>
                     <Clock size={24} color="#FFF" />
                     <Text style={styles.swipeActionText}>Snooze</Text>
@@ -350,7 +351,9 @@ const AnimatedMedCard = ({ med, onToggle }) => {
                                     {med.taken && (
                                         <View style={styles.takenBadge}>
                                             <CheckCircle2 size={10} color="#16A34A" />
-                                            <Text style={styles.takenBadgeText}>Taken</Text>
+                                            <Text style={styles.takenBadgeText}>
+                                                Taken {med.marked_by ? `(by ${med.marked_by === 'caller' ? 'Caregiver' : med.marked_by === 'patient' ? 'You' : 'System'})` : ''}
+                                            </Text>
                                         </View>
                                     )}
                                 </View>
@@ -405,6 +408,30 @@ export default function MedicationsScreen({ navigation }) {
     const [savingPrefs, setSavingPrefs] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
     const [activePicker, setActivePicker] = useState(null);
+    const [toast, setToast] = useState({ visible: false, title: '', message: '' });
+
+    const showToast = (title, message) => {
+        setToast({ visible: true, title, message });
+        setTimeout(() => setToast({ visible: false, title: '', message: '' }), 3000);
+    };
+
+    const handleSnooze = async (med) => {
+        try {
+            await Notifications.scheduleNotificationAsync({
+                content: {
+                    title: `⏳ Snoozed: ${med.name}`,
+                    body: `It's been 30 minutes! Time to take your ${med.name}.`,
+                    data: { screen: 'Medications', type: 'medication_reminder' },
+                    sound: 'default',
+                    categoryIdentifier: 'medication_reminder',
+                },
+                trigger: { seconds: 30 * 60 },
+            });
+            showToast('Snoozed', `Reminder paused for 30 mins.`);
+        } catch (error) {
+            console.warn('Snooze scheduling failed:', error.message);
+        }
+    };
     const [requestingMod, setRequestingMod] = useState(false);
     const [modRequested, setModRequested] = useState(false);
     const [uploadingImage, setUploadingImage] = useState(false);
@@ -477,7 +504,7 @@ export default function MedicationsScreen({ navigation }) {
             await storeOptimisticToggle(med, !med.taken);
         } catch (err) {
             console.warn('[Optimistic] Mark failed:', err.message);
-            Alert.alert('Update Failed', 'Could not sync with server. Please check your connection.');
+            showToast('Update Failed', 'Could not sync with server. Please check your connection.');
         }
     };
 
@@ -494,7 +521,7 @@ export default function MedicationsScreen({ navigation }) {
             await storeSavePrefs(tempPrefs);
             setShowPrefModal(false);
         } catch (err) {
-            Alert.alert('Error', 'Failed to save preferences');
+            showToast('Error', 'Failed to save preferences');
         } finally {
             setSavingPrefs(false);
         }
@@ -527,7 +554,7 @@ export default function MedicationsScreen({ navigation }) {
             const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
             if (status !== 'granted') {
                 if (Platform.OS === 'web') window.alert('Permission needed to upload prescriptions.');
-                else Alert.alert('Permission needed', 'Sorry, we need camera roll permissions to make this work!');
+                else showToast('Permission needed', 'Sorry, we need camera roll permissions to make this work!');
                 return;
             }
 
@@ -564,7 +591,7 @@ export default function MedicationsScreen({ navigation }) {
                 });
                 
                 if (Platform.OS === 'web') window.alert('Success: Prescription securely uploaded for caregiver review.');
-                else Alert.alert('Success', 'Prescription securely uploaded for caregiver review.');
+                else showToast('Success', 'Prescription securely uploaded for caregiver review.');
                 
                 loadMedicinesData(true);
             }
@@ -572,7 +599,7 @@ export default function MedicationsScreen({ navigation }) {
             console.error('Upload Error:', error.response?.data || error);
             const serverError = error.response?.data?.error || error.message || 'There was an issue uploading your file. Ensure your connection is stable.';
             if (Platform.OS === 'web') window.alert('Upload Failed: ' + serverError);
-            else Alert.alert('Upload Failed', serverError);
+            else showToast('Upload Failed', serverError);
         } finally {
             setUploadingImage(false);
         }
@@ -624,10 +651,10 @@ export default function MedicationsScreen({ navigation }) {
                                     await apiService.patients.requestMedicationModification({ description: 'Patient requests their caller to add/review medications on next call.' });
                                     setModRequested(true);
                                     if (Platform.OS === 'web') window.alert('Request sent! Your caregiver will discuss medications on your next call.');
-                                    else Alert.alert('Request Sent ✓', 'Your caregiver will discuss your medications on your next call.');
+                                    else showToast('Request Sent ✓', 'Your caregiver will discuss your medications on your next call.');
                                 } catch (e) {
                                     if (Platform.OS === 'web') window.alert('Could not send request. Please try again.');
-                                    else Alert.alert('Error', 'Could not send request. Please try again.');
+                                    else showToast('Error', 'Could not send request. Please try again.');
                                 } finally {
                                     setRequestingMod(false);
                                 }
@@ -713,7 +740,7 @@ export default function MedicationsScreen({ navigation }) {
                                     {adherence.map((d, i) => (
                                         <View key={i} style={styles.chartCol}>
                                             <AnimatedBar percentage={d.p} />
-                                            <Text style={styles.chartDayLabelMinimal}>{d.day.charAt(0)}</Text>
+                                            <Text style={styles.chartDayLabelMinimal}>{d.day.substring(0, 3)}</Text>
                                         </View>
                                     ))}
                                 </View>
@@ -728,7 +755,7 @@ export default function MedicationsScreen({ navigation }) {
                                 {schedule.morning.length > 0 && (
                                     <>
                                         {schedule.morning.map((med, idx) => (
-                                            <AnimatedMedCard key={med.id} med={med} onToggle={handleMedIconPress} />
+                                            <AnimatedMedCard key={med.id} med={med} onToggle={handleMedIconPress} onSnooze={handleSnooze} />
                                         ))}
                                     </>
                                 )}
@@ -737,7 +764,7 @@ export default function MedicationsScreen({ navigation }) {
                                 {schedule.afternoon.length > 0 && (
                                     <>
                                         {schedule.afternoon.map((med, idx) => (
-                                            <AnimatedMedCard key={med.id} med={med} onToggle={handleMedIconPress} />
+                                            <AnimatedMedCard key={med.id} med={med} onToggle={handleMedIconPress} onSnooze={handleSnooze} />
                                         ))}
                                     </>
                                 )}
@@ -746,7 +773,7 @@ export default function MedicationsScreen({ navigation }) {
                                 {schedule.night.length > 0 && (
                                     <>
                                         {schedule.night.map((med, idx) => (
-                                            <AnimatedMedCard key={med.id} med={med} onToggle={handleMedIconPress} />
+                                            <AnimatedMedCard key={med.id} med={med} onToggle={handleMedIconPress} onSnooze={handleSnooze} />
                                         ))}
                                     </>
                                 )}
@@ -763,10 +790,10 @@ export default function MedicationsScreen({ navigation }) {
                                         await apiService.patients.requestMedicationModification({ description: 'Patient requests medication review/modification on next call.' });
                                         setModRequested(true);
                                         if (Platform.OS === 'web') window.alert('Request sent! Your caregiver will discuss medications on your next call.');
-                                        else Alert.alert('Request Sent ✓', 'Your caregiver will discuss your medications on your next call.');
+                                        else showToast('Request Sent ✓', 'Your caregiver will discuss your medications on your next call.');
                                     } catch (e) {
                                         if (Platform.OS === 'web') window.alert('Could not send request. Please try again.');
-                                        else Alert.alert('Error', 'Could not send request. Please try again.');
+                                        else showToast('Error', 'Could not send request. Please try again.');
                                     } finally {
                                         setRequestingMod(false);
                                     }
@@ -913,6 +940,19 @@ export default function MedicationsScreen({ navigation }) {
                     </View>
                 </View>
             </Modal>
+
+            {/* Custom Toast */}
+            {toast.visible && (
+                <Animated.View style={styles.toastContainer}>
+                    <View style={styles.toastContent}>
+                        <CheckCircle2 size={20} color="#16A34A" />
+                        <View style={{ marginLeft: 12 }}>
+                            <Text style={styles.toastTitle}>{toast.title}</Text>
+                            <Text style={styles.toastMessage}>{toast.message}</Text>
+                        </View>
+                    </View>
+                </Animated.View>
+            )}
         </LinearGradient>
     );
 
@@ -1044,4 +1084,39 @@ const styles = StyleSheet.create({
     confirmCancelTxt: { fontSize: 15, fontWeight: '700', color: '#64748B' },
     confirmYesBtn: { flex: 2, paddingVertical: 14, borderRadius: 16, alignItems: 'center', justifyContent: 'center', shadowColor: '#2563EB', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 4 },
     confirmYesTxt: { fontSize: 15, fontWeight: '700', color: '#FFF' },
+
+    // Custom Toast
+    toastContainer: {
+        position: 'absolute',
+        bottom: Platform.OS === 'ios' ? 100 : 80,
+        left: 20,
+        right: 20,
+        zIndex: 999,
+        alignItems: 'center',
+    },
+    toastContent: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FFFFFF',
+        padding: 16,
+        borderRadius: 16,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.15,
+        shadowRadius: 12,
+        elevation: 8,
+        minWidth: 250,
+        borderWidth: 1,
+        borderColor: '#F1F5F9',
+    },
+    toastTitle: {
+        fontSize: 15,
+        fontWeight: '700',
+        color: '#0F172A',
+    },
+    toastMessage: {
+        fontSize: 13,
+        color: '#64748B',
+        marginTop: 2,
+    },
 });
