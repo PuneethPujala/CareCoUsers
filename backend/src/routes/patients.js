@@ -177,7 +177,9 @@ router.get('/:id',
       }
 
       // Get patient details initially from Patient collection
-      let patient = await Patient.findById(patientId)
+      let patient = await Patient.findOne({
+          $or: [{ _id: patientId }, { profile_id: patientId }]
+      })
         .populate('organization_id', 'name type settings')
         .populate('profile_id', 'conditions phone email fullName avatarUrl');
 
@@ -185,6 +187,7 @@ router.get('/:id',
       const Medication = require('../models/Medication');
 
       if (!patient) {
+        // Fallback: If no Patient document exists AT ALL, just return Profile data
         const Profile = require('../models/Profile');
         const profile = await Profile.findById(patientId).populate('organizationId', 'name type settings');
         if (!profile) {
