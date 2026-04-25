@@ -99,9 +99,14 @@ async function autoAssignPatients(orgId) {
             const target = callerSlots[0];
 
             try {
+                // Resolve the caller's care manager for patient app visibility
+                const callerProfile = await Profile.findById(target.id).select('managedBy').lean();
+                const callerManagerId = callerProfile?.managedBy || null;
+
                 await CaretakerPatient.create({
                     caretakerId: target.id,
                     patientId: new mongoose.Types.ObjectId(patientId),
+                    careManagerId: callerManagerId,
                     assignedBy: target.id, // auto-assigned
                     status: 'active',
                     priority: 5,
@@ -110,14 +115,17 @@ async function autoAssignPatients(orgId) {
                 });
 
                 // Sync with Patient model for users app visibility
+                const patientUpdate = { 
+                    assigned_caller_id: target.id,
+                    caller_id: target.id 
+                };
+                if (callerManagerId) {
+                    patientUpdate.care_manager_id = callerManagerId;
+                    patientUpdate.assigned_manager_id = callerManagerId;
+                }
                 await Patient.updateOne(
                     { _id: new mongoose.Types.ObjectId(patientId) },
-                    { 
-                        $set: { 
-                            assigned_caller_id: target.id,
-                            caller_id: target.id 
-                        } 
-                    }
+                    { $set: patientUpdate }
                 );
 
                 target.count += 1;

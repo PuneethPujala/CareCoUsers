@@ -2,15 +2,21 @@ import React from 'react';
 import { View, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Theme } from '../../theme/theme';
 
 export default function FloatingBottomNav({ state, descriptors, navigation }) {
+  const insets = useSafeAreaInsets();
+
   // Only show for the main tab screens
   const focusedOptions = descriptors[state.routes[state.index].key].options;
   if (focusedOptions.tabBarVisible === false) return null;
 
   return (
-    <View style={styles.container}>
+    <View style={[
+      styles.container, 
+      { paddingBottom: insets.bottom > 0 ? insets.bottom + 10 : (Platform.OS === 'ios' ? 30 : 20) }
+    ]}>
       <View style={styles.navBar}>
         {state.routes.map((route, index) => {
           const { options } = descriptors[route.key];
@@ -91,7 +97,6 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    paddingBottom: Platform.OS === 'ios' ? 30 : 20,
     paddingHorizontal: 24,
     zIndex: 1000,
   },

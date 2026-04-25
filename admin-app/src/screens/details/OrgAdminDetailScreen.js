@@ -5,10 +5,10 @@ import { Theme } from '../../theme/theme';
 import GradientHeader from '../../components/common/GradientHeader';
 import { apiService } from '../../lib/api';
 
-export default function ManagerDetailScreen({ navigation, route }) {
-    const managerId = route?.params?.managerId;
+export default function OrgAdminDetailScreen({ navigation, route }) {
+    const adminId = route?.params?.adminId;
     const [profile, setProfile] = useState(null);
-    const [callers, setCallers] = useState([]);
+    const [careManagers, setCareManagers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
 
@@ -16,25 +16,25 @@ export default function ManagerDetailScreen({ navigation, route }) {
         try {
             if (!isSilent) setLoading(true);
 
-            const profileRes = await apiService.profiles.getById(managerId);
+            const profileRes = await apiService.profiles.getById(adminId);
             const prof = profileRes.data;
             setProfile(prof);
 
-            // Once we have the profile, fetch callers + patients for their org
+            // Once we have the profile, fetch careManagers + patients for their org
             const orgId = prof?.organizationId?._id || prof?.organizationId;
             if (orgId) {
-                const callersRes = await apiService.profiles.getAll({ role: 'caller', managedBy: managerId, limit: 100 }).catch(() => ({ data: [] }));
+                const careManagersRes = await apiService.profiles.getAll({ role: 'care_manager', organizationId: orgId, limit: 100 }).catch(() => ({ data: [] }));
 
-                const cList = callersRes.data?.profiles || callersRes.data || [];
-                setCallers(Array.isArray(cList) ? cList : []);
+                const cmList = careManagersRes.data?.profiles || careManagersRes.data || [];
+                setCareManagers(Array.isArray(cmList) ? cmList : []);
             }
         } catch (err) {
-            console.error('[ManagerDetail] Failed to fetch:', err);
+            console.error('[OrgAdminDetail] Failed to fetch:', err);
         } finally {
             setLoading(false);
             setRefreshing(false);
         }
-    }, [managerId]);
+    }, [adminId]);
 
     useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -60,16 +60,16 @@ export default function ManagerDetailScreen({ navigation, route }) {
     const org = profile?.organizationId?.name || '—';
     const joinDate = profile?.createdAt ? new Date(profile.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
     const patientsCount = profile?.metadata?.patientsCount ?? 0;
-    const callersCount = callers.length;
+    const careManagersCount = profile?.metadata?.careManagersCount ?? careManagers.length;
 
     return (
         <View style={s.container}>
             <StatusBar barStyle="dark-content" />
-            <GradientHeader title={name} subtitle="CARE MANAGER" onBack={() => navigation.goBack()}>
+            <GradientHeader title={name} subtitle="ORGANIZATION ADMIN" onBack={() => navigation.goBack()}>
                 <View style={s.headerStats}>
                     <View style={s.hStat}>
-                        <Text style={[s.hStatVal, Theme.typography.common]}>{callersCount}</Text>
-                        <Text style={[s.hStatLbl, Theme.typography.common]}>CALLERS</Text>
+                        <Text style={[s.hStatVal, Theme.typography.common]}>{careManagersCount}</Text>
+                        <Text style={[s.hStatLbl, Theme.typography.common]}>CARE MANAGERS</Text>
                     </View>
                     <View style={s.hStatDivider} />
                     <View style={s.hStat}>
@@ -126,16 +126,16 @@ export default function ManagerDetailScreen({ navigation, route }) {
                     </View>
                 </View>
 
-                {/* Direct Reports — Callers */}
-                <Text style={[s.sectionTitle, Theme.typography.common]}>Direct Reports — Callers ({callers.length})</Text>
+                {/* Assigned Care Managers */}
+                <Text style={[s.sectionTitle, Theme.typography.common]}>Assigned Care Managers ({careManagers.length})</Text>
                 <View style={s.sectionCard}>
-                    {callers.length === 0 ? (
+                    {careManagers.length === 0 ? (
                         <View style={s.emptyBox}>
-                            <Feather name="headphones" size={28} color="#CBD5E1" style={{ marginBottom: 12 }} />
-                            <Text style={[s.emptyText, Theme.typography.common]}>No callers assigned</Text>
+                            <Feather name="shield" size={28} color="#CBD5E1" style={{ marginBottom: 12 }} />
+                            <Text style={[s.emptyText, Theme.typography.common]}>No care managers assigned</Text>
                         </View>
                     ) : (
-                        callers.map((c, i) => {
+                        careManagers.map((c, i) => {
                             const cName = c.fullName || 'Unknown';
                             const cId = c._id || c.id;
                             const cActive = c.isActive !== false;
@@ -143,7 +143,7 @@ export default function ManagerDetailScreen({ navigation, route }) {
                                 <View key={cId || i}>
                                     <TouchableOpacity
                                         activeOpacity={0.8}
-                                        onPress={() => navigation.navigate('CallerDetail', { callerId: cId })}
+                                        onPress={() => navigation.navigate('ManagerDetail', { managerId: cId })}
                                         style={s.itemRow}
                                     >
                                         <View style={s.avatarBox}>
@@ -160,12 +160,14 @@ export default function ManagerDetailScreen({ navigation, route }) {
                                         </View>
                                         <Feather name="chevron-right" size={18} color="#475569" style={{ marginLeft: 12 }} />
                                     </TouchableOpacity>
-                                    {i < callers.length - 1 && <View style={s.cardDivider} />}
+                                    {i < careManagers.length - 1 && <View style={s.cardDivider} />}
                                 </View>
                             );
                         })
                     )}
                 </View>
+
+
             </ScrollView>
         </View>
     );
