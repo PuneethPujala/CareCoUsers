@@ -144,8 +144,11 @@ function mapScheduledTimesToBuckets(scheduledTimes) {
 async function syncTodayMedicineLog(patientId, medName, timeBuckets, action = 'add') {
     try {
         const MedicineLog = mongoose.model('MedicineLog');
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
+        const _now = new Date();
+        const _y = _now.getFullYear();
+        const _m = String(_now.getMonth() + 1).padStart(2, '0');
+        const _d = String(_now.getDate()).padStart(2, '0');
+        const today = new Date(`${_y}-${_m}-${_d}T00:00:00.000Z`);
 
         let log = await MedicineLog.findOne({ patient_id: patientId, date: today });
 
@@ -1248,9 +1251,10 @@ const syncMedicineLogHelper = async (pId, d, t, mName, isTaken, role) => {
             await log.save();
         }
 
+        // Find exact medicine+bucket match. NO fallback to avoid wrong bucket for multi-dose meds.
         const dailyMed = log.medicines.find(m => 
             m.medicine_name === mName && m.scheduled_time === bucket
-        ) || log.medicines.find(m => m.medicine_name === mName);
+        );
 
         if (dailyMed) {
             dailyMed.taken = isTaken;
