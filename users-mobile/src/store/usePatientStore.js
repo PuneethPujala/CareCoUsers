@@ -282,7 +282,7 @@ const usePatientStore = create((set, get) => ({
      * optimisticToggleMed — marks a med as taken in the store immediately,
      * then fires the API call.  On failure, reverts.
      */
-    optimisticToggleMed: async (med) => {
+    optimisticToggleMed: async (med, targetState = true) => {
         const state = get();
         const newOpt = { ...state._optimisticMeds, [med.id]: Date.now() };
         set({ _optimisticMeds: newOpt });
@@ -290,7 +290,7 @@ const usePatientStore = create((set, get) => ({
         // Update dashboardMeds (safe matching by name and type to sync across screens perfectly)
         set((s) => ({
             dashboardMeds: s.dashboardMeds.map((m) =>
-                (m.name === med.name && m.type === med.type) ? { ...m, taken: true } : m
+                (m.name === med.name && m.type === med.type) ? { ...m, taken: targetState } : m
             ),
         }));
 
@@ -299,7 +299,7 @@ const usePatientStore = create((set, get) => ({
             const schedule = { ...s.medicationSchedule };
             Object.keys(schedule).forEach((slot) => {
                 schedule[slot] = schedule[slot].map((m) =>
-                    (m.name === med.name && m.type === med.type) ? { ...m, taken: true } : m
+                    (m.name === med.name && m.type === med.type) ? { ...m, taken: targetState } : m
                 );
             });
             return { medicationSchedule: schedule };
@@ -309,7 +309,7 @@ const usePatientStore = create((set, get) => ({
             await apiService.medicines.markMedicine({
                 medicine_name: med.name,
                 scheduled_time: med.type,
-                taken: true,
+                taken: targetState,
             });
         } catch (err) {
             console.warn('[Store] optimisticToggleMed failed, reverting:', err.message);
