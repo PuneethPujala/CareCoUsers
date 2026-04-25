@@ -1,0 +1,38 @@
+{
+  "project_info": {
+    "project_number": "374987128995",
+    "project_id": "careco-e5d38",
+    "storage_bucket": "careco-e5d38.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:374987128995:android:76db17bacc98bd3df23f16",
+        "android_client_info": {
+          "package_name": "com.careco.users"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "374987128995-h9l9pn2oi7jbjeh4565kcc73n7dq9hjq.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.careco.users",
+            "certificate_hash": "70e4f5c8674ab09d164183f722c89d8f67162a6b"
+          }
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC3PTM35juGe_hFCzg1s2DpBeLs-Zqvd10"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
