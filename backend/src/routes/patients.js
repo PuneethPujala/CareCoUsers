@@ -849,34 +849,81 @@ router.post('/:id/medications/:medId/toggle',
       const syncMedicineLogHelper = async (pId, d, t, mName, isTaken, role) => {
         try {
           const MedicineLog = require('../models/MedicineLog');
-          const targetDate = new Date(d);
-          targetDate.setHours(0, 0, 0, 0);
+          const PatientModel = require('../models/Patient');
 
-          const log = await MedicineLog.findOne({
-            patient_id: pId,
+          // Resolve the true Patient _id (pId might be a Profile ID)
+          let actualPatientId = pId;
+          const ptDoc = await PatientModel.findOne({ $or: [{ _id: pId }, { profile_id: pId }] }).lean();
+          if (ptDoc) actualPatientId = ptDoc._id;
+
+          // Strict UTC midnight — matches users-backend exactly
+          const targetDate = new Date(`${d}T00:00:00.000Z`);
+
+          let log = await MedicineLog.findOne({
+            patient_id: actualPatientId,
             date: targetDate
           });
 
-          if (log) {
-            let bucket = 'morning';
-            if (t) {
-              const hour = parseInt(t.split(':')[0], 10);
-              if (hour >= 12 && hour < 17) bucket = 'afternoon';
-              else if (hour >= 17) bucket = 'night';
+          // Determine the time bucket from the caller's timestamp
+          let bucket = 'morning';
+          if (t) {
+            const hour = parseInt(t.split(':')[0], 10);
+            if (hour >= 12 && hour < 17) bucket = 'afternoon';
+            else if (hour >= 17) bucket = 'night';
+          }
+
+          if (!log) {
+            // Create a fresh log with all patient meds if none exists
+            const medsToLog = [];
+            if (ptDoc && ptDoc.medications) {
+              for (const m of ptDoc.medications) {
+                if (m.isActive !== false) {
+                  const rawTimes = (m.scheduledTimes && m.scheduledTimes.length > 0) ? m.scheduledTimes : (m.times && m.times.length > 0) ? m.times : null;
+                  const timeBuckets = rawTimes ? rawTimes.map(ts => {
+                    if (!ts) return 'morning';
+                    const match = ts.match(/(\d+):/);
+                    if (!match) return 'morning';
+                    const h = parseInt(match[1], 10);
+                    if (h >= 12 && h < 17) return 'afternoon';
+                    if (h >= 17) return 'night';
+                    return 'morning';
+                  }) : ['morning'];
+                  for (const tb of timeBuckets) {
+                    medsToLog.push({ medicine_name: m.name || m.genericName, scheduled_time: tb, taken: false, is_active: true });
+                  }
+                }
+              }
             }
-
-            const dailyMed = log.medicines.find(m =>
-              m.medicine_name === mName && m.scheduled_time === bucket
-            ) || log.medicines.find(m => m.medicine_name === mName);
-
-            if (dailyMed) {
-              dailyMed.taken = isTaken;
-              dailyMed.taken_at = isTaken ? (t ? new Date(d + 'T' + t) : new Date()) : null;
-              dailyMed.marked_by = ['caller', 'care_manager', 'org_admin', 'super_admin'].includes(role) ? 'caller' : 'patient';
-
-              await log.save();
-              console.log(`[MedicineLog Sync] Updated ${mName} to taken=${isTaken} by ${dailyMed.marked_by}`);
+            if (!medsToLog.some(m => m.medicine_name === mName && m.scheduled_time === bucket)) {
+              medsToLog.push({ medicine_name: mName, scheduled_time: bucket, taken: false, is_active: true });
             }
+            log = new MedicineLog({ patient_id: actualPatientId, date: targetDate, medicines: medsToLog });
+            await log.save();
+          }
+
+          // Find the exact medicine+bucket match. NO fallback to wrong bucket.
+          let dailyMed = log.medicines.find(m =>
+            m.medicine_name === mName && m.scheduled_time === bucket
+          );
+
+          if (dailyMed) {
+            dailyMed.taken = isTaken;
+            dailyMed.taken_at = isTaken ? (t ? new Date(d + 'T' + t) : new Date()) : null;
+            dailyMed.marked_by = ['caller', 'care_manager', 'org_admin', 'super_admin'].includes(role) ? 'caller' : 'patient';
+            await log.save();
+            console.log(`[MedicineLog Sync] Updated ${mName} [${bucket}] to taken=${isTaken} by ${dailyMed.marked_by}`);
+          } else {
+            // Medicine not in log yet — push it
+            log.medicines.push({
+              medicine_name: mName,
+              scheduled_time: bucket,
+              taken: isTaken,
+              taken_at: isTaken ? (t ? new Date(d + 'T' + t) : new Date()) : null,
+              marked_by: ['caller', 'care_manager', 'org_admin', 'super_admin'].includes(role) ? 'caller' : 'patient',
+              is_active: true
+            });
+            await log.save();
+            console.log(`[MedicineLog Sync] Added+Updated ${mName} [${bucket}] to taken=${isTaken}`);
           }
         } catch (syncLogErr) {
           console.error('MedicineLog sync error during toggle:', syncLogErr);
