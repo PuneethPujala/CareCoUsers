@@ -243,7 +243,7 @@ router.get('/dashboard', async (req, res) => {
             daysUntilFull,
             needsHiring,
             recommendation: needsHiring
-                ? (availableSlots <= 0 
+                ? (availableSlots <= 0
                     ? '⚠️ All caller slots are full. Hire new callers immediately!'
                     : `⏳ Slots will fill in ~${daysUntilFull} days at current growth rate. Consider hiring soon.`)
                 : '✅ Sufficient caller capacity available.',
@@ -532,8 +532,8 @@ router.delete('/caretakers/:id', async (req, res) => {
             return res.status(400).json({ error: 'Invalid caller ID' });
         }
 
-        const caller = await Profile.findOne({ 
-            _id: callerId, 
+        const caller = await Profile.findOne({
+            _id: callerId,
             organizationId: orgId,
             role: { $in: ['caller', 'caretaker'] }
         });
@@ -555,7 +555,7 @@ router.delete('/caretakers/:id', async (req, res) => {
                 { _id: { $in: patientIds } },
                 { $unset: { caller_id: 1, assigned_caller_id: 1 } }
             );
-        } catch(e) {}
+        } catch (e) { }
 
         caller.isActive = false;
         caller.fullName = `${caller.fullName} [Deleted]`;
@@ -743,7 +743,7 @@ router.post('/patients/assign', async (req, res) => {
         });
         try {
             await mongoose.model('Patient').updateOne(
-                { _id: patientId }, 
+                { _id: patientId },
                 { $set: { caller_id: caretakerId, assigned_caller_id: caretakerId, care_manager_id: managerId, assigned_manager_id: managerId } }
             );
         } catch (e) {
@@ -863,7 +863,7 @@ router.put('/patients/:id/reassign', async (req, res) => {
         });
         try {
             await mongoose.model('Patient').updateOne(
-                { _id: patientId }, 
+                { _id: patientId },
                 { $set: { caller_id: newCaretakerId, assigned_caller_id: newCaretakerId, care_manager_id: managerId, assigned_manager_id: managerId } }
             );
         } catch (e) {
