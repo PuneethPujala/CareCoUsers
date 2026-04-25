@@ -7,6 +7,7 @@ import { Shadows, Colors, Radius } from '../../theme/colors';
 import GradientHeader from '../../components/common/GradientHeader';
 import EmptyState from '../../components/common/EmptyState';
 import { apiService } from '../../lib/api';
+import { useAuth } from '../../context/AuthContext';
 
 function mapRoleToLabel(role) {
     const map = {
@@ -25,6 +26,7 @@ export default function TeamListScreen({ navigation, route }) {
     const [refreshing, setRefreshing] = useState(false);
     const [team, setTeam] = useState([]);
     const [loading, setLoading] = useState(true);
+    const { profile } = useAuth();
 
     const targetRole = route?.params?.role || 'caller';
     const orgFilter = route?.params?.organizationId;
@@ -39,6 +41,11 @@ export default function TeamListScreen({ navigation, route }) {
             if (!isRefresh) setLoading(true);
             const queryParams = { role: targetRole, limit: 100 };
             if (orgFilter) queryParams.organizationId = orgFilter;
+            
+            // Auto-filter: Care Managers should only see Callers explicitly assigned to them
+            if (profile?.role === 'care_manager' && targetRole === 'caller') {
+                queryParams.managedBy = profile._id || profile.id;
+            }
             
             const res = await apiService.profiles.getAll(queryParams);
             const data = res.data?.profiles || res.data || [];
@@ -77,7 +84,9 @@ export default function TeamListScreen({ navigation, route }) {
 
     const handleMemberPress = (member) => {
         const id = member._id || member.id;
-        if (targetRole === 'care_manager') {
+        if (targetRole === 'org_admin') {
+            navigation.navigate('OrgAdminDetail', { adminId: id });
+        } else if (targetRole === 'care_manager') {
             navigation.navigate('ManagerDetail', { managerId: id });
         } else {
             navigation.navigate('CallerDetail', { callerId: id });

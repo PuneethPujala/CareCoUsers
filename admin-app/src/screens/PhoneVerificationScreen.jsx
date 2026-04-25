@@ -1,8 +1,7 @@
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import React, { useState, useRef, useEffect } from 'react';
-import {
-    View, Text, TextInput, TouchableOpacity, ScrollView,
-    StyleSheet, StatusBar, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, Animated
-} from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView,
+    StyleSheet, StatusBar, Alert, ActivityIndicator, Platform, Animated } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -146,7 +145,7 @@ export default function PhoneVerificationScreen() {
                     </TouchableOpacity>
                 </View>
 
-                <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+                <KeyboardAwareScrollView style={{ flex: 1 }} enableOnAndroid={true} extraScrollHeight={20} keyboardShouldPersistTaps="handled">
                     <Animated.ScrollView 
                         style={s.body} 
                         contentContainerStyle={{ paddingBottom: 80, paddingHorizontal: 20 }} 
@@ -285,7 +284,7 @@ export default function PhoneVerificationScreen() {
 
                         </Animated.View>
                     </Animated.ScrollView>
-                </KeyboardAvoidingView>
+                </KeyboardAwareScrollView>
             </SafeAreaView>
         </View>
     );
