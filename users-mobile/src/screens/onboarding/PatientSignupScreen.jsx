@@ -121,17 +121,37 @@ const PasswordRequirements = React.memo(({ password }) => {
     );
 });
 
+const STEP_ICONS = ['👤', '📍', '⭐', '✉️', '🚀'];
+
 const StepIndicator = React.memo(({ current }) => (
     <View style={styles.modernProgressContainer}>
-        {[1, 2, 3, 4, 5].map((s) => (
-            <View key={s} style={styles.progressSegmentWrapper}>
-                <View style={[
-                    styles.progressSegment,
-                    s < current && styles.progressSegmentDone,
-                    s === current && styles.progressSegmentActive,
-                ]} />
-            </View>
-        ))}
+        {[1, 2, 3, 4, 5].map((s, idx) => {
+            const done = s < current;
+            const active = s === current;
+            return (
+                <React.Fragment key={s}>
+                    <View style={styles.stepDotWrap}>
+                        <View style={[
+                            styles.stepDot,
+                            done && styles.stepDotDone,
+                            active && styles.stepDotActive,
+                        ]}>
+                            {done ? (
+                                <Text style={{ fontSize: 11, color: '#6366F1', fontFamily: 'Inter_800ExtraBold' }}>✓</Text>
+                            ) : (
+                                <Text style={[styles.stepDotLabel, active && { color: '#6366F1' }]}>{s}</Text>
+                            )}
+                        </View>
+                        <Text style={[styles.stepNameLabel, active && { color: '#FFFFFF', ...FONT.bold }]}>
+                            {STEP_LABELS[idx].split(' ')[0]}
+                        </Text>
+                    </View>
+                    {idx < 4 && (
+                        <View style={[styles.stepConnector, done && styles.stepConnectorDone]} />
+                    )}
+                </React.Fragment>
+            );
+        })}
     </View>
 ));
 
@@ -187,6 +207,68 @@ const IconInput = React.memo(React.forwardRef(({ icon: Icon, label, rightIcon, e
     );
 }));
 
+// Individual OTP input boxes — auto-advance and backspace navigation
+const OTPBoxes = ({ value = '', onChange, onComplete, length = 6, editable = true }) => {
+    const refs = React.useRef([...Array(length)].map(() => React.createRef()));
+
+    const handleChange = (text, idx) => {
+        const digit = text.replace(/\D/g, '').slice(-1);
+        const newVal = (value.slice(0, idx) + digit + value.slice(idx + 1)).slice(0, length);
+        onChange(newVal);
+        if (digit) {
+            if (idx < length - 1) refs.current[idx + 1]?.current?.focus();
+            if (newVal.length === length) onComplete?.(newVal);
+        }
+    };
+
+    const handleKeyPress = ({ nativeEvent }, idx) => {
+        if (nativeEvent.key === 'Backspace' && !value[idx] && idx > 0) {
+            refs.current[idx - 1]?.current?.focus();
+        }
+    };
+
+    return (
+        <View style={otpBoxSt.row}>
+            {Array.from({ length }).map((_, i) => (
+                <TextInput
+                    key={i}
+                    ref={refs.current[i]}
+                    style={[otpBoxSt.box, !!value[i] && otpBoxSt.boxFilled]}
+                    value={value[i] || ''}
+                    onChangeText={(t) => handleChange(t, i)}
+                    onKeyPress={(e) => handleKeyPress(e, i)}
+                    keyboardType="number-pad"
+                    maxLength={1}
+                    textAlign="center"
+                    editable={editable}
+                    autoFocus={i === 0}
+                    selectTextOnFocus
+                />
+            ))}
+        </View>
+    );
+};
+
+const otpBoxSt = StyleSheet.create({
+    row: { flexDirection: 'row', gap: 9, justifyContent: 'center', marginVertical: 16 },
+    box: {
+        width: 46, height: 58,
+        borderRadius: 16,
+        backgroundColor: '#F8FAFC',
+        borderWidth: 2, borderColor: '#E2E8F0',
+        fontSize: 24, fontFamily: 'Inter_700Bold',
+        color: '#0F172A',
+    },
+    boxFilled: {
+        borderColor: '#6366F1',
+        backgroundColor: '#EEF2FF',
+        shadowColor: '#6366F1',
+        shadowOpacity: 0.12, shadowRadius: 8,
+        shadowOffset: { width: 0, height: 2 },
+        elevation: 3,
+    },
+});
+
 const OTPModal = React.memo(({ visible, onClose, otp, setOtp, onVerify, timer, resend, attempts, field, error, otpLoading }) => (
     <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
         <Pressable style={styles.modalOverlay} onPress={onClose}>
@@ -197,27 +279,19 @@ const OTPModal = React.memo(({ visible, onClose, otp, setOtp, onVerify, timer, r
                         <Pressable onPress={onClose} hitSlop={12} disabled={otpLoading}><X size={22} color="#64748B" /></Pressable>
                     </View>
                     <Text style={styles.otpSubtext}>Enter the 6-digit code sent to your {field}.</Text>
-                    <View style={[styles.fieldGroup, { marginTop: 20 }]}>
-                        <View style={[styles.inputWrapEnhanced, error && styles.inputErrorEnhanced]}>
-                            <Lock size={18} color="#8899BB" />
-                            <TextInput
-                                style={[styles.textInputEnhanced, { letterSpacing: 8, fontSize: 24, textAlign: 'center' }]}
-                                placeholder="000000"
-                                placeholderTextColor="#CBD5E1"
-                                maxLength={6}
-                                keyboardType="number-pad"
-                                value={otp}
-                                onChangeText={setOtp}
-                                editable={!otpLoading}
-                            />
+                    <OTPBoxes
+                        value={otp}
+                        onChange={setOtp}
+                        onComplete={onVerify}
+                        length={6}
+                        editable={!otpLoading}
+                    />
+                    {error ? (
+                        <View style={[styles.errorTextRow, { justifyContent: 'center', marginTop: -8, marginBottom: 8 }]}>
+                            <AlertCircle size={13} color="#EF4444" />
+                            <Text style={styles.fieldErrorEnhanced}>{error}</Text>
                         </View>
-                        {error ? (
-                            <View style={styles.errorTextRow}>
-                                <AlertCircle size={12} color="#EF4444" />
-                                <Text style={styles.fieldErrorEnhanced}>{error}</Text>
-                            </View>
-                        ) : null}
-                    </View>
+                    ) : null}
                     <View style={styles.resendRow}>
                         {timer > 0 ? (
                             <Text style={styles.timerText}>Resend in {timer}s</Text>
@@ -1505,11 +1579,24 @@ const styles = StyleSheet.create({
     heroLabel: { fontSize: 13, ...FONT.bold, color: 'rgba(255,255,255,0.7)', letterSpacing: 5, marginBottom: 8 },
     heroTitle: { fontSize: 24, ...FONT.heavy, color: '#FFFFFF', textAlign: 'center', paddingHorizontal: 20 },
 
-    modernProgressContainer: { flexDirection: 'row', gap: 6, marginTop: 24, width: 160, height: 4 },
-    progressSegmentWrapper: { flex: 1, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.2)', overflow: 'hidden' },
-    progressSegment: { flex: 1, height: 4, backgroundColor: 'transparent' },
-    progressSegmentDone: { backgroundColor: '#FFFFFF' },
-    progressSegmentActive: { backgroundColor: '#FFFFFF', opacity: 0.6 },
+    modernProgressContainer: {
+        flexDirection: 'row', alignItems: 'center',
+        marginTop: 20, paddingHorizontal: 8,
+        alignSelf: 'stretch',
+    },
+    stepDotWrap: { alignItems: 'center', gap: 5 },
+    stepDot: {
+        width: 30, height: 30, borderRadius: 15,
+        backgroundColor: 'rgba(255,255,255,0.25)',
+        borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.4)',
+        alignItems: 'center', justifyContent: 'center',
+    },
+    stepDotDone: { backgroundColor: 'rgba(255,255,255,0.9)', borderColor: '#FFFFFF' },
+    stepDotActive: { backgroundColor: '#FFFFFF', borderColor: '#FFFFFF', shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 6, elevation: 4 },
+    stepDotLabel: { fontSize: 13, fontFamily: 'Inter_700Bold', color: 'rgba(255,255,255,0.7)' },
+    stepNameLabel: { fontSize: 10, fontFamily: 'Inter_500Medium', color: 'rgba(255,255,255,0.55)', letterSpacing: 0.2 },
+    stepConnector: { flex: 1, height: 2, backgroundColor: 'rgba(255,255,255,0.25)', marginHorizontal: 4, marginBottom: 16 },
+    stepConnectorDone: { backgroundColor: 'rgba(255,255,255,0.85)' },
 
     formCard: {
         marginTop: -30,
