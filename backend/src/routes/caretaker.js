@@ -8,6 +8,7 @@ const Medication = require('../models/Medication');
 const Notification = require('../models/Notification');
 const AuditLog = require('../models/AuditLog');
 const CaretakerPatient = require('../models/CaretakerPatient');
+const MedicineLog = require('../models/MedicineLog');
 const { authenticate, requireRole } = require('../middleware/authenticate');
 
 const router = express.Router();
@@ -787,7 +788,29 @@ router.get('/patients/:id/meds', async (req, res) => {
             medications = filterMedsByShift(medications, shift);
         }
 
-        // For each med, get the last confirmation from call logs
+        // ── Check MedicineLog for today (Patient App source of truth) ──
+        // This lets the caller see if the patient already self-marked meds.
+        let todayMedLog = null;
+        try {
+            const todayDate = new Date();
+            todayDate.setHours(0, 0, 0, 0);
+
+            let resolvedPid = patientId;
+            const patDoc = await Patient.findById(patientId).select('_id').lean();
+            if (!patDoc) {
+                const byProfile = await Patient.findOne({ profile_id: patientId }).select('_id').lean();
+                if (byProfile) resolvedPid = byProfile._id;
+            }
+
+            todayMedLog = await MedicineLog.findOne({
+                patient_id: resolvedPid,
+                date: todayDate,
+            }).lean();
+        } catch (e) {
+            console.warn('[CallerSync] MedicineLog read failed:', e.message);
+        }
+
+        // For each med, get the last confirmation from call logs + MedicineLog
         const enriched = await Promise.all(medications.map(async (med) => {
             const lastConfirmation = await CallLog.findOne({
                 patientId,
@@ -803,11 +826,28 @@ router.get('/patients/:id/meds', async (req, res) => {
                 m => m.medicationId?.toString() === med._id.toString()
             );
 
+            // Check MedicineLog for patient self-marks or prior caller marks
+            let mlConfirmed = null;
+            let mlMarkedBy = null;
+            let mlTakenAt = null;
+            if (todayMedLog) {
+                const mlEntry = todayMedLog.medicines?.find(m =>
+                    m.medicine_name === med.name && m.taken
+                );
+                if (mlEntry) {
+                    mlConfirmed = true;
+                    mlMarkedBy = mlEntry.marked_by || 'patient';
+                    mlTakenAt = mlEntry.taken_at || null;
+                }
+            }
+
             return {
                 ...med,
-                lastConfirmed: confirmation?.confirmed ?? null,
-                lastConfirmedAt: lastConfirmation?.scheduledTime || null,
+                lastConfirmed: mlConfirmed || confirmation?.confirmed || null,
+                lastConfirmedAt: mlTakenAt || lastConfirmation?.scheduledTime || null,
                 lastReason: confirmation?.reason || null,
+                markedBy: mlMarkedBy || (confirmation?.confirmed ? 'caller' : null),
+                patientMarked: mlMarkedBy === 'patient',
             };
         }));
 
@@ -1183,6 +1223,62 @@ router.post('/calls', async (req, res) => {
                         console.error('[CallLog] Failed to update embedded med:', e.message);
                     }
                 }
+            }
+        }
+
+        // ── Sync to MedicineLog (Patient App source of truth) ────────
+        // This ensures the Patient App sees caller-confirmed meds in real-time.
+        if (medicationConfirmations && medicationConfirmations.length > 0) {
+            try {
+                const todayDate = new Date();
+                todayDate.setHours(0, 0, 0, 0);
+
+                // Also try finding by profile_id if direct patientId doesn't match
+                let resolvedPatientId = patientId;
+                const patientDoc = await Patient.findById(patientId).select('_id').lean();
+                if (!patientDoc) {
+                    const byProfile = await Patient.findOne({ profile_id: patientId }).select('_id').lean();
+                    if (byProfile) resolvedPatientId = byProfile._id;
+                }
+
+                const medLog = await MedicineLog.findOne({
+                    patient_id: resolvedPatientId,
+                    date: todayDate,
+                });
+
+                if (medLog) {
+                    let modified = false;
+                    for (const mc of medicationConfirmations) {
+                        if (!mc.confirmed) continue;
+                        const medName = mc.medicationName || '';
+                        if (!medName) continue;
+
+                        // Determine the shift/scheduled_time for this medication
+                        const shift = getCurrentShift();
+
+                        // Find the matching entry in MedicineLog
+                        const logEntry = medLog.medicines.find(m =>
+                            m.medicine_name === medName &&
+                            m.scheduled_time === shift &&
+                            !m.taken
+                        ) || medLog.medicines.find(m =>
+                            m.medicine_name === medName && !m.taken
+                        );
+
+                        if (logEntry) {
+                            logEntry.taken = true;
+                            logEntry.taken_at = new Date();
+                            logEntry.marked_by = 'caller';
+                            modified = true;
+                        }
+                    }
+                    if (modified) {
+                        await medLog.save();
+                        console.log(`[CallerSync] MedicineLog updated for patient ${resolvedPatientId}`);
+                    }
+                }
+            } catch (mlErr) {
+                console.warn('[CallerSync] MedicineLog sync failed (non-blocking):', mlErr.message);
             }
         }
 
