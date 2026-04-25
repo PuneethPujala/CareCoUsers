@@ -19,33 +19,38 @@ function getShiftLabel(shift) {
 }
 
 function filterMedsByShift(medications, shift) {
+    const shiftLower = shift.toLowerCase();
     return medications.filter(med => {
         const times = med.scheduledTimes && med.scheduledTimes.length > 0 ? med.scheduledTimes : (med.times || []);
 
-        if (times.length === 0) return shift === 'morning';
+        if (times.length === 0) return shiftLower === 'morning';
 
-        if (shift === 'morning') {
-            return times.some(t => t.toLowerCase().includes('morning') || t.includes('AM') || (t.includes('12:') && !t.includes('PM')));
-        }
-        if (shift === 'afternoon') {
-            return times.some(t => {
-                if (t.toLowerCase().includes('afternoon')) return true;
-                if (!t.includes('PM')) return false;
-                let h = parseInt(t.split(':')[0]);
-                if (h === 12) h = 0;
-                return h >= 0 && h < 5;
-            });
-        }
-        if (shift === 'night') {
-            return times.some(t => {
-                if (t.toLowerCase().includes('night')) return true;
-                if (!t.includes('PM')) return false;
-                let h = parseInt(t.split(':')[0]);
-                if (h === 12) return false;
-                return h >= 5;
-            });
-        }
-        return false;
+        return times.some(t => {
+            const lower = (t || '').toLowerCase().trim();
+            if (lower === shiftLower || lower.includes(shiftLower)) return true;
+            if (shiftLower === 'night' && lower.includes('evening')) return true;
+
+            let hour = -1;
+            const match24 = lower.match(/^(\d{1,2}):(\d{2})$/);
+            const match12 = lower.match(/^(\d{1,2}):(\d{2})\s*(am|pm)$/i);
+
+            if (match24) {
+                hour = parseInt(match24[1], 10);
+            } else if (match12) {
+                hour = parseInt(match12[1], 10);
+                const period = match12[3];
+                if (period === 'pm' && hour !== 12) hour += 12;
+                if (period === 'am' && hour === 12) hour = 0;
+            }
+
+            if (hour === -1) return shiftLower === 'morning';
+
+            if (shiftLower === 'morning') return hour >= 0 && hour < 12;
+            if (shiftLower === 'afternoon') return hour >= 12 && hour < 17;
+            if (shiftLower === 'night') return hour >= 17;
+            
+            return false;
+        });
     });
 }
 
@@ -87,17 +92,6 @@ export default function ActiveCallScreen({ navigation, route }) {
                 // Filter to current shift only
                 const shiftMeds = filterMedsByShift(allMeds, currentShift);
                 setMedications(shiftMeds);
-
-                // Auto-check meds already confirmed (patient self-marked or prior caller)
-                const preChecked = {};
-                shiftMeds.forEach(m => {
-                    if (m.lastConfirmed) {
-                        preChecked[m._id] = true;
-                    }
-                });
-                if (Object.keys(preChecked).length > 0) {
-                    setCheckedMeds(prev => ({ ...prev, ...preChecked }));
-                }
             } catch (err) {
                 console.error('[ActiveCall] Meds error:', err);
                 Alert.alert('Warning', 'Could not load live medication list.');
@@ -244,17 +238,9 @@ export default function ActiveCallScreen({ navigation, route }) {
                                                 {checkedMeds[m._id] && <Feather name="check" size={14} color="#FFFFFF" />}
                                             </View>
                                             <View style={{ flex: 1, marginLeft: 14 }}>
-                                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                                                    <Text style={[s.medName, checkedMeds[m._id] && s.medNameDone, Theme.typography.common]}>
-                                                        {m.name}
-                                                    </Text>
-                                                    {m.patientMarked && (
-                                                        <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#ECFDF5', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, borderWidth: 1, borderColor: '#D1FAE5' }}>
-                                                            <Feather name="user-check" size={10} color="#059669" />
-                                                            <Text style={[Theme.typography.common, { fontSize: 9, fontWeight: '700', color: '#059669', marginLeft: 3 }]}>Patient took it</Text>
-                                                        </View>
-                                                    )}
-                                                </View>
+                                                <Text style={[s.medName, checkedMeds[m._id] && s.medNameDone, Theme.typography.common]}>
+                                                    {m.name}
+                                                </Text>
                                                 <Text style={[s.medSub, checkedMeds[m._id] && s.medNameDone, Theme.typography.common]}>
                                                     {m.dosage} • {m.frequency}
                                                 </Text>

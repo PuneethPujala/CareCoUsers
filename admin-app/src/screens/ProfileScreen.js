@@ -7,6 +7,7 @@ import { Shadows } from '../theme/colors';
 import { useAuth } from '../context/AuthContext';
 import { apiService } from '../lib/api';
 import GradientHeader from '../components/common/GradientHeader';
+import { isValidName, isValidPhone } from '../utils/validators';
 
 const ROLE_LABELS = {
     super_admin: 'Super Administrator',
@@ -66,6 +67,7 @@ export default function ProfileScreen({ navigation }) {
     const [editNameValue, setEditNameValue] = useState(profile?.fullName || '');
     const [editPhoneValue, setEditPhoneValue] = useState(realPhone === 'Not provided' ? '' : realPhone);
     const [saving, setSaving] = useState(false);
+    const [editErrors, setEditErrors] = useState({});
     const [statusBanner, setStatusBanner] = useState(null);
     const [confirmLogout, setConfirmLogout] = useState(false);
 
@@ -109,9 +111,22 @@ export default function ProfileScreen({ navigation }) {
     };
 
     const handleSaveProfile = async () => {
+        // Validate inputs
+        const errs = {};
+        if (!editNameValue.trim()) {
+            errs.name = 'Name is required.';
+        } else if (!isValidName(editNameValue.trim())) {
+            errs.name = 'Name must contain only letters, spaces, or hyphens.';
+        }
+        if (editPhoneValue.trim() && !isValidPhone(editPhoneValue.trim())) {
+            errs.phone = 'Enter a valid phone number (10-15 digits).';
+        }
+        setEditErrors(errs);
+        if (Object.keys(errs).length > 0) return;
+
         try {
             setSaving(true);
-            const response = await apiService.auth.updateProfile({ fullName: editNameValue, phone: editPhoneValue });
+            const response = await apiService.auth.updateProfile({ fullName: editNameValue.trim(), phone: editPhoneValue.trim() });
             
             const phoneChanged = response.data?.phoneChanged;
             if (phoneChanged && needsPhoneVerification) {
@@ -120,6 +135,7 @@ export default function ProfileScreen({ navigation }) {
                 setStatusBanner({ type: 'success', message: 'Profile details updated successfully.' });
             }
             setEditProfileVisible(false);
+            setEditErrors({});
             if (refreshProfile) await refreshProfile();
         } catch (error) {
             setStatusBanner({ type: 'error', message: error?.response?.data?.error || 'Could not update profile.' });
@@ -447,29 +463,32 @@ export default function ProfileScreen({ navigation }) {
                         </View>
 
                         <Text style={s.inputLabel}>Professional Name</Text>
-                        <View style={s.inputFieldWrapper}>
-                            <Feather name="user" size={18} color="#94A3B8" />
+                        <View style={[s.inputFieldWrapper, editErrors.name && { borderColor: '#FECACA', backgroundColor: '#FFF5F5' }]}>
+                            <Feather name="user" size={18} color={editErrors.name ? '#EF4444' : '#94A3B8'} />
                             <TextInput 
                                 placeholder="E.g. Dr. Prakash" 
                                 value={editNameValue}
-                                onChangeText={setEditNameValue} 
+                                onChangeText={t => { setEditNameValue(t); setEditErrors(e => ({ ...e, name: undefined })); }} 
                                 style={s.inputField} 
                                 placeholderTextColor="#CBD5E1" 
+                                autoCapitalize="words"
                             />
                         </View>
+                        {editErrors.name && <Text style={s.fieldError}>{editErrors.name}</Text>}
                         
                         <Text style={s.inputLabel}>Direct Phone Line</Text>
-                        <View style={s.inputFieldWrapper}>
-                            <Feather name="phone-call" size={18} color="#94A3B8" />
+                        <View style={[s.inputFieldWrapper, editErrors.phone && { borderColor: '#FECACA', backgroundColor: '#FFF5F5' }]}>
+                            <Feather name="phone-call" size={18} color={editErrors.phone ? '#EF4444' : '#94A3B8'} />
                             <TextInput 
                                 placeholder="E.g. +91 98765 43210" 
                                 value={editPhoneValue}
-                                onChangeText={setEditPhoneValue} 
+                                onChangeText={t => { setEditPhoneValue(t); setEditErrors(e => ({ ...e, phone: undefined })); }} 
                                 keyboardType="phone-pad"
                                 style={s.inputField} 
                                 placeholderTextColor="#CBD5E1" 
                             />
                         </View>
+                        {editErrors.phone && <Text style={s.fieldError}>{editErrors.phone}</Text>}
 
                         {/* Phone change warning */}
                         {editPhoneValue !== (realPhone === 'Not provided' ? '' : realPhone) && needsPhoneVerification && (
@@ -668,4 +687,5 @@ const s = StyleSheet.create({
     modalCancelText: { fontSize: 15, fontWeight: '700', color: '#64748B' },
     modalSaveBtn: { flex: 1, paddingVertical: 16, borderRadius: 16, alignItems: 'center', backgroundColor: '#4F46E5', ...Shadows.md, shadowColor: '#4F46E5' },
     modalSaveText: { fontSize: 15, fontWeight: '800', color: '#FFFFFF' },
+    fieldError: { fontSize: 11, fontWeight: '700', color: '#EF4444', marginTop: -14, marginBottom: 16, marginLeft: 4 },
 });
