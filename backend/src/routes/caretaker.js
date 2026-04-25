@@ -1198,8 +1198,8 @@ const syncMedicineLogHelper = async (pId, d, t, mName, isTaken, role) => {
         const pt = await Patient.findOne({ $or: [{ _id: pId }, { profile_id: pId }] }).lean();
         if (pt) actualPatientId = pt._id;
 
-        const targetDate = new Date(d);
-        targetDate.setHours(0, 0, 0, 0);
+        // Strictly bind to UTC midnight for the given YYYY-MM-DD to avoid timezone skew
+        const targetDate = new Date(`${d}T00:00:00.000Z`);
 
         let log = await MedicineLog.findOne({
             patient_id: actualPatientId,

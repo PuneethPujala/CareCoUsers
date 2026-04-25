@@ -234,9 +234,12 @@ router.get('/:id',
       // Merge today's MedicineLog entries into each medication's takenLogs.
       try {
           const MedicineLog = require('../models/MedicineLog');
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
-          const todayStr = today.toLocaleDateString('en-CA'); // YYYY-MM-DD
+          const _now = new Date();
+          const _y = _now.getFullYear();
+          const _m = String(_now.getMonth() + 1).padStart(2, '0');
+          const _d = String(_now.getDate()).padStart(2, '0');
+          const todayStr = `${_y}-${_m}-${_d}`;
+          const today = new Date(`${todayStr}T00:00:00.000Z`);
 
           const truePatientId = patient ? patient._id : patientId;
           const todayLog = await MedicineLog.findOne({ patient_id: truePatientId, date: today }).lean();

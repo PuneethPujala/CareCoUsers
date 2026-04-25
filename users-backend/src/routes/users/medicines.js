@@ -35,8 +35,12 @@ router.get('/today', authenticate, async (req, res) => {
             return res.status(404).json({ error: 'Patient profile not found' });
         }
 
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
+        const _now = new Date();
+        const _y = _now.getFullYear();
+        const _m = String(_now.getMonth() + 1).padStart(2, '0');
+        const _d = String(_now.getDate()).padStart(2, '0');
+        const todayStr = `${_y}-${_m}-${_d}`;
+        const today = new Date(`${todayStr}T00:00:00.000Z`);
 
         let log = await MedicineLog.findOne({
             patient_id: patient._id,
@@ -148,8 +152,12 @@ router.put('/mark', authenticate, async (req, res) => {
             return res.status(404).json({ error: 'Patient profile not found' });
         }
 
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
+        const _now = new Date();
+        const _y = _now.getFullYear();
+        const _m = String(_now.getMonth() + 1).padStart(2, '0');
+        const _d = String(_now.getDate()).padStart(2, '0');
+        const todayStr = `${_y}-${_m}-${_d}`;
+        const today = new Date(`${todayStr}T00:00:00.000Z`);
 
         const log = await MedicineLog.findOne({
             patient_id: patient._id,
