@@ -187,7 +187,7 @@ export default function HealthProfileScreen({ navigation }) {
             else if (type === 'habits') setFormState({ smoking_status: profile?.lifestyle?.smoking_status || 'never', alcohol_use: profile?.lifestyle?.alcohol_use || 'none' });
             else if (type === 'activity') setFormState({ exercise_frequency: profile?.lifestyle?.exercise_frequency || 'none', mobility_level: profile?.lifestyle?.mobility_level || 'full', mobility_aids: profile?.lifestyle?.mobility_aids?.join(', ') || '' });
             else if (type === 'identity') setFormState({ blood_type: profile?.blood_type || 'unknown', dietary_restrictions: profile?.lifestyle?.dietary_restrictions?.join(', ') || '' });
-            else if (type === 'emergency') setFormState({ emergency_name: profile?.emergency_contact_primary?.name || '', emergency_phone: profile?.emergency_contact_primary?.phone || '', emergency_relation: profile?.emergency_contact_primary?.relation || '' });
+            else if (type === 'contact') setFormState({ name: '', phone: '', relation: '', is_emergency: false, can_view_data: false });
             else if (type === 'gp') {
                 const parsed = parsePhoneWithCode(profile?.gp?.phone || '');
                 setFormState({ gp_name: profile?.gp?.name || '', gp_phone: parsed.number, gp_phoneCode: parsed.code, gp_email: profile?.gp?.email || '' });
@@ -221,6 +221,7 @@ export default function HealthProfileScreen({ navigation }) {
     const getCollectionName = (type) => {
         if (type === 'history') return 'medical_history';
         if (type === 'allergy') return 'allergies';
+        if (type === 'contact') return 'trusted-contacts';
         return type + 's';
     };
 
@@ -253,8 +254,11 @@ export default function HealthProfileScreen({ navigation }) {
 
     const handleSave = async () => {
         // Validation logic to prevent empty critical fields
-        if (['condition', 'allergy', 'medication', 'vaccination'].includes(editingType) && !formState.name) {
+        if (['condition', 'allergy', 'medication', 'vaccination', 'contact'].includes(editingType) && !formState.name) {
             return Platform.OS === 'web' ? window.alert('Please provide a valid name.') : Alert.alert('Missing Field', 'Please provide a valid name.');
+        }
+        if (['contact'].includes(editingType) && !formState.phone) {
+            return Platform.OS === 'web' ? window.alert('Please provide a phone number.') : Alert.alert('Missing Field', 'Please provide a phone number.');
         }
         if (editingType === 'history' && !formState.event) {
             return Platform.OS === 'web' ? window.alert('Please provide an event name.') : Alert.alert('Missing Field', 'Please provide an event name.');
@@ -352,8 +356,9 @@ export default function HealthProfileScreen({ navigation }) {
                     await apiService.patients.updateMe({ blood_type: formState.blood_type });
                 }
             }
-            else if (editingType === 'emergency') {
-                res = await apiService.patients.updateMe({ emergency_contact_primary: { name: formState.emergency_name, phone: formState.emergency_phone, relation: formState.emergency_relation } });
+            else if (editingType === 'contact') {
+                if (formState._id) res = await apiService.patients.updateTrustedContact(formState._id, payload);
+                else res = await apiService.patients.addTrustedContact(payload);
             }
             else if (editingType === 'gp') res = await apiService.patients.updatePrimaryDoctor(payload);
             else if (editingType === 'history') res = await apiService.patients.updateMedicalHistory({ ...payload, date: payload.date ? new Date(payload.date) : new Date() });
@@ -448,20 +453,26 @@ export default function HealthProfileScreen({ navigation }) {
                             <Text style={s.sectionHeaderBase}>IDENTITY & SAFETY</Text>
                         </View>
                         <View style={s.bentoGrid}>
-                            <Pressable style={[s.bentoBox, { backgroundColor: 'rgba(239,68,68,0.1)' }]} onPress={() => openModal('identity')}>
-                                <View style={[s.bentoIcon, { backgroundColor: 'rgba(239,68,68,0.2)' }]}><Dna size={16} color="#F87171" /></View>
-                                <Text style={[s.bentoVal, { color: '#FFF' }]}>{profile?.blood_type !== 'unknown' ? profile?.blood_type : '—'}</Text>
-                                <Text style={s.bentoLbl}>Blood Type</Text>
+                            <Pressable style={s.bentoPressable} onPress={() => openModal('identity')}>
+                                <LinearGradient colors={['#FF6B6B', '#EE5253']} style={s.bentoBoxGradient}>
+                                    <View style={s.bentoIconGlass}><Dna size={16} color="#FFF" /></View>
+                                    <Text style={s.bentoValWhite}>{profile?.blood_type !== 'unknown' ? profile?.blood_type : '—'}</Text>
+                                    <Text style={s.bentoLblWhite}>Blood Type</Text>
+                                </LinearGradient>
                             </Pressable>
-                            <Pressable style={[s.bentoBox, { backgroundColor: 'rgba(16,185,129,0.1)' }]} onPress={() => openModal('identity')}>
-                                <View style={[s.bentoIcon, { backgroundColor: 'rgba(16,185,129,0.2)' }]}><Info size={16} color="#34D399" /></View>
-                                <Text style={s.bentoVal} numberOfLines={1}>{profile?.lifestyle?.dietary_restrictions?.length ? profile?.lifestyle?.dietary_restrictions[0] : 'None'}</Text>
-                                <Text style={s.bentoLbl}>Diet / Restrictions</Text>
+                            <Pressable style={s.bentoPressable} onPress={() => openModal('identity')}>
+                                <LinearGradient colors={['#10B981', '#059669']} style={s.bentoBoxGradient}>
+                                    <View style={s.bentoIconGlass}><Info size={16} color="#FFF" /></View>
+                                    <Text style={s.bentoValWhite} numberOfLines={1}>{profile?.lifestyle?.dietary_restrictions?.length ? profile?.lifestyle?.dietary_restrictions[0] : 'None'}</Text>
+                                    <Text style={s.bentoLblWhite}>Diet / Restrictions</Text>
+                                </LinearGradient>
                             </Pressable>
-                            <Pressable style={[s.bentoBox, { backgroundColor: 'rgba(249,115,22,0.1)' }]} onPress={() => openModal('emergency')}>
-                                <View style={[s.bentoIcon, { backgroundColor: 'rgba(249,115,22,0.2)' }]}><Siren size={16} color="#FB923C" /></View>
-                                <Text style={s.bentoVal} numberOfLines={1}>{profile?.emergency_contact_primary?.name || 'Not Set'}</Text>
-                                <Text style={s.bentoLbl}>Emergency</Text>
+                            <Pressable style={s.bentoPressable} onPress={() => openModal('contact')}>
+                                <LinearGradient colors={['#F59E0B', '#D97706']} style={s.bentoBoxGradient}>
+                                    <View style={s.bentoIconGlass}><Siren size={16} color="#FFF" /></View>
+                                    <Text style={s.bentoValWhite} numberOfLines={1}>{profile?.trusted_contacts?.find(c => c.is_emergency)?.name || 'Not Set'}</Text>
+                                    <Text style={s.bentoLblWhite}>Emergency</Text>
+                                </LinearGradient>
                             </Pressable>
                         </View>
                     </View>
@@ -539,21 +550,38 @@ export default function HealthProfileScreen({ navigation }) {
                 {/* 4. MEDICATION LIST */}
                 <Animated.View style={{ opacity: staggerAnims[4], transform: [{ translateY: staggerAnims[4].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>
                     <View style={s.section}>
-                        {renderHeader('MEDICATIONS', 'medication')}
+                        {renderHeader('CURRENT MEDICATIONS', 'medication')}
                         <View style={s.cardStack}>
-                            {medications.map((m, i) => (
+                            {medications.filter(m => m.is_active !== false).map((m, i) => (
                                 <Pressable key={i} style={s.rowItemEnhanced} onPress={() => openModal('medication', m)}>
-                                    <View style={[s.iconBg, { backgroundColor: m.is_active !== false ? '#EEF2FF' : '#F1F5F9' }]}><Droplet size={18} color={m.is_active !== false ? '#6366F1' : '#94A3B8'} /></View>
+                                    <View style={[s.iconBg, { backgroundColor: '#EEF2FF' }]}><Droplet size={18} color="#6366F1" /></View>
                                     <View style={s.rowInfo}>
                                         <Text style={s.rowTitle}>{m.name}</Text>
                                         <Text style={s.rowSub}>{m.dosage} • {m.frequency}</Text>
                                     </View>
-                                    {!m.is_active && <View style={[s.pill, { backgroundColor: '#F1F5F9' }]}><Text style={[s.pillTxt, { color: '#64748B' }]}>Inactive</Text></View>}
                                 </Pressable>
                             ))}
-                            {medications.length === 0 && <Text style={s.emptyRowTxt}>No medications added</Text>}
+                            {medications.filter(m => m.is_active !== false).length === 0 && <Text style={s.emptyRowTxt}>No active medications</Text>}
                         </View>
                     </View>
+
+                    {medications.some(m => m.is_active === false) && (
+                        <View style={[s.section, { marginTop: -12 }]}>
+                            <Text style={[s.sectionHeaderBase, { fontSize: 11, marginBottom: 12, opacity: 0.6 }]}>PREVIOUS MEDICATIONS (HISTORY)</Text>
+                            <View style={[s.cardStack, { opacity: 0.7 }]}>
+                                {medications.filter(m => m.is_active === false).map((m, i) => (
+                                    <Pressable key={i} style={s.rowItemEnhanced} onPress={() => openModal('medication', m)}>
+                                        <View style={[s.iconBg, { backgroundColor: '#F1F5F9' }]}><Droplet size={18} color="#94A3B8" /></View>
+                                        <View style={s.rowInfo}>
+                                            <Text style={[s.rowTitle, { color: '#64748B' }]}>{m.name}</Text>
+                                            <Text style={s.rowSub}>{m.dosage} • {m.frequency}</Text>
+                                        </View>
+                                        <View style={[s.pill, { backgroundColor: '#F1F5F9' }]}><Text style={[s.pillTxt, { color: '#64748B' }]}>Inactive</Text></View>
+                                    </Pressable>
+                                ))}
+                            </View>
+                        </View>
+                    )}
                 </Animated.View>
 
                 {/* 5. VACCINATIONS */}
@@ -601,20 +629,26 @@ export default function HealthProfileScreen({ navigation }) {
                             <Text style={s.sectionHeaderBase}>VITALS & HABITS</Text>
                         </View>
                         <View style={s.bentoGrid}>
-                            <Pressable style={[s.bentoBox, { backgroundColor: bmiTheme.bg }]} onPress={() => openModal('vitals')}>
-                                <View style={[s.bentoIcon, { backgroundColor: bmiTheme.iconBg }]}><User size={16} color={bmiTheme.icon} /></View>
-                                <Text style={[s.bentoVal, { color: bmiTheme.text }]}>{bmi ? bmi : '—'}</Text>
-                                <Text style={s.bentoLbl}>{bmiTheme.label}</Text>
+                            <Pressable style={s.bentoPressable} onPress={() => openModal('vitals')}>
+                                <LinearGradient colors={[bmiTheme.icon || '#6366F1', bmiTheme.text || '#4338CA']} style={s.bentoBoxGradient}>
+                                    <View style={s.bentoIconGlass}><User size={16} color="#FFF" /></View>
+                                    <Text style={s.bentoValWhite}>{bmi ? bmi : '—'}</Text>
+                                    <Text style={s.bentoLblWhite}>{bmiTheme.label}</Text>
+                                </LinearGradient>
                             </Pressable>
-                            <Pressable style={[s.bentoBox, { backgroundColor: 'rgba(219,39,119,0.1)' }]} onPress={() => openModal('habits')}>
-                                <View style={[s.bentoIcon, { backgroundColor: 'rgba(219,39,119,0.2)' }]}><Flame size={16} color="#F472B6" /></View>
-                                <Text style={s.bentoVal} numberOfLines={1}>{lifestyle.smoking_status === 'current' ? 'Smoker' : 'Clean'}</Text>
-                                <Text style={s.bentoLbl}>Habits</Text>
+                            <Pressable style={s.bentoPressable} onPress={() => openModal('habits')}>
+                                <LinearGradient colors={['#EC4899', '#BE185D']} style={s.bentoBoxGradient}>
+                                    <View style={s.bentoIconGlass}><Flame size={16} color="#FFF" /></View>
+                                    <Text style={s.bentoValWhite} numberOfLines={1}>{lifestyle.smoking_status === 'current' ? 'Smoker' : 'Clean'}</Text>
+                                    <Text style={s.bentoLblWhite}>Habits</Text>
+                                </LinearGradient>
                             </Pressable>
-                            <Pressable style={[s.bentoBox, { backgroundColor: 'rgba(16,185,129,0.1)' }]} onPress={() => openModal('activity')}>
-                                <View style={[s.bentoIcon, { backgroundColor: 'rgba(16,185,129,0.2)' }]}><Activity size={16} color="#34D399" /></View>
-                                <Text numberOfLines={1} style={[s.bentoVal, { textTransform: 'capitalize' }]}>{lifestyle.exercise_frequency || 'None'}</Text>
-                                <Text style={s.bentoLbl}>Mobility & Exs</Text>
+                            <Pressable style={s.bentoPressable} onPress={() => openModal('activity')}>
+                                <LinearGradient colors={['#14B8A6', '#0D9488']} style={s.bentoBoxGradient}>
+                                    <View style={s.bentoIconGlass}><Activity size={16} color="#FFF" /></View>
+                                    <Text numberOfLines={1} style={[s.bentoValWhite, { textTransform: 'capitalize' }]}>{lifestyle.exercise_frequency || 'None'}</Text>
+                                    <Text style={s.bentoLblWhite}>Mobility & Exs</Text>
+                                </LinearGradient>
                             </Pressable>
                         </View>
                     </View>
@@ -650,13 +684,35 @@ export default function HealthProfileScreen({ navigation }) {
                     </Animated.View>
                 )}
 
-                {/* 8. PRIMARY DOCTOR */}
+                {/* 8. CARE TEAM & CONTACTS */}
                 <Animated.View style={{ opacity: staggerAnims[8], transform: [{ translateY: staggerAnims[8].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>
+                    <View style={s.section}>
+                        {renderHeader('CARE TEAM & CONTACTS', 'contact')}
+                        <View style={s.cardStack}>
+                            {profile?.trusted_contacts?.map((c, i) => (
+                                <Pressable key={i} style={s.rowItemEnhanced} onPress={() => openModal('contact', c)}>
+                                    <View style={[s.iconBg, { backgroundColor: c.is_emergency ? C.dangerBg : C.primarySoft }]}>
+                                        {c.is_emergency ? <Siren size={20} color={C.danger} /> : <User size={20} color={C.primary} />}
+                                    </View>
+                                    <View style={s.rowInfo}>
+                                        <Text style={s.rowTitle}>{c.name}</Text>
+                                        <Text style={s.rowSub}>{c.relation} • {c.phone}</Text>
+                                    </View>
+                                    {c.is_emergency && <View style={[s.pill, { backgroundColor: C.dangerBg }]}><Text style={[s.pillTxt, { color: C.danger }]}>Emergency</Text></View>}
+                                </Pressable>
+                            ))}
+                            {(!profile?.trusted_contacts || profile.trusted_contacts.length === 0) && <Text style={s.emptyRowTxt}>No care team members added.</Text>}
+                        </View>
+                    </View>
+                </Animated.View>
+
+                {/* 9. PRIMARY DOCTOR */}
+                <Animated.View style={{ opacity: staggerAnims[9] || new Animated.Value(1), transform: [{ translateY: (staggerAnims[9] || new Animated.Value(1)).interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>
                     <View style={s.section}>
                         <View style={s.sectionHeaderRow}>
                             <Text style={s.sectionHeaderBase}>PRIMARY DOCTOR</Text>
                             <Pressable style={({pressed}) => [s.addBtn, pressed && {opacity: 0.7}]} onPress={() => openModal('gp')}>
-                                <Edit2 size={14} color={C.primary} strokeWidth={3} />
+                                <Edit2 size={14} color="#FFF" strokeWidth={3} />
                             </Pressable>
                         </View>
                         <View style={s.cardStack}>
@@ -671,8 +727,8 @@ export default function HealthProfileScreen({ navigation }) {
                                         </View>
                                     </View>
                                     <View style={s.gpActionRow}>
-                                        <Pressable style={({ pressed }) => [s.btnCall, pressed && s.btnCallPressed]} onPress={() => gp.phone && Linking.openURL(`tel:${gp.phone}`)}>
-                                            <Phone size={16} color="#FFF" />
+                                        <Pressable style={({ pressed }) => [s.btnCall, pressed && s.btnCallPressed, { borderRadius: 100 }]} onPress={() => gp.phone && Linking.openURL(`tel:${gp.phone}`)}>
+                                            <Phone size={16} color="#FFF" strokeWidth={2.5} />
                                             <Text style={s.btnCallText}>Call Clinic</Text>
                                         </Pressable>
                                     </View>
@@ -770,19 +826,47 @@ export default function HealthProfileScreen({ navigation }) {
                         </View>
                     </>
                 )}
-                {editingType === 'emergency' && (
+                {editingType === 'contact' && (
                     <>
                         <View style={s.formGroup}>
-                            <Text style={s.formLabel}>Contact Name</Text>
-                            <TextInput style={s.input} placeholderTextColor={C.muted} value={formState.emergency_name} onChangeText={(t) => setFormState({...formState, emergency_name: t})} placeholder="e.g. Jane Doe" />
+                            <Text style={s.formLabel}>Contact Name *</Text>
+                            <TextInput style={s.input} placeholderTextColor={C.muted} value={formState.name} onChangeText={(t) => setFormState({...formState, name: t})} placeholder="e.g. Jane Doe" />
                         </View>
                         <View style={s.formGroup}>
                             <Text style={s.formLabel}>Relationship</Text>
-                            <TextInput style={s.input} placeholderTextColor={C.muted} value={formState.emergency_relation} onChangeText={(t) => setFormState({...formState, emergency_relation: t})} placeholder="e.g. Daughter, Spouse" />
+                            <TextInput style={s.input} placeholderTextColor={C.muted} value={formState.relation} onChangeText={(t) => setFormState({...formState, relation: t})} placeholder="e.g. Daughter, Spouse" />
                         </View>
                         <View style={s.formGroup}>
-                            <Text style={s.formLabel}>Phone Number</Text>
-                            <TextInput style={s.input} placeholderTextColor={C.muted} keyboardType="phone-pad" value={formState.emergency_phone} onChangeText={(t) => setFormState({...formState, emergency_phone: t})} placeholder="e.g. +1 234 567 8900" />
+                            <Text style={s.formLabel}>Phone Number *</Text>
+                            <TextInput style={s.input} placeholderTextColor={C.muted} keyboardType="phone-pad" value={formState.phone} onChangeText={(t) => setFormState({...formState, phone: t})} placeholder="e.g. 9876543210" />
+                        </View>
+                        <View style={s.formGroup}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#F8FAFC', padding: 16, borderRadius: 16, borderWidth: 1, borderColor: '#E2E8F0' }}>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={{ fontSize: 16, ...FONT.bold, color: C.dark }}>Emergency Contact</Text>
+                                    <Text style={{ fontSize: 13, color: C.muted }}>Primary person to call in case of emergency</Text>
+                                </View>
+                                <Switch
+                                    value={formState.is_emergency}
+                                    onValueChange={(v) => setFormState({ ...formState, is_emergency: v })}
+                                    trackColor={{ false: '#CBD5E1', true: C.danger }}
+                                    thumbColor={Platform.OS === 'ios' ? '#FFF' : (formState.is_emergency ? '#FFF' : '#F4F4F4')}
+                                />
+                            </View>
+                        </View>
+                        <View style={s.formGroup}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#F8FAFC', padding: 16, borderRadius: 16, borderWidth: 1, borderColor: '#E2E8F0' }}>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={{ fontSize: 16, ...FONT.bold, color: C.dark }}>Can View Health Data</Text>
+                                    <Text style={{ fontSize: 13, color: C.muted }}>Allow this person to view your vitals and logs</Text>
+                                </View>
+                                <Switch
+                                    value={formState.can_view_data}
+                                    onValueChange={(v) => setFormState({ ...formState, can_view_data: v })}
+                                    trackColor={{ false: '#CBD5E1', true: C.primary }}
+                                    thumbColor={Platform.OS === 'ios' ? '#FFF' : (formState.can_view_data ? '#FFF' : '#F4F4F4')}
+                                />
+                            </View>
                         </View>
                     </>
                 )}
@@ -1034,11 +1118,11 @@ const s = StyleSheet.create({
     editIconInBadge: { marginRight: 6, opacity: 0.8 },
     ageBadgeTxt: { color: C.primaryDark, ...FONT.bold, fontSize: 14 },
     body: { flex: 1 },
-    bodyContent: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 120 },
-    section: { marginBottom: 32, width: '100%' },
-    sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, paddingHorizontal: 8 },
-    sectionHeaderBase: { fontSize: 13, ...FONT.bold, color: '#94A3B8', letterSpacing: 1.5, textTransform: 'uppercase' },
-    addBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: C.primarySoft, alignItems: 'center', justifyContent: 'center' },
+    bodyContent: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 160 },
+    section: { marginBottom: 36, width: '100%' },
+    sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18, paddingHorizontal: 8 },
+    sectionHeaderBase: { fontSize: 13, ...FONT.bold, color: '#64748B', letterSpacing: 1.5, textTransform: 'uppercase' },
+    addBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: C.primary, alignItems: 'center', justifyContent: 'center', shadowColor: C.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 },
     card: { backgroundColor: '#FFFFFF', borderRadius: 28, padding: 24, shadowColor: '#0F172A', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 3, borderWidth: 1, borderColor: '#F1F5F9' },
     cardStack: { backgroundColor: '#FFFFFF', borderRadius: 28, padding: 8, shadowColor: '#0F172A', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 3, borderWidth: 1, borderColor: '#F1F5F9' },
     rowItemEnhanced: { flexDirection: 'row', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
@@ -1062,18 +1146,23 @@ const s = StyleSheet.create({
     timelineDesc: { fontSize: 15, color: C.muted, marginTop: 6, lineHeight: 22, ...FONT.medium },
     emptyRowTxt: { fontSize: 15, color: '#64748B', fontStyle: 'italic', padding: 24, textAlign: 'center' },
     bentoGrid: { flexDirection: 'row', gap: 12 },
+    bentoPressable: { flex: 1 },
+    bentoBoxGradient: { borderRadius: 24, padding: 16, alignItems: 'center', height: '100%', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 4 },
+    bentoIconGlass: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginBottom: 12, backgroundColor: 'rgba(255,255,255,0.2)' },
+    bentoValWhite: { fontSize: 18, ...FONT.heavy, color: '#FFF', marginBottom: 4 },
+    bentoLblWhite: { fontSize: 11, ...FONT.bold, color: 'rgba(255,255,255,0.8)', textTransform: 'uppercase', letterSpacing: 0.5 },
     bentoBox: { flex: 1, borderRadius: 24, padding: 16, alignItems: 'center' },
     bentoIcon: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
     bentoVal: { fontSize: 18, ...FONT.heavy, color: C.dark, marginBottom: 4 },
     bentoLbl: { fontSize: 12, ...FONT.bold, color: C.muted },
-    gpCard: { padding: 16 },
-    gpProfileRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
-    gpAvatar: { width: 56, height: 56, borderRadius: 28, backgroundColor: C.primarySoft, alignItems: 'center', justifyContent: 'center', marginRight: 16 },
+    gpCard: { padding: 20, backgroundColor: '#FFF', borderRadius: 24, shadowColor: C.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 2 },
+    gpProfileRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
+    gpAvatar: { width: 60, height: 60, borderRadius: 30, backgroundColor: C.primarySoft, alignItems: 'center', justifyContent: 'center', marginRight: 16, borderWidth: 2, borderColor: '#FFF' },
     gpAvatarTxt: { fontSize: 24, ...FONT.heavy, color: C.primaryDark },
     gpInfo: { flex: 1 },
-    gpName: { fontSize: 18, ...FONT.bold, color: C.dark, marginBottom: 4 },
-    gpDetail: { fontSize: 14, ...FONT.medium, color: C.muted },
-    gpActionRow: { flexDirection: 'row', marginTop: 4 },
+    gpName: { fontSize: 19, ...FONT.bold, color: C.dark, marginBottom: 4 },
+    gpDetail: { fontSize: 14, ...FONT.medium, color: C.muted, marginBottom: 2 },
+    gpActionRow: { flexDirection: 'row', marginTop: 8 },
     btnCall: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, height: 48, borderRadius: 100, backgroundColor: C.primary },
     btnCallPressed: { opacity: 0.85, transform: [{ scale: 0.98 }] },
     btnCallText: { fontSize: 15, ...FONT.bold, color: '#FFF' },
