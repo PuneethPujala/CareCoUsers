@@ -546,11 +546,11 @@ export default function MedicationsScreen({ navigation }) {
                 const randomHash = Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
                 const fileName = `${patient.supabase_uid}/${randomHash}.${ext}`;
 
-                // Resize + compress
+                // Resize + compress aggressively to avoid React Native bridge JSON truncation (which causes 400 Bad Request due to malformed JSON)
                 const manipResult = await ImageManipulator.manipulateAsync(
                     asset.uri,
-                    [{ resize: { width: 1200 } }], 
-                    { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG, base64: true }
+                    [{ resize: { width: 800 } }], 
+                    { compress: 0.5, format: ImageManipulator.SaveFormat.JPEG, base64: true }
                 );
 
                 // Convert base64 to ArrayBuffer for reliable upload across all Android devices
@@ -569,9 +569,10 @@ export default function MedicationsScreen({ navigation }) {
                 loadMedicinesData(true);
             }
         } catch (error) {
-            console.error('Upload Error:', error);
-            if (Platform.OS === 'web') window.alert('Upload Failed: There was an issue uploading your file.');
-            else Alert.alert('Upload Failed', error.message || 'There was an issue uploading your file. Ensure your connection is stable.');
+            console.error('Upload Error:', error.response?.data || error);
+            const serverError = error.response?.data?.error || error.message || 'There was an issue uploading your file. Ensure your connection is stable.';
+            if (Platform.OS === 'web') window.alert('Upload Failed: ' + serverError);
+            else Alert.alert('Upload Failed', serverError);
         } finally {
             setUploadingImage(false);
         }

@@ -387,12 +387,12 @@ export default function HealthProfileScreen({ navigation }) {
     const calculateBMI = (h, w) => { if (!h || !w) return null; const hm = h / 100; return (w / (hm * hm)).toFixed(1); };
     const bmi = calculateBMI(lifestyle.height_cm, lifestyle.weight_kg);
     const getBmiStyle = (val) => {
-        if (!val) return { bg: '#EFF6FF', text: C.dark, iconBg: '#DBEAFE', icon: C.primary, label: 'BMI' };
+        if (!val) return { bg: 'rgba(59,130,246,0.1)', text: '#FFF', iconBg: 'rgba(59,130,246,0.2)', icon: '#60A5FA', label: 'BMI' };
         const v = parseFloat(val);
-        if (v < 18.5) return { bg: C.warningBg, text: C.dark, iconBg: '#FDE68A', icon: C.warning, label: 'Underweight' };
-        if (v < 25) return { bg: C.successBg, text: C.dark, iconBg: '#A7F3D0', icon: C.success, label: 'Normal' };
-        if (v < 30) return { bg: C.warningBg, text: C.dark, iconBg: '#FDE68A', icon: C.warning, label: 'Overweight' };
-        return { bg: C.dangerBg, text: C.dark, iconBg: '#FECACA', icon: C.danger, label: 'Obese' };
+        if (v < 18.5) return { bg: 'rgba(245,158,11,0.1)', text: '#FFF', iconBg: 'rgba(245,158,11,0.2)', icon: '#FBBF24', label: 'Underweight' };
+        if (v < 25) return { bg: 'rgba(16,185,129,0.1)', text: '#FFF', iconBg: 'rgba(16,185,129,0.2)', icon: '#34D399', label: 'Normal' };
+        if (v < 30) return { bg: 'rgba(245,158,11,0.1)', text: '#FFF', iconBg: 'rgba(245,158,11,0.2)', icon: '#FBBF24', label: 'Overweight' };
+        return { bg: 'rgba(239,68,68,0.1)', text: '#FFF', iconBg: 'rgba(239,68,68,0.2)', icon: '#F87171', label: 'Obese' };
     };
     const bmiTheme = getBmiStyle(bmi);
 
@@ -400,7 +400,7 @@ export default function HealthProfileScreen({ navigation }) {
         <View style={s.sectionHeaderRow}>
             <Text style={s.sectionHeaderBase}>{title}</Text>
             <Pressable style={({pressed}) => [s.addBtn, pressed && {opacity: 0.7}]} onPress={() => openModal(typeToAdd)}>
-                <Plus size={14} color={C.primary} strokeWidth={3} />
+                <Plus size={16} color="#FFF" strokeWidth={3} />
             </Pressable>
         </View>
     );
@@ -423,7 +423,7 @@ export default function HealthProfileScreen({ navigation }) {
     };
 
     return (
-        <LinearGradient colors={[C.pageBg, C.primarySoft]} style={s.container}>
+        <LinearGradient colors={['#0F172A', '#1E293B']} style={s.container}>
             <View style={s.headerWrap}>
                 <Animated.View style={[s.minimalHeader, { opacity: staggerAnims[0], transform: [{ translateY: staggerAnims[0].interpolate({ inputRange: [0, 1], outputRange: [-20, 0] }) }] }]}>
                     <View style={s.mainHeaderRow}>
@@ -448,18 +448,18 @@ export default function HealthProfileScreen({ navigation }) {
                             <Text style={s.sectionHeaderBase}>IDENTITY & SAFETY</Text>
                         </View>
                         <View style={s.bentoGrid}>
-                            <Pressable style={[s.bentoBox, { backgroundColor: '#FEF2F2' }]} onPress={() => openModal('identity')}>
-                                <View style={[s.bentoIcon, { backgroundColor: '#FEE2E2' }]}><Dna size={16} color="#DC2626" /></View>
-                                <Text style={[s.bentoVal, { color: '#B91C1C' }]}>{profile?.blood_type !== 'unknown' ? profile?.blood_type : '—'}</Text>
+                            <Pressable style={[s.bentoBox, { backgroundColor: 'rgba(239,68,68,0.1)' }]} onPress={() => openModal('identity')}>
+                                <View style={[s.bentoIcon, { backgroundColor: 'rgba(239,68,68,0.2)' }]}><Dna size={16} color="#F87171" /></View>
+                                <Text style={[s.bentoVal, { color: '#FFF' }]}>{profile?.blood_type !== 'unknown' ? profile?.blood_type : '—'}</Text>
                                 <Text style={s.bentoLbl}>Blood Type</Text>
                             </Pressable>
-                            <Pressable style={[s.bentoBox, { backgroundColor: '#F0FDF4' }]} onPress={() => openModal('identity')}>
-                                <View style={[s.bentoIcon, { backgroundColor: '#DCFCE7' }]}><Info size={16} color="#16A34A" /></View>
+                            <Pressable style={[s.bentoBox, { backgroundColor: 'rgba(16,185,129,0.1)' }]} onPress={() => openModal('identity')}>
+                                <View style={[s.bentoIcon, { backgroundColor: 'rgba(16,185,129,0.2)' }]}><Info size={16} color="#34D399" /></View>
                                 <Text style={s.bentoVal} numberOfLines={1}>{profile?.lifestyle?.dietary_restrictions?.length ? profile?.lifestyle?.dietary_restrictions[0] : 'None'}</Text>
                                 <Text style={s.bentoLbl}>Diet / Restrictions</Text>
                             </Pressable>
-                            <Pressable style={[s.bentoBox, { backgroundColor: '#FFF7ED' }]} onPress={() => openModal('emergency')}>
-                                <View style={[s.bentoIcon, { backgroundColor: '#FFEDD5' }]}><Siren size={16} color="#EA580C" /></View>
+                            <Pressable style={[s.bentoBox, { backgroundColor: 'rgba(249,115,22,0.1)' }]} onPress={() => openModal('emergency')}>
+                                <View style={[s.bentoIcon, { backgroundColor: 'rgba(249,115,22,0.2)' }]}><Siren size={16} color="#FB923C" /></View>
                                 <Text style={s.bentoVal} numberOfLines={1}>{profile?.emergency_contact_primary?.name || 'Not Set'}</Text>
                                 <Text style={s.bentoLbl}>Emergency</Text>
                             </Pressable>
@@ -606,13 +606,13 @@ export default function HealthProfileScreen({ navigation }) {
                                 <Text style={[s.bentoVal, { color: bmiTheme.text }]}>{bmi ? bmi : '—'}</Text>
                                 <Text style={s.bentoLbl}>{bmiTheme.label}</Text>
                             </Pressable>
-                            <Pressable style={[s.bentoBox, { backgroundColor: '#FDF2F8' }]} onPress={() => openModal('habits')}>
-                                <View style={[s.bentoIcon, { backgroundColor: '#FCE7F3' }]}><Flame size={16} color="#DB2777" /></View>
+                            <Pressable style={[s.bentoBox, { backgroundColor: 'rgba(219,39,119,0.1)' }]} onPress={() => openModal('habits')}>
+                                <View style={[s.bentoIcon, { backgroundColor: 'rgba(219,39,119,0.2)' }]}><Flame size={16} color="#F472B6" /></View>
                                 <Text style={s.bentoVal} numberOfLines={1}>{lifestyle.smoking_status === 'current' ? 'Smoker' : 'Clean'}</Text>
                                 <Text style={s.bentoLbl}>Habits</Text>
                             </Pressable>
-                            <Pressable style={[s.bentoBox, { backgroundColor: '#F0FDF4' }]} onPress={() => openModal('activity')}>
-                                <View style={[s.bentoIcon, { backgroundColor: '#DCFCE7' }]}><Activity size={16} color="#16A34A" /></View>
+                            <Pressable style={[s.bentoBox, { backgroundColor: 'rgba(16,185,129,0.1)' }]} onPress={() => openModal('activity')}>
+                                <View style={[s.bentoIcon, { backgroundColor: 'rgba(16,185,129,0.2)' }]}><Activity size={16} color="#34D399" /></View>
                                 <Text numberOfLines={1} style={[s.bentoVal, { textTransform: 'capitalize' }]}>{lifestyle.exercise_frequency || 'None'}</Text>
                                 <Text style={s.bentoLbl}>Mobility & Exs</Text>
                             </Pressable>
@@ -1022,30 +1022,30 @@ export default function HealthProfileScreen({ navigation }) {
 }
 
 const s = StyleSheet.create({
-    container: { flex: 1 },
+    container: { flex: 1, backgroundColor: '#0F172A' },
     headerWrap: { zIndex: 10 },
-    minimalHeader: { paddingTop: Platform.OS === 'ios' ? 70 : 50, paddingHorizontal: 24, paddingBottom: 16, backgroundColor: 'transparent' },
+    minimalHeader: { paddingTop: Platform.OS === 'ios' ? 70 : 50, paddingHorizontal: 24, paddingBottom: 24, backgroundColor: 'transparent' },
     mainHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
     headerLeft: { flex: 1 },
-    headerLabel: { fontSize: 13, fontWeight: '800', color: C.primary, letterSpacing: 1.5, marginBottom: 4 },
-    headerTitle: { fontSize: 32, fontWeight: '800', color: C.dark, letterSpacing: -1 },
+    headerLabel: { fontSize: 13, fontWeight: '800', color: '#818CF8', letterSpacing: 2, marginBottom: 6 },
+    headerTitle: { fontSize: 36, fontWeight: '900', color: '#FFF', letterSpacing: -1 },
     headerRight: { flexDirection: 'row', alignItems: 'center' },
-    ageBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.primarySoft, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: '#E2E8F0' },
+    ageBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.1)', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 24, borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' },
     editIconInBadge: { marginRight: 6, opacity: 0.8 },
-    ageBadgeTxt: { color: C.primaryDark, ...FONT.bold, fontSize: 13 },
+    ageBadgeTxt: { color: '#FFF', ...FONT.bold, fontSize: 14 },
     body: { flex: 1 },
-    bodyContent: { paddingHorizontal: 20, paddingTop: 24, paddingBottom: 120 },
-    section: { marginBottom: 24, width: '100%' },
-    sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, paddingHorizontal: 4 },
-    sectionHeaderBase: { fontSize: 13, ...FONT.bold, color: C.muted, letterSpacing: 1.5, textTransform: 'uppercase' },
-    addBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#EFF6FF', alignItems: 'center', justifyContent: 'center' },
-    card: { backgroundColor: C.cardBg, borderRadius: 28, padding: 24, shadowColor: C.primary, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.05, shadowRadius: 16, elevation: 4 },
-    cardStack: { backgroundColor: C.cardBg, borderRadius: 28, padding: 8, shadowColor: C.primary, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.05, shadowRadius: 16, elevation: 4 },
-    rowItemEnhanced: { flexDirection: 'row', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: C.border },
-    iconBg: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginRight: 16 },
+    bodyContent: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 120 },
+    section: { marginBottom: 32, width: '100%' },
+    sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, paddingHorizontal: 8 },
+    sectionHeaderBase: { fontSize: 13, ...FONT.bold, color: '#94A3B8', letterSpacing: 1.5, textTransform: 'uppercase' },
+    addBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' },
+    card: { backgroundColor: '#1E293B', borderRadius: 28, padding: 24, shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.3, shadowRadius: 16, elevation: 6, borderWidth: 1, borderColor: '#334155' },
+    cardStack: { backgroundColor: '#1E293B', borderRadius: 28, padding: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.3, shadowRadius: 16, elevation: 6, borderWidth: 1, borderColor: '#334155' },
+    rowItemEnhanced: { flexDirection: 'row', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.05)' },
+    iconBg: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginRight: 16 },
     rowInfo: { flex: 1 },
-    rowTitle: { fontSize: 16, ...FONT.bold, color: C.dark, marginBottom: 4 },
-    rowSub: { fontSize: 13, ...FONT.medium, color: C.muted },
+    rowTitle: { fontSize: 17, ...FONT.bold, color: '#F8FAFC', marginBottom: 4 },
+    rowSub: { fontSize: 14, ...FONT.medium, color: '#94A3B8' },
     pill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
     pillTxt: { fontSize: 12, ...FONT.bold },
     chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
@@ -1054,18 +1054,18 @@ const s = StyleSheet.create({
     timelineContainer: { marginTop: 4 },
     timelineRow: { flexDirection: 'row', gap: 20 },
     timelineLeft: { alignItems: 'center', width: 20 },
-    timelineDot: { width: 12, height: 12, borderRadius: 6, backgroundColor: C.primary, borderWidth: 3, borderColor: C.primarySoft },
-    timelineLine: { width: 2, flex: 1, backgroundColor: C.borderMid, marginVertical: 4 },
-    timelineContent: { flex: 1, paddingBottom: 24 },
-    timelineDate: { fontSize: 12, ...FONT.bold, color: C.muted, marginBottom: 4 },
-    timelineTitle: { fontSize: 16, ...FONT.bold, color: C.dark },
-    timelineDesc: { fontSize: 14, color: C.mid, marginTop: 6, lineHeight: 22, ...FONT.medium },
-    emptyRowTxt: { fontSize: 14, color: C.muted, fontStyle: 'italic', padding: 16, textAlign: 'center' },
+    timelineDot: { width: 12, height: 12, borderRadius: 6, backgroundColor: '#818CF8', borderWidth: 3, borderColor: '#312E81' },
+    timelineLine: { width: 2, flex: 1, backgroundColor: '#334155', marginVertical: 4 },
+    timelineContent: { flex: 1, paddingBottom: 32 },
+    timelineDate: { fontSize: 12, ...FONT.bold, color: '#64748B', marginBottom: 4 },
+    timelineTitle: { fontSize: 17, ...FONT.bold, color: '#F8FAFC' },
+    timelineDesc: { fontSize: 15, color: '#94A3B8', marginTop: 6, lineHeight: 22, ...FONT.medium },
+    emptyRowTxt: { fontSize: 15, color: '#64748B', fontStyle: 'italic', padding: 24, textAlign: 'center' },
     bentoGrid: { flexDirection: 'row', gap: 12 },
     bentoBox: { flex: 1, borderRadius: 24, padding: 16, alignItems: 'center' },
     bentoIcon: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
-    bentoVal: { fontSize: 18, ...FONT.heavy, color: C.dark, marginBottom: 4 },
-    bentoLbl: { fontSize: 12, ...FONT.bold, color: C.muted },
+    bentoVal: { fontSize: 18, ...FONT.heavy, color: '#FFF', marginBottom: 4 },
+    bentoLbl: { fontSize: 12, ...FONT.bold, color: 'rgba(255,255,255,0.7)' },
     gpCard: { padding: 16 },
     gpProfileRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
     gpAvatar: { width: 56, height: 56, borderRadius: 28, backgroundColor: C.primarySoft, alignItems: 'center', justifyContent: 'center', marginRight: 16 },

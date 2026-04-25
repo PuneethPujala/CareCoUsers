@@ -520,13 +520,34 @@ router.get('/adherence/details', authenticate, async (req, res) => {
         if (vitalsAdherence >= 80) insights.push("Great job consistently logging your vitals alongside your medications.");
         else if (vitalsAdherence < 30) insights.push("Try to log your vitals more frequently to build a complete health profile.");
 
-        // ── Streak (consecutive days with rate >= 80, from today backwards) ──
+        // ── Streak (consecutive days with rate >= 80, backwards) ──
         let currentStreak = 0;
-        const reversedLog = [...dailyLog].reverse();
-        for (const d of reversedLog) {
-            if (d.total === 0) break; // No meds scheduled = break
-            if (d.rate >= 80) currentStreak++;
-            else break;
+        const moment = require('moment-timezone');
+        const timezone = patient.timezone || 'Asia/Kolkata';
+        const todayStr = moment().tz(timezone).format('YYYY-MM-DD');
+        const reqDate = new Date(todayStr + "T00:00:00Z");
+        
+        let checkDate = new Date(reqDate);
+        while (checkDate >= thirtyDaysAgo) {
+            const dStr = checkDate.toISOString().slice(0, 10);
+            const entry = dailyLog.find(d => d.date === dStr);
+            
+            if (!entry || entry.total === 0) {
+                if (dStr === todayStr) {
+                    checkDate.setDate(checkDate.getDate() - 1);
+                    continue;
+                }
+                break; // Missing day or no meds prescribed = break
+            }
+            
+            if (entry.rate >= 80) {
+                currentStreak++;
+            } else if (dStr === todayStr) {
+                // Today is not yet 80%, don't break, just skip
+            } else {
+                break; // Past day < 80% = break
+            }
+            checkDate.setDate(checkDate.getDate() - 1);
         }
 
         // ── Weekly Trend (last 7 days' rates with labels for chart) ──
@@ -630,12 +651,34 @@ router.get('/adherence/recap', authenticate, async (req, res) => {
 
         // ── Streaks ──
         let currentStreak = 0, bestStreak = 0, tempStreak = 0;
-        const reversedEntries = [...dailyEntries].reverse();
-        for (const d of reversedEntries) {
-            if (d.total === 0) break;
-            if (d.rate >= 80) currentStreak++;
-            else break;
+        const moment = require('moment-timezone');
+        const timezone = patient.timezone || 'Asia/Kolkata';
+        const todayStr = moment().tz(timezone).format('YYYY-MM-DD');
+        const reqDate = new Date(todayStr + "T00:00:00Z");
+        
+        let checkDate = new Date(reqDate);
+        while (checkDate >= startDate) {
+            const dStr = checkDate.toISOString().slice(0, 10);
+            const entry = dailyEntries.find(d => d.date === dStr);
+            
+            if (!entry || entry.total === 0) {
+                if (dStr === todayStr) {
+                    checkDate.setDate(checkDate.getDate() - 1);
+                    continue;
+                }
+                break;
+            }
+            
+            if (entry.rate >= 80) {
+                currentStreak++;
+            } else if (dStr === todayStr) {
+                // Skip today
+            } else {
+                break;
+            }
+            checkDate.setDate(checkDate.getDate() - 1);
         }
+        
         for (const d of dailyEntries) {
             if (d.total > 0 && d.rate >= 80) { tempStreak++; bestStreak = Math.max(bestStreak, tempStreak); }
             else tempStreak = 0;

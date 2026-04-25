@@ -264,7 +264,7 @@ export async function syncAllSchedules(medicines = [], prefs = {}, subscriptionD
                 content: {
                     title: '⚠️ Subscription Expiring Soon',
                     body: `Your premium subscription expires in ${subscriptionDaysLeft} day${subscriptionDaysLeft !== 1 ? 's' : ''}. Renew to maintain uninterrupted care.`,
-                    data: { screen: 'SubscribePlans', type: 'subscription_alert' },
+                    data: { screen: 'Profile', type: 'subscription_alert' },
                     sound: 'default',
                 },
                 trigger: resolvedTrigger,

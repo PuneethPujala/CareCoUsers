@@ -45,7 +45,7 @@ import MedicationsScreen from "../screens/patient/MedicationsScreen";
 import HealthProfileScreen from "../screens/patient/HealthProfileScreen";
 import NotificationsScreen from "../screens/patient/NotificationsScreen";
 import PatientProfileScreen from "../screens/patient/ProfileScreen";
-import SubscribePlansScreen from "../screens/patient/SubscribePlansScreen";
+
 import PaymentScreen from "../screens/patient/PaymentScreen";
 import WaitingScreen from "../screens/patient/WaitingScreen";
 import VitalsHistoryScreen from "../screens/patient/VitalsHistoryScreen";
@@ -226,7 +226,7 @@ const MainAppStack = () => (
             component={AdherenceScreen}
             options={{ presentation: "modal", animation: "slide_from_bottom", headerShown: false }}
         />
-        <Stack.Screen name="SubscribePlans" component={SubscribePlansScreen} />
+
         <Stack.Screen name="Payment" component={PaymentScreen} />
         <Stack.Screen name="WaitingRoom" component={WaitingScreen} />
         <Stack.Screen
@@ -392,7 +392,7 @@ export default function AppNavigator() {
     if (subscriptionStatus !== 'active') {
         return (
             <Stack.Navigator screenOptions={{ headerShown: false, animation: "fade" }}>
-                <Stack.Screen name="SubscribePlans" component={SubscribePlansScreen} />
+
                 <Stack.Screen name="Payment" component={PaymentScreen} />
             </Stack.Navigator>
         );
