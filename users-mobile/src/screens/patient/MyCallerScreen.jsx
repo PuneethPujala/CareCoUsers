@@ -529,139 +529,139 @@ export default function MyCallerScreen({ navigation }) {
 
           return (
             <>
-        <TouchableWithoutFeedback onPress={closeModal}>
-          <Animated.View style={[s.backdrop, { opacity: backdropAnim }]} />
-        </TouchableWithoutFeedback>
+              <TouchableWithoutFeedback onPress={closeModal}>
+                <Animated.View style={[s.backdrop, { opacity: backdropAnim }]} />
+              </TouchableWithoutFeedback>
 
-        <View style={s.modalWrapper}>
-          {/* Floating Close Button */}
-          <Animated.View style={[
-            s.floatingCloseWrap,
-            {
-              opacity: modalAnim,
-              transform: [{
-                translateY: modalAnim.interpolate({ inputRange: [0, 1], outputRange: [400, 0] }),
-              }],
-            }
-          ]}>
-            <TouchableOpacity onPress={closeModal} style={s.floatingCloseBtn}>
-              <X size={20} color="#0F172A" strokeWidth={3} />
-            </TouchableOpacity>
-          </Animated.View>
+              <View style={s.modalWrapper}>
+                {/* Floating Close Button */}
+                <Animated.View style={[
+                  s.floatingCloseWrap,
+                  {
+                    opacity: modalAnim,
+                    transform: [{
+                      translateY: modalAnim.interpolate({ inputRange: [0, 1], outputRange: [400, 0] }),
+                    }],
+                  }
+                ]}>
+                  <TouchableOpacity onPress={closeModal} style={s.floatingCloseBtn}>
+                    <X size={20} color="#0F172A" strokeWidth={3} />
+                  </TouchableOpacity>
+                </Animated.View>
 
-          <Animated.View style={[
-            s.modalSheet,
-            {
-              transform: [{
-                translateY: modalAnim.interpolate({ inputRange: [0, 1], outputRange: [800, 0] }),
-              }],
-            },
-          ]}>
-            {/* Modal handle */}
-            <View style={s.modalHandleWrap}>
-              <View style={s.modalHandle} />
-            </View>
-
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.modalBody}>
-              {/* Profile Header */}
-              <View style={s.modalHeaderRow}>
-                <View style={s.modalProfileInfo}>
-                  <Text style={s.modalCallerName} numberOfLines={1}>{profileName}</Text>
-                  <Text style={s.modalIdText}>{profileIdText}</Text>
-                </View>
-                <View style={s.avatarWrapLg}>
-                  <LinearGradient colors={profileGradient} style={s.avatarLg}>
-                    <Text style={s.avatarLetterLg}>{profileName.charAt(0)}</Text>
-                  </LinearGradient>
-                  <View style={s.onlineDotLg} />
-                </View>
-              </View>
-
-              {/* Action buttons (Modal) */}
-              <View style={s.modalActionRow}>
-                <Pressable
-                  style={({ pressed }) => [s.btnCallLg, { backgroundColor: isManager ? '#334155' : '#4338CA' }, pressed && s.btnCallPressedLg]}
-                  onPress={() => profilePhone && Linking.openURL(`tel:${profilePhone}`)}
-                >
-                  <Phone size={18} color="#FFF" strokeWidth={2.5} />
-                  <Text style={s.btnCallTextLg}>Call Now</Text>
-                </Pressable>
-                <Pressable
-                  style={({ pressed }) => [s.iconBtn, pressed && s.iconBtnPressed]}
-                  onPress={() => setFlagIssueModalVisible(true)}
-                >
-                  <Flag size={20} color={C.danger} strokeWidth={2.5} />
-                </Pressable>
-              </View>
-
-              {/* Bento Box Stats */}
-              <View style={s.bentoGrid}>
-                <View style={[s.bentoBox, { backgroundColor: '#F8FAFC' }]}>
-                  <View style={[s.bentoIcon, { backgroundColor: '#F1F5F9' }]}>
-                    <Clock size={16} color="#475569" strokeWidth={2.5} />
-                  </View>
-                  <Text style={s.bentoVal}>{profileExp} yrs</Text>
-                  <Text style={s.bentoLbl}>Experience</Text>
-                </View>
-                <View style={[s.bentoBox, { backgroundColor: '#F8FAFC' }]}>
-                  <View style={[s.bentoIcon, { backgroundColor: '#F1F5F9' }]}>
-                    <Globe size={16} color="#475569" strokeWidth={2.5} />
-                  </View>
-                  <Text style={s.bentoVal} numberOfLines={1}>
-                    {profileLang}
-                  </Text>
-                  <Text style={s.bentoLbl}>Primary Lang</Text>
-                </View>
-                <View style={[s.bentoBox, { backgroundColor: '#F8FAFC' }]}>
-                  <View style={[s.bentoIcon, { backgroundColor: '#F1F5F9' }]}>
-                    <ShieldCheck size={16} color="#475569" strokeWidth={2.5} />
-                  </View>
-                  <Text style={s.bentoVal}>Certified</Text>
-                  <Text style={s.bentoLbl}>Status</Text>
-                </View>
-              </View>
-
-              {/* Call History (Only for Caller) */}
-              {!isManager && (
-                <>
-                  <View style={s.sectionHead}>
-                    <Text style={s.sectionTitle}>Recent Calls</Text>
-                    <Pressable style={s.seeAllWrap}><Text style={s.seeAllText}>See all</Text></Pressable>
+                <Animated.View style={[
+                  s.modalSheet,
+                  {
+                    transform: [{
+                      translateY: modalAnim.interpolate({ inputRange: [0, 1], outputRange: [800, 0] }),
+                    }],
+                  },
+                ]}>
+                  {/* Modal handle */}
+                  <View style={s.modalHandleWrap}>
+                    <View style={s.modalHandle} />
                   </View>
 
-                  {calls.length === 0 ? (
-                    <View style={s.emptyHistoryWrap}>
-                      <Text style={s.emptyBody}>No calls recorded yet.</Text>
+                  <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.modalBody}>
+                    {/* Profile Header */}
+                    <View style={s.modalHeaderRow}>
+                      <View style={s.modalProfileInfo}>
+                        <Text style={s.modalCallerName} numberOfLines={1}>{profileName}</Text>
+                        <Text style={s.modalIdText}>{profileIdText}</Text>
+                      </View>
+                      <View style={s.avatarWrapLg}>
+                        <LinearGradient colors={profileGradient} style={s.avatarLg}>
+                          <Text style={s.avatarLetterLg}>{profileName.charAt(0)}</Text>
+                        </LinearGradient>
+                        <View style={s.onlineDotLg} />
+                      </View>
                     </View>
-                  ) : (
-                    calls.map((call) => {
-                      const cfg = STATUS_CONFIG[call.status] || STATUS_CONFIG.completed;
-                      const Icon = cfg.Icon;
-                      const duration = formatDuration(call.call_duration_seconds);
-                      return (
-                        <View key={call._id} style={s.historyBentoCard}>
-                          <View style={[s.historyIconBg, { backgroundColor: cfg.bg }]}>
-                            <Icon size={20} color={cfg.color} strokeWidth={2} />
-                          </View>
-                          <View style={s.historyBody}>
-                            <Text style={s.historyDate}>
-                              {new Date(call.createdAt).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-                            </Text>
-                            <Text style={s.historyNote} numberOfLines={1}>{call.notes || 'Routine check-in'}</Text>
-                          </View>
-                          <View style={[s.badgeBox, { backgroundColor: cfg.bg }]}>
-                            <Text style={[s.badgeText, { color: cfg.color }]}>{duration}</Text>
-                          </View>
+
+                    {/* Action buttons (Modal) */}
+                    <View style={s.modalActionRow}>
+                      <Pressable
+                        style={({ pressed }) => [s.btnCallLg, { backgroundColor: isManager ? '#334155' : '#4338CA' }, pressed && s.btnCallPressedLg]}
+                        onPress={() => profilePhone && Linking.openURL(`tel:${profilePhone}`)}
+                      >
+                        <Phone size={18} color="#FFF" strokeWidth={2.5} />
+                        <Text style={s.btnCallTextLg}>Call Now</Text>
+                      </Pressable>
+                      <Pressable
+                        style={({ pressed }) => [s.iconBtn, pressed && s.iconBtnPressed]}
+                        onPress={() => setFlagIssueModalVisible(true)}
+                      >
+                        <Flag size={20} color={C.danger} strokeWidth={2.5} />
+                      </Pressable>
+                    </View>
+
+                    {/* Bento Box Stats */}
+                    <View style={s.bentoGrid}>
+                      <View style={[s.bentoBox, { backgroundColor: '#F8FAFC' }]}>
+                        <View style={[s.bentoIcon, { backgroundColor: '#F1F5F9' }]}>
+                          <Clock size={16} color="#475569" strokeWidth={2.5} />
                         </View>
-                      );
-                    })
-                  )}
-                </>
-              )}
-            </ScrollView>
-          </Animated.View>
-        </View>
-        </>
+                        <Text style={s.bentoVal}>{profileExp} yrs</Text>
+                        <Text style={s.bentoLbl}>Experience</Text>
+                      </View>
+                      <View style={[s.bentoBox, { backgroundColor: '#F8FAFC' }]}>
+                        <View style={[s.bentoIcon, { backgroundColor: '#F1F5F9' }]}>
+                          <Globe size={16} color="#475569" strokeWidth={2.5} />
+                        </View>
+                        <Text style={s.bentoVal} numberOfLines={1}>
+                          {profileLang}
+                        </Text>
+                        <Text style={s.bentoLbl}>Primary Lang</Text>
+                      </View>
+                      <View style={[s.bentoBox, { backgroundColor: '#F8FAFC' }]}>
+                        <View style={[s.bentoIcon, { backgroundColor: '#F1F5F9' }]}>
+                          <ShieldCheck size={16} color="#475569" strokeWidth={2.5} />
+                        </View>
+                        <Text style={s.bentoVal}>Certified</Text>
+                        <Text style={s.bentoLbl}>Status</Text>
+                      </View>
+                    </View>
+
+                    {/* Call History (Only for Caller) */}
+                    {!isManager && (
+                      <>
+                        <View style={s.sectionHead}>
+                          <Text style={s.sectionTitle}>Recent Calls</Text>
+                          <Pressable style={s.seeAllWrap}><Text style={s.seeAllText}>See all</Text></Pressable>
+                        </View>
+
+                        {calls.length === 0 ? (
+                          <View style={s.emptyHistoryWrap}>
+                            <Text style={s.emptyBody}>No calls recorded yet.</Text>
+                          </View>
+                        ) : (
+                          calls.map((call) => {
+                            const cfg = STATUS_CONFIG[call.status] || STATUS_CONFIG.completed;
+                            const Icon = cfg.Icon;
+                            const duration = formatDuration(call.call_duration_seconds);
+                            return (
+                              <View key={call._id} style={s.historyBentoCard}>
+                                <View style={[s.historyIconBg, { backgroundColor: cfg.bg }]}>
+                                  <Icon size={20} color={cfg.color} strokeWidth={2} />
+                                </View>
+                                <View style={s.historyBody}>
+                                  <Text style={s.historyDate}>
+                                    {new Date(call.createdAt).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                                  </Text>
+                                  <Text style={s.historyNote} numberOfLines={1}>{call.notes || 'Routine check-in'}</Text>
+                                </View>
+                                <View style={[s.badgeBox, { backgroundColor: cfg.bg }]}>
+                                  <Text style={[s.badgeText, { color: cfg.color }]}>{duration}</Text>
+                                </View>
+                              </View>
+                            );
+                          })
+                        )}
+                      </>
+                    )}
+                  </ScrollView>
+                </Animated.View>
+              </View>
+            </>
           );
         })()}
       </Modal>
