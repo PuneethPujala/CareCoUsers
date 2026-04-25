@@ -645,9 +645,9 @@ export default function MyCallerScreen({ navigation }) {
                                 </View>
                                 <View style={s.historyBody}>
                                   <Text style={s.historyDate}>
-                                    {new Date(call.createdAt).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                                    {new Date(call.call_date || call.created_at).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
                                   </Text>
-                                  <Text style={s.historyNote} numberOfLines={1}>{call.notes || 'Routine check-in'}</Text>
+                                  <Text style={s.historyNote} numberOfLines={1}>{call.ai_summary || 'Routine check-in'}</Text>
                                 </View>
                                 <View style={[s.badgeBox, { backgroundColor: cfg.bg }]}>
                                   <Text style={[s.badgeText, { color: cfg.color }]}>{duration}</Text>
