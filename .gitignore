@@ -79,5 +79,9 @@ users-backend/migrate-patient-profiles.js
 # ── AI vitals output ─────────────────────────────────────────
 users-ai-vitals/output.txt
 
+# ── Firebase Admin SDK service account keys ──────────────────
+*firebase-adminsdk*
+*.json.bak
+
 # -- Root scratch files ---------------------------------------
 /*.js
