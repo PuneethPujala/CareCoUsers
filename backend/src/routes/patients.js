@@ -16,8 +16,8 @@ const router = express.Router();
  * GET /api/patients
  * Get patients with role-based access control
  */
-router.get('/', 
-  authenticate, 
+router.get('/',
+  authenticate,
   authorize('patients', 'read'),
   scopeFilter('patients'),
   autoLogAccess('patients', 'read'),
@@ -35,36 +35,36 @@ router.get('/',
       } = req.query;
 
       // Build query for patients only
-      let query = { 
+      let query = {
         ...req.scopeFilter,
         is_active: status === 'active'
       };
 
       // Apply super admin isolated organization mapping filter
       if (organizationId && req.profile.role === 'super_admin') {
-         query.organization_id = organizationId;
+        query.organization_id = organizationId;
       }
 
       // 🚨 CRITICAL: Extract Unassigned Queue Interceptor
       if (unassigned === 'true') {
         const CaretakerPatient = require('../models/CaretakerPatient');
-        
+
         // Target targetOrgId appropriately
         let targetOrgId = organizationId;
         if (req.profile.role !== 'super_admin') {
-            targetOrgId = req.profile.organizationId;
+          targetOrgId = req.profile.organizationId;
         }
-        
+
         // Find all active caretaker assignments inside this Organization
         // We only care about patients who lack an active mapping!
         const activeAssignedPatients = await CaretakerPatient.find({ status: 'active' }).distinct('patientId');
-        
+
         // Exclude all patients who exist inside active assignment mappings
         query._id = { $nin: activeAssignedPatients };
-        
+
         // Fallback safety to ensure we only show unassigned for the specific manager's organization
         if (targetOrgId) {
-            query.organization_id = targetOrgId; 
+          query.organization_id = targetOrgId;
         }
       }
 
@@ -103,9 +103,9 @@ router.get('/',
 
     } catch (error) {
       console.error('Get patients error:', error);
-      res.status(500).json({ 
-        error: 'Failed to get patients', 
-        details: error.message 
+      res.status(500).json({
+        error: 'Failed to get patients',
+        details: error.message
       });
     }
   }
@@ -115,14 +115,14 @@ router.get('/',
  * GET /api/patients/:id
  * Get specific patient with role-based access
  */
-router.get('/:id', 
-  authenticate, 
+router.get('/:id',
+  authenticate,
   authorize('patients', 'read'),
   autoLogAccess('patients', 'read'),
   async (req, res) => {
     try {
       const patientId = req.params.id;
-      
+
       // Check access permissions based on role
       const { role } = req.profile;
       let canAccess = false;
@@ -135,15 +135,15 @@ router.get('/:id',
       // Org admin and care manager can access patients in their organization
       else if (['org_admin', 'care_manager'].includes(role)) {
         const patient = await Patient.findById(patientId);
-        
+
         const orgIdStr = typeof req.profile.organizationId === 'object' && req.profile.organizationId !== null
-            ? (req.profile.organizationId._id || req.profile.organizationId.id).toString()
-            : String(req.profile.organizationId);
+          ? (req.profile.organizationId._id || req.profile.organizationId.id).toString()
+          : String(req.profile.organizationId);
 
         const patOrgIdStr = typeof patient?.organization_id === 'object' && patient?.organization_id !== null
-            ? (patient.organization_id._id || patient.organization_id.id).toString()
-            : String(patient?.organization_id);
-            
+          ? (patient.organization_id._id || patient.organization_id.id).toString()
+          : String(patient?.organization_id);
+
         canAccess = patient && patOrgIdStr && patOrgIdStr === orgIdStr;
       }
 
@@ -179,7 +179,7 @@ router.get('/:id',
       // Get patient details initially from Patient collection
       let patient = await Patient.findById(patientId)
         .populate('organization_id', 'name type settings')
-        .populate('profile_id', 'conditions');
+        .populate('profile_id', 'conditions phone email fullName avatarUrl');
 
       let patientData;
       const Medication = require('../models/Medication');
@@ -188,7 +188,7 @@ router.get('/:id',
         const Profile = require('../models/Profile');
         const profile = await Profile.findById(patientId).populate('organizationId', 'name type settings');
         if (!profile) {
-            return res.status(404).json({ error: 'Patient not found' });
+          return res.status(404).json({ error: 'Patient not found' });
         }
         patientData = profile.toJSON();
         patientData.name = profile.fullName; // match patient schema
@@ -198,34 +198,83 @@ router.get('/:id',
       } else {
         patientData = patient.toJSON();
         patientData.metadata = patientData.metadata || {};
+        // Merge phone/email/name from the linked Profile if missing on the Patient doc
+        if (patient.profile_id) {
+            if (!patientData.phone) patientData.phone = patient.profile_id.phone;
+            if (!patientData.email) patientData.email = patient.profile_id.email;
+            if (!patientData.name && !patientData.fullName) patientData.fullName = patient.profile_id.fullName;
+        }
       }
 
       // Merge existing root conditions with profile conditions
       const existingConditions = Array.isArray(patientData.metadata.conditions) ? patientData.metadata.conditions : (Array.isArray(patientData.conditions) ? patientData.conditions : []);
       const profileConditions = patient && patient.profile_id && Array.isArray(patient.profile_id.conditions) ? patient.profile_id.conditions : [];
       patientData.metadata.conditions = [...existingConditions, ...profileConditions];
-      
+
       // Merge existing root medications with Medication collection
       const existingMeds = Array.isArray(patientData.metadata.medications) ? patientData.metadata.medications : (Array.isArray(patientData.medications) ? patientData.medications : []);
-      
+
       const searchIds = [patientId];
       if (patient && patient.profile_id) {
-          const profileIdStr = typeof patient.profile_id === 'object' ? (patient.profile_id._id || patient.profile_id).toString() : patient.profile_id.toString();
-          if (profileIdStr !== patientId.toString()) {
-              searchIds.push(profileIdStr);
-          }
+        const profileIdStr = typeof patient.profile_id === 'object' ? (patient.profile_id._id || patient.profile_id).toString() : patient.profile_id.toString();
+        if (profileIdStr !== patientId.toString()) {
+          searchIds.push(profileIdStr);
+        }
       }
-      
-      const externalMeds = await Medication.find({ patientId: { $in: searchIds }, isActive: true });
-      patientData.metadata.medications = [...existingMeds, ...externalMeds];
+
+      const externalMeds = await Medication.find({ patientId: { $in: searchIds }, isActive: true }).lean();
+      patientData.metadata.medications = [...externalMeds, ...existingMeds]; // Put external meds first so unique() in frontend keeps the updated ones
+
+      // --- DYNAMIC MEDICINELOG MERGE ---
+      // The frontend reads med.takenLogs[].date to decide green checkmarks.
+      // MedicineLog is the true source of truth for daily adherence.
+      // Merge today's MedicineLog entries into each medication's takenLogs.
+      try {
+          const MedicineLog = require('../models/MedicineLog');
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const todayStr = today.toLocaleDateString('en-CA'); // YYYY-MM-DD
+
+          const truePatientId = patient ? patient._id : patientId;
+          const todayLog = await MedicineLog.findOne({ patient_id: truePatientId, date: today }).lean();
+
+          if (todayLog && todayLog.medicines) {
+              patientData.metadata.medications = patientData.metadata.medications.map(m => {
+                  const mObj = (m && typeof m.toJSON === 'function') ? m.toJSON() : { ...m };
+                  const mName = mObj.name || mObj.genericName || mObj.medicine_name;
+                  if (!mName) return mObj;
+
+                  // Find ANY taken entry for this med name in the MedicineLog
+                  const takenEntry = todayLog.medicines.find(l => l.medicine_name === mName && l.taken);
+
+                  if (takenEntry) {
+                      const logArray = Array.isArray(mObj.takenLogs) ? [...mObj.takenLogs] : [];
+                      if (!logArray.some(l => l.date === todayStr)) {
+                          logArray.push({
+                              date: todayStr,
+                              timestamp: takenEntry.taken_at || new Date().toISOString()
+                          });
+                      }
+                      mObj.takenLogs = logArray;
+
+                      const dateArray = Array.isArray(mObj.takenDates) ? [...mObj.takenDates] : [];
+                      if (!dateArray.includes(todayStr)) dateArray.push(todayStr);
+                      mObj.takenDates = dateArray;
+                  }
+                  return mObj;
+              });
+          }
+      } catch (mergeErr) {
+          console.error('Error merging MedicineLog:', mergeErr);
+      }
 
       res.json(patientData);
 
     } catch (error) {
       console.error('Get patient error:', error);
-      res.status(500).json({ 
-        error: 'Failed to get patient', 
-        details: error.message 
+      res.status(500).json({
+        error: 'Failed to get patient',
+        details: error.message
       });
     }
   }
@@ -235,8 +284,8 @@ router.get('/:id',
  * POST /api/patients
  * Create new patient (admin/care manager only)
  */
-router.post('/', 
-  authenticate, 
+router.post('/',
+  authenticate,
   authorize('patients', 'create'),
   autoLogAccess('patients', 'create'),
   async (req, res) => {
@@ -252,8 +301,8 @@ router.post('/',
 
       // Validate required fields
       if (!supabaseUid || !email || !fullName) {
-        return res.status(400).json({ 
-          error: 'Missing required fields: supabaseUid, email, fullName' 
+        return res.status(400).json({
+          error: 'Missing required fields: supabaseUid, email, fullName'
         });
       }
 
@@ -264,8 +313,8 @@ router.post('/',
       } else if (organizationId) {
         targetOrgId = organizationId;
       } else {
-        return res.status(400).json({ 
-          error: 'Organization ID is required for patient creation' 
+        return res.status(400).json({
+          error: 'Organization ID is required for patient creation'
         });
       }
 
@@ -295,66 +344,77 @@ router.post('/',
 
         // 1. Fetch available callers explicitly mapped to this organization
         const callers = await Profile.find({
-            organizationId: targetOrgId,
-            role: { $in: ['caller', 'caretaker'] },
-            isActive: { $ne: false }
+          organizationId: targetOrgId,
+          role: { $in: ['caller', 'caretaker'] },
+          isActive: { $ne: false }
         });
 
         if (callers && callers.length > 0) {
-            // 2. Map and aggregate current active assignments per caller
-            const callerIds = callers.map(c => c._id);
-            const assignmentCounts = await CaretakerPatient.aggregate([
-                { $match: { 
-                    caretakerId: { $in: callerIds },
-                    status: 'active'
-                }},
-                { $group: { _id: '$caretakerId', count: { $sum: 1 } } }
-            ]);
+          // 2. Map and aggregate current active assignments per caller
+          const callerIds = callers.map(c => c._id);
+          const assignmentCounts = await CaretakerPatient.aggregate([
+            {
+              $match: {
+                caretakerId: { $in: callerIds },
+                status: 'active'
+              }
+            },
+            { $group: { _id: '$caretakerId', count: { $sum: 1 } } }
+          ]);
 
-            const mapCounts = {};
-            assignmentCounts.forEach(doc => {
-                mapCounts[doc._id.toString()] = doc.count;
-            });
+          const mapCounts = {};
+          assignmentCounts.forEach(doc => {
+            mapCounts[doc._id.toString()] = doc.count;
+          });
 
-            // 3. Find the least burdened caller
-            let assignedCaller = callers[0];
-            let minCount = mapCounts[assignedCaller._id.toString()] || 0;
+          // 3. Find the least burdened caller
+          let assignedCaller = callers[0];
+          let minCount = mapCounts[assignedCaller._id.toString()] || 0;
 
-            for (let i = 1; i < callers.length; i++) {
-                const count = mapCounts[callers[i]._id.toString()] || 0;
-                if (count < minCount) {
-                    minCount = count;
-                    assignedCaller = callers[i];
-                }
+          for (let i = 1; i < callers.length; i++) {
+            const count = mapCounts[callers[i]._id.toString()] || 0;
+            if (count < minCount) {
+              minCount = count;
+              assignedCaller = callers[i];
             }
+          }
 
-            // 4. Directly create CaretakerPatient mapping (bypasses Profile-based validation)
-            if (minCount < 30) {
-                await CaretakerPatient.findOneAndUpdate(
-                    { caretakerId: assignedCaller._id, patientId: patient._id },
-                    {
-                        caretakerId: assignedCaller._id,
-                        patientId: patient._id,
-                        assignedBy: req.profile._id,
-                        status: 'active',
-                        notes: [{ content: 'System Auto-Assigned (Round-Robin) by Load Balancer', addedBy: req.profile._id }],
-                        schedule: { startDate: new Date() }
-                    },
-                    { upsert: true, new: true, setDefaultsOnInsert: true }
-                );
-                
-                // Sync with Patient model for users app visibility
-                patient.assigned_caller_id = assignedCaller._id;
-                patient.caller_id = assignedCaller._id;
-                await patient.save();
+          // 4. Directly create CaretakerPatient mapping (bypasses Profile-based validation)
+          if (minCount < 30) {
+            // Resolve the caller's care manager for patient app visibility
+            const callerProfile = await Profile.findById(assignedCaller._id).select('managedBy').lean();
+            const callerManagerId = callerProfile?.managedBy || null;
 
-                console.log(`[Auto-Assign] Patient ${patient.name} → Caller ${assignedCaller.fullName}`);
-            } else {
-                console.warn(`[Auto-Assign Warning] All Callers at full capacity (30 limit) for Org ${targetOrgId}`);
+            await CaretakerPatient.findOneAndUpdate(
+              { caretakerId: assignedCaller._id, patientId: patient._id },
+              {
+                caretakerId: assignedCaller._id,
+                patientId: patient._id,
+                careManagerId: callerManagerId,
+                assignedBy: req.profile._id,
+                status: 'active',
+                notes: [{ content: 'System Auto-Assigned (Round-Robin) by Load Balancer', addedBy: req.profile._id }],
+                schedule: { startDate: new Date() }
+              },
+              { upsert: true, new: true, setDefaultsOnInsert: true }
+            );
+
+            // Sync with Patient model for users app visibility
+            patient.assigned_caller_id = assignedCaller._id;
+            patient.caller_id = assignedCaller._id;
+            if (callerManagerId) {
+              patient.care_manager_id = callerManagerId;
+              patient.assigned_manager_id = callerManagerId;
             }
+            await patient.save();
+
+            console.log(`[Auto-Assign] Patient ${patient.name} → Caller ${assignedCaller.fullName}`);
+          } else {
+            console.warn(`[Auto-Assign Warning] All Callers at full capacity (30 limit) for Org ${targetOrgId}`);
+          }
         }
       } catch (autoAssignErr) {
-          console.error('[Auto-Assign] System load-balancer failed routing silently:', autoAssignErr);
+        console.error('[Auto-Assign] System load-balancer failed routing silently:', autoAssignErr);
       }
       // --- [END] ZERO-TOUCH ROUND-ROBIN ASSIGNMENT ---
 
@@ -371,9 +431,9 @@ router.post('/',
 
     } catch (error) {
       console.error('Create patient error:', error);
-      res.status(500).json({ 
-        error: 'Failed to create patient', 
-        details: error.message 
+      res.status(500).json({
+        error: 'Failed to create patient',
+        details: error.message
       });
     }
   }
@@ -383,8 +443,8 @@ router.post('/',
  * PUT /api/patients/:id
  * Update patient information
  */
-router.put('/:id', 
-  authenticate, 
+router.put('/:id',
+  authenticate,
   authorize('patients', 'update'),
   autoLogAccess('patients', 'update'),
   async (req, res) => {
@@ -406,9 +466,9 @@ router.put('/:id',
         canAccess = true;
       } else if (['org_admin', 'care_manager'].includes(role)) {
         const patient = await Patient.findById(patientId);
-        canAccess = patient && 
-                   patient.organization_id && 
-                   patient.organization_id.equals(req.profile.organizationId);
+        canAccess = patient &&
+          patient.organization_id &&
+          patient.organization_id.equals(req.profile.organizationId);
       } else if (role === 'caretaker') {
         const assignment = await CaretakerPatient.findOne({
           caretakerId: req.profile._id,
@@ -462,9 +522,9 @@ router.put('/:id',
 
     } catch (error) {
       console.error('Update patient error:', error);
-      res.status(500).json({ 
-        error: 'Failed to update patient', 
-        details: error.message 
+      res.status(500).json({
+        error: 'Failed to update patient',
+        details: error.message
       });
     }
   }
@@ -474,8 +534,8 @@ router.put('/:id',
  * POST /api/patients/:caretakerId/assign/:patientId
  * Assign patient to caretaker
  */
-router.post('/:caretakerId/assign/:patientId', 
-  authenticate, 
+router.post('/:caretakerId/assign/:patientId',
+  authenticate,
   authorize('patients', 'assign'),
   autoLogAccess('patients', 'assign'),
   async (req, res) => {
@@ -501,9 +561,9 @@ router.post('/:caretakerId/assign/:patientId',
 
     } catch (error) {
       console.error('Assign patient error:', error);
-      res.status(400).json({ 
-        error: 'Failed to assign patient', 
-        details: error.message 
+      res.status(400).json({
+        error: 'Failed to assign patient',
+        details: error.message
       });
     }
   }
@@ -513,8 +573,8 @@ router.post('/:caretakerId/assign/:patientId',
  * DELETE /api/patients/:caretakerId/unassign/:patientId
  * Unassign patient from caretaker
  */
-router.delete('/:caretakerId/unassign/:patientId', 
-  authenticate, 
+router.delete('/:caretakerId/unassign/:patientId',
+  authenticate,
   authorize('patients', 'assign'),
   autoLogAccess('patients', 'assign'),
   async (req, res) => {
@@ -540,9 +600,9 @@ router.delete('/:caretakerId/unassign/:patientId',
 
     } catch (error) {
       console.error('Unassign patient error:', error);
-      res.status(400).json({ 
-        error: 'Failed to unassign patient', 
-        details: error.message 
+      res.status(400).json({
+        error: 'Failed to unassign patient',
+        details: error.message
       });
     }
   }
@@ -552,8 +612,8 @@ router.delete('/:caretakerId/unassign/:patientId',
  * GET /api/patients/:id/caretakers
  * Get all caretakers assigned to a patient
  */
-router.get('/:id/caretakers', 
-  authenticate, 
+router.get('/:id/caretakers',
+  authenticate,
   authorize('patients', 'read'),
   autoLogAccess('patients', 'read'),
   async (req, res) => {
@@ -569,9 +629,9 @@ router.get('/:id/caretakers',
         canAccess = true;
       } else if (['org_admin', 'care_manager'].includes(role)) {
         const patient = await Profile.findById(patientId);
-        canAccess = patient && 
-                   patient.organizationId && 
-                   patient.organizationId.equals(req.profile.organizationId);
+        canAccess = patient &&
+          patient.organizationId &&
+          patient.organizationId.equals(req.profile.organizationId);
       } else if (role === 'caretaker') {
         canAccess = req.profile._id.toString() === patientId; // Caretaker checking their own patient assignments
       } else if (role === 'patient_mentor') {
@@ -597,9 +657,9 @@ router.get('/:id/caretakers',
 
     } catch (error) {
       console.error('Get patient caretakers error:', error);
-      res.status(500).json({ 
-        error: 'Failed to get patient caretakers', 
-        details: error.message 
+      res.status(500).json({
+        error: 'Failed to get patient caretakers',
+        details: error.message
       });
     }
   }
@@ -609,8 +669,8 @@ router.get('/:id/caretakers',
  * POST /api/patients/:id/mentors/authorize
  * Authorize a mentor for a patient
  */
-router.post('/:id/mentors/authorize', 
-  authenticate, 
+router.post('/:id/mentors/authorize',
+  authenticate,
   authorize('patients', 'authorize'),
   autoLogAccess('patients', 'authorize'),
   async (req, res) => {
@@ -619,8 +679,8 @@ router.post('/:id/mentors/authorize',
       const { mentorId, relationship, permissions, accessSchedule } = req.body;
 
       if (!mentorId || !relationship) {
-        return res.status(400).json({ 
-          error: 'Missing required fields: mentorId, relationship' 
+        return res.status(400).json({
+          error: 'Missing required fields: mentorId, relationship'
         });
       }
 
@@ -644,9 +704,9 @@ router.post('/:id/mentors/authorize',
 
     } catch (error) {
       console.error('Authorize mentor error:', error);
-      res.status(400).json({ 
-        error: 'Failed to authorize mentor', 
-        details: error.message 
+      res.status(400).json({
+        error: 'Failed to authorize mentor',
+        details: error.message
       });
     }
   }
@@ -656,8 +716,8 @@ router.post('/:id/mentors/authorize',
  * DELETE /api/patients/:id/mentors/:mentorId/revoke
  * Revoke mentor authorization for a patient
  */
-router.delete('/:id/mentors/:mentorId/revoke', 
-  authenticate, 
+router.delete('/:id/mentors/:mentorId/revoke',
+  authenticate,
   authorize('patients', 'revoke'),
   autoLogAccess('patients', 'revoke'),
   async (req, res) => {
@@ -683,9 +743,9 @@ router.delete('/:id/mentors/:mentorId/revoke',
 
     } catch (error) {
       console.error('Revoke mentor error:', error);
-      res.status(400).json({ 
-        error: 'Failed to revoke mentor authorization', 
-        details: error.message 
+      res.status(400).json({
+        error: 'Failed to revoke mentor authorization',
+        details: error.message
       });
     }
   }
@@ -695,8 +755,8 @@ router.delete('/:id/mentors/:mentorId/revoke',
  * GET /api/patients/:id/mentors
  * Get all mentors authorized for a patient
  */
-router.get('/:id/mentors', 
-  authenticate, 
+router.get('/:id/mentors',
+  authenticate,
   authorize('patients', 'read'),
   autoLogAccess('patients', 'read'),
   async (req, res) => {
@@ -712,9 +772,9 @@ router.get('/:id/mentors',
         canAccess = true;
       } else if (['org_admin', 'care_manager'].includes(role)) {
         const patient = await Profile.findById(patientId);
-        canAccess = patient && 
-                   patient.organizationId && 
-                   patient.organizationId.equals(req.profile.organizationId);
+        canAccess = patient &&
+          patient.organizationId &&
+          patient.organizationId.equals(req.profile.organizationId);
       } else if (role === 'patient_mentor') {
         canAccess = req.profile._id.toString() === patientId; // Mentor checking their own authorizations
       } else if (role === 'patient') {
@@ -733,9 +793,9 @@ router.get('/:id/mentors',
 
     } catch (error) {
       console.error('Get patient mentors error:', error);
-      res.status(500).json({ 
-        error: 'Failed to get patient mentors', 
-        details: error.message 
+      res.status(500).json({
+        error: 'Failed to get patient mentors',
+        details: error.message
       });
     }
   }
@@ -779,145 +839,189 @@ router.post('/:id/medications/:medId/toggle',
         return res.status(403).json({ error: 'Access denied' });
       }
 
+      // --- Helper to sync with Daily Checklist (MedicineLog) ---
+      const syncMedicineLogHelper = async (pId, d, t, mName, isTaken, role) => {
+        try {
+          const MedicineLog = require('../models/MedicineLog');
+          const targetDate = new Date(d);
+          targetDate.setHours(0, 0, 0, 0);
+
+          const log = await MedicineLog.findOne({
+            patient_id: pId,
+            date: targetDate
+          });
+
+          if (log) {
+            let bucket = 'morning';
+            if (t) {
+              const hour = parseInt(t.split(':')[0], 10);
+              if (hour >= 12 && hour < 17) bucket = 'afternoon';
+              else if (hour >= 17) bucket = 'night';
+            }
+
+            const dailyMed = log.medicines.find(m =>
+              m.medicine_name === mName && m.scheduled_time === bucket
+            ) || log.medicines.find(m => m.medicine_name === mName);
+
+            if (dailyMed) {
+              dailyMed.taken = isTaken;
+              dailyMed.taken_at = isTaken ? (t ? new Date(d + 'T' + t) : new Date()) : null;
+              dailyMed.marked_by = ['caller', 'care_manager', 'org_admin', 'super_admin'].includes(role) ? 'caller' : 'patient';
+
+              await log.save();
+              console.log(`[MedicineLog Sync] Updated ${mName} to taken=${isTaken} by ${dailyMed.marked_by}`);
+            }
+          }
+        } catch (syncLogErr) {
+          console.error('MedicineLog sync error during toggle:', syncLogErr);
+        }
+      };
+      // ---------------------------------------------------------
+
       const Medication = require('../models/Medication');
       const mongoose = require('mongoose');
       let med = null;
       if (mongoose.Types.ObjectId.isValid(medId)) {
-          med = await Medication.findById(medId);
+        med = await Medication.findById(medId);
       }
-      
+
       if (!med) {
         // Fallback: Check if the medication is embedded inside the Profile model natively
         const Profile = require('../models/Profile');
         let fallbackTarget = await Profile.findById(patientId);
-        
+
         let foundMed = false;
         let hasTaken = false;
         let isProfileMeta = true;
 
         if (fallbackTarget && fallbackTarget.metadata && fallbackTarget.metadata.medications) {
-            const m = fallbackTarget.metadata.medications.find(x => (x._id && x._id.toString() === medId) || x.id === medId);
-            if (m) {
-                foundMed = true;
-                m.takenLogs = m.takenLogs || [];
-                const existingLogIndex = m.takenLogs.findIndex(l => l.date === date);
-                
-                if (existingLogIndex >= 0) {
-                    m.takenLogs.splice(existingLogIndex, 1);
-                    hasTaken = true;
-                } else {
-                    m.takenLogs.push({ date, timestamp: time ? new Date(date + 'T' + time) : new Date() });
-                }
-                
-                fallbackTarget.markModified('metadata.medications');
-                await fallbackTarget.save();
-                return res.json({ message: 'Toggled successfully', medication: m, isTakenOffset: !hasTaken });
+          const m = fallbackTarget.metadata.medications.find(x => (x._id && x._id.toString() === medId) || x.id === medId);
+          if (m) {
+            foundMed = true;
+            m.takenLogs = m.takenLogs || [];
+            const existingLogIndex = m.takenLogs.findIndex(l => l.date === date);
+
+            if (existingLogIndex >= 0) {
+              m.takenLogs.splice(existingLogIndex, 1);
+              hasTaken = true;
+            } else {
+              m.takenLogs.push({ date, timestamp: time ? new Date(date + 'T' + time) : new Date() });
             }
+
+            fallbackTarget.markModified('metadata.medications');
+            await fallbackTarget.save();
+            await syncMedicineLogHelper(patientId, date, time, m.name, !hasTaken, req.profile.role);
+            return res.json({ message: 'Toggled successfully', medication: m, isTakenOffset: !hasTaken });
+          }
         }
 
         // Second Fallback: Check if the medication is embedded inside the Patient model
         if (!foundMed) {
-            const PatientModel = require('../models/Patient');
-            fallbackTarget = await PatientModel.findById(patientId);
-            if (fallbackTarget && fallbackTarget.get('medications')) {
-                const medsList = fallbackTarget.get('medications');
-                const m = medsList.find(x => (x._id && x._id.toString() === medId) || x.id === medId);
-                if (m) {
-                    foundMed = true;
-                    m.takenLogs = m.takenLogs || [];
-                    const existingLogIndex = m.takenLogs.findIndex(l => l.date === date);
-                    
-                    if (existingLogIndex >= 0) {
-                        m.takenLogs.splice(existingLogIndex, 1);
-                        hasTaken = true;
-                    } else {
-                        m.takenLogs.push({ date, timestamp: time ? new Date(date + 'T' + time) : new Date() });
-                    }
-                    
-                    fallbackTarget.markModified('medications');
-                    await fallbackTarget.save();
-                    return res.json({ message: 'Toggled successfully', medication: m, isTakenOffset: !hasTaken });
-                }
+          const PatientModel = require('../models/Patient');
+          fallbackTarget = await PatientModel.findById(patientId);
+          if (fallbackTarget && fallbackTarget.get('medications')) {
+            const medsList = fallbackTarget.get('medications');
+            const m = medsList.find(x => (x._id && x._id.toString() === medId) || x.id === medId);
+            if (m) {
+              foundMed = true;
+              m.takenLogs = m.takenLogs || [];
+              const existingLogIndex = m.takenLogs.findIndex(l => l.date === date);
+
+              if (existingLogIndex >= 0) {
+                m.takenLogs.splice(existingLogIndex, 1);
+                hasTaken = true;
+              } else {
+                m.takenLogs.push({ date, timestamp: time ? new Date(date + 'T' + time) : new Date() });
+              }
+
+              fallbackTarget.markModified('medications');
+              await fallbackTarget.save();
+              await syncMedicineLogHelper(patientId, date, time, m.name, !hasTaken, req.profile.role);
+              return res.json({ message: 'Toggled successfully', medication: m, isTakenOffset: !hasTaken });
             }
-            if (fallbackTarget && fallbackTarget.get('metadata') && fallbackTarget.get('metadata').medications) {
-                const medsList = fallbackTarget.get('metadata').medications;
-                const m = medsList.find(x => (x._id && x._id.toString() === medId) || x.id === medId);
-                if (m) {
-                    foundMed = true;
-                    m.takenLogs = m.takenLogs || [];
-                    const existingLogIndex = m.takenLogs.findIndex(l => l.date === date);
-                    
-                    if (existingLogIndex >= 0) {
-                        m.takenLogs.splice(existingLogIndex, 1);
-                        hasTaken = true;
-                    } else {
-                        m.takenLogs.push({ date, timestamp: time ? new Date(date + 'T' + time) : new Date() });
-                    }
-                    
-                    fallbackTarget.markModified('metadata.medications');
-                    await fallbackTarget.save();
-                    return res.json({ message: 'Toggled successfully', medication: m, isTakenOffset: !hasTaken });
-                }
+          }
+          if (fallbackTarget && fallbackTarget.get('metadata') && fallbackTarget.get('metadata').medications) {
+            const medsList = fallbackTarget.get('metadata').medications;
+            const m = medsList.find(x => (x._id && x._id.toString() === medId) || x.id === medId);
+            if (m) {
+              foundMed = true;
+              m.takenLogs = m.takenLogs || [];
+              const existingLogIndex = m.takenLogs.findIndex(l => l.date === date);
+
+              if (existingLogIndex >= 0) {
+                m.takenLogs.splice(existingLogIndex, 1);
+                hasTaken = true;
+              } else {
+                m.takenLogs.push({ date, timestamp: time ? new Date(date + 'T' + time) : new Date() });
+              }
+
+              fallbackTarget.markModified('metadata.medications');
+              await fallbackTarget.save();
+              await syncMedicineLogHelper(patientId, date, time, m.name, !hasTaken, req.profile.role);
+              return res.json({ message: 'Toggled successfully', medication: m, isTakenOffset: !hasTaken });
             }
+          }
         }
 
         if (!foundMed) {
-            return res.status(404).json({ error: 'Medication not found in any database' });
+          return res.status(404).json({ error: 'Medication not found in any database' });
         }
       } else {
-          const existingLog = med.takenLogs ? med.takenLogs.find(l => l.date === date) : null;
-          let updatedMed;
-          if (existingLog) {
-            updatedMed = await Medication.findByIdAndUpdate(medId, { $pull: { takenLogs: { date: date } } }, { new: true });
-          } else {
-            const timestamp = time ? new Date(date + 'T' + time) : new Date();
-            updatedMed = await Medication.findByIdAndUpdate(medId, { $addToSet: { takenLogs: { date: date, timestamp: timestamp } } }, { new: true });
-          }
+        const existingLog = med.takenLogs ? med.takenLogs.find(l => l.date === date) : null;
+        let updatedMed;
+        if (existingLog) {
+          updatedMed = await Medication.findByIdAndUpdate(medId, { $pull: { takenLogs: { date: date } } }, { new: true });
+        } else {
+          const timestamp = time ? new Date(date + 'T' + time) : new Date();
+          updatedMed = await Medication.findByIdAndUpdate(medId, { $addToSet: { takenLogs: { date: date, timestamp: timestamp } } }, { new: true });
+        }
 
-          // --- SYNC TO EMBEDDED PATIENT DOCS FOR USERS-APP VISIBILITY ---
-          try {
-              const PatientModel = require('../models/Patient');
-              let pTarget = await PatientModel.findById(patientId);
-              if (pTarget) {
-                  let synced = false;
-                  if (pTarget.get('medications')) {
-                      const mList = pTarget.get('medications');
-                      const m = mList.find(x => (x._id && x._id.toString() === medId) || x.id === medId);
-                      if (m) {
-                          m.takenLogs = m.takenLogs || [];
-                          const idx = m.takenLogs.findIndex(l => l.date === date);
-                          if (idx >= 0 && existingLog) {
-                              m.takenLogs.splice(idx, 1);
-                          } else if (!existingLog && idx < 0) {
-                              m.takenLogs.push({ date, timestamp: time ? new Date(date + 'T' + time) : new Date() });
-                          }
-                          pTarget.markModified('medications');
-                          synced = true;
-                      }
-                  }
-                  if (pTarget.get('metadata') && pTarget.get('metadata').medications) {
-                      const mList = pTarget.get('metadata').medications;
-                      const m = mList.find(x => (x._id && x._id.toString() === medId) || x.id === medId);
-                      if (m) {
-                          m.takenLogs = m.takenLogs || [];
-                          const idx = m.takenLogs.findIndex(l => l.date === date);
-                          if (idx >= 0 && existingLog) {
-                              m.takenLogs.splice(idx, 1);
-                          } else if (!existingLog && idx < 0) {
-                              m.takenLogs.push({ date, timestamp: time ? new Date(date + 'T' + time) : new Date() });
-                          }
-                          pTarget.markModified('metadata.medications');
-                          synced = true;
-                      }
-                  }
-                  if (synced) await pTarget.save();
+        // --- SYNC TO EMBEDDED PATIENT DOCS FOR USERS-APP VISIBILITY ---
+        try {
+          const PatientModel = require('../models/Patient');
+          let pTarget = await PatientModel.findById(patientId);
+          if (pTarget) {
+            let synced = false;
+            if (pTarget.get('medications')) {
+              const mList = pTarget.get('medications');
+              const m = mList.find(x => (x._id && x._id.toString() === medId) || x.id === medId);
+              if (m) {
+                m.takenLogs = m.takenLogs || [];
+                const idx = m.takenLogs.findIndex(l => l.date === date);
+                if (idx >= 0 && existingLog) {
+                  m.takenLogs.splice(idx, 1);
+                } else if (!existingLog && idx < 0) {
+                  m.takenLogs.push({ date, timestamp: time ? new Date(date + 'T' + time) : new Date() });
+                }
+                pTarget.markModified('medications');
+                synced = true;
               }
-          } catch(syncErr) {
-              console.error('Patient embedded sync error during toggle:', syncErr);
+            }
+            if (pTarget.get('metadata') && pTarget.get('metadata').medications) {
+              const mList = pTarget.get('metadata').medications;
+              const m = mList.find(x => (x._id && x._id.toString() === medId) || x.id === medId);
+              if (m) {
+                m.takenLogs = m.takenLogs || [];
+                const idx = m.takenLogs.findIndex(l => l.date === date);
+                if (idx >= 0 && existingLog) {
+                  m.takenLogs.splice(idx, 1);
+                } else if (!existingLog && idx < 0) {
+                  m.takenLogs.push({ date, timestamp: time ? new Date(date + 'T' + time) : new Date() });
+                }
+                pTarget.markModified('metadata.medications');
+                synced = true;
+              }
+            }
+            if (synced) await pTarget.save();
           }
-          // -------------------------------------------------------------
+        } catch (syncErr) {
+          console.error('Patient embedded sync error during toggle:', syncErr);
+        }
+        // -------------------------------------------------------------
 
-          return res.json({ message: 'Toggled successfully', medication: updatedMed, isTakenOffset: !existingLog });
+        await syncMedicineLogHelper(patientId, date, time, updatedMed.name, !existingLog, req.profile.role);
+
+        return res.json({ message: 'Toggled successfully', medication: updatedMed, isTakenOffset: !existingLog });
       }
     } catch (error) {
       console.error('Toggle error:', error);

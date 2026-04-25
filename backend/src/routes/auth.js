@@ -11,6 +11,8 @@ const { checkPasswordChange } = require('../middleware/checkPasswordChange');
 const { logEvent, logSecurityEvent } = require('../services/auditService');
 const { sendTempPasswordEmail, sendPasswordChangedEmail, sendOtpEmail } = require('../services/emailService');
 const { sendOtp: sendSmsOtp, verifyOtp: verifySmsOtp } = require('../services/smsService');
+const { validateRequest } = require('../middleware/validateRequest');
+const { registerSchema, loginSchema, changePasswordSchema, createUserSchema } = require('../validations/authSchemas');
 
 const router = express.Router();
 
@@ -65,16 +67,9 @@ const supabase = createClient(
  * POST /api/auth/register
  * Register a new user (creates Supabase user and MongoDB profile)
  */
-router.post('/register', async (req, res) => {
+router.post('/register', validateRequest(registerSchema), async (req, res) => {
   try {
     const { email, password, fullName, role, organizationId, phone } = req.body;
-
-    // Validate required fields
-    if (!email || !password || !fullName || !role) {
-      return res.status(400).json({
-        error: 'Missing required fields: email, password, fullName, role'
-      });
-    }
 
     // Validate role
     const validRoles = ['patient', 'patient_mentor', 'caretaker', 'care_manager', 'org_admin'];
@@ -222,21 +217,9 @@ router.post('/detect-role', async (req, res) => {
  * POST /api/auth/login
  * Authenticate user (handled by Supabase, we just verify and return profile)
  */
-router.post('/login', async (req, res) => {
+router.post('/login', validateRequest(loginSchema), async (req, res) => {
   try {
     const { email, password, role } = req.body;
-
-    if (!email || !password) {
-      return res.status(400).json({
-        error: 'Email and password are required'
-      });
-    }
-
-    if (!role) {
-      return res.status(400).json({
-        error: 'Please select a role'
-      });
-    }
 
     // Step 1: Check if a profile with this email AND role exists in MongoDB
     const profile = await Profile.findOne({
@@ -535,15 +518,10 @@ router.get('/me', authenticate, async (req, res) => {
  * Admin creates a user with a temporary password
  * Hierarchy: super_admin → org_admin, org_admin → care_manager, care_manager → caretaker
  */
-router.post('/create-user', authenticate, checkPasswordChange, async (req, res) => {
+router.post('/create-user', authenticate, checkPasswordChange, validateRequest(createUserSchema), async (req, res) => {
   try {
     const { email, fullName, role, organizationId } = req.body;
     const callerRole = req.profile.role;
-
-    // Validate required fields
-    if (!email || !fullName || !role) {
-      return res.status(400).json({ error: 'Missing required fields: email, fullName, role' });
-    }
 
     // Validate creation hierarchy
     const allowedTargetRoles = CREATION_HIERARCHY[callerRole];
@@ -765,19 +743,9 @@ router.post('/create-user', authenticate, checkPasswordChange, async (req, res) 
  * Change password (works for both forced temp-password change and voluntary change)
  * No checkPasswordChange middleware — this IS the route that satisfies the requirement
  */
-router.post('/change-password', authenticate, async (req, res) => {
+router.post('/change-password', authenticate, validateRequest(changePasswordSchema), async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
-
-    if (!currentPassword || !newPassword) {
-      return res.status(400).json({ error: 'currentPassword and newPassword are required' });
-    }
-
-    // Validate new password complexity
-    const complexityErrors = validatePasswordComplexity(newPassword);
-    if (complexityErrors.length > 0) {
-      return res.status(400).json({ error: 'Password does not meet requirements', details: complexityErrors });
-    }
 
     // Verify current password by attempting Supabase sign-in
     const { error: signInError } = await supabase.auth.signInWithPassword({

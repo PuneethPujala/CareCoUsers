@@ -153,6 +153,7 @@ router.get('/',
         limit = 20,
         role: roleFilter,
         organizationId: orgFilter,
+        managedBy: managerFilter,
         search,
         sortBy = 'createdAt',
         sortOrder = 'desc'
@@ -160,6 +161,10 @@ router.get('/',
 
       // Build query — default to active profiles only (treats missing isActive as active)
       let query = { ...req.scopeFilter, isActive: { $ne: false } };
+
+      if (managerFilter) {
+          query.managedBy = managerFilter;
+      }
 
       // Allow explicit override to see inactive profiles (admin use)
       if (req.query.isActive === 'false') {
@@ -454,9 +459,14 @@ router.put('/:id',
                             const bestCoverageCaller = coverageCallers[0];
 
                             if (bestCoverageCaller.count < 30) {
+                                // Resolve the coverage caller's care manager
+                                const coverageCallerProfile = await Profile.findById(bestCoverageCaller.id).select('managedBy').lean();
+                                const coverageManagerId = coverageCallerProfile?.managedBy || req.profile._id;
+
                                 await CaretakerPatient.create({
                                     caretakerId: bestCoverageCaller.id,
                                     patientId: pid,
+                                    careManagerId: coverageManagerId,
                                     assignedBy: req.profile._id,
                                     status: 'active',
                                     isTemporary: true,
@@ -564,11 +574,12 @@ router.delete('/:id',
           // 1. Transfer Profile.managedBy
           await Profile.updateMany({ managedBy: profile._id }, { managedBy: newManager._id });
           
-          // 2. Transfer CaretakerPatient.assignedBy
+          // 2. Transfer CaretakerPatient.assignedBy and careManagerId
           await CaretakerPatient.updateMany({ assignedBy: profile._id }, { assignedBy: newManager._id });
+          await CaretakerPatient.updateMany({ careManagerId: profile._id }, { careManagerId: newManager._id });
           
-          // 3. Transfer Patient.care_manager_id
-          await Patient.updateMany({ care_manager_id: profile._id }, { care_manager_id: newManager._id });
+          // 3. Transfer Patient.care_manager_id and assigned_manager_id
+          await Patient.updateMany({ care_manager_id: profile._id }, { care_manager_id: newManager._id, assigned_manager_id: newManager._id });
 
           console.log(`[Reallocation] successfully migrated records from ${profile._id} to ${newManager._id}`);
         } catch (reallErr) {
