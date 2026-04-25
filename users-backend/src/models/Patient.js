@@ -299,18 +299,14 @@ const PatientSchema = new mongoose.Schema(
                 reviewer_notes: String,
             }
         ],
-        emergency_contact: {
-            name: { type: String, trim: true },
-            phone: { type: String, trim: true },
-            relation: { type: String, trim: true },
-        },
         trusted_contacts: [
             {
-                name: String,
-                phone: String,
+                name: { type: String, required: true },
+                phone: { type: String, required: true },
                 relation: String,
                 email: String,
                 is_primary: { type: Boolean, default: false },
+                is_emergency: { type: Boolean, default: false },
                 can_view_data: { type: Boolean, default: false },
                 permissions: [String], // e.g. ['medications', 'mood', 'bp']
             },
@@ -341,11 +337,6 @@ const PatientSchema = new mongoose.Schema(
             mobility_aids: { type: [String], default: [] }, // e.g. ['Cane', 'Walker']
             dietary_restrictions: { type: [String], default: [] }, // e.g. ['Low Sodium', 'Diabetic']
             device_sync_status: { type: String, enum: ['disconnected', 'apple_health', 'google_fit'], default: 'disconnected' },
-        },
-        emergency_contact_primary: {
-            name: { type: String, trim: true },
-            phone: { type: String, trim: true },
-            relation: { type: String, trim: true },
         },
 
         // ── Notes & Flags ─────────────────────────────
