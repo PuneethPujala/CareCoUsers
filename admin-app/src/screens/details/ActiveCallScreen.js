@@ -87,6 +87,17 @@ export default function ActiveCallScreen({ navigation, route }) {
                 // Filter to current shift only
                 const shiftMeds = filterMedsByShift(allMeds, currentShift);
                 setMedications(shiftMeds);
+
+                // Auto-check meds already confirmed (patient self-marked or prior caller)
+                const preChecked = {};
+                shiftMeds.forEach(m => {
+                    if (m.lastConfirmed) {
+                        preChecked[m._id] = true;
+                    }
+                });
+                if (Object.keys(preChecked).length > 0) {
+                    setCheckedMeds(prev => ({ ...prev, ...preChecked }));
+                }
             } catch (err) {
                 console.error('[ActiveCall] Meds error:', err);
                 Alert.alert('Warning', 'Could not load live medication list.');
@@ -233,9 +244,17 @@ export default function ActiveCallScreen({ navigation, route }) {
                                                 {checkedMeds[m._id] && <Feather name="check" size={14} color="#FFFFFF" />}
                                             </View>
                                             <View style={{ flex: 1, marginLeft: 14 }}>
-                                                <Text style={[s.medName, checkedMeds[m._id] && s.medNameDone, Theme.typography.common]}>
-                                                    {m.name}
-                                                </Text>
+                                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                                    <Text style={[s.medName, checkedMeds[m._id] && s.medNameDone, Theme.typography.common]}>
+                                                        {m.name}
+                                                    </Text>
+                                                    {m.patientMarked && (
+                                                        <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#ECFDF5', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, borderWidth: 1, borderColor: '#D1FAE5' }}>
+                                                            <Feather name="user-check" size={10} color="#059669" />
+                                                            <Text style={[Theme.typography.common, { fontSize: 9, fontWeight: '700', color: '#059669', marginLeft: 3 }]}>Patient took it</Text>
+                                                        </View>
+                                                    )}
+                                                </View>
                                                 <Text style={[s.medSub, checkedMeds[m._id] && s.medNameDone, Theme.typography.common]}>
                                                     {m.dosage} • {m.frequency}
                                                 </Text>
