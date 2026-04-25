@@ -67,6 +67,7 @@ const TIME_EMOJIS = { morning: '🌅', afternoon: '☀️', night: '🌙' };
 export default function RecapStoryModal({ visible, onClose, recap, period = 'weekly' }) {
     const scrollRef = useRef(null);
     const viewShotRefs = useRef([...Array(SLIDE_COUNT)].map(() => React.createRef())).current;
+    const shareCardRef = useRef(null);
     const [currentSlide, setCurrentSlide] = useState(0);
     const [isAutoPlaying, setIsAutoPlaying] = useState(true);
     const [isSharing, setIsSharing] = useState(false);
@@ -153,9 +154,11 @@ export default function RecapStoryModal({ visible, onClose, recap, period = 'wee
         try {
             setIsSharing(true);
             stopAutoPlay();
-            // Share the current slide image (sharing 7 images at once isn't well supported, let's share the current one)
-            if (viewShotRefs[currentSlide]?.current) {
-                const uri = await viewShotRefs[currentSlide].current.capture();
+            
+            if (shareCardRef.current) {
+                // Add a small delay to ensure the hidden component has fully rendered off-screen
+                await new Promise(r => setTimeout(r, 100));
+                const uri = await shareCardRef.current.capture();
                 
                 const isAvailable = await Sharing.isAvailableAsync();
                 if (isAvailable) {
@@ -164,9 +167,8 @@ export default function RecapStoryModal({ visible, onClose, recap, period = 'wee
                         mimeType: 'image/png'
                     });
                 } else {
-                    // Fallback to basic text share if sharing images isn't available
                     await Share.share({
-                        message: `My ${periodLabel} Health Recap 💊\n${recap?.adherence_rate || 0}% adherence • ${recap?.streak_current || 0} day streak\n#CareMyMed #HealthJourney`
+                        message: `My ${periodLabel} Health Recap 💙\n${recap?.adherence_rate || 0}% adherence | ${recap?.streak_current || 0} day streak\n#CareMyMed #HealthJourney`
                     });
                 }
             }
@@ -339,6 +341,55 @@ export default function RecapStoryModal({ visible, onClose, recap, period = 'wee
                 >
                     {[...Array(SLIDE_COUNT)].map((_, i) => renderSlide(i))}
                 </ScrollView>
+
+                {/* Hidden Spotify-Wrapped style Share Graphic */}
+                <View style={{ position: 'absolute', top: -10000, left: -10000, width: 1080, height: 1920 }}>
+                    <ViewShot ref={shareCardRef} style={{ flex: 1, backgroundColor: '#0F172A' }} options={{ format: 'png', quality: 1 }}>
+                        <LinearGradient colors={['#4F46E5', '#0F172A']} style={StyleSheet.absoluteFill} />
+                        <View style={{ flex: 1, padding: 80, justifyContent: 'space-between' }}>
+                            {/* Header */}
+                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+                                    <Heart size={48} color="#FFF" />
+                                    <Text style={{ fontSize: 40, fontWeight: '900', color: '#FFF', letterSpacing: 2 }}>CareMyMed</Text>
+                                </View>
+                                <Text style={{ fontSize: 32, fontWeight: '800', color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase' }}>
+                                    {periodLabel} Recap
+                                </Text>
+                            </View>
+
+                            {/* Main Stat */}
+                            <View style={{ alignItems: 'center', marginTop: 120 }}>
+                                <Text style={{ fontSize: 48, fontWeight: '800', color: 'rgba(255,255,255,0.8)', marginBottom: 20 }}>I achieved</Text>
+                                <Text style={{ fontSize: 240, fontWeight: '900', color: '#FFF', letterSpacing: -10, lineHeight: 280 }}>
+                                    {recap?.adherence_rate || 0}%
+                                </Text>
+                                <Text style={{ fontSize: 56, fontWeight: '900', color: '#34D399', marginTop: -20 }}>Medication Adherence</Text>
+                            </View>
+
+                            {/* Sub Stats Row */}
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 40, padding: 60, marginTop: 120 }}>
+                                <View style={{ alignItems: 'center' }}>
+                                    <Flame size={64} color="#F59E0B" style={{ marginBottom: 20 }} />
+                                    <Text style={{ fontSize: 80, fontWeight: '900', color: '#FFF' }}>{recap?.streak_current || 0}</Text>
+                                    <Text style={{ fontSize: 32, fontWeight: '700', color: 'rgba(255,255,255,0.7)', marginTop: 10 }}>Day Streak</Text>
+                                </View>
+                                <View style={{ width: 2, backgroundColor: 'rgba(255,255,255,0.2)' }} />
+                                <View style={{ alignItems: 'center' }}>
+                                    <Trophy size={64} color="#3B82F6" style={{ marginBottom: 20 }} />
+                                    <Text style={{ fontSize: 80, fontWeight: '900', color: '#FFF' }}>{recap?.perfect_days || 0}</Text>
+                                    <Text style={{ fontSize: 32, fontWeight: '700', color: 'rgba(255,255,255,0.7)', marginTop: 10 }}>Perfect Days</Text>
+                                </View>
+                            </View>
+
+                            {/* Footer */}
+                            <View style={{ alignItems: 'center', marginTop: 120, marginBottom: 40 }}>
+                                <Text style={{ fontSize: 36, fontWeight: '800', color: '#FFF' }}>Track your health journey with me.</Text>
+                                <Text style={{ fontSize: 28, fontWeight: '600', color: 'rgba(255,255,255,0.5)', marginTop: 16 }}>caremymed.com</Text>
+                            </View>
+                        </View>
+                    </ViewShot>
+                </View>
 
                 {/* Close */}
                 <Pressable style={s.closeBtn} onPress={onClose} hitSlop={12}>
