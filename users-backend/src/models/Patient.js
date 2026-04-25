@@ -331,10 +331,21 @@ const PatientSchema = new mongoose.Schema(
             type: String,
             default: 'en_IN',
         },
-        mobility_level: {
-            type: String,
-            enum: ['full', 'limited', 'wheelchair', 'bedridden'],
-            default: 'full',
+        lifestyle: {
+            height_cm: { type: Number },
+            weight_kg: { type: Number },
+            smoking_status: { type: String, enum: ['never', 'former', 'current'], default: 'never' },
+            alcohol_use: { type: String, enum: ['none', 'occasional', 'heavy'], default: 'none' },
+            exercise_frequency: { type: String, enum: ['none', 'light', 'moderate', 'active'], default: 'none' },
+            mobility_level: { type: String, enum: ['full', 'limited', 'wheelchair', 'bedridden'], default: 'full' },
+            mobility_aids: { type: [String], default: [] }, // e.g. ['Cane', 'Walker']
+            dietary_restrictions: { type: [String], default: [] }, // e.g. ['Low Sodium', 'Diabetic']
+            device_sync_status: { type: String, enum: ['disconnected', 'apple_health', 'google_fit'], default: 'disconnected' },
+        },
+        emergency_contact_primary: {
+            name: { type: String, trim: true },
+            phone: { type: String, trim: true },
+            relation: { type: String, trim: true },
         },
 
         // ── Notes & Flags ─────────────────────────────
