@@ -1,0 +1,79 @@
+{
+  "expo": {
+    "name": "Samvaya",
+    "slug": "careco-users",
+    "scheme": "careco-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/logo.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/logo.png",
+      "backgroundColor": "#0A2463",
+      "resizeMode": "contain"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.careco.users",
+      "googleServicesFile": "./GoogleService-Info.plist",
+      "infoPlist": {
+        "NSHealthShareUsageDescription": "Samvaya requires access to your health data to monitor your wellbeing.",
+        "NSHealthUpdateUsageDescription": "Samvaya requires write access to update your health profile."
+      }
+    },
+    "android": {
+      "package": "com.careco.users",
+      "googleServicesFile": "./google-services.json",
+      "permissions": [
+        "android.permission.health.READ_HEART_RATE",
+        "android.permission.health.READ_BLOOD_PRESSURE",
+        "android.permission.health.READ_SLEEP_SESSION",
+        "android.permission.health.READ_OXYGEN_SATURATION"
+      ]
+    },
+    "web": {
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-web-browser",
+      "expo-secure-store",
+      "@react-native-community/datetimepicker",
+      "expo-font",
+      "@react-native-google-signin/google-signin",
+      "expo-notifications",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": false,
+            "minSdkVersion": 26
+          }
+        }
+      ],
+      [
+        "expo-health-connect",
+        {
+          "requestPermissionsActivityName": ".MainActivity"
+        }
+      ],
+      [
+        "react-native-health-connect",
+        {
+          "permissions": [
+            "READ_HEART_RATE",
+            "READ_BLOOD_PRESSURE",
+            "READ_SLEEP_SESSION",
+            "READ_OXYGEN_SATURATION"
+          ]
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "72ea4662-12ff-484c-9f35-2138ec21a01a"
+      }
+    },
+    "owner": "ashwin_kumar_06_t"
+  }
+}
