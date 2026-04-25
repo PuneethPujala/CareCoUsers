@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { 
-    View, Text, TouchableOpacity, ScrollView, StyleSheet, 
-    ActivityIndicator, StatusBar, KeyboardAvoidingView, Platform 
+    View, Text, TouchableOpacity, StyleSheet, 
+    ActivityIndicator, StatusBar, Platform 
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather, Ionicons } from '@expo/vector-icons';
@@ -10,6 +11,7 @@ import { Colors, Spacing, Typography, Radius, Shadows } from '../theme/colors';
 import { useAuth } from '../context/AuthContext';
 import PremiumInput from '../components/common/PremiumInput';
 import useGoogleAuth from '../hooks/useGoogleAuth';
+import { isValidEmail } from '../utils/validators';
 
 export default function LoginScreen({ navigation }) {
     const { signIn, signInWithGoogle } = useAuth();
@@ -26,7 +28,10 @@ export default function LoginScreen({ navigation }) {
     const isLoading = loading || googleLoading;
 
     const handleLogin = async () => {
-        if (!email || !password) { setLoginError('Please fill in all fields.'); return; }
+        if (!email.trim()) { setLoginError('Email address is required.'); return; }
+        if (!isValidEmail(email.trim())) { setLoginError('Please enter a valid email address.'); return; }
+        if (!password) { setLoginError('Password is required.'); return; }
+        if (password.length < 6) { setLoginError('Password must be at least 6 characters.'); return; }
         setLoginError(null);
         setLoading(true);
         try {
@@ -53,9 +58,13 @@ export default function LoginScreen({ navigation }) {
     };
 
     return (
-        <KeyboardAvoidingView 
+        <KeyboardAwareScrollView 
             style={s.container}
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            contentContainerStyle={s.scrollContent}
+            enableOnAndroid={true}
+            extraScrollHeight={20}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
         >
             <StatusBar barStyle="dark-content" />
             <SafeAreaView style={s.safe}>
@@ -64,12 +73,6 @@ export default function LoginScreen({ navigation }) {
                 <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn}>
                     <Feather name="x" size={20} color={Colors.textSecondary} />
                 </TouchableOpacity>
-
-                <ScrollView
-                    contentContainerStyle={s.scrollContent}
-                    showsVerticalScrollIndicator={false}
-                    keyboardShouldPersistTaps="handled"
-                >
                     <View style={s.card}>
                         
                         {/* Header Section */}
@@ -165,9 +168,8 @@ export default function LoginScreen({ navigation }) {
                     <Text style={s.footerText}>
                         By signing in, you agree to our Terms of Service Policy
                     </Text>
-                </ScrollView>
             </SafeAreaView>
-        </KeyboardAvoidingView>
+        </KeyboardAwareScrollView>
     );
 }
 

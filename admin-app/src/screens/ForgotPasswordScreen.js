@@ -1,8 +1,7 @@
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import React, { useState, useEffect, useRef } from 'react';
-import {
-    View, Text, TouchableOpacity, ScrollView, Alert, StyleSheet,
-    ActivityIndicator, StatusBar, Dimensions, Animated, Easing, KeyboardAvoidingView, Platform
-} from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Alert, StyleSheet,
+    ActivityIndicator, StatusBar, Dimensions, Animated, Easing, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather, Ionicons } from '@expo/vector-icons';
@@ -10,6 +9,7 @@ import { Theme } from '../theme/theme';
 import { Colors, Spacing, Typography, Radius, Shadows } from '../theme/colors';
 import PremiumInput from '../components/common/PremiumInput';
 import { apiService } from '../lib/api';
+import { isValidEmail } from '../utils/validators';
 
 const { width: SW, height: SH } = Dimensions.get('window');
 
@@ -29,6 +29,7 @@ export default function ForgotPasswordScreen({ navigation }) {
     const [showNewPw, setShowNewPw] = useState(false);
     const [showConfirmPw, setShowConfirmPw] = useState(false);
     const [cooldown, setCooldown] = useState(0);
+    const [fieldError, setFieldError] = useState('');
     const cooldownRef = useRef(null);
 
     // ─── Animations ───
@@ -67,14 +68,16 @@ export default function ForgotPasswordScreen({ navigation }) {
 
     // ─── Handlers ───
     const handleSendOtp = async () => {
-        if (!email.trim()) { Alert.alert('Required', 'Please enter your email.'); return; }
+        if (!email.trim()) { setFieldError('Email address is required.'); return; }
+        if (!isValidEmail(email.trim())) { setFieldError('Please enter a valid email (e.g. name@domain.com).'); return; }
+        setFieldError('');
         setLoading(true);
         try {
             const res = await apiService.auth.sendResetOtp({ email: email.trim().toLowerCase() });
             setStep('otp');
             setCooldown(60);
         } catch (err) {
-            Alert.alert('Error', err?.response?.data?.error || 'Failed to send OTP. Try again.');
+            setFieldError(err?.response?.data?.error || 'Failed to send OTP. Try again.');
         } finally { setLoading(false); }
     };
 
@@ -85,12 +88,14 @@ export default function ForgotPasswordScreen({ navigation }) {
             await apiService.auth.sendResetOtp({ email: email.trim().toLowerCase() });
             setCooldown(60);
         } catch (err) {
-            Alert.alert('Error', err?.response?.data?.error || 'Failed to resend OTP.');
+            setFieldError(err?.response?.data?.error || 'Failed to resend OTP.');
         } finally { setLoading(false); }
     };
 
     const handleVerifyOtp = async () => {
-        if (!otp || otp.length !== 6) { Alert.alert('Required', 'Please enter a 6-digit OTP.'); return; }
+        if (!otp || otp.length !== 6) { setFieldError('Please enter the complete 6-digit code.'); return; }
+        if (!/^\d{6}$/.test(otp)) { setFieldError('OTP must contain only numbers.'); return; }
+        setFieldError('');
         setLoading(true);
         try {
             await apiService.auth.verifyResetOtp({ email: email.trim().toLowerCase(), otp });
@@ -98,23 +103,27 @@ export default function ForgotPasswordScreen({ navigation }) {
         } catch (err) {
             const code = err?.response?.data?.code;
             if (code === 'OTP_EXPIRED' || code === 'OTP_MAX_ATTEMPTS') {
-                Alert.alert('Expired', err?.response?.data?.error, [{ text: 'OK', onPress: () => { setOtp(''); setStep('email'); } }]);
+                setFieldError(err?.response?.data?.error || 'OTP expired. Please request a new one.');
+                setTimeout(() => { setOtp(''); setStep('email'); }, 2000);
             } else {
-                Alert.alert('Error', err?.response?.data?.error || 'Invalid OTP.');
+                setFieldError(err?.response?.data?.error || 'Invalid OTP. Please try again.');
             }
         } finally { setLoading(false); }
     };
 
     const handleResetPassword = async () => {
-        if (!newPassword || !confirmPassword) { Alert.alert('Required', 'Fill both fields.'); return; }
-        if (newPassword.length < 6) { Alert.alert('Weak', 'Min 6 characters required.'); return; }
-        if (newPassword !== confirmPassword) { Alert.alert('Mismatch', 'Passwords do not match.'); return; }
+        if (!newPassword) { setFieldError('New password is required.'); return; }
+        if (newPassword.length < 8) { setFieldError('Password must be at least 8 characters.'); return; }
+        if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(newPassword)) { setFieldError('Must include uppercase, lowercase, and a number.'); return; }
+        if (!confirmPassword) { setFieldError('Please confirm your password.'); return; }
+        if (newPassword !== confirmPassword) { setFieldError('Passwords do not match.'); return; }
+        setFieldError('');
         setLoading(true);
         try {
             const res = await apiService.auth.resetPasswordWithOtp({ email: email.trim().toLowerCase(), otp, newPassword });
             Alert.alert('Success', 'Password has been reset securely.', [{ text: 'Sign In', onPress: () => navigation.navigate('Login') }]);
         } catch (err) {
-            Alert.alert('Error', err?.response?.data?.error || 'Failed to reset.');
+            setFieldError(err?.response?.data?.error || 'Failed to reset password.');
         } finally { setLoading(false); }
     };
 
@@ -149,8 +158,8 @@ export default function ForgotPasswordScreen({ navigation }) {
                 </View>
 
                 {/* ─── Main Content ─── */}
-                <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-                    <ScrollView contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+                <KeyboardAwareScrollView style={{ flex: 1 }} contentContainerStyle={s.scrollContent} enableOnAndroid={true} extraScrollHeight={20} keyboardShouldPersistTaps="handled">
+                    <View style={{flex: 1}}>
                         
                         {/* Header Titles */}
                         <View style={s.heroSection}>
@@ -188,19 +197,15 @@ export default function ForgotPasswordScreen({ navigation }) {
                                 <>
                                     <View style={s.inputWrapper}>
                                         <Text style={s.label}>Email Address</Text>
-                                        <View style={s.inputContainer}>
-                                            <Feather name="mail" size={20} color="#94A3B8" style={s.inputIconLeft} />
-                                            <PremiumInput
-                                                placeholder="director@careconnect.io"
-                                                value={email}
-                                                onChangeText={setEmail}
-                                                autoCapitalize="none"
-                                                keyboardType="email-address"
-                                                editable={!loading}
-                                                style={s.inputBoxCustom}
-                                                placeholderTextColor="#CBD5E1"
-                                            />
-                                        </View>
+                                        <PremiumInput
+                                            icon={<Feather name="mail" size={18} color="#94A3B8" />}
+                                            placeholder="director@careconnect.io"
+                                            value={email}
+                                            onChangeText={setEmail}
+                                            autoCapitalize="none"
+                                            keyboardType="email-address"
+                                            editable={!loading}
+                                        />
                                     </View>
                                     
                                     <TouchableOpacity onPress={handleSendOtp} disabled={loading} activeOpacity={0.8} style={s.btnShadow}>
@@ -218,19 +223,15 @@ export default function ForgotPasswordScreen({ navigation }) {
                                 <>
                                     <View style={s.inputWrapper}>
                                         <Text style={s.label}>6-Digit Security Code</Text>
-                                        <View style={s.inputContainer}>
-                                            <Feather name="shield" size={20} color="#94A3B8" style={s.inputIconLeft} />
-                                            <PremiumInput
-                                                placeholder="Enter verification code"
-                                                value={otp}
-                                                onChangeText={setOtp}
-                                                keyboardType="number-pad"
-                                                maxLength={6}
-                                                editable={!loading}
-                                                style={s.inputBoxCustom}
-                                                placeholderTextColor="#CBD5E1"
-                                            />
-                                        </View>
+                                        <PremiumInput
+                                            icon={<Feather name="shield" size={18} color="#94A3B8" />}
+                                            placeholder="Enter verification code"
+                                            value={otp}
+                                            onChangeText={setOtp}
+                                            keyboardType="number-pad"
+                                            maxLength={6}
+                                            editable={!loading}
+                                        />
                                     </View>
                                     
                                     <TouchableOpacity onPress={handleVerifyOtp} disabled={loading} activeOpacity={0.8} style={s.btnShadow}>
@@ -257,40 +258,36 @@ export default function ForgotPasswordScreen({ navigation }) {
                                 <>
                                     <View style={s.inputWrapper}>
                                         <Text style={s.label}>New Password</Text>
-                                        <View style={s.inputContainer}>
-                                            <Feather name="lock" size={20} color="#94A3B8" style={s.inputIconLeft} />
-                                            <PremiumInput
-                                                placeholder="Create new password"
-                                                value={newPassword}
-                                                onChangeText={setNewPassword}
-                                                secureTextEntry={!showNewPw}
-                                                editable={!loading}
-                                                style={s.inputBoxCustom}
-                                                placeholderTextColor="#CBD5E1"
-                                            />
-                                            <TouchableOpacity onPress={() => setShowNewPw(!showNewPw)} style={s.eyeBtn}>
-                                                <Feather name={showNewPw ? "eye-off" : "eye"} size={20} color="#94A3B8" />
-                                            </TouchableOpacity>
-                                        </View>
+                                        <PremiumInput
+                                            icon={<Feather name="lock" size={18} color="#94A3B8" />}
+                                            placeholder="Create new password"
+                                            value={newPassword}
+                                            onChangeText={setNewPassword}
+                                            secureTextEntry={!showNewPw}
+                                            editable={!loading}
+                                            rightElement={
+                                                <TouchableOpacity onPress={() => setShowNewPw(!showNewPw)} style={{ padding: 4 }}>
+                                                    <Feather name={showNewPw ? "eye-off" : "eye"} size={18} color="#94A3B8" />
+                                                </TouchableOpacity>
+                                            }
+                                        />
                                     </View>
 
                                     <View style={s.inputWrapper}>
                                         <Text style={s.label}>Confirm Password</Text>
-                                        <View style={s.inputContainer}>
-                                            <Feather name="check-circle" size={20} color="#94A3B8" style={s.inputIconLeft} />
-                                            <PremiumInput
-                                                placeholder="Confirm new password"
-                                                value={confirmPassword}
-                                                onChangeText={setConfirmPassword}
-                                                secureTextEntry={!showConfirmPw}
-                                                editable={!loading}
-                                                style={s.inputBoxCustom}
-                                                placeholderTextColor="#CBD5E1"
-                                            />
-                                            <TouchableOpacity onPress={() => setShowConfirmPw(!showConfirmPw)} style={s.eyeBtn}>
-                                                <Feather name={showConfirmPw ? "eye-off" : "eye"} size={20} color="#94A3B8" />
-                                            </TouchableOpacity>
-                                        </View>
+                                        <PremiumInput
+                                            icon={<Feather name="check-circle" size={18} color="#94A3B8" />}
+                                            placeholder="Confirm new password"
+                                            value={confirmPassword}
+                                            onChangeText={setConfirmPassword}
+                                            secureTextEntry={!showConfirmPw}
+                                            editable={!loading}
+                                            rightElement={
+                                                <TouchableOpacity onPress={() => setShowConfirmPw(!showConfirmPw)} style={{ padding: 4 }}>
+                                                    <Feather name={showConfirmPw ? "eye-off" : "eye"} size={18} color="#94A3B8" />
+                                                </TouchableOpacity>
+                                            }
+                                        />
                                     </View>
 
                                     <TouchableOpacity onPress={handleResetPassword} disabled={loading} activeOpacity={0.8} style={[s.btnShadow, { marginTop: 8 }]}>
@@ -318,8 +315,8 @@ export default function ForgotPasswordScreen({ navigation }) {
                             </Text>
                         </View>
 
-                    </ScrollView>
-                </KeyboardAvoidingView>
+                    </View>
+                </KeyboardAwareScrollView>
             </SafeAreaView>
         </View>
     );

@@ -1,20 +1,16 @@
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
+import { isValidEmail, isValidName, isValidPhone } from '../utils/validators';
 import React, { useState } from 'react';
 import {
     View, Text, TextInput, TouchableOpacity, StyleSheet,
-    Alert, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Dimensions,
+    Alert, ActivityIndicator, Platform,
     Modal, FlatList
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { Theme } from '../theme/theme';
 import { Shadows } from '../theme/colors';
 import { apiService } from '../lib/api';
 import GradientHeader from '../components/common/GradientHeader';
-
-const { width: SW } = Dimensions.get('window');
-
-// Limited to the 2 requested options
-
 
 const AP_DISTRICTS = [
     "Anantapur", "Chittoor", "East Godavari", "Guntur", "YSR Kadapa", "Krishna", 
@@ -33,30 +29,55 @@ export default function CreateOrganizationScreen({ navigation, route }) {
     const [loading, setLoading] = useState(false);
     const [errors, setErrors] = useState({});
     
-    // Modal state for District Picker
     const [pickerVisible, setPickerVisible] = useState(false);
 
     const validate = () => {
         const errs = {};
-        if (!name.trim()) errs.name = 'Please provide an entity name.';
-        if (!district.trim()) errs.district = 'Operating District is required.';
-        if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errs.email = 'Enter a valid email structure.';
+        
+        // Name: required, must be alphabetical (letters, spaces, hyphens, dots allowed for org names)
+        if (!name.trim()) {
+            errs.name = 'Organization name is required.';
+        } else if (name.trim().length < 2) {
+            errs.name = 'Name must be at least 2 characters.';
+        } else if (/^\d+$/.test(name.trim())) {
+            errs.name = 'Name cannot be only numbers.';
+        } else if (!/^[A-Za-z][A-Za-z0-9\s\-\.&']+$/.test(name.trim())) {
+            errs.name = 'Name must start with a letter and contain valid characters.';
+        }
+        
+        // District: required
+        if (!district.trim()) {
+            errs.district = 'Operating district is required.';
+        }
+        
+        // Email: optional, but must be valid if provided
+        if (email.trim() && !isValidEmail(email.trim())) {
+            errs.email = 'Enter a valid email (e.g. admin@org.com).';
+        }
+        
+        // Phone: optional, but must be valid if provided
+        if (phone.trim() && !isValidPhone(phone.trim())) {
+            errs.phone = 'Enter a valid phone number (10-15 digits).';
+        }
+        
         return errs;
+    };
+
+    const clearError = (field) => {
+        setErrors(prev => ({ ...prev, [field]: undefined }));
     };
 
     const handleSubmit = async () => {
         const errs = validate();
         setErrors(errs);
-        if (Object.keys(errs).length > 0) {
-            // Scroll to top or handle error visual feedback naturally via state
-            return;
-        }
+        if (Object.keys(errs).length > 0) return;
+
         setLoading(true);
         try {
             const payload = { 
                 name: name.trim(), 
                 type: 'clinic', 
-                subscriptionPlan: 'starter', // Default hardcoded
+                subscriptionPlan: 'starter',
                 district: district.trim(),
                 address: { district: district.trim() }
             };
@@ -85,112 +106,123 @@ export default function CreateOrganizationScreen({ navigation, route }) {
                 onBack={() => navigation.goBack()} 
             />
             
-            <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-                <ScrollView style={s.body} contentContainerStyle={s.scrollContent} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-
-                    <Text style={[s.sectionHeader, { marginTop: 12 }]}>Organization Details</Text>
-                    
-                    <View style={s.masterCard}>
-                        {/* Name Input */}
-                        <Text style={s.inputLabel}>Organization Name</Text>
-                        <View style={[s.inputWrap, errors.name && s.inputWrapError]}>
-                            <View style={s.inputIconWrap}>
-                                <Feather name="briefcase" size={18} color={errors.name ? '#EF4444' : '#64748B'} />
-                            </View>
-                            <TextInput 
-                                style={s.input} 
-                                value={name}
-                                onChangeText={t => { setName(t); setErrors(e => ({ ...e, name: undefined })); }}
-                                placeholder="e.g. Apollo Pharmacy" 
-                                placeholderTextColor="#CBD5E1" 
-                                autoCapitalize="words" 
-                            />
+            <KeyboardAwareScrollView 
+                style={{ flex: 1 }} 
+                contentContainerStyle={s.scrollContent}
+                enableOnAndroid={true} 
+                extraScrollHeight={20} 
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
+            >
+                <Text style={s.sectionHeader}>Organization Details</Text>
+                
+                <View style={s.formCard}>
+                    {/* Name Input */}
+                    <Text style={s.inputLabel}>Organization Name <Text style={s.required}>*</Text></Text>
+                    <View style={[s.inputRow, errors.name && s.inputRowError]}>
+                        <View style={s.inputIconPill}>
+                            <Feather name="briefcase" size={16} color={errors.name ? '#EF4444' : '#64748B'} />
                         </View>
-                        {errors.name && <Text style={s.errorMessage}>{errors.name}</Text>}
-
-                        {/* District Input */}
-                        <Text style={s.inputLabel}>Operating District</Text>
-                        <TouchableOpacity 
-                            style={[s.inputWrap, errors.district && s.inputWrapError]} 
-                            activeOpacity={0.8}
-                            onPress={() => setPickerVisible(true)}
-                        >
-                            <View style={s.inputIconWrap}>
-                                <Feather name="map" size={18} color={errors.district ? '#EF4444' : '#64748B'} />
-                            </View>
-                            <Text style={[s.input, { color: district ? '#0F172A' : '#CBD5E1', marginTop: Platform.OS==='android'? 4: 0 }]}>
-                                {district || "Select designated district"}
-                            </Text>
-                            <Feather name="chevron-down" size={20} color="#94A3B8" />
-                        </TouchableOpacity>
-                        {errors.district && <Text style={s.errorMessage}>{errors.district}</Text>}
-
-                        {/* Email Input */}
-                        <Text style={s.inputLabel}>Email Address (Optional)</Text>
-                        <View style={[s.inputWrap, errors.email && s.inputWrapError]}>
-                            <View style={s.inputIconWrap}>
-                                <Feather name="mail" size={18} color={errors.email ? '#EF4444' : '#64748B'} />
-                            </View>
-                            <TextInput 
-                                style={s.input} 
-                                value={email}
-                                onChangeText={t => { setEmail(t); setErrors(e => ({ ...e, email: undefined })); }}
-                                placeholder="admin@organization.com" 
-                                placeholderTextColor="#CBD5E1"
-                                keyboardType="email-address" 
-                                autoCapitalize="none" 
-                            />
-                        </View>
-                        {errors.email && <Text style={s.errorMessage}>{errors.email}</Text>}
-
-                        {/* Phone Input */}
-                        <Text style={s.inputLabel}>Phone Number (Optional)</Text>
-                        <View style={s.inputWrap}>
-                            <View style={s.inputIconWrap}>
-                                <Feather name="smartphone" size={18} color="#64748B" />
-                            </View>
-                            <TextInput 
-                                style={s.input} 
-                                value={phone} 
-                                onChangeText={setPhone}
-                                placeholder="+91 9876543210" 
-                                placeholderTextColor="#CBD5E1" 
-                                keyboardType="phone-pad" 
-                            />
-                        </View>
+                        <TextInput 
+                            style={s.textInput} 
+                            value={name}
+                            onChangeText={t => { setName(t); clearError('name'); }}
+                            placeholder="e.g. Apollo Pharmacy" 
+                            placeholderTextColor="#94A3B8" 
+                            autoCapitalize="words" 
+                        />
                     </View>
+                    {errors.name && <Text style={s.errorMsg}>{errors.name}</Text>}
 
-                    {/* Submit Button */}
+                    <View style={s.fieldSpacer} />
+
+                    {/* District Input */}
+                    <Text style={s.inputLabel}>Operating District <Text style={s.required}>*</Text></Text>
                     <TouchableOpacity 
-                        style={[s.submitBtn, loading && { opacity: 0.8 }]} 
-                        onPress={handleSubmit} 
-                        disabled={loading} 
-                        activeOpacity={0.8}
+                        style={[s.inputRow, errors.district && s.inputRowError]} 
+                        activeOpacity={0.7}
+                        onPress={() => setPickerVisible(true)}
                     >
-                        {loading ? (
-                            <ActivityIndicator color="#FFFFFF" size="large" />
-                        ) : (
-                            <>
-                                <Feather name={editMode ? "check-square" : "database"} size={22} color="#FFFFFF" style={{ marginRight: 12 }} />
-                                <Text style={s.submitText}>{editMode ? "Save Changes" : "Create Organization"}</Text>
-                            </>
-                        )}
+                        <View style={s.inputIconPill}>
+                            <Feather name="map-pin" size={16} color={errors.district ? '#EF4444' : '#64748B'} />
+                        </View>
+                        <Text style={[s.selectText, { color: district ? '#0F172A' : '#94A3B8' }]}>
+                            {district || "Select designated district"}
+                        </Text>
+                        <Feather name="chevron-down" size={18} color="#94A3B8" />
                     </TouchableOpacity>
-                    
-                </ScrollView>
-            </KeyboardAvoidingView>
+                    {errors.district && <Text style={s.errorMsg}>{errors.district}</Text>}
 
-            {/* ─── HD HALF-SHEET MODAL FOR DISTRICT ─── */}
+                    <View style={s.fieldSpacer} />
+
+                    {/* Email Input */}
+                    <Text style={s.inputLabel}>Email Address <Text style={s.optional}>(Optional)</Text></Text>
+                    <View style={[s.inputRow, errors.email && s.inputRowError]}>
+                        <View style={s.inputIconPill}>
+                            <Feather name="mail" size={16} color={errors.email ? '#EF4444' : '#64748B'} />
+                        </View>
+                        <TextInput 
+                            style={s.textInput} 
+                            value={email}
+                            onChangeText={t => { setEmail(t); clearError('email'); }}
+                            placeholder="admin@organization.com" 
+                            placeholderTextColor="#94A3B8"
+                            keyboardType="email-address" 
+                            autoCapitalize="none" 
+                        />
+                    </View>
+                    {errors.email && <Text style={s.errorMsg}>{errors.email}</Text>}
+
+                    <View style={s.fieldSpacer} />
+
+                    {/* Phone Input */}
+                    <Text style={s.inputLabel}>Phone Number <Text style={s.optional}>(Optional)</Text></Text>
+                    <View style={[s.inputRow, errors.phone && s.inputRowError]}>
+                        <View style={s.inputIconPill}>
+                            <Feather name="smartphone" size={16} color={errors.phone ? '#EF4444' : '#64748B'} />
+                        </View>
+                        <TextInput 
+                            style={s.textInput} 
+                            value={phone} 
+                            onChangeText={t => { setPhone(t); clearError('phone'); }}
+                            placeholder="+91 9876543210" 
+                            placeholderTextColor="#94A3B8" 
+                            keyboardType="phone-pad" 
+                        />
+                    </View>
+                    {errors.phone && <Text style={s.errorMsg}>{errors.phone}</Text>}
+                </View>
+
+                {/* Submit Button */}
+                <TouchableOpacity 
+                    style={[s.submitBtn, loading && { opacity: 0.7 }]} 
+                    onPress={handleSubmit} 
+                    disabled={loading} 
+                    activeOpacity={0.8}
+                >
+                    {loading ? (
+                        <ActivityIndicator color="#FFFFFF" size="small" />
+                    ) : (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                            <Feather name={editMode ? "check-square" : "database"} size={20} color="#FFFFFF" />
+                            <Text style={s.submitText}>{editMode ? "Save Changes" : "Create Organization"}</Text>
+                        </View>
+                    )}
+                </TouchableOpacity>
+                
+            </KeyboardAwareScrollView>
+
+            {/* District Picker Modal */}
             <Modal visible={pickerVisible} transparent={true} animationType="slide">
                 <View style={s.modalOverlay}>
-                    <TouchableOpacity style={s.modalDismissLayer} activeOpacity={1} onPress={() => setPickerVisible(false)} />
+                    <TouchableOpacity style={s.modalDismiss} activeOpacity={1} onPress={() => setPickerVisible(false)} />
                     
                     <View style={s.modalSheet}>
                         <View style={s.modalHandle} />
                         
                         <View style={s.modalHeader}>
                             <Text style={s.modalTitle}>Select Operating District</Text>
-                            <Text style={s.modalSubtitle}>Confined to Andhra Pradesh jurisdictions</Text>
+                            <Text style={s.modalSubtitle}>Andhra Pradesh jurisdictions</Text>
                         </View>
                         
                         <FlatList
@@ -206,13 +238,13 @@ export default function CreateOrganizationScreen({ navigation, route }) {
                                         activeOpacity={0.7}
                                         onPress={() => {
                                             setDistrict(item);
-                                            setErrors(e => ({ ...e, district: undefined }));
-                                            setTimeout(() => setPickerVisible(false), 200); // 200ms delay for visual confirmation
+                                            clearError('district');
+                                            setTimeout(() => setPickerVisible(false), 200);
                                         }}
                                     >
                                         <Text style={[s.districtText, isSel && s.districtTextActive]}>{item}</Text>
-                                        <View style={[s.typeRadioCircle, { width: 20, height: 20 }, isSel ? { borderColor: '#4F46E5', backgroundColor: '#4F46E5' } : {}]}>
-                                            {isSel && <Feather name="check" size={12} color="#FFFFFF" />}
+                                        <View style={[s.radio, isSel && { borderColor: '#4F46E5', backgroundColor: '#4F46E5' }]}>
+                                            {isSel && <Feather name="check" size={10} color="#FFFFFF" />}
                                         </View>
                                     </TouchableOpacity>
                                 );
@@ -225,75 +257,68 @@ export default function CreateOrganizationScreen({ navigation, route }) {
     );
 }
 
-// ══════════════════════════════════════════
-// Solid HD Premium Aesthetic (Ultra Polish)
-// ══════════════════════════════════════════
 const s = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#F8FAFC' },
-    body: { flex: 1 },
-    scrollContent: { paddingHorizontal: 24, paddingBottom: 80, paddingTop: 10 },
+    scrollContent: { paddingHorizontal: 20, paddingBottom: 80, paddingTop: 16 },
     
-    sectionHeader: { fontSize: 12, fontWeight: '800', color: '#64748B', marginTop: 24, marginBottom: 14, textTransform: 'uppercase', letterSpacing: 1.5, marginLeft: 6 },
+    sectionHeader: { fontSize: 11, fontWeight: '800', color: '#64748B', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 1.2, marginLeft: 4 },
 
-
-
-    // The Master Input Card
-    masterCard: {
+    formCard: {
         backgroundColor: '#FFFFFF',
-        borderRadius: 32,
-        padding: 24,
-        paddingBottom: 16,
+        borderRadius: 24,
+        padding: 20,
         borderWidth: 1, borderColor: '#F1F5F9',
-        ...Shadows.md, shadowColor: '#64748B', shadowOpacity: 0.08
+        ...Shadows.sm,
     },
     
-    inputLabel: { fontSize: 12, fontWeight: '800', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10, marginLeft: 4, marginTop: 8 },
+    inputLabel: { fontSize: 11, fontWeight: '800', color: '#64748B', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8, marginLeft: 2 },
+    required: { color: '#EF4444' },
+    optional: { color: '#94A3B8', fontWeight: '600', textTransform: 'none', letterSpacing: 0 },
+    fieldSpacer: { height: 16 },
     
-    inputWrap: { 
+    inputRow: { 
         flexDirection: 'row', alignItems: 'center', 
         backgroundColor: '#F8FAFC', 
-        borderRadius: 20, 
-        borderWidth: 1.5, borderColor: '#F1F5F9', 
-        paddingHorizontal: 8, 
-        height: 64, 
-        marginBottom: 16 
+        borderRadius: 16, 
+        borderWidth: 1.5, borderColor: '#E2E8F0', 
+        paddingHorizontal: 10, 
+        height: 56, 
+        gap: 10,
     },
-    inputWrapError: { borderColor: '#FECACA', backgroundColor: '#FEF2F2' },
-    inputIconWrap: { width: 44, height: 44, borderRadius: 14, backgroundColor: '#FFFFFF', justifyContent: 'center', alignItems: 'center', marginRight: 12, ...Shadows.sm, shadowOpacity: 0.05 },
-    input: { flex: 1, fontSize: 16, fontWeight: '700', color: '#0F172A' },
-    errorMessage: { fontSize: 11, fontWeight: '800', color: '#EF4444', marginTop: -10, marginBottom: 16, marginLeft: 16, textTransform: 'uppercase', letterSpacing: 0.5 },
+    inputRowError: { borderColor: '#FECACA', backgroundColor: '#FFF5F5' },
+    inputIconPill: { width: 36, height: 36, borderRadius: 12, backgroundColor: '#FFFFFF', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#F1F5F9' },
+    textInput: { flex: 1, fontSize: 15, fontWeight: '600', color: '#0F172A', height: '100%' },
+    selectText: { flex: 1, fontSize: 15, fontWeight: '600' },
+    errorMsg: { fontSize: 11, fontWeight: '700', color: '#EF4444', marginTop: 6, marginLeft: 4 },
 
-    // Mega Submit Button
+    // Submit
     submitBtn: { 
         flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
         backgroundColor: '#0F172A',
-        marginTop: 36, 
-        borderRadius: 24, 
-        height: 72,
-        ...Shadows.xl, shadowColor: '#0F172A', shadowOpacity: 0.25, shadowOffset: {width: 0, height: 10}
+        marginTop: 28, 
+        borderRadius: 20, 
+        height: 60,
+        ...Shadows.lg, shadowColor: '#0F172A', shadowOpacity: 0.2, shadowOffset: {width: 0, height: 8}
     },
-    submitText: { fontSize: 18, fontWeight: '800', color: '#FFFFFF', letterSpacing: 0.5 },
+    submitText: { fontSize: 16, fontWeight: '800', color: '#FFFFFF', letterSpacing: 0.3 },
 
-    // iOS Style Bottom Sheet Selector
-    modalOverlay: { flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.6)', justifyContent: 'flex-end' },
-    modalDismissLayer: { flex: 1 },
+    // Modal
+    modalOverlay: { flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.5)', justifyContent: 'flex-end' },
+    modalDismiss: { flex: 1 },
     modalSheet: { 
         backgroundColor: '#FFFFFF', 
-        borderTopLeftRadius: 36, borderTopRightRadius: 36, 
+        borderTopLeftRadius: 28, borderTopRightRadius: 28, 
         maxHeight: '75%', 
         ...Shadows.xl 
     },
-    modalHandle: { width: 40, height: 5, borderRadius: 3, backgroundColor: '#E2E8F0', alignSelf: 'center', marginTop: 12 },
-    modalHeader: { paddingHorizontal: 24, paddingTop: 20, paddingBottom: 24, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
-    modalTitle: { fontSize: 24, fontWeight: '800', color: '#0F172A', letterSpacing: -0.5 },
-    modalSubtitle: { fontSize: 14, fontWeight: '600', color: '#94A3B8', marginTop: 4 },
+    modalHandle: { width: 36, height: 4, borderRadius: 2, backgroundColor: '#E2E8F0', alignSelf: 'center', marginTop: 10 },
+    modalHeader: { paddingHorizontal: 20, paddingTop: 18, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+    modalTitle: { fontSize: 20, fontWeight: '800', color: '#0F172A', letterSpacing: -0.3 },
+    modalSubtitle: { fontSize: 12, fontWeight: '600', color: '#94A3B8', marginTop: 2 },
     
-    districtRow: { 
-        flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', 
-        paddingVertical: 18, paddingHorizontal: 8,
-        borderBottomWidth: 1, borderBottomColor: '#F8FAFC' 
-    },
-    districtRowActive: { backgroundColor: '#EEF2FF', borderRadius: 16, borderBottomWidth: 0, paddingHorizontal: 16, marginTop: 4, marginBottom: 4 },
-    districtText: { fontSize: 17, fontWeight: '600', color: '#334155' },
-    districtTextActive: { color: '#4F46E5', fontWeight: '800' }
+    districtRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 10, borderBottomWidth: 1, borderBottomColor: '#F8FAFC' },
+    districtRowActive: { backgroundColor: '#EEF2FF', borderRadius: 14, borderBottomWidth: 0, paddingHorizontal: 14, marginVertical: 2 },
+    districtText: { fontSize: 15, fontWeight: '600', color: '#334155' },
+    districtTextActive: { color: '#4F46E5', fontWeight: '800' },
+    radio: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: '#CBD5E1', justifyContent: 'center', alignItems: 'center' },
 });

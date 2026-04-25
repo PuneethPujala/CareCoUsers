@@ -687,12 +687,18 @@ router.post('/patients/assign', async (req, res) => {
         }
 
         // Validate both exist and are in the same org
-        const [patient, caretaker] = await Promise.all([
-            Profile.findById(patientId),
-            Profile.findById(caretakerId),
-        ]);
+        const caretaker = await Profile.findById(caretakerId);
+        // Try Profile first, then Patient collection
+        let patient = await Profile.findById(patientId);
+        if (!patient) {
+            const Patient = require('../models/Patient');
+            const patientDoc = await Patient.findById(patientId);
+            if (patientDoc) {
+                patient = { _id: patientDoc._id, role: 'patient', name: patientDoc.name };
+            }
+        }
 
-        if (!patient || patient.role !== 'patient') {
+        if (!patient || (patient.role !== 'patient')) {
             return res.status(404).json({ error: 'Patient not found' });
         }
         if (!caretaker || !['caretaker', 'caller'].includes(caretaker.role)) {
@@ -720,6 +726,7 @@ router.post('/patients/assign', async (req, res) => {
         const assignment = await CaretakerPatient.create({
             caretakerId,
             patientId,
+            careManagerId: managerId,
             assignedBy: managerId,
             status: 'active',
             priority: priority || 5,
@@ -730,12 +737,14 @@ router.post('/patients/assign', async (req, res) => {
         // Mirror assignments directly onto the Profile and Patient documents for User App compatability!
         await Profile.findByIdAndUpdate(patientId, {
             caller_id: caretakerId,
-            assigned_caller_id: caretakerId
+            assigned_caller_id: caretakerId,
+            care_manager_id: managerId,
+            assigned_manager_id: managerId
         });
         try {
             await mongoose.model('Patient').updateOne(
                 { _id: patientId }, 
-                { $set: { caller_id: caretakerId, assigned_caller_id: caretakerId } }
+                { $set: { caller_id: caretakerId, assigned_caller_id: caretakerId, care_manager_id: managerId, assigned_manager_id: managerId } }
             );
         } catch (e) {
             // Patient model fallback ignoring
@@ -795,8 +804,15 @@ router.put('/patients/:id/reassign', async (req, res) => {
             return res.status(400).json({ error: 'newCaretakerId is required' });
         }
 
-        // Validate patient exists
-        const patient = await Profile.findById(patientId);
+        // Validate patient exists (try Profile first, then Patient collection)
+        let patient = await Profile.findById(patientId);
+        if (!patient) {
+            const Patient = require('../models/Patient');
+            const patientDoc = await Patient.findById(patientId);
+            if (patientDoc) {
+                patient = { _id: patientDoc._id, role: 'patient', name: patientDoc.name };
+            }
+        }
         if (!patient || patient.role !== 'patient') {
             return res.status(404).json({ error: 'Patient not found' });
         }
@@ -831,6 +847,7 @@ router.put('/patients/:id/reassign', async (req, res) => {
         const newAssignment = await CaretakerPatient.create({
             caretakerId: newCaretakerId,
             patientId,
+            careManagerId: managerId,
             assignedBy: managerId,
             status: 'active',
             schedule: { startDate: new Date() },
@@ -840,12 +857,14 @@ router.put('/patients/:id/reassign', async (req, res) => {
         // Mirror re-assignments directly onto the Profile and Patient documents for User App compatability!
         await Profile.findByIdAndUpdate(patientId, {
             caller_id: newCaretakerId,
-            assigned_caller_id: newCaretakerId
+            assigned_caller_id: newCaretakerId,
+            care_manager_id: managerId,
+            assigned_manager_id: managerId
         });
         try {
             await mongoose.model('Patient').updateOne(
                 { _id: patientId }, 
-                { $set: { caller_id: newCaretakerId, assigned_caller_id: newCaretakerId } }
+                { $set: { caller_id: newCaretakerId, assigned_caller_id: newCaretakerId, care_manager_id: managerId, assigned_manager_id: managerId } }
             );
         } catch (e) {
             // Patient model fallback ignoring

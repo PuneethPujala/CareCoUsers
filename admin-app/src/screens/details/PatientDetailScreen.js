@@ -1,3 +1,4 @@
+import { isValidEmail, isValidName, isValidPhone, isValidPassword, isValidAmount } from '../../utils/validators';
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, ScrollView, StyleSheet, StatusBar, TouchableOpacity, ActivityIndicator, Linking, Alert, Modal, TextInput } from 'react-native';
 import { Feather, FontAwesome5 } from '@expo/vector-icons';
@@ -11,6 +12,50 @@ const PHASE_TIMES = {
     morning: ['08:00 AM'],
     afternoon: ['01:00 PM'],
     night: ['08:00 PM']
+};
+
+const filterMedsByShift = (medications, shift) => {
+    const shiftLower = shift.toLowerCase();
+    return medications.filter(med => {
+        const times = med.scheduledTimes && med.scheduledTimes.length > 0 ? med.scheduledTimes : (med.times || []);
+
+        if (times.length === 0) return shiftLower === 'morning';
+
+        return times.some(t => {
+            const lower = (t || '').toLowerCase().trim();
+            if (lower === shiftLower || lower.includes(shiftLower)) return true;
+            if (shiftLower === 'night' && lower.includes('evening')) return true;
+
+            let hour = -1;
+            const match24 = lower.match(/^(\d{1,2}):(\d{2})$/);
+            const match12 = lower.match(/^(\d{1,2}):(\d{2})\s*(am|pm)$/i);
+
+            if (match24) {
+                hour = parseInt(match24[1], 10);
+            } else if (match12) {
+                hour = parseInt(match12[1], 10);
+                const period = match12[3];
+                if (period === 'pm' && hour !== 12) hour += 12;
+                if (period === 'am' && hour === 12) hour = 0;
+            }
+
+            if (hour === -1) return shiftLower === 'morning';
+
+            if (shiftLower === 'morning') return hour >= 0 && hour < 12;
+            if (shiftLower === 'afternoon') return hour >= 12 && hour < 17;
+            if (shiftLower === 'night') return hour >= 17;
+            
+            return false;
+        });
+    });
+};
+
+const getPhaseForTimes = (times) => {
+    if (!times || times.length === 0) return 'morning';
+    const mockMed = { scheduledTimes: times };
+    if (filterMedsByShift([mockMed], 'night').length > 0) return 'night';
+    if (filterMedsByShift([mockMed], 'afternoon').length > 0) return 'afternoon';
+    return 'morning';
 };
 
 const InfoRow = ({ icon, color, label, value, isLast }) => {
@@ -115,27 +160,9 @@ export default function PatientDetailScreen({ navigation, route }) {
 
     const openEditMedModal = (med) => {
         setEditingMed(med);
-        let phase = 'morning';
         const times = med.scheduledTimes && med.scheduledTimes.length > 0 ? med.scheduledTimes : (med.times || []);
         
-        const isAfternoon = times.some(t => {
-            if (t.toLowerCase().includes('afternoon')) return true;
-            if (!t.includes('PM')) return false;
-            let h = parseInt(t.split(':')[0]);
-            if (h === 12) h = 0;
-            return h >= 0 && h < 5;
-        });
-
-        const isNight = times.some(t => {
-            if (t.toLowerCase().includes('night')) return true;
-            if (!t.includes('PM')) return false;
-            let h = parseInt(t.split(':')[0]);
-            if (h === 12) return false;
-            return h >= 5;
-        });
-
-        if (isNight) phase = 'night';
-        else if (isAfternoon) phase = 'afternoon';
+        let phase = getPhaseForTimes(times);
 
         setMedForm({
             name: med.name || '',
@@ -153,7 +180,8 @@ export default function PatientDetailScreen({ navigation, route }) {
         }
         setSubmitting(true);
         try {
-            const todayStr = new Date().toLocaleDateString('en-CA');
+            const now = new Date();
+    const todayStr = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
             let updatedLogs = editingMed ? [...(editingMed.takenLogs || [])] : [];
             let updatedDates = editingMed ? [...(editingMed.takenDates || [])] : [];
             
@@ -205,10 +233,10 @@ export default function PatientDetailScreen({ navigation, route }) {
 
     const handleToggleMedication = async (med) => {
         // Block callers from toggling meds outside Active Call screen
-        if (isCallerRole) {
+        if (true) { // Block EVERYONE from toggling meds outside Active Call screen
             Alert.alert(
-                'Action Not Allowed',
-                'Medications can only be confirmed during an active call. Please use the Routing Queue to start a call with this patient.',
+                'Read-Only View',
+                'Medications can only be marked as completed by a Caller during an active routing call.',
                 [{ text: 'OK' }]
             );
             return;
@@ -226,34 +254,7 @@ export default function PatientDetailScreen({ navigation, route }) {
         const allMeds = unique([...metadataMeds, ...rootMeds]);
 
         const currentPhaseObj = getCurrentPhase();
-        const phaseMeds = allMeds.filter(med => {
-            const times = med.scheduledTimes && med.scheduledTimes.length > 0 ? med.scheduledTimes : (med.times || []);
-
-            if (times.length === 0) return currentPhaseObj === 'Morning';
-
-            if (currentPhaseObj === 'Morning') {
-                return times.some(t => t.toLowerCase().includes('morning') || t.includes('AM') || (t.includes('12:') && !t.includes('PM')));
-            }
-            if (currentPhaseObj === 'Afternoon') {
-                return times.some(t => {
-                    if (t.toLowerCase().includes('afternoon')) return true;
-                    if (!t.includes('PM')) return false;
-                    let h = parseInt(t.split(':')[0]);
-                    if (h === 12) h = 0;
-                    return h >= 0 && h < 5;
-                });
-            }
-            if (currentPhaseObj === 'Night') {
-                return times.some(t => {
-                    if (t.toLowerCase().includes('night')) return true;
-                    if (!t.includes('PM')) return false;
-                    let h = parseInt(t.split(':')[0]);
-                    if (h === 12) return false;
-                    return h >= 5;
-                });
-            }
-            return false;
-        });
+        const phaseMeds = filterMedsByShift(allMeds, currentPhaseObj);
         
         const totalMeds = phaseMeds.length;
         let previousCompleted = 0;
@@ -359,34 +360,7 @@ export default function PatientDetailScreen({ navigation, route }) {
     const conditions = unique([...(metadata.conditions || []), ...rootCond]);
     const medications = unique([...(metadata.medications || []), ...rootMeds]);
 
-    const phaseMedications = medications.filter(med => {
-        const times = med.scheduledTimes && med.scheduledTimes.length > 0 ? med.scheduledTimes : (med.times || []);
-
-        if (times.length === 0) return currentPhase === 'Morning';
-
-        if (currentPhase === 'Morning') {
-            return times.some(t => t.toLowerCase().includes('morning') || t.includes('AM') || (t.includes('12:') && !t.includes('PM')));
-        }
-        if (currentPhase === 'Afternoon') {
-            return times.some(t => {
-                if (t.toLowerCase().includes('afternoon')) return true;
-                if (!t.includes('PM')) return false;
-                let h = parseInt(t.split(':')[0]);
-                if (h === 12) h = 0;
-                return h >= 0 && h < 5;
-            });
-        }
-        if (currentPhase === 'Night') {
-            return times.some(t => {
-                if (t.toLowerCase().includes('night')) return true;
-                if (!t.includes('PM')) return false;
-                let h = parseInt(t.split(':')[0]);
-                if (h === 12) return false;
-                return h >= 5;
-            });
-        }
-        return false;
-    });
+    const phaseMedications = filterMedsByShift(medications, currentPhase);
 
     const joinDate = patient.created_at ? new Date(patient.created_at).toLocaleDateString() : 'Unknown';
     const dobFormatted = date_of_birth ? new Date(date_of_birth).toLocaleDateString() : null;

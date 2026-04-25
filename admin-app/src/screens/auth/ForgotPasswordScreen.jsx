@@ -1,14 +1,12 @@
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import React, { useState } from 'react';
-import {
-  View,
+import { View,
   Text,
   TextInput,
   TouchableOpacity,
   Alert,
-  KeyboardAvoidingView,
   Platform,
-  ScrollView,
-} from 'react-native';
+  ScrollView } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
 
@@ -177,8 +175,8 @@ const ForgotPasswordScreen = () => {
   }
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    <KeyboardAwareScrollView
+      enableOnAndroid={true} extraScrollHeight={20} keyboardShouldPersistTaps="handled"
       className="flex-1 bg-gray-50"
     >
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
@@ -274,7 +272,7 @@ const ForgotPasswordScreen = () => {
           </View>
         </View>
       </ScrollView>
-    </KeyboardAvoidingView>
+    </KeyboardAwareScrollView>
   );
 };
 

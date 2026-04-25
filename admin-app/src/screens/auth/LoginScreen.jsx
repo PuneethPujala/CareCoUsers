@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   Alert,
   KeyboardAvoidingView,
@@ -11,6 +10,7 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
+import Input from '../../components/common/Input';
 
 const ROLES = [
   { id: 'super_admin', label: 'Super Admin', icon: '🛡️' },
@@ -27,32 +27,37 @@ const LoginScreen = () => {
   const [role, setRole] = useState('patient');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [errors, setErrors] = useState({});
 
   const navigation = useNavigation();
   const { signIn } = useAuth();
 
+  const validateForm = () => {
+    const newErrors = {};
+    if (!email.trim()) newErrors.email = 'Please enter your email address';
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) newErrors.email = 'Please enter a valid email address';
+    if (!password.trim()) newErrors.password = 'Please enter your password';
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleLogin = async () => {
-    if (!email.trim()) {
-      Alert.alert('Error', 'Please enter your email address');
-      return;
-    }
-    if (!password.trim()) {
-      Alert.alert('Error', 'Please enter your password');
-      return;
-    }
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email.trim())) {
-      Alert.alert('Error', 'Please enter a valid email address');
-      return;
-    }
+    if (!validateForm()) return;
 
     setLoading(true);
+    setErrors({});
     try {
       await signIn(email.trim(), password, role);
     } catch (error) {
       console.warn('Login error:', error?.message);
-      const title = error?.code === 'ROLE_MISMATCH' ? 'Wrong Role' : 'Login Failed';
-      Alert.alert(title, error?.message || 'An error occurred during login');
+      
+      if (error?.response?.data?.details) {
+         setErrors(error.response.data.details);
+      } else {
+         const title = error?.code === 'ROLE_MISMATCH' ? 'Wrong Role' : 'Login Failed';
+         Alert.alert(title, error?.message || 'An error occurred during login');
+      }
     } finally {
       setLoading(false);
     }
@@ -116,34 +121,32 @@ const LoginScreen = () => {
           <View className="bg-white rounded-lg p-6 shadow-sm">
             <Text className="text-xl font-semibold text-gray-900 mb-6">Welcome Back</Text>
 
-            <View className="mb-4">
-              <Text className="text-sm font-medium text-gray-700 mb-2">Email Address</Text>
-              <TextInput
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg"
-                placeholder="Enter your email"
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoCorrect={false}
-                editable={!loading}
-              />
-            </View>
+            <Input
+              label="Email Address"
+              placeholder="Enter your email"
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+              editable={!loading}
+              error={errors.email}
+            />
 
             <View className="mb-6">
-              <Text className="text-sm font-medium text-gray-700 mb-2">Password</Text>
               <View className="relative">
-                <TextInput
-                  className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg"
+                <Input
+                  label="Password"
                   placeholder="Enter your password"
                   value={password}
                   onChangeText={setPassword}
                   secureTextEntry={!showPassword}
                   autoCapitalize="none"
                   editable={!loading}
+                  error={errors.password}
                 />
                 <TouchableOpacity
-                  className="absolute right-3 top-3.5"
+                  className={`absolute right-3 ${errors.password ? 'top-9' : 'top-9'}`}
                   onPress={() => setShowPassword(!showPassword)}
                   disabled={loading}
                 >

@@ -19,7 +19,8 @@ export default function PatientHealthView({
     onRemoveMedication,
     onToggleMedication,
 }) {
-    const todayStr = new Date().toLocaleDateString('en-CA'); // Gets local YYYY-MM-DD
+    const now = new Date();
+    const todayStr = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
     
     // Helper to check if a timestamp belongs to the current shift
     const isTimestampInShift = (timestamp, shiftName) => {

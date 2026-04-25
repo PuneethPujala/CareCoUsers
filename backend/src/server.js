@@ -21,12 +21,11 @@ const orgRoutes = require('./routes/org');
 const managerRoutes = require('./routes/manager');
 const caretakerDashRoutes = require('./routes/caretaker');
 
+// Register shared models early so they're available via mongoose.model()
+require('./models/MedicineLog');
+
 const app = express();
 const PORT = process.env.PORT || 3001;
-
-// ── Connect to databases ─────────────────────────────────────
-connectDB();
-connectRedis();
 
 // ── Security middleware ──────────────────────────────────────
 app.use(helmet());
@@ -103,6 +102,17 @@ app.use('*', (req, res) => {
 app.use((err, req, res, next) => {
   require('fs').writeFileSync('global_crash.txt', String(err.stack || err));
   console.error('Global error:', err);
+
+  if (err.isJoi) {
+    const errors = {};
+    err.details.forEach((detail) => {
+      const key = detail.path.join('.');
+      if (!errors[key]) {
+        errors[key] = detail.message.replace(/['"]/g, '');
+      }
+    });
+    return res.status(400).json({ error: 'Validation Error', details: errors });
+  }
 
   if (err.name === 'ValidationError') {
     const errors = Object.values(err.errors).map(e => e.message);
