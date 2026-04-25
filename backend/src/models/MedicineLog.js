@@ -1,11 +1,9 @@
 const mongoose = require('mongoose');
 
 /**
- * MedicineLog — Daily medication checklist, single source of truth.
- * Shared schema with users-backend so both services read/write the same collection.
- * 
- * The Patient App reads this to show today's medication list.
- * The Caller App writes to this when confirming meds during a call.
+ * MedicineLog — daily medicine tracking per patient.
+ * This schema mirrors the users-backend model exactly so both backends
+ * can read/write the same `medicinelogs` collection in MongoDB.
  */
 const MedicineLogSchema = new mongoose.Schema(
     {
