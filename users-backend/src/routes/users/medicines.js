@@ -94,26 +94,28 @@ router.get('/today', authenticate, async (req, res) => {
                 await log.save();
             }
         } else if (log) {
-            // Reconcile: If log exists, ensure all active medications are present (mid-day additions)
+            // Reconcile: Ensure log only contains currently active medications
             let isModified = false;
+            const activeMedNames = allMedsRaw.filter(m => m.is_active !== false).map(m => m.name);
+
+            // 1. Remove meds that are no longer active
+            const originalCount = log.medicines.length;
+            log.medicines = log.medicines.filter(m => activeMedNames.includes(m.medicine_name));
+            if (log.medicines.length !== originalCount) isModified = true;
+
+            // 2. Add missing active meds
             for (const med of allMedsRaw) {
                 if (med.is_active !== false) {
                     for (const time of med.times) {
                         const exists = log.medicines.some(m => m.medicine_name === med.name && m.scheduled_time === time);
                         if (!exists) {
-                            log.medicines.push({
-                                medicine_name: med.name,
-                                scheduled_time: time,
-                                taken: false,
-                            });
+                            log.medicines.push({ medicine_name: med.name, scheduled_time: time, taken: false });
                             isModified = true;
                         }
                     }
                 }
             }
-            if (isModified) {
-                await log.save();
-            }
+            if (isModified) await log.save();
         }
 
         // Attach dosage, instructions, and time preference to the log

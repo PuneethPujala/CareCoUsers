@@ -18,8 +18,12 @@
           "client_type": 1,
           "android_info": {
             "package_name": "com.careco.users",
-            "certificate_hash": "70e4f5c8674ab09d164183f722c89d8f67162a6b"
+            "certificate_hash": "cfe694aeb72cdc6903ecb044eda05e72dca45261"
           }
+        },
+        {
+          "client_id": "374987128995-d9rf99m6fn844nvhiij8tpu5haml9rau.apps.googleusercontent.com",
+          "client_type": 3
         }
       ],
       "api_key": [
@@ -29,7 +33,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "374987128995-d9rf99m6fn844nvhiij8tpu5haml9rau.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "374987128995-cbiunsikhbuv0m9t5vblq8g5k9koqgpj.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.careco.users"
+              }
+            }
+          ]
         }
       }
     }
