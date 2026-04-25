@@ -6,6 +6,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { X, Share2, ChevronLeft, ChevronRight, Flame, Pill, Sunrise, Sun, Moon, Trophy, Heart, Sparkles } from 'lucide-react-native';
 import ViewShot from 'react-native-view-shot';
+import * as Sharing from 'expo-sharing';
 
 const { width: SW, height: SH } = Dimensions.get('window');
 const SLIDE_COUNT = 7;
@@ -152,27 +153,22 @@ export default function RecapStoryModal({ visible, onClose, recap, period = 'wee
         try {
             setIsSharing(true);
             stopAutoPlay();
-            // Capture all slides as images
-            const capturedUris = [];
-            for (let i = 0; i < SLIDE_COUNT; i++) {
-                // Navigate to slide, wait, then capture
-                scrollRef.current?.scrollTo({ x: i * SW, animated: false });
-                await new Promise(r => setTimeout(r, 300));
-                if (viewShotRefs[i]?.current) {
-                    const uri = await viewShotRefs[i].current.capture();
-                    capturedUris.push(uri);
+            // Share the current slide image (sharing 7 images at once isn't well supported, let's share the current one)
+            if (viewShotRefs[currentSlide]?.current) {
+                const uri = await viewShotRefs[currentSlide].current.capture();
+                
+                const isAvailable = await Sharing.isAvailableAsync();
+                if (isAvailable) {
+                    await Sharing.shareAsync(uri, {
+                        dialogTitle: `${periodLabel} Health Recap`,
+                        mimeType: 'image/png'
+                    });
+                } else {
+                    // Fallback to basic text share if sharing images isn't available
+                    await Share.share({
+                        message: `My ${periodLabel} Health Recap 💊\n${recap?.adherence_rate || 0}% adherence • ${recap?.streak_current || 0} day streak\n#CareMyMed #HealthJourney`
+                    });
                 }
-            }
-            // Go back to current slide
-            scrollRef.current?.scrollTo({ x: currentSlide * SW, animated: false });
-
-            // Share all captured images
-            if (capturedUris.length > 0) {
-                await Share.share({
-                    url: Platform.OS === 'ios' ? capturedUris[0] : undefined,
-                    message: `My ${periodLabel} Health Recap 💊\n${recap?.adherence_rate || 0}% adherence • ${recap?.streak_current || 0} day streak\n#CareMyMed #HealthJourney`,
-                    title: `${periodLabel} Health Recap`,
-                });
             }
         } catch (err) {
             console.warn('Share error:', err);

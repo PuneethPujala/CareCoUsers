@@ -211,10 +211,10 @@ router.put('/mark', authenticate, async (req, res) => {
         }
 
         // ── DEPRECATED: Streak gamification removed in favour of adherence tracking ──
-        // if (taken) {
-        //     const streakService = require('../../../services/streakService');
-        //     streakService.evaluateAndUpdateStreak(patient._id).catch(e => console.error('Streak Update Failed:', e));
-        // }
+        if (taken) {
+            const streakService = require('../../../services/streakService');
+            streakService.evaluateAndUpdateStreak(patient._id).catch(e => console.error('Streak Update Failed:', e));
+        }
 
         res.json({ log });
     } catch (error) {

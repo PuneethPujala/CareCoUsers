@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, Platform, ActivityIndicator, Animat
 import PremiumFormModal from '../../components/ui/PremiumFormModal';
 import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { TriangleAlert, ShieldCheck, HeartPulse, Activity, Stethoscope, Droplet, User, CalendarDays, Watch, Flame, Phone, Plus, Edit2, X, Trash2, CheckCircle2, RefreshCw, AlertTriangle, ChevronDown, Upload } from 'lucide-react-native';
+import { TriangleAlert, ShieldCheck, HeartPulse, Activity, Stethoscope, Droplet, User, CalendarDays, Watch, Flame, Phone, Plus, Edit2, X, Trash2, CheckCircle2, RefreshCw, AlertTriangle, ChevronDown, Upload, Siren, Dna, Info } from 'lucide-react-native';
 import { apiService } from '../../lib/api';
 import { initializeHealthPlatform, requestHealthPermissions, fetchDailyVitalsSummary, isHealthSupported } from '../../lib/healthIntegration';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -185,7 +185,9 @@ export default function HealthProfileScreen({ navigation }) {
             else if (type === 'allergy') setFormState({ name: '', severity: 'moderate', reaction: '' });
             else if (type === 'vitals') setFormState({ height_cm: profile?.lifestyle?.height_cm || '', weight_kg: profile?.lifestyle?.weight_kg || '' });
             else if (type === 'habits') setFormState({ smoking_status: profile?.lifestyle?.smoking_status || 'never', alcohol_use: profile?.lifestyle?.alcohol_use || 'none' });
-            else if (type === 'activity') setFormState({ exercise_frequency: profile?.lifestyle?.exercise_frequency || 'none', mobility_level: profile?.lifestyle?.mobility_level || 'full' });
+            else if (type === 'activity') setFormState({ exercise_frequency: profile?.lifestyle?.exercise_frequency || 'none', mobility_level: profile?.lifestyle?.mobility_level || 'full', mobility_aids: profile?.lifestyle?.mobility_aids?.join(', ') || '' });
+            else if (type === 'identity') setFormState({ blood_type: profile?.blood_type || 'unknown', dietary_restrictions: profile?.lifestyle?.dietary_restrictions?.join(', ') || '' });
+            else if (type === 'emergency') setFormState({ emergency_name: profile?.emergency_contact_primary?.name || '', emergency_phone: profile?.emergency_contact_primary?.phone || '', emergency_relation: profile?.emergency_contact_primary?.relation || '' });
             else if (type === 'gp') {
                 const parsed = parsePhoneWithCode(profile?.gp?.phone || '');
                 setFormState({ gp_name: profile?.gp?.name || '', gp_phone: parsed.number, gp_phoneCode: parsed.code, gp_email: profile?.gp?.email || '' });
@@ -333,14 +335,26 @@ export default function HealthProfileScreen({ navigation }) {
                 payload.gp_phone = `${formState.gp_phoneCode}${formState.gp_phone.replace(/[^0-9]/g, '')}`;
             }
 
-            if (['vitals', 'habits', 'activity'].includes(editingType)) {
-                payload = { ...profile?.lifestyle, ...formState };
+            if (['vitals', 'habits', 'activity', 'identity'].includes(editingType)) {
+                let aids = [];
+                let diets = [];
+                if (formState.mobility_aids) aids = formState.mobility_aids.split(',').map(s=>s.trim()).filter(s=>s);
+                if (formState.dietary_restrictions) diets = formState.dietary_restrictions.split(',').map(s=>s.trim()).filter(s=>s);
+                payload = { ...profile?.lifestyle, ...formState, mobility_aids: aids, dietary_restrictions: diets };
             }
 
             let res;
             if (editingType === 'condition') res = await apiService.patients.updateConditions(payload);
             else if (editingType === 'allergy') res = await apiService.patients.updateAllergies(payload);
-            else if (['vitals', 'habits', 'activity'].includes(editingType)) res = await apiService.patients.updateLifestyle(payload);
+            else if (['vitals', 'habits', 'activity', 'identity'].includes(editingType)) {
+                res = await apiService.patients.updateLifestyle(payload);
+                if (editingType === 'identity') {
+                    await apiService.patients.updateMe({ blood_type: formState.blood_type });
+                }
+            }
+            else if (editingType === 'emergency') {
+                res = await apiService.patients.updateMe({ emergency_contact_primary: { name: formState.emergency_name, phone: formState.emergency_phone, relation: formState.emergency_relation } });
+            }
             else if (editingType === 'gp') res = await apiService.patients.updatePrimaryDoctor(payload);
             else if (editingType === 'history') res = await apiService.patients.updateMedicalHistory({ ...payload, date: payload.date ? new Date(payload.date) : new Date() });
             else if (editingType === 'medication') res = await apiService.patients.updateMedications(payload);
@@ -427,6 +441,32 @@ export default function HealthProfileScreen({ navigation }) {
             </View>
 
             <ScrollView style={s.body} contentContainerStyle={s.bodyContent} showsVerticalScrollIndicator={false}>
+                {/* 0. IDENTITY & EMERGENCY (BENTO) */}
+                <Animated.View style={{ opacity: staggerAnims[0], transform: [{ translateY: staggerAnims[0].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>
+                    <View style={s.section}>
+                        <View style={s.sectionHeaderRow}>
+                            <Text style={s.sectionHeaderBase}>IDENTITY & SAFETY</Text>
+                        </View>
+                        <View style={s.bentoGrid}>
+                            <Pressable style={[s.bentoBox, { backgroundColor: '#FEF2F2' }]} onPress={() => openModal('identity')}>
+                                <View style={[s.bentoIcon, { backgroundColor: '#FEE2E2' }]}><Dna size={16} color="#DC2626" /></View>
+                                <Text style={[s.bentoVal, { color: '#B91C1C' }]}>{profile?.blood_type !== 'unknown' ? profile?.blood_type : '—'}</Text>
+                                <Text style={s.bentoLbl}>Blood Type</Text>
+                            </Pressable>
+                            <Pressable style={[s.bentoBox, { backgroundColor: '#F0FDF4' }]} onPress={() => openModal('identity')}>
+                                <View style={[s.bentoIcon, { backgroundColor: '#DCFCE7' }]}><Info size={16} color="#16A34A" /></View>
+                                <Text style={s.bentoVal} numberOfLines={1}>{profile?.lifestyle?.dietary_restrictions?.length ? profile?.lifestyle?.dietary_restrictions[0] : 'None'}</Text>
+                                <Text style={s.bentoLbl}>Diet / Restrictions</Text>
+                            </Pressable>
+                            <Pressable style={[s.bentoBox, { backgroundColor: '#FFF7ED' }]} onPress={() => openModal('emergency')}>
+                                <View style={[s.bentoIcon, { backgroundColor: '#FFEDD5' }]}><Siren size={16} color="#EA580C" /></View>
+                                <Text style={s.bentoVal} numberOfLines={1}>{profile?.emergency_contact_primary?.name || 'Not Set'}</Text>
+                                <Text style={s.bentoLbl}>Emergency</Text>
+                            </Pressable>
+                        </View>
+                    </View>
+                </Animated.View>
+
                 {/* 1. CONDITIONS */}
                 <Animated.View style={{ opacity: staggerAnims[1], transform: [{ translateY: staggerAnims[1].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>
                     <View style={s.section}>
@@ -709,8 +749,40 @@ export default function HealthProfileScreen({ navigation }) {
                             <ChipSelector options={mobilityOptions} selected={formState.mobility_level} onSelect={v => setFormState({...formState, mobility_level: v})} />
                         </View>
                         <View style={s.formGroup}>
+                            <Text style={s.formLabel}>Mobility Aids</Text>
+                            <TextInput style={s.input} placeholderTextColor={C.muted} value={formState.mobility_aids} onChangeText={(t) => setFormState({...formState, mobility_aids: t})} placeholder="e.g. Cane, Walker (comma separated)" />
+                        </View>
+                        <View style={s.formGroup}>
                             <Text style={s.formLabel}>Activity Intensity & Duration</Text>
                             <ChipSelector vertical options={exerciseOptions} selected={formState.exercise_frequency} onSelect={v => setFormState({...formState, exercise_frequency: v})} />
+                        </View>
+                    </>
+                )}
+                {editingType === 'identity' && (
+                    <>
+                        <View style={s.formGroup}>
+                            <Text style={s.formLabel}>Blood Type</Text>
+                            <TextInput style={s.input} placeholderTextColor={C.muted} value={formState.blood_type} onChangeText={(t) => setFormState({...formState, blood_type: t.toUpperCase()})} placeholder="e.g. A+, O-" />
+                        </View>
+                        <View style={s.formGroup}>
+                            <Text style={s.formLabel}>Dietary Restrictions</Text>
+                            <TextInput style={[s.input, s.inputMulti]} placeholderTextColor={C.muted} multiline value={formState.dietary_restrictions} onChangeText={(t) => setFormState({...formState, dietary_restrictions: t})} placeholder="e.g. Low Sodium, Diabetic, Gluten-Free" />
+                        </View>
+                    </>
+                )}
+                {editingType === 'emergency' && (
+                    <>
+                        <View style={s.formGroup}>
+                            <Text style={s.formLabel}>Contact Name</Text>
+                            <TextInput style={s.input} placeholderTextColor={C.muted} value={formState.emergency_name} onChangeText={(t) => setFormState({...formState, emergency_name: t})} placeholder="e.g. Jane Doe" />
+                        </View>
+                        <View style={s.formGroup}>
+                            <Text style={s.formLabel}>Relationship</Text>
+                            <TextInput style={s.input} placeholderTextColor={C.muted} value={formState.emergency_relation} onChangeText={(t) => setFormState({...formState, emergency_relation: t})} placeholder="e.g. Daughter, Spouse" />
+                        </View>
+                        <View style={s.formGroup}>
+                            <Text style={s.formLabel}>Phone Number</Text>
+                            <TextInput style={s.input} placeholderTextColor={C.muted} keyboardType="phone-pad" value={formState.emergency_phone} onChangeText={(t) => setFormState({...formState, emergency_phone: t})} placeholder="e.g. +1 234 567 8900" />
                         </View>
                     </>
                 )}

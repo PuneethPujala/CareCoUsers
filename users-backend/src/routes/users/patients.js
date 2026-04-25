@@ -364,7 +364,7 @@ router.get('/me', authenticateSession, async (req, res) => {
  */
 router.put('/me', authenticateSession, async (req, res) => {
     try {
-        const { name, city, date_of_birth, phone, gender, blood_type, language, push_notifications_enabled, medication_reminders_enabled, expo_push_token } = req.body;
+        const { name, city, date_of_birth, phone, gender, blood_type, language, push_notifications_enabled, medication_reminders_enabled, expo_push_token, emergency_contact_primary } = req.body;
         const updates = {};
         if (name !== undefined) updates.name = name;
         if (city !== undefined) updates.city = city;
@@ -373,6 +373,7 @@ router.put('/me', authenticateSession, async (req, res) => {
         if (gender !== undefined) updates.gender = gender;
         if (blood_type !== undefined) updates.blood_type = blood_type;
         if (language !== undefined) updates.language = language;
+        if (emergency_contact_primary !== undefined) updates.emergency_contact_primary = emergency_contact_primary;
         if (push_notifications_enabled !== undefined) updates.push_notifications_enabled = push_notifications_enabled;
         if (medication_reminders_enabled !== undefined) updates.medication_reminders_enabled = medication_reminders_enabled;
         if (expo_push_token !== undefined) updates.expo_push_token = expo_push_token;
@@ -521,15 +522,21 @@ router.put('/me/lifestyle', authenticateSession, async (req, res) => {
 
         const {
             height_cm, weight_kg, smoking_status,
-            alcohol_use, exercise_frequency, mobility_level
+            alcohol_use, exercise_frequency, mobility_level,
+            mobility_aids, dietary_restrictions, device_sync_status
         } = req.body;
 
-        if (height_cm !== undefined) patient.height_cm = height_cm;
-        if (weight_kg !== undefined) patient.weight_kg = weight_kg;
-        if (smoking_status !== undefined) patient.smoking_status = smoking_status;
-        if (alcohol_use !== undefined) patient.alcohol_use = alcohol_use;
-        if (exercise_frequency !== undefined) patient.exercise_frequency = exercise_frequency;
-        if (mobility_level !== undefined) patient.mobility_level = mobility_level;
+        if (!patient.lifestyle) patient.lifestyle = {};
+
+        if (height_cm !== undefined) patient.lifestyle.height_cm = height_cm;
+        if (weight_kg !== undefined) patient.lifestyle.weight_kg = weight_kg;
+        if (smoking_status !== undefined) patient.lifestyle.smoking_status = smoking_status;
+        if (alcohol_use !== undefined) patient.lifestyle.alcohol_use = alcohol_use;
+        if (exercise_frequency !== undefined) patient.lifestyle.exercise_frequency = exercise_frequency;
+        if (mobility_level !== undefined) patient.lifestyle.mobility_level = mobility_level;
+        if (mobility_aids !== undefined) patient.lifestyle.mobility_aids = mobility_aids;
+        if (dietary_restrictions !== undefined) patient.lifestyle.dietary_restrictions = dietary_restrictions;
+        if (device_sync_status !== undefined) patient.lifestyle.device_sync_status = device_sync_status;
 
         await patient.save();
         res.json({ message: 'Lifestyle updated', patient });

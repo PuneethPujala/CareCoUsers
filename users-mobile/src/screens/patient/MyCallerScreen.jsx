@@ -878,18 +878,18 @@ const s = StyleSheet.create({
   // ── Caller Card ──
   callerCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 32,
-    marginBottom: 24,
-    padding: 24,
+    borderRadius: 24,
+    marginBottom: 16,
+    padding: 20,
     shadowColor: '#4338CA',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.06, shadowRadius: 24, elevation: 6,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.05, shadowRadius: 16, elevation: 5,
   },
   callerCardPressed: { opacity: 0.96, transform: [{ scale: 0.98 }] },
 
   profileRow: {
     flexDirection: 'row', alignItems: 'center',
-    marginBottom: 28,
+    marginBottom: 16,
   },
   avatarWrap: { position: 'relative', marginRight: 18 },
   avatar: { width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center' },
@@ -924,19 +924,19 @@ const s = StyleSheet.create({
   },
   btnCall: {
     flex: 1.5, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    borderRadius: 20,
-    height: 52, backgroundColor: '#4338CA',
+    borderRadius: 16,
+    height: 48, backgroundColor: '#4338CA',
   },
   btnCallPressed: { opacity: 0.85, transform: [{ scale: 0.98 }] },
-  btnCallText: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
+  btnCallText: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
 
   btnFlag: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    borderRadius: 20, height: 52, backgroundColor: '#F8FAFC',
+    borderRadius: 16, height: 48, backgroundColor: '#F8FAFC',
     borderWidth: 1, borderColor: '#F1F5F9',
   },
   btnFlagPressed: { backgroundColor: '#F1F5F9' },
-  btnFlagText: { fontSize: 14, fontWeight: '600', color: '#475569' },
+  btnFlagText: { fontSize: 13, fontWeight: '600', color: '#475569' },
 
   // ── Empty / Upgrade state ──
   emptyWrap: { alignItems: 'center', paddingVertical: 60, paddingHorizontal: 20 },
