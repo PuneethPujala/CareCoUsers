@@ -577,8 +577,9 @@ router.delete('/me/:collection/:id', authenticateSession, validateObjectId('id')
         if (collection === 'medication') dbCollection = 'medications';
         if (collection === 'vaccination') dbCollection = 'vaccinations';
         if (collection === 'appointment') dbCollection = 'appointments';
+        if (collection === 'trusted-contacts') dbCollection = 'trusted_contacts';
 
-        const validCollections = ['conditions', 'allergies', 'medical_history', 'medications', 'vaccinations', 'appointments'];
+        const validCollections = ['conditions', 'allergies', 'medical_history', 'medications', 'vaccinations', 'appointments', 'trusted_contacts'];
 
         if (!validCollections.includes(dbCollection)) {
             return res.status(400).json({ error: `Invalid collection: ${collection}` });

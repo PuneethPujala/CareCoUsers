@@ -68,6 +68,8 @@ export default function MyCallerScreen({ navigation }) {
   const [editingContact, setEditingContact] = useState(null);
   const [contactForm, setContactForm] = useState({ name: '', phone: '', phoneCode: '+91', relation: '', email: '' });
   const [isSavingContact, setIsSavingContact] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState({ visible: false, id: null, name: '' });
+  const [isDeleting, setIsDeleting] = useState(false);
   const [countryCodeModal, setCountryCodeModal] = useState(false);
   const contactModalAnim = useRef(new Animated.Value(0)).current;
 
@@ -243,26 +245,23 @@ export default function MyCallerScreen({ navigation }) {
   };
 
   const confirmRemoveContact = (id) => {
-    const performToggle = async () => {
-      try {
-        const res = await apiService.patients.deleteTrustedContact(id);
-        setContacts(res.data.trusted_contacts);
-      } catch (err) {
-        console.warn('Remove contact error:', err.message);
-        Alert.alert('Error', 'Failed to remove contact.');
-      }
-    };
+    const contact = contacts.find(c => c._id === id);
+    setDeleteConfirm({ visible: true, id, name: contact?.name || 'this contact' });
+  };
 
-    if (Platform.OS === 'web') {
-      // Direct confirm for web to bypass any RN Alert polyfill issues
-      if (window.confirm('Are you sure you want to remove this trusted contact?')) {
-        performToggle();
-      }
-    } else {
-      Alert.alert('Remove Contact', 'Are you sure you want to remove this trusted contact?', [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Remove', style: 'destructive', onPress: performToggle }
-      ]);
+  const executeRemoveContact = async () => {
+    setIsDeleting(true);
+    try {
+      const res = await apiService.patients.deleteTrustedContact(deleteConfirm.id);
+      setContacts(res.data.trusted_contacts);
+      setDeleteConfirm({ visible: false, id: null, name: '' });
+      // Close the edit modal too if it was open
+      if (contactModal) closeContactModal();
+    } catch (err) {
+      console.warn('Remove contact error:', err.message);
+      Alert.alert('Error', 'Failed to remove contact.');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -779,20 +778,6 @@ export default function MyCallerScreen({ navigation }) {
             />
           </View>
         </View>
-        
-        <View style={s.formGroup}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#F8FAFC', padding: 16, borderRadius: 16, borderWidth: 1, borderColor: '#E2E8F0' }}>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 16, fontWeight: '700', color: C.dark }}>Can View Health Data</Text>
-              <Text style={{ fontSize: 13, color: C.muted }}>Allow access to vitals & logs</Text>
-            </View>
-            <Switch
-              value={contactForm.can_view_data}
-              onValueChange={(v) => setContactForm({ ...contactForm, can_view_data: v })}
-              trackColor={{ false: '#CBD5E1', true: C.primary }}
-            />
-          </View>
-        </View>
       </PremiumFormModal>
 
       {/* Flag Issue Modal */}
@@ -852,6 +837,41 @@ export default function MyCallerScreen({ navigation }) {
               />
             </Pressable>
           </View>
+        </Pressable>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal visible={deleteConfirm.visible} transparent animationType="fade" onRequestClose={() => setDeleteConfirm({ visible: false, id: null, name: '' })}>
+        <Pressable style={{ flex: 1, backgroundColor: 'rgba(15,23,42,0.5)', justifyContent: 'center', alignItems: 'center' }} onPress={() => !isDeleting && setDeleteConfirm({ visible: false, id: null, name: '' })}>
+          <Pressable onPress={e => e.stopPropagation()} style={{ backgroundColor: '#FFF', borderRadius: 24, padding: 28, width: 320, shadowColor: '#000', shadowOffset: { width: 0, height: 16 }, shadowOpacity: 0.15, shadowRadius: 32, elevation: 12 }}>
+            <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: C.dangerBg, alignItems: 'center', justifyContent: 'center', alignSelf: 'center', marginBottom: 16 }}>
+              <Trash2 size={24} color={C.danger} />
+            </View>
+            <Text style={{ fontSize: 20, fontWeight: '800', color: C.dark, textAlign: 'center', marginBottom: 8 }}>Remove Contact</Text>
+            <Text style={{ fontSize: 15, color: '#64748B', textAlign: 'center', lineHeight: 22, marginBottom: 24 }}>
+              Are you sure you want to remove <Text style={{ fontWeight: '700', color: C.dark }}>{deleteConfirm.name}</Text> from your trusted contacts?
+            </Text>
+            <View style={{ flexDirection: 'row', gap: 12 }}>
+              <Pressable
+                onPress={() => setDeleteConfirm({ visible: false, id: null, name: '' })}
+                disabled={isDeleting}
+                style={{ flex: 1, paddingVertical: 14, borderRadius: 14, alignItems: 'center', backgroundColor: '#F1F5F9' }}
+              >
+                <Text style={{ fontSize: 15, fontWeight: '700', color: '#64748B' }}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                onPress={executeRemoveContact}
+                disabled={isDeleting}
+                style={{ flex: 1, paddingVertical: 14, borderRadius: 14, alignItems: 'center', backgroundColor: C.danger, opacity: isDeleting ? 0.7 : 1 }}
+              >
+                {isDeleting ? (
+                  <ActivityIndicator size="small" color="#FFF" />
+                ) : (
+                  <Text style={{ fontSize: 15, fontWeight: '700', color: '#FFF' }}>Remove</Text>
+                )}
+              </Pressable>
+            </View>
+          </Pressable>
         </Pressable>
       </Modal>
     </LinearGradient>
