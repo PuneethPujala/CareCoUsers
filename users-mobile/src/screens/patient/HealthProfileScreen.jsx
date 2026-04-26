@@ -854,20 +854,6 @@ export default function HealthProfileScreen({ navigation }) {
                                 />
                             </View>
                         </View>
-                        <View style={s.formGroup}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#F8FAFC', padding: 16, borderRadius: 16, borderWidth: 1, borderColor: '#E2E8F0' }}>
-                                <View style={{ flex: 1 }}>
-                                    <Text style={{ fontSize: 16, ...FONT.bold, color: C.dark }}>Can View Health Data</Text>
-                                    <Text style={{ fontSize: 13, color: C.muted }}>Allow this person to view your vitals and logs</Text>
-                                </View>
-                                <Switch
-                                    value={formState.can_view_data}
-                                    onValueChange={(v) => setFormState({ ...formState, can_view_data: v })}
-                                    trackColor={{ false: '#CBD5E1', true: C.primary }}
-                                    thumbColor={Platform.OS === 'ios' ? '#FFF' : (formState.can_view_data ? '#FFF' : '#F4F4F4')}
-                                />
-                            </View>
-                        </View>
                     </>
                 )}
                 {editingType === 'gp' && (
@@ -1147,7 +1133,7 @@ const s = StyleSheet.create({
     emptyRowTxt: { fontSize: 15, color: '#64748B', fontStyle: 'italic', padding: 24, textAlign: 'center' },
     bentoGrid: { flexDirection: 'row', gap: 12 },
     bentoPressable: { flex: 1 },
-    bentoBoxGradient: { borderRadius: 24, padding: 16, alignItems: 'center', height: '100%', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 4 },
+    bentoBoxGradient: { borderRadius: 20, padding: 16, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 4 },
     bentoIconGlass: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginBottom: 12, backgroundColor: 'rgba(255,255,255,0.2)' },
     bentoValWhite: { fontSize: 18, ...FONT.heavy, color: '#FFF', marginBottom: 4 },
     bentoLblWhite: { fontSize: 11, ...FONT.bold, color: 'rgba(255,255,255,0.8)', textTransform: 'uppercase', letterSpacing: 0.5 },

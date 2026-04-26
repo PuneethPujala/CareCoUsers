@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from "@react-navigation/native";
 import * as Notifications from 'expo-notifications';
 import * as ScreenCapture from 'expo-screen-capture';
@@ -60,13 +61,15 @@ const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
 export const TAB_BAR_HEIGHT = 64;
-export const TAB_BAR_BOTTOM = 24;
+export const TAB_BAR_BOTTOM = 12; // Base padding, insets added dynamically
 export const TAB_BAR_CLEARANCE = TAB_BAR_HEIGHT + TAB_BAR_BOTTOM + 16;
 
 // ── Fully custom tab bar — bypasses RN Navigation's internal layout ──
 function CustomTabBar({ state, descriptors, navigation }) {
+    const insets = useSafeAreaInsets();
+    const dynamicBottom = Math.max(insets.bottom, TAB_BAR_BOTTOM);
     return (
-        <View style={styles.tabBarContainer}>
+        <View style={[styles.tabBarContainer, { bottom: dynamicBottom }]}>
             {state.routes.map((route, index) => {
                 const { options } = descriptors[route.key];
                 const focused = state.index === index;
