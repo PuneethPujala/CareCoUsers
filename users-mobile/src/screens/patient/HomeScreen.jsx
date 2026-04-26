@@ -18,8 +18,8 @@ import { Watch, Zap } from 'lucide-react-native';
 import { syncAllSchedules } from '../../utils/notifications';
 import usePatientStore from '../../store/usePatientStore';
 
-const ACCENT_MAP = { morning: colors.success, afternoon: colors.warning, night: '#8B5CF6' };
-const TIME_LABELS = { morning: 'Morning', afternoon: 'Afternoon', night: 'Night' };
+const ACCENT_MAP = { morning: colors.success, afternoon: colors.warning, evening: '#7C3AED', night: '#8B5CF6', as_needed: '#6366F1' };
+const TIME_LABELS = { morning: 'Morning', afternoon: 'Afternoon', evening: 'Evening', night: 'Night', as_needed: 'As Needed' };
 
 // ── Skeleton Loader ──────────────────────────────────────────
 const SkeletonItem = ({ width, height, borderRadius = 8, style }) => {

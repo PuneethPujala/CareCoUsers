@@ -142,9 +142,11 @@ const StepIndicator = React.memo(({ current }) => (
                                 <Text style={[styles.stepDotLabel, active && { color: '#6366F1' }]}>{s}</Text>
                             )}
                         </View>
-                        <Text style={[styles.stepNameLabel, active && { color: '#FFFFFF', ...FONT.bold }]}>
-                            {STEP_LABELS[idx].split(' ')[0]}
-                        </Text>
+                        <View style={styles.stepLabelContainer}>
+                            <Text style={[styles.stepNameLabel, active && { color: '#FFFFFF', ...FONT.bold }]}>
+                                {STEP_LABELS[idx].split(' ')[0]}
+                            </Text>
+                        </View>
                     </View>
                     {idx < 4 && (
                         <View style={[styles.stepConnector, done && styles.stepConnectorDone]} />
@@ -1083,9 +1085,9 @@ export default function PatientSignupScreen({ navigation, route }) {
                 </View>
                 <Text style={styles.heroLabel}>SAMVAYA</Text>
                 <Text style={styles.heroTitle}>
-                    {step === 5 ? 'All Systems Go' : `Step ${step}: ${STEP_LABELS[step - 1]}`}
+                    {`Step ${step}: ${STEP_LABELS[step - 1]}`}
                 </Text>
-                {step < 5 && <StepIndicator current={step} />}
+                <StepIndicator current={step} />
             </View>
         </Animated.View>
     );
@@ -1119,7 +1121,7 @@ export default function PatientSignupScreen({ navigation, route }) {
                 error={errors.fullName} />
 
                 <IconInput ref={emailRef} icon={Mail}
-                    label="Email Address"
+                    label={emailLabel}
                     placeholder="Enter your email"
                     value={form.email} onChangeText={v => updateField('email', v)}
                     autoCapitalize="none" keyboardType="email-address"
@@ -1656,19 +1658,20 @@ const styles = StyleSheet.create({
         marginTop: 20, paddingHorizontal: 8,
         alignSelf: 'stretch',
     },
-    stepDotWrap: { alignItems: 'center', gap: 5, width: 48 },
+    stepDotWrap: { alignItems: 'center', width: 54 },
+    stepLabelContainer: { height: 16, justifyContent: 'center', marginTop: 4 },
     stepDot: {
-        width: 30, height: 30, borderRadius: 15,
-        backgroundColor: 'rgba(255,255,255,0.25)',
-        borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.4)',
+        width: 28, height: 28, borderRadius: 14,
+        backgroundColor: 'rgba(255,255,255,0.2)',
+        borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.35)',
         alignItems: 'center', justifyContent: 'center',
     },
-    stepDotDone: { backgroundColor: 'rgba(255,255,255,0.9)', borderColor: '#FFFFFF' },
-    stepDotActive: { backgroundColor: '#FFFFFF', borderColor: '#FFFFFF', shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 6, elevation: 4 },
-    stepDotLabel: { fontSize: 13, fontFamily: 'Inter_700Bold', color: 'rgba(255,255,255,0.7)' },
-    stepNameLabel: { fontSize: 10, fontFamily: 'Inter_500Medium', color: 'rgba(255,255,255,0.55)', letterSpacing: 0.2, textAlign: 'center' },
-    stepConnector: { flex: 1, height: 2, backgroundColor: 'rgba(255,255,255,0.25)', marginHorizontal: -4, marginTop: 14, minWidth: 10, zIndex: -1 },
-    stepConnectorDone: { backgroundColor: 'rgba(255,255,255,0.85)' },
+    stepDotDone: { backgroundColor: 'rgba(255,255,255,0.95)', borderColor: '#FFFFFF' },
+    stepDotActive: { backgroundColor: '#FFFFFF', borderColor: '#FFFFFF', shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 8, elevation: 5 },
+    stepDotLabel: { fontSize: 12, fontFamily: 'Inter_700Bold', color: 'rgba(255,255,255,0.8)' },
+    stepNameLabel: { fontSize: 9, fontFamily: 'Inter_500Medium', color: 'rgba(255,255,255,0.6)', letterSpacing: 0.1, textAlign: 'center' },
+    stepConnector: { flex: 1, height: 2, backgroundColor: 'rgba(255,255,255,0.2)', marginHorizontal: -8, marginTop: 14, minWidth: 4, zIndex: -1 },
+    stepConnectorDone: { backgroundColor: '#FFFFFF' },
 
     formCard: {
         marginTop: -30,
