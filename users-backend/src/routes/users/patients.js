@@ -589,7 +589,7 @@ router.delete('/me/:collection/:id', authenticateSession, validateObjectId('id')
         if (item) {
             patient[dbCollection].pull(id);
             await patient.save();
-            res.json({ message: 'Item deleted' });
+            res.json({ message: 'Item deleted', [dbCollection]: patient[dbCollection] });
         } else {
             res.status(404).json({ error: 'Item not found' });
         }
