@@ -261,6 +261,7 @@ export const apiService = {
     medicines: {
         getToday: () => api.get('/users/medicines/today'),
         markMedicine: (data) => api.put('/users/medicines/mark', data),
+        markSlotTaken: (data) => api.put('/users/medicines/mark-slot', data),
         getWeeklyAdherence: () => api.get('/users/medicines/adherence/weekly'),
         getMonthlyAdherence: () => api.get('/users/medicines/adherence/monthly'),
         getAdherenceDetails: () => api.get('/users/medicines/adherence/details'),
