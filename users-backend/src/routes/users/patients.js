@@ -647,12 +647,22 @@ router.put('/me/emergency-contact', authenticateSession, async (req, res) => {
     try {
         const { name, phone, relation } = req.body;
         
+        const patient = await Patient.findOne({ supabase_uid: req.user.id });
+        if (!patient) return res.status(404).json({ error: 'Patient profile not found' });
+
+        // If payload is empty, treat as a request to remove the emergency contact
+        if (!name && !phone) {
+            const emergencyContact = patient.trusted_contacts.find(c => c.is_emergency);
+            if (emergencyContact) {
+                patient.trusted_contacts.pull(emergencyContact._id);
+            }
+            await patient.save();
+            return res.json({ patient, message: 'Emergency contact removed successfully' });
+        }
+
         // Simple validation
         if (!name || name.trim().length < 2) return res.status(400).json({ error: 'Valid name is required' });
         if (!phone || !/^\d{10,15}$/.test(phone.replace(/\D/g, ''))) return res.status(400).json({ error: 'Valid phone number is required' });
-
-        const patient = await Patient.findOne({ supabase_uid: req.user.id });
-        if (!patient) return res.status(404).json({ error: 'Patient profile not found' });
 
         // Find existing emergency contact
         let emergencyContact = patient.trusted_contacts.find(c => c.is_emergency);

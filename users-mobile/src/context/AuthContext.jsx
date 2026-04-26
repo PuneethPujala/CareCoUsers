@@ -482,8 +482,8 @@ export function AuthProvider({ children }) {
 
     const sendOtp = useCallback(async (field, value) => {
         try {
-            await apiService.auth.sendOtp(value, field); // field = 'email' or 'phone'
-            return true;
+            const res = await apiService.auth.sendOtp(value, field); // field = 'email' or 'phone'
+            return res.data || true;
         } catch (error) {
             throw error;
         }
