@@ -1150,20 +1150,24 @@ router.delete('/patients/:id/medications/:medId', async (req, res) => {
             return res.status(403).json({ error: 'Patient not assigned to you' });
         }
 
-        // 1. Try deleting from Medication collection
-        const med = await Medication.findOneAndDelete({ _id: medId, patientId });
+        // 1. Try marking inactive in Medication collection (Soft Delete)
+        const med = await Medication.findOneAndUpdate(
+            { _id: medId, patientId },
+            { $set: { status: 'inactive', isActive: false, is_active: false } },
+            { new: true }
+        );
 
         let found = !!med;
 
-        // 2. Try deleting from embedded arrays
+        // 2. Try marking inactive in embedded arrays (NOT pulling to preserve history)
         const patient1 = await Patient.findOneAndUpdate(
-            { $or: [{ _id: patientId }, { profile_id: patientId }] },
-            { $pull: { medications: { _id: medId } } },
+            { $or: [{ _id: patientId }, { profile_id: patientId }], 'medications._id': medId },
+            { $set: { 'medications.$.isActive': false, 'medications.$.is_active': false } },
             { new: true }
         );
         const patient2 = await Patient.findOneAndUpdate(
-            { $or: [{ _id: patientId }, { profile_id: patientId }] },
-            { $pull: { 'metadata.medications': { _id: medId } } },
+            { $or: [{ _id: patientId }, { profile_id: patientId }], 'metadata.medications._id': medId },
+            { $set: { 'metadata.medications.$.isActive': false, 'metadata.medications.$.is_active': false } },
             { new: true }
         );
 
@@ -1172,10 +1176,19 @@ router.delete('/patients/:id/medications/:medId', async (req, res) => {
         }
 
         // 3. Sync today's MedicineLog — mark removed med as inactive
-        if (med) {
+        let medName = med ? med.name : null;
+        if (!medName) {
+            let mFound = patient1?.medications?.find(m => m._id.toString() === medId);
+            if (!mFound) {
+                mFound = patient2?.metadata?.medications?.find(m => m._id.toString() === medId);
+            }
+            if (mFound) medName = mFound.name || mFound.genericName;
+        }
+
+        if (medName) {
             const pDoc = patient1 || patient2 || await Patient.findOne({ $or: [{ _id: patientId }, { profile_id: patientId }] });
             if (pDoc) {
-                await syncTodayMedicineLog(pDoc._id, med.name, [], 'remove');
+                await syncTodayMedicineLog(pDoc._id, medName, [], 'remove');
             }
         }
 
