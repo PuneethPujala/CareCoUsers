@@ -1,99 +1,120 @@
 const Patient = require('../models/Patient');
-const moment = require('moment-timezone'); // Using moment-timezone for safe local-day boundaries
+const MedicineLog = require('../models/MedicineLog');
+const moment = require('moment-timezone');
 
 /**
  * Validates and updates a patient's Care Streak safely.
- * @param {string} patientId - The MongoDB ObjectId of the patient
- * @returns {Promise<Object>} Updated gamification object
+ *
+ * BUG 10 FIX: MedicineLog dates are stored as UTC midnight
+ * (new Date(`YYYY-MM-DDT00:00:00.000Z`)). The original query used
+ * now.clone().startOf('day').toDate() which produces LOCAL midnight
+ * in the patient's timezone — these are different moments. For IST
+ * patients, local midnight is 5:30am UTC, not UTC midnight, so the
+ * query would never match a stored log. Fixed to derive the patient's
+ * local date string first, then construct the UTC midnight Date.
+ *
+ * BUG 11 FIX: When daysMissed === 0 (same-day double call, edge case),
+ * the condition `available_freezes >= daysMissed` was `N >= 0` = always
+ * true, which would attempt to deduct 0 freezes and still increment.
+ * This is actually harmless because subtracting 0 changes nothing, but
+ * the guard now explicitly short-circuits the Condition C branch when
+ * daysDiff === 1 (yesterday = consecutive), which is the correct path
+ * for that case and prevents Condition C from running at all.
  */
 exports.evaluateAndUpdateStreak = async (patientId) => {
     try {
         const patient = await Patient.findById(patientId);
         if (!patient) return null;
 
-        // Initialize gamification object if it doesn't exist
-        if (!patient.gamification) {
-            patient.gamification = { current_streak: 0, longest_streak: 0, available_freezes: 2 };
-        }
-
         const timezone = patient.timezone || 'Asia/Kolkata';
         const now = moment().tz(timezone);
-        const today = now.startOf('day');
 
-        let lastUpdateDate = null;
-        if (patient.gamification.last_streak_update) {
-            lastUpdateDate = moment(patient.gamification.last_streak_update).tz(timezone).startOf('day');
+        // BUG 10 FIX: derive local date string first, then build UTC midnight
+        // to match how /today stores logs: new Date(`YYYY-MM-DDT00:00:00.000Z`)
+        const todayStr = now.format('YYYY-MM-DD');
+        const yesterdayStr = now.clone().subtract(1, 'day').format('YYYY-MM-DD');
+        const todayUtcMidnight = new Date(`${todayStr}T00:00:00.000Z`);
+
+        const todayLog = await MedicineLog.findOne({
+            patient_id: patientId,
+            date: todayUtcMidnight, // was: now.clone().startOf('day').toDate() — wrong
+        });
+
+        if (!todayLog) return patient.gamification;
+
+        const activeMeds = todayLog.medicines.filter(m => m.is_active !== false);
+        if (activeMeds.length === 0) return patient.gamification;
+
+        const allTaken = activeMeds.every(m => m.taken === true);
+        if (!allTaken) return patient.gamification;
+
+        if (!patient.gamification) {
+            patient.gamification = {
+                current_streak: 0,
+                longest_streak: 0,
+                available_freezes: 2,
+                history_dates: [],
+                last_streak_update: null,
+            };
         }
+
+        const g = patient.gamification;
+        const lastUpdateStr = g.last_streak_update
+            ? moment(g.last_streak_update).tz(timezone).format('YYYY-MM-DD')
+            : null;
+
+        // Already updated today — idempotent guard
+        if (lastUpdateStr === todayStr) return g;
 
         let streakChanged = false;
 
-        // Condition A: First time action ever
-        if (!lastUpdateDate) {
-            patient.gamification.current_streak = 1;
-            patient.gamification.longest_streak = 1;
-            patient.gamification.last_streak_update = new Date();
+        if (!lastUpdateStr || lastUpdateStr === yesterdayStr) {
+            // Condition B: First ever update, or yesterday was the last perfect day
+            g.current_streak += 1;
+            g.last_streak_update = now.toDate();
             streakChanged = true;
-        } 
-        else {
-            const daysDiff = today.diff(lastUpdateDate, 'days');
+        } else {
+            // Condition C: There's a gap — calculate how many days were missed
+            const lastUpdateMoment = moment.tz(lastUpdateStr, 'YYYY-MM-DD', timezone).startOf('day');
+            const todayMoment = now.clone().startOf('day');
+            const daysDiff = todayMoment.diff(lastUpdateMoment, 'days');
 
-            // Condition B: Action already happened today (No impact)
-            if (daysDiff === 0) {
-                return patient.gamification; 
-            }
-            
-            // Condition C: Action happened yesterday -> Clean Increment
-            else if (daysDiff === 1) {
-                patient.gamification.current_streak += 1;
-                patient.gamification.last_streak_update = new Date();
-                
-                if (patient.gamification.current_streak > patient.gamification.longest_streak) {
-                    patient.gamification.longest_streak = patient.gamification.current_streak;
-                }
+            // BUG 11 FIX: daysDiff === 1 means consecutive (yesterday) — should
+            // have been caught by Condition B but guard here for safety.
+            // daysDiff === 0 means same day — already guarded above by lastUpdateStr === todayStr.
+            const daysMissed = Math.max(0, daysDiff - 1);
+
+            if (daysMissed === 0) {
+                // Consecutive — shouldn't reach here but handle gracefully
+                g.current_streak += 1;
+                g.last_streak_update = now.toDate();
                 streakChanged = true;
-            }
-            
-            // Condition D: Action happened >= 2 days ago (Streak Missed)
-            else if (daysDiff >= 2) {
-                // Determine how many days were missed
-                const daysMissed = daysDiff - 1;
-                
-                // Can we save the streak with freezes?
-                if (patient.gamification.available_freezes >= daysMissed) {
-                    // Consume freezes and increment streak!
-                    patient.gamification.available_freezes -= daysMissed;
-                    patient.gamification.current_streak += 1; // It incremented for today
-                    patient.gamification.last_streak_update = new Date();
-                    
-                    if (patient.gamification.current_streak > patient.gamification.longest_streak) {
-                        patient.gamification.longest_streak = patient.gamification.current_streak;
-                    }
-                } else {
-                    // Streak Broken
-                    patient.gamification.current_streak = 1; // Start over at 1 today
-                    patient.gamification.last_streak_update = new Date();
-                }
+            } else if (g.available_freezes >= daysMissed) {
+                g.available_freezes -= daysMissed;
+                g.current_streak += 1;
+                g.last_streak_update = now.toDate();
+                streakChanged = true;
+            } else {
+                // Streak broken — start fresh at 1 (this day IS perfect)
+                g.current_streak = 1;
+                g.last_streak_update = now.toDate();
                 streakChanged = true;
             }
         }
 
-        // Only fire the save transaction if the mathematical state actually changed
         if (streakChanged) {
-            const todayStr = today.format('YYYY-MM-DD');
-            if (!patient.gamification.history_dates) {
-                patient.gamification.history_dates = [];
+            if (g.current_streak > g.longest_streak) {
+                g.longest_streak = g.current_streak;
             }
-            if (!patient.gamification.history_dates.includes(todayStr)) {
-                patient.gamification.history_dates.push(todayStr);
+            if (!g.history_dates.includes(todayStr)) {
+                g.history_dates.push(todayStr);
             }
-            
             await patient.save();
         }
 
-        return patient.gamification;
-
+        return g;
     } catch (error) {
-        console.error('Streak Service Error:', error);
-        return null; // Fail silently so we don't break core app interactions
+        console.error('[StreakService] Error:', error);
+        return null;
     }
 };

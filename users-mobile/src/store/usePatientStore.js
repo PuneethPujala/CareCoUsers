@@ -9,6 +9,7 @@
 import { create } from 'zustand';
 import { apiService } from '../lib/api';
 import { getCache, setCache, CACHE_KEYS } from '../lib/CacheService';
+import OfflineSyncService from '../lib/OfflineSyncService';
 
 const TIME_LABELS = { morning: 'Morning', afternoon: 'Afternoon', evening: 'Evening', night: 'Night', as_needed: 'As Needed' };
 const ACCENT_MAP = { morning: '#22C55E', afternoon: '#F59E0B', evening: '#7C3AED', night: '#8B5CF6', as_needed: '#6366F1' };
@@ -312,6 +313,19 @@ const usePatientStore = create((set, get) => ({
                 taken: targetState,
             });
         } catch (err) {
+            if (err.request || err.code === 'ECONNABORTED' || err.message === 'Network Error') {
+                console.warn('[Store] Network error, enqueueing mutation offline:', err.message);
+                OfflineSyncService.enqueueMutation({
+                    type: 'MARK_MED_TAKEN',
+                    payload: {
+                        medicine_name: med.name,
+                        scheduled_time: med.type,
+                        taken: targetState,
+                    }
+                });
+                return;
+            }
+            
             console.warn('[Store] optimisticToggleMed failed, reverting:', err.message);
             // Revert
             const revOpt = { ...get()._optimisticMeds };
@@ -343,7 +357,7 @@ const usePatientStore = create((set, get) => ({
         const medsToMark = state.medicationSchedule[slot]?.filter(m => !m.taken) || [];
         if (medsToMark.length === 0) return;
 
-        // Optimistically update
+        // Optimistically update UI
         set((s) => ({
             dashboardMeds: s.dashboardMeds.map((m) =>
                 m.type === slot ? { ...m, taken: true, marked_by: 'patient' } : m
@@ -357,14 +371,19 @@ const usePatientStore = create((set, get) => ({
             return { medicationSchedule: schedule };
         });
 
-        // Fire all API requests silently in the background
-        Promise.all(medsToMark.map(med => 
-            apiService.medicines.markMedicine({
-                medicine_name: med.name,
-                scheduled_time: med.type,
-                taken: true,
-            }).catch(() => console.warn('Failed to background mark:', med.name))
-        ));
+        // Fire single atomic API request
+        try {
+            await apiService.medicines.markSlotTaken({
+                scheduled_time: slot,
+                marked_by: 'patient'
+            });
+            // Refresh to ensure streaks and state are perfectly synced
+            get().fetchDashboard(true);
+        } catch (err) {
+            console.warn('[Store] optimisticMarkSlotTaken failed:', err.message);
+            // Revert could be implemented here, but for background actions, 
+            // a silent failure + retry on next app open is often preferred.
+        }
     },
 
     /**

@@ -206,51 +206,10 @@ export async function syncAllSchedules(medicines = [], prefs = {}, subscriptionD
             console.log('✅ Daily repeating Vitals reminder synced');
         }
 
-        // --- 3. Medication Reminders (Daily) ---
-        const defaultTimes = { morning: '09:00', afternoon: '14:00', night: '20:00' };
-        const slotsMap = {};
-
-        // Parse what medications they actually have from the real backend result
-        for (const med of medicines) {
-            // We ignore med.taken because the alarm repeats every day natively! 
-            // Only skip if explicitly deactivated
-            if (med.status !== 'active' && med.is_active !== true && !med.medicine_name) continue;
-
-            const timeKey = med.scheduled_time || 'morning';
-            const timePref = prefs[timeKey] || defaultTimes[timeKey] || '09:00';
-            
-            if (!slotsMap[timePref]) {
-                slotsMap[timePref] = { names: [], slotKey: timeKey };
-            }
-            const name = med.medicine_name || med.name;
-            if (name) slotsMap[timePref].names.push(name);
-        }
-
-        for (const [timePref, data] of Object.entries(slotsMap)) {
-            const [h, m] = timePref.split(':').map(Number);
-            const { names, slotKey } = data;
-            if (!names.length) continue;
-
-            let joinedNames = names.length === 1 ? names[0] : 
-                (names.length === 2 ? `${names[0]} and ${names[1]}` : 
-                `${names[0]}, ${names[1]} and ${names.length - 2} others`);
-
-            const body = personalize(getRandomTemplate('medications', 'reminders'), { medicineName: joinedNames });
-            const capitalizedSlot = slotKey.charAt(0).toUpperCase() + slotKey.slice(1);
-            
-            await Notifications.scheduleNotificationAsync({
-                content: {
-                    title: `💊 ${capitalizedSlot} Medication`,
-                    body: body || `Time to take your medication: ${joinedNames}`,
-                    data: { screen: 'Medications', type: 'medication_reminder' },
-                    sound: 'default',
-                    categoryIdentifier: 'medication_reminder',
-                },
-                // Native repeating exact alarm
-                trigger: { hour: h, minute: m, repeats: true, channelId: 'meds' },
-            });
-            console.log(`✅ Daily repeating medication reminder synced for ${timePref} (${names.length} meds)`);
-        }
+        // --- 3. Medication Reminders (DEPRECATED LOCAL SYNC) ---
+        // Medication reminders are now handled by the backend FCM scheduler
+        // to ensure sync across devices and reliable delivery even if app is killed.
+        console.log('ℹ️ Local medication scheduling skipped (Backend-driven mode active)');
 
         // --- 4. Subscription Alert (One-off) ---
         if (subscriptionDaysLeft !== null && subscriptionDaysLeft >= 0 && subscriptionDaysLeft <= 7) {
