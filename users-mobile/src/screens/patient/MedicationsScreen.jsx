@@ -360,8 +360,8 @@ const AnimatedMedCard = ({ med, onToggle, onSnooze }) => {
                                 )}
                             </View>
                             <View style={styles.medContentMinimal}>
-                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                                    <Text style={[styles.medTitleMinimal, med.taken && { color: '#16A34A' }]}>{med.name}</Text>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                                    <Text style={[styles.medTitleMinimal, med.taken && { color: '#16A34A' }, { flexShrink: 1 }]}>{med.name}</Text>
                                     {med.taken && (
                                         <View style={styles.takenBadge}>
                                             <CheckCircle2 size={10} color="#16A34A" />
