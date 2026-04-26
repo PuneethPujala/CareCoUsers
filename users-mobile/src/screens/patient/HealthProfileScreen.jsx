@@ -9,6 +9,20 @@ import { initializeHealthPlatform, requestHealthPermissions, fetchDailyVitalsSum
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { COUNTRY_CODES, parsePhoneWithCode, validatePhone } from '../../utils/phoneUtils';
 
+// ── Skeleton Loader ──────────────────────────────────────────
+const SkeletonItem = ({ width, height, borderRadius = 8, style }) => {
+    const anim = useRef(new Animated.Value(0.3)).current;
+    useEffect(() => {
+        Animated.loop(
+            Animated.sequence([
+                Animated.timing(anim, { toValue: 1, duration: 800, useNativeDriver: true }),
+                Animated.timing(anim, { toValue: 0.3, duration: 800, useNativeDriver: true })
+            ])
+        ).start();
+    }, [anim]);
+    return <Animated.View style={[{ width, height, borderRadius, backgroundColor: '#E2E8F0', opacity: anim }, style]} />;
+};
+
 const C = {
   primary: '#6366F1', primaryDark: '#4338CA', primarySoft: '#EEF2FF',
   cardBg: '#FFFFFF', pageBg: '#F8FAFC',
@@ -377,7 +391,28 @@ export default function HealthProfileScreen({ navigation }) {
         }
     };
 
-    if (loading) return <View style={[s.container, { justifyContent: 'center', alignItems: 'center' }]}><ActivityIndicator size="large" color={C.primary} /></View>;
+    if (loading) {
+        return (
+            <View style={[s.container, { padding: 20, paddingTop: Platform.OS === 'android' ? 60 : 40 }]}>
+                {/* Header Skeleton */}
+                <SkeletonItem width={150} height={28} borderRadius={12} style={{ marginBottom: 24 }} />
+                
+                {/* Metrics Cards Skeleton */}
+                <View style={{ flexDirection: 'row', gap: 12, marginBottom: 24 }}>
+                    <SkeletonItem width="48%" height={100} borderRadius={20} />
+                    <SkeletonItem width="48%" height={100} borderRadius={20} />
+                </View>
+
+                {/* Vitals Graph/Section Skeleton */}
+                <SkeletonItem width="100%" height={160} borderRadius={24} style={{ marginBottom: 24 }} />
+
+                {/* Health Data List Skeleton */}
+                <SkeletonItem width={180} height={20} borderRadius={10} style={{ marginBottom: 16 }} />
+                <SkeletonItem width="100%" height={80} borderRadius={20} style={{ marginBottom: 12 }} />
+                <SkeletonItem width="100%" height={80} borderRadius={20} style={{ marginBottom: 12 }} />
+            </View>
+        );
+    }
     if (profile?.freePlan) return (
             <View style={[s.container, { justifyContent: 'center', alignItems: 'center', padding: 32 }]}>
                 <View style={s.upgradeIconWrap}><ShieldCheck size={32} color={C.primary} /></View>

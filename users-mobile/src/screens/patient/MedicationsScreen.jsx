@@ -21,6 +21,20 @@ const { width } = Dimensions.get('window');
 const ACCENT_MAP = { morning: '#0D9488', afternoon: '#0F766E', night: '#134E4A' };
 const TIME_LABELS = { morning: 'Morning', afternoon: 'Afternoon', night: 'Night' };
 
+// ── Skeleton Loader ──────────────────────────────────────────
+const SkeletonItem = ({ width, height, borderRadius = 8, style }) => {
+    const anim = useRef(new Animated.Value(0.3)).current;
+    useEffect(() => {
+        Animated.loop(
+            Animated.sequence([
+                Animated.timing(anim, { toValue: 1, duration: 800, useNativeDriver: true }),
+                Animated.timing(anim, { toValue: 0.3, duration: 800, useNativeDriver: true })
+            ])
+        ).start();
+    }, [anim]);
+    return <Animated.View style={[{ width, height, borderRadius, backgroundColor: '#E2E8F0', opacity: anim }, style]} />;
+};
+
 const FONT = {
     regular: { fontFamily: 'Inter_400Regular' },
     medium: { fontFamily: 'Inter_500Medium' },
@@ -533,8 +547,28 @@ export default function MedicationsScreen({ navigation }) {
 
     if (loading) {
         return (
-            <LinearGradient colors={['#F8FAFC', '#EEF2FF']} style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-                <ActivityIndicator size="large" color={'#6366F1'} />
+            <LinearGradient colors={['#F8FAFC', '#EEF2FF']} style={styles.container}>
+                <View style={{ padding: 24, paddingTop: Platform.OS === 'android' ? 60 : 40 }}>
+                    {/* Header Skeleton */}
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+                        <View>
+                            <SkeletonItem width={120} height={20} borderRadius={10} style={{ marginBottom: 12 }} />
+                            <SkeletonItem width={200} height={28} borderRadius={12} />
+                        </View>
+                        <SkeletonItem width={44} height={44} borderRadius={22} />
+                    </View>
+                    
+                    {/* Chart/Progress Skeleton */}
+                    <SkeletonItem width="100%" height={160} borderRadius={24} style={{ marginBottom: 24 }} />
+                    
+                    {/* Time block header skeleton */}
+                    <SkeletonItem width={150} height={24} borderRadius={12} style={{ marginBottom: 16 }} />
+                    
+                    {/* Medication cards skeletons */}
+                    <SkeletonItem width="100%" height={100} borderRadius={20} style={{ marginBottom: 12 }} />
+                    <SkeletonItem width="100%" height={100} borderRadius={20} style={{ marginBottom: 12 }} />
+                    <SkeletonItem width="100%" height={100} borderRadius={20} style={{ marginBottom: 12 }} />
+                </View>
             </LinearGradient>
         );
     }

@@ -269,7 +269,7 @@ const otpBoxSt = StyleSheet.create({
     },
 });
 
-const OTPModal = React.memo(({ visible, onClose, otp, setOtp, onVerify, timer, resend, attempts, field, error, otpLoading }) => (
+const OTPModal = React.memo(({ visible, onClose, otp, setOtp, onVerify, timer, resend, attempts, field, error, otpLoading, remainingSlots }) => (
     <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
         <Pressable style={styles.modalOverlay} onPress={onClose}>
             <KeyboardAvoidingView style={{ flex: 1, width: '100%', justifyContent: 'flex-end' }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -279,6 +279,13 @@ const OTPModal = React.memo(({ visible, onClose, otp, setOtp, onVerify, timer, r
                         <Pressable onPress={onClose} hitSlop={12} disabled={otpLoading}><X size={22} color="#64748B" /></Pressable>
                     </View>
                     <Text style={styles.otpSubtext}>Enter the 6-digit code sent to your {field}.</Text>
+                    {field === 'phone' && remainingSlots !== null && (
+                        <View style={{ backgroundColor: '#F0FDF4', padding: 10, borderRadius: 8, marginBottom: 16, borderWidth: 1, borderColor: '#BBF7D0' }}>
+                            <Text style={{ fontSize: 12, color: '#166534', textAlign: 'center', fontFamily: 'Inter_500Medium' }}>
+                                You can create up to {remainingSlots} more account{remainingSlots !== 1 ? 's' : ''} with this phone number.
+                            </Text>
+                        </View>
+                    )}
                     <OTPBoxes
                         value={otp}
                         onChange={setOtp}
@@ -363,7 +370,7 @@ export default function PatientSignupScreen({ navigation, route }) {
 
     const [step, setStep] = useState(route?.params?.step || 1);
     const [form, setForm] = useState({
-        fullName: '', email: '', phoneNumber: '', city: '', password: '', confirmPassword: '',
+        fullName: '', email: '', phoneNumber: '', city: '', password: '', confirmPassword: '', age: '', gender: ''
     });
     const [selectedPlan, setSelectedPlan] = useState({ id: 'basic', name: 'Basic Plan', price: '₹500 / month' });
 
@@ -375,6 +382,7 @@ export default function PatientSignupScreen({ navigation, route }) {
     const [otpLoading, setOtpLoading] = useState(false);
     const [isEmailVerified, setIsEmailVerified] = useState(false);
     const [isPhoneVerified, setIsPhoneVerified] = useState(false);
+    const [remainingSlots, setRemainingSlots] = useState(null);
 
     const [detectingLocation, setDetectingLocation] = useState(false);
     const [locationAddress, setLocationAddress] = useState('');
@@ -740,14 +748,21 @@ export default function PatientSignupScreen({ navigation, route }) {
         setOtpLoading(true);
         try {
             const finalValue = field === 'phone' ? `+91${value}` : value;
-            await sendOtp(field, finalValue);
+            const data = await sendOtp(field, finalValue);
+            if (data?.remainingSlots !== undefined) setRemainingSlots(data.remainingSlots);
+            else setRemainingSlots(null);
+            
             setOtpVisible(true);
             setResendTimer(60);
             setOtpAttempts(0);
             setOtp('');
         } catch (error) {
             let { general } = parseError(error);
-            if (general === 'Request failed with status code 400' || error?.message === 'Request failed with status code 400') {
+            if (error?.response?.data?.code === 'PHONE_LIMIT_REACHED') {
+                general = error.response.data.error;
+            } else if (error?.response?.data?.error) {
+                general = error.response.data.error;
+            } else if (general === 'Request failed with status code 400' || error?.message === 'Request failed with status code 400') {
                 general = field === 'phone'
                     ? 'This phone number is already registered or invalid. Please try a different number.'
                     : 'This email is already registered or invalid. Please try a different email.';
@@ -771,14 +786,21 @@ export default function PatientSignupScreen({ navigation, route }) {
         setErrors(prev => ({ ...prev, otp: '' }));
         try {
             await verifyOtp(verificationField, value, otp);
-            if (verificationField === 'email') setIsEmailVerified(true);
-            else setIsPhoneVerified(true);
             setOtpVisible(false);
             setOtp('');
             analytics.track('otp_verification_success', { field: verificationField });
-            
-            // Execute actual signup upon successful phone verification
-            if (verificationField === 'phone') {
+
+            if (verificationField === 'email') {
+                setIsEmailVerified(true);
+                // Trigger phone OTP automatically after email is verified
+                if (!isPhoneVerified) {
+                    setTimeout(() => handleVerifyPress('phone'), 500);
+                } else {
+                    executeSignup();
+                }
+            } else {
+                setIsPhoneVerified(true);
+                // Execute actual signup upon successful phone verification
                 executeSignup();
             }
         } catch (error) {
@@ -860,14 +882,20 @@ export default function PatientSignupScreen({ navigation, route }) {
         if (!validateStep1(form)) return;
         if (isSubmittingRef.current) return;
         
-        // Auto-trigger phone verification instead of requiring explicit press
+        // Auto-trigger email verification first
+        if (!isEmailVerified) {
+             handleVerifyPress('email');
+             return;
+        }
+
+        // Auto-trigger phone verification next
         if (!isPhoneVerified) {
              handleVerifyPress('phone');
              return;
         }
         
         executeSignup();
-    }, [form, validateStep1, isPhoneVerified, handleVerifyPress]);
+    }, [form, validateStep1, isEmailVerified, isPhoneVerified, handleVerifyPress, executeSignup]);
 
     const executeSignup = useCallback(async () => {
         if (isSubmittingRef.current) return;
@@ -984,9 +1012,23 @@ export default function PatientSignupScreen({ navigation, route }) {
     }, [step]);
 
     const handleCompleteSignUp = useCallback(async () => {
-        await clearProgress();
-        completeSignUp();
-    }, [clearProgress, completeSignUp]);
+        if (!form.age || !form.gender) {
+            setErrors(prev => ({ ...prev, general: 'Please enter your age and select a gender.' }));
+            return;
+        }
+        setSignupLoading(true);
+        try {
+            // Rough estimate for DOB based on age, just for analytics/initial setup
+            const dob = new Date(new Date().getFullYear() - parseInt(form.age), 0, 1).toISOString();
+            await apiService.patients.updateMe({ date_of_birth: dob, gender: form.gender.toLowerCase() });
+            await refreshPatient();
+            await clearProgress();
+            completeSignUp();
+        } catch (error) {
+            setErrors(prev => ({ ...prev, general: 'Failed to save details. Please try again.' }));
+            setSignupLoading(false);
+        }
+    }, [form.age, form.gender, clearProgress, completeSignUp, refreshPatient]);
 
     const emailLabel = useMemo(() => (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
@@ -1362,22 +1404,46 @@ export default function PatientSignupScreen({ navigation, route }) {
 
     const renderStep5 = () => (
         <View style={styles.finalState}>
-            <Animated.View style={[styles.successOrb, { opacity: staggerAnims[0] }]}>
-                <CheckCircle2 size={80} color="#6366F1" />
+            <Animated.View style={[styles.successOrb, { opacity: staggerAnims[0], marginBottom: 16 }]}>
+                <CheckCircle2 size={64} color="#6366F1" />
             </Animated.View>
-            <Animated.Text style={[styles.finalTitle, { opacity: staggerAnims[1] }]}>Welcome to the Family!</Animated.Text>
-            <Animated.Text style={[styles.finalSub, { opacity: staggerAnims[2] }]}>Your premium health journey with Samvaya begins now. Your advisor will be in touch shortly.</Animated.Text>
+            <Animated.Text style={[styles.finalTitle, { opacity: staggerAnims[1], fontSize: 24 }]}>Almost Done!</Animated.Text>
+            <Animated.Text style={[styles.finalSub, { opacity: staggerAnims[2], marginBottom: 24 }]}>Please provide a few more details for your health profile.</Animated.Text>
 
-            <Animated.View style={[styles.finalCard, { opacity: staggerAnims[3] }]}>
-                <View style={styles.finalRow}>
-                    <Shield size={20} color="#6366F1" />
-                    <Text style={styles.finalCardText}>Security & Privacy Verified</Text>
-                </View>
-                <View style={[styles.finalRow, { marginTop: 12 }]}>
-                    <Crown size={20} color="#6366F1" />
-                    <Text style={styles.finalCardText}>{selectedPlan.name} Active</Text>
+            <Animated.View style={{ width: '100%', opacity: staggerAnims[3], marginBottom: 24, textAlign: 'left' }}>
+                <View style={{ gap: 16 }}>
+                    <IconInput
+                        icon={Calendar}
+                        label="Age"
+                        placeholder="e.g. 65"
+                        value={form.age}
+                        onChangeText={t => setForm({ ...form, age: t.replace(/\D/g, '') })}
+                        keyboardType="number-pad"
+                        maxLength={3}
+                    />
+                    <View>
+                        <Text style={[styles.label, { textAlign: 'left' }]}>Gender</Text>
+                        <View style={{ flexDirection: 'row', gap: 12, marginTop: 8 }}>
+                            {['Male', 'Female', 'Other'].map(g => (
+                                <Pressable
+                                    key={g}
+                                    style={[styles.genderBtn, form.gender === g && styles.genderBtnActive]}
+                                    onPress={() => setForm({ ...form, gender: g })}
+                                >
+                                    <Text style={[styles.genderBtnText, form.gender === g && { color: '#3B5BDB' }]}>{g}</Text>
+                                </Pressable>
+                            ))}
+                        </View>
+                    </View>
                 </View>
             </Animated.View>
+
+            {errors.general ? (
+                <View style={[styles.errorBox, { marginBottom: 16 }]}>
+                    <AlertCircle size={16} color="#EF4444" />
+                    <Text style={styles.errorBoxText}>{errors.general}</Text>
+                </View>
+            ) : null}
 
             <Animated.View style={{ width: '100%', opacity: staggerAnims[4], transform: [{ translateY: staggerAnims[4].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>
                 <Pressable style={styles.primaryBtnEnhanced} onPress={handleCompleteSignUp}>
@@ -1514,6 +1580,7 @@ export default function PatientSignupScreen({ navigation, route }) {
                 field={verificationField}
                 error={errors.otp}
                 otpLoading={otpLoading}
+                remainingSlots={remainingSlots}
             />
 
             {renderCityModal()}
@@ -1585,11 +1652,11 @@ const styles = StyleSheet.create({
     heroTitle: { fontSize: 24, ...FONT.heavy, color: '#FFFFFF', textAlign: 'center', paddingHorizontal: 20 },
 
     modernProgressContainer: {
-        flexDirection: 'row', alignItems: 'center',
+        flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'center',
         marginTop: 20, paddingHorizontal: 8,
         alignSelf: 'stretch',
     },
-    stepDotWrap: { alignItems: 'center', gap: 5 },
+    stepDotWrap: { alignItems: 'center', gap: 5, width: 48 },
     stepDot: {
         width: 30, height: 30, borderRadius: 15,
         backgroundColor: 'rgba(255,255,255,0.25)',
@@ -1599,8 +1666,8 @@ const styles = StyleSheet.create({
     stepDotDone: { backgroundColor: 'rgba(255,255,255,0.9)', borderColor: '#FFFFFF' },
     stepDotActive: { backgroundColor: '#FFFFFF', borderColor: '#FFFFFF', shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 6, elevation: 4 },
     stepDotLabel: { fontSize: 13, fontFamily: 'Inter_700Bold', color: 'rgba(255,255,255,0.7)' },
-    stepNameLabel: { fontSize: 10, fontFamily: 'Inter_500Medium', color: 'rgba(255,255,255,0.55)', letterSpacing: 0.2 },
-    stepConnector: { flex: 1, height: 2, backgroundColor: 'rgba(255,255,255,0.25)', marginHorizontal: 4, marginBottom: 16 },
+    stepNameLabel: { fontSize: 10, fontFamily: 'Inter_500Medium', color: 'rgba(255,255,255,0.55)', letterSpacing: 0.2, textAlign: 'center' },
+    stepConnector: { flex: 1, height: 2, backgroundColor: 'rgba(255,255,255,0.25)', marginHorizontal: -4, marginTop: 14, minWidth: 10, zIndex: -1 },
     stepConnectorDone: { backgroundColor: 'rgba(255,255,255,0.85)' },
 
     formCard: {
@@ -1884,4 +1951,8 @@ const styles = StyleSheet.create({
     processingTitle: { fontSize: 22, ...FONT.heavy, color: '#1E293B', marginTop: 32, textAlign: 'center' },
     processingSub: { fontSize: 15, color: '#64748B', textAlign: 'center', marginTop: 12, paddingHorizontal: 30, lineHeight: 22 },
     processingProgress: { marginTop: 40, padding: 8, borderRadius: 24, backgroundColor: '#F8FAFC' },
+
+    genderBtn: { flex: 1, paddingVertical: 12, borderRadius: 12, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', alignItems: 'center' },
+    genderBtnActive: { backgroundColor: '#EFF3FF', borderColor: '#3B5BDB' },
+    genderBtnText: { fontSize: 14, fontFamily: 'Inter_600SemiBold', color: '#64748B' },
 });
