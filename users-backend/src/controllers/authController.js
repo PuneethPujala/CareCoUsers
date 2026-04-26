@@ -406,18 +406,41 @@ async function sendOtp(req, res) {
     }
 
     if (type === 'email') {
+      const emailNorm = identifier.toLowerCase().trim();
+      const existingPatient = await Patient.findOne({ email: emailNorm, is_active: true });
+      if (existingPatient) {
+        return res.status(400).json({ error: 'This email is already registered.' });
+      }
+
       const { createOTP } = require('../services/otpService');
       const { sendOTPEmail } = require('../services/emailService');
-      const otp = await createOTP(identifier.toLowerCase().trim());
+      const otp = await createOTP(emailNorm);
       sendOTPEmail(identifier, otp).catch((err) => console.error('OTP email failed:', err.message));
       res.json({ message: 'Verification code sent to your email.' });
     } else if (type === 'phone') {
+      const phoneNorm = identifier.trim();
+      // Remove +91 or + if present for DB count just in case, but let's stick to strict match first
+      // Assuming DB stores +91... format
+      let searchPhone = phoneNorm;
+      if (!searchPhone.startsWith('+')) searchPhone = `+91${searchPhone.replace(/^91/, '')}`;
+      
+      const phoneCount = await Patient.countDocuments({ phone: phoneNorm, is_active: true });
+      if (phoneCount >= 5) {
+        return res.status(400).json({ 
+          error: '5 accounts already exist with this number. Please delete an old account to use this number.',
+          code: 'PHONE_LIMIT_REACHED'
+        });
+      }
+
       const smsService = require('../services/smsService');
       
       // Use Twilio Verify - no need to generate or store our own OTP
-      await smsService.sendVerification(identifier.trim());
+      await smsService.sendVerification(phoneNorm);
       
-      res.json({ message: 'Verification code sent to your phone.' });
+      res.json({ 
+        message: 'Verification code sent to your phone.',
+        remainingSlots: 5 - phoneCount
+      });
     } else {
       return res.status(400).json({ error: 'type must be "email" or "phone"' });
     }
