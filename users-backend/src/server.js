@@ -38,6 +38,7 @@ app.get("/debug-sentry", function mainHandler(req, res) {
 if (process.env.NODE_ENV !== 'test') {
   connectDB();
   require('./jobs/notificationJob').startNotificationCron();
+  require('./jobs/medicationReminderJob'); // Starts the 1-minute medication cron
 }
 
 // Security middleware
