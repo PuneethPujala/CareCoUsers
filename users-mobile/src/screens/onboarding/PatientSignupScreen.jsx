@@ -776,6 +776,57 @@ export default function PatientSignupScreen({ navigation, route }) {
         }
     }, [form.email, form.phoneNumber, sendOtp]);
 
+    const executeSignup = useCallback(async () => {
+        if (isSubmittingRef.current) return;
+        isSubmittingRef.current = true;
+
+        if (user && user.email?.toLowerCase().trim() === form.email.toLowerCase().trim()) {
+            try {
+                const profileRes = await apiService.auth.getProfile();
+                if (profileRes.data?.profile) {
+                    isManualTransitionRef.current = true; // B2 FIX
+                    await saveProgress(2);
+                    setStep(2);
+                    isSubmittingRef.current = false;
+                    return;
+                }
+            } catch { /* no profile yet — fall through to signUp */ }
+        }
+
+        setSignupLoading(true);
+        try {
+            const cleanEmail = form.email.trim().toLowerCase();
+            await clearProgress();
+            const signUpTimeout = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('SIGNUP_TIMEOUT')), 25000)
+            );
+            await Promise.race([
+                // We implicitly set emailVerified to false, but phone is fully verified here
+                signUp(cleanEmail, form.password, form.fullName.trim(), 'patient', { phoneNumber: form.phoneNumber }),
+                signUpTimeout,
+            ]);
+            analytics.signupSuccess(cleanEmail);
+            // Recovery effect handles step transition after signUp updates profile/patient
+        } catch (error) {
+            let { general, fields } = parseError(error);
+            if (error?.message === 'SIGNUP_TIMEOUT') {
+                general = 'Sign up is taking too long. Please check your connection and try again.';
+            } else if (general === 'Request failed with status code 400' || error?.message === 'Request failed with status code 400') {
+                general = 'An account with this email/phone already exists. Please log in.';
+            } else if (error?.response?.data?.code === 'EMAIL_ALREADY_EXISTS') {
+                general = 'An account with this email already exists. Please log in instead.';
+            }
+            setErrors({
+                general,
+                ...(fields?.email ? { email: fields.email } : {}),
+            });
+            analytics.signupFailure(error?.response?.data?.code || error?.message || 'signup_error');
+        } finally {
+            setSignupLoading(false);
+            isSubmittingRef.current = false;
+        }
+    }, [form, user, signUp, saveProgress, clearProgress]);
+
     const handleVerifyOtp = useCallback(async () => {
         if (!otp || otp.length < 6) {
             setErrors(prev => ({ ...prev, otp: 'Please enter a 6-digit code' }));
@@ -899,56 +950,7 @@ export default function PatientSignupScreen({ navigation, route }) {
         executeSignup();
     }, [form, validateStep1, isEmailVerified, isPhoneVerified, handleVerifyPress, executeSignup]);
 
-    const executeSignup = useCallback(async () => {
-        if (isSubmittingRef.current) return;
-        isSubmittingRef.current = true;
 
-        if (user && user.email?.toLowerCase().trim() === form.email.toLowerCase().trim()) {
-            try {
-                const profileRes = await apiService.auth.getProfile();
-                if (profileRes.data?.profile) {
-                    isManualTransitionRef.current = true; // B2 FIX
-                    await saveProgress(2);
-                    setStep(2);
-                    isSubmittingRef.current = false;
-                    return;
-                }
-            } catch { /* no profile yet — fall through to signUp */ }
-        }
-
-        setSignupLoading(true);
-        try {
-            const cleanEmail = form.email.trim().toLowerCase();
-            await clearProgress();
-            const signUpTimeout = new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('SIGNUP_TIMEOUT')), 25000)
-            );
-            await Promise.race([
-                // We implicitly set emailVerified to false, but phone is fully verified here
-                signUp(cleanEmail, form.password, form.fullName.trim(), 'patient', { phoneNumber: form.phoneNumber }),
-                signUpTimeout,
-            ]);
-            analytics.signupSuccess(cleanEmail);
-            // Recovery effect handles step transition after signUp updates profile/patient
-        } catch (error) {
-            let { general, fields } = parseError(error);
-            if (error?.message === 'SIGNUP_TIMEOUT') {
-                general = 'Sign up is taking too long. Please check your connection and try again.';
-            } else if (general === 'Request failed with status code 400' || error?.message === 'Request failed with status code 400') {
-                general = 'An account with this email/phone already exists. Please log in.';
-            } else if (error?.response?.data?.code === 'EMAIL_ALREADY_EXISTS') {
-                general = 'An account with this email already exists. Please log in instead.';
-            }
-            setErrors({
-                general,
-                ...(fields?.email ? { email: fields.email } : {}),
-            });
-            analytics.signupFailure(error?.response?.data?.code || error?.message || 'signup_error');
-        } finally {
-            setSignupLoading(false);
-            isSubmittingRef.current = false;
-        }
-    }, [form, user, signUp, saveProgress, clearProgress]);
 
     // B1 + B3 FIX: The original handleStep2Continue called refreshPatient() which
     // triggered the recovery effect and caused the step 2→4 jump. 
