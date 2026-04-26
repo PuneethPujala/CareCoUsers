@@ -18,7 +18,7 @@ const MedicineLogSchema = new mongoose.Schema(
                 medicine_name: { type: String, required: true },
                 scheduled_time: {
                     type: String,
-                    enum: ['morning', 'afternoon', 'night'],
+                    enum: ['morning', 'afternoon', 'evening', 'night', 'as_needed'],
                     required: true,
                 },
                 taken: {
