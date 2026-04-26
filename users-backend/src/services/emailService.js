@@ -26,15 +26,22 @@ const getTransporter = () => {
 /**
  * Send a generic email
  */
-const sendEmail = async (to, subject, html) => {
+const sendEmail = async (to, subject, html, { textBody } = {}) => {
     const transport = getTransporter();
     const fromEmail = process.env.FROM_EMAIL || 'noreply@samvaya.com';
 
     const mailOptions = {
-        from: `"Team Samvaya" <${fromEmail}>`,
+        from: `"Samvaya Health" <${fromEmail}>`,
         to,
         subject,
         html,
+        // Plain-text fallback — spam filters penalize HTML-only emails
+        text: textBody || html.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim().slice(0, 500),
+        headers: {
+            'X-Mailer': 'Samvaya Health Platform',
+            'Precedence': 'bulk',
+            'List-Unsubscribe': `<mailto:${fromEmail}?subject=unsubscribe>`,
+        },
     };
 
     try {
@@ -101,7 +108,9 @@ const sendOTPEmail = async (to, otp) => {
     </html>
   `;
 
-    return sendEmail(to, 'Samvaya — Your Verification Code', html);
+    return sendEmail(to, `Your Samvaya code: ${otp}`, html, {
+        textBody: `Your Samvaya verification code is: ${otp}\n\nThis code expires in 10 minutes.\nIf you didn't request this, ignore this email.`,
+    });
 };
 
 /**
@@ -163,7 +172,7 @@ const sendTempPasswordEmail = async (to, fullName, tempPassword, roleName) => {
     </html>
   `;
 
-    return sendEmail(to, 'Samvaya — Your Account Has Been Created', html);
+    return sendEmail(to, 'Your Samvaya account is ready', html);
 };
 
 /**
@@ -205,7 +214,7 @@ const sendPasswordChangedEmail = async (to, fullName) => {
     </html>
   `;
 
-    return sendEmail(to, 'Samvaya — Password Changed', html);
+    return sendEmail(to, 'Your Samvaya password was changed', html);
 };
 
 /**
@@ -261,7 +270,9 @@ const sendPasswordResetEmail = async (to, otp) => {
     </html>
   `;
 
-    return sendEmail(to, 'Samvaya — Reset Your Password', html);
+    return sendEmail(to, `Samvaya password reset code: ${otp}`, html, {
+        textBody: `Your password reset code is: ${otp}\n\nThis code expires in 10 minutes.\nIf you didn't request this, ignore this email.`,
+    });
 };
 
 /**
@@ -317,7 +328,9 @@ const sendSecurityOTPEmail = async (to, otp) => {
     </html>
   `;
 
-    return sendEmail(to, 'Samvaya — Security Action Verification', html);
+    return sendEmail(to, `Samvaya security code: ${otp}`, html, {
+        textBody: `Your security verification code is: ${otp}\n\nThis code expires in 10 minutes.\nIf you didn't authorize this, ignore this email.`,
+    });
 };
 
 module.exports = {

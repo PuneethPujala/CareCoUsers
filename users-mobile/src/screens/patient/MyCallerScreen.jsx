@@ -15,6 +15,20 @@ import { colors } from '../../theme';
 import { apiService } from '../../lib/api';
 import { COUNTRY_CODES, parsePhoneWithCode, validatePhone } from '../../utils/phoneUtils';
 
+// ── Skeleton Loader ──────────────────────────────────────────
+const SkeletonItem = ({ width, height, borderRadius = 8, style }) => {
+    const anim = useRef(new Animated.Value(0.3)).current;
+    useEffect(() => {
+        Animated.loop(
+            Animated.sequence([
+                Animated.timing(anim, { toValue: 1, duration: 800, useNativeDriver: true }),
+                Animated.timing(anim, { toValue: 0.3, duration: 800, useNativeDriver: true })
+            ])
+        ).start();
+    }, [anim]);
+    return <Animated.View style={[{ width, height, borderRadius, backgroundColor: '#E2E8F0', opacity: anim }, style]} />;
+};
+
 const C = {
   primary: '#6366F1',     // Indigo
   primaryDark: '#4338CA',
@@ -283,8 +297,18 @@ export default function MyCallerScreen({ navigation }) {
 
   if (loading) {
     return (
-      <View style={[s.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color="#1D4ED8" />
+      <View style={[s.container, { padding: 20, paddingTop: Platform.OS === 'android' ? 60 : 40 }]}>
+        {/* Header Skeleton */}
+        <SkeletonItem width={150} height={28} borderRadius={12} style={{ marginBottom: 24 }} />
+        
+        {/* Manager/Caller Card Skeleton */}
+        <SkeletonItem width={100} height={16} borderRadius={8} style={{ marginBottom: 12 }} />
+        <SkeletonItem width="100%" height={120} borderRadius={24} style={{ marginBottom: 32 }} />
+
+        {/* Contacts Section Skeleton */}
+        <SkeletonItem width={140} height={16} borderRadius={8} style={{ marginBottom: 16 }} />
+        <SkeletonItem width="100%" height={80} borderRadius={20} style={{ marginBottom: 12 }} />
+        <SkeletonItem width="100%" height={80} borderRadius={20} style={{ marginBottom: 12 }} />
       </View>
     );
   }

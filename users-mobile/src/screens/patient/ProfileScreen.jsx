@@ -35,6 +35,20 @@ const BLOOD_OPTIONS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'unknow
 
 import { COUNTRY_CODES, parsePhoneWithCode, validatePhone } from '../../utils/phoneUtils';
 
+// ── Skeleton Loader ──────────────────────────────────────────
+const SkeletonItem = ({ width, height, borderRadius = 8, style }) => {
+    const anim = useRef(new Animated.Value(0.3)).current;
+    useEffect(() => {
+        Animated.loop(
+            Animated.sequence([
+                Animated.timing(anim, { toValue: 1, duration: 800, useNativeDriver: true }),
+                Animated.timing(anim, { toValue: 0.3, duration: 800, useNativeDriver: true })
+            ])
+        ).start();
+    }, [anim]);
+    return <Animated.View style={[{ width, height, borderRadius, backgroundColor: '#E2E8F0', opacity: anim }, style]} />;
+};
+
 export default function PatientProfileScreen({ navigation }) {
     const { signOut, displayName, userEmail } = useAuth();
     const [patient, setPatient] = useState(null);
@@ -479,6 +493,34 @@ export default function PatientProfileScreen({ navigation }) {
     });
 
     /* ── RENDER ───────────────────────────────── */
+    if (loading) {
+        return (
+            <View style={[s.container, { padding: 20, paddingTop: Platform.OS === 'android' ? 60 : 40 }]}>
+                {/* Header Skeleton */}
+                <SkeletonItem width={150} height={28} borderRadius={12} style={{ marginBottom: 24 }} />
+                
+                {/* Profile Card Skeleton */}
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 24, padding: 16, backgroundColor: '#FFFFFF', borderRadius: 24 }}>
+                    <SkeletonItem width={60} height={60} borderRadius={30} style={{ marginRight: 16 }} />
+                    <View>
+                        <SkeletonItem width={140} height={20} borderRadius={10} style={{ marginBottom: 8 }} />
+                        <SkeletonItem width={180} height={16} borderRadius={8} />
+                    </View>
+                </View>
+
+                {/* Plan Banner Skeleton */}
+                <SkeletonItem width="100%" height={80} borderRadius={20} style={{ marginBottom: 24 }} />
+
+                {/* Sections Skeleton */}
+                <SkeletonItem width={160} height={16} borderRadius={8} style={{ marginBottom: 12, marginLeft: 8 }} />
+                <SkeletonItem width="100%" height={200} borderRadius={24} style={{ marginBottom: 24 }} />
+                
+                <SkeletonItem width={160} height={16} borderRadius={8} style={{ marginBottom: 12, marginLeft: 8 }} />
+                <SkeletonItem width="100%" height={120} borderRadius={24} />
+            </View>
+        );
+    }
+
     return (
         <View style={s.container}>
             <StatusBar barStyle="dark-content" />
