@@ -484,12 +484,19 @@ export default function LoginScreen({ navigation }) {
                     {/* Social Logins */}
                     <View style={styles.socialRowPremium}>
                         <Pressable style={styles.socialBtnPremium} onPress={handleGooglePress} disabled={loading}>
-                            <Text style={styles.googleG}>G</Text>
-                            <Text style={styles.socialBtnTextPremium}>Google</Text>
+                            <View style={styles.googleBadge}>
+                                <Text style={styles.googleG}>G</Text>
+                            </View>
+                            <Text style={styles.socialBtnTextPremium}>Continue with Google</Text>
                         </Pressable>
-                        <Pressable style={styles.socialBtnPremium} onPress={() => { }} disabled={loading}>
-                            <Smartphone size={20} color={C.mid} />
-                            <Text style={styles.socialBtnTextPremium}>Mobile</Text>
+                    </View>
+                    <View style={[styles.socialRowPremium, { marginBottom: 18 }]}>
+                        <Pressable style={[styles.socialBtnPremium, styles.socialBtnDisabled]} disabled>
+                            <Smartphone size={18} color="#94A3B8" />
+                            <Text style={[styles.socialBtnTextPremium, { color: '#94A3B8' }]}>OTP Login</Text>
+                            <View style={styles.soonBadge}>
+                                <Text style={styles.soonBadgeText}>SOON</Text>
+                            </View>
                         </Pressable>
                     </View>
 
@@ -533,6 +540,9 @@ export default function LoginScreen({ navigation }) {
                                 onFocus={() => setEmailFocused(true)}
                                 onBlur={() => setEmailFocused(false)}
                                 blurOnSubmit={false}
+                                autoFocus
+                                returnKeyType="next"
+                                onSubmitEditing={() => passwordRef.current?.focus()}
                             />
                         </Pressable>
                     </View>
@@ -558,6 +568,8 @@ export default function LoginScreen({ navigation }) {
                                 textContentType="password"
                                 onFocus={() => setPassFocused(true)}
                                 onBlur={() => setPassFocused(false)}
+                                returnKeyType="done"
+                                onSubmitEditing={handleLogin}
                             />
                             <Pressable onPress={() => setShowPassword(!showPassword)} hitSlop={12}>
                                 {showPassword ? <Eye size={18} color={C.primary} /> : <EyeOff size={18} color={C.muted} />}
@@ -661,7 +673,7 @@ const styles = StyleSheet.create({
         zIndex: 5,
     },
 
-    socialRowPremium: { flexDirection: 'row', gap: 12, marginBottom: 18 },
+    socialRowPremium: { flexDirection: 'row', gap: 12, marginBottom: 10 },
     socialBtnPremium: {
         flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
         backgroundColor: '#F8FAFF',
@@ -669,8 +681,19 @@ const styles = StyleSheet.create({
         borderRadius: 20, height: 52, gap: 10,
         shadowColor: '#1E3A8A', shadowOpacity: 0.04, shadowRadius: 8, elevation: 2,
     },
+    socialBtnDisabled: { opacity: 0.55, backgroundColor: '#F1F5F9' },
     socialBtnTextPremium: { fontSize: 14, ...FONT.bold, color: '#1E293B' },
-    googleG: { fontSize: 18, ...FONT.heavy, color: '#4285F4' },
+    googleBadge: {
+        width: 28, height: 28, borderRadius: 8,
+        backgroundColor: '#4285F4',
+        alignItems: 'center', justifyContent: 'center',
+    },
+    googleG: { fontSize: 16, ...FONT.heavy, color: '#FFFFFF' },
+    soonBadge: {
+        backgroundColor: '#EEF2FF', borderRadius: 100,
+        paddingHorizontal: 7, paddingVertical: 3,
+    },
+    soonBadgeText: { fontSize: 9, ...FONT.heavy, color: '#6366F1', letterSpacing: 0.8 },
 
     dividerRowPremium: { flexDirection: 'row', alignItems: 'center', marginBottom: 18, paddingHorizontal: 8 },
     dividerLine: { flex: 1, height: 1, backgroundColor: '#E2E8F0' },
