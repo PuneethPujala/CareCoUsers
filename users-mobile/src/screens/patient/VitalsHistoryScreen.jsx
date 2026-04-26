@@ -19,6 +19,20 @@ import axiosInstance, { handleAxiosError } from '../../lib/axiosInstance';
 import { apiService } from '../../lib/api';
 import { colors } from '../../theme';
 
+// ─── Skeleton Loader ──────────────────────────────────────────
+const SkeletonItem = ({ width, height, borderRadius = 8, style }) => {
+    const anim = useRef(new Animated.Value(0.3)).current;
+    useEffect(() => {
+        Animated.loop(
+            Animated.sequence([
+                Animated.timing(anim, { toValue: 1, duration: 800, useNativeDriver: true }),
+                Animated.timing(anim, { toValue: 0.3, duration: 800, useNativeDriver: true })
+            ])
+        ).start();
+    }, [anim]);
+    return <Animated.View style={[{ width, height, borderRadius, backgroundColor: '#E2E8F0', opacity: anim }, style]} />;
+};
+
 // ─── Simple Error Boundary ───────────────────────────────────
 class ChartErrorBoundary extends React.Component {
     constructor(props) {
@@ -771,10 +785,11 @@ export default function VitalsHistoryScreen({ navigation }) {
 
     const renderSkeleton = () => (
         <View style={styles.skeletonContainer}>
-            <View style={[styles.skeletonItem, { height: 120, borderRadius: 24 }]} />
-            <View style={[styles.skeletonItem, { height: 40, width: '60%', borderRadius: 12, marginVertical: 20 }]} />
-            <View style={[styles.skeletonItem, { height: 240, borderRadius: 24 }]} />
-            <View style={[styles.skeletonItem, { height: 80, borderRadius: 16, marginTop: 20 }]} />
+            <SkeletonItem width="100%" height={120} borderRadius={24} style={{ marginBottom: 20 }} />
+            <SkeletonItem width="60%" height={32} borderRadius={12} style={{ marginBottom: 24, marginLeft: 4 }} />
+            <SkeletonItem width="100%" height={260} borderRadius={28} style={{ marginBottom: 24 }} />
+            <SkeletonItem width="100%" height={80} borderRadius={20} style={{ marginBottom: 12 }} />
+            <SkeletonItem width="100%" height={80} borderRadius={20} style={{ marginBottom: 12 }} />
         </View>
     );
     const renderErrorBanner = () => {

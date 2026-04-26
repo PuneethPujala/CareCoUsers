@@ -1,8 +1,22 @@
 import React, { useState, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, Platform, Pressable, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Platform, Pressable, ActivityIndicator, Animated } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { X, Pill, Heart, Calendar, AlertCircle, MessageSquare, BellOff, PhoneMissed } from 'lucide-react-native';
 import { apiService } from '../../lib/api';
+
+// ─── Skeleton Loader ──────────────────────────────────────────
+const SkeletonItem = ({ width, height, borderRadius = 8, style }) => {
+    const anim = useRef(new Animated.Value(0.3)).current;
+    React.useEffect(() => {
+        Animated.loop(
+            Animated.sequence([
+                Animated.timing(anim, { toValue: 1, duration: 800, useNativeDriver: true }),
+                Animated.timing(anim, { toValue: 0.3, duration: 800, useNativeDriver: true })
+            ])
+        ).start();
+    }, [anim]);
+    return <Animated.View style={[{ width, height, borderRadius, backgroundColor: '#E2E8F0', opacity: anim }, style]} />;
+};
 
 const C = {
   primary: '#6366F1',
@@ -269,8 +283,16 @@ export default function NotificationsScreen({ navigation }) {
 
       <ScrollView style={s.list} contentContainerStyle={s.listContent} showsVerticalScrollIndicator={false}>
         {loading ? (
-           <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', marginTop: 100 }}>
-               <ActivityIndicator size="large" color={C.primary} />
+           <View style={{ marginTop: 12 }}>
+               {[1, 2, 3, 4, 5].map(i => (
+                   <View key={i} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 24 }}>
+                       <SkeletonItem width={44} height={44} borderRadius={22} style={{ marginRight: 12 }} />
+                       <View style={{ flex: 1 }}>
+                           <SkeletonItem width="80%" height={16} borderRadius={8} style={{ marginBottom: 8 }} />
+                           <SkeletonItem width="40%" height={12} borderRadius={6} />
+                       </View>
+                   </View>
+               ))}
            </View>
         ) : notifications.length === 0 || (activeTab === 'Inbox' && notifications.filter(n => n.isBackend && !n.isRead).length === 0) ? (
           <View style={s.emptyWrap}>
