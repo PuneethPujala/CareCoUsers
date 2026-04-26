@@ -28,6 +28,8 @@ import { sendDailyWelcomeNotification, registerForPushNotificationsAsync, sendSe
 import { apiService } from "../lib/api";
 import { colors } from "../theme";
 import usePatientStore from '../store/usePatientStore';
+import NetInfo from '@react-native-community/netinfo';
+import OfflineSyncService from '../lib/OfflineSyncService';
 
 
 // Onboarding screens
@@ -257,6 +259,27 @@ export default function AppNavigator() {
     const { isBootstrapping, onboardingComplete, subscriptionStatus, user, profile, signOut } = useAuth();
     const navigation = useNavigation();
     const patient = usePatientStore(state => state.patient);
+
+    // ── Offline Sync Logic ──────────────────────────────────────────
+    // Listens for network restoration to flush any pending mutations.
+    useEffect(() => {
+        const unsubscribe = NetInfo.addEventListener(state => {
+            if (state.isConnected && state.isInternetReachable !== false) {
+                if (__DEV__) console.log('[OfflineSync] Network restored, flushing queue...');
+                OfflineSyncService.flushQueue();
+            }
+        });
+
+        // Trigger an initial flush on mount if we're already online
+        NetInfo.fetch().then(state => {
+            if (state.isConnected) {
+                OfflineSyncService.flushQueue();
+            }
+        });
+
+        return () => unsubscribe();
+    }, []);
+    // ────────────────────────────────────────────────────────────────
 
     const notificationListener = useRef();
     const responseListener = useRef();

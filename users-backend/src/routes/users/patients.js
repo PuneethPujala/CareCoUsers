@@ -564,40 +564,36 @@ router.put('/me/primary-doctor', authenticateSession, async (req, res) => {
     }
 });
 
-router.delete('/me/:collection/:id', authenticateSession, validateObjectId('id'), async (req, res) => {
+const deleteProfileItem = (dbCollection, responseKey) => async (req, res) => {
     try {
         const patient = await Patient.findOne({ supabase_uid: req.user.id });
         if (!patient) return res.status(404).json({ error: 'Patient not found' });
 
-        const { collection, id } = req.params;
-        let dbCollection = collection;
-        if (collection === 'medical-history' || collection === 'history') dbCollection = 'medical_history';
-        if (collection === 'allergy') dbCollection = 'allergies';
-        if (collection === 'condition') dbCollection = 'conditions';
-        if (collection === 'medication') dbCollection = 'medications';
-        if (collection === 'vaccination') dbCollection = 'vaccinations';
-        if (collection === 'appointment') dbCollection = 'appointments';
-        if (collection === 'trusted-contacts') dbCollection = 'trusted_contacts';
-
-        const validCollections = ['conditions', 'allergies', 'medical_history', 'medications', 'vaccinations', 'appointments', 'trusted_contacts'];
-
-        if (!validCollections.includes(dbCollection)) {
-            return res.status(400).json({ error: `Invalid collection: ${collection}` });
-        }
-
+        const { id } = req.params;
         const item = patient[dbCollection].id(id);
+        
         if (item) {
             patient[dbCollection].pull(id);
             await patient.save();
-            res.json({ message: 'Item deleted', [dbCollection]: patient[dbCollection] });
+            res.json({ message: 'Item deleted', [responseKey]: patient[dbCollection] });
         } else {
             res.status(404).json({ error: 'Item not found' });
         }
     } catch (err) {
-        console.error('Delete error:', err);
+        console.error(`Delete ${dbCollection} error:`, err);
         res.status(500).json({ error: 'Server Error' });
     }
-});
+};
+
+router.delete('/me/conditions/:id', authenticateSession, validateObjectId('id'), deleteProfileItem('conditions', 'conditions'));
+router.delete('/me/allergies/:id', authenticateSession, validateObjectId('id'), deleteProfileItem('allergies', 'allergies'));
+router.delete('/me/vaccinations/:id', authenticateSession, validateObjectId('id'), deleteProfileItem('vaccinations', 'vaccinations'));
+router.delete('/me/appointments/:id', authenticateSession, validateObjectId('id'), deleteProfileItem('appointments', 'appointments'));
+router.delete('/me/medical-history/:id', authenticateSession, validateObjectId('id'), deleteProfileItem('medical_history', 'medical_history'));
+router.delete('/me/history/:id', authenticateSession, validateObjectId('id'), deleteProfileItem('medical_history', 'medical_history'));
+router.delete('/me/medications/:id', authenticateSession, validateObjectId('id'), deleteProfileItem('medications', 'medications'));
+router.delete('/me/trusted-contacts/:id', authenticateSession, validateObjectId('id'), deleteProfileItem('trusted_contacts', 'trusted_contacts'));
+router.delete('/me/contact/:id', authenticateSession, validateObjectId('id'), deleteProfileItem('trusted_contacts', 'trusted_contacts'));
 
 /**
  * POST /api/users/patients/subscribe
@@ -777,26 +773,6 @@ router.put('/me/trusted-contacts/:id', authenticateSession, validateObjectId('id
     } catch (error) {
         console.error('Update trusted contact error:', error);
         res.status(500).json({ error: 'Failed to update trusted contact' });
-    }
-});
-
-/**
- * DELETE /api/users/patients/me/trusted-contacts/:id
- * Patient deletes a trusted contact
- */
-router.delete('/me/trusted-contacts/:id', authenticateSession, validateObjectId('id'), async (req, res) => {
-    try {
-        const patient = await Patient.findOne({ supabase_uid: req.user.id });
-        if (!patient) return res.status(404).json({ error: 'Patient profile not found' });
-
-        // Use Mongoose subdocument pull
-        patient.trusted_contacts.pull(req.params.id);
-        await patient.save();
-
-        res.json({ trusted_contacts: patient.trusted_contacts, message: 'Trusted contact deleted successfully' });
-    } catch (error) {
-        console.error('Delete trusted contact error:', error);
-        res.status(500).json({ error: 'Failed to delete trusted contact' });
     }
 });
 
@@ -1162,36 +1138,7 @@ router.get('/me/vitals', authenticateSession, async (req, res) => {
     }
 });
 
-/**
- * DELETE /api/users/patients/me/:collection/:id
- * Generic delete route for any array collections (conditions, allergies, etc.)
- */
-router.delete('/me/:collection/:id', authenticateSession, async (req, res) => {
-    try {
-        const { id } = req.params;
-        // Normalize: frontend may send 'trusted-contacts' (hyphen) but Mongoose field uses underscore
-        const collection = req.params.collection.replace(/-/g, '_');
-        const validCollections = ['conditions', 'allergies', 'appointments', 'vaccinations', 'medications', 'medical_history', 'trusted_contacts'];
 
-        if (!validCollections.includes(collection)) {
-            return res.status(400).json({ error: 'Invalid collection specified' });
-        }
-
-        const patient = await Patient.findOne({ supabase_uid: req.user.id });
-        if (!patient) return res.status(404).json({ error: 'Patient profile not found' });
-
-        patient[collection] = patient[collection].filter(
-            item => item._id && item._id.toString() !== id.toString()
-        );
-
-        await patient.save();
-
-        res.json({ [collection]: patient[collection], message: 'Item deleted successfully' });
-    } catch (error) {
-        console.error(`Delete ${req.params.collection} error:`, error);
-        res.status(500).json({ error: 'Failed to delete item' });
-    }
-});
 
 // ─── Security & Privacy Settings ────────────────────────────
 
