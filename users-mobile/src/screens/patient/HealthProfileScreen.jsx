@@ -436,12 +436,14 @@ export default function HealthProfileScreen({ navigation }) {
     };
     const bmiTheme = getBmiStyle(bmi);
 
-    const renderHeader = (title, typeToAdd) => (
+    const renderHeader = (title, typeToAdd, hideAdd = false) => (
         <View style={s.sectionHeaderRow}>
             <Text style={s.sectionHeaderBase}>{title}</Text>
-            <Pressable style={({pressed}) => [s.addBtn, pressed && {opacity: 0.7}]} onPress={() => openModal(typeToAdd)}>
-                <Plus size={16} color="#FFF" strokeWidth={3} />
-            </Pressable>
+            {!hideAdd && (
+                <Pressable style={({pressed}) => [s.addBtn, pressed && {opacity: 0.7}]} onPress={() => openModal(typeToAdd)}>
+                    <Plus size={16} color="#FFF" strokeWidth={3} />
+                </Pressable>
+            )}
         </View>
     );
 
@@ -582,19 +584,19 @@ export default function HealthProfileScreen({ navigation }) {
                     </View>
                 </Animated.View>
 
-                {/* 4. MEDICATION LIST */}
+                {/* 4. MEDICATION LIST (Read-Only) */}
                 <Animated.View style={{ opacity: staggerAnims[4], transform: [{ translateY: staggerAnims[4].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>
                     <View style={s.section}>
-                        {renderHeader('CURRENT MEDICATIONS', 'medication')}
+                        {renderHeader('CURRENT MEDICATIONS', 'medication', true)}
                         <View style={s.cardStack}>
                             {medications.filter(m => m.is_active !== false).map((m, i) => (
-                                <Pressable key={i} style={s.rowItemEnhanced} onPress={() => openModal('medication', m)}>
+                                <View key={i} style={s.rowItemEnhanced}>
                                     <View style={[s.iconBg, { backgroundColor: '#EEF2FF' }]}><Droplet size={18} color="#6366F1" /></View>
                                     <View style={s.rowInfo}>
                                         <Text style={s.rowTitle}>{m.name}</Text>
                                         <Text style={s.rowSub}>{m.dosage} • {m.frequency}</Text>
                                     </View>
-                                </Pressable>
+                                </View>
                             ))}
                             {medications.filter(m => m.is_active !== false).length === 0 && <Text style={s.emptyRowTxt}>No active medications</Text>}
                         </View>
@@ -605,14 +607,14 @@ export default function HealthProfileScreen({ navigation }) {
                             <Text style={[s.sectionHeaderBase, { fontSize: 11, marginBottom: 12, opacity: 0.6 }]}>PREVIOUS MEDICATIONS (HISTORY)</Text>
                             <View style={[s.cardStack, { opacity: 0.7 }]}>
                                 {medications.filter(m => m.is_active === false).map((m, i) => (
-                                    <Pressable key={i} style={s.rowItemEnhanced} onPress={() => openModal('medication', m)}>
+                                    <View key={i} style={s.rowItemEnhanced}>
                                         <View style={[s.iconBg, { backgroundColor: '#F1F5F9' }]}><Droplet size={18} color="#94A3B8" /></View>
                                         <View style={s.rowInfo}>
                                             <Text style={[s.rowTitle, { color: '#64748B' }]}>{m.name}</Text>
                                             <Text style={s.rowSub}>{m.dosage} • {m.frequency}</Text>
                                         </View>
                                         <View style={[s.pill, { backgroundColor: '#F1F5F9' }]}><Text style={[s.pillTxt, { color: '#64748B' }]}>Inactive</Text></View>
-                                    </Pressable>
+                                    </View>
                                 ))}
                             </View>
                         </View>
