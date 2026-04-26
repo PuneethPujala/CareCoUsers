@@ -290,7 +290,7 @@ const usePatientStore = create((set, get) => ({
         // Update dashboardMeds (safe matching by name and type to sync across screens perfectly)
         set((s) => ({
             dashboardMeds: s.dashboardMeds.map((m) =>
-                (m.name === med.name && m.type === med.type) ? { ...m, taken: targetState } : m
+                (m.name === med.name && m.type === med.type) ? { ...m, taken: targetState, marked_by: targetState ? 'patient' : null } : m
             ),
         }));
 
@@ -299,7 +299,7 @@ const usePatientStore = create((set, get) => ({
             const schedule = { ...s.medicationSchedule };
             Object.keys(schedule).forEach((slot) => {
                 schedule[slot] = schedule[slot].map((m) =>
-                    (m.name === med.name && m.type === med.type) ? { ...m, taken: targetState } : m
+                    (m.name === med.name && m.type === med.type) ? { ...m, taken: targetState, marked_by: targetState ? 'patient' : null } : m
                 );
             });
             return { medicationSchedule: schedule };
@@ -319,14 +319,14 @@ const usePatientStore = create((set, get) => ({
             set({
                 _optimisticMeds: revOpt,
                 dashboardMeds: get().dashboardMeds.map((m) =>
-                    (m.name === med.name && m.type === med.type) ? { ...m, taken: false } : m
+                    (m.name === med.name && m.type === med.type) ? { ...m, taken: false, marked_by: null } : m
                 ),
             });
             set((s) => {
                 const schedule = { ...s.medicationSchedule };
                 Object.keys(schedule).forEach((slot) => {
                     schedule[slot] = schedule[slot].map((m) =>
-                        (m.name === med.name && m.type === med.type) ? { ...m, taken: false } : m
+                        (m.name === med.name && m.type === med.type) ? { ...m, taken: false, marked_by: null } : m
                     );
                 });
                 return { medicationSchedule: schedule };
@@ -346,13 +346,13 @@ const usePatientStore = create((set, get) => ({
         // Optimistically update
         set((s) => ({
             dashboardMeds: s.dashboardMeds.map((m) =>
-                m.type === slot ? { ...m, taken: true } : m
+                m.type === slot ? { ...m, taken: true, marked_by: 'patient' } : m
             ),
         }));
         set((s) => {
             const schedule = { ...s.medicationSchedule };
             if (schedule[slot]) {
-                schedule[slot] = schedule[slot].map((m) => ({ ...m, taken: true }));
+                schedule[slot] = schedule[slot].map((m) => ({ ...m, taken: true, marked_by: 'patient' }));
             }
             return { medicationSchedule: schedule };
         });
