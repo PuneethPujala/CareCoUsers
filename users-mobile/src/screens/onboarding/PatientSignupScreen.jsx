@@ -746,7 +746,12 @@ export default function PatientSignupScreen({ navigation, route }) {
             setOtpAttempts(0);
             setOtp('');
         } catch (error) {
-            const { general } = parseError(error);
+            let { general } = parseError(error);
+            if (general === 'Request failed with status code 400' || error?.message === 'Request failed with status code 400') {
+                general = field === 'phone'
+                    ? 'This phone number is already registered or invalid. Please try a different number.'
+                    : 'This email is already registered or invalid. Please try a different email.';
+            }
             const errorField = field === 'phone' ? 'phoneNumber' : field;
             setErrors(prev => ({ ...prev, [errorField]: general || `Failed to send OTP to ${field}` }));
         } finally {
