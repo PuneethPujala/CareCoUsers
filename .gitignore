@@ -79,7 +79,9 @@ users-backend/migrate-patient-profiles.js
 # ── AI vitals output ─────────────────────────────────────────
 users-ai-vitals/output.txt
 
-# ── Firebase Admin SDK service account keys ──────────────────
+# ── Firebase Configs (Usually safe, but better ignored for private repos) ──
+google-services.json
+GoogleService-Info.plist
 *firebase-adminsdk*
 *.json.bak
 
