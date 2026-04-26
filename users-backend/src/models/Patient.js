@@ -277,7 +277,7 @@ const PatientSchema = new mongoose.Schema(
                     },
                 ],
                 scheduledTimes: [String], // NEW - Array of HH:MM strings
-                takenLogs: [             // NEW - Rich audit trail
+                takenLogs: [             // Rich audit trail
                     {
                         timestamp: { type: Date, default: Date.now },
                         status: { type: String, enum: ['taken', 'missed', 'refused'], default: 'taken' },
@@ -285,6 +285,7 @@ const PatientSchema = new mongoose.Schema(
                         notes: String
                     }
                 ],
+                takenDates: [{ type: Date }], // Dates when this medication was taken
                 is_active: { type: Boolean, default: true },
                 instructions: String,
             },

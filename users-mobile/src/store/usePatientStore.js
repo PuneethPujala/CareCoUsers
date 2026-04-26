@@ -10,8 +10,8 @@ import { create } from 'zustand';
 import { apiService } from '../lib/api';
 import { getCache, setCache, CACHE_KEYS } from '../lib/CacheService';
 
-const TIME_LABELS = { morning: 'Morning', afternoon: 'Afternoon', night: 'Night' };
-const ACCENT_MAP = { morning: '#22C55E', afternoon: '#F59E0B', night: '#8B5CF6' };
+const TIME_LABELS = { morning: 'Morning', afternoon: 'Afternoon', evening: 'Evening', night: 'Night', as_needed: 'As Needed' };
+const ACCENT_MAP = { morning: '#22C55E', afternoon: '#F59E0B', evening: '#7C3AED', night: '#8B5CF6', as_needed: '#6366F1' };
 
 const usePatientStore = create((set, get) => ({
     // ── Core data ───────────────────────────────────────────
@@ -251,7 +251,7 @@ const usePatientStore = create((set, get) => ({
                     };
                 });
 
-            const grouped = { morning: [], afternoon: [], night: [] };
+            const grouped = { morning: [], afternoon: [], evening: [], night: [], as_needed: [] };
             mergedMeds.forEach((m) => {
                 if (grouped[m.type]) grouped[m.type].push(m);
             });

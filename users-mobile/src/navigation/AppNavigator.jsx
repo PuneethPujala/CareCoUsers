@@ -61,13 +61,13 @@ const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
 export const TAB_BAR_HEIGHT = 64;
-export const TAB_BAR_BOTTOM = 12; // Base padding, insets added dynamically
-export const TAB_BAR_CLEARANCE = TAB_BAR_HEIGHT + TAB_BAR_BOTTOM + 16;
+export const TAB_BAR_BOTTOM = 8; // Reduced base padding for tighter look
+export const TAB_BAR_CLEARANCE = TAB_BAR_HEIGHT + TAB_BAR_BOTTOM + 12;
 
 // ── Fully custom tab bar — bypasses RN Navigation's internal layout ──
 function CustomTabBar({ state, descriptors, navigation }) {
     const insets = useSafeAreaInsets();
-    const dynamicBottom = Math.max(insets.bottom, TAB_BAR_BOTTOM);
+    const dynamicBottom = insets.bottom > 0 ? insets.bottom : TAB_BAR_BOTTOM;
     return (
         <View style={[styles.tabBarContainer, { bottom: dynamicBottom }]}>
             {state.routes.map((route, index) => {
