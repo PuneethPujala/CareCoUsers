@@ -18,8 +18,8 @@ import * as Notifications from 'expo-notifications';
 
 const { width } = Dimensions.get('window');
 
-const ACCENT_MAP = { morning: '#0D9488', afternoon: '#0F766E', night: '#134E4A' };
-const TIME_LABELS = { morning: 'Morning', afternoon: 'Afternoon', night: 'Night' };
+const ACCENT_MAP = { morning: '#0D9488', afternoon: '#0F766E', evening: '#7C3AED', night: '#134E4A', as_needed: '#6366F1' };
+const TIME_LABELS = { morning: 'Morning', afternoon: 'Afternoon', evening: 'Evening', night: 'Night', as_needed: 'As Needed' };
 
 // ── Skeleton Loader ──────────────────────────────────────────
 const SkeletonItem = ({ width, height, borderRadius = 8, style }) => {
@@ -541,7 +541,7 @@ export default function MedicationsScreen({ navigation }) {
         }
     };
 
-    const allMeds = [...(schedule.morning || []), ...(schedule.afternoon || []), ...(schedule.night || [])];
+    const allMeds = [...(schedule.morning || []), ...(schedule.afternoon || []), ...(schedule.evening || []), ...(schedule.night || []), ...(schedule.as_needed || [])];
     const takenCount = allMeds.filter(m => m.taken).length;
     const progressPerc = allMeds.length > 0 ? (takenCount / allMeds.length) * 100 : 0;
 
@@ -811,6 +811,24 @@ export default function MedicationsScreen({ navigation }) {
                                         ))}
                                     </>
                                 )}
+
+                                {/* Evening */}
+                                {(schedule.evening?.length > 0) && (
+                                    <>
+                                        {schedule.evening.map((med, idx) => (
+                                            <AnimatedMedCard key={med.id} med={med} onToggle={handleMedIconPress} onSnooze={handleSnooze} />
+                                        ))}
+                                    </>
+                                )}
+
+                                {/* As Needed */}
+                                {(schedule.as_needed?.length > 0) && (
+                                    <>
+                                        {schedule.as_needed.map((med, idx) => (
+                                            <AnimatedMedCard key={med.id} med={med} onToggle={handleMedIconPress} onSnooze={handleSnooze} />
+                                        ))}
+                                    </>
+                                )}
                             </View>
                         </Animated.View>
 
@@ -1066,7 +1084,7 @@ const styles = StyleSheet.create({
     medMetaRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' },
     verifiedBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#ECFDF5', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, marginLeft: 8, borderWidth: 1, borderColor: '#D1FAE5' },
     verifiedTxt: { fontSize: 10, fontWeight: '700', color: '#059669', marginLeft: 3, textTransform: 'uppercase' },
-    medTitleMinimal: { fontSize: 16, fontWeight: '700', color: '#0F172A', marginBottom: 4 },
+    medTitleMinimal: { fontSize: 16, fontWeight: '700', color: '#0F172A', flexShrink: 1 },
     medSubMinimal: { fontSize: 13, color: '#64748B', fontWeight: '500' },
     textStrikethrough: { textDecorationLine: 'line-through', color: '#94A3B8' },
     medCardTaken: {
