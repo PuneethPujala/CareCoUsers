@@ -1168,7 +1168,9 @@ router.get('/me/vitals', authenticateSession, async (req, res) => {
  */
 router.delete('/me/:collection/:id', authenticateSession, async (req, res) => {
     try {
-        const { collection, id } = req.params;
+        const { id } = req.params;
+        // Normalize: frontend may send 'trusted-contacts' (hyphen) but Mongoose field uses underscore
+        const collection = req.params.collection.replace(/-/g, '_');
         const validCollections = ['conditions', 'allergies', 'appointments', 'vaccinations', 'medications', 'medical_history', 'trusted_contacts'];
 
         if (!validCollections.includes(collection)) {
