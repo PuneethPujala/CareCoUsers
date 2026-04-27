@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, Platform, ActivityIndicator, Animat
 import PremiumFormModal from '../../components/ui/PremiumFormModal';
 import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { TriangleAlert, ShieldCheck, HeartPulse, Activity, Stethoscope, Droplet, User, CalendarDays, Watch, Flame, Phone, Plus, Edit2, X, Trash2, CheckCircle2, RefreshCw, AlertTriangle, ChevronDown, Upload, Siren, Dna, Info } from 'lucide-react-native';
+import { TriangleAlert, ShieldCheck, HeartPulse, Activity, Stethoscope, Droplet, User, CalendarDays, Watch, Flame, Phone, Plus, Edit2, X, Trash2, CheckCircle2, RefreshCw, AlertTriangle, ChevronDown, Upload, Siren, Dna, Info, ChevronRight, TrendingUp, BellRing, FileText, Pill, Syringe, Link2, Users, Calendar } from 'lucide-react-native';
 import { apiService } from '../../lib/api';
 import { initializeHealthPlatform, requestHealthPermissions, fetchDailyVitalsSummary, isHealthSupported } from '../../lib/healthIntegration';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -464,6 +464,41 @@ export default function HealthProfileScreen({ navigation }) {
     };
     const bmiTheme = getBmiStyle(bmi);
 
+    // Profile Completion %
+    const calcCompletion = () => {
+        let score = 0, total = 10;
+        if (profile?.blood_type && profile.blood_type !== 'unknown') score++;
+        if (conditions.length > 0) score++;
+        if (allergies.length > 0) score++;
+        if (medical_history.length > 0) score++;
+        if (medications.length > 0) score++;
+        if (vaccinations.length > 0) score++;
+        if (lifestyle.height_cm && lifestyle.weight_kg) score++;
+        if (profile?.trusted_contacts?.length > 0) score++;
+        if (gp.name) score++;
+        if (lifestyle.smoking_status && lifestyle.smoking_status !== 'never') score++; else if (lifestyle.smoking_status === 'never') score++;
+        return Math.round((score / total) * 100);
+    };
+    const completionPct = calcCompletion();
+
+    // Habit Score (0-100)
+    const calcHabitScore = () => {
+        let s = 50;
+        if (lifestyle.smoking_status === 'never') s += 20; else if (lifestyle.smoking_status === 'former') s += 10; else if (lifestyle.smoking_status === 'current') s -= 10;
+        if (lifestyle.alcohol_use === 'none') s += 15; else if (lifestyle.alcohol_use === 'occasional') s += 5; else s -= 10;
+        if (lifestyle.exercise_frequency === 'active') s += 15; else if (lifestyle.exercise_frequency === 'moderate') s += 10; else if (lifestyle.exercise_frequency === 'light') s += 5;
+        return Math.max(0, Math.min(100, s));
+    };
+    const habitScore = calcHabitScore();
+    const habitLabel = habitScore >= 70 ? 'Good' : habitScore >= 40 ? 'Fair' : 'Needs Work';
+    const habitColor = habitScore >= 70 ? '#10B981' : habitScore >= 40 ? '#F59E0B' : '#EF4444';
+
+    // Health Trend
+    const managedCount = conditions.filter(c => c.status === 'managed' || c.status === 'resolved').length;
+    const trendLabel = conditions.length === 0 ? 'Good' : managedCount >= conditions.length * 0.5 ? 'Good' : 'Monitor';
+    const trendSub = conditions.length === 0 ? 'No issues' : managedCount >= conditions.length * 0.5 ? 'Stable' : 'Attention';
+    const trendColor = trendLabel === 'Good' ? '#10B981' : '#F59E0B';
+
     const renderHeader = (title, typeToAdd, hideAdd = false) => (
         <View style={s.sectionHeaderRow}>
             <Text style={s.sectionHeaderBase}>{title}</Text>
@@ -511,48 +546,68 @@ export default function HealthProfileScreen({ navigation }) {
             </View>
 
             <ScrollView style={s.body} contentContainerStyle={s.bodyContent} showsVerticalScrollIndicator={false}>
-                {/* 0. IDENTITY & EMERGENCY (BENTO) */}
+                {/* Profile Completion */}
+                {completionPct < 100 && (
+                    <Animated.View style={{ opacity: staggerAnims[0], transform: [{ translateY: staggerAnims[0].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>
+                        <View style={s.completionCard}>
+                            <View style={s.completionLeft}>
+                                <View style={s.completionRing}>
+                                    <Text style={s.completionPct}>{completionPct}%</Text>
+                                </View>
+                            </View>
+                            <View style={s.completionInfo}>
+                                <Text style={s.completionTitle}>Profile Completion</Text>
+                                <Text style={s.completionSub}>{completionPct >= 70 ? "You're doing great!" : 'Fill in more details for better care'}</Text>
+                            </View>
+                            <Pressable style={s.completionAction}>
+                                <Text style={s.completionActionTxt}>Complete Now</Text>
+                                <ChevronRight size={16} color={C.primary} />
+                            </Pressable>
+                        </View>
+                    </Animated.View>
+                )}
+
+                {/* 0. IDENTITY & SAFETY */}
                 <Animated.View style={{ opacity: staggerAnims[0], transform: [{ translateY: staggerAnims[0].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>
                     <View style={s.section}>
                         <View style={s.sectionHeaderRow}>
-                            <Text style={s.sectionHeaderBase}>IDENTITY & SAFETY</Text>
+                            <Text style={s.sectionHeaderBase}>Identity & Safety</Text>
                         </View>
                         <View style={s.bentoGrid}>
-                            <Pressable style={s.bentoPressable} onPress={() => openModal('identity')}>
-                                <LinearGradient colors={['#FF6B6B', '#EE5253']} style={s.bentoBoxGradient}>
-                                    <View style={s.bentoIconGlass}><Dna size={16} color="#FFF" /></View>
-                                    <Text style={s.bentoValWhite}>{profile?.blood_type !== 'unknown' ? profile?.blood_type : '—'}</Text>
-                                    <Text style={s.bentoLblWhite}>Blood Type</Text>
-                                </LinearGradient>
+                            <Pressable style={s.bentoCardClean} onPress={() => openModal('identity')}>
+                                <View style={[s.bentoCircle, { backgroundColor: '#FEE2E2' }]}><Droplet size={18} color="#EF4444" /></View>
+                                <Text style={s.bentoValClean}>{profile?.blood_type !== 'unknown' ? profile?.blood_type : '—'}</Text>
+                                <Text style={s.bentoLblClean}>BLOOD TYPE</Text>
                             </Pressable>
-                            <Pressable style={s.bentoPressable} onPress={() => openModal('identity')}>
-                                <LinearGradient colors={['#10B981', '#059669']} style={s.bentoBoxGradient}>
-                                    <View style={s.bentoIconGlass}><Info size={16} color="#FFF" /></View>
-                                    <Text style={s.bentoValWhite} numberOfLines={1}>{profile?.lifestyle?.dietary_restrictions?.length ? profile?.lifestyle?.dietary_restrictions[0] : 'None'}</Text>
-                                    <Text style={s.bentoLblWhite}>Diet / Restrictions</Text>
-                                </LinearGradient>
+                            <Pressable style={s.bentoCardClean} onPress={() => openModal('identity')}>
+                                <View style={[s.bentoCircle, { backgroundColor: '#D1FAE5' }]}><ShieldCheck size={18} color="#10B981" /></View>
+                                <Text style={s.bentoValClean} numberOfLines={1}>{profile?.lifestyle?.dietary_restrictions?.length ? profile?.lifestyle?.dietary_restrictions[0] : 'None'}</Text>
+                                <Text style={s.bentoLblClean}>DIET / RESTRICTIONS</Text>
                             </Pressable>
-                            <Pressable style={s.bentoPressable} onPress={() => openModal('contact')}>
-                                <LinearGradient colors={['#F59E0B', '#D97706']} style={s.bentoBoxGradient}>
-                                    <View style={s.bentoIconGlass}><Siren size={16} color="#FFF" /></View>
-                                    <Text style={s.bentoValWhite} numberOfLines={1}>{profile?.trusted_contacts?.find(c => c.is_emergency)?.name || 'Not Set'}</Text>
-                                    <Text style={s.bentoLblWhite}>Emergency</Text>
-                                </LinearGradient>
+                            <Pressable style={s.bentoCardClean} onPress={() => openModal('contact')}>
+                                <View style={[s.bentoCircle, { backgroundColor: '#FEF3C7' }]}><BellRing size={18} color="#F59E0B" /></View>
+                                <Text style={s.bentoValClean} numberOfLines={1}>{profile?.trusted_contacts?.find(c => c.is_emergency)?.name || 'Not Set'}</Text>
+                                <Text style={s.bentoLblClean}>EMERGENCY INFO</Text>
                             </Pressable>
                         </View>
                     </View>
                 </Animated.View>
 
+                {/* OVERVIEW label */}
+                <View style={[s.sectionHeaderRow, { marginBottom: 8 }]}>
+                    <Text style={s.sectionHeaderBase}>Overview</Text>
+                </View>
+
                 {/* 1. CONDITIONS */}
                 <Animated.View style={{ opacity: staggerAnims[1], transform: [{ translateY: staggerAnims[1].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>
                     <View style={s.section}>
-                        {renderHeader('CURRENT CONDITIONS', 'condition')}
+                        {renderHeader('Current Conditions', 'condition')}
                         <View style={s.cardStack}>
                             {conditions.map((c, i) => {
                                 const statStyle = CONDITION_STATUS[c.status] || CONDITION_STATUS.active;
                                 return (
-                                    <Pressable key={i} style={s.rowItemEnhanced} onPress={() => openModal('condition', c)}>
-                                        <View style={[s.iconBg, { backgroundColor: statStyle.bg }]}><Activity size={18} color={statStyle.text} /></View>
+                                    <Pressable key={i} style={s.rowItemClean} onPress={() => openModal('condition', c)}>
+                                        <View style={[s.iconBg, { backgroundColor: '#FEE2E2' }]}><HeartPulse size={18} color="#EF4444" /></View>
                                         <View style={s.rowInfo}>
                                             <Text style={s.rowTitle}>{c.name}</Text>
                                             <Text style={s.rowSub}>{c.diagnosed_on ? new Date(c.diagnosed_on).getFullYear() : 'Unknown'} • <Text style={{textTransform: 'capitalize'}}>{c.severity || 'Unspecified'}</Text></Text>
@@ -569,18 +624,15 @@ export default function HealthProfileScreen({ navigation }) {
                 {/* 2. ALLERGIES */}
                 <Animated.View style={{ opacity: staggerAnims[2], transform: [{ translateY: staggerAnims[2].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>
                     <View style={s.section}>
-                        {renderHeader('ALLERGIES', 'allergy')}
+                        {renderHeader('Allergies', 'allergy')}
                         <View style={s.card}>
                             <View style={s.chipWrap}>
-                                {allergies.map((a, i) => {
-                                    const sevStyle = ALLERGY_SEVERITY[a.severity] || ALLERGY_SEVERITY.moderate;
-                                    return (
-                                        <Pressable key={i} style={[s.chipEnhanced, { backgroundColor: sevStyle.bg, borderColor: sevStyle.border }]} onPress={() => openModal('allergy', a)}>
-                                            <TriangleAlert size={14} color={sevStyle.text} style={{ marginRight: 6 }} />
-                                            <Text style={[s.chipTxt, { color: sevStyle.text }]}>{a.name}</Text>
-                                        </Pressable>
-                                    );
-                                })}
+                                {allergies.map((a, i) => (
+                                    <Pressable key={i} style={s.chipOutlined} onPress={() => openModal('allergy', a)}>
+                                        <TriangleAlert size={14} color="#F59E0B" style={{ marginRight: 6 }} />
+                                        <Text style={s.chipOutlinedTxt}>{a.name}</Text>
+                                    </Pressable>
+                                ))}
                                 {allergies.length === 0 && <Text style={s.emptyRowTxt}>No known allergies</Text>}
                             </View>
                         </View>
@@ -590,36 +642,31 @@ export default function HealthProfileScreen({ navigation }) {
                 {/* 3. MEDICAL HISTORY */}
                 <Animated.View style={{ opacity: staggerAnims[3], transform: [{ translateY: staggerAnims[3].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>
                     <View style={s.section}>
-                        {renderHeader('MEDICAL HISTORY', 'history')}
-                        <View style={s.card}>
-                            <View style={s.timelineContainer}>
-                                {medical_history.map((h, i) => (
-                                    <Pressable key={i} style={s.timelineRow} onPress={() => openModal('history', h)}>
-                                        <View style={s.timelineLeft}>
-                                            <View style={s.timelineDot} />
-                                            {i < medical_history.length - 1 && <View style={s.timelineLine} />}
-                                        </View>
-                                        <View style={s.timelineContent}>
-                                            <Text style={s.timelineDate}>{h.date ? new Date(h.date).toLocaleDateString('en-IN') : 'Unknown'}</Text>
-                                            <Text style={s.timelineTitle}>{h.event}</Text>
-                                            {h.notes && <Text style={s.timelineDesc}>{h.notes}</Text>}
-                                        </View>
-                                    </Pressable>
-                                ))}
-                                {medical_history.length === 0 && <Text style={s.emptyRowTxt}>No medical history recorded</Text>}
-                            </View>
+                        {renderHeader('Medical History', 'history')}
+                        <View style={s.cardStack}>
+                            {medical_history.map((h, i) => (
+                                <Pressable key={i} style={s.rowItemClean} onPress={() => openModal('history', h)}>
+                                    <View style={[s.iconBg, { backgroundColor: '#DBEAFE' }]}><FileText size={18} color="#3B82F6" /></View>
+                                    <View style={s.rowInfo}>
+                                        <Text style={s.rowTitle}>{h.event}</Text>
+                                        <Text style={s.rowSub}>{h.date ? new Date(h.date).toLocaleDateString('en-IN') : 'Unknown'}{h.notes ? ` • ${h.notes}` : ''}</Text>
+                                    </View>
+                                    <ChevronRight size={18} color="#CBD5E1" />
+                                </Pressable>
+                            ))}
+                            {medical_history.length === 0 && <Text style={s.emptyRowTxt}>No medical history recorded</Text>}
                         </View>
                     </View>
                 </Animated.View>
 
-                {/* 4. MEDICATION LIST (Read-Only) */}
+                {/* 4. MEDICATIONS */}
                 <Animated.View style={{ opacity: staggerAnims[4], transform: [{ translateY: staggerAnims[4].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>
                     <View style={s.section}>
-                        {renderHeader('CURRENT MEDICATIONS', 'medication', true)}
+                        {renderHeader('Current Medications', 'medication', true)}
                         <View style={s.cardStack}>
                             {medications.filter(m => m.is_active !== false).map((m, i) => (
-                                <View key={i} style={s.rowItemEnhanced}>
-                                    <View style={[s.iconBg, { backgroundColor: '#EEF2FF' }]}><Droplet size={18} color="#6366F1" /></View>
+                                <View key={i} style={s.rowItemClean}>
+                                    <View style={[s.iconBg, { backgroundColor: '#F3E8FF' }]}><Pill size={18} color="#8B5CF6" /></View>
                                     <View style={s.rowInfo}>
                                         <Text style={s.rowTitle}>{m.name}</Text>
                                         <Text style={s.rowSub}>{m.dosage} • {m.frequency}</Text>
@@ -632,10 +679,10 @@ export default function HealthProfileScreen({ navigation }) {
 
                     {medications.some(m => m.is_active === false) && (
                         <View style={[s.section, { marginTop: -12 }]}>
-                            <Text style={[s.sectionHeaderBase, { fontSize: 11, marginBottom: 12, opacity: 0.6 }]}>PREVIOUS MEDICATIONS (HISTORY)</Text>
+                            <Text style={[s.sectionHeaderBase, { fontSize: 11, marginBottom: 12, opacity: 0.6, paddingHorizontal: 8 }]}>Previous Medications</Text>
                             <View style={[s.cardStack, { opacity: 0.7 }]}>
                                 {medications.filter(m => m.is_active === false).map((m, i) => (
-                                    <View key={i} style={s.rowItemEnhanced}>
+                                    <View key={i} style={s.rowItemClean}>
                                         <View style={[s.iconBg, { backgroundColor: '#F1F5F9' }]}><Droplet size={18} color="#94A3B8" /></View>
                                         <View style={s.rowInfo}>
                                             <Text style={[s.rowTitle, { color: '#64748B' }]}>{m.name}</Text>
@@ -652,15 +699,16 @@ export default function HealthProfileScreen({ navigation }) {
                 {/* 5. VACCINATIONS */}
                 <Animated.View style={{ opacity: staggerAnims[5], transform: [{ translateY: staggerAnims[5].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>
                     <View style={s.section}>
-                        {renderHeader('VACCINATIONS', 'vaccination')}
+                        {renderHeader('Vaccinations', 'vaccination')}
                         <View style={s.cardStack}>
                             {vaccinations.map((vac, i) => (
-                                <Pressable key={i} style={s.rowItemEnhanced} onPress={() => openModal('vaccination', vac)}>
-                                    <View style={[s.iconBg, { backgroundColor: '#F0FDF4' }]}><ShieldCheck size={18} color="#16A34A" /></View>
+                                <Pressable key={i} style={s.rowItemClean} onPress={() => openModal('vaccination', vac)}>
+                                    <View style={[s.iconBg, { backgroundColor: '#D1FAE5' }]}><Syringe size={18} color="#10B981" /></View>
                                     <View style={s.rowInfo}>
                                         <Text style={s.rowTitle}>{vac.name}</Text>
                                         <Text style={s.rowSub}>Given: {vac.date_given ? new Date(vac.date_given).toLocaleDateString() : 'Unknown'}</Text>
                                     </View>
+                                    <ChevronRight size={18} color="#CBD5E1" />
                                 </Pressable>
                             ))}
                             {vaccinations.length === 0 && <Text style={s.emptyRowTxt}>No vaccinations recorded</Text>}
@@ -671,15 +719,16 @@ export default function HealthProfileScreen({ navigation }) {
                 {/* 6. APPOINTMENTS */}
                 <Animated.View style={{ opacity: staggerAnims[6], transform: [{ translateY: staggerAnims[6].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>
                     <View style={s.section}>
-                        {renderHeader('UPCOMING APPOINTMENTS', 'appointment')}
+                        {renderHeader('Upcoming Appointments', 'appointment')}
                         <View style={s.cardStack}>
                             {appointments.map((app, i) => (
-                                <Pressable key={i} style={s.rowItemEnhanced} onPress={() => openModal('appointment', app)}>
-                                    <View style={[s.iconBg, { backgroundColor: '#FFF7ED' }]}><CalendarDays size={18} color="#EA580C" /></View>
+                                <Pressable key={i} style={s.rowItemClean} onPress={() => openModal('appointment', app)}>
+                                    <View style={[s.iconBg, { backgroundColor: '#DBEAFE' }]}><Calendar size={18} color="#3B82F6" /></View>
                                     <View style={s.rowInfo}>
                                         <Text style={s.rowTitle}>{app.title}</Text>
                                         <Text style={s.rowSub}>{app.doctor_name} • {new Date(app.date).toLocaleDateString()}</Text>
                                     </View>
+                                    <ChevronRight size={18} color="#CBD5E1" />
                                 </Pressable>
                             ))}
                             {appointments.length === 0 && <Text style={s.emptyRowTxt}>No upcoming appointments</Text>}
@@ -687,59 +736,52 @@ export default function HealthProfileScreen({ navigation }) {
                     </View>
                 </Animated.View>
 
-                {/* 7. LIFESTYLE (BENTO CLICKABLES) */}
+                {/* 7. MONITORING */}
                 <Animated.View style={{ opacity: staggerAnims[7], transform: [{ translateY: staggerAnims[7].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>
                     <View style={s.section}>
                         <View style={s.sectionHeaderRow}>
-                            <Text style={s.sectionHeaderBase}>VITALS & HABITS</Text>
+                            <Text style={s.sectionHeaderBase}>Monitoring</Text>
                         </View>
-                        <View style={s.bentoGrid}>
-                            <Pressable style={s.bentoPressable} onPress={() => openModal('vitals')}>
-                                <LinearGradient colors={[bmiTheme.icon || '#6366F1', bmiTheme.text || '#4338CA']} style={s.bentoBoxGradient}>
-                                    <View style={s.bentoIconGlass}><User size={16} color="#FFF" /></View>
-                                    <Text style={s.bentoValWhite}>{bmi ? bmi : '—'}</Text>
-                                    <Text style={s.bentoLblWhite}>{bmiTheme.label}</Text>
-                                </LinearGradient>
+                        <View style={s.monitoringRow}>
+                            <Pressable style={[s.metricCard, { backgroundColor: '#FEF9C3' }]} onPress={() => openModal('vitals')}>
+                                <Droplet size={20} color="#EAB308" />
+                                <Text style={[s.metricVal, { color: '#EAB308' }]}>{bmi || '—'}</Text>
+                                <Text style={s.metricLbl}>BMI</Text>
+                                <Text style={[s.metricSub, { color: bmi ? (parseFloat(bmi) < 25 ? '#10B981' : '#F59E0B') : '#94A3B8' }]}>{bmiTheme.label}</Text>
                             </Pressable>
-                            <Pressable style={s.bentoPressable} onPress={() => openModal('habits')}>
-                                <LinearGradient colors={['#EC4899', '#BE185D']} style={s.bentoBoxGradient}>
-                                    <View style={s.bentoIconGlass}><Flame size={16} color="#FFF" /></View>
-                                    <Text style={s.bentoValWhite} numberOfLines={1}>{lifestyle.smoking_status === 'current' ? 'Smoker' : 'Clean'}</Text>
-                                    <Text style={s.bentoLblWhite}>Habits</Text>
-                                </LinearGradient>
+                            <Pressable style={[s.metricCard, { backgroundColor: '#FEE2E2' }]} onPress={() => openModal('habits')}>
+                                <Activity size={20} color="#EF4444" />
+                                <Text style={[s.metricVal, { color: '#EF4444' }]}>{habitScore}%</Text>
+                                <Text style={s.metricLbl}>Habit Score</Text>
+                                <Text style={[s.metricSub, { color: habitColor }]}>{habitLabel}</Text>
                             </Pressable>
-                            <Pressable style={s.bentoPressable} onPress={() => openModal('activity')}>
-                                <LinearGradient colors={['#14B8A6', '#0D9488']} style={s.bentoBoxGradient}>
-                                    <View style={s.bentoIconGlass}><Activity size={16} color="#FFF" /></View>
-                                    <Text numberOfLines={1} style={[s.bentoValWhite, { textTransform: 'capitalize' }]}>{lifestyle.exercise_frequency || 'None'}</Text>
-                                    <Text style={s.bentoLblWhite}>Mobility & Exs</Text>
-                                </LinearGradient>
+                            <Pressable style={[s.metricCard, { backgroundColor: '#F0FDF4' }]} onPress={() => openModal('activity')}>
+                                <TrendingUp size={20} color="#10B981" />
+                                <Text style={[s.metricVal, { color: '#10B981' }]}>{trendLabel}</Text>
+                                <Text style={s.metricLbl}>Health Trend</Text>
+                                <Text style={[s.metricSub, { color: trendColor }]}>{trendSub}</Text>
                             </Pressable>
                         </View>
                     </View>
                 </Animated.View>
 
-                {/* WEARABLE SYNC CARD */}
+                {/* CONNECTED & CARE */}
+                <View style={[s.sectionHeaderRow, { marginBottom: 8 }]}>
+                    <Text style={s.sectionHeaderBase}>Connected & Care</Text>
+                </View>
+
+                {/* WEARABLE SYNC */}
                 {isHealthSupported() && (
                     <Animated.View style={{ opacity: staggerAnims[7], transform: [{ translateY: staggerAnims[7].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>
                         <View style={s.section}>
-                            <View style={s.sectionHeaderRow}>
-                                <Text style={s.sectionHeaderBase}>CONNECTED WEARABLES</Text>
-                            </View>
-                            <View style={s.card}>
-                                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                                    <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                                        <View style={[s.iconBg, { backgroundColor: '#F3E8FF', marginRight: 16 }]}><Watch size={20} color="#9333EA" /></View>
-                                        <View style={{ flex: 1 }}>
-                                            <Text style={s.rowTitle}>{Platform.OS === 'android' ? 'Health Connect' : 'Apple Health'}</Text>
-                                            <Text style={s.rowSub}>Sync smartwatch vitals</Text>
-                                        </View>
+                            <View style={s.cardStack}>
+                                <View style={s.rowItemClean}>
+                                    <View style={[s.iconBg, { backgroundColor: '#F3E8FF' }]}><Link2 size={20} color="#8B5CF6" /></View>
+                                    <View style={s.rowInfo}>
+                                        <Text style={s.rowTitle}>Health Connect</Text>
+                                        <Text style={s.rowSub}>Sync smartwatch vitals</Text>
                                     </View>
-                                    <Pressable 
-                                        style={s.syncBtn} 
-                                        onPress={handleWearableSync}
-                                        disabled={isSyncing}
-                                    >
+                                    <Pressable style={s.syncBtn} onPress={handleWearableSync} disabled={isSyncing}>
                                         {isSyncing ? <ActivityIndicator size="small" color="#FFF" /> : <RefreshCw size={16} color="#FFF" />}
                                         {!isSyncing && <Text style={s.syncBtnTxt}>Sync Now</Text>}
                                     </Pressable>
@@ -749,21 +791,21 @@ export default function HealthProfileScreen({ navigation }) {
                     </Animated.View>
                 )}
 
-                {/* 8. CARE TEAM & CONTACTS */}
+                {/* CARE TEAM */}
                 <Animated.View style={{ opacity: staggerAnims[8], transform: [{ translateY: staggerAnims[8].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>
                     <View style={s.section}>
-                        {renderHeader('CARE TEAM & CONTACTS', 'contact')}
+                        {renderHeader('Care Team & Contacts', 'contact')}
                         <View style={s.cardStack}>
                             {profile?.trusted_contacts?.map((c, i) => (
-                                <Pressable key={i} style={s.rowItemEnhanced} onPress={() => openModal('contact', c)}>
-                                    <View style={[s.iconBg, { backgroundColor: c.is_emergency ? C.dangerBg : C.primarySoft }]}>
-                                        {c.is_emergency ? <Siren size={20} color={C.danger} /> : <User size={20} color={C.primary} />}
+                                <Pressable key={i} style={s.rowItemClean} onPress={() => openModal('contact', c)}>
+                                    <View style={[s.iconBg, { backgroundColor: c.is_emergency ? C.dangerBg : '#DBEAFE' }]}>
+                                        {c.is_emergency ? <Siren size={20} color={C.danger} /> : <Users size={20} color="#3B82F6" />}
                                     </View>
                                     <View style={s.rowInfo}>
                                         <Text style={s.rowTitle}>{c.name}</Text>
                                         <Text style={s.rowSub}>{c.relation} • {c.phone}</Text>
                                     </View>
-                                    {c.is_emergency && <View style={[s.pill, { backgroundColor: C.dangerBg }]}><Text style={[s.pillTxt, { color: C.danger }]}>Emergency</Text></View>}
+                                    <ChevronRight size={18} color="#CBD5E1" />
                                 </Pressable>
                             ))}
                             {(!profile?.trusted_contacts || profile.trusted_contacts.length === 0) && <Text style={s.emptyRowTxt}>No care team members added.</Text>}
@@ -771,34 +813,26 @@ export default function HealthProfileScreen({ navigation }) {
                     </View>
                 </Animated.View>
 
-                {/* 9. PRIMARY DOCTOR */}
+                {/* PRIMARY DOCTOR */}
                 <Animated.View style={{ opacity: staggerAnims[9] || new Animated.Value(1), transform: [{ translateY: (staggerAnims[9] || new Animated.Value(1)).interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>
                     <View style={s.section}>
                         <View style={s.sectionHeaderRow}>
-                            <Text style={s.sectionHeaderBase}>PRIMARY DOCTOR</Text>
+                            <Text style={s.sectionHeaderBase}>Primary Doctor</Text>
                             <Pressable style={({pressed}) => [s.addBtn, pressed && {opacity: 0.7}]} onPress={() => openModal('gp')}>
                                 <Edit2 size={14} color="#FFF" strokeWidth={3} />
                             </Pressable>
                         </View>
                         <View style={s.cardStack}>
                             {gp.name ? (
-                                <View style={s.gpCard}>
-                                    <View style={s.gpProfileRow}>
-                                        <View style={s.gpAvatar}><Text style={s.gpAvatarTxt}>{gp.name.charAt(0)}</Text></View>
-                                        <View style={s.gpInfo}>
-                                            <Text style={s.gpName}>{gp.name}</Text>
-                                            {gp.email && <Text style={s.gpDetail}>{gp.email}</Text>}
-                                            {gp.phone && <Text style={s.gpDetail}>{gp.phone}</Text>}
-                                        </View>
+                                <Pressable style={s.rowItemClean} onPress={() => gp.phone && Linking.openURL(`tel:${gp.phone}`)}>
+                                    <View style={[s.iconBg, { backgroundColor: '#FEE2E2' }]}><Stethoscope size={20} color="#EF4444" /></View>
+                                    <View style={s.rowInfo}>
+                                        <Text style={s.rowTitle}>{gp.name}</Text>
+                                        <Text style={s.rowSub}>{gp.phone || gp.email || 'No contact info'}</Text>
                                     </View>
-                                    <View style={s.gpActionRow}>
-                                        <Pressable style={({ pressed }) => [s.btnCall, pressed && s.btnCallPressed, { borderRadius: 100 }]} onPress={() => gp.phone && Linking.openURL(`tel:${gp.phone}`)}>
-                                            <Phone size={16} color="#FFF" strokeWidth={2.5} />
-                                            <Text style={s.btnCallText}>Call Clinic</Text>
-                                        </Pressable>
-                                    </View>
-                                </View>
-                            ) : <Text style={s.emptyRowTxt}>No Primary Doctor assigned.</Text>}
+                                    <ChevronRight size={18} color="#CBD5E1" />
+                                </Pressable>
+                            ) : <Text style={s.emptyRowTxt}>No Primary Doctor assigned</Text>}
                         </View>
                     </View>
                 </Animated.View>
@@ -1170,43 +1204,57 @@ const s = StyleSheet.create({
     ageBadgeTxt: { color: C.primaryDark, ...FONT.bold, fontSize: 14 },
     body: { flex: 1 },
     bodyContent: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 160 },
-    section: { marginBottom: 36, width: '100%' },
-    sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18, paddingHorizontal: 8 },
-    sectionHeaderBase: { fontSize: 13, ...FONT.bold, color: '#64748B', letterSpacing: 1.5, textTransform: 'uppercase' },
-    addBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: C.primary, alignItems: 'center', justifyContent: 'center', shadowColor: C.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 },
-    card: { backgroundColor: '#FFFFFF', borderRadius: 28, padding: 24, shadowColor: '#0F172A', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 3, borderWidth: 1, borderColor: '#F1F5F9' },
-    cardStack: { backgroundColor: '#FFFFFF', borderRadius: 28, padding: 8, shadowColor: '#0F172A', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 3, borderWidth: 1, borderColor: '#F1F5F9' },
-    rowItemEnhanced: { flexDirection: 'row', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
-    iconBg: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginRight: 16 },
+    section: { marginBottom: 28, width: '100%' },
+    sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, paddingHorizontal: 4 },
+    sectionHeaderBase: { fontSize: 13, ...FONT.bold, color: '#64748B', letterSpacing: 1 },
+    addBtn: { width: 30, height: 30, borderRadius: 15, backgroundColor: C.primary, alignItems: 'center', justifyContent: 'center', shadowColor: C.primary, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 6, elevation: 3 },
+
+    // Profile Completion Card
+    completionCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', borderRadius: 20, padding: 16, marginBottom: 24, shadowColor: '#0F172A', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 8, elevation: 2, borderWidth: 1, borderColor: '#F1F5F9' },
+    completionLeft: { marginRight: 16 },
+    completionRing: { width: 56, height: 56, borderRadius: 28, borderWidth: 4, borderColor: C.primary, alignItems: 'center', justifyContent: 'center', backgroundColor: C.primarySoft },
+    completionPct: { fontSize: 16, ...FONT.heavy, color: C.primary },
+    completionInfo: { flex: 1 },
+    completionTitle: { fontSize: 16, ...FONT.bold, color: C.dark, marginBottom: 2 },
+    completionSub: { fontSize: 13, ...FONT.medium, color: C.muted },
+    completionAction: { flexDirection: 'row', alignItems: 'center' },
+    completionActionTxt: { fontSize: 13, ...FONT.bold, color: C.primary, marginRight: 2 },
+
+    // Cards
+    card: { backgroundColor: '#FFFFFF', borderRadius: 20, padding: 20, shadowColor: '#0F172A', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 8, elevation: 2, borderWidth: 1, borderColor: '#F1F5F9' },
+    cardStack: { backgroundColor: '#FFFFFF', borderRadius: 20, padding: 4, shadowColor: '#0F172A', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 8, elevation: 2, borderWidth: 1, borderColor: '#F1F5F9' },
+
+    // Clean Row Items
+    rowItemClean: { flexDirection: 'row', alignItems: 'center', padding: 14, borderBottomWidth: 1, borderBottomColor: '#F8FAFC' },
+    rowItemEnhanced: { flexDirection: 'row', alignItems: 'center', padding: 14, borderBottomWidth: 1, borderBottomColor: '#F8FAFC' },
+    iconBg: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginRight: 14 },
     rowInfo: { flex: 1 },
-    rowTitle: { fontSize: 17, ...FONT.bold, color: C.dark, marginBottom: 4 },
-    rowSub: { fontSize: 14, ...FONT.medium, color: C.muted },
+    rowTitle: { fontSize: 16, ...FONT.bold, color: C.dark, marginBottom: 3 },
+    rowSub: { fontSize: 13, ...FONT.medium, color: C.muted },
     pill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
-    pillTxt: { fontSize: 12, ...FONT.bold },
+    pillTxt: { fontSize: 11, ...FONT.bold },
+
+    // Allergy Chips — outlined
     chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+    chipOutlined: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: '#E2E8F0', backgroundColor: '#FFF' },
+    chipOutlinedTxt: { fontSize: 14, ...FONT.semibold, color: C.mid },
     chipEnhanced: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 16, borderWidth: 1 },
     chipTxt: { fontSize: 14, ...FONT.bold },
-    timelineContainer: { marginTop: 4 },
-    timelineRow: { flexDirection: 'row', gap: 20 },
-    timelineLeft: { alignItems: 'center', width: 20 },
-    timelineDot: { width: 12, height: 12, borderRadius: 6, backgroundColor: C.primary, borderWidth: 3, borderColor: '#E0E7FF' },
-    timelineLine: { width: 2, flex: 1, backgroundColor: '#E2E8F0', marginVertical: 4 },
-    timelineContent: { flex: 1, paddingBottom: 32 },
-    timelineDate: { fontSize: 12, ...FONT.bold, color: C.muted, marginBottom: 4 },
-    timelineTitle: { fontSize: 17, ...FONT.bold, color: C.dark },
-    timelineDesc: { fontSize: 15, color: C.muted, marginTop: 6, lineHeight: 22, ...FONT.medium },
-    emptyRowTxt: { fontSize: 15, color: '#64748B', fontStyle: 'italic', padding: 24, textAlign: 'center' },
-    bentoGrid: { flexDirection: 'row', gap: 12 },
-    bentoPressable: { flex: 1 },
-    bentoBoxGradient: { borderRadius: 20, padding: 16, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 4 },
-    bentoIconGlass: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginBottom: 12, backgroundColor: 'rgba(255,255,255,0.2)' },
-    bentoValWhite: { fontSize: 18, ...FONT.heavy, color: '#FFF', marginBottom: 4 },
-    bentoLblWhite: { fontSize: 11, ...FONT.bold, color: 'rgba(255,255,255,0.8)', textTransform: 'uppercase', letterSpacing: 0.5 },
-    bentoBox: { flex: 1, borderRadius: 24, padding: 16, alignItems: 'center' },
-    bentoIcon: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
-    bentoVal: { fontSize: 18, ...FONT.heavy, color: C.dark, marginBottom: 4 },
-    bentoLbl: { fontSize: 12, ...FONT.bold, color: C.muted },
-    gpCard: { padding: 20, backgroundColor: '#FFF', borderRadius: 24, shadowColor: C.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 2 },
+
+    // Clean Bento Cards (Identity)
+    bentoGrid: { flexDirection: 'row', gap: 10 },
+    bentoCardClean: { flex: 1, backgroundColor: '#FFF', borderRadius: 20, padding: 16, alignItems: 'center', shadowColor: '#0F172A', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 8, elevation: 2, borderWidth: 1, borderColor: '#F1F5F9' },
+    bentoCircle: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
+    bentoValClean: { fontSize: 18, ...FONT.heavy, color: C.dark, marginBottom: 4 },
+    bentoLblClean: { fontSize: 10, ...FONT.bold, color: C.muted, letterSpacing: 0.5, textAlign: 'center' },
+
+    // Monitoring Metric Cards
+    monitoringRow: { flexDirection: 'row', gap: 10 },
+    metricCard: { flex: 1, borderRadius: 20, padding: 14, alignItems: 'center', borderWidth: 1, borderColor: '#F1F5F9' },
+    metricVal: { fontSize: 22, ...FONT.heavy, marginTop: 8, marginBottom: 2 },
+    metricLbl: { fontSize: 11, ...FONT.semibold, color: C.muted, marginBottom: 2 },
+    metricSub: { fontSize: 11, ...FONT.bold },
+    emptyRowTxt: { fontSize: 14, color: '#94A3B8', fontStyle: 'italic', padding: 20, textAlign: 'center' },
     gpProfileRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
     gpAvatar: { width: 60, height: 60, borderRadius: 30, backgroundColor: C.primarySoft, alignItems: 'center', justifyContent: 'center', marginRight: 16, borderWidth: 2, borderColor: '#FFF' },
     gpAvatarTxt: { fontSize: 24, ...FONT.heavy, color: C.primaryDark },
