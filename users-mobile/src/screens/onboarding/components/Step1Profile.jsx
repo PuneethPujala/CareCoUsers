@@ -127,18 +127,14 @@ const Step1Profile = ({
 
                 <View style={{ marginTop: 10 }}>
                     <Pressable style={[styles.primaryBtnEnhanced, signupLoading && { opacity: 0.7 }]} onPress={handleStep1Submit} disabled={signupLoading}>
-                        <LinearGradient
-                            colors={['#6366F1', '#4F46E5']}
-                            start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-                            style={styles.primaryBtnGradientEnhanced}
-                        >
+                        <View style={styles.primaryBtnGradientEnhanced}>
                             {signupLoading ? (
                                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                                     <ActivityIndicator size="small" color="#FFFFFF" />
                                     <Text style={styles.primaryBtnText}>  Creating account...</Text>
                                 </View>
                             ) : (<><Text style={styles.primaryBtnText}>Continue</Text><ChevronRight size={20} color="#FFFFFF" /></>)}
-                        </LinearGradient>
+                        </View>
                     </Pressable>
                 </View>
             </View>

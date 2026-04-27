@@ -46,16 +46,16 @@ const Step3Membership = ({
                 <Pressable onPress={handleSelectBasic} style={[styles.planCardEnhanced, selectedPlanId === 'basic' && styles.planCardActive]}>
                     <LinearGradient colors={['#FFFFFF', '#EEF1FF']} style={styles.planCardGradient}>
                         <View style={styles.planCardHeaderRow}>
-                            <View style={[styles.planIconBoxEnhanced, { backgroundColor: '#EFF3FF' }]}><Shield size={24} color="#3B5BDB" /></View>
+                            <View style={[styles.planIconBoxEnhanced, { backgroundColor: '#EFF3FF' }]}><Shield size={24} color="#5c55e9" /></View>
                             <View style={styles.planPriceCol}>
                                 <Text style={styles.planTitleEnhanced}>Basic Plan</Text>
                                 <Text style={styles.planPriceEnhanced}>₹500<Text style={styles.planPriceSub}>/mo</Text></Text>
                             </View>
-                            {selectedPlanId === 'basic' && <View style={styles.selectedCheck}><CheckCircle2 size={24} color="#3B5BDB" fill="#EFF3FF" /></View>}
+                            {selectedPlanId === 'basic' && <View style={styles.selectedCheck}><CheckCircle2 size={24} color="#5c55e9" fill="#EFF3FF" /></View>}
                         </View>
                         <View style={styles.planFeaturesEnhanced}>
                             {['Daily Care Calls', 'Medication Tracking', 'Assigned Caller', 'Health History'].map(f => (
-                                <View key={f} style={styles.featureLine}><Check size={14} color="#3B5BDB" strokeWidth={3} /><Text style={styles.featureTextEnhanced}>{f}</Text></View>
+                                <View key={f} style={styles.featureLine}><Check size={14} color="#5c55e9" strokeWidth={3} /><Text style={styles.featureTextEnhanced}>{f}</Text></View>
                             ))}
                         </View>
                         <Pressable

@@ -1,24 +1,68 @@
 import React from 'react';
-import { View, Text, Pressable, Animated, Platform } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { CheckCircle2, Calendar, ChevronRight, AlertCircle } from 'lucide-react-native';
+import { View, Text, Pressable, Animated, Platform, ActivityIndicator } from 'react-native';
+import { CheckCircle2, Calendar, ChevronRight, AlertCircle, Heart, ShieldCheck, Users } from 'lucide-react-native';
 import { useFormContext, Controller } from 'react-hook-form';
 import { IconInput } from './SignupUI';
 import { styles } from './SignupStyles';
 
-const Step5FinalDetails = ({ staggerAnims, handleCompleteSignUp, signupLoading }) => {
+const Step5FinalDetails = ({ staggerAnims, handleCompleteSignUp, signupLoading, showCelebration, proceedToDashboard, userName }) => {
     const { control, formState: { errors } } = useFormContext();
     const [selectedDate, setSelectedDate] = React.useState(new Date(new Date().getFullYear() - 30, 0, 1));
 
-    return (
-        <View style={styles.finalState}>
-            <Animated.View style={[styles.successOrb, { opacity: staggerAnims[0], marginBottom: 16 }]}>
-                <CheckCircle2 size={64} color="#6366F1" />
-            </Animated.View>
-            <Animated.Text style={[styles.finalTitle, { opacity: staggerAnims[1], fontSize: 24 }]}>Almost Done!</Animated.Text>
-            <Animated.Text style={[styles.finalSub, { opacity: staggerAnims[2], marginBottom: 24 }]}>Please provide a few more details for your health profile.</Animated.Text>
+    if (showCelebration) {
+        return (
+            <View style={styles.finalState}>
+                <Animated.View style={[styles.successOrb, { opacity: staggerAnims[0], marginBottom: 16 }]}>
+                    <CheckCircle2 size={72} color="#5c55e9" />
+                </Animated.View>
+                <Animated.Text style={[styles.finalTitle, { opacity: staggerAnims[1] }]}>You're all set, {userName || 'there'}!</Animated.Text>
+                <Animated.Text style={[styles.finalSub, { opacity: staggerAnims[2] }]}>Your health profile is ready. Let's start your journey to better health.</Animated.Text>
 
-            <Animated.View style={{ width: '100%', opacity: staggerAnims[3], marginBottom: 24, textAlign: 'left' }}>
+                <Animated.View style={[styles.finalCard, { opacity: staggerAnims[3] }]}>
+                    <View style={styles.finalRow}>
+                        <View style={styles.finalIconBox}>
+                            <Heart size={20} color="#5c55e9" />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.finalCardTitle}>Personalized care</Text>
+                            <Text style={styles.finalCardText}>Tailored health insights</Text>
+                        </View>
+                    </View>
+                    <View style={styles.finalRow}>
+                        <View style={styles.finalIconBox}>
+                            <ShieldCheck size={20} color="#5c55e9" />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.finalCardTitle}>Secure & private</Text>
+                            <Text style={styles.finalCardText}>Your data is encrypted</Text>
+                        </View>
+                    </View>
+                    <View style={styles.finalRow}>
+                        <View style={styles.finalIconBox}>
+                            <Users size={20} color="#5c55e9" />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.finalCardTitle}>Always here to help</Text>
+                            <Text style={styles.finalCardText}>24/7 care management</Text>
+                        </View>
+                    </View>
+                </Animated.View>
+
+                <Animated.View style={{ width: '100%', opacity: staggerAnims[4], transform: [{ translateY: staggerAnims[4].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>
+                    <Pressable style={styles.primaryBtnEnhanced} onPress={proceedToDashboard}>
+                        <View style={styles.primaryBtnGradientEnhanced}>
+                            <Text style={styles.primaryBtnText}>Go to dashboard</Text>
+                            <ChevronRight size={20} color="#FFFFFF" strokeWidth={2.5} />
+                        </View>
+                    </Pressable>
+                </Animated.View>
+            </View>
+        );
+    }
+
+    return (
+        <View style={styles.centerStepEnhanced}>
+            <Animated.View style={{ width: '100%', opacity: staggerAnims[1], marginBottom: 24, marginTop: 10 }}>
                 <View style={{ gap: 16 }}>
                     <Controller
                         control={control}
@@ -84,38 +128,37 @@ const Step5FinalDetails = ({ staggerAnims, handleCompleteSignUp, signupLoading }
                                             style={[styles.genderBtn, value === g && styles.genderBtnActive]}
                                             onPress={() => onChange(g)}
                                         >
-                                            <Text style={[styles.genderBtnText, value === g && { color: '#3B5BDB' }]}>{g}</Text>
+                                            <Text style={[styles.genderBtnText, value === g && { color: '#5c55e9' }]}>{g}</Text>
                                         </Pressable>
                                     ))}
                                 </View>
                             )}
                         />
-                        {errors.gender && <Text style={[styles.errorText, { marginTop: 4 }]}>{errors.gender.message}</Text>}
+                        {errors.gender && <Text style={[styles.fieldErrorEnhanced, { marginTop: 6, marginLeft: 4 }]}>{errors.gender.message}</Text>}
                     </View>
                 </View>
             </Animated.View>
 
             {errors.general ? (
-                <View style={[styles.errorBox, { marginBottom: 16 }]}>
-                    <AlertCircle size={16} color="#EF4444" />
-                    <Text style={styles.errorBoxText}>{errors.general.message || errors.general}</Text>
+                <View style={styles.errorBoxEnhanced}>
+                    <AlertCircle size={18} color="#EF4444" />
+                    <Text style={styles.errorMsgEnhanced}>{errors.general.message || errors.general}</Text>
                 </View>
             ) : null}
 
-            <Animated.View style={{ width: '100%', opacity: staggerAnims[4], transform: [{ translateY: staggerAnims[4].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>
+            <Animated.View style={{ width: '100%', opacity: staggerAnims[2], transform: [{ translateY: staggerAnims[2].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>
                 <Pressable 
                     style={[styles.primaryBtnEnhanced, signupLoading && { opacity: 0.7 }]} 
                     onPress={() => handleCompleteSignUp(selectedDate.toISOString())} 
                     disabled={signupLoading}
                 >
-                    <LinearGradient
-                        colors={['#6366F1', '#4F46E5']}
-                        start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-                        style={styles.primaryBtnGradientEnhanced}
-                    >
-                        <Text style={styles.primaryBtnText}>Enter Dashboard</Text>
-                        <ChevronRight size={20} color="#FFFFFF" />
-                    </LinearGradient>
+                    <View style={styles.primaryBtnGradientEnhanced}>
+                        {signupLoading ? (
+                            <ActivityIndicator size="small" color="#FFFFFF" />
+                        ) : (
+                            <><Text style={styles.primaryBtnText}>Continue</Text><ChevronRight size={20} color="#FFFFFF" strokeWidth={2.5} /></>
+                        )}
+                    </View>
                 </Pressable>
             </Animated.View>
         </View>
