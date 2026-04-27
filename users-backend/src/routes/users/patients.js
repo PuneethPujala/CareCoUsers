@@ -364,7 +364,7 @@ router.get('/me', authenticateSession, async (req, res) => {
  */
 router.put('/me', authenticateSession, async (req, res) => {
     try {
-        const { name, city, date_of_birth, phone, gender, blood_type, language, push_notifications_enabled, medication_reminders_enabled, expo_push_token } = req.body;
+        const { name, city, date_of_birth, phone, gender, blood_type, language, push_notifications_enabled, medication_reminders_enabled, expo_push_token, profile_complete } = req.body;
         const updates = {};
         if (name !== undefined) updates.name = name;
         if (city !== undefined) updates.city = city;
@@ -376,6 +376,7 @@ router.put('/me', authenticateSession, async (req, res) => {
         if (push_notifications_enabled !== undefined) updates.push_notifications_enabled = push_notifications_enabled;
         if (medication_reminders_enabled !== undefined) updates.medication_reminders_enabled = medication_reminders_enabled;
         if (expo_push_token !== undefined) updates.expo_push_token = expo_push_token;
+        if (profile_complete !== undefined) updates.profile_complete = profile_complete;
 
         let patient = await Patient.findOne({ supabase_uid: req.user.id });
         if (!patient) return res.status(404).json({ error: 'Patient profile not found' });

@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Pressable, Animated } from 'react-native';
+import { View, Text, Pressable, Animated, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { CheckCircle2, Calendar, ChevronRight, AlertCircle } from 'lucide-react-native';
 import { useFormContext, Controller } from 'react-hook-form';
@@ -21,19 +21,45 @@ const Step5FinalDetails = ({ staggerAnims, handleCompleteSignUp, signupLoading }
                 <View style={{ gap: 16 }}>
                     <Controller
                         control={control}
-                        name="age"
-                        render={({ field: { onChange, value } }) => (
-                            <IconInput
-                                icon={Calendar}
-                                label="Age"
-                                placeholder="e.g. 65"
-                                value={value}
-                                onChangeText={t => onChange(t.replace(/\D/g, ''))}
-                                keyboardType="number-pad"
-                                maxLength={3}
-                                error={errors.age?.message}
-                            />
-                        )}
+                        name="dob"
+                        render={({ field: { onChange, value } }) => {
+                            const [showPicker, setShowPicker] = React.useState(false);
+                            const dateValue = value ? new Date(value) : new Date(new Date().getFullYear() - 30, 0, 1);
+
+                            return (
+                                <>
+                                    <Pressable onPress={() => setShowPicker(true)}>
+                                        <View pointerEvents="none">
+                                            <IconInput
+                                                icon={Calendar}
+                                                label="Date of Birth"
+                                                placeholder="Select your birth date"
+                                                value={value ? new Date(value).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' }) : ''}
+                                                error={errors.dob?.message}
+                                            />
+                                        </View>
+                                    </Pressable>
+                                    {showPicker && (
+                                        require('@react-native-community/datetimepicker').default && (
+                                            <View>
+                                                {React.createElement(require('@react-native-community/datetimepicker').default, {
+                                                    value: dateValue,
+                                                    mode: 'date',
+                                                    display: Platform.OS === 'ios' ? 'spinner' : 'default',
+                                                    maximumDate: new Date(),
+                                                    onChange: (event, selectedDate) => {
+                                                        setShowPicker(false);
+                                                        if (selectedDate) {
+                                                            onChange(selectedDate.toISOString());
+                                                        }
+                                                    }
+                                                })}
+                                            </View>
+                                        )
+                                    )}
+                                </>
+                            );
+                        }}
                     />
                     
                     <View>
