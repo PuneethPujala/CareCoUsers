@@ -42,7 +42,7 @@ async function subscribeAndSeedDemoData(patient, planId) {
         const Profile = require('../../models/Profile');
         const manager = await Profile.findOne({
             organization_id: orgId,
-            role: { $in: ['manager', 'admin', 'super_admin'] },
+            role: { $in: ['manager', 'admin', 'super_admin', 'care manager'] },
         }).session(session);
 
         if (manager) {
@@ -633,6 +633,14 @@ router.get('/me/caller', authenticateSession, async (req, res) => {
                 .select('name employee_id profile_photo_url languages_spoken experience_years phone city');
         }
 
+        // Populate manager data if assigned
+        let manager = null;
+        if (patient.assigned_manager_id) {
+            const Profile = require('../../models/Profile');
+            manager = await Profile.findById(patient.assigned_manager_id)
+                .select('fullName phone email profile_photo_url languages_spoken experience_years');
+        }
+
         if (!caller) {
             caller = await Caller.findOne({ patient_ids: patient._id, is_active: true })
                 .select('name employee_id profile_photo_url languages_spoken experience_years phone city');
@@ -643,7 +651,7 @@ router.get('/me/caller', authenticateSession, async (req, res) => {
             }
         }
 
-        res.json({ caller: caller || null, manager: patient.assigned_manager_id || null });
+        res.json({ caller: caller || null, manager: manager || null });
     } catch (error) {
         logger.error('Get assigned caller error', { error: error.message, patientId: req.user?.id });
         res.status(500).json({ error: 'Failed to get assigned caller' });
