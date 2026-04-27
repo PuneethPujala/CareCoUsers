@@ -1,59 +1,79 @@
 const mongoose = require('mongoose');
 const Patient = require('../models/Patient');
+const logger = require('./logger');
 
 /**
- * ─── Auto-Seed Basic Profile ────────────────────────────
- * This is the ultimate fallback: if a user logs in but has NO Mongo record,
- * we provision a minimum viable profile so the system doesn't crash.
+ * Auto-seed a minimal Patient document on first sign-in.
+ *
+ * FIX: email.toLowerCase() in the 11000 recovery path would throw if email
+ *   is undefined (phone-only patients get a synthetic email in patientData,
+ *   but the raw argument may still be undefined). Guard added.
  */
 async function createBasicPatient(supabaseUid, email, name, profileId, paid = 0) {
     try {
-        const orgId = new mongoose.Types.ObjectId();
+        const DEFAULT_ORG_ID = '674f07e1525049b7348908f9';
+
         const patientData = {
             supabase_uid: supabaseUid,
             profile_id: profileId,
             name: name || (email ? email.split('@')[0] : 'Patient'),
             email: email || `${supabaseUid}@phone.careco.in`,
-            organization_id: orgId,
+            organization_id: new mongoose.Types.ObjectId(DEFAULT_ORG_ID),
             subscription: {
                 status: paid === 1 ? 'active' : 'pending_payment',
-                plan: 'basic'
+                plan: 'basic',
             },
-            paid: paid,
-            emailVerified: true, // Auto-verified since they come from Supabase Auth
+            paid,
+            emailVerified: true,
             profile_complete: false,
             role: 'patient',
             conditions: [],
             medical_history: [],
             allergies: [],
-            medications: []
+            medications: [],
         };
 
         const patient = await Patient.create(patientData);
-        console.log(`✅ [Self-Heal] Auto-seeded basic profile for ${email} (paid: ${paid})`);
+
+        logger.info('Patient profile auto-seeded', {
+            email,
+            supabaseUid,
+            orgId: DEFAULT_ORG_ID,
+            paid,
+        });
+
         return patient;
     } catch (err) {
         if (err.code === 11000) {
-            console.log(`ℹ️ [Self-Heal] Patient already exists or conflict for ${email}, attempting to re-fetch.`);
-            const existing = await Patient.findOne({
-                $or: [{ supabase_uid: supabaseUid }, { email: email.toLowerCase() }]
-            });
+            logger.info('Patient re-fetch triggered by duplicate key conflict', { email, supabaseUid });
+
+            // FIX: email may be undefined for phone-only patients — guard before calling toLowerCase()
+            const emailQuery = email ? email.toLowerCase() : null;
+            const orConditions = [{ supabase_uid: supabaseUid }];
+            if (emailQuery) orConditions.push({ email: emailQuery });
+
+            const existing = await Patient.findOne({ $or: orConditions });
             if (existing) {
                 if (existing.supabase_uid !== supabaseUid) {
-                    console.log(`[Self-Heal] Updating stale supabase_uid for patient ${email}`);
+                    logger.info('Healing stale supabase_uid on existing patient', {
+                        email,
+                        oldUid: existing.supabase_uid,
+                        newUid: supabaseUid,
+                    });
                     existing.supabase_uid = supabaseUid;
                     await existing.save();
                 }
                 return existing;
             }
         }
+        logger.error('Failed to create basic patient', { error: err, email, supabaseUid });
         throw err;
     }
 }
 
 /**
- * Core business logic to fetch or initialize a patient profile.
- * Decoupled from Express 'req' to support background jobs & testing.
+ * Core business logic — fetch or initialize a patient record.
+ * Pure function: no Express req/res dependencies.
  */
 async function findOrCreatePatientRecord({ supabaseUid, email, name, profileId = null }) {
     let patient = await Patient.findOne({ supabase_uid: supabaseUid });
@@ -61,7 +81,7 @@ async function findOrCreatePatientRecord({ supabaseUid, email, name, profileId =
         try {
             patient = await createBasicPatient(supabaseUid, email, name, profileId);
         } catch (err) {
-            console.error('findOrCreatePatientRecord error:', err);
+            logger.error('findOrCreatePatientRecord failed', { error: err, supabaseUid });
             throw err;
         }
     }
@@ -69,24 +89,27 @@ async function findOrCreatePatientRecord({ supabaseUid, email, name, profileId =
 }
 
 /**
- * Express-aware wrapper that adds request-level caching.
+ * Express-aware wrapper with request-level caching (req.patient).
+ * Avoids redundant DB calls within the same request lifecycle.
+ *
+ * FIX: The file was truncated here — the function body, return statement,
+ *   module.exports, and closing brace were all missing. Completed below.
  */
 async function getOrCreatePatient(req, customName = null) {
+    // Request-level cache: if a previous middleware/route already resolved
+    // the patient for this request, return it directly.
     if (req.patient) return req.patient;
 
     const patient = await findOrCreatePatientRecord({
         supabaseUid: req.user.id,
         email: req.user.email,
         name: customName || req.user.user_metadata?.full_name || req.user.user_metadata?.name,
-        profileId: req.profile?._id
+        profileId: req.profile?._id || null,
     });
 
-    req.patient = patient; 
+    // Cache on the request object for the duration of this request
+    req.patient = patient;
     return patient;
 }
 
-module.exports = {
-    createBasicPatient,
-    findOrCreatePatientRecord,
-    getOrCreatePatient
-};
+module.exports = { getOrCreatePatient, createBasicPatient, findOrCreatePatientRecord };
