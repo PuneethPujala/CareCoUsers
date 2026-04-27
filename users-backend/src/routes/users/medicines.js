@@ -3,8 +3,9 @@ const moment = require('moment-timezone'); // BUG 9 FIX: top-level require, not 
 const Patient = require('../../models/Patient');
 const MedicineLog = require('../../models/MedicineLog');
 const Medication = require('../../models/Medication');
-const { authenticateSession: authenticate } = require('../../middleware/authenticate');
+const { authenticateSession } = require('../../middleware/authenticate');
 const { getOrCreatePatient } = require('../../utils/patientHelpers');
+const logger = require('../../utils/logger');
 
 const router = express.Router();
 
@@ -144,7 +145,7 @@ function computeCurrentStreak(dailyLog, todayStr, startDateStr, threshold = 80) 
 /**
  * GET /api/users/medicines/today
  */
-router.get('/today', authenticate, async (req, res) => {
+router.get('/today', authenticateSession, async (req, res) => {
     try {
         const patient = await getOrCreatePatient(req);
 
@@ -208,7 +209,7 @@ router.get('/today', authenticate, async (req, res) => {
 
         res.json({ log: logObj, preferences });
     } catch (error) {
-        console.error('Get today medicines error:', error);
+        logger.error('Get today medicines error', { error: error.message, patientId: req.user?.id });
         res.status(500).json({ error: "Failed to get today's medicines" });
     }
 });
@@ -216,7 +217,7 @@ router.get('/today', authenticate, async (req, res) => {
 /**
  * PUT /api/users/medicines/mark
  */
-router.put('/mark', authenticate, async (req, res) => {
+router.put('/mark', authenticateSession, async (req, res) => {
     try {
         const { medicine_name, scheduled_time, taken, marked_by = 'patient' } = req.body;
         const patient = await getOrCreatePatient(req);
@@ -275,11 +276,11 @@ router.put('/mark', authenticate, async (req, res) => {
         }
 
         const streakService = require('../../services/streakService');
-        streakService.evaluateAndUpdateStreak(patient._id).catch(e => console.error('Streak Update Failed:', e));
+        streakService.evaluateAndUpdateStreak(patient._id).catch(e => logger.error('Streak Update Failed', { error: e.message, patientId: patient._id }));
 
         res.json({ log });
     } catch (error) {
-        console.error('Mark medicine error:', error);
+        logger.error('Mark medicine error', { error: error.message, patientId: req.user?.id });
         res.status(500).json({ error: 'Failed to mark medicine' });
     }
 });
@@ -287,7 +288,7 @@ router.put('/mark', authenticate, async (req, res) => {
 /**
  * PUT /api/users/medicines/mark-slot
  */
-router.put('/mark-slot', authenticate, async (req, res) => {
+router.put('/mark-slot', authenticateSession, async (req, res) => {
     try {
         const { scheduled_time, marked_by = 'patient' } = req.body;
         const patient = await getOrCreatePatient(req);
@@ -337,7 +338,7 @@ router.put('/mark-slot', authenticate, async (req, res) => {
 
         res.json({ success: true, log });
     } catch (error) {
-        console.error('Mark slot error:', error);
+        logger.error('Mark slot error', { error: error.message, patientId: req.user?.id });
         res.status(500).json({ error: 'Failed to mark medications as taken' });
     }
 });
@@ -345,7 +346,7 @@ router.put('/mark-slot', authenticate, async (req, res) => {
 /**
  * GET /api/users/medicines/adherence/weekly
  */
-router.get('/adherence/weekly', authenticate, async (req, res) => {
+router.get('/adherence/weekly', authenticateSession, async (req, res) => {
     try {
         const patient = await getOrCreatePatient(req);
 
@@ -371,7 +372,7 @@ router.get('/adherence/weekly', authenticate, async (req, res) => {
 
         res.json({ adherence: weeklyData });
     } catch (error) {
-        console.error('Get weekly adherence error:', error);
+        logger.error('Get weekly adherence error', { error: error.message, patientId: req.user?.id });
         res.status(500).json({ error: 'Failed to get weekly adherence' });
     }
 });
@@ -379,7 +380,7 @@ router.get('/adherence/weekly', authenticate, async (req, res) => {
 /**
  * GET /api/users/medicines/adherence/monthly
  */
-router.get('/adherence/monthly', authenticate, async (req, res) => {
+router.get('/adherence/monthly', authenticateSession, async (req, res) => {
     try {
         const patient = await getOrCreatePatient(req);
 
@@ -407,7 +408,7 @@ router.get('/adherence/monthly', authenticate, async (req, res) => {
             },
         });
     } catch (error) {
-        console.error('Get monthly adherence error:', error);
+        logger.error('Get monthly adherence error', { error: error.message, patientId: req.user?.id });
         res.status(500).json({ error: 'Failed to get monthly adherence' });
     }
 });
@@ -415,7 +416,7 @@ router.get('/adherence/monthly', authenticate, async (req, res) => {
 /**
  * GET /api/users/medicines/adherence/details
  */
-router.get('/adherence/details', authenticate, async (req, res) => {
+router.get('/adherence/details', authenticateSession, async (req, res) => {
     try {
         const patient = await getOrCreatePatient(req);
 
@@ -595,7 +596,7 @@ router.get('/adherence/details', authenticate, async (req, res) => {
             weekly_trend: weeklyTrend,
         });
     } catch (error) {
-        console.error('Get adherence details error:', error);
+        logger.error('Get adherence details error', { error: error.message, patientId: req.user?.id });
         res.status(500).json({ error: 'Failed to get adherence details' });
     }
 });
@@ -603,7 +604,7 @@ router.get('/adherence/details', authenticate, async (req, res) => {
 /**
  * GET /api/users/medicines/adherence/recap
  */
-router.get('/adherence/recap', authenticate, async (req, res) => {
+router.get('/adherence/recap', authenticateSession, async (req, res) => {
     try {
         const patient = await getOrCreatePatient(req);
 
@@ -792,7 +793,7 @@ router.get('/adherence/recap', authenticate, async (req, res) => {
             yearly_trend: yearlyTrend,
         });
     } catch (error) {
-        console.error('Get adherence recap error:', error);
+        logger.error('Get adherence recap error', { error: error.message, patientId: req.user?.id });
         res.status(500).json({ error: 'Failed to get adherence recap' });
     }
 });
