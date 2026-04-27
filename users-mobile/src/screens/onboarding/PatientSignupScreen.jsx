@@ -85,7 +85,7 @@ export default function PatientSignupScreen({ navigation, route }) {
         ),
         defaultValues: {
             fullName: '', email: '', phoneNumber: '', city: '',
-            password: '', confirmPassword: '', age: '', gender: '',
+            password: '', confirmPassword: '', dob: '', gender: '',
             selectedPlanId: 'basic',
         },
         mode: 'onChange',
@@ -664,22 +664,36 @@ export default function PatientSignupScreen({ navigation, route }) {
     }, [step]);
 
     const handleCompleteSignUp = useCallback(async () => {
-        const isValid = await methods.trigger(['age', 'gender']);
+        const isValid = await methods.trigger(['dob', 'gender']);
         if (!isValid) return;
         setSignupLoading(true);
+        
+        // Safety timeout to prevent the "forever hang" if backend/network is sluggish
+        const timeoutId = setTimeout(() => {
+            if (signupLoading) {
+                setSignupLoading(false);
+                setErrors(prev => ({ ...prev, general: 'Saving is taking longer than expected. Please check your dashboard.' }));
+            }
+        }, 15000);
+
         try {
-            const dob = new Date(new Date().getFullYear() - parseInt(form.age), 0, 1).toISOString();
-            await apiService.patients.updateMe({ date_of_birth: dob, gender: form.gender.toLowerCase() });
+            await apiService.patients.updateMe({ 
+                date_of_birth: form.dob, 
+                gender: form.gender.toLowerCase(),
+                profile_complete: true
+            });
             await clearProgress();
-            // C3 FIX: removed redundant refreshPatient() call before completeSignUp().
-            // completeSignUp() (AuthContext A3 fix) now calls fetchPatientData() internally,
-            // so calling refreshPatient() first was doing two sequential getMe() requests.
+            
+            // C3 FIX: completeSignUp() now explicitly calls fetchPatientData() internally
+            // so we don't need a separate refreshPatient() call here.
             await completeSignUp();
+            clearTimeout(timeoutId);
         } catch (error) {
+            clearTimeout(timeoutId);
             setErrors(prev => ({ ...prev, general: 'Failed to save details. Please try again.' }));
             setSignupLoading(false);
         }
-    }, [form.age, form.gender, clearProgress, completeSignUp, setErrors, methods]);
+    }, [form.dob, form.gender, clearProgress, completeSignUp, setErrors, methods, signupLoading]);
 
     const toggleShowPass = useCallback(() => setShowPass(v => !v), []);
     const toggleShowConfirm = useCallback(() => setShowConfirm(v => !v), []);

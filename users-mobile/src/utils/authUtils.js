@@ -20,7 +20,7 @@ export const resolveOnboardingStep = (patient, profile) => {
     // Step 5 is the final age/gender collection
     // If onboardingComplete is false, we need to check if they have age/gender
     if (!patient?.date_of_birth || !patient?.gender) return 5;
-    if (!patient?.onboardingComplete) return 5; // Fallback to 5 if not complete
+    if (!patient?.profile_complete) return 5; // Fallback to 5 if not complete
 
     return null; // Complete
 };
