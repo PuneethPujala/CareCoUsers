@@ -55,7 +55,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { step1Schema, step2Schema, step3Schema, step5Schema } from './signupSchema';
 
 import {
-    StepIndicator, OTPModal, UPIPaymentModal, styles, FONT, STEP_LABELS
+    StepIndicator, OTPModal, UPIPaymentModal, styles, FONT
 } from './components';
 import Step1Profile from './components/Step1Profile';
 import Step2Locality from './components/Step2Locality';
@@ -63,7 +63,7 @@ import Step3Membership from './components/Step3Membership';
 import Step4Verification from './components/Step4Verification';
 import Step5FinalDetails from './components/Step5FinalDetails';
 
-
+const STEP_LABELS = ['Profile Creation', 'Locality', 'Membership', 'Verification', 'All Systems Go'];
 const ONBOARDING_STORAGE_KEY = 'samvaya_onboarding_progress';
 const STALE_PROGRESS_DAYS = 7;
 
