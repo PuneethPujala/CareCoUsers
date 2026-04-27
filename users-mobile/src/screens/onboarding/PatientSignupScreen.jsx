@@ -645,24 +645,33 @@ export default function PatientSignupScreen({ navigation, route }) {
 
     const handlePaymentSuccess = useCallback(async () => {
         setUpiModalVisible(false);
-        await saveProgress(3, { paymentAttempted: true });
-        setPaymentAttempted(true);
+        setSignupLoading(true); // Show processing state
 
         // C2 FIX: Use form.selectedPlanId (RHF) as the authoritative plan value.
-        // The previous code used selectedPlan.id (local state) which was never updated
-        // when Step3Membership called RHF setValue('selectedPlanId', ...) — so
-        // subscribe() always sent plan: 'basic' regardless of user selection.
         const planId = form.selectedPlanId || 'basic';
         try {
             await apiService.patients.subscribe({ planId: planId, paid: 1, paymentId: 'mock_payment_123' });
+            
+            // Success: Proceed to Step 4
+            await saveProgress(3, { paymentAttempted: false });
+            setPaymentAttempted(true);
+            setPaymentCrashWarning(false);
+            isManualTransitionRef.current = true;
+            setStep(4);
+            
+            // Refresh in background
+            refreshPatient().catch(err => console.warn('[Onboarding] Background patient refresh failed:', err.message));
         } catch (err) {
-            console.warn('Backend payment save failed:', err.message);
+            console.error('Backend payment save failed:', err.message);
+            Alert.alert(
+                "Subscription Error",
+                "We couldn't record your payment on our server. Please try again or contact support if you were already charged.",
+                [{ text: "OK" }]
+            );
+            // Stay on Step 3 so they can retry
+        } finally {
+            setSignupLoading(false);
         }
-        await saveProgress(4, { paymentAttempted: false });
-        setPaymentCrashWarning(false);
-        isManualTransitionRef.current = true;
-        setStep(4);
-        refreshPatient().catch(err => console.warn('[Onboarding] Background patient refresh failed:', err.message));
     }, [saveProgress, form.selectedPlanId, refreshPatient]);
 
     const handleBack = useCallback(() => {
