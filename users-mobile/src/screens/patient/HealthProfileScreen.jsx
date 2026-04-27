@@ -267,19 +267,41 @@ export default function HealthProfileScreen({ navigation }) {
     };
 
     const handleSave = async () => {
-        // Validation logic to prevent empty critical fields
-        if (['condition', 'allergy', 'medication', 'vaccination', 'contact'].includes(editingType) && !formState.name) {
+        const nameRegex = /^[a-zA-Z\s'-]+$/;
+        
+        // ── Person Name Validation ──
+        if (editingType === 'contact' && formState.name && !nameRegex.test(formState.name)) {
+            return Alert.alert('Invalid Name', 'Contact names can only contain letters, spaces, hyphens, and apostrophes.');
+        }
+        if (editingType === 'gp' && formState.gp_name && !nameRegex.test(formState.gp_name)) {
+            return Alert.alert('Invalid Name', 'Doctor names can only contain letters, spaces, hyphens, and apostrophes.');
+        }
+        if (editingType === 'appointment' && formState.doctor_name && !nameRegex.test(formState.doctor_name)) {
+            return Alert.alert('Invalid Name', 'Doctor names can only contain letters, spaces, hyphens, and apostrophes.');
+        }
+
+        // ── Presence Validation ──
+        if (['condition', 'allergy', 'medication', 'vaccination', 'contact'].includes(editingType) && !formState.name?.trim()) {
             return Platform.OS === 'web' ? window.alert('Please provide a valid name.') : Alert.alert('Missing Field', 'Please provide a valid name.');
         }
-        if (['contact'].includes(editingType) && !formState.phone) {
+        if (['contact'].includes(editingType) && !formState.phone?.trim()) {
             return Platform.OS === 'web' ? window.alert('Please provide a phone number.') : Alert.alert('Missing Field', 'Please provide a phone number.');
         }
-        if (editingType === 'history' && !formState.event) {
+        if (editingType === 'history' && !formState.event?.trim()) {
             return Platform.OS === 'web' ? window.alert('Please provide an event name.') : Alert.alert('Missing Field', 'Please provide an event name.');
         }
-        if (editingType === 'appointment' && (!formState.title || !formState.doctor_name)) {
+        if (editingType === 'appointment' && (!formState.title?.trim() || !formState.doctor_name?.trim())) {
             return Platform.OS === 'web' ? window.alert('Please provide appointment details.') : Alert.alert('Missing Field', 'Please provide appointment details.');
         }
+
+        // ── Length Validation ──
+        if (['condition', 'allergy', 'medication', 'history'].includes(editingType)) {
+            const val = formState.name || formState.event;
+            if (val && val.trim().length < 2) {
+                return Alert.alert('Too Short', 'Please enter a more descriptive name (at least 2 characters).');
+            }
+        }
+        
         
         // ── Date Range Validation ──
         if (['history', 'condition', 'allergy'].includes(editingType) && formState.date) {
@@ -304,6 +326,12 @@ export default function HealthProfileScreen({ navigation }) {
             const phoneErr = validatePhone(formState.gp_phone, formState.gp_phoneCode);
             if (phoneErr) {
                 return Alert.alert('Invalid Phone', phoneErr);
+            }
+        }
+        if (editingType === 'contact' && formState.phone) {
+            // Check if it's at least 10 digits
+            if (formState.phone.replace(/[^0-9]/g, '').length < 10) {
+                return Alert.alert('Invalid Phone', 'Please enter a valid 10-digit phone number.');
             }
         }
 
