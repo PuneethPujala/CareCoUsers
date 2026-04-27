@@ -30,7 +30,12 @@ const Step5FinalDetails = ({ staggerAnims, handleCompleteSignUp, signupLoading }
                                 setShowPicker(false);
                                 if (date) {
                                     setSelectedDate(date);
-                                    const age = new Date().getFullYear() - date.getFullYear();
+                                    const today = new Date();
+                                    let age = today.getFullYear() - date.getFullYear();
+                                    const m = today.getMonth() - date.getMonth();
+                                    if (m < 0 || (m === 0 && today.getDate() < date.getDate())) {
+                                        age--;
+                                    }
                                     onChange(age.toString());
                                 }
                             };
@@ -98,7 +103,11 @@ const Step5FinalDetails = ({ staggerAnims, handleCompleteSignUp, signupLoading }
             ) : null}
 
             <Animated.View style={{ width: '100%', opacity: staggerAnims[4], transform: [{ translateY: staggerAnims[4].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>
-                <Pressable style={[styles.primaryBtnEnhanced, signupLoading && { opacity: 0.7 }]} onPress={handleCompleteSignUp} disabled={signupLoading}>
+                <Pressable 
+                    style={[styles.primaryBtnEnhanced, signupLoading && { opacity: 0.7 }]} 
+                    onPress={() => handleCompleteSignUp(selectedDate.toISOString())} 
+                    disabled={signupLoading}
+                >
                     <LinearGradient
                         colors={['#6366F1', '#4F46E5']}
                         start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
