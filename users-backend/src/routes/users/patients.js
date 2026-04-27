@@ -34,7 +34,6 @@ async function subscribeAndSeedDemoData(patient, planId) {
             'subscription.started_at': new Date(),
             'subscription.expires_at': new Date(Date.now() + 30 * 86400000),
             'subscription.next_billing': new Date(Date.now() + 30 * 86400000),
-            profile_complete: true,
             paid: 1,
         };
 
