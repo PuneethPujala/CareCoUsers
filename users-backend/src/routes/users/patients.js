@@ -379,7 +379,20 @@ router.put('/me', authenticateSession, async (req, res) => {
         if (profile_complete !== undefined) updates.profile_complete = profile_complete;
 
         let patient = await Patient.findOne({ supabase_uid: req.user.id });
-        if (!patient) return res.status(404).json({ error: 'Patient profile not found' });
+        if (!patient) {
+            try {
+                // Auto-create basic profile if it's missing (common in fresh Supabase signups)
+                patient = await createBasicPatient(
+                    req.user.id,
+                    req.user.email,
+                    req.body.name || req.user.user_metadata?.full_name,
+                    null // No profile_id yet
+                );
+            } catch (seedErr) {
+                console.error('Auto-seed error in updateMe:', seedErr);
+                return res.status(500).json({ error: 'Failed to initialize patient profile' });
+            }
+        }
 
         const expoTokenUpdated = expo_push_token && patient.expo_push_token !== expo_push_token;
 
