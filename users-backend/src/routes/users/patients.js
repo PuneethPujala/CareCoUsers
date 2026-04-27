@@ -63,7 +63,7 @@ async function subscribeAndSeedDemoData(patient, planId) {
 
         await Notification.create([{
             patient_id: patient._id,
-            type: 'account',
+            type: 'system',
             title: 'Welcome to CareCo! 🎉',
             message: 'Your account is now active. Explore the app while we appoint your dedicated caregiver.',
             target_screen: 'HealthProfile',
@@ -199,6 +199,13 @@ router.post('/subscribe', authenticateSession, async (req, res) => {
 
         if (paid !== undefined) patient.paid = paid;
         if (resolvedPlanId) patient.pending_plan = resolvedPlanId;
+
+        // If patient is already active, just save the 'paid' status and return.
+        // This handles cases where a previous attempt was partially recorded.
+        if (patient.subscription?.status === 'active') {
+            await patient.save();
+            return res.json({ success: true, patient, message: 'Subscription already active' });
+        }
 
         patient = await subscribeAndSeedDemoData(patient, resolvedPlanId);
 
