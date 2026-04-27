@@ -251,6 +251,13 @@ export default function PatientSignupScreen({ navigation, route }) {
             webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
             offlineAccess: false,
         });
+
+        // Cleanup pending API requests on unmount
+        return () => {
+            if (abortRef.current) {
+                abortRef.current.abort();
+            }
+        };
     }, []);
 
     const heroAnim = useRef(new Animated.Value(-15)).current;
@@ -647,7 +654,7 @@ export default function PatientSignupScreen({ navigation, route }) {
         // subscribe() always sent plan: 'basic' regardless of user selection.
         const planId = form.selectedPlanId || 'basic';
         try {
-            await apiService.patients.subscribe({ plan: planId, paid: 1 });
+            await apiService.patients.subscribe({ planId: planId, paid: 1, paymentId: 'mock_payment_123' });
         } catch (err) {
             console.warn('Backend payment save failed:', err.message);
         }
