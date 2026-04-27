@@ -40,14 +40,12 @@ async function createBasicPatient(supabaseUid, email, name, profileId, paid = 0)
         console.log(`✅ Auto-seeded basic profile for ${email} (paid: ${paid})`);
         return patient;
     } catch (err) {
-        // Handle duplicate key error (11000) - possible race condition or recreated Supabase account
         if (err.code === 11000) {
             console.log(`ℹ️ Patient already exists or conflict for ${email}, attempting to re-fetch.`);
             const existing = await Patient.findOne({
                 $or: [{ supabase_uid: supabaseUid }, { email: email.toLowerCase() }]
             });
             if (existing) {
-                // Auto-heal the supabase_uid if it was recreated in Supabase but their MongoDB record remained
                 if (existing.supabase_uid !== supabaseUid) {
                     console.log(`[Auto-heal] Updating stale supabase_uid for patient ${email}`);
                     existing.supabase_uid = supabaseUid;
@@ -58,6 +56,27 @@ async function createBasicPatient(supabaseUid, email, name, profileId, paid = 0)
         }
         throw err;
     }
+}
+
+/**
+ * Reusable helper to fetch or initialize a patient profile from current auth session.
+ */
+async function getOrCreatePatient(req, customName = null) {
+    let patient = await Patient.findOne({ supabase_uid: req.user.id });
+    if (!patient) {
+        try {
+            patient = await createBasicPatient(
+                req.user.id,
+                req.user.email,
+                customName || req.user.user_metadata?.full_name || req.user.user_metadata?.name,
+                req.profile?._id
+            );
+        } catch (err) {
+            console.error('getOrCreatePatient error:', err);
+            throw err;
+        }
+    }
+    return patient;
 }
 
 // ─── Activate Subscription & Notify Manager (Post-Subscription) ────────────────────────────
@@ -331,22 +350,7 @@ router.delete('/me/addresses/:id', authenticateSession, validateObjectId('id'), 
  */
 router.get('/me', authenticateSession, async (req, res) => {
     try {
-        let patient = await Patient.findOne({ supabase_uid: req.user.id })
-            .populate('assigned_manager_id', 'fullName email phone');
-        if (!patient) {
-            try {
-                patient = await createBasicPatient(
-                    req.user.id,
-                    req.user.email,
-                    req.user.user_metadata?.full_name || req.user.user_metadata?.name,
-                    req.profile ? req.profile._id : undefined
-                );
-            } catch (seedErr) {
-                console.error('Auto-seed error:', seedErr);
-                // Return 500 instead of 404 to correctly indicate an internal server error
-                return res.status(500).json({ error: 'Failed to auto-seed patient profile', details: seedErr.message || String(seedErr) });
-            }
-        }
+        const patient = await getOrCreatePatient(req);
         // BUG-6 FIX: Expose hasPassword flag (never the actual hash)
         const withHash = await Patient.findById(patient._id).select('+passwordHash');
         const patientObj = patient.toObject();
@@ -354,7 +358,7 @@ router.get('/me', authenticateSession, async (req, res) => {
         res.json({ patient: patientObj });
     } catch (error) {
         console.error('Get patient profile error:', error);
-        res.status(500).json({ error: 'Failed to get patient profile' });
+        res.status(500).json({ error: 'Failed to fetch or initialize patient profile' });
     }
 });
 
@@ -378,21 +382,7 @@ router.put('/me', authenticateSession, async (req, res) => {
         if (expo_push_token !== undefined) updates.expo_push_token = expo_push_token;
         if (profile_complete !== undefined) updates.profile_complete = profile_complete;
 
-        let patient = await Patient.findOne({ supabase_uid: req.user.id });
-        if (!patient) {
-            try {
-                // Auto-create basic profile if it's missing (common in fresh Supabase signups)
-                patient = await createBasicPatient(
-                    req.user.id,
-                    req.user.email,
-                    req.body.name || req.user.user_metadata?.full_name,
-                    null // No profile_id yet
-                );
-            } catch (seedErr) {
-                console.error('Auto-seed error in updateMe:', seedErr);
-                return res.status(500).json({ error: 'Failed to initialize patient profile' });
-            }
-        }
+        let patient = await getOrCreatePatient(req, name);
 
         const expoTokenUpdated = expo_push_token && patient.expo_push_token !== expo_push_token;
 
@@ -616,21 +606,7 @@ router.delete('/me/contact/:id', authenticateSession, validateObjectId('id'), de
 router.post('/subscribe', authenticateSession, async (req, res) => {
     try {
         const { paid, planId, paymentId } = req.body;
-        let patient = await Patient.findOne({ supabase_uid: req.user.id });
-
-        if (!patient) {
-            try {
-                patient = await createBasicPatient(
-                    req.user.id,
-                    req.user.email,
-                    req.user.user_metadata?.full_name || req.user.user_metadata?.name,
-                    req.profile._id
-                );
-            } catch (seedErr) {
-                console.error('Auto-seed error in subscribe:', seedErr);
-                return res.status(500).json({ error: 'Failed to create patient profile' });
-            }
-        }
+        let patient = await getOrCreatePatient(req);
 
         if (patient.subscription?.status === 'active') return res.status(400).json({ error: 'Already subscribed' });
 
