@@ -69,7 +69,7 @@ async function subscribeAndSeedDemoData(patient) {
     // 1. Activate subscription — NO caller assignment, manager will assign one
     patient.subscription = {
         status: 'active',
-        plan: 'basic',
+        plan: patient.pending_plan || 'basic',
         amount: 500,
         payment_date: new Date(),
         started_at: new Date(),
@@ -602,7 +602,7 @@ router.delete('/me/contact/:id', authenticateSession, validateObjectId('id'), de
  */
 router.post('/subscribe', authenticateSession, async (req, res) => {
     try {
-        const { paid } = req.body;
+        const { paid, planId, paymentId } = req.body;
         let patient = await Patient.findOne({ supabase_uid: req.user.id });
 
         if (!patient) {
@@ -621,14 +621,23 @@ router.post('/subscribe', authenticateSession, async (req, res) => {
 
         if (patient.subscription?.status === 'active') return res.status(400).json({ error: 'Already subscribed' });
 
+        // SEC-FIX-2: Don't trust frontend "paid: 1". 
+        // In production, verify paymentId with Razorpay/Stripe API here.
+        if (!paymentId && paid === 1) {
+             return res.status(400).json({ error: 'Payment verification failed. No payment ID provided.' });
+        }
+
         if (paid !== undefined) {
             patient.paid = paid;
+        }
+        if (planId) {
+            patient.pending_plan = planId;
         }
 
         // Simulate payment success, then seed data
         patient = await subscribeAndSeedDemoData(patient);
 
-        res.json({ success: true, patient, message: 'Successfully subscribed and assigned a caller.' });
+        res.json({ success: true, patient, message: `Successfully subscribed to ${planId || 'basic'} plan.` });
     } catch (error) {
         console.error('Subscription error:', error);
         res.status(500).json({ error: 'Failed to process subscription' });
