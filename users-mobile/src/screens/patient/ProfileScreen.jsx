@@ -214,6 +214,11 @@ export default function PatientProfileScreen({ navigation }) {
     };
 
     const handleSaveEC = async () => {
+        const nameRegex = /^[a-zA-Z\s'-]+$/;
+        if (ecName && !nameRegex.test(ecName)) {
+            Alert.alert('Invalid Name', 'Contact names can only contain letters, spaces, hyphens, and apostrophes.');
+            return;
+        }
         if (ecPhone) {
             const phoneErr = validatePhone(ecPhone, ecPhoneCode);
             if (phoneErr) { Alert.alert('Invalid Phone', phoneErr); return; }
@@ -230,6 +235,15 @@ export default function PatientProfileScreen({ navigation }) {
     };
 
     const handleSaveAccount = async () => {
+        const nameRegex = /^[a-zA-Z\s'-]+$/;
+        if (editName && !nameRegex.test(editName)) {
+            Alert.alert('Invalid Name', 'Names can only contain letters, spaces, hyphens, and apostrophes.');
+            return;
+        }
+        if (editName && editName.trim().length < 2) {
+            Alert.alert('Too Short', 'Name must be at least 2 characters.');
+            return;
+        }
         setSavingAccount(true);
         // Optimistic update
         setPatient(prev => ({ ...prev, name: editName, city: editCity }));
