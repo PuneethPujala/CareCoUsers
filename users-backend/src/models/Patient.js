@@ -27,6 +27,12 @@ const PatientSchema = new mongoose.Schema(
             type: String,
             required: true,
             trim: true,
+            validate: {
+                validator: function(v) {
+                    return /^[a-zA-Z\s'-]+$/.test(v);
+                },
+                message: props => `${props.value} is not a valid name! Names can only contain letters, spaces, hyphens, and apostrophes.`
+            }
         },
         email: {
             type: String,
@@ -302,7 +308,16 @@ const PatientSchema = new mongoose.Schema(
         ],
         trusted_contacts: [
             {
-                name: { type: String, required: true },
+                name: { 
+                    type: String, 
+                    required: true,
+                    validate: {
+                        validator: function(v) {
+                            return /^[a-zA-Z\s'-]+$/.test(v);
+                        },
+                        message: props => `${props.value} is not a valid name!`
+                    }
+                },
                 phone: { type: String, required: true },
                 relation: String,
                 email: String,
