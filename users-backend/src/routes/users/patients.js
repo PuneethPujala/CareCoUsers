@@ -59,23 +59,36 @@ async function createBasicPatient(supabaseUid, email, name, profileId, paid = 0)
 }
 
 /**
- * Reusable helper to fetch or initialize a patient profile from current auth session.
+ * Core business logic to fetch or initialize a patient profile.
+ * Decoupled from Express 'req' to support background jobs & testing.
  */
-async function getOrCreatePatient(req, customName = null) {
-    let patient = await Patient.findOne({ supabase_uid: req.user.id });
+async function findOrCreatePatientRecord({ supabaseUid, email, name, profileId = null }) {
+    let patient = await Patient.findOne({ supabase_uid: supabaseUid });
     if (!patient) {
         try {
-            patient = await createBasicPatient(
-                req.user.id,
-                req.user.email,
-                customName || req.user.user_metadata?.full_name || req.user.user_metadata?.name,
-                req.profile?._id
-            );
+            patient = await createBasicPatient(supabaseUid, email, name, profileId);
         } catch (err) {
-            console.error('getOrCreatePatient error:', err);
+            console.error('findOrCreatePatientRecord error:', err);
             throw err;
         }
     }
+    return patient;
+}
+
+/**
+ * Express-aware wrapper that adds request-level caching.
+ */
+async function getOrCreatePatient(req, customName = null) {
+    if (req.patient) return req.patient;
+
+    const patient = await findOrCreatePatientRecord({
+        supabaseUid: req.user.id,
+        email: req.user.email,
+        name: customName || req.user.user_metadata?.full_name || req.user.user_metadata?.name,
+        profileId: req.profile?._id
+    });
+
+    req.patient = patient; 
     return patient;
 }
 
@@ -276,16 +289,11 @@ router.get('/me/addresses', authenticateSession, async (req, res) => {
 router.post('/me/addresses', authenticateSession, async (req, res) => {
     try {
         const { label, title, address_line, flat_no, street, city, state, postcode, lat, lon } = req.body;
-        const patient = await Patient.findOneAndUpdate(
-            { supabase_uid: req.user.id },
-            {
-                $push: {
-                    saved_addresses: { label, title, address_line, flat_no, street, city, state, postcode, lat, lon }
-                }
-            },
-            { new: true }
-        );
-        if (!patient) return res.status(404).json({ error: 'Patient profile not found' });
+        const patient = await getOrCreatePatient(req);
+        
+        patient.saved_addresses.push({ label, title, address_line, flat_no, street, city, state, postcode, lat, lon });
+        await patient.save();
+
         res.status(201).json({ saved_addresses: patient.saved_addresses, message: 'Address saved successfully' });
     } catch (error) {
         console.error('Add address error:', error);
@@ -300,19 +308,14 @@ router.post('/me/addresses', authenticateSession, async (req, res) => {
 router.put('/me/addresses/:id', authenticateSession, validateObjectId('id'), async (req, res) => {
     try {
         const { label, title, address_line, flat_no, street, city, state, postcode, lat, lon } = req.body;
-        const patient = await Patient.findOneAndUpdate(
-            {
-                supabase_uid: req.user.id,
-                "saved_addresses._id": new mongoose.Types.ObjectId(req.params.id)
-            },
-            {
-                $set: {
-                    "saved_addresses.$": { label, title, address_line, flat_no, street, city, state, postcode, lat, lon }
-                }
-            },
-            { new: true }
-        );
-        if (!patient) return res.status(404).json({ error: 'Patient or address not found' });
+        const patient = await getOrCreatePatient(req);
+        
+        const address = patient.saved_addresses.id(req.params.id);
+        if (!address) return res.status(404).json({ error: 'Address not found' });
+
+        Object.assign(address, { label, title, address_line, flat_no, street, city, state, postcode, lat, lon });
+        await patient.save();
+
         res.json({ saved_addresses: patient.saved_addresses, message: 'Address updated successfully' });
     } catch (error) {
         console.error('Update address error:', error);
@@ -382,11 +385,14 @@ router.put('/me', authenticateSession, async (req, res) => {
 
         let patient = await getOrCreatePatient(req, name);
 
-        const expoTokenUpdated = expo_push_token && patient.expo_push_token !== expo_push_token;
+        // ⚛️ Atomic Update: Prevent race conditions
+        await Patient.updateOne({ _id: patient._id }, { $set: updates });
+        
+        // Refresh cache so rest of request sees new data
+        req.patient = await Patient.findById(patient._id);
+        patient = req.patient;
 
-        // Apply updates
-        Object.assign(patient, updates);
-        await patient.save();
+        const expoTokenUpdated = expo_push_token && patient.expo_push_token !== expo_push_token;
 
         if (expoTokenUpdated) {
             const PushNotificationService = require('../../utils/pushNotifications');
@@ -633,41 +639,29 @@ router.post('/subscribe', authenticateSession, async (req, res) => {
 router.put('/me/emergency-contact', authenticateSession, async (req, res) => {
     try {
         const { name, phone, relation } = req.body;
-        
         const patient = await getOrCreatePatient(req);
 
-        // If payload is empty, treat as a request to remove the emergency contact
+        // Atomic update for scalar-like array logic
         if (!name && !phone) {
-            const emergencyContact = patient.trusted_contacts.find(c => c.is_emergency);
-            if (emergencyContact) {
-                patient.trusted_contacts.pull(emergencyContact._id);
-            }
-            await patient.save();
-            return res.json({ patient, message: 'Emergency contact removed successfully' });
-        }
-
-        // Simple validation
-        if (!name || name.trim().length < 2) return res.status(400).json({ error: 'Valid name is required' });
-        if (!phone || !/^\d{10,15}$/.test(phone.replace(/\D/g, ''))) return res.status(400).json({ error: 'Valid phone number is required' });
-
-        // Find existing emergency contact
-        let emergencyContact = patient.trusted_contacts.find(c => c.is_emergency);
-
-        if (emergencyContact) {
-            emergencyContact.name = name;
-            emergencyContact.phone = phone;
-            emergencyContact.relation = relation;
+            await Patient.updateOne({ _id: patient._id }, { $pull: { trusted_contacts: { is_emergency: true } } });
         } else {
-            // Create one if it doesn't exist
-            patient.trusted_contacts.push({
-                name, phone, relation,
-                is_emergency: true,
-                is_primary: true
-            });
+            // Unset other emergency contacts atomically
+            await Patient.updateOne({ _id: patient._id, "trusted_contacts.is_emergency": true }, { $set: { "trusted_contacts.$.is_emergency": false } });
+            
+            // Re-fetch to find if we need to push or update
+            const freshPatient = await Patient.findById(patient._id);
+            let emergencyContact = freshPatient.trusted_contacts.find(c => c.is_emergency);
+
+            if (emergencyContact) {
+                Object.assign(emergencyContact, { name, phone, relation });
+            } else {
+                freshPatient.trusted_contacts.push({ name, phone, relation, is_emergency: true, is_primary: true });
+            }
+            await freshPatient.save();
+            req.patient = freshPatient;
         }
 
-        await patient.save();
-        res.json({ patient, message: 'Emergency contact updated successfully' });
+        res.json({ patient: await getOrCreatePatient(req), message: 'Emergency contact updated successfully' });
     } catch (error) {
         console.error('Update emergency contact error:', error);
         res.status(500).json({ error: 'Failed to update emergency contact' });
@@ -771,38 +765,25 @@ router.put('/me/trusted-contacts/:id', authenticateSession, validateObjectId('id
  */
 router.get('/me/caller', authenticateSession, async (req, res) => {
     try {
-        const patient = await Patient.findOne({ supabase_uid: req.user.id })
-            .populate('assigned_manager_id', 'fullName email phone');
-
-        if (!patient) {
-            return res.status(200).json({ caller: null, manager: null, message: 'Patient profile not found' });
-        }
-
+        const patient = await getOrCreatePatient(req);
         let caller = null;
 
-        // 1. Primary lookup: direct assigned_caller_id on Patient
         if (patient.assigned_caller_id) {
             caller = await Caller.findById(patient.assigned_caller_id)
                 .select('name employee_id profile_photo_url languages_spoken experience_years phone city');
         }
 
-        // 2. Fallback lookup: search Caller whose patient_ids includes this patient
         if (!caller) {
             caller = await Caller.findOne({ patient_ids: patient._id, is_active: true })
                 .select('name employee_id profile_photo_url languages_spoken experience_years phone city');
 
-            // Auto-heal: sync the relationship back to the Patient document
             if (caller) {
-                patient.assigned_caller_id = caller._id;
-                await patient.save();
-                console.log(`[Auto-heal] Synced assigned_caller_id for patient ${patient.email} → Caller ${caller.name}`);
+                await Patient.updateOne({ _id: patient._id }, { $set: { assigned_caller_id: caller._id } });
+                req.patient = await Patient.findById(patient._id); // Sync cache
             }
         }
 
-        // Build manager object from populated field
-        const manager = patient.assigned_manager_id || null;
-
-        res.json({ caller: caller || null, manager: manager || null });
+        res.json({ caller: caller || null, manager: patient.assigned_manager_id || null });
     } catch (error) {
         console.error('Get assigned caller error:', error);
         res.status(500).json({ error: 'Failed to get assigned caller' });
@@ -815,22 +796,19 @@ router.get('/me/caller', authenticateSession, async (req, res) => {
  */
 router.get('/me/calls', authenticateSession, async (req, res) => {
     try {
-        const patient = await Patient.findOne({ supabase_uid: req.user.id });
-        if (!patient) {
-            return res.status(200).json({ calls: [], pagination: { total: 0 }, error: 'Patient profile not found' });
-        }
-
+        const patient = await getOrCreatePatient(req);
         const { page = 1, limit = 20 } = req.query;
         const skip = (parseInt(page) - 1) * parseInt(limit);
 
-        const calls = await CallLog.find({ patient_id: patient._id })
-            .select('-caller_notes -admin_notes') // SECURITY: strip private fields
-            .sort({ call_date: -1 })
-            .skip(skip)
-            .limit(parseInt(limit))
-            .populate('caller_id', 'name profile_photo_url');
-
-        const total = await CallLog.countDocuments({ patient_id: patient._id });
+        const [calls, total] = await Promise.all([
+            CallLog.find({ patient_id: patient._id })
+                .select('-caller_notes -admin_notes')
+                .sort({ call_date: -1 })
+                .skip(skip)
+                .limit(parseInt(limit))
+                .populate('caller_id', 'name profile_photo_url'),
+            CallLog.countDocuments({ patient_id: patient._id })
+        ]);
 
         res.json({
             calls,
@@ -853,12 +831,8 @@ router.get('/me/calls', authenticateSession, async (req, res) => {
  */
 router.get('/me/medications', authenticateSession, async (req, res) => {
     try {
-        const patient = await Patient.findOne({ supabase_uid: req.user.id })
-            .select('medications');
-        if (!patient) {
-            return res.status(200).json({ medications: [], error: 'Patient profile not found' });
-        }
-        res.json({ medications: patient.medications });
+        const patient = await getOrCreatePatient(req);
+        res.json({ medications: patient.medications || [] });
     } catch (error) {
         console.error('Get medications error:', error);
         res.status(500).json({ error: 'Failed to get medications' });
@@ -890,17 +864,13 @@ router.get('/me/notifications', authenticateSession, async (req, res) => {
  */
 router.put('/me/notifications/:id/read', authenticateSession, validateObjectId('id'), async (req, res) => {
     try {
-        const patient = await Patient.findOne({ supabase_uid: req.user.id });
-        if (!patient) return res.status(404).json({ error: 'Patient profile not found' });
-
+        const patient = await getOrCreatePatient(req);
         const notification = await Notification.findOneAndUpdate(
             { _id: req.params.id, patient_id: patient._id },
             { $set: { is_read: true } },
             { new: true }
         );
-
         if (!notification) return res.status(404).json({ error: 'Notification not found' });
-
         res.json({ success: true, notification });
     } catch (error) {
         console.error('Read notification error:', error);
@@ -914,15 +884,9 @@ router.put('/me/notifications/:id/read', authenticateSession, validateObjectId('
  */
 router.get('/me/ai-prediction', authenticateSession, async (req, res) => {
     try {
-        const patient = await Patient.findOne({ supabase_uid: req.user.id });
-        if (!patient) return res.status(404).json({ error: 'Patient profile not found' });
-
+        const patient = await getOrCreatePatient(req);
         const prediction = await AIVitalPrediction.findOne({ patient_id: patient._id });
-        if (!prediction) {
-            return res.status(200).json({ prediction: null, message: 'No AI predictions generated yet.' });
-        }
-
-        res.json({ prediction });
+        res.json({ prediction: prediction || null });
     } catch (error) {
         console.error('Get AI Prediction error:', error);
         res.status(500).json({ error: 'Failed to fetch AI Prediction' });
@@ -937,8 +901,7 @@ router.get('/me/ai-prediction', authenticateSession, async (req, res) => {
 router.put('/me/medications', authenticateSession, async (req, res) => {
     try {
         const { _id, name, dosage, frequency, times, start_date, end_date, is_active, instructions, prescribed_by } = req.body;
-        const patient = await Patient.findOne({ supabase_uid: req.user.id });
-        if (!patient) return res.status(404).json({ error: 'Patient profile not found' });
+        const patient = await getOrCreatePatient(req);
 
         // Auto-sync abstract times to concrete scheduledTimes based on preferences
         let scheduledTimes = [];
@@ -971,40 +934,36 @@ router.put('/me/medications', authenticateSession, async (req, res) => {
 router.put('/me/call-preferences', authenticateSession, async (req, res) => {
     try {
         const { morning, afternoon, night } = req.body;
-        const patient = await Patient.findOne({ supabase_uid: req.user.id });
-        if (!patient) return res.status(404).json({ error: 'Patient profile not found' });
+        const patient = await getOrCreatePatient(req);
 
-        patient.medication_call_preferences = {
+        const newPrefs = {
             morning: morning || patient.medication_call_preferences?.morning || '09:00',
             afternoon: afternoon || patient.medication_call_preferences?.afternoon || '14:00',
             night: night || patient.medication_call_preferences?.night || '20:00'
         };
 
-        // Sync abstract call preferences to the actual scheduledTimes in each medication
-        if (patient.medications && patient.medications.length > 0) {
-            patient.medications.forEach(med => {
+        await Patient.updateOne({ _id: patient._id }, { $set: { medication_call_preferences: newPrefs } });
+        
+        // Re-fetch to sync subdocuments atomically if needed
+        const freshPatient = await Patient.findById(patient._id);
+        if (freshPatient.medications && freshPatient.medications.length > 0) {
+            freshPatient.medications.forEach(med => {
                 const newScheduledTimes = [];
-                const prefs = patient.medication_call_preferences;
+                const prefs = freshPatient.medication_call_preferences;
                 if (med.times && med.times.length > 0) {
                     if (med.times.includes('morning')) newScheduledTimes.push(prefs.morning);
                     if (med.times.includes('afternoon') || med.times.includes('evening')) newScheduledTimes.push(prefs.afternoon);
                     if (med.times.includes('night')) newScheduledTimes.push(prefs.night);
-                } else if (med.scheduledTimes && med.scheduledTimes.length > 0) {
-                    med.scheduledTimes.forEach(st => {
-                        const hr = parseInt(st.split(':')[0], 10);
-                        if (hr < 12) newScheduledTimes.push(prefs.morning);
-                        else if (hr >= 12 && hr < 17) newScheduledTimes.push(prefs.afternoon);
-                        else newScheduledTimes.push(prefs.night);
-                    });
                 }
                 if (newScheduledTimes.length > 0) {
                     med.scheduledTimes = [...new Set(newScheduledTimes)].sort();
                 }
             });
+            await freshPatient.save();
         }
 
-        await patient.save();
-        res.json({ preferences: patient.medication_call_preferences, message: 'Preferences updated successfully' });
+        req.patient = freshPatient;
+        res.json({ preferences: freshPatient.medication_call_preferences, message: 'Preferences updated successfully' });
     } catch (error) {
         console.error('Update call preferences error:', error);
         res.status(500).json({ error: 'Failed to update preferences' });
@@ -1022,10 +981,7 @@ router.put('/me/call-preferences', authenticateSession, async (req, res) => {
 router.post('/me/flag-issue', authenticateSession, async (req, res) => {
     try {
         const { type, description } = req.body;
-        const patient = await Patient.findOne({ supabase_uid: req.user.id });
-        if (!patient) {
-            return res.status(404).json({ error: 'Patient profile not found' });
-        }
+        const patient = await getOrCreatePatient(req);
 
         const Alert = require('../../models/Alert');
         const alert = new Alert({
