@@ -261,8 +261,7 @@ router.get('/location/search', async (req, res) => {
  */
 router.get('/me/addresses', authenticateSession, async (req, res) => {
     try {
-        const patient = await Patient.findOne({ supabase_uid: req.user.id }).select('saved_addresses');
-        if (!patient) return res.status(404).json({ error: 'Patient profile not found' });
+        const patient = await getOrCreatePatient(req);
         res.json({ saved_addresses: patient.saved_addresses || [] });
     } catch (error) {
         console.error('Get addresses error:', error);
@@ -327,8 +326,7 @@ router.put('/me/addresses/:id', authenticateSession, validateObjectId('id'), asy
  */
 router.delete('/me/addresses/:id', authenticateSession, validateObjectId('id'), async (req, res) => {
     try {
-        const patient = await Patient.findOne({ supabase_uid: req.user.id });
-        if (!patient) return res.status(404).json({ error: 'Patient profile not found' });
+        const patient = await getOrCreatePatient(req);
 
         // Use Mongoose subdocument remove
         const address = patient.saved_addresses.id(req.params.id);
@@ -415,8 +413,7 @@ router.put('/me', authenticateSession, async (req, res) => {
  */
 router.get('/me/profile', authenticateSession, async (req, res) => {
     try {
-        const patient = await Patient.findOne({ supabase_uid: req.user.id });
-        if (!patient) return res.status(404).json({ error: 'Patient not found' });
+        const patient = await getOrCreatePatient(req);
 
         const patientObj = patient.toObject();
 
@@ -445,8 +442,7 @@ router.get('/me/profile', authenticateSession, async (req, res) => {
 
 const updateProfileArray = (field) => async (req, res) => {
     try {
-        const patient = await Patient.findOne({ supabase_uid: req.user.id });
-        if (!patient) return res.status(404).json({ error: 'Patient not found' });
+        const patient = await getOrCreatePatient(req);
 
         if (req.body._id) {
             const item = patient[field].id(req.body._id);
@@ -478,8 +474,7 @@ router.post('/me/prescriptions', authenticateSession, async (req, res) => {
         const { file_base64, content_type } = req.body;
         if (!file_base64) return res.status(400).json({ error: 'file_base64 is required' });
 
-        const patient = await Patient.findOne({ supabase_uid: req.user.id });
-        if (!patient) return res.status(404).json({ error: 'Patient not found' });
+        const patient = await getOrCreatePatient(req);
 
         // Initialize Supabase Admin client to bypass frontend RLS
         const { createClient } = require('@supabase/supabase-js');
@@ -520,8 +515,7 @@ router.post('/me/prescriptions', authenticateSession, async (req, res) => {
 
 router.put('/me/lifestyle', authenticateSession, async (req, res) => {
     try {
-        const patient = await Patient.findOne({ supabase_uid: req.user.id });
-        if (!patient) return res.status(404).json({ error: 'Patient not found' });
+        const patient = await getOrCreatePatient(req);
 
         const {
             height_cm, weight_kg, smoking_status,
@@ -551,8 +545,7 @@ router.put('/me/lifestyle', authenticateSession, async (req, res) => {
 
 router.put('/me/primary-doctor', authenticateSession, async (req, res) => {
     try {
-        const patient = await Patient.findOne({ supabase_uid: req.user.id });
-        if (!patient) return res.status(404).json({ error: 'Patient not found' });
+        const patient = await getOrCreatePatient(req);
 
         // Frontend may send as gp_name or name — handle both
         const { gp_name, gp_phone, gp_email, name, phone, email } = req.body;
@@ -570,8 +563,7 @@ router.put('/me/primary-doctor', authenticateSession, async (req, res) => {
 
 const deleteProfileItem = (dbCollection, responseKey) => async (req, res) => {
     try {
-        const patient = await Patient.findOne({ supabase_uid: req.user.id });
-        if (!patient) return res.status(404).json({ error: 'Patient not found' });
+        const patient = await getOrCreatePatient(req);
 
         const { id } = req.params;
         const item = patient[dbCollection].id(id);
@@ -642,8 +634,7 @@ router.put('/me/emergency-contact', authenticateSession, async (req, res) => {
     try {
         const { name, phone, relation } = req.body;
         
-        const patient = await Patient.findOne({ supabase_uid: req.user.id });
-        if (!patient) return res.status(404).json({ error: 'Patient profile not found' });
+        const patient = await getOrCreatePatient(req);
 
         // If payload is empty, treat as a request to remove the emergency contact
         if (!name && !phone) {
@@ -689,8 +680,7 @@ router.put('/me/emergency-contact', authenticateSession, async (req, res) => {
  */
 router.get('/me/trusted-contacts', authenticateSession, async (req, res) => {
     try {
-        const patient = await Patient.findOne({ supabase_uid: req.user.id }).select('trusted_contacts');
-        if (!patient) return res.status(404).json({ error: 'Patient profile not found' });
+        const patient = await getOrCreatePatient(req);
         res.json({ trusted_contacts: patient.trusted_contacts || [] });
     } catch (error) {
         console.error('Get trusted contacts error:', error);
@@ -710,8 +700,7 @@ router.post('/me/trusted-contacts', authenticateSession, async (req, res) => {
         if (!name || name.trim().length < 2) return res.status(400).json({ error: 'Valid name is required' });
         if (!phone || !/^\d{10,15}$/.test(phone.replace(/\D/g, ''))) return res.status(400).json({ error: 'Valid phone number is required' });
 
-        const patient = await Patient.findOne({ supabase_uid: req.user.id });
-        if (!patient) return res.status(404).json({ error: 'Patient profile not found' });
+        const patient = await getOrCreatePatient(req);
 
         // If this is marked as emergency, unset any other emergency contact
         if (is_emergency) {
@@ -746,8 +735,7 @@ router.put('/me/trusted-contacts/:id', authenticateSession, validateObjectId('id
         if (!name || name.trim().length < 2) return res.status(400).json({ error: 'Valid name is required' });
         if (!phone || !/^\d{10,15}$/.test(phone.replace(/\D/g, ''))) return res.status(400).json({ error: 'Valid phone number is required' });
 
-        const patient = await Patient.findOne({ supabase_uid: req.user.id });
-        if (!patient) return res.status(404).json({ error: 'Patient profile not found' });
+        const patient = await getOrCreatePatient(req);
 
         // If this is marked as emergency, unset any other emergency contact
         if (is_emergency) {
@@ -1067,8 +1055,7 @@ router.post('/me/flag-issue', authenticateSession, async (req, res) => {
  */
 router.post('/me/vitals', authenticateSession, async (req, res) => {
     try {
-        const patient = await Patient.findOne({ supabase_uid: req.user.id });
-        if (!patient) return res.status(404).json({ error: 'Patient profile not found' });
+        const patient = await getOrCreatePatient(req);
 
         const { date, heart_rate, blood_pressure, oxygen_saturation, hydration, source } = req.body;
         const logDate = date ? new Date(date) : new Date();
@@ -1102,8 +1089,7 @@ router.post('/me/vitals', authenticateSession, async (req, res) => {
  */
 router.get('/me/vitals', authenticateSession, async (req, res) => {
     try {
-        const patient = await Patient.findOne({ supabase_uid: req.user.id });
-        if (!patient) return res.status(404).json({ error: 'Patient profile not found' });
+        const patient = await getOrCreatePatient(req);
 
         const { start_date, end_date } = req.query;
         let query = { patient_id: patient._id };
@@ -1147,8 +1133,7 @@ router.get('/me/vitals', authenticateSession, async (req, res) => {
  */
 router.post('/me/security/screenshots/request-otp', authenticateSession, async (req, res) => {
     try {
-        const patient = await Patient.findOne({ supabase_uid: req.user.id });
-        if (!patient) return res.status(404).json({ error: 'Patient not found' });
+        const patient = await getOrCreatePatient(req);
 
         const otpService = require('../../services/otpService');
         const emailService = require('../../services/emailService');
@@ -1174,8 +1159,7 @@ router.post('/me/security/screenshots/verify', authenticateSession, async (req, 
             return res.status(400).json({ error: 'OTP and boolean "allow" parameter are required' });
         }
 
-        const patient = await Patient.findOne({ supabase_uid: req.user.id });
-        if (!patient) return res.status(404).json({ error: 'Patient not found' });
+        const patient = await getOrCreatePatient(req);
 
         const otpService = require('../../services/otpService');
         const verification = await otpService.verifyOTP(patient.email, otp);
