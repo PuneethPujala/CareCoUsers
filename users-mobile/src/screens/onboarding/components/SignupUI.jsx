@@ -5,7 +5,7 @@ import { AlertCircle, X, Smartphone, CreditCard } from 'lucide-react-native';
 import { styles, FONT } from './SignupStyles';
 
 export const STEP_LABELS = ['Profile Creation', 'Locality', 'Membership', 'Verification', 'All Systems Go'];
-const PasswordStrength = React.memo(({ password }) => {
+const PasswordStrength = React.memo(({ password = '' }) => {
     let score = 0;
     if (password.length >= 8) score++;
     if (/[A-Z]/.test(password)) score++;
@@ -26,7 +26,7 @@ const PasswordStrength = React.memo(({ password }) => {
     );
 });
 
-const PasswordRequirements = React.memo(({ password }) => {
+const PasswordRequirements = React.memo(({ password = '' }) => {
     const checks = [
         { label: 'At least 8 characters', met: password.length >= 8 },
         { label: 'One uppercase letter', met: /[A-Z]/.test(password) },
