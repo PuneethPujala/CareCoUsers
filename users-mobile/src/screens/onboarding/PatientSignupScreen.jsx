@@ -63,7 +63,7 @@ import Step3Membership from './components/Step3Membership';
 import Step4Verification from './components/Step4Verification';
 import Step5FinalDetails from './components/Step5FinalDetails';
 
-const STEP_LABELS = ['Profile Creation', 'Locality', 'Membership', 'Verification', 'All Systems Go'];
+const UI_MOCK_LABELS = ['Profile', 'Locality', 'Health', 'Lifestyle', 'Complete'];
 const ONBOARDING_STORAGE_KEY = 'samvaya_onboarding_progress';
 const STALE_PROGRESS_DAYS = 7;
 
@@ -153,6 +153,7 @@ export default function PatientSignupScreen({ navigation, route }) {
     const [featuresModalVisible, setFeaturesModalVisible] = useState(false);
     const [paymentAttempted, setPaymentAttempted] = useState(false);
     const [paymentCrashWarning, setPaymentCrashWarning] = useState(false);
+    const [showCelebration, setShowCelebration] = useState(false);
 
     const mainScrollRef = useRef(null);
     const isSubmittingRef = useRef(false);
@@ -716,9 +717,10 @@ export default function PatientSignupScreen({ navigation, route }) {
             }, { signal: abortRef.current.signal });
             
             await clearProgress();
-            await completeSignUp();
-            signupLoadingRef.current = false;
-            clearTimeout(timeoutId);
+            
+            setShowCelebration(true);
+            setSignupLoading(false);
+            
         } catch (error) {
             if (error.name === 'AbortError') return;
             clearTimeout(timeoutId);
@@ -730,45 +732,83 @@ export default function PatientSignupScreen({ navigation, route }) {
         }
     }, [form.age, form.gender, clearProgress, completeSignUp, setErrors, methods]);
 
+    const proceedToDashboard = useCallback(async () => {
+        await completeSignUp();
+    }, [completeSignUp]);
+
     const toggleShowPass = useCallback(() => setShowPass(v => !v), []);
     const toggleShowConfirm = useCallback(() => setShowConfirm(v => !v), []);
 
     // ── Render helpers ────────────────────────────────────────────────────────
 
-    const renderHeader = () => (
-        <Animated.View style={[styles.hero, { transform: [{ translateY: heroAnim }], opacity: heroOpacity }]}>
-            <LinearGradient
-                colors={['#4F46E5', '#6366F1', '#818CF8']}
-                start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-                style={StyleSheet.absoluteFill}
-            />
-            <View style={styles.orb1} />
-            <View style={styles.orb2} />
-            <View style={styles.orb3} />
-            <View style={styles.orb4} />
-            <View style={styles.heroContent}>
-                {(step === 2 || step === 3) && (
-                    <Pressable
-                        style={{ position: 'absolute', top: 0, left: 20, width: 44, height: 44, justifyContent: 'center' }}
-                        onPress={handleBack}
-                        hitSlop={12}
-                    >
-                        <ChevronLeft size={28} color="#FFFFFF" strokeWidth={2.5} />
-                    </Pressable>
-                )}
-                <View style={[styles.iconCircle, { backgroundColor: '#FFFFFF' }]}>
-                    <Image
-                        source={require('../../../assets/logo.png')}
-                        style={{ width: 44, height: 44 }}
-                        resizeMode="contain"
+    const renderHeader = () => {
+        if (step === 1) {
+            return (
+                <Animated.View style={[styles.hero, { transform: [{ translateY: heroAnim }], opacity: heroOpacity, overflow: 'hidden' }]}>
+                    <LinearGradient
+                        colors={['#7C3AED', '#5c55e9', '#818CF8']}
+                        start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                        style={StyleSheet.absoluteFill}
                     />
+                    <View style={styles.heroContent}>
+                        <View style={styles.heroLogoContainer}>
+                            <Image
+                                source={require('../../../assets/logo.png')}
+                                style={{ width: 40, height: 40 }}
+                                resizeMode="contain"
+                            />
+                        </View>
+                        <Text style={styles.heroLabel}>SAMVAYA</Text>
+                        <Text style={styles.heroTitle}>Let's set up your health profile</Text>
+                        <Text style={styles.heroSubtitle}>It takes less than 5 minutes</Text>
+                    </View>
+                    <StepIndicator current={step} />
+                </Animated.View>
+            );
+        }
+
+        // For steps 2-5, simple white header with subtle purple wash and full text
+        let stepSubtitle = '';
+        if (step === 2) stepSubtitle = 'Help us find nearby serviceable hubs';
+        else if (step === 3) stepSubtitle = 'Choose a plan that fits your needs';
+        else if (step === 4) stepSubtitle = 'Secure your account';
+        else if (step === 5) stepSubtitle = 'Almost there. Finalizing your profile.';
+
+        return (
+            <Animated.View style={[{ paddingTop: 60, paddingBottom: 20 }, { transform: [{ translateY: heroAnim }], opacity: heroOpacity, overflow: 'hidden' }]}>
+                <LinearGradient
+                    colors={['#EEF2FF', '#FFFFFF']}
+                    start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
+                    style={StyleSheet.absoluteFill}
+                />
+                
+                <Pressable
+                    style={{ position: 'absolute', top: 50, left: 20, width: 44, height: 44, justifyContent: 'center', zIndex: 20 }}
+                    onPress={handleBack}
+                    hitSlop={12}
+                >
+                    <ChevronLeft size={28} color="#1E293B" strokeWidth={2.5} />
+                </Pressable>
+
+                <View style={{ alignItems: 'center', marginBottom: 20, zIndex: 10 }}>
+                    <View style={[styles.heroLogoContainer, { width: 48, height: 48, borderRadius: 24, marginBottom: 8, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5, elevation: 2 }]}>
+                        <Image
+                            source={require('../../../assets/logo.png')}
+                            style={{ width: 30, height: 30 }}
+                            resizeMode="contain"
+                        />
+                    </View>
+                    <Text style={[styles.heroLabel, { color: '#5c55e9', fontSize: 11, letterSpacing: 3, marginBottom: 16 }]}>SAMVAYA</Text>
+                    <Text style={{ fontSize: 24, ...FONT.heavy, color: '#5c55e9', marginBottom: 6 }}>{`Step ${step}: ${UI_MOCK_LABELS[step - 1]}`}</Text>
+                    <Text style={{ fontSize: 13, color: '#64748B', ...FONT.medium }}>{stepSubtitle}</Text>
                 </View>
-                <Text style={styles.heroLabel}>SAMVAYA</Text>
-                <Text style={styles.heroTitle}>{`Step ${step}: ${STEP_LABELS[step - 1]}`}</Text>
-                <StepIndicator current={step} />
-            </View>
-        </Animated.View>
-    );
+                
+                <View style={{ zIndex: 10 }}>
+                    <StepIndicator current={step} />
+                </View>
+            </Animated.View>
+        );
+    };
 
     const renderStep1 = () => (
         <Step1Profile
@@ -876,6 +916,9 @@ export default function PatientSignupScreen({ navigation, route }) {
             staggerAnims={staggerAnims}
             handleCompleteSignUp={handleCompleteSignUp}
             signupLoading={signupLoading}
+            showCelebration={showCelebration}
+            proceedToDashboard={proceedToDashboard}
+            userName={form.fullName.split(' ')[0]}
         />
     );
 
