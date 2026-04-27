@@ -15,7 +15,8 @@ export const step1Schema = z.object({
         .string()
         .trim()
         .min(2, 'Name must be at least 2 characters')
-        .max(50, 'Name is too long'),
+        .max(50, 'Name is too long')
+        .regex(/^[a-zA-Z\s'-]+$/, 'Name can only contain letters, spaces, hyphens, and apostrophes'),
     email: z
         .string()
         .trim()
