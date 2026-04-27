@@ -665,14 +665,17 @@ export default function PatientSignupScreen({ navigation, route }) {
         }
     }, [step]);
 
-    const handleCompleteSignUp = useCallback(async () => {
+    const handleCompleteSignUp = useCallback(async (actualDob) => {
         const isValid = await methods.trigger(['age', 'gender']);
         if (!isValid) return;
+        
+        // Cancel any pending request
+        if (abortRef.current) abortRef.current.abort();
+        abortRef.current = new AbortController();
         
         setSignupLoading(true);
         signupLoadingRef.current = true;
         
-        // Safety timeout to prevent the "forever hang" if backend/network is sluggish
         const timeoutId = setTimeout(() => {
             if (signupLoadingRef.current) {
                 setSignupLoading(false);
@@ -682,24 +685,27 @@ export default function PatientSignupScreen({ navigation, route }) {
         }, 15000);
 
         try {
-            // Option B: Convert age to a dummy DOB for the backend (which expects a Date)
-            const estimatedDob = new Date(new Date().getFullYear() - parseInt(form.age), 0, 1).toISOString();
+            // Use the actual DOB if provided (from Step 5 picker), otherwise fallback to estimate
+            const dobToSend = actualDob || new Date(new Date().getFullYear() - parseInt(form.age), 0, 1).toISOString();
             
             await apiService.patients.updateMe({ 
-                date_of_birth: estimatedDob, 
+                date_of_birth: dobToSend, 
                 gender: form.gender.toLowerCase(),
                 profile_complete: true
-            });
-            await clearProgress();
+            }, { signal: abortRef.current.signal });
             
+            await clearProgress();
             await completeSignUp();
             signupLoadingRef.current = false;
             clearTimeout(timeoutId);
         } catch (error) {
+            if (error.name === 'AbortError') return;
             clearTimeout(timeoutId);
             signupLoadingRef.current = false;
             setErrors(prev => ({ ...prev, general: 'Failed to save details. Please try again.' }));
             setSignupLoading(false);
+        } finally {
+            abortRef.current = null;
         }
     }, [form.age, form.gender, clearProgress, completeSignUp, setErrors, methods]);
 
