@@ -8,6 +8,7 @@ import { styles } from './SignupStyles';
 
 const Step5FinalDetails = ({ staggerAnims, handleCompleteSignUp, signupLoading }) => {
     const { control, formState: { errors } } = useFormContext();
+    const [selectedDate, setSelectedDate] = React.useState(new Date(new Date().getFullYear() - 30, 0, 1));
 
     return (
         <View style={styles.finalState}>
@@ -21,10 +22,18 @@ const Step5FinalDetails = ({ staggerAnims, handleCompleteSignUp, signupLoading }
                 <View style={{ gap: 16 }}>
                     <Controller
                         control={control}
-                        name="dob"
+                        name="age"
                         render={({ field: { onChange, value } }) => {
                             const [showPicker, setShowPicker] = React.useState(false);
-                            const dateValue = value ? new Date(value) : new Date(new Date().getFullYear() - 30, 0, 1);
+
+                            const handleDateChange = (event, date) => {
+                                setShowPicker(false);
+                                if (date) {
+                                    setSelectedDate(date);
+                                    const age = new Date().getFullYear() - date.getFullYear();
+                                    onChange(age.toString());
+                                }
+                            };
 
                             return (
                                 <>
@@ -34,8 +43,8 @@ const Step5FinalDetails = ({ staggerAnims, handleCompleteSignUp, signupLoading }
                                                 icon={Calendar}
                                                 label="Date of Birth"
                                                 placeholder="Select your birth date"
-                                                value={value ? new Date(value).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' }) : ''}
-                                                error={errors.dob?.message}
+                                                value={value ? `${selectedDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })} (Age: ${value})` : ''}
+                                                error={errors.age?.message}
                                             />
                                         </View>
                                     </Pressable>
@@ -43,16 +52,11 @@ const Step5FinalDetails = ({ staggerAnims, handleCompleteSignUp, signupLoading }
                                         require('@react-native-community/datetimepicker').default && (
                                             <View>
                                                 {React.createElement(require('@react-native-community/datetimepicker').default, {
-                                                    value: dateValue,
+                                                    value: selectedDate,
                                                     mode: 'date',
                                                     display: Platform.OS === 'ios' ? 'spinner' : 'default',
                                                     maximumDate: new Date(),
-                                                    onChange: (event, selectedDate) => {
-                                                        setShowPicker(false);
-                                                        if (selectedDate) {
-                                                            onChange(selectedDate.toISOString());
-                                                        }
-                                                    }
+                                                    onChange: handleDateChange
                                                 })}
                                             </View>
                                         )
