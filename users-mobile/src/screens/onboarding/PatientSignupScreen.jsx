@@ -85,7 +85,7 @@ export default function PatientSignupScreen({ navigation, route }) {
         ),
         defaultValues: {
             fullName: '', email: '', phoneNumber: '', city: '',
-            password: '', confirmPassword: '', dob: '', gender: '',
+            password: '', confirmPassword: '', age: '', gender: '',
             selectedPlanId: 'basic',
         },
         mode: 'onChange',
