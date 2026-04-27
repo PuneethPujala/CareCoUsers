@@ -156,7 +156,8 @@ export default function PatientSignupScreen({ navigation, route }) {
 
     const mainScrollRef = useRef(null);
     const isSubmittingRef = useRef(false);
-    const fullNameRef = useRef(null);
+    const signupLoadingRef = useRef(false);
+    const abortRef = useRef(null);
     const emailRef = useRef(null);
     const phoneRef = useRef(null);
     const passwordRef = useRef(null);
@@ -664,36 +665,42 @@ export default function PatientSignupScreen({ navigation, route }) {
     }, [step]);
 
     const handleCompleteSignUp = useCallback(async () => {
-        const isValid = await methods.trigger(['dob', 'gender']);
+        const isValid = await methods.trigger(['age', 'gender']);
         if (!isValid) return;
+        
         setSignupLoading(true);
+        signupLoadingRef.current = true;
         
         // Safety timeout to prevent the "forever hang" if backend/network is sluggish
         const timeoutId = setTimeout(() => {
-            if (signupLoading) {
+            if (signupLoadingRef.current) {
                 setSignupLoading(false);
-                setErrors(prev => ({ ...prev, general: 'Saving is taking longer than expected. Please check your dashboard.' }));
+                signupLoadingRef.current = false;
+                setErrors(prev => ({ ...prev, general: 'Saving is taking longer than expected. Your data is likely safe. Please check your dashboard.' }));
             }
         }, 15000);
 
         try {
+            // Option B: Convert age to a dummy DOB for the backend (which expects a Date)
+            const estimatedDob = new Date(new Date().getFullYear() - parseInt(form.age), 0, 1).toISOString();
+            
             await apiService.patients.updateMe({ 
-                date_of_birth: form.dob, 
+                date_of_birth: estimatedDob, 
                 gender: form.gender.toLowerCase(),
                 profile_complete: true
             });
             await clearProgress();
             
-            // C3 FIX: completeSignUp() now explicitly calls fetchPatientData() internally
-            // so we don't need a separate refreshPatient() call here.
             await completeSignUp();
+            signupLoadingRef.current = false;
             clearTimeout(timeoutId);
         } catch (error) {
             clearTimeout(timeoutId);
+            signupLoadingRef.current = false;
             setErrors(prev => ({ ...prev, general: 'Failed to save details. Please try again.' }));
             setSignupLoading(false);
         }
-    }, [form.dob, form.gender, clearProgress, completeSignUp, setErrors, methods, signupLoading]);
+    }, [form.age, form.gender, clearProgress, completeSignUp, setErrors, methods]);
 
     const toggleShowPass = useCallback(() => setShowPass(v => !v), []);
     const toggleShowConfirm = useCallback(() => setShowConfirm(v => !v), []);
