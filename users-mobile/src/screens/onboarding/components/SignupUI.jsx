@@ -4,7 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { AlertCircle, X, Smartphone, CreditCard } from 'lucide-react-native';
 import { styles, FONT } from './SignupStyles';
 
-const STEP_LABELS = ['Profile Creation', 'Locality', 'Membership', 'Verification', 'All Systems Go'];
+export const STEP_LABELS = ['Profile Creation', 'Locality', 'Membership', 'Verification', 'All Systems Go'];
 const PasswordStrength = React.memo(({ password }) => {
     let score = 0;
     if (password.length >= 8) score++;
