@@ -14,10 +14,10 @@ export const resolveOnboardingStep = (patient, profile) => {
     if (!profile && !patient) return 1;
     if (!profile?.city && !patient?.city) return 2; // locality
     if (!patient?.subscription?.plan) return 3; // pick plan
-    if (normaliseStatus(patient?.subscription?.status) === 'none') return 3; // Stay on selection until paid
-
-    // If they have a plan but aren't active yet, they should be on the payment success/processing screen (Step 4)
-    if (normaliseStatus(patient?.subscription?.status) === 'pending_payment') return 4;
+    
+    const status = patient?.subscription?.status;
+    if (status === 'pending_payment') return 3; // Must pay to proceed
+    if (normaliseStatus(status) === 'none') return 3; // Stay on selection until paid
 
     // Step 5 is the final details collection
     if (!patient?.profile_complete) return 5;
