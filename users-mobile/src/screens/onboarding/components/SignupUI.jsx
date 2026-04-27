@@ -45,36 +45,36 @@ const PasswordRequirements = React.memo(({ password = '' }) => {
 });
 
 const STEP_ICONS = ['👤', '📍', '⭐', '✉️', '🚀'];
+const UI_MOCK_LABELS = ['Profile', 'Locality', 'Health', 'Lifestyle', 'Complete'];
 
 const StepIndicator = React.memo(({ current }) => (
     <View style={styles.modernProgressContainer}>
+        {/* Connector line behind all dots */}
+        <View style={styles.stepConnector} />
+        <View style={[styles.stepConnector, styles.stepConnectorDone, { position: 'absolute', top: 32, left: 24, zIndex: 1, width: `${(current - 1) * 25}%` }]} />
+        
         {[1, 2, 3, 4, 5].map((s, idx) => {
             const done = s < current;
             const active = s === current;
             return (
-                <React.Fragment key={s}>
-                    <View style={styles.stepDotWrap}>
-                        <View style={[
-                            styles.stepDot,
-                            done && styles.stepDotDone,
-                            active && styles.stepDotActive,
-                        ]}>
-                            {done ? (
-                                <Text style={{ fontSize: 11, color: '#6366F1', fontFamily: 'Inter_800ExtraBold' }}>✓</Text>
-                            ) : (
-                                <Text style={[styles.stepDotLabel, active && { color: '#6366F1' }]}>{s}</Text>
-                            )}
-                        </View>
-                        <View style={styles.stepLabelContainer}>
-                            <Text style={[styles.stepNameLabel, active && { color: '#FFFFFF', ...FONT.bold }]}>
-                                {STEP_LABELS[idx].split(' ')[0]}
-                            </Text>
-                        </View>
+                <View key={s} style={styles.stepDotWrap}>
+                    <View style={[
+                        styles.stepDot,
+                        done && styles.stepDotDone,
+                        active && styles.stepDotActive,
+                    ]}>
+                        {done ? (
+                            <Text style={{ fontSize: 13, color: '#FFFFFF', fontFamily: 'Inter_800ExtraBold' }}>✓</Text>
+                        ) : (
+                            <Text style={[styles.stepDotLabel, active && { color: '#FFFFFF' }]}>{s}</Text>
+                        )}
                     </View>
-                    {idx < 4 && (
-                        <View style={[styles.stepConnector, done && styles.stepConnectorDone]} />
-                    )}
-                </React.Fragment>
+                    <View style={styles.stepLabelContainer}>
+                        <Text style={[styles.stepNameLabel, active && { color: '#1E293B', ...FONT.bold }]}>
+                            {UI_MOCK_LABELS[idx]}
+                        </Text>
+                    </View>
+                </View>
             );
         })}
     </View>
@@ -108,8 +108,8 @@ const IconInput = React.memo(React.forwardRef(({ icon: Icon, label, rightIcon, e
                 ]}
                 onPress={() => ref?.current?.focus()}
             >
-                <View style={[styles.inlineIconBox, isFocused && { backgroundColor: '#EEF2FF' }]}>
-                    <Icon size={18} color={isFocused ? '#6366F1' : '#94A3B8'} />
+                <View style={[styles.inlineIconBox]}>
+                    <Icon size={20} color={isFocused ? '#5c55e9' : '#94A3B8'} />
                 </View>
                 {textPrefix && <Text style={styles.textPrefixStyle}>{textPrefix}</Text>}
                 <TextInput
