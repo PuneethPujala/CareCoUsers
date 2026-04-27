@@ -157,6 +157,7 @@ export default function PatientSignupScreen({ navigation, route }) {
     const mainScrollRef = useRef(null);
     const isSubmittingRef = useRef(false);
     const signupLoadingRef = useRef(false);
+    const isPayingRef = useRef(false);
     const abortRef = useRef(null);
     const fullNameRef = useRef(null);
     const emailRef = useRef(null);
@@ -644,6 +645,9 @@ export default function PatientSignupScreen({ navigation, route }) {
     }, [form.city, saveProgress, refreshPatient, methods]);
 
     const handlePaymentSuccess = useCallback(async () => {
+        if (isPayingRef.current) return;
+        isPayingRef.current = true;
+
         setUpiModalVisible(false);
         setSignupLoading(true); // Show processing state
 
@@ -671,6 +675,7 @@ export default function PatientSignupScreen({ navigation, route }) {
             // Stay on Step 3 so they can retry
         } finally {
             setSignupLoading(false);
+            isPayingRef.current = false;
         }
     }, [saveProgress, form.selectedPlanId, refreshPatient]);
 

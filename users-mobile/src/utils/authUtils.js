@@ -17,7 +17,9 @@ export const resolveOnboardingStep = (patient, profile) => {
     
     const status = patient?.subscription?.status;
     if (status === 'pending_payment') return 3; // Must pay to proceed
-    if (normaliseStatus(status) === 'none') return 3; // Stay on selection until paid
+    const norm = normaliseStatus(status);
+    if (norm === 'none') return 3;
+    if (norm === 'expired') return 3; // Expired / past_due → re-select plan
 
     // Step 5 is the final details collection
     if (!patient?.profile_complete) return 5;

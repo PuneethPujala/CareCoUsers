@@ -186,10 +186,6 @@ router.post('/subscribe', authenticateSession, async (req, res) => {
 
         let patient = await getOrCreatePatient(req);
 
-        if (patient.subscription?.status === 'active') {
-            return res.status(400).json({ error: 'Already subscribed' });
-        }
-
         // FIX 2: Only enforce paymentId when a real gateway is configured.
         // The UPI mock flow never sends a paymentId — blocking on it would
         // reject every subscription in the current architecture.
@@ -197,6 +193,7 @@ router.post('/subscribe', authenticateSession, async (req, res) => {
             return res.status(400).json({ error: 'Payment verification failed. No payment ID provided.' });
         }
 
+        // Update metadata regardless of current status (handles partially recorded attempts)
         if (paid !== undefined) patient.paid = paid;
         if (resolvedPlanId) patient.pending_plan = resolvedPlanId;
 
@@ -204,7 +201,7 @@ router.post('/subscribe', authenticateSession, async (req, res) => {
         // This handles cases where a previous attempt was partially recorded.
         if (patient.subscription?.status === 'active') {
             await patient.save();
-            return res.json({ success: true, patient, message: 'Subscription already active' });
+            return res.json({ success: true, patient, message: 'Subscription already active, data updated.' });
         }
 
         patient = await subscribeAndSeedDemoData(patient, resolvedPlanId);
