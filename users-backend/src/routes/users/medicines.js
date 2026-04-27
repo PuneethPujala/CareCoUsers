@@ -3,7 +3,8 @@ const moment = require('moment-timezone'); // BUG 9 FIX: top-level require, not 
 const Patient = require('../../models/Patient');
 const MedicineLog = require('../../models/MedicineLog');
 const Medication = require('../../models/Medication');
-const { authenticate } = require('../../middleware/authenticate');
+const { authenticateSession: authenticate } = require('../../middleware/authenticate');
+const { getOrCreatePatient } = require('../../utils/patientHelpers');
 
 const router = express.Router();
 
@@ -145,8 +146,7 @@ function computeCurrentStreak(dailyLog, todayStr, startDateStr, threshold = 80) 
  */
 router.get('/today', authenticate, async (req, res) => {
     try {
-        const patient = await Patient.findOne({ supabase_uid: req.user.id });
-        if (!patient) return res.status(404).json({ error: 'Patient profile not found' });
+        const patient = await getOrCreatePatient(req);
 
         // BUG 1 FIX: derive today's date in patient's timezone
         const { todayStr, date: today } = getTodayUtcMidnight(patient.timezone);
@@ -219,8 +219,7 @@ router.get('/today', authenticate, async (req, res) => {
 router.put('/mark', authenticate, async (req, res) => {
     try {
         const { medicine_name, scheduled_time, taken, marked_by = 'patient' } = req.body;
-        const patient = await Patient.findOne({ supabase_uid: req.user.id });
-        if (!patient) return res.status(404).json({ error: 'Patient profile not found' });
+        const patient = await getOrCreatePatient(req);
 
         // BUG 2 FIX: same UTC date derivation fix as /today
         const { todayStr, date: today } = getTodayUtcMidnight(patient.timezone);
@@ -291,8 +290,7 @@ router.put('/mark', authenticate, async (req, res) => {
 router.put('/mark-slot', authenticate, async (req, res) => {
     try {
         const { scheduled_time, marked_by = 'patient' } = req.body;
-        const patient = await Patient.findOne({ supabase_uid: req.user.id });
-        if (!patient) return res.status(404).json({ error: 'Patient profile not found' });
+        const patient = await getOrCreatePatient(req);
 
         const { todayStr, date: today } = getTodayUtcMidnight(patient.timezone);
 
@@ -349,8 +347,7 @@ router.put('/mark-slot', authenticate, async (req, res) => {
  */
 router.get('/adherence/weekly', authenticate, async (req, res) => {
     try {
-        const patient = await Patient.findOne({ supabase_uid: req.user.id });
-        if (!patient) return res.status(404).json({ error: 'Patient profile not found' });
+        const patient = await getOrCreatePatient(req);
 
         // BUG 4 FIX: use patient timezone for range boundary
         const sevenDaysAgo = getDaysAgoUtcMidnight(patient.timezone, 7);
@@ -384,8 +381,7 @@ router.get('/adherence/weekly', authenticate, async (req, res) => {
  */
 router.get('/adherence/monthly', authenticate, async (req, res) => {
     try {
-        const patient = await Patient.findOne({ supabase_uid: req.user.id });
-        if (!patient) return res.status(404).json({ error: 'Patient profile not found' });
+        const patient = await getOrCreatePatient(req);
 
         // BUG 4 FIX: patient timezone for range
         const thirtyDaysAgo = getDaysAgoUtcMidnight(patient.timezone, 30);
@@ -421,8 +417,7 @@ router.get('/adherence/monthly', authenticate, async (req, res) => {
  */
 router.get('/adherence/details', authenticate, async (req, res) => {
     try {
-        const patient = await Patient.findOne({ supabase_uid: req.user.id });
-        if (!patient) return res.status(404).json({ error: 'Patient profile not found' });
+        const patient = await getOrCreatePatient(req);
 
         const VitalLog = require('../../models/VitalLog');
         const timezone = patient.timezone || 'Asia/Kolkata';
@@ -610,8 +605,7 @@ router.get('/adherence/details', authenticate, async (req, res) => {
  */
 router.get('/adherence/recap', authenticate, async (req, res) => {
     try {
-        const patient = await Patient.findOne({ supabase_uid: req.user.id });
-        if (!patient) return res.status(404).json({ error: 'Patient profile not found' });
+        const patient = await getOrCreatePatient(req);
 
         const VitalLog = require('../../models/VitalLog');
         const timezone = patient.timezone || 'Asia/Kolkata';
