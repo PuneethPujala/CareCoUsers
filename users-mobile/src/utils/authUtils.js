@@ -14,13 +14,13 @@ export const resolveOnboardingStep = (patient, profile) => {
     if (!profile && !patient) return 1;
     if (!profile?.city && !patient?.city) return 2; // locality
     if (!patient?.subscription?.plan) return 3; // pick plan
-    if (normaliseStatus(patient?.subscription?.status) === 'none') return 3; // Stay on payment screen (Step 3) until status is active/expired
+    if (normaliseStatus(patient?.subscription?.status) === 'none') return 3; // Stay on selection until paid
 
-    // Step 4 is the payment success / processing state in PatientSignupScreen
-    // Step 5 is the final age/gender collection
-    // If onboardingComplete is false, we need to check if they have age/gender
-    if (!patient?.date_of_birth || !patient?.gender) return 5;
-    if (!patient?.profile_complete) return 5; // Fallback to 5 if not complete
+    // If they have a plan but aren't active yet, they should be on the payment success/processing screen (Step 4)
+    if (normaliseStatus(patient?.subscription?.status) === 'pending_payment') return 4;
+
+    // Step 5 is the final details collection
+    if (!patient?.profile_complete) return 5;
 
     return null; // Complete
 };
