@@ -63,7 +63,7 @@ import Step3Membership from './components/Step3Membership';
 import Step4Verification from './components/Step4Verification';
 import Step5FinalDetails from './components/Step5FinalDetails';
 
-const STEP_LABELS = ['Profile Creation', 'Locality', 'Membership', 'Verification', 'All Systems Go'];
+
 const ONBOARDING_STORAGE_KEY = 'samvaya_onboarding_progress';
 const STALE_PROGRESS_DAYS = 7;
 
