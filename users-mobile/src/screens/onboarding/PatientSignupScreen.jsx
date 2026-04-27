@@ -55,7 +55,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { step1Schema, step2Schema, step3Schema, step5Schema } from './signupSchema';
 
 import {
-    StepIndicator, OTPModal, UPIPaymentModal, styles, FONT,
+    StepIndicator, OTPModal, UPIPaymentModal, styles, FONT, STEP_LABELS
 } from './components';
 import Step1Profile from './components/Step1Profile';
 import Step2Locality from './components/Step2Locality';
@@ -158,6 +158,7 @@ export default function PatientSignupScreen({ navigation, route }) {
     const isSubmittingRef = useRef(false);
     const signupLoadingRef = useRef(false);
     const abortRef = useRef(null);
+    const fullNameRef = useRef(null);
     const emailRef = useRef(null);
     const phoneRef = useRef(null);
     const passwordRef = useRef(null);
