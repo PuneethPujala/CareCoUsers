@@ -34,12 +34,12 @@ app.use(compression());
 
 // ── CORS (must be BEFORE rate limiter so 429 responses still include CORS headers) ──
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production'
-    ? ['https://your-production-domain.com']
-    : function (origin, callback) {
-      if (!origin) return callback(null, true); // Allow non-browser clients like mobile apps
-      return callback(null, true); // In dev, we allow any origin to prevent Expo/web CORS issues
-    },
+  origin: function (origin, callback) {
+    // Mobile apps don't send an Origin header — always allow
+    if (!origin) return callback(null, true);
+    // In production, you can whitelist specific web origins here
+    return callback(null, true);
+  },
   credentials: true,
 }));
 
