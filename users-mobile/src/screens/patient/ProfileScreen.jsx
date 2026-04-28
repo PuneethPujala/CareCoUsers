@@ -1118,7 +1118,7 @@ export default function PatientProfileScreen({ navigation }) {
                 <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
                     <View style={s.modalOverlay}>
                         <View style={[s.modalContent, { padding: 0 }]}>
-                            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 24, paddingBottom: Platform.OS === 'ios' ? 40 : 24 }}>
+                            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 24, paddingBottom: 100 }}>
                                 <View style={s.modalHeader}>
                                     <Text style={s.modalTitle}>Add Address</Text>
                                     <Pressable onPress={() => setAddAddressModalVisible(false)} hitSlop={10}><X size={24} color="#64748B" /></Pressable>
