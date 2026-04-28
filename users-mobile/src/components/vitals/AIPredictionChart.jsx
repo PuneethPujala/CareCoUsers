@@ -48,6 +48,7 @@ export default function AIPredictionChart({ vitalsHistory, predictionData, metri
   })();
   
   const safePrediction = effectivePrediction;
+  const isBackendAI = predictionData && predictionData.length > 0;
   
   const labels = [
     ...safeHistory.map((item) => item.label),
@@ -67,7 +68,7 @@ export default function AIPredictionChart({ vitalsHistory, predictionData, metri
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyIcon}>🤖</Text>
           <Text style={styles.emptyTitle}>AI Model Learning...</Text>
-          <Text style={styles.emptyDesc}>Our AI needs at least 7 historical readings to identify your baseline and forecast future trends. Keep logging!</Text>
+          <Text style={styles.emptyDesc}>Log at least 3 vitals readings to see your estimated health trends. Our AI improves with more data!</Text>
         </View>
       </View>
     );
@@ -114,13 +115,21 @@ export default function AIPredictionChart({ vitalsHistory, predictionData, metri
       stroke: '#FFF'
     },
     getDotColor: (dataPoint, index) => {
-      return index >= vitalsHistory.length ? '#F59E0B' : '#0EA5E9';
+      return index >= vitalsHistory.length ? (isBackendAI ? '#F59E0B' : '#A78BFA') : '#0EA5E9';
     }
   };
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>{metricName} Outlook</Text>
+      
+      {/* Honesty subtitle */}
+      <Text style={styles.honestyLabel}>
+        {isBackendAI 
+          ? 'Powered by AI analysis of your vitals history'
+          : 'Estimated trend based on recent readings'
+        }
+      </Text>
       
       {/* Custom Legend */}
       <View style={styles.legendContainer}>
@@ -129,8 +138,13 @@ export default function AIPredictionChart({ vitalsHistory, predictionData, metri
           <Text style={styles.legendText}>History</Text>
         </View>
         <View style={styles.legendItem}>
-          <View style={[styles.legendDot, { backgroundColor: '#F59E0B' }]} />
-          <Text style={styles.legendText}>AI Forecast</Text>
+          <View style={[
+            styles.legendDot, 
+            isBackendAI 
+              ? { backgroundColor: '#F59E0B' } 
+              : { backgroundColor: 'transparent', borderWidth: 2, borderColor: '#A78BFA', borderStyle: 'dashed' }
+          ]} />
+          <Text style={styles.legendText}>{isBackendAI ? 'AI Forecast' : 'Estimated Trend'}</Text>
         </View>
       </View>
 
@@ -167,7 +181,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: '#1E293B',
+    marginBottom: 4,
+  },
+  honestyLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#94A3B8',
     marginBottom: 12,
+    fontStyle: 'italic',
   },
   legendContainer: {
     flexDirection: 'row',
