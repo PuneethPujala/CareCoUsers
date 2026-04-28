@@ -465,28 +465,38 @@ router.get('/care-manager-stats',
             const result = await getCachedOrFetch(
                 CacheKeys.managerDashboard(managerId),
                 async () => {
-                    // ── Stats ──
-                    const totalCallers = await Profile.countDocuments({
-                        organizationId: req.profile.organizationId,
-                        role: 'caller',
+                    // ── Stats (scoped to THIS manager's managed callers) ──
+                    // FLAW 1+4 FIX: Only count callers managed by this specific care manager
+                    const managedCallers = await Profile.find({
+                        managedBy: managerId,
+                        role: { $in: ['caller', 'caretaker'] },
                         isActive: true
-                    });
+                    }).select('_id fullName').lean();
+                    const totalCallers = managedCallers.length;
+                    const managedCallerIds = managedCallers.map(c => c._id);
                     
                     const Patient = require('../models/Patient');
-                    const totalPatients = await Patient.countDocuments({
-                        organization_id: req.profile.organizationId,
-                        is_active: true
-                    });
                     
-                    const activeAssignedPatients = await CaretakerPatient.find({ status: 'active' }).distinct('patientId');
-                    const assignedCount = activeAssignedPatients.length;
+                    // Patients assigned through this manager's callers
+                    const managedAssignments = await CaretakerPatient.find({
+                        caretakerId: { $in: managedCallerIds },
+                        status: 'active'
+                    }).distinct('patientId');
+                    const assignedCount = managedAssignments.length;
+                    const totalPatients = assignedCount;
+                    
+                    // FLAW 2 FIX: Unassigned = org patients NOT in ANY active assignment (org-scoped)
+                    const allOrgAssignedIds = await CaretakerPatient.find({
+                        status: 'active'
+                    }).distinct('patientId');
                     const unassignedCount = await Patient.countDocuments({
                         organization_id: req.profile.organizationId,
                         is_active: true,
-                        _id: { $nin: activeAssignedPatients }
+                        _id: { $nin: allOrgAssignedIds }
                     });
 
                     // ── Capacity Forecasting Engine (Enhanced) ──
+                    // Capacity is based on THIS manager's callers only
                     const MAX_PATIENTS_PER_CALLER = 30;
                     const maxCapacity = totalCallers * MAX_PATIENTS_PER_CALLER;
                     const availableSlots = Math.max(0, maxCapacity - assignedCount);
@@ -542,18 +552,13 @@ router.get('/care-manager-stats',
                             callersNeeded = Math.ceil(shortfall / MAX_PATIENTS_PER_CALLER);
                         }
                     }
-                    if (totalCallers === 0 && totalPatients > 0) {
-                        callersNeeded = Math.max(1, Math.ceil(totalPatients / MAX_PATIENTS_PER_CALLER));
+                    if (totalCallers === 0 && unassignedCount > 0) {
+                        callersNeeded = Math.max(1, Math.ceil(unassignedCount / MAX_PATIENTS_PER_CALLER));
                     }
 
-                    // ── Top Performers — batch aggregation instead of N+1 ──
-                    const callers = await Profile.find({
-                        organizationId: req.profile.organizationId,
-                        role: 'caller',
-                        isActive: true
-                    }).limit(10).select('_id fullName').lean();
-
-                    const callerIds = callers.map(c => c._id);
+                    // ── Top Performers — FLAW 4 FIX: only THIS manager's callers ──
+                    const callerIds = managedCallerIds;
+                    const callers = managedCallers.slice(0, 10);
                     let performers = [];
 
                     if (callerIds.length > 0) {
