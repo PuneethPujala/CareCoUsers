@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
     View, Text, StyleSheet, TextInput, Pressable, ScrollView,
-    Platform, SafeAreaView, ActivityIndicator, Alert, KeyboardAvoidingView
+    Platform, SafeAreaView, ActivityIndicator, KeyboardAvoidingView
 } from 'react-native';
 import {
     ChevronLeft, Search, MapPin, Navigation,
@@ -10,6 +10,7 @@ import {
 import { colors } from '../../theme';
 import { apiService } from '../../lib/api';
 
+import AlertManager from '../../utils/AlertManager';
 const LABELS = [
     { id: 'Home', icon: Home, color: '#3B86FF', label: 'Home' },
     { id: 'Office', icon: Briefcase, color: '#F59E0B', label: 'Office' },
@@ -89,7 +90,7 @@ export default function AddAddressScreen({ navigation, route }) {
 
     const handleSave = async () => {
         if (!selectedPlace) {
-            Alert.alert('Location Required', 'Please enter a Pincode or search for an area.');
+            AlertManager.alert('Location Required', 'Please enter a Pincode or search for an area.');
             return;
         }
         try {
@@ -113,7 +114,7 @@ export default function AddAddressScreen({ navigation, route }) {
             }
             navigation.goBack();
         } catch (err) {
-            Alert.alert('Error', `Failed to ${isEditing ? 'update' : 'save'} address.`);
+            AlertManager.alert('Error', `Failed to ${isEditing ? 'update' : 'save'} address.`);
         } finally {
             setSaving(false);
         }
