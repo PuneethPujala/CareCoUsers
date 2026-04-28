@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
     View, Text, StyleSheet, Platform, Pressable, Animated, ActivityIndicator,
-    ScrollView, Linking, Alert,
+    ScrollView, Linking,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
@@ -17,6 +17,7 @@ import {
 import HealthSyncService from '../../services/HealthSyncService';
 import { colors } from '../../theme';
 
+import AlertManager from '../../utils/AlertManager';
 const FEATURES = [
     {
         icon: Heart,
@@ -92,7 +93,7 @@ export default function HealthConnectSetupScreen({ navigation }) {
         try {
             const initialized = await initializeHealthPlatform();
             if (!initialized) {
-                Alert.alert(
+                AlertManager.alert(
                     Platform.OS === 'android' ? 'Health Connect Required' : 'HealthKit Unavailable',
                     Platform.OS === 'android'
                         ? 'Please install Google Health Connect from the Play Store to continue.'
@@ -112,28 +113,28 @@ export default function HealthConnectSetupScreen({ navigation }) {
                 setStatus('granted');
                 // Enable sync service and trigger first sync
                 await HealthSyncService.setSyncEnabled(true);
-                Alert.alert(
+                AlertManager.alert(
                     '✅ Connected!',
                     'Your wearable data will now sync automatically with CareMyMed. You\'ll see your readings on the home dashboard.',
                     [{ text: 'Go to Dashboard', onPress: () => navigation.goBack() }]
                 );
             } else {
                 setStatus('denied');
-                Alert.alert(
+                AlertManager.alert(
                     'Permissions Denied',
                     'CareMyMed needs health data access to monitor your vitals. You can grant permissions later from your device settings.'
                 );
             }
         } catch (err) {
             console.error('Health connect setup failed:', err);
-            Alert.alert('Error', 'Something went wrong. Please try again.');
+            AlertManager.alert('Error', 'Something went wrong. Please try again.');
         } finally {
             setLoading(false);
         }
     };
 
     const handleDisconnect = async () => {
-        Alert.alert(
+        AlertManager.alert(
             'Disconnect Wearable',
             'Stop syncing health data from your wearable device?',
             [
@@ -261,7 +262,7 @@ export default function HealthConnectSetupScreen({ navigation }) {
                                     setLoading(true);
                                     await HealthSyncService.syncNow();
                                     setLoading(false);
-                                    Alert.alert('Sync Complete', 'Your latest health data has been synced.');
+                                    AlertManager.alert('Sync Complete', 'Your latest health data has been synced.');
                                 }}
                                 disabled={loading}
                             >
