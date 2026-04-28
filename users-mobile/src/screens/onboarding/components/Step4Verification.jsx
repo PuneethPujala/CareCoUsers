@@ -46,7 +46,7 @@ const Step4Verification = ({ staggerAnims, handleGoToStep5 }) => {
                         <CheckCircle2 size={52} color={C.success} strokeWidth={2} />
                     </View>
                     <Text style={styles.successTitle}>Payment Successful!</Text>
-                    <Text style={styles.successSubtitle}>Welcome to the Samvaya family.</Text>
+                    <Text style={styles.successSubtitle}>Welcome to the CareMyMed family.</Text>
                 </View>
             </Animated.View>
 

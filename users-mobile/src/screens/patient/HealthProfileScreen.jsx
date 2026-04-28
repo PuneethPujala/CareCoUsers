@@ -119,7 +119,7 @@ export default function HealthProfileScreen({ navigation }) {
                     hydration: 50, // HealthKit rarely guarantees hydration, send placeholder
                     source: Platform.OS === 'android' ? 'health_connect' : 'healthkit'
                 });
-                Alert.alert('Sync Complete', 'Successfully securely pulled your latest smartwatch data into Samvaya.');
+                Alert.alert('Sync Complete', 'Successfully securely pulled your latest smartwatch data into CareMyMed.');
             } else {
                 Alert.alert('No Data Found', "We couldn't find any recent vitals recorded by your watch today.");
             }

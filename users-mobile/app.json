@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Samvaya",
+    "name": "CareMyMed",
     "slug": "careco-users",
     "scheme": "careco-app",
     "version": "1.0.0",
@@ -9,8 +9,8 @@
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/logo.png",
-      "backgroundColor": "#0A2463",
+      "image": "./assets/Splash.png",
+      "backgroundColor": "#FFFFFF",
       "resizeMode": "contain"
     },
     "ios": {
@@ -18,8 +18,8 @@
       "bundleIdentifier": "com.careco.users",
       "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
-        "NSHealthShareUsageDescription": "Samvaya requires access to your health data to monitor your wellbeing.",
-        "NSHealthUpdateUsageDescription": "Samvaya requires write access to update your health profile."
+        "NSHealthShareUsageDescription": "CareMyMed requires access to your health data to monitor your wellbeing.",
+        "NSHealthUpdateUsageDescription": "CareMyMed requires write access to update your health profile."
       }
     },
     "android": {

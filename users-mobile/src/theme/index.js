@@ -1,6 +1,6 @@
 /**
- * Samvaya Users App — Theme
- * Design tokens for the Samvaya Users App
+ * CareMyMed Users App — Theme
+ * Design tokens for the CareMyMed Users App
  * (Mirrors shared/theme/tokens.js — kept in-app for Metro bundler compatibility)
  */
 
