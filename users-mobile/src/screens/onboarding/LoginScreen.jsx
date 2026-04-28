@@ -1,18 +1,17 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
-    View, Text, StyleSheet, TextInput, Pressable, Platform,
+    View, Text, StyleSheet, Pressable, Platform,
     KeyboardAvoidingView, Animated, ActivityIndicator, Modal,
-    BackHandler, Dimensions, Image, ScrollView
+    BackHandler, ScrollView,
 } from 'react-native';
-import AlertManager from '../../utils/AlertManager';
-import { Eye, EyeOff, AlertCircle, X, Lock, Mail } from 'lucide-react-native';
+import { Eye, EyeOff, AlertCircle, X, Mail, ShieldCheck } from 'lucide-react-native';
 import { useAuth } from '../../context/AuthContext';
 import { apiService } from '../../lib/api';
 import { parseError } from '../../utils/parseError';
 import analytics from '../../utils/analytics';
-import { colors } from '../../theme';
 import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 import SmartInput from '../../components/ui/SmartInput';
+import { OTPBoxes } from './components';
 
 const C = {
     bg: '#F4F7FB',
@@ -254,13 +253,10 @@ export default function LoginScreen({ navigation }) {
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [errorText, setErrorText] = useState('');
-    const [emailFocused, setEmailFocused] = useState(false);
-    const [passFocused, setPassFocused] = useState(false);
     const [resetModalVisible, setResetModalVisible] = useState(false);
 
     // ── Phone tab state ──────────────────────────────────────────────────────
     const [phone, setPhone] = useState('');
-    const [phoneFocused, setPhoneFocused] = useState(false);
     const [phoneError, setPhoneError] = useState('');
     const [phoneOtpLoading, setPhoneOtpLoading] = useState(false);
     const [phoneOtpVisible, setPhoneOtpVisible] = useState(false);
@@ -271,8 +267,6 @@ export default function LoginScreen({ navigation }) {
 
     const isSubmittingRef = useRef(false);
     const abortRef = useRef(null);
-    const emailRef = useRef(null);
-    const passwordRef = useRef(null);
 
     const fadeAnim = useRef(new Animated.Value(0)).current;
     const slideAnim = useRef(new Animated.Value(16)).current;
@@ -542,8 +536,8 @@ export default function LoginScreen({ navigation }) {
                                 keyboardType="email-address"
                                 autoCapitalize="none"
                                 returnKeyType="next"
-                                onSubmitEditing={() => passwordRef.current?.focus()}
                                 autoFocus
+                                style={{ marginBottom: 12 }}
                             />
 
                             <View style={styles.passwordLabelRow}>
@@ -552,7 +546,7 @@ export default function LoginScreen({ navigation }) {
                                     <Text style={styles.forgotLink}>Forgot?</Text>
                                 </Pressable>
                             </View>
-                            
+
                             <SmartInput
                                 placeholder="Enter your password"
                                 value={password}
@@ -560,6 +554,7 @@ export default function LoginScreen({ navigation }) {
                                 secureTextEntry={!showPassword}
                                 returnKeyType="done"
                                 onSubmitEditing={handleLogin}
+                                style={{ marginBottom: 24 }}
                                 rightAccessory={
                                     <Pressable onPress={() => setShowPassword(!showPassword)} hitSlop={12} style={{ paddingLeft: 8 }}>
                                         {showPassword ? <Eye size={18} color={C.primary} /> : <EyeOff size={18} color={C.muted} />}
@@ -664,14 +659,18 @@ export default function LoginScreen({ navigation }) {
             {/* Phone OTP Modal */}
             <Modal
                 visible={phoneOtpVisible}
-                animationType="fade"
+                animationType="slide"
                 transparent
                 onRequestClose={() => !phoneOtpLoading && setPhoneOtpVisible(false)}
             >
                 <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
                     <Pressable style={phoneOtpSt.overlay} onPress={() => { if (!phoneOtpLoading) setPhoneOtpVisible(false); }}>
                         <Pressable onPress={(e) => e.stopPropagation()} style={phoneOtpSt.card}>
+                            {/* Header */}
                             <View style={phoneOtpSt.header}>
+                                <View style={phoneOtpSt.iconCircle}>
+                                    <ShieldCheck size={22} color={C.primary} />
+                                </View>
                                 <View style={{ flex: 1 }}>
                                     <Text style={phoneOtpSt.title}>Verify Phone</Text>
                                     <Text style={phoneOtpSt.sub}>Code sent to +91 {phone}</Text>
@@ -693,16 +692,12 @@ export default function LoginScreen({ navigation }) {
                                 </View>
                             ) : null}
 
-                            <TextInput
-                                style={phoneOtpSt.otpInput}
+                            <OTPBoxes
                                 value={phoneOtpCode}
-                                onChangeText={(v) => { setPhoneOtpCode(v.replace(/\D/g, '').slice(0, 6)); setPhoneError(''); }}
-                                keyboardType="number-pad"
-                                maxLength={6}
-                                textAlign="center"
-                                autoFocus
-                                placeholder="• • • • • •"
-                                placeholderTextColor={C.muted}
+                                onChange={(v) => { setPhoneOtpCode(v); setPhoneError(''); }}
+                                onComplete={handleVerifyPhoneOtp}
+                                length={6}
+                                editable={!phoneOtpLoading}
                             />
 
                             <View style={phoneOtpSt.resendRow}>
@@ -716,9 +711,9 @@ export default function LoginScreen({ navigation }) {
                             </View>
 
                             <Pressable
-                                style={[phoneOtpSt.btn, phoneOtpLoading && { opacity: 0.7 }]}
+                                style={[phoneOtpSt.btn, (phoneOtpLoading || phoneOtpCode.length < 6) && { opacity: 0.6 }]}
                                 onPress={handleVerifyPhoneOtp}
-                                disabled={phoneOtpLoading}
+                                disabled={phoneOtpLoading || phoneOtpCode.length < 6}
                             >
                                 {phoneOtpLoading ? (
                                     <ActivityIndicator size="small" color="#FFF" />
@@ -735,19 +730,34 @@ export default function LoginScreen({ navigation }) {
 }
 
 const phoneOtpSt = StyleSheet.create({
-    overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 },
-    card: { backgroundColor: C.surface, borderRadius: 24, padding: 24, width: '100%', maxWidth: 420, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 20, shadowOffset: { width: 0, height: 8 }, elevation: 12 },
-    header: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
+    overlay: { flex: 1, backgroundColor: 'rgba(15,23,42,0.55)', justifyContent: 'flex-end', padding: 0 },
+    card: {
+        backgroundColor: C.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28,
+        padding: 28, paddingBottom: 40,
+        shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 24, shadowOffset: { width: 0, height: -4 }, elevation: 16,
+    },
+    header: { flexDirection: 'row', alignItems: 'center', marginBottom: 20, gap: 12 },
+    iconCircle: {
+        width: 44, height: 44, borderRadius: 14,
+        backgroundColor: C.primarySoft, alignItems: 'center', justifyContent: 'center',
+    },
     title: { fontSize: 20, ...FONT.heavy, color: C.dark },
     sub: { fontSize: 13, ...FONT.medium, color: C.muted, marginTop: 2 },
     closeBtn: { width: 36, height: 36, borderRadius: 10, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center' },
-    errorBox: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: C.dangerBg, borderRadius: 12, padding: 12, marginBottom: 16, borderWidth: 1, borderColor: '#FCA5A5' },
+    errorBox: {
+        flexDirection: 'row', alignItems: 'center', gap: 8,
+        backgroundColor: C.dangerBg, borderRadius: 12, padding: 12, marginBottom: 8,
+        borderWidth: 1, borderColor: '#FCA5A5',
+    },
     errorText: { color: '#991B1B', fontSize: 13, ...FONT.semibold, flex: 1 },
-    otpInput: { backgroundColor: C.inputBg, borderWidth: 1.5, borderColor: C.border, borderRadius: 14, height: 64, fontSize: 28, ...FONT.bold, color: C.dark, letterSpacing: 12, marginBottom: 16 },
-    resendRow: { alignItems: 'center', marginBottom: 20 },
+    resendRow: { alignItems: 'center', marginBottom: 20, marginTop: 4 },
     timerText: { fontSize: 13, ...FONT.bold, color: C.muted },
     resendLink: { fontSize: 14, ...FONT.heavy, color: C.primary },
-    btn: { backgroundColor: C.primary, borderRadius: 14, height: 52, alignItems: 'center', justifyContent: 'center' },
+    btn: {
+        backgroundColor: C.primary, borderRadius: 16, height: 54,
+        alignItems: 'center', justifyContent: 'center',
+        shadowColor: C.primaryDark, shadowOpacity: 0.3, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 6,
+    },
     btnText: { color: '#FFF', fontSize: 16, ...FONT.bold },
 });
 
