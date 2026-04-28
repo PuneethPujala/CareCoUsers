@@ -18,6 +18,26 @@ import { Watch, Zap } from 'lucide-react-native';
 import { syncAllSchedules } from '../../utils/notifications';
 import usePatientStore from '../../store/usePatientStore';
 
+// ── Rotating Daily Health Tips ──────────────────────────────
+const HEALTH_TIPS = [
+    '💧 Stay hydrated! Drinking 8 glasses of water daily helps manage blood pressure and significantly improves kidney function.',
+    '🥗 Eating a handful of leafy greens daily can reduce your risk of heart disease by up to 15%. Your heart will thank you!',
+    '🚶 A brisk 20-minute walk after meals helps regulate blood sugar levels — even better than medication for some people.',
+    '😴 Aim for 7–8 hours of sleep. Poor sleep raises cortisol, which increases blood pressure and blood sugar levels.',
+    '🧘 Just 5 minutes of deep breathing can lower your heart rate by 10–15 bpm. Try box breathing: inhale 4s, hold 4s, exhale 4s.',
+    '🫐 Blueberries are a superfood! They contain anthocyanins that improve memory and reduce inflammation. Add them to breakfast.',
+    '☀️ 15 minutes of morning sunlight boosts Vitamin D production and helps regulate your circadian rhythm for better sleep.',
+    '🥜 A small handful of almonds (about 23) provides your daily magnesium needs, helping reduce muscle cramps and anxiety.',
+    '🍌 Bananas are rich in potassium, which helps counteract the effects of sodium on blood pressure. Great as a midday snack!',
+    '🫁 Practice the 4-7-8 breathing technique before bed: inhale 4s, hold 7s, exhale 8s. It activates your parasympathetic system.',
+    '🥑 Avocados contain healthy monounsaturated fats that help lower LDL cholesterol while raising HDL (the good kind).',
+    '🏋️ Even 10 minutes of light stretching in the morning improves circulation and reduces joint stiffness throughout the day.',
+    '🍵 Green tea contains L-theanine, which promotes calm alertness without the jitters. Perfect alternative to a second coffee.',
+    '🧄 Garlic contains allicin, a compound shown to reduce blood pressure by 5–8 mmHg in people with hypertension.',
+    '🥕 Orange and yellow vegetables like carrots are packed with beta-carotene, which your body converts to Vitamin A for eye health.',
+];
+const getDailyTip = () => HEALTH_TIPS[Math.floor((Date.now() / 86400000)) % HEALTH_TIPS.length];
+
 const ACCENT_MAP = { morning: colors.success, afternoon: colors.warning, evening: '#7C3AED', night: '#8B5CF6', as_needed: '#6366F1' };
 const TIME_LABELS = { morning: 'Morning', afternoon: 'Afternoon', evening: 'Evening', night: 'Night', as_needed: 'As Needed' };
 
@@ -510,7 +530,7 @@ export default function PatientHomeScreen({ navigation }) {
                                     )}
                                 </View>
                                 <Text style={styles.aiOutlookDesc}>
-                                    Our AI forecasts your vitals trajectory based on your historical data.
+                                    Our AI analyzes your vitals history to forecast trends and flag potential concerns.
                                 </Text>
                                 
                                 {vitalsHistory.length > 0 && (
@@ -601,7 +621,7 @@ export default function PatientHomeScreen({ navigation }) {
                                 <View style={styles.tipIconBox}><Sparkles size={16} color="#0EA5E9" /></View>
                                 <Text style={styles.tipLabel}>DAILY HEALTH TIP</Text>
                             </View>
-                            <Text style={styles.tipBodyText}>Stay hydrated! Drinking 8 glasses of water daily helps manage blood pressure and significantly improves kidney function.</Text>
+                            <Text style={styles.tipBodyText}>{getDailyTip()}</Text>
                         </View>
                     </View>
                 </Animated.View>
@@ -617,10 +637,10 @@ export default function PatientHomeScreen({ navigation }) {
                                 </View><ChevronRight size={18} color="#CBD5E1" />
                             </Pressable>
 
-                            <Pressable style={styles.quickCardEnhanced} onPress={() => navigation.navigate('Medications')}>
+                            <Pressable style={styles.quickCardEnhanced} onPress={() => Alert.alert('Coming Soon! 🚀', 'Med Delivery is on its way! We\'re building a seamless way to order and track your medications right from the app. Stay tuned!', [{ text: 'Got it!', style: 'default' }])}>
                                 <View style={styles.quickContent}>
                                     <View style={[styles.quickIconBoxEnhanced, { backgroundColor: '#E0F2FE' }]}><Package size={20} color="#0284C7" /></View>
-                                    <View style={styles.quickTextView}><Text style={styles.quickCardTitle}>Med Delivery</Text><Text style={styles.quickCardSub}>Order & Track</Text></View>
+                                    <View style={styles.quickTextView}><Text style={styles.quickCardTitle}>Med Delivery</Text><Text style={styles.quickCardSub}>Coming Soon</Text></View>
                                 </View><ChevronRight size={18} color="#CBD5E1" />
                             </Pressable>
 
@@ -857,8 +877,9 @@ const styles = StyleSheet.create({
     formGroup: { flex: 1, marginBottom: 4 },
     formLabel: { fontSize: 11, fontWeight: '700', color: '#64748B', textTransform: 'uppercase', marginBottom: 6, letterSpacing: 0.5 },
     formInput: {
-        backgroundColor: '#F8FAFC', borderWidth: 1.5, borderColor: '#E2E8F0', borderRadius: 12,
-        paddingHorizontal: 14, paddingVertical: 13, fontSize: 15, color: '#1E293B', fontWeight: '500',
+        backgroundColor: '#FAFBFF', borderWidth: 1.5, borderColor: '#E2E8F0', borderRadius: 20,
+        paddingHorizontal: 16, paddingVertical: 12, fontSize: 15, color: '#0F172A', fontWeight: '600',
+        height: 48,
     },
 
     submitBtn: {

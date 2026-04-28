@@ -36,6 +36,11 @@ const runMedicationReminders = async () => {
             const localTime = nowUtc.clone().tz(tz);
             const hhmm = localTime.format('HH:mm');
 
+            // We want to notify 15 minutes BEFORE the preferred time.
+            // So we check: "which preferred time is 15 minutes from now?"
+            // i.e. if it's currently 08:45, we fire the reminder for the 09:00 slot.
+            const targetTime = localTime.clone().add(15, 'minutes').format('HH:mm');
+
             // FIX: was moment().format('monday') — not a format token, always
             // returned the literal string "monday". Correct call is .format('dddd').
             const dayOfWeek = localTime.format('dddd').toLowerCase(); // e.g. "tuesday"
@@ -47,13 +52,13 @@ const runMedicationReminders = async () => {
                 expo_push_token: { $exists: true, $ne: '' },
                 $or: [
                     // Case A: Med has explicit scheduledTimes (HH:mm strings)
-                    { 'medications.scheduledTimes': hhmm },
+                    { 'medications.scheduledTimes': targetTime },
 
                     // Case B: Med uses named buckets matched against patient preferences
-                    { $and: [{ 'medications.times': 'morning' }, { 'medication_call_preferences.morning': hhmm }] },
-                    { $and: [{ 'medications.times': 'afternoon' }, { 'medication_call_preferences.afternoon': hhmm }] },
-                    { $and: [{ 'medications.times': 'night' }, { 'medication_call_preferences.night': hhmm }] },
-                    { $and: [{ 'medications.times': 'evening' }, { 'medication_call_preferences.night': hhmm }] },
+                    { $and: [{ 'medications.times': 'morning' }, { 'medication_call_preferences.morning': targetTime }] },
+                    { $and: [{ 'medications.times': 'afternoon' }, { 'medication_call_preferences.afternoon': targetTime }] },
+                    { $and: [{ 'medications.times': 'night' }, { 'medication_call_preferences.night': targetTime }] },
+                    { $and: [{ 'medications.times': 'evening' }, { 'medication_call_preferences.night': targetTime }] },
                 ],
             }).select('name medications medication_call_preferences expo_push_token');
 
@@ -72,13 +77,13 @@ const runMedicationReminders = async () => {
                         return false;
                     }
 
-                    if (med.scheduledTimes?.includes(hhmm)) return true;
+                    if (med.scheduledTimes?.includes(targetTime)) return true;
 
                     const prefs = patient.medication_call_preferences || {};
-                    if (med.times?.includes('morning') && prefs.morning === hhmm) return true;
-                    if (med.times?.includes('afternoon') && prefs.afternoon === hhmm) return true;
-                    if (med.times?.includes('night') && prefs.night === hhmm) return true;
-                    if (med.times?.includes('evening') && prefs.night === hhmm) return true;
+                    if (med.times?.includes('morning') && prefs.morning === targetTime) return true;
+                    if (med.times?.includes('afternoon') && prefs.afternoon === targetTime) return true;
+                    if (med.times?.includes('night') && prefs.night === targetTime) return true;
+                    if (med.times?.includes('evening') && prefs.night === targetTime) return true;
 
                     return false;
                 });
@@ -88,11 +93,11 @@ const runMedicationReminders = async () => {
                 const medNames = dueMeds.map(m => m.name);
                 let messageBody;
                 if (medNames.length === 1) {
-                    messageBody = `Time to take your ${medNames[0]}. Don't forget!`;
+                    messageBody = `Time to take your ${medNames[0]} in 15 minutes. Get ready! 💊`;
                 } else if (medNames.length === 2) {
-                    messageBody = `Time for ${medNames[0]} and ${medNames[1]}.`;
+                    messageBody = `${medNames[0]} and ${medNames[1]} are due in 15 minutes.`;
                 } else {
-                    messageBody = `It's time for ${medNames[0]}, ${medNames[1]} and ${medNames.length - 2} other medication${medNames.length - 2 !== 1 ? 's' : ''}.`;
+                    messageBody = `${medNames[0]}, ${medNames[1]} and ${medNames.length - 2} more — due in 15 minutes.`;
                 }
 
                 await NotificationService.sendPush(patient._id, {
