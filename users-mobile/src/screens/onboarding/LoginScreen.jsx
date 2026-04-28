@@ -256,8 +256,10 @@ const rs = StyleSheet.create({
 
 // ─── Main LoginScreen ─────────────────────────────────────────────────────
 export default function LoginScreen({ navigation }) {
-    const { signIn, signInWithGoogle, resetPassword, injectSession, signOut } = useAuth();
+    const { signIn, signInWithGoogle, injectSession, signOut, sendOtp, verifyOtp } = useAuth();
 
+    // ── Email tab state ──────────────────────────────────────────────────────
+    const [activeTab, setActiveTab] = useState('email');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
@@ -266,6 +268,17 @@ export default function LoginScreen({ navigation }) {
     const [emailFocused, setEmailFocused] = useState(false);
     const [passFocused, setPassFocused] = useState(false);
     const [resetModalVisible, setResetModalVisible] = useState(false);
+
+    // ── Phone tab state ──────────────────────────────────────────────────────
+    const [phone, setPhone] = useState('');
+    const [phoneFocused, setPhoneFocused] = useState(false);
+    const [phoneError, setPhoneError] = useState('');
+    const [phoneOtpLoading, setPhoneOtpLoading] = useState(false);
+    const [phoneOtpVisible, setPhoneOtpVisible] = useState(false);
+    const [phoneOtpCode, setPhoneOtpCode] = useState('');
+    const [phoneOtpTimer, setPhoneOtpTimer] = useState(0);
+    const [phoneOtpAttempts, setPhoneOtpAttempts] = useState(0);
+    const [phoneOtpSent, setPhoneOtpSent] = useState(false);
 
     const isSubmittingRef = useRef(false);
     const abortRef = useRef(null);
@@ -301,6 +314,13 @@ export default function LoginScreen({ navigation }) {
             if (abortRef.current) abortRef.current.abort();
         };
     }, []);
+
+    // Phone OTP countdown
+    useEffect(() => {
+        if (phoneOtpTimer <= 0) return;
+        const interval = setInterval(() => setPhoneOtpTimer(prev => prev - 1), 1000);
+        return () => clearInterval(interval);
+    }, [phoneOtpTimer]);
 
     const handleGooglePress = async () => {
         try {
@@ -414,6 +434,66 @@ export default function LoginScreen({ navigation }) {
         }
     };
 
+    const handleSendPhoneOtp = async () => {
+        const cleaned = phone.replace(/\D/g, '');
+        if (!cleaned || cleaned.length !== 10) {
+            setPhoneError('Please enter a valid 10-digit mobile number.');
+            return;
+        }
+        setPhoneOtpLoading(true);
+        setPhoneError('');
+        try {
+            await sendOtp('phone', `+91${cleaned}`);
+            setPhoneOtpSent(true);
+            setPhoneOtpTimer(60);
+            setPhoneOtpAttempts(0);
+            setPhoneOtpCode('');
+            setPhoneOtpVisible(true);
+        } catch (error) {
+            const msg = error?.response?.data?.error || 'Failed to send OTP. Please try again.';
+            setPhoneError(msg);
+        } finally { setPhoneOtpLoading(false); }
+    };
+
+    const handleResendPhoneOtp = async () => {
+        if (phoneOtpTimer > 0) return;
+        setPhoneOtpLoading(true);
+        setPhoneError('');
+        try {
+            await sendOtp('phone', `+91${phone.replace(/\D/g, '')}`);
+            setPhoneOtpTimer(60);
+            setPhoneOtpCode('');
+            setPhoneOtpAttempts(0);
+        } catch (error) {
+            setPhoneError(error?.response?.data?.error || 'Failed to resend OTP.');
+        } finally { setPhoneOtpLoading(false); }
+    };
+
+    const handleVerifyPhoneOtp = async () => {
+        if (phoneOtpCode.length < 6) { setPhoneError('Please enter the 6-digit code.'); return; }
+        setPhoneOtpLoading(true);
+        setPhoneError('');
+        try {
+            const result = await verifyOtp('phone', `+91${phone.replace(/\D/g, '')}`, phoneOtpCode);
+            if (result?.session && result?.profile) {
+                await injectSession(result.session, result.profile);
+            } else if (result?.session) {
+                await injectSession(result.session, null);
+            } else {
+                setPhoneError('This phone number is not registered. Please sign up first.');
+            }
+        } catch (error) {
+            const newAttempts = phoneOtpAttempts + 1;
+            setPhoneOtpAttempts(newAttempts);
+            if (newAttempts >= 3) {
+                setPhoneOtpVisible(false);
+                setPhoneError('Too many failed attempts. Please request a new code.');
+            } else {
+                setPhoneError(error?.response?.data?.error || 'Incorrect code. Please try again.');
+            }
+        } finally { setPhoneOtpLoading(false); }
+    };
+
     const handleEmailChange = (v) => { setEmail(v); if (errorText) setErrorText(''); };
     const handlePasswordChange = (v) => { setPassword(v); if (errorText) setErrorText(''); };
 
@@ -441,86 +521,137 @@ export default function LoginScreen({ navigation }) {
 
                     {/* Tab switcher */}
                     <View style={styles.tabTrack}>
-                        <View style={styles.tabActive}>
-                            <Text style={styles.tabActiveText}>Email</Text>
-                        </View>
-                        <Pressable style={styles.tabInactive} disabled>
-                            <Text style={styles.tabInactiveText}>Phone</Text>
+                        <Pressable
+                            style={activeTab === 'email' ? styles.tabActive : styles.tabInactive}
+                            onPress={() => { setActiveTab('email'); setErrorText(''); setPhoneError(''); }}
+                        >
+                            <Text style={activeTab === 'email' ? styles.tabActiveText : styles.tabInactiveText}>Email</Text>
+                        </Pressable>
+                        <Pressable
+                            style={activeTab === 'phone' ? styles.tabActive : styles.tabInactive}
+                            onPress={() => { setActiveTab('phone'); setErrorText(''); setPhoneError(''); }}
+                        >
+                            <Text style={activeTab === 'phone' ? styles.tabActiveText : styles.tabInactiveText}>Phone</Text>
                         </Pressable>
                     </View>
 
-                    {/* Error */}
-                    {errorText ? (
-                        <View style={styles.errorBox}>
-                            <AlertCircle size={15} color={C.danger} />
-                            <Text style={styles.errorMsg}>{errorText}</Text>
-                        </View>
-                    ) : null}
+                    {/* ── Email login form ── */}
+                    {activeTab === 'email' && (
+                        <>
+                            {errorText ? (
+                                <View style={styles.errorBox}>
+                                    <AlertCircle size={15} color={C.danger} />
+                                    <Text style={styles.errorMsg}>{errorText}</Text>
+                                </View>
+                            ) : null}
 
-                    {/* Email field */}
-                    <Text style={styles.fieldLabel}>EMAIL ADDRESS</Text>
-                    <TextInput
-                        ref={emailRef}
-                        style={[styles.input, emailFocused && styles.inputFocused]}
-                        placeholder="you@example.com"
-                        placeholderTextColor={C.muted}
-                        value={email}
-                        onChangeText={handleEmailChange}
-                        autoCapitalize="none"
-                        keyboardType="email-address"
-                        autoCorrect={false}
-                        spellCheck={false}
-                        textContentType="emailAddress"
-                        onFocus={() => setEmailFocused(true)}
-                        onBlur={() => setEmailFocused(false)}
-                        blurOnSubmit={false}
-                        autoFocus
-                        returnKeyType="next"
-                        onSubmitEditing={() => passwordRef.current?.focus()}
-                    />
+                            <Text style={styles.fieldLabel}>EMAIL ADDRESS</Text>
+                            <TextInput
+                                ref={emailRef}
+                                style={[styles.input, emailFocused && styles.inputFocused]}
+                                placeholder="you@example.com"
+                                placeholderTextColor={C.muted}
+                                value={email}
+                                onChangeText={handleEmailChange}
+                                autoCapitalize="none"
+                                keyboardType="email-address"
+                                autoCorrect={false}
+                                spellCheck={false}
+                                textContentType="emailAddress"
+                                onFocus={() => setEmailFocused(true)}
+                                onBlur={() => setEmailFocused(false)}
+                                blurOnSubmit={false}
+                                autoFocus
+                                returnKeyType="next"
+                                onSubmitEditing={() => passwordRef.current?.focus()}
+                            />
 
-                    {/* Password field */}
-                    <View style={styles.passwordLabelRow}>
-                        <Text style={styles.fieldLabel}>PASSWORD</Text>
-                        <Pressable onPress={() => setResetModalVisible(true)} hitSlop={10}>
-                            <Text style={styles.forgotLink}>Forgot?</Text>
-                        </Pressable>
-                    </View>
-                    <View style={[styles.passwordWrap, passFocused && styles.inputFocused]}>
-                        <TextInput
-                            ref={passwordRef}
-                            style={styles.passwordInput}
-                            placeholder="Enter your password"
-                            placeholderTextColor={C.muted}
-                            value={password}
-                            onChangeText={handlePasswordChange}
-                            secureTextEntry={!showPassword}
-                            textContentType="password"
-                            onFocus={() => setPassFocused(true)}
-                            onBlur={() => setPassFocused(false)}
-                            returnKeyType="done"
-                            onSubmitEditing={handleLogin}
-                        />
-                        <Pressable onPress={() => setShowPassword(!showPassword)} hitSlop={12}>
-                            {showPassword
-                                ? <Eye size={18} color={C.primary} />
-                                : <EyeOff size={18} color={C.muted} />
-                            }
-                        </Pressable>
-                    </View>
+                            <View style={styles.passwordLabelRow}>
+                                <Text style={styles.fieldLabel}>PASSWORD</Text>
+                                <Pressable onPress={() => setResetModalVisible(true)} hitSlop={10}>
+                                    <Text style={styles.forgotLink}>Forgot?</Text>
+                                </Pressable>
+                            </View>
+                            <View style={[styles.passwordWrap, passFocused && styles.inputFocused]}>
+                                <TextInput
+                                    ref={passwordRef}
+                                    style={styles.passwordInput}
+                                    placeholder="Enter your password"
+                                    placeholderTextColor={C.muted}
+                                    value={password}
+                                    onChangeText={handlePasswordChange}
+                                    secureTextEntry={!showPassword}
+                                    textContentType="password"
+                                    onFocus={() => setPassFocused(true)}
+                                    onBlur={() => setPassFocused(false)}
+                                    returnKeyType="done"
+                                    onSubmitEditing={handleLogin}
+                                />
+                                <Pressable onPress={() => setShowPassword(!showPassword)} hitSlop={12}>
+                                    {showPassword
+                                        ? <Eye size={18} color={C.primary} />
+                                        : <EyeOff size={18} color={C.muted} />
+                                    }
+                                </Pressable>
+                            </View>
 
-                    {/* Sign In button */}
-                    <Pressable
-                        style={[styles.signInBtn, loading && { opacity: 0.7 }]}
-                        onPress={handleLogin}
-                        disabled={loading}
-                    >
-                        {loading ? (
-                            <ActivityIndicator size="small" color="#FFFFFF" />
-                        ) : (
-                            <Text style={styles.signInBtnText}>Sign In</Text>
-                        )}
-                    </Pressable>
+                            <Pressable
+                                style={[styles.signInBtn, loading && { opacity: 0.7 }]}
+                                onPress={handleLogin}
+                                disabled={loading}
+                            >
+                                {loading ? (
+                                    <ActivityIndicator size="small" color="#FFFFFF" />
+                                ) : (
+                                    <Text style={styles.signInBtnText}>Sign In</Text>
+                                )}
+                            </Pressable>
+                        </>
+                    )}
+
+                    {/* ── Phone login form ── */}
+                    {activeTab === 'phone' && (
+                        <>
+                            {phoneError ? (
+                                <View style={styles.errorBox}>
+                                    <AlertCircle size={15} color={C.danger} />
+                                    <Text style={styles.errorMsg}>{phoneError}</Text>
+                                </View>
+                            ) : null}
+
+                            <Text style={styles.fieldLabel}>PHONE NUMBER</Text>
+                            <View style={[styles.passwordWrap, phoneFocused && styles.inputFocused, { marginBottom: 26 }]}>
+                                <Text style={{ fontSize: 15, ...FONT.medium, color: C.mid, marginRight: 4 }}>+91</Text>
+                                <TextInput
+                                    style={styles.passwordInput}
+                                    placeholder="10-digit mobile number"
+                                    placeholderTextColor={C.muted}
+                                    value={phone}
+                                    onChangeText={(v) => { setPhone(v.replace(/\D/g, '').slice(0, 10)); setPhoneError(''); }}
+                                    keyboardType="phone-pad"
+                                    maxLength={10}
+                                    onFocus={() => setPhoneFocused(true)}
+                                    onBlur={() => setPhoneFocused(false)}
+                                    returnKeyType="done"
+                                    onSubmitEditing={handleSendPhoneOtp}
+                                />
+                            </View>
+
+                            <Pressable
+                                style={[styles.signInBtn, phoneOtpLoading && { opacity: 0.7 }]}
+                                onPress={handleSendPhoneOtp}
+                                disabled={phoneOtpLoading}
+                            >
+                                {phoneOtpLoading ? (
+                                    <ActivityIndicator size="small" color="#FFFFFF" />
+                                ) : (
+                                    <Text style={styles.signInBtnText}>
+                                        {phoneOtpSent ? 'Resend OTP' : 'Send OTP'}
+                                    </Text>
+                                )}
+                            </Pressable>
+                        </>
+                    )}
 
                     {/* Divider */}
                     <View style={styles.dividerRow}>
@@ -561,9 +692,96 @@ export default function LoginScreen({ navigation }) {
                 onClose={() => setResetModalVisible(false)}
                 email={email}
             />
+
+            {/* Phone OTP Modal */}
+            <Modal
+                visible={phoneOtpVisible}
+                animationType="fade"
+                transparent
+                onRequestClose={() => !phoneOtpLoading && setPhoneOtpVisible(false)}
+            >
+                <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+                    <Pressable style={phoneOtpSt.overlay} onPress={() => { if (!phoneOtpLoading) setPhoneOtpVisible(false); }}>
+                        <Pressable onPress={(e) => e.stopPropagation()} style={phoneOtpSt.card}>
+                            <View style={phoneOtpSt.header}>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={phoneOtpSt.title}>Verify Phone</Text>
+                                    <Text style={phoneOtpSt.sub}>Code sent to +91 {phone}</Text>
+                                </View>
+                                <Pressable
+                                    onPress={() => setPhoneOtpVisible(false)}
+                                    hitSlop={12}
+                                    disabled={phoneOtpLoading}
+                                    style={phoneOtpSt.closeBtn}
+                                >
+                                    <X size={18} color={C.mid} />
+                                </Pressable>
+                            </View>
+
+                            {phoneError ? (
+                                <View style={phoneOtpSt.errorBox}>
+                                    <AlertCircle size={14} color={C.danger} />
+                                    <Text style={phoneOtpSt.errorText}>{phoneError}</Text>
+                                </View>
+                            ) : null}
+
+                            <TextInput
+                                style={phoneOtpSt.otpInput}
+                                value={phoneOtpCode}
+                                onChangeText={(v) => { setPhoneOtpCode(v.replace(/\D/g, '').slice(0, 6)); setPhoneError(''); }}
+                                keyboardType="number-pad"
+                                maxLength={6}
+                                textAlign="center"
+                                autoFocus
+                                placeholder="• • • • • •"
+                                placeholderTextColor={C.muted}
+                            />
+
+                            <View style={phoneOtpSt.resendRow}>
+                                {phoneOtpTimer > 0 ? (
+                                    <Text style={phoneOtpSt.timerText}>Resend in {phoneOtpTimer}s</Text>
+                                ) : (
+                                    <Pressable onPress={handleResendPhoneOtp} disabled={phoneOtpLoading}>
+                                        <Text style={[phoneOtpSt.resendLink, phoneOtpLoading && { opacity: 0.5 }]}>Resend Code</Text>
+                                    </Pressable>
+                                )}
+                            </View>
+
+                            <Pressable
+                                style={[phoneOtpSt.btn, phoneOtpLoading && { opacity: 0.7 }]}
+                                onPress={handleVerifyPhoneOtp}
+                                disabled={phoneOtpLoading}
+                            >
+                                {phoneOtpLoading ? (
+                                    <ActivityIndicator size="small" color="#FFF" />
+                                ) : (
+                                    <Text style={phoneOtpSt.btnText}>Sign In</Text>
+                                )}
+                            </Pressable>
+                        </Pressable>
+                    </Pressable>
+                </KeyboardAvoidingView>
+            </Modal>
         </KeyboardAvoidingView>
     );
 }
+
+const phoneOtpSt = StyleSheet.create({
+    overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 },
+    card: { backgroundColor: C.surface, borderRadius: 24, padding: 24, width: '100%', maxWidth: 420, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 20, shadowOffset: { width: 0, height: 8 }, elevation: 12 },
+    header: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
+    title: { fontSize: 20, ...FONT.heavy, color: C.dark },
+    sub: { fontSize: 13, ...FONT.medium, color: C.muted, marginTop: 2 },
+    closeBtn: { width: 36, height: 36, borderRadius: 10, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center' },
+    errorBox: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: C.dangerBg, borderRadius: 12, padding: 12, marginBottom: 16, borderWidth: 1, borderColor: '#FCA5A5' },
+    errorText: { color: '#991B1B', fontSize: 13, ...FONT.semibold, flex: 1 },
+    otpInput: { backgroundColor: C.inputBg, borderWidth: 1.5, borderColor: C.border, borderRadius: 14, height: 64, fontSize: 28, ...FONT.bold, color: C.dark, letterSpacing: 12, marginBottom: 16 },
+    resendRow: { alignItems: 'center', marginBottom: 20 },
+    timerText: { fontSize: 13, ...FONT.bold, color: C.muted },
+    resendLink: { fontSize: 14, ...FONT.heavy, color: C.primary },
+    btn: { backgroundColor: C.primary, borderRadius: 14, height: 52, alignItems: 'center', justifyContent: 'center' },
+    btnText: { color: '#FFF', fontSize: 16, ...FONT.bold },
+});
 
 const styles = StyleSheet.create({
     container: {

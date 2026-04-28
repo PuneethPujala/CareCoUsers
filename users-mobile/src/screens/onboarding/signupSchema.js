@@ -41,7 +41,17 @@ export const step1Schema = z.object({
 });
 
 /**
- * Step 2: Locality
+ * Step 2: Phone collection (Google sign-up users who skipped Step 1)
+ */
+export const stepPhoneSchema = z.object({
+    phoneNumber: z
+        .string()
+        .length(10, 'Phone number must be exactly 10 digits')
+        .regex(/^\d+$/, 'Phone number must contain only digits'),
+});
+
+/**
+ * Step 3: Locality
  */
 export const step2Schema = z.object({
     city: z.string().trim().min(1, 'Please select your city'),
