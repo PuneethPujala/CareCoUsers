@@ -17,6 +17,7 @@ import HealthSyncService from '../../services/HealthSyncService';
 import { Watch, Zap } from 'lucide-react-native';
 import { syncAllSchedules } from '../../utils/notifications';
 import usePatientStore from '../../store/usePatientStore';
+import SmartInput from '../../components/ui/SmartInput';
 
 // ── Rotating Daily Health Tips ──────────────────────────────
 const HEALTH_TIPS = [
@@ -304,7 +305,33 @@ export default function PatientHomeScreen({ navigation }) {
 
 
     const takenCount = meds.filter(m => m.taken).length;
+    const totalMeds = meds.length;
+    const adherencePct = totalMeds > 0 ? Math.round((takenCount / totalMeds) * 100) : 0;
+    const [medsExpanded, setMedsExpanded] = useState(false);
+    const [showStreakBanner, setShowStreakBanner] = useState(true);
     const dateStr = new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' });
+
+    // Derive next upcoming dose
+    const getNextDose = () => {
+        const hour = new Date().getHours();
+        const prefs = patient?.medication_call_preferences || {};
+        const pendingMeds = meds.filter(m => !m.taken);
+        if (pendingMeds.length === 0) return null;
+        // Find next slot
+        const slots = ['morning', 'afternoon', 'evening', 'night'];
+        const slotHours = { morning: 5, afternoon: 11, evening: 16, night: 19 };
+        for (const s of slots) {
+            if (hour < (slotHours[s] || 24)) {
+                const pending = pendingMeds.filter(m => m.type === s);
+                if (pending.length > 0) return { slot: TIME_LABELS[s] || s, time: prefs[s] || '', count: pending.length };
+            }
+        }
+        return { slot: 'Later', time: '', count: pendingMeds.length };
+    };
+    const nextDose = getNextDose();
+
+    // Vitals streak count
+    const vitalsStreak = vitalsHistory.length;
 
     const getGreeting = () => {
         const hour = new Date().getHours();
@@ -449,17 +476,103 @@ export default function PatientHomeScreen({ navigation }) {
                     </View>
                 </Animated.View>
 
+                {/* ── PROGRESS BANNERS ── */}
+                {showStreakBanner && vitalsStreak >= 3 && (
+                    <Animated.View style={{ opacity: staggerAnims[2], transform: [{ translateY: staggerAnims[2].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>
+                        <View style={styles.streakBanner}>
+                            <View style={styles.streakBannerLeft}>
+                                <Text style={styles.streakEmoji}>🔥</Text>
+                                <View>
+                                    <Text style={styles.streakTitle}>{vitalsStreak}-day vitals streak!</Text>
+                                    <Text style={styles.streakSub}>Keep logging to unlock better insights</Text>
+                                </View>
+                            </View>
+                            <Pressable onPress={() => setShowStreakBanner(false)} hitSlop={12}>
+                                <Text style={styles.streakDismiss}>✕</Text>
+                            </Pressable>
+                        </View>
+                    </Animated.View>
+                )}
+
+                {takenCount === totalMeds && totalMeds > 0 && (
+                    <Animated.View style={{ opacity: staggerAnims[2], transform: [{ translateY: staggerAnims[2].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>
+                        <View style={[styles.streakBanner, { backgroundColor: '#F0FDF4', borderColor: '#BBF7D0' }]}>
+                            <View style={styles.streakBannerLeft}>
+                                <Text style={styles.streakEmoji}>✅</Text>
+                                <View>
+                                    <Text style={[styles.streakTitle, { color: '#166534' }]}>All meds taken today!</Text>
+                                    <Text style={[styles.streakSub, { color: '#15803D' }]}>Great job staying on track</Text>
+                                </View>
+                            </View>
+                        </View>
+                    </Animated.View>
+                )}
+
+                {/* ── MEDICATION SUMMARY INSIGHT CARD ── */}
                 <Animated.View style={{ opacity: staggerAnims[2], transform: [{ translateY: staggerAnims[2].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>
                     <View style={styles.section}>
                         <Text style={styles.sectionHeader}>TODAY'S MEDICATIONS</Text>
-                        {meds.map(med => (
+
+                        {totalMeds > 0 ? (
+                            <Pressable
+                                style={styles.medInsightCard}
+                                onPress={() => setMedsExpanded(!medsExpanded)}
+                            >
+                                <View style={styles.medInsightTop}>
+                                    <View style={styles.medInsightLeft}>
+                                        <View style={styles.medInsightIconBox}>
+                                            <Pill size={22} color="#6366F1" strokeWidth={2.5} />
+                                        </View>
+                                        <View>
+                                            <Text style={styles.medInsightCount}>{totalMeds} Medication{totalMeds !== 1 ? 's' : ''}</Text>
+                                            {nextDose && (
+                                                <Text style={styles.medInsightNext}>
+                                                    Next: {nextDose.slot}{nextDose.time ? ` (${nextDose.time})` : ''}
+                                                </Text>
+                                            )}
+                                            {!nextDose && <Text style={[styles.medInsightNext, { color: '#16A34A' }]}>All done for today! 🎉</Text>}
+                                        </View>
+                                    </View>
+                                    <View style={styles.medInsightRight}>
+                                        <Text style={styles.medInsightPct}>{adherencePct}%</Text>
+                                        <Text style={styles.medInsightPctLabel}>adherence</Text>
+                                    </View>
+                                </View>
+
+                                {/* Adherence progress bar */}
+                                <View style={styles.adherenceBarBg}>
+                                    <View style={[styles.adherenceBarFill, { width: `${adherencePct}%` }]} />
+                                </View>
+
+                                <View style={styles.medInsightFooter}>
+                                    <Text style={styles.medInsightFooterTxt}>
+                                        {takenCount}/{totalMeds} taken • {medsExpanded ? 'Hide details' : 'View details'}
+                                    </Text>
+                                    <ChevronRight
+                                        size={14}
+                                        color="#94A3B8"
+                                        style={{ transform: [{ rotate: medsExpanded ? '90deg' : '0deg' }] }}
+                                    />
+                                </View>
+                            </Pressable>
+                        ) : (
+                            <View style={styles.emptyMedCard}>
+                                <View style={styles.emptyMedIcon}>
+                                    <Pill size={28} color="#CBD5E1" strokeWidth={1.5} />
+                                </View>
+                                <Text style={styles.emptyMedTitle}>No Medications Yet</Text>
+                                <Text style={styles.emptyMedSub}>Your care team will add medications here. They'll show up as actionable cards.</Text>
+                            </View>
+                        )}
+
+                        {/* Expandable individual med cards */}
+                        {medsExpanded && meds.map(med => (
                             <MedicationCard 
                                 key={med.id} 
                                 med={med} 
                                 onPress={() => navigation.navigate('Medications')} 
                             />
                         ))}
-                        {meds.length === 0 && <Text style={{ color: '#94A3B8', fontStyle: 'italic', marginTop: 10 }}>No medications scheduled for today.</Text>}
                     </View>
                 </Animated.View>
 
@@ -573,13 +686,11 @@ export default function PatientHomeScreen({ navigation }) {
 
                                     <View style={styles.formRow}>
                                         <View style={styles.formGroup}>
-                                            <Text style={styles.formLabel}>Heart Rate (bpm)</Text>
-                                            <TextInput style={styles.formInput} keyboardType="numeric" placeholder="72" placeholderTextColor="#94A3B8"
+                                            <SmartInput label="Heart Rate (bpm)" keyboardType="numeric" placeholder="72"
                                                 value={formValues.heart_rate} onChangeText={(t) => setFormValues((p) => ({ ...p, heart_rate: t }))} />
                                         </View>
                                         <View style={styles.formGroup}>
-                                            <Text style={styles.formLabel}>O₂ Saturation (%)</Text>
-                                            <TextInput style={styles.formInput} keyboardType="numeric" placeholder="98" placeholderTextColor="#94A3B8"
+                                            <SmartInput label="O₂ Saturation (%)" keyboardType="numeric" placeholder="98"
                                                 value={formValues.oxygen_saturation} onChangeText={(t) => setFormValues((p) => ({ ...p, oxygen_saturation: t }))} />
                                         </View>
                                     </View>
@@ -587,18 +698,17 @@ export default function PatientHomeScreen({ navigation }) {
                                     <Text style={[styles.formLabel, { marginTop: 14 }]}>Blood Pressure (mmHg)</Text>
                                     <View style={styles.formRow}>
                                         <View style={styles.formGroup}>
-                                            <TextInput style={styles.formInput} keyboardType="numeric" placeholder="Systolic (120)" placeholderTextColor="#94A3B8"
+                                            <SmartInput keyboardType="numeric" placeholder="Systolic (120)"
                                                 value={formValues.systolic} onChangeText={(t) => setFormValues((p) => ({ ...p, systolic: t }))} />
                                         </View>
                                         <View style={styles.formGroup}>
-                                            <TextInput style={styles.formInput} keyboardType="numeric" placeholder="Diastolic (80)" placeholderTextColor="#94A3B8"
+                                            <SmartInput keyboardType="numeric" placeholder="Diastolic (80)"
                                                 value={formValues.diastolic} onChangeText={(t) => setFormValues((p) => ({ ...p, diastolic: t }))} />
                                         </View>
                                     </View>
 
                                     <View style={styles.formGroup}>
-                                        <Text style={[styles.formLabel, { marginTop: 14 }]}>Hydration (%)</Text>
-                                        <TextInput style={styles.formInput} keyboardType="numeric" placeholder="65" placeholderTextColor="#94A3B8"
+                                        <SmartInput label="Hydration (%)" keyboardType="numeric" placeholder="65"
                                             value={formValues.hydration} onChangeText={(t) => setFormValues((p) => ({ ...p, hydration: t }))} />
                                     </View>
 
@@ -965,5 +1075,48 @@ const styles = StyleSheet.create({
         fontWeight: '700',
         color: '#D97706',
     },
+
+    /* ── Medication Insight Card ── */
+    medInsightCard: {
+        backgroundColor: '#FFFFFF', borderRadius: 24, padding: 20,
+        borderWidth: 1.5, borderColor: '#EEF2FF',
+        shadowColor: '#6366F1', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.06, shadowRadius: 16, elevation: 5,
+        marginBottom: 12,
+    },
+    medInsightTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+    medInsightLeft: { flexDirection: 'row', alignItems: 'center', gap: 14, flex: 1 },
+    medInsightIconBox: { width: 48, height: 48, borderRadius: 16, backgroundColor: '#EEF2FF', alignItems: 'center', justifyContent: 'center' },
+    medInsightCount: { fontSize: 17, fontWeight: '800', color: '#1E293B', letterSpacing: -0.3 },
+    medInsightNext: { fontSize: 13, fontWeight: '600', color: '#64748B', marginTop: 2 },
+    medInsightRight: { alignItems: 'center' },
+    medInsightPct: { fontSize: 28, fontWeight: '900', color: '#6366F1', letterSpacing: -1 },
+    medInsightPctLabel: { fontSize: 10, fontWeight: '700', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: 0.5 },
+
+    adherenceBarBg: { height: 6, backgroundColor: '#F1F5F9', borderRadius: 3, marginBottom: 14, overflow: 'hidden' },
+    adherenceBarFill: { height: 6, backgroundColor: '#6366F1', borderRadius: 3 },
+
+    medInsightFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    medInsightFooterTxt: { fontSize: 13, fontWeight: '600', color: '#94A3B8' },
+
+    /* ── Empty Med State ── */
+    emptyMedCard: {
+        backgroundColor: '#FAFBFF', borderRadius: 24, padding: 32, alignItems: 'center',
+        borderWidth: 1.5, borderColor: '#E2E8F0', borderStyle: 'dashed',
+    },
+    emptyMedIcon: { width: 64, height: 64, borderRadius: 32, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+    emptyMedTitle: { fontSize: 16, fontWeight: '700', color: '#475569', marginBottom: 6 },
+    emptyMedSub: { fontSize: 13, fontWeight: '500', color: '#94A3B8', textAlign: 'center', lineHeight: 20 },
+
+    /* ── Streak / Progress Banners ── */
+    streakBanner: {
+        flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+        backgroundColor: '#FFFBEB', borderWidth: 1, borderColor: '#FDE68A',
+        borderRadius: 16, padding: 14, paddingHorizontal: 16, marginBottom: 16,
+    },
+    streakBannerLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
+    streakEmoji: { fontSize: 22 },
+    streakTitle: { fontSize: 14, fontWeight: '800', color: '#92400E' },
+    streakSub: { fontSize: 12, fontWeight: '500', color: '#B45309', marginTop: 1 },
+    streakDismiss: { fontSize: 16, color: '#D97706', fontWeight: '700', padding: 4 },
 });
 
