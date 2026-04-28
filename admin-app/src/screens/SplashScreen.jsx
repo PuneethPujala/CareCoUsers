@@ -1,6 +1,5 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, Animated, StyleSheet, Dimensions, StatusBar } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 
 const { width, height } = Dimensions.get('window');
 
@@ -12,29 +11,22 @@ export default function SplashScreen({ onFinish }) {
     const subtitleOpacity = useRef(new Animated.Value(0)).current;
     const subtitleTranslateY = useRef(new Animated.Value(20)).current;
     const pulseAnim = useRef(new Animated.Value(1)).current;
-    const ring1Scale = useRef(new Animated.Value(0)).current;
+    const ring1Scale = useRef(new Animated.Value(0.5)).current;
     const ring1Opacity = useRef(new Animated.Value(0.6)).current;
-    const ring2Scale = useRef(new Animated.Value(0)).current;
+    const ring2Scale = useRef(new Animated.Value(0.5)).current;
     const ring2Opacity = useRef(new Animated.Value(0.4)).current;
     const bottomOpacity = useRef(new Animated.Value(0)).current;
-    const glowOpacity = useRef(new Animated.Value(0)).current;
 
     useEffect(() => {
-        // Phase 1: Glow appears
-        Animated.timing(glowOpacity, { toValue: 1, duration: 600, useNativeDriver: true }).start();
-
-        // Phase 2: Logo scales up with spring
-        Animated.sequence([
-            Animated.delay(200),
-            Animated.parallel([
-                Animated.spring(logoScale, { toValue: 1, friction: 4, tension: 40, useNativeDriver: true }),
-                Animated.timing(logoOpacity, { toValue: 1, duration: 600, useNativeDriver: true }),
-            ]),
+        // Phase 1: Logo scales up with spring
+        Animated.parallel([
+            Animated.spring(logoScale, { toValue: 1, friction: 4, tension: 40, useNativeDriver: true }),
+            Animated.timing(logoOpacity, { toValue: 1, duration: 600, useNativeDriver: true }),
         ]).start();
 
-        // Phase 3: Ring ripple effects
+        // Phase 2: Ring ripple effects
         Animated.sequence([
-            Animated.delay(500),
+            Animated.delay(300),
             Animated.parallel([
                 Animated.timing(ring1Scale, { toValue: 2.5, duration: 1200, useNativeDriver: true }),
                 Animated.timing(ring1Opacity, { toValue: 0, duration: 1200, useNativeDriver: true }),
@@ -42,34 +34,34 @@ export default function SplashScreen({ onFinish }) {
         ]).start();
 
         Animated.sequence([
-            Animated.delay(800),
+            Animated.delay(600),
             Animated.parallel([
                 Animated.timing(ring2Scale, { toValue: 3, duration: 1400, useNativeDriver: true }),
                 Animated.timing(ring2Opacity, { toValue: 0, duration: 1400, useNativeDriver: true }),
             ]),
         ]).start();
 
-        // Phase 4: Title text slides up
+        // Phase 3: Title text slides up
         Animated.sequence([
-            Animated.delay(700),
+            Animated.delay(500),
             Animated.parallel([
                 Animated.timing(textOpacity, { toValue: 1, duration: 500, useNativeDriver: true }),
                 Animated.spring(textTranslateY, { toValue: 0, friction: 6, useNativeDriver: true }),
             ]),
         ]).start();
 
-        // Phase 5: Subtitle
+        // Phase 4: Subtitle
         Animated.sequence([
-            Animated.delay(1000),
+            Animated.delay(800),
             Animated.parallel([
                 Animated.timing(subtitleOpacity, { toValue: 1, duration: 500, useNativeDriver: true }),
                 Animated.spring(subtitleTranslateY, { toValue: 0, friction: 6, useNativeDriver: true }),
             ]),
         ]).start();
 
-        // Phase 6: Pulse animation on logo (looping)
+        // Phase 5: Pulse animation on logo
         Animated.sequence([
-            Animated.delay(1200),
+            Animated.delay(1000),
             Animated.loop(
                 Animated.sequence([
                     Animated.timing(pulseAnim, { toValue: 1.08, duration: 1000, useNativeDriver: true }),
@@ -78,9 +70,9 @@ export default function SplashScreen({ onFinish }) {
             ),
         ]).start();
 
-        // Phase 7: Bottom text
+        // Phase 6: Bottom text
         Animated.sequence([
-            Animated.delay(1300),
+            Animated.delay(1100),
             Animated.timing(bottomOpacity, { toValue: 1, duration: 600, useNativeDriver: true }),
         ]).start();
 
@@ -95,15 +87,6 @@ export default function SplashScreen({ onFinish }) {
     return (
         <View style={s.container}>
             <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
-            <LinearGradient
-                colors={['#0A1628', '#0D2137', '#0A2463', '#143A7A']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={StyleSheet.absoluteFill}
-            />
-
-            {/* Ambient glow behind logo */}
-            <Animated.View style={[s.glow, { opacity: glowOpacity }]} />
 
             {/* Ripple rings */}
             <Animated.View style={[s.ring, { transform: [{ scale: ring1Scale }], opacity: ring1Opacity }]} />
@@ -136,7 +119,7 @@ export default function SplashScreen({ onFinish }) {
             {/* Bottom */}
             <Animated.View style={[s.bottom, { opacity: bottomOpacity }]}>
                 <View style={s.loadingBar}>
-                    <Animated.View style={s.loadingFill} />
+                    <View style={s.loadingFill} />
                 </View>
                 <Text style={s.versionText}>v1.0.0</Text>
             </Animated.View>
@@ -149,14 +132,7 @@ const s = StyleSheet.create({
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-    },
-    glow: {
-        position: 'absolute',
-        width: 300,
-        height: 300,
-        borderRadius: 150,
-        backgroundColor: 'rgba(56, 152, 255, 0.08)',
-        top: height * 0.25,
+        backgroundColor: '#0A1628',
     },
     ring: {
         position: 'absolute',
@@ -165,7 +141,6 @@ const s = StyleSheet.create({
         borderRadius: 50,
         borderWidth: 2,
         borderColor: 'rgba(96, 165, 250, 0.3)',
-        top: height * 0.5 - 50,
     },
     logoContainer: {
         marginBottom: 32,
@@ -179,7 +154,6 @@ const s = StyleSheet.create({
         borderColor: 'rgba(96, 165, 250, 0.4)',
         justifyContent: 'center',
         alignItems: 'center',
-        // Glassmorphism effect
         shadowColor: '#3B82F6',
         shadowOffset: { width: 0, height: 0 },
         shadowOpacity: 0.5,
