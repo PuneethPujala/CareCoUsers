@@ -22,10 +22,6 @@ export const step1Schema = z.object({
         .trim()
         .email('Please enter a valid email address')
         .toLowerCase(),
-    phoneNumber: z
-        .string()
-        .length(10, 'Phone number must be exactly 10 digits')
-        .regex(/^\d+$/, 'Phone number must contain only digits'),
     password: z
         .string()
         .min(8, 'Password must be at least 8 characters')
@@ -95,9 +91,9 @@ export const signupSchema = z
     .object({
         fullName: step1Schema.shape.fullName,
         email: step1Schema.shape.email,
-        phoneNumber: step1Schema.shape.phoneNumber,
         password: step1Schema.shape.password,
         confirmPassword: step1Schema.shape.confirmPassword,
+        phoneNumber: stepPhoneSchema.shape.phoneNumber,
         selectedPlanId: step3Schema.shape.selectedPlanId,
         city: step2Schema.shape.city,
         age: step5Schema.shape.age,
