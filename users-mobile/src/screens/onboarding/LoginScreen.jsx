@@ -500,7 +500,7 @@ export default function LoginScreen({ navigation }) {
     return (
         <KeyboardAvoidingView
             style={styles.container}
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
             <ScrollView
                 contentContainerStyle={styles.scrollContent}
@@ -942,6 +942,7 @@ const styles = StyleSheet.create({
     },
     passwordInput: {
         flex: 1,
+        height: '100%',
         fontSize: 15,
         ...FONT.medium,
         color: C.dark,
