@@ -186,10 +186,16 @@ async function registerPatient(body, req) {
     err.status = 400;
     throw err;
   }
-  if (!org.canAdd('patient')) {
-    const err = new Error('This organisation has reached its patient capacity');
-    err.status = 400;
-    throw err;
+  // Defensive: canAdd may fail if counts field is undefined on the org doc
+  try {
+    if (typeof org.canAdd === 'function' && !org.canAdd('patient')) {
+      const err = new Error('This organisation has reached its patient capacity. Please contact support.');
+      err.status = 400;
+      throw err;
+    }
+  } catch (capacityErr) {
+    if (capacityErr.status === 400) throw capacityErr;
+    console.warn('[Auth] org.canAdd() check failed, allowing registration:', capacityErr.message);
   }
 
   // For OAuth users use their Supabase UID; for email-password generate a new one

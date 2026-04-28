@@ -29,7 +29,8 @@ const HTTP_STATUS_MAP = {
     429: 'Too many requests. Please wait and try again.',
     500: 'Server error. Please try again later.',
     502: 'Server is temporarily unavailable. Please try again.',
-    503: 'Service unavailable. Please try again later.',
+    503: 'Our servers are temporarily busy. Please try again in a moment.',
+    504: 'The request timed out. Please check your connection and try again.',
 };
 
 /**
@@ -112,6 +113,18 @@ export function parseError(error) {
             }
             if (code === 'INVALID_CREDENTIALS') {
                 result.general = 'Incorrect email or password.';
+                return result;
+            }
+            if (code === 'SERVICE_UNAVAILABLE') {
+                result.general = 'Our servers are temporarily busy. Please try again in a moment.';
+                return result;
+            }
+            if (code === 'TIMEOUT') {
+                result.general = 'The request timed out. Please check your connection and try again.';
+                return result;
+            }
+            if (code === 'ACCOUNT_DEACTIVATED') {
+                result.general = backendMsg;
                 return result;
             }
 
