@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, Platform, ActivityIndicator, Animated, Pressable, Linking, Modal, TouchableWithoutFeedback, TextInput, KeyboardAvoidingView, Alert, FlatList, Switch, Keyboard } from 'react-native';
+import SmartInput from '../../components/ui/SmartInput';
 import PremiumFormModal from '../../components/ui/PremiumFormModal';
 import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -857,7 +858,7 @@ export default function HealthProfileScreen({ navigation }) {
                 {/* Form Fields Matrix */}
                 {editingType === 'condition' && (
                     <>
-                        <View style={s.formGroup}><Text style={s.formLabel}>Condition Name *</Text><TextInput style={s.input} placeholderTextColor={C.muted} value={formState.name} onChangeText={(t) => setFormState({...formState, name: t})} placeholder="e.g. Type 2 Diabetes" /></View>
+                        <View style={s.formGroup}><SmartInput label="Condition Name *" value={formState.name} onChangeText={(t) => setFormState({...formState, name: t})} placeholder="e.g. Type 2 Diabetes" /></View>
                         <View style={s.formGroup}>
                             <Text style={s.formLabel}>Status</Text>
                             <ChipSelector options={statusOptions} selected={formState.status} onSelect={v => setFormState({...formState, status: v})} />
@@ -866,23 +867,23 @@ export default function HealthProfileScreen({ navigation }) {
                             <Text style={s.formLabel}>Severity</Text>
                             <ChipSelector options={severityOptions} selected={formState.severity} onSelect={v => setFormState({...formState, severity: v})} />
                         </View>
-                        <View style={s.formGroup}><Text style={s.formLabel}>Notes</Text><TextInput style={[s.input, s.inputMulti]} placeholderTextColor={C.muted} multiline value={formState.notes} onChangeText={(t) => setFormState({...formState, notes: t})} placeholder="Write any personal notes here..." /></View>
+                        <View style={s.formGroup}><SmartInput label="Notes" variant="multiline" multiline value={formState.notes} onChangeText={(t) => setFormState({...formState, notes: t})} placeholder="Write any personal notes here..." /></View>
                     </>
                 )}
                 {editingType === 'allergy' && (
                     <>
-                        <View style={s.formGroup}><Text style={s.formLabel}>Allergy Name *</Text><TextInput style={s.input} placeholderTextColor={C.muted} value={formState.name} onChangeText={(t) => setFormState({...formState, name: t})} placeholder="e.g. Peanuts, Penicillin" /></View>
+                        <View style={s.formGroup}><SmartInput label="Allergy Name *" value={formState.name} onChangeText={(t) => setFormState({...formState, name: t})} placeholder="e.g. Peanuts, Penicillin" /></View>
                         <View style={s.formGroup}>
                             <Text style={s.formLabel}>Severity</Text>
                             <ChipSelector options={severityOptions} selected={formState.severity} onSelect={v => setFormState({...formState, severity: v})} />
                         </View>
-                        <View style={s.formGroup}><Text style={s.formLabel}>Reaction Details</Text><TextInput style={[s.input, s.inputMulti]} placeholderTextColor={C.muted} multiline value={formState.reaction} onChangeText={(t) => setFormState({...formState, reaction: t})} placeholder="Describe the physical reaction (e.g., Hives, Anaphylaxis)" /></View>
+                        <View style={s.formGroup}><SmartInput label="Reaction Details" variant="multiline" multiline value={formState.reaction} onChangeText={(t) => setFormState({...formState, reaction: t})} placeholder="Describe the physical reaction (e.g., Hives, Anaphylaxis)" /></View>
                     </>
                 )}
                 {editingType === 'vitals' && (
                     <>
-                        <View style={s.formGroup}><Text style={s.formLabel}>Height (cm)</Text><TextInput style={s.input} placeholderTextColor={C.muted} keyboardType="numeric" maxLength={3} value={String(formState.height_cm||'')} onChangeText={(t) => { const v = t.replace(/[^0-9]/g, ''); setFormState({...formState, height_cm: v ? Number(v) : ''}); }} placeholder="e.g. 170" /></View>
-                        <View style={s.formGroup}><Text style={s.formLabel}>Weight (kg)</Text><TextInput style={s.input} placeholderTextColor={C.muted} keyboardType="numeric" maxLength={3} value={String(formState.weight_kg||'')} onChangeText={(t) => { const v = t.replace(/[^0-9.]/g, ''); setFormState({...formState, weight_kg: v ? Number(v) : ''}); }} placeholder="e.g. 70" /></View>
+                        <View style={s.formGroup}><SmartInput label="Height (cm)" keyboardType="numeric" maxLength={3} value={String(formState.height_cm||'')} onChangeText={(t) => { const v = t.replace(/[^0-9]/g, ''); setFormState({...formState, height_cm: v ? Number(v) : ''}); }} placeholder="e.g. 170" /></View>
+                        <View style={s.formGroup}><SmartInput label="Weight (kg)" keyboardType="numeric" maxLength={3} value={String(formState.weight_kg||'')} onChangeText={(t) => { const v = t.replace(/[^0-9.]/g, ''); setFormState({...formState, weight_kg: v ? Number(v) : ''}); }} placeholder="e.g. 70" /></View>
                     </>
                 )}
                 {editingType === 'habits' && (
@@ -905,7 +906,7 @@ export default function HealthProfileScreen({ navigation }) {
                         </View>
                         <View style={s.formGroup}>
                             <Text style={s.formLabel}>Mobility Aids</Text>
-                            <TextInput style={s.input} placeholderTextColor={C.muted} value={formState.mobility_aids} onChangeText={(t) => setFormState({...formState, mobility_aids: t})} placeholder="e.g. Cane, Walker (comma separated)" />
+                            <SmartInput label="Mobility Aids" value={formState.mobility_aids} onChangeText={(t) => setFormState({...formState, mobility_aids: t})} placeholder="e.g. Cane, Walker (comma separated)" />
                         </View>
                         <View style={s.formGroup}>
                             <Text style={s.formLabel}>Activity Intensity & Duration</Text>
@@ -917,27 +918,24 @@ export default function HealthProfileScreen({ navigation }) {
                     <>
                         <View style={s.formGroup}>
                             <Text style={s.formLabel}>Blood Type</Text>
-                            <TextInput style={s.input} placeholderTextColor={C.muted} value={formState.blood_type} onChangeText={(t) => setFormState({...formState, blood_type: t.toUpperCase()})} placeholder="e.g. A+, O-" />
+                            <SmartInput label="Blood Type" value={formState.blood_type} onChangeText={(t) => setFormState({...formState, blood_type: t.toUpperCase()})} placeholder="e.g. A+, O-" />
                         </View>
                         <View style={s.formGroup}>
                             <Text style={s.formLabel}>Dietary Restrictions</Text>
-                            <TextInput style={[s.input, s.inputMulti]} placeholderTextColor={C.muted} multiline value={formState.dietary_restrictions} onChangeText={(t) => setFormState({...formState, dietary_restrictions: t})} placeholder="e.g. Low Sodium, Diabetic, Gluten-Free" />
+                            <SmartInput label="Dietary Restrictions" variant="multiline" multiline value={formState.dietary_restrictions} onChangeText={(t) => setFormState({...formState, dietary_restrictions: t})} placeholder="e.g. Low Sodium, Diabetic, Gluten-Free" />
                         </View>
                     </>
                 )}
                 {editingType === 'contact' && (
                     <>
                         <View style={s.formGroup}>
-                            <Text style={s.formLabel}>Contact Name *</Text>
-                            <TextInput style={s.input} placeholderTextColor={C.muted} value={formState.name} onChangeText={(t) => setFormState({...formState, name: t})} placeholder="e.g. Jane Doe" />
+                            <SmartInput label="Contact Name *" value={formState.name} onChangeText={(t) => setFormState({...formState, name: t})} placeholder="e.g. Jane Doe" />
                         </View>
                         <View style={s.formGroup}>
-                            <Text style={s.formLabel}>Relationship</Text>
-                            <TextInput style={s.input} placeholderTextColor={C.muted} value={formState.relation} onChangeText={(t) => setFormState({...formState, relation: t})} placeholder="e.g. Daughter, Spouse" />
+                            <SmartInput label="Relationship" value={formState.relation} onChangeText={(t) => setFormState({...formState, relation: t})} placeholder="e.g. Daughter, Spouse" />
                         </View>
                         <View style={s.formGroup}>
-                            <Text style={s.formLabel}>Phone Number *</Text>
-                            <TextInput style={s.input} placeholderTextColor={C.muted} keyboardType="phone-pad" value={formState.phone} onChangeText={(t) => setFormState({...formState, phone: t})} placeholder="e.g. 9876543210" />
+                            <SmartInput label="Phone Number *" keyboardType="phone-pad" value={formState.phone} onChangeText={(t) => setFormState({...formState, phone: t})} placeholder="e.g. 9876543210" />
                         </View>
                         <View style={s.formGroup}>
                             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#F8FAFC', padding: 16, borderRadius: 16, borderWidth: 1, borderColor: '#E2E8F0' }}>
@@ -957,7 +955,7 @@ export default function HealthProfileScreen({ navigation }) {
                 )}
                 {editingType === 'gp' && (
                     <>
-                        <View style={s.formGroup}><Text style={s.formLabel}>Doctor's Name</Text><TextInput style={s.input} placeholderTextColor={C.muted} value={formState.gp_name} onChangeText={(t) => setFormState({...formState, gp_name: t})} placeholder="Dr. John Doe" /></View>
+                        <View style={s.formGroup}><SmartInput label="Doctor's Name" value={formState.gp_name} onChangeText={(t) => setFormState({...formState, gp_name: t})} placeholder="Dr. John Doe" /></View>
                         <View style={s.formGroup}>
                             <Text style={s.formLabel}>Contact Number</Text>
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -972,24 +970,23 @@ export default function HealthProfileScreen({ navigation }) {
                                     <Text style={{ fontSize: 15, color: '#334155', fontWeight: '500' }}>{formState.gp_phoneCode || '+91'}</Text>
                                     <ChevronDown size={14} color="#94A3B8" />
                                 </Pressable>
-                                <TextInput 
-                                    style={[s.input, { flex: 1, marginTop: 0 }]} 
-                                    placeholderTextColor={C.muted} 
+                                <SmartInput 
                                     keyboardType="phone-pad" 
                                     value={formState.gp_phone} 
                                     onChangeText={(t) => setFormState({...formState, gp_phone: t.replace(/[^0-9]/g, '')})} 
                                     maxLength={COUNTRY_CODES.find(c => c.code === formState.gp_phoneCode)?.maxDigits || 12}
-                                    placeholder="98765 43210" 
+                                    placeholder="98765 43210"
+                                    style={{ flex: 1 }}
                                 />
                             </View>
                         </View>
-                        <View style={s.formGroup}><Text style={s.formLabel}>Email</Text><TextInput style={s.input} placeholderTextColor={C.muted} keyboardType="email-address" autoCapitalize="none" value={formState.gp_email} onChangeText={(t) => setFormState({...formState, gp_email: t})} placeholder="doctor@clinic.com" /></View>
+                        <View style={s.formGroup}><SmartInput label="Email" keyboardType="email-address" autoCapitalize="none" value={formState.gp_email} onChangeText={(t) => setFormState({...formState, gp_email: t})} placeholder="doctor@clinic.com" /></View>
                     </>
                 )}
                 {editingType === 'medication' && (
                     <>
-                        <View style={s.formGroup}><Text style={s.formLabel}>Medication Name *</Text><TextInput style={s.input} placeholderTextColor={C.muted} value={formState.name} onChangeText={(t) => setFormState({...formState, name: t})} placeholder="e.g. Paracetamol" /></View>
-                        <View style={s.formGroup}><Text style={s.formLabel}>Dosage</Text><TextInput style={s.input} placeholderTextColor={C.muted} value={formState.dosage} onChangeText={(t) => setFormState({...formState, dosage: t})} placeholder="e.g. 500mg" /></View>
+                        <View style={s.formGroup}><SmartInput label="Medication Name *" value={formState.name} onChangeText={(t) => setFormState({...formState, name: t})} placeholder="e.g. Paracetamol" /></View>
+                        <View style={s.formGroup}><SmartInput label="Dosage" value={formState.dosage} onChangeText={(t) => setFormState({...formState, dosage: t})} placeholder="e.g. 500mg" /></View>
                         <View style={s.formGroup}>
                             <Text style={s.formLabel}>Frequency</Text>
                             <ChipSelector options={frequencyOptions} selected={formState.frequency} onSelect={v => setFormState({...formState, frequency: v})} />
@@ -1007,7 +1004,7 @@ export default function HealthProfileScreen({ navigation }) {
                                 })}
                             </View>
                         </View>
-                        <View style={s.formGroup}><Text style={s.formLabel}>Prescribed By</Text><TextInput style={s.input} placeholderTextColor={C.muted} value={formState.prescribed_by} onChangeText={(t) => setFormState({...formState, prescribed_by: t})} placeholder="Doctor's Name" /></View>
+                        <View style={s.formGroup}><SmartInput label="Prescribed By" value={formState.prescribed_by} onChangeText={(t) => setFormState({...formState, prescribed_by: t})} placeholder="Doctor's Name" /></View>
                         <View style={[s.formGroup, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 }]}>
                             <Text style={s.formLabel}>Currently Active</Text>
                             <Switch
@@ -1028,14 +1025,14 @@ export default function HealthProfileScreen({ navigation }) {
                 )}
                 {editingType === 'history' && (
                     <>
-                        <View style={s.formGroup}><Text style={s.formLabel}>Event / Surgery / Diagnosis *</Text><TextInput style={s.input} placeholderTextColor={C.muted} value={formState.event} onChangeText={(t) => setFormState({...formState, event: t})} placeholder="e.g. Knee Replacement" /></View>
+                        <View style={s.formGroup}><SmartInput label="Event / Surgery / Diagnosis *" value={formState.event} onChangeText={(t) => setFormState({...formState, event: t})} placeholder="e.g. Knee Replacement" /></View>
                         <View style={s.formGroup}><Text style={s.formLabel}>Date *</Text><Pressable style={s.input} onPress={() => { setDatePickerField('date'); setShowDatePicker(true); }}><Text style={{ color: formState.date ? C.dark : C.muted, fontSize: 15 }}>{formState.date ? new Date(formState.date).toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' }) : 'Select date'}</Text></Pressable></View>
-                        <View style={s.formGroup}><Text style={s.formLabel}>Detailed Notes</Text><TextInput style={[s.input, s.inputMulti]} placeholderTextColor={C.muted} multiline value={formState.notes} onChangeText={(t) => setFormState({...formState, notes: t})} placeholder="How did the procedure go? Who was the doctor?" /></View>
+                        <View style={s.formGroup}><SmartInput label="Detailed Notes" variant="multiline" multiline value={formState.notes} onChangeText={(t) => setFormState({...formState, notes: t})} placeholder="How did the procedure go? Who was the doctor?" /></View>
                     </>
                 )}
                 {editingType === 'vaccination' && (
                     <>
-                        <View style={s.formGroup}><Text style={s.formLabel}>Vaccine Name *</Text><TextInput style={s.input} placeholderTextColor={C.muted} value={formState.name} onChangeText={(t) => setFormState({...formState, name: t})} placeholder="e.g. Influenza, COVID-19" /></View>
+                        <View style={s.formGroup}><SmartInput label="Vaccine Name *" value={formState.name} onChangeText={(t) => setFormState({...formState, name: t})} placeholder="e.g. Influenza, COVID-19" /></View>
                         <View style={s.formGroup}><Text style={s.formLabel}>Date Given *</Text><Pressable style={s.input} onPress={() => { setDatePickerField('date_given'); setShowDatePicker(true); }}><Text style={{ color: formState.date_given ? C.dark : C.muted, fontSize: 15 }}>{formState.date_given ? new Date(formState.date_given).toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' }) : 'Select date'}</Text></Pressable></View>
                     </>
                 )}
