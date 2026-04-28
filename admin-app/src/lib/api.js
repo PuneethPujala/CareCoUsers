@@ -291,6 +291,13 @@ export const apiService = {
   calls: {
     getHistory: (params) => api.get('/caretaker/call-history', { params }),
   },
+
+  // Notification endpoints
+  notifications: {
+    getAll: (params) => api.get('/notifications', { params }),
+    markRead: (id) => api.patch(`/notifications/${id}/read`),
+    markAllRead: () => api.patch('/notifications/read-all'),
+  },
 };
 
 // Error handling utilities

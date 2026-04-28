@@ -36,7 +36,7 @@ export function AuthProvider({ children }) {
           try {
             const response = await Promise.race([
               apiService.auth.getProfile(),
-              new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 4000)),
+              new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 15000)),
             ]);
             const prof = response.data.profile;
             if (!ADMIN_ROLES.includes(prof.role)) {

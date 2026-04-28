@@ -86,12 +86,22 @@ export default function ActiveCallScreen({ navigation, route }) {
 
         const fetchMeds = async () => {
             try {
-                const res = await apiService.caretaker.getPatientMeds(patientId);
+                const res = await apiService.caretaker.getPatientMeds(patientId, { shift: currentShift });
                 const allMeds = res.data?.medications || [];
                 setAllMedications(allMeds);
                 // Filter to current shift only
                 const shiftMeds = filterMedsByShift(allMeds, currentShift);
                 setMedications(shiftMeds);
+
+                const initialChecked = {};
+                shiftMeds.forEach(m => {
+                    // Was it natively marked by Patient or Caller for THIS specific shift today?
+                    // (Backend explicitly bounds these flags by the current shift)
+                    if (m.patientMarked || m.callerMarked) {
+                        initialChecked[m._id] = true;
+                    }
+                });
+                setCheckedMeds(initialChecked);
             } catch (err) {
                 console.error('[ActiveCall] Meds error:', err);
                 Alert.alert('Warning', 'Could not load live medication list.');
