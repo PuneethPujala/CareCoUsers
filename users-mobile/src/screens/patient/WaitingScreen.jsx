@@ -102,7 +102,7 @@ export default function WaitingScreen({ navigation, route }) {
                         </View>
                         <Text style={styles.waitingTitle}>Your Coordinator Will Call Soon</Text>
                         <Text style={styles.waitingDesc}>
-                            A Samvaya care coordinator from your city will call you shortly to complete your health profile and get you started.
+                            A CareMyMed care coordinator from your city will call you shortly to complete your health profile and get you started.
                         </Text>
                         <View style={styles.waitingTimeline}>
                             <Clock size={16} color="rgba(255,255,255,0.6)" />
@@ -111,10 +111,10 @@ export default function WaitingScreen({ navigation, route }) {
                     </LinearGradient>
                 </Animated.View>
 
-                {/* About Samvaya */}
+                {/* About CareMyMed */}
                 <Animated.View style={{ opacity: fadeAnim }}>
                     <Text style={styles.sectionEyebrow}>WHILE YOU WAIT</Text>
-                    <Text style={styles.sectionTitle}>Discover Samvaya</Text>
+                    <Text style={styles.sectionTitle}>Discover CareMyMed</Text>
                     <View style={styles.content}>
                         <Text style={styles.title}>Welcome to CareMyMed</Text>
                         <Text style={styles.subtitle}>
