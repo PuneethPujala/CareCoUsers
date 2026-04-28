@@ -4,8 +4,7 @@ import {
     KeyboardAvoidingView, Animated, ActivityIndicator, Alert, Modal,
     BackHandler, Dimensions, Image, ScrollView
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Mail, Lock, Eye, EyeOff, HeartPulse, AlertCircle, Smartphone, ChevronRight, X } from 'lucide-react-native';
+import { Eye, EyeOff, AlertCircle, X, Lock, Mail } from 'lucide-react-native';
 import { useAuth } from '../../context/AuthContext';
 import { apiService } from '../../lib/api';
 import { parseError } from '../../utils/parseError';
@@ -13,29 +12,20 @@ import analytics from '../../utils/analytics';
 import { colors } from '../../theme';
 import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 
-const { height: SCREEN_H } = Dimensions.get('window');
-
 const C = {
-    pageBg: '#F8FAFC',
-    heroBgTop: '#4F46E5',
-    heroBgBottom: '#6366F1',
-    orbDark: '#4338CA',
-    orbMid: '#6366F1',
-    orbLight: '#818CF8',
-    cardBg: 'rgba(255,255,255,0.98)',
-    cardBorder: 'rgba(255,255,255,0.7)',
+    bg: '#F4F7FB',
+    surface: '#FFFFFF',
     primary: '#6366F1',
-    primaryDark: '#4338CA',
+    primaryDark: '#4F46E5',
     primarySoft: '#EEF2FF',
-    dark: '#0F172A',
-    mid: '#475569',
+    dark: '#1A202C',
+    mid: '#4A5568',
     muted: '#94A3B8',
-    light: '#E2E8F0',
-    border: '#F1F5F9',
-    borderMid: '#E2E8F0',
+    border: '#E2E8F0',
+    inputBg: '#FAFBFF',
     danger: '#EF4444',
     dangerBg: '#FEF2F2',
-    success: '#10B981',
+    tabTrack: '#E8EDF5',
 };
 
 const FONT = {
@@ -48,7 +38,7 @@ const FONT = {
 
 // ─── Reset Password OTP Modal ───────────────────────────────────────────────
 const ResetPasswordModal = ({ visible, onClose, email }) => {
-    const [step, setStep] = useState('request'); // 'request' | 'otp' | 'newpass'
+    const [step, setStep] = useState('request');
     const [resetEmail, setResetEmail] = useState(email || '');
     const [otp, setOtp] = useState('');
     const [newPassword, setNewPassword] = useState('');
@@ -247,13 +237,13 @@ const ResetPasswordModal = ({ visible, onClose, email }) => {
 
 const rs = StyleSheet.create({
     overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 },
-    sheet: { width: '100%', maxWidth: 420, backgroundColor: 'rgba(255,255,255,0.96)', borderRadius: 32, padding: 28, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 20, elevation: 10 },
+    sheet: { width: '100%', maxWidth: 420, backgroundColor: '#FFFFFF', borderRadius: 24, padding: 28, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 20, elevation: 10 },
     header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-    title: { fontSize: 20, ...FONT.heavy, color: '#0D1B4B' },
+    title: { fontSize: 20, ...FONT.heavy, color: C.dark },
     subtitle: { fontSize: 14, ...FONT.medium, color: C.muted, lineHeight: 22, marginBottom: 20 },
-    inputWrap: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', borderWidth: 1.5, borderColor: C.borderMid, borderRadius: 16, height: 56, paddingHorizontal: 16, marginBottom: 14, gap: 12 },
+    inputWrap: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.inputBg, borderWidth: 1.5, borderColor: C.border, borderRadius: 14, height: 56, paddingHorizontal: 16, marginBottom: 14, gap: 12 },
     input: { flex: 1, fontSize: 16, color: C.dark, ...FONT.semibold, paddingVertical: 0 },
-    btn: { backgroundColor: '#6366F1', borderRadius: 16, height: 54, alignItems: 'center', justifyContent: 'center', marginTop: 8 },
+    btn: { backgroundColor: C.primary, borderRadius: 14, height: 52, alignItems: 'center', justifyContent: 'center', marginTop: 8 },
     btnText: { color: '#FFF', fontSize: 16, ...FONT.bold },
     errorBox: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: C.dangerBg, borderRadius: 12, padding: 14, marginBottom: 14 },
     errorText: { color: '#991B1B', fontSize: 13, ...FONT.semibold, flex: 1 },
@@ -282,11 +272,8 @@ export default function LoginScreen({ navigation }) {
     const emailRef = useRef(null);
     const passwordRef = useRef(null);
 
-    // Animations
-    const heroAnim = useRef(new Animated.Value(-10)).current;
-    const heroOpacity = useRef(new Animated.Value(0)).current;
-    const cardAnim = useRef(new Animated.Value(20)).current;
-    const cardOpacity = useRef(new Animated.Value(0)).current;
+    const fadeAnim = useRef(new Animated.Value(0)).current;
+    const slideAnim = useRef(new Animated.Value(16)).current;
 
     useEffect(() => {
         GoogleSignin.configure({
@@ -295,10 +282,8 @@ export default function LoginScreen({ navigation }) {
         });
 
         Animated.parallel([
-            Animated.timing(heroAnim, { toValue: 0, duration: 300, useNativeDriver: true }),
-            Animated.timing(heroOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
-            Animated.timing(cardAnim, { toValue: 0, duration: 350, delay: 100, useNativeDriver: true }),
-            Animated.timing(cardOpacity, { toValue: 1, duration: 350, delay: 100, useNativeDriver: true }),
+            Animated.timing(fadeAnim, { toValue: 1, duration: 320, useNativeDriver: true }),
+            Animated.timing(slideAnim, { toValue: 0, duration: 320, useNativeDriver: true }),
         ]).start();
     }, []);
 
@@ -322,7 +307,7 @@ export default function LoginScreen({ navigation }) {
             setTimeout(() => setLoading(true), 0);
             setErrorText('');
             await GoogleSignin.hasPlayServices();
-            try { await GoogleSignin.signOut(); } catch (e) {} // Force picker
+            try { await GoogleSignin.signOut(); } catch (e) {}
             const signInResult = await GoogleSignin.signIn();
             const idToken = signInResult?.data?.idToken;
             if (!idToken) {
@@ -331,15 +316,11 @@ export default function LoginScreen({ navigation }) {
             }
             const result = await signInWithGoogle(idToken);
             if (result?.isNewUser) {
-                // No profile found — auto-create/link patient account
                 const googleUser = result.user;
                 const fullName = googleUser.user_metadata?.full_name
                     || googleUser.user_metadata?.name
                     || googleUser.email.split('@')[0];
                 try {
-                    // Register returns profile + CareMyMednnect JWT session for OAuth users.
-                    // We pass these CareMyMednnect tokens to injectSession so the API
-                    // interceptor uses verifiable tokens for all subsequent calls.
                     const regRes = await apiService.auth.register({
                         email: googleUser.email, fullName, role: 'patient',
                         supabaseUid: googleUser.id,
@@ -349,7 +330,6 @@ export default function LoginScreen({ navigation }) {
                     if (regProfile && regSession) {
                         await injectSession(regSession, regProfile);
                     } else if (regProfile) {
-                        // Fallback if backend didn't return session (shouldn't happen for OAuth)
                         await injectSession(result.session, regProfile);
                     } else {
                         setErrorText('Registration succeeded but no profile returned. Please try again.');
@@ -360,7 +340,6 @@ export default function LoginScreen({ navigation }) {
                     const regProfile = regError?.response?.data?.profile;
                     const regSession = regError?.response?.data?.session;
                     if (code === 'EMAIL_ALREADY_EXISTS' && regProfile && regSession) {
-                        // Backend linked the accounts and returned CareMyMednnect session
                         await injectSession(regSession, regProfile);
                     } else if (code === 'EMAIL_ALREADY_EXISTS') {
                         setErrorText('An account with this email already exists. Please try logging in with your password.');
@@ -406,8 +385,6 @@ export default function LoginScreen({ navigation }) {
         try {
             const result = await signIn(cleanEmail, password, 'patient');
 
-            // §SEC: MFA Challenge Gate (Audit 2.1-2.4)
-            // If backend returns requireMfa, navigate to MFA verify screen
             if (result?.requireMfa && result?.mfa_token) {
                 setLoading(false);
                 isSubmittingRef.current = false;
@@ -424,10 +401,8 @@ export default function LoginScreen({ navigation }) {
         } catch (error) {
             const code = error?.response?.data?.code;
             if (code === 'NO_PASSWORD_SET') {
-                // SEC-FIX-1: Server returns generic message, but code lets us show a helpful hint
                 setErrorText('This account uses Google Sign-In. Please log in with Google, then set a password in Settings.');
             } else {
-                // SEC-FIX-1: Server now returns generic "Invalid email or password" for all failures
                 const msg = error?.response?.data?.error || 'Invalid email or password. Please try again.';
                 setErrorText(msg);
             }
@@ -448,173 +423,139 @@ export default function LoginScreen({ navigation }) {
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
             <ScrollView
-                contentContainerStyle={{ flexGrow: 1, paddingBottom: 40 }}
+                contentContainerStyle={styles.scrollContent}
                 showsVerticalScrollIndicator={false}
                 keyboardShouldPersistTaps="handled"
             >
-                {/* Hero Section — deep, immersive */}
-                <Animated.View style={{ transform: [{ translateY: heroAnim }], opacity: heroOpacity }}>
-                    <LinearGradient
-                        colors={['#4F46E5', '#6366F1', '#818CF8']}
-                        start={{ x: 0, y: 0 }} end={{ x: 0.8, y: 1 }}
-                        style={styles.hero}
-                    >
-                        <View style={styles.orb1} />
-                        <View style={styles.orb2} />
-                        <View style={styles.orb3} />
-                        <View style={styles.orb4} />
-                        <View style={styles.orb5} />
+                <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
 
-                        <View style={[styles.heroIconWrap, { backgroundColor: '#FFFFFF' }]}>
-                            <Image 
-                                source={require('../../../assets/logo.png')} 
-                                style={{ width: 44, height: 44 }} 
-                                resizeMode="contain" 
-                            />
+                    {/* Welcome badge */}
+                    <View style={styles.welcomeBadge}>
+                        <View style={styles.welcomeDot} />
+                        <Text style={styles.welcomeBadgeText}>Welcome back</Text>
+                    </View>
+
+                    {/* Title */}
+                    <Text style={styles.titleLine1}>Sign in to</Text>
+                    <Text style={styles.titleAppName}>SAMVAYA</Text>
+
+                    {/* Tab switcher */}
+                    <View style={styles.tabTrack}>
+                        <View style={styles.tabActive}>
+                            <Text style={styles.tabActiveText}>Email</Text>
                         </View>
-                        <Text style={styles.heroLabel}>SAMVAYA</Text>
-                        <Text style={styles.heroTitle}>Welcome Back</Text>
-                        <Text style={styles.heroSubtitle}>Your premium health journey continues here</Text>
-                    </LinearGradient>
-                </Animated.View>
-
-                {/* Form Card */}
-                <Animated.View style={[styles.formCard, { transform: [{ translateY: cardAnim }], opacity: cardOpacity }]}>
-
-                    {/* Social Logins */}
-                    <View style={styles.socialRowPremium}>
-                        <Pressable style={styles.socialBtnPremium} onPress={handleGooglePress} disabled={loading}>
-                            <View style={styles.googleBadge}>
-                                <Text style={styles.googleG}>G</Text>
-                            </View>
-                            <Text style={styles.socialBtnTextPremium}>Continue with Google</Text>
+                        <Pressable style={styles.tabInactive} disabled>
+                            <Text style={styles.tabInactiveText}>Phone</Text>
                         </Pressable>
-                    </View>
-                    <View style={[styles.socialRowPremium, { marginBottom: 18 }]}>
-                        <Pressable style={[styles.socialBtnPremium, styles.socialBtnDisabled]} disabled>
-                            <Smartphone size={18} color="#94A3B8" />
-                            <Text style={[styles.socialBtnTextPremium, { color: '#94A3B8' }]}>OTP Login</Text>
-                            <View style={styles.soonBadge}>
-                                <Text style={styles.soonBadgeText}>SOON</Text>
-                            </View>
-                        </Pressable>
-                    </View>
-
-                    {/* Divider */}
-                    <View style={styles.dividerRowPremium}>
-                        <View style={styles.dividerLine} />
-                        <Text style={styles.dividerText}>OR LOGIN WITH EMAIL</Text>
-                        <View style={styles.dividerLine} />
                     </View>
 
                     {/* Error */}
                     {errorText ? (
                         <View style={styles.errorBox}>
-                            <AlertCircle size={16} color={C.danger} />
+                            <AlertCircle size={15} color={C.danger} />
                             <Text style={styles.errorMsg}>{errorText}</Text>
                         </View>
                     ) : null}
 
-                    {/* Email Field */}
-                    <View style={styles.fieldGroup}>
-                        <Text style={styles.label}>Email Address</Text>
-                        <Pressable
-                            style={[styles.inputWrap, emailFocused && styles.inputFocused]}
-                            onPress={() => emailRef.current?.focus()}
-                        >
-                            <View style={[styles.inlineIconBox, emailFocused && { backgroundColor: C.primarySoft }]}>
-                                <Mail size={18} color={emailFocused ? C.primary : C.muted} />
-                            </View>
-                            <TextInput
-                                ref={emailRef}
-                                style={styles.textInput}
-                                placeholder="name@example.com"
-                                placeholderTextColor={C.muted}
-                                value={email}
-                                onChangeText={handleEmailChange}
-                                autoCapitalize="none"
-                                keyboardType="email-address"
-                                autoCorrect={false}
-                                spellCheck={false}
-                                textContentType="emailAddress"
-                                onFocus={() => setEmailFocused(true)}
-                                onBlur={() => setEmailFocused(false)}
-                                blurOnSubmit={false}
-                                autoFocus
-                                returnKeyType="next"
-                                onSubmitEditing={() => passwordRef.current?.focus()}
-                            />
+                    {/* Email field */}
+                    <Text style={styles.fieldLabel}>EMAIL ADDRESS</Text>
+                    <TextInput
+                        ref={emailRef}
+                        style={[styles.input, emailFocused && styles.inputFocused]}
+                        placeholder="you@example.com"
+                        placeholderTextColor={C.muted}
+                        value={email}
+                        onChangeText={handleEmailChange}
+                        autoCapitalize="none"
+                        keyboardType="email-address"
+                        autoCorrect={false}
+                        spellCheck={false}
+                        textContentType="emailAddress"
+                        onFocus={() => setEmailFocused(true)}
+                        onBlur={() => setEmailFocused(false)}
+                        blurOnSubmit={false}
+                        autoFocus
+                        returnKeyType="next"
+                        onSubmitEditing={() => passwordRef.current?.focus()}
+                    />
+
+                    {/* Password field */}
+                    <View style={styles.passwordLabelRow}>
+                        <Text style={styles.fieldLabel}>PASSWORD</Text>
+                        <Pressable onPress={() => setResetModalVisible(true)} hitSlop={10}>
+                            <Text style={styles.forgotLink}>Forgot?</Text>
+                        </Pressable>
+                    </View>
+                    <View style={[styles.passwordWrap, passFocused && styles.inputFocused]}>
+                        <TextInput
+                            ref={passwordRef}
+                            style={styles.passwordInput}
+                            placeholder="Enter your password"
+                            placeholderTextColor={C.muted}
+                            value={password}
+                            onChangeText={handlePasswordChange}
+                            secureTextEntry={!showPassword}
+                            textContentType="password"
+                            onFocus={() => setPassFocused(true)}
+                            onBlur={() => setPassFocused(false)}
+                            returnKeyType="done"
+                            onSubmitEditing={handleLogin}
+                        />
+                        <Pressable onPress={() => setShowPassword(!showPassword)} hitSlop={12}>
+                            {showPassword
+                                ? <Eye size={18} color={C.primary} />
+                                : <EyeOff size={18} color={C.muted} />
+                            }
                         </Pressable>
                     </View>
 
-                    {/* Password Field */}
-                    <View style={styles.fieldGroup}>
-                        <Text style={styles.label}>Password</Text>
-                        <Pressable
-                            style={[styles.inputWrap, passFocused && styles.inputFocused]}
-                            onPress={() => passwordRef.current?.focus()}
-                        >
-                            <View style={[styles.inlineIconBox, passFocused && { backgroundColor: C.primarySoft }]}>
-                                <Lock size={18} color={passFocused ? C.primary : C.muted} />
-                            </View>
-                            <TextInput
-                                ref={passwordRef}
-                                style={styles.textInput}
-                                placeholder="Enter password"
-                                placeholderTextColor={C.muted}
-                                value={password}
-                                onChangeText={handlePasswordChange}
-                                secureTextEntry={!showPassword}
-                                textContentType="password"
-                                onFocus={() => setPassFocused(true)}
-                                onBlur={() => setPassFocused(false)}
-                                returnKeyType="done"
-                                onSubmitEditing={handleLogin}
-                            />
-                            <Pressable onPress={() => setShowPassword(!showPassword)} hitSlop={12}>
-                                {showPassword ? <Eye size={18} color={C.primary} /> : <EyeOff size={18} color={C.muted} />}
-                            </Pressable>
-                        </Pressable>
+                    {/* Sign In button */}
+                    <Pressable
+                        style={[styles.signInBtn, loading && { opacity: 0.7 }]}
+                        onPress={handleLogin}
+                        disabled={loading}
+                    >
+                        {loading ? (
+                            <ActivityIndicator size="small" color="#FFFFFF" />
+                        ) : (
+                            <Text style={styles.signInBtnText}>Sign In</Text>
+                        )}
+                    </Pressable>
+
+                    {/* Divider */}
+                    <View style={styles.dividerRow}>
+                        <View style={styles.dividerLine} />
+                        <Text style={styles.dividerText}>or continue with</Text>
+                        <View style={styles.dividerLine} />
                     </View>
 
-                    {/* Forgot Password */}
-                    <Pressable style={styles.forgotRow} onPress={() => setResetModalVisible(true)}>
-                        <Text style={styles.forgotText}>Forgot Password?</Text>
+                    {/* Google */}
+                    <Pressable style={styles.socialBtn} onPress={handleGooglePress} disabled={loading}>
+                        <View style={styles.googleIconBox}>
+                            <Text style={styles.googleIconText}>G</Text>
+                        </View>
+                        <Text style={styles.socialBtnText}>Continue with Google</Text>
                     </Pressable>
 
-                    {/* Login Button */}
-                    <Pressable style={[styles.primaryBtn, loading && { opacity: 0.7 }]} onPress={handleLogin} disabled={loading}>
-                        <LinearGradient
-                            colors={['#6366F1', '#4F46E5']}
-                            start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-                            style={styles.primaryBtnGradient}
-                        >
-                            {loading ? (
-                                <View style={styles.loadingRow}>
-                                    <ActivityIndicator size="small" color="#FFFFFF" />
-                                    <Text style={styles.primaryBtnText}>  Verifying...</Text>
-                                </View>
-                            ) : (
-                                <>
-                                    <Text style={styles.primaryBtnText}>Sign In to Dashboard</Text>
-                                    <ChevronRight size={20} color="#FFFFFF" />
-                                </>
-                            )}
-                        </LinearGradient>
+                    {/* Apple — coming soon */}
+                    <Pressable style={[styles.socialBtn, styles.socialBtnDisabled]} disabled>
+                        <View style={styles.appleIconBox}>
+                            <Text style={styles.appleIconText}>a</Text>
+                        </View>
+                        <Text style={[styles.socialBtnText, { color: C.muted }]}>Continue with Apple</Text>
                     </Pressable>
 
-                    {/* Sign Up Link */}
-                    <View style={styles.bottomLink}>
-                        <Text style={styles.bottomLinkText}>Don't have an account?  </Text>
+                    {/* Sign up row */}
+                    <View style={styles.signupRow}>
+                        <Text style={styles.signupText}>Don't have an account? </Text>
                         <Pressable onPress={() => navigation.navigate('PatientSignup')}>
-                            <Text style={styles.bottomLinkAction}>Sign Up</Text>
+                            <Text style={styles.signupLink}>Sign up</Text>
                         </Pressable>
                     </View>
 
                 </Animated.View>
             </ScrollView>
 
-            {/* Reset Password Modal */}
             <ResetPasswordModal
                 visible={resetModalVisible}
                 onClose={() => setResetModalVisible(false)}
@@ -625,124 +566,272 @@ export default function LoginScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#F0F4FF' },
+    container: {
+        flex: 1,
+        backgroundColor: C.bg,
+    },
+    scrollContent: {
+        flexGrow: 1,
+        paddingHorizontal: 28,
+        paddingTop: Platform.OS === 'ios' ? 72 : 52,
+        paddingBottom: 48,
+    },
 
-    // ─── Hero Section — deep, immersive ────────────
-    hero: {
-        minHeight: 260,
-        borderBottomLeftRadius: 44,
-        borderBottomRightRadius: 44,
+    // ─── Welcome badge ────────────────────────────
+    welcomeBadge: {
+        flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'center',
-        paddingTop: Platform.OS === 'ios' ? 60 : 44,
-        paddingBottom: 36,
-        overflow: 'hidden',
-    },
-    orb1: { position: 'absolute', borderRadius: 999, width: 200, height: 200, top: -80, right: -60, backgroundColor: '#2563EB', opacity: 0.35 },
-    orb2: { position: 'absolute', borderRadius: 999, width: 100, height: 100, top: 20, right: 50, backgroundColor: '#60A5FA', opacity: 0.25 },
-    orb3: { position: 'absolute', borderRadius: 999, width: 140, height: 140, bottom: -40, left: -40, backgroundColor: '#1D4ED8', opacity: 0.4 },
-    orb4: { position: 'absolute', borderRadius: 999, width: 60, height: 60, bottom: 40, left: 80, backgroundColor: '#93C5FD', opacity: 0.2 },
-    orb5: { position: 'absolute', borderRadius: 999, width: 80, height: 80, top: 60, left: -20, backgroundColor: '#3B82F6', opacity: 0.15 },
-    heroIconWrap: {
-        width: 72, height: 72, borderRadius: 24,
-        backgroundColor: 'rgba(255,255,255,0.12)',
-        alignItems: 'center', justifyContent: 'center',
-        marginBottom: 14,
-        borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.25)',
-    },
-    heroLabel: { fontSize: 12, ...FONT.bold, color: 'rgba(255,255,255,0.5)', letterSpacing: 5, marginBottom: 6 },
-    heroTitle: { fontSize: 32, fontWeight: '800', color: '#FFFFFF', letterSpacing: -1 },
-    heroSubtitle: { fontSize: 14, ...FONT.medium, color: 'rgba(255,255,255,0.65)', marginTop: 6 },
-
-    // ─── Form Card ───────────────────
-    formCard: {
-        marginTop: -28,
-        marginHorizontal: 16,
-        backgroundColor: 'rgba(255,255,255,0.97)',
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.8)',
-        borderRadius: 36,
-        paddingHorizontal: 24,
-        paddingTop: 20,
-        paddingBottom: 20,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 16 },
-        shadowOpacity: 0.12,
-        shadowRadius: 32,
-        elevation: 12,
-        zIndex: 5,
-    },
-
-    socialRowPremium: { flexDirection: 'row', gap: 12, marginBottom: 10 },
-    socialBtnPremium: {
-        flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-        backgroundColor: '#F8FAFF',
-        borderWidth: 1.5, borderColor: '#E2E8F0',
-        borderRadius: 20, height: 52, gap: 10,
-        shadowColor: '#1E3A8A', shadowOpacity: 0.04, shadowRadius: 8, elevation: 2,
-    },
-    socialBtnDisabled: { opacity: 0.55, backgroundColor: '#F1F5F9' },
-    socialBtnTextPremium: { fontSize: 14, ...FONT.bold, color: '#1E293B' },
-    googleBadge: {
-        width: 28, height: 28, borderRadius: 8,
-        backgroundColor: '#4285F4',
-        alignItems: 'center', justifyContent: 'center',
-    },
-    googleG: { fontSize: 16, ...FONT.heavy, color: '#FFFFFF' },
-    soonBadge: {
-        backgroundColor: '#EEF2FF', borderRadius: 100,
-        paddingHorizontal: 7, paddingVertical: 3,
-    },
-    soonBadgeText: { fontSize: 9, ...FONT.heavy, color: '#6366F1', letterSpacing: 0.8 },
-
-    dividerRowPremium: { flexDirection: 'row', alignItems: 'center', marginBottom: 18, paddingHorizontal: 8 },
-    dividerLine: { flex: 1, height: 1, backgroundColor: '#E2E8F0' },
-    dividerText: { marginHorizontal: 14, fontSize: 10, color: '#94A3B8', ...FONT.heavy, letterSpacing: 1.5 },
-
-    // ─── Fields ──────────────────────
-    fieldGroup: { marginBottom: 14 },
-    label: { fontSize: 12, ...FONT.bold, color: '#64748B', marginBottom: 8, marginLeft: 4, letterSpacing: 0.5 },
-    inlineIconBox: {
-        width: 32, height: 32, borderRadius: 12,
-        backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center', marginRight: 12,
-    },
-    inputWrap: {
-        flexDirection: 'row', alignItems: 'center',
-        backgroundColor: '#FAFBFF',
-        borderWidth: 1.5, borderColor: '#E2E8F0',
-        borderRadius: 20, height: 54,
+        alignSelf: 'flex-start',
+        backgroundColor: C.primarySoft,
+        borderRadius: 999,
         paddingHorizontal: 14,
+        paddingVertical: 7,
+        marginBottom: 22,
+        gap: 7,
+    },
+    welcomeDot: {
+        width: 7,
+        height: 7,
+        borderRadius: 999,
+        backgroundColor: C.primary,
+    },
+    welcomeBadgeText: {
+        fontSize: 13,
+        ...FONT.semibold,
+        color: C.primary,
+    },
+
+    // ─── Title ────────────────────────────────────
+    titleLine1: {
+        fontSize: 30,
+        ...FONT.heavy,
+        color: C.dark,
+        lineHeight: 36,
+    },
+    titleAppName: {
+        fontSize: 34,
+        ...FONT.heavy,
+        color: C.primary,
+        lineHeight: 42,
+        marginBottom: 30,
+        letterSpacing: -0.5,
+    },
+
+    // ─── Tab switcher ─────────────────────────────
+    tabTrack: {
+        flexDirection: 'row',
+        backgroundColor: C.tabTrack,
+        borderRadius: 12,
+        padding: 4,
+        marginBottom: 28,
+    },
+    tabActive: {
+        flex: 1,
+        backgroundColor: C.surface,
+        borderRadius: 10,
+        paddingVertical: 10,
+        alignItems: 'center',
+        shadowColor: '#000',
+        shadowOpacity: 0.06,
+        shadowRadius: 8,
+        shadowOffset: { width: 0, height: 2 },
+        elevation: 2,
+    },
+    tabActiveText: {
+        fontSize: 14,
+        ...FONT.semibold,
+        color: C.dark,
+    },
+    tabInactive: {
+        flex: 1,
+        paddingVertical: 10,
+        alignItems: 'center',
+    },
+    tabInactiveText: {
+        fontSize: 14,
+        ...FONT.medium,
+        color: C.muted,
+    },
+
+    // ─── Error ────────────────────────────────────
+    errorBox: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        backgroundColor: C.dangerBg,
+        borderRadius: 12,
+        padding: 12,
+        marginBottom: 18,
+        borderWidth: 1,
+        borderColor: '#FCA5A5',
+    },
+    errorMsg: {
+        color: '#991B1B',
+        fontSize: 13,
+        ...FONT.semibold,
+        flex: 1,
+    },
+
+    // ─── Fields ───────────────────────────────────
+    fieldLabel: {
+        fontSize: 11,
+        ...FONT.bold,
+        color: C.mid,
+        letterSpacing: 1.2,
+        marginBottom: 8,
+    },
+    input: {
+        backgroundColor: C.surface,
+        borderWidth: 1.5,
+        borderColor: C.border,
+        borderRadius: 14,
+        height: 52,
+        paddingHorizontal: 16,
+        fontSize: 15,
+        ...FONT.medium,
+        color: C.dark,
+        marginBottom: 20,
     },
     inputFocused: {
-        borderColor: '#6366F1',
-        backgroundColor: '#FFFFFF',
-        shadowColor: '#6366F1', shadowOpacity: 0.15, shadowRadius: 20, shadowOffset: { width: 0, height: 4 },
-        elevation: 4,
+        borderColor: C.primary,
+        shadowColor: C.primary,
+        shadowOpacity: 0.12,
+        shadowRadius: 12,
+        shadowOffset: { width: 0, height: 3 },
+        elevation: 3,
     },
-    textInput: { flex: 1, fontSize: 15, color: '#0F172A', ...FONT.semibold, paddingVertical: 0 },
-
-    errorBox: {
-        flexDirection: 'row', alignItems: 'center', gap: 8,
-        backgroundColor: C.dangerBg, borderRadius: 16, padding: 12, marginBottom: 12,
-        borderWidth: 1, borderColor: '#FCA5A5',
+    passwordLabelRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 8,
     },
-    errorMsg: { color: '#991B1B', fontSize: 12, ...FONT.semibold, flex: 1 },
-
-    forgotRow: { alignSelf: 'flex-end', marginTop: -4, marginBottom: 16 },
-    forgotText: { fontSize: 12, ...FONT.bold, color: C.primary },
-
-    primaryBtn: {
-        borderRadius: 20, height: 54,
-        overflow: 'hidden',
-        shadowColor: '#1E3A8A', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.3, shadowRadius: 20, elevation: 10,
+    forgotLink: {
+        fontSize: 13,
+        ...FONT.bold,
+        color: C.primary,
     },
-    primaryBtnGradient: {
-        flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
+    passwordWrap: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: C.surface,
+        borderWidth: 1.5,
+        borderColor: C.border,
+        borderRadius: 14,
+        height: 52,
+        paddingHorizontal: 16,
+        marginBottom: 26,
     },
-    primaryBtnText: { color: '#FFFFFF', fontSize: 16, ...FONT.bold },
-    loadingRow: { flexDirection: 'row', alignItems: 'center' },
+    passwordInput: {
+        flex: 1,
+        fontSize: 15,
+        ...FONT.medium,
+        color: C.dark,
+        paddingVertical: 0,
+    },
 
-    bottomLink: { flexDirection: 'row', justifyContent: 'center', marginTop: 24, paddingBottom: 10 },
-    bottomLinkText: { fontSize: 14, color: '#64748B', ...FONT.medium },
-    bottomLinkAction: { fontSize: 14, ...FONT.heavy, color: '#6366F1' },
+    // ─── Sign In button ───────────────────────────
+    signInBtn: {
+        backgroundColor: C.primary,
+        borderRadius: 14,
+        height: 54,
+        alignItems: 'center',
+        justifyContent: 'center',
+        shadowColor: C.primaryDark,
+        shadowOpacity: 0.35,
+        shadowRadius: 16,
+        shadowOffset: { width: 0, height: 8 },
+        elevation: 8,
+        marginBottom: 28,
+    },
+    signInBtnText: {
+        color: '#FFFFFF',
+        fontSize: 16,
+        ...FONT.bold,
+    },
+
+    // ─── Divider ──────────────────────────────────
+    dividerRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 20,
+    },
+    dividerLine: {
+        flex: 1,
+        height: 1,
+        backgroundColor: C.border,
+    },
+    dividerText: {
+        marginHorizontal: 14,
+        fontSize: 13,
+        ...FONT.medium,
+        color: C.muted,
+    },
+
+    // ─── Social buttons ───────────────────────────
+    socialBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: C.surface,
+        borderWidth: 1.5,
+        borderColor: C.border,
+        borderRadius: 14,
+        height: 54,
+        paddingHorizontal: 20,
+        gap: 14,
+        marginBottom: 12,
+    },
+    socialBtnDisabled: {
+        opacity: 0.5,
+    },
+    socialBtnText: {
+        fontSize: 15,
+        ...FONT.semibold,
+        color: C.dark,
+    },
+    googleIconBox: {
+        width: 26,
+        height: 26,
+        borderRadius: 7,
+        backgroundColor: '#4285F4',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    googleIconText: {
+        fontSize: 14,
+        ...FONT.heavy,
+        color: '#FFFFFF',
+    },
+    appleIconBox: {
+        width: 26,
+        height: 26,
+        borderRadius: 7,
+        backgroundColor: '#1A202C',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    appleIconText: {
+        fontSize: 14,
+        ...FONT.heavy,
+        color: '#FFFFFF',
+        lineHeight: 20,
+    },
+
+    // ─── Sign up row ──────────────────────────────
+    signupRow: {
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginTop: 24,
+    },
+    signupText: {
+        fontSize: 14,
+        ...FONT.medium,
+        color: C.mid,
+    },
+    signupLink: {
+        fontSize: 14,
+        ...FONT.heavy,
+        color: C.primary,
+    },
 });

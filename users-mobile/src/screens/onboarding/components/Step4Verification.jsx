@@ -1,29 +1,11 @@
 import React, { useState } from 'react';
 import { View, Text, Pressable, Animated, ActivityIndicator } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { CheckCircle2, Shield, Zap, Smartphone, Sparkles, ChevronRight } from 'lucide-react-native';
-import { styles } from './SignupStyles';
-
-/**
- * Step4Verification
- *
- * FIX 1: staggerAnims[5] was potentially undefined if the parent passed fewer
- *         than 6 items. Journey items use indices 2, 3, 4 — CTA now uses
- *         staggerAnims[5] only when it exists, with a fallback opacity of 1.
- *         (The parent creates 10, so this is belt-and-suspenders.)
- *
- * FIX 2: Continue button had no loading / disabled state. A user who double-taps
- *         it could call handleGoToStep5 twice, setting isManualTransitionRef
- *         twice and causing a double step advance if the parent allows re-entry.
- *         Added local `proceeding` state — button disables after first tap and
- *         shows an ActivityIndicator until the parent unmounts this step.
- *
- * FIX 3: Added displayName for React DevTools clarity.
- */
+import { styles, FONT, C } from './SignupStyles';
 
 const JOURNEY_ITEMS = [
-    { Icon: Shield, text: 'Collect your health details' },
-    { Icon: Zap, text: 'Set up medication schedule' },
+    { Icon: Shield, text: 'Collect your full health profile details' },
+    { Icon: Zap, text: 'Set up your personalised medication schedule' },
     { Icon: Smartphone, text: 'Assign your dedicated care caller' },
 ];
 
@@ -36,45 +18,50 @@ const Step4Verification = ({ staggerAnims, handleGoToStep5 }) => {
         try {
             await handleGoToStep5();
         } catch {
-            // If the parent throws, re-enable the button so the user can retry
             setProceeding(false);
         }
     };
 
-    // Belt-and-suspenders: if the parent somehow passes fewer than 6 anims,
-    // fall back to a static opacity=1 so the button is still visible.
     const ctaAnim = staggerAnims[5] ?? null;
 
     return (
-        <View style={styles.centerStepEnhanced}>
+        <View>
+            {/* Pill badge */}
+            <View style={styles.pillBadge}>
+                <View style={styles.pillDot} />
+                <Text style={styles.pillBadgeText}>Payment done</Text>
+            </View>
+
+            {/* Title */}
+            <Text style={styles.stepTitleLine1}>You're in</Text>
+            <Text style={styles.stepTitleLine2}>the family!</Text>
+
             {/* Success card */}
             <Animated.View style={{
-                width: '100%',
                 opacity: staggerAnims[0],
                 transform: [{ translateY: staggerAnims[0].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }],
             }}>
-                <LinearGradient colors={['#EFF3FF', '#FFFFFF']} style={styles.successCelebrationCard}>
+                <View style={styles.successCelebrationCard}>
                     <View style={styles.largeSuccessCircle}>
-                        <CheckCircle2 size={56} color="#22C55E" strokeWidth={2.5} />
+                        <CheckCircle2 size={52} color={C.success} strokeWidth={2} />
                     </View>
                     <Text style={styles.successTitle}>Payment Successful!</Text>
                     <Text style={styles.successSubtitle}>Welcome to the Samvaya family.</Text>
-                </LinearGradient>
+                </View>
             </Animated.View>
 
             {/* Next steps card */}
             <Animated.View style={{
-                width: '100%',
                 opacity: staggerAnims[1],
                 transform: [{ translateY: staggerAnims[1].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }],
             }}>
                 <View style={styles.nextStepsCard}>
                     <View style={styles.nextStepsHeader}>
-                        <Sparkles size={18} color="#3B5BDB" />
-                        <Text style={styles.nextStepsTitle}>Your Onboarding Journey</Text>
+                        <Sparkles size={16} color={C.primary} />
+                        <Text style={styles.nextStepsTitle}>YOUR ONBOARDING JOURNEY</Text>
                     </View>
                     <Text style={styles.nextStepsDesc}>
-                        A Care Caller will reach out within 24 hours to finalize your profile:
+                        A Care Caller will reach out within 24 hours to finalise your profile:
                     </Text>
                     <View style={styles.journeyList}>
                         {JOURNEY_ITEMS.map(({ Icon, text }, i) => (
@@ -84,15 +71,14 @@ const Step4Verification = ({ staggerAnims, handleGoToStep5 }) => {
                                     opacity: staggerAnims[i + 2],
                                     transform: [{
                                         translateX: staggerAnims[i + 2].interpolate({
-                                            inputRange: [0, 1],
-                                            outputRange: [-10, 0],
+                                            inputRange: [0, 1], outputRange: [-12, 0],
                                         }),
                                     }],
                                 }}
                             >
                                 <View style={styles.journeyItem}>
                                     <View style={styles.journeyIconBox}>
-                                        <Icon size={16} color="#3B5BDB" />
+                                        <Icon size={16} color={C.primary} />
                                     </View>
                                     <Text style={styles.journeyText}>{text}</Text>
                                 </View>
@@ -102,14 +88,11 @@ const Step4Verification = ({ staggerAnims, handleGoToStep5 }) => {
                 </View>
             </Animated.View>
 
-            {/* CTA button */}
+            {/* Continue CTA */}
             <Animated.View style={{
-                width: '100%',
-                opacity: ctaAnim
-                    ? ctaAnim
-                    : 1,
+                opacity: ctaAnim ?? 1,
                 transform: ctaAnim
-                    ? [{ scale: ctaAnim.interpolate({ inputRange: [0, 1], outputRange: [0.95, 1] }) }]
+                    ? [{ scale: ctaAnim.interpolate({ inputRange: [0, 1], outputRange: [0.96, 1] }) }]
                     : undefined,
             }}>
                 <Pressable
@@ -117,21 +100,18 @@ const Step4Verification = ({ staggerAnims, handleGoToStep5 }) => {
                     onPress={handlePress}
                     disabled={proceeding}
                 >
-                    <LinearGradient
-                        colors={['#6366F1', '#4F46E5']}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 0 }}
-                        style={styles.primaryBtnGradientEnhanced}
-                    >
+                    <View style={styles.primaryBtnGradientEnhanced}>
                         {proceeding ? (
-                            <ActivityIndicator size="small" color="#FFFFFF" />
+                            <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, justifyContent: 'center', gap: 10 }}>
+                                <ActivityIndicator size="small" color="#FFFFFF" />
+                                <Text style={styles.primaryBtnText}>Loading...</Text>
+                            </View>
                         ) : (
-                            <>
-                                <Text style={styles.primaryBtnText}>Continue</Text>
-                                <ChevronRight size={20} color="#FFFFFF" strokeWidth={2.5} />
-                            </>
+                            <Text style={[styles.primaryBtnText, { flex: 1, textAlign: 'center' }]}>
+                                Complete profile
+                            </Text>
                         )}
-                    </LinearGradient>
+                    </View>
                 </Pressable>
             </Animated.View>
         </View>
@@ -139,5 +119,4 @@ const Step4Verification = ({ staggerAnims, handleGoToStep5 }) => {
 };
 
 Step4Verification.displayName = 'Step4Verification';
-
 export default React.memo(Step4Verification);
