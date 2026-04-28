@@ -1321,7 +1321,7 @@ const s = StyleSheet.create({
     modalTitle: { fontSize: 22, fontWeight: '800', color: C.dark },
     modalSubTxt: { fontSize: 14, color: C.muted, marginBottom: 20 },
     inputLabel: { fontSize: 13, fontWeight: '700', color: C.mid, marginBottom: 8, marginTop: 16, marginLeft: 2 },
-    input: { backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#F1F5F9', borderRadius: 16, paddingHorizontal: 16, paddingVertical: 14, fontSize: 15, color: '#0F172A', fontWeight: '600' },
+    input: { backgroundColor: '#FAFBFF', borderWidth: 1.5, borderColor: '#E2E8F0', borderRadius: 20, paddingHorizontal: 16, paddingVertical: 12, fontSize: 15, color: '#0F172A', fontWeight: '600', height: 48 },
     saveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: C.primary, borderRadius: 100, paddingVertical: 16, marginTop: 32, shadowColor: C.primary, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.2, shadowRadius: 12, elevation: 8 },
     saveBtnTxt: { color: '#FFFFFF', fontSize: 16, fontWeight: '800' },
 
