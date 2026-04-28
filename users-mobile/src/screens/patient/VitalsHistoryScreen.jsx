@@ -142,7 +142,8 @@ const insightColors = { warning: '#92400E', positive: '#166534', stable: '#1E40A
 export default function VitalsHistoryScreen({ navigation }) {
     // ─── State ──────────────────────────────────────────────────
     const [vitals, setVitals] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(false);
+    const [initialLoading, setInitialLoading] = useState(true);
     const [error, setError] = useState(null);
     const [isOffline, setIsOffline] = useState(false);
 
@@ -231,13 +232,10 @@ export default function VitalsHistoryScreen({ navigation }) {
 
         setError(null);
         try {
-            setLoading(true);
+            // Only show full loading on initial load, not date changes
+            if (initialLoading) setLoading(true);
             
             // Consolidate parallel requests: Charts and History List
-            // If the dates match, we can even reuse the same response if the backend allows, 
-            // but for now, we'll just use Promise.all to ensure they don't fire sequentially 
-            // and trigger separate re-renders.
-            
             const [vitalsRes, historyRes] = await Promise.all([
                 apiService.patients.getVitals({
                     start_date: startDate.toISOString(),
@@ -255,8 +253,9 @@ export default function VitalsHistoryScreen({ navigation }) {
             setError(handleAxiosError(err));
         } finally {
             setLoading(false);
+            setInitialLoading(false);
         }
-    }, [startDate, endDate, rangeMode, historyDate, isOffline]);
+    }, [startDate, endDate, rangeMode, historyDate, isOffline, initialLoading]);
 
     // Debounced fetch for date changes
     const debounceRef = useRef(null);
@@ -858,7 +857,7 @@ export default function VitalsHistoryScreen({ navigation }) {
                 >
                     <View style={{ height: Platform.OS === 'ios' ? 100 : 80 }} />
 
-                    {loading ? renderSkeleton() : (
+                    {initialLoading ? renderSkeleton() : (
                         <>
                             {/* ── Log Vitals Form (top for easy access) ── */}
                             <Animated.View style={[styles.chartCard, { opacity: staggerAnims[0], transform: [{ translateY: staggerAnims[0].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }]}>
@@ -1286,8 +1285,9 @@ const styles = StyleSheet.create({
     formGroup: { flex: 1, marginBottom: 4 },
     formLabel: { fontSize: 11, fontWeight: '800', color: '#64748B', textTransform: 'uppercase', marginBottom: 8, letterSpacing: 0.5 },
     formInput: {
-        backgroundColor: '#FCFDFD', borderWidth: 1.5, borderColor: '#E2E8F0', borderRadius: 14,
-        paddingHorizontal: 16, paddingVertical: 14, fontSize: 16, color: '#1E293B', fontWeight: '700',
+        backgroundColor: '#FAFBFF', borderWidth: 1.5, borderColor: '#E2E8F0', borderRadius: 20,
+        paddingHorizontal: 16, paddingVertical: 12, fontSize: 15, color: '#0F172A', fontWeight: '600',
+        height: 48,
     },
 
     submitBtn: {

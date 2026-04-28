@@ -6,7 +6,48 @@ const screenWidth = Dimensions.get('window').width;
 
 export default function AIPredictionChart({ vitalsHistory, predictionData, metricName, unit }) {
   const safeHistory = vitalsHistory || [];
-  const safePrediction = predictionData || [];
+  
+  // ── Client-side fallback prediction (simple linear regression) ──
+  // When the backend AI service has no predictions, generate a basic
+  // 3-day forecast from the most recent readings using least-squares.
+  const effectivePrediction = (() => {
+    if (predictionData && predictionData.length > 0) return predictionData;
+    if (safeHistory.length < 3) return []; // Need at least 3 points
+    
+    // Linear regression on the last N values
+    const vals = safeHistory.map(h => h.value).filter(v => v > 0);
+    if (vals.length < 3) return [];
+    
+    const n = vals.length;
+    const xMean = (n - 1) / 2;
+    const yMean = vals.reduce((a, b) => a + b, 0) / n;
+    
+    let num = 0, den = 0;
+    for (let i = 0; i < n; i++) {
+      num += (i - xMean) * (vals[i] - yMean);
+      den += (i - xMean) * (i - xMean);
+    }
+    const slope = den !== 0 ? num / den : 0;
+    const intercept = yMean - slope * xMean;
+    
+    // Generate 3 future points
+    const forecasts = [];
+    const today = new Date();
+    for (let i = 1; i <= 3; i++) {
+      const futureDate = new Date(today);
+      futureDate.setDate(futureDate.getDate() + i);
+      const predicted = Math.round(intercept + slope * (n - 1 + i));
+      // Clamp to reasonable ranges
+      const clamped = Math.max(0, Math.min(predicted, 300));
+      forecasts.push({
+        label: futureDate.toLocaleDateString([], { month: 'short', day: 'numeric' }),
+        value: clamped,
+      });
+    }
+    return forecasts;
+  })();
+  
+  const safePrediction = effectivePrediction;
   
   const labels = [
     ...safeHistory.map((item) => item.label),

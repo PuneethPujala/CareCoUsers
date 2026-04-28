@@ -1279,7 +1279,7 @@ const s = StyleSheet.create({
     modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
     formGroup: { marginBottom: 20 },
     formLabel: { fontSize: 13, ...FONT.bold, color: C.muted, marginBottom: 10, letterSpacing: 0.5 },
-    input: { backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 16, paddingHorizontal: 16, height: 56, fontSize: 16, ...FONT.medium, color: C.dark },
+    input: { backgroundColor: '#FAFBFF', borderWidth: 1.5, borderColor: '#E2E8F0', borderRadius: 20, paddingHorizontal: 16, height: 48, fontSize: 15, ...FONT.medium, color: C.dark },
     inputMulti: { height: 100, paddingTop: 16, textAlignVertical: 'top' },
     btnSaveLg: { height: 60, borderRadius: 100, backgroundColor: C.primary, alignItems: 'center', justifyContent: 'center', marginTop: 12, shadowColor: C.primary, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.2, shadowRadius: 16, elevation: 8 },
     btnSaveTextLg: { fontSize: 17, ...FONT.bold, color: '#FFF' },
