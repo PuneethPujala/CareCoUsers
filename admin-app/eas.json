@@ -7,11 +7,40 @@
       "distribution": "internal",
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "NPM_CONFIG_LEGACY_PEER_DEPS": "true",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://uwyglhjsdxlkstoxaoqw.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_qPLlhvr0FHw6daqW3RrT4A_y_v2-4ei",
+        "EXPO_PUBLIC_API_URL": "https://caremymed-admin.onrender.com/api",
+        "EXPO_PUBLIC_GOOGLE_CLIENT_ID": "570421861723-nr7jvqbcqfber4qnkje1ievv8r4017bt.apps.googleusercontent.com",
+        "EXPO_PUBLIC_APP_NAME": "CareCo Admin Portal",
+        "EXPO_PUBLIC_APP_VERSION": "1.0.0",
+        "EXPO_PUBLIC_ENVIRONMENT": "preview",
+        "EXPO_PUBLIC_ENABLE_ANALYTICS": "false",
+        "EXPO_PUBLIC_ENABLE_CRASH_REPORTING": "true",
+        "EXPO_PUBLIC_DEBUG_MODE": "true",
+        "EXPO_PUBLIC_LOG_LEVEL": "info"
       }
     },
     "production": {
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "NODE_ENV": "production",
+        "NPM_CONFIG_LEGACY_PEER_DEPS": "true",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://uwyglhjsdxlkstoxaoqw.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_qPLlhvr0FHw6daqW3RrT4A_y_v2-4ei",
+        "EXPO_PUBLIC_API_URL": "https://caremymed-admin.onrender.com/api",
+        "EXPO_PUBLIC_GOOGLE_CLIENT_ID": "570421861723-nr7jvqbcqfber4qnkje1ievv8r4017bt.apps.googleusercontent.com",
+        "EXPO_PUBLIC_APP_NAME": "CareCo Admin Portal",
+        "EXPO_PUBLIC_APP_VERSION": "1.0.0",
+        "EXPO_PUBLIC_ENVIRONMENT": "production",
+        "EXPO_PUBLIC_ENABLE_ANALYTICS": "false",
+        "EXPO_PUBLIC_ENABLE_CRASH_REPORTING": "true",
+        "EXPO_PUBLIC_DEBUG_MODE": "false",
+        "EXPO_PUBLIC_LOG_LEVEL": "info"
       }
     }
   }
