@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, Platform, Pressable, Animated, ActivityIndicator, TextInput, KeyboardAvoidingView, TouchableOpacity, DeviceEventEmitter, InteractionManager, Vibration, Alert, SafeAreaView, Modal } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Platform, Pressable, Animated, ActivityIndicator, TextInput, KeyboardAvoidingView, TouchableOpacity, DeviceEventEmitter, InteractionManager, Vibration, SafeAreaView, Modal } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
     Pill, PhoneCall, CalendarCheck, Sunrise, Sun, Moon, Package,
@@ -19,6 +19,7 @@ import { syncAllSchedules } from '../../utils/notifications';
 import usePatientStore from '../../store/usePatientStore';
 import SmartInput from '../../components/ui/SmartInput';
 
+import AlertManager from '../../utils/AlertManager';
 // ── Rotating Daily Health Tips ──────────────────────────────
 const HEALTH_TIPS = [
     '💧 Stay hydrated! Drinking 8 glasses of water daily helps manage blood pressure and significantly improves kidney function.',
@@ -747,7 +748,7 @@ export default function PatientHomeScreen({ navigation }) {
                                 </View><ChevronRight size={18} color="#CBD5E1" />
                             </Pressable>
 
-                            <Pressable style={styles.quickCardEnhanced} onPress={() => Alert.alert('Coming Soon! 🚀', 'Med Delivery is on its way! We\'re building a seamless way to order and track your medications right from the app. Stay tuned!', [{ text: 'Got it!', style: 'default' }])}>
+                            <Pressable style={styles.quickCardEnhanced} onPress={() => AlertManager.alert('Coming Soon! 🚀', 'Med Delivery is on its way! We\'re building a seamless way to order and track your medications right from the app. Stay tuned!', [{ text: 'Got it!', style: 'default' }])}>
                                 <View style={styles.quickContent}>
                                     <View style={[styles.quickIconBoxEnhanced, { backgroundColor: '#E0F2FE' }]}><Package size={20} color="#0284C7" /></View>
                                     <View style={styles.quickTextView}><Text style={styles.quickCardTitle}>Med Delivery</Text><Text style={styles.quickCardSub}>Coming Soon</Text></View>
