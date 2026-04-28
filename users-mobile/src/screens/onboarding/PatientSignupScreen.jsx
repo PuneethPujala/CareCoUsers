@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import {
     View, Text, StyleSheet, TextInput, Pressable, Platform,
     KeyboardAvoidingView, ScrollView, Animated, ActivityIndicator,
-    Modal, Alert, Easing, BackHandler,
+    Modal, Easing, BackHandler,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
@@ -29,6 +29,7 @@ import Step3Membership from './components/Step3Membership';
 import Step4Verification from './components/Step4Verification';
 import Step5FinalDetails from './components/Step5FinalDetails';
 
+import AlertManager from '../../utils/AlertManager';
 const ONBOARDING_STORAGE_KEY = 'CareMyMed_onboarding_progress';
 const STALE_PROGRESS_DAYS = 7;
 
@@ -263,7 +264,7 @@ export default function PatientSignupScreen({ navigation, route }) {
                     }
                 };
                 if (ageDays > STALE_PROGRESS_DAYS) {
-                    Alert.alert(
+                    AlertManager.alert(
                         'Resume signup?',
                         `You started signing up ${Math.floor(ageDays)} days ago.`,
                         [
@@ -552,7 +553,7 @@ export default function PatientSignupScreen({ navigation, route }) {
             refreshPatient().catch(err => console.warn('[Onboarding] Background refresh failed:', err.message));
         } catch (err) {
             console.error('Backend payment save failed:', err.message);
-            Alert.alert('Subscription Error', "We couldn't record your payment. Please try again.", [{ text: 'OK' }]);
+            AlertManager.alert('Subscription Error', "We couldn't record your payment. Please try again.", [{ text: 'OK' }]);
         } finally { setSignupLoading(false); isPayingRef.current = false; }
     }, [saveProgress, form.selectedPlanId, refreshPatient]);
 

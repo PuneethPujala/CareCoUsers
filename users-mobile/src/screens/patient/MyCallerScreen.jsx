@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Platform, RefreshControl,
   Pressable, ActivityIndicator, Linking, Animated,
-  Modal, TouchableOpacity, TouchableWithoutFeedback, Alert, TextInput, Keyboard, KeyboardAvoidingView, FlatList, Switch
+  Modal, TouchableOpacity, TouchableWithoutFeedback, TextInput, Keyboard, KeyboardAvoidingView, FlatList, Switch
 } from 'react-native';
 import SmartInput from '../../components/ui/SmartInput';
 import PremiumFormModal from '../../components/ui/PremiumFormModal';
@@ -16,6 +16,7 @@ import { colors } from '../../theme';
 import { apiService } from '../../lib/api';
 import { COUNTRY_CODES, parsePhoneWithCode, validatePhone } from '../../utils/phoneUtils';
 
+import AlertManager from '../../utils/AlertManager';
 // ── Skeleton Loader ──────────────────────────────────────────
 const SkeletonItem = ({ width, height, borderRadius = 8, style }) => {
     const anim = useRef(new Animated.Value(0.3)).current;
@@ -131,9 +132,9 @@ export default function MyCallerScreen({ navigation }) {
       });
       setFlagIssueModalVisible(false);
       setFlagDescription('');
-      Alert.alert('Issue Flagged', 'Your issue has been reported to the care team.');
+      AlertManager.alert('Issue Flagged', 'Your issue has been reported to the care team.');
     } catch (err) {
-      Alert.alert('Error', 'Failed to flag issue. Please try again.');
+      AlertManager.alert('Error', 'Failed to flag issue. Please try again.');
       console.warn('Flag issue error:', err.message);
     } finally {
       setFlagging(false);
@@ -205,18 +206,18 @@ export default function MyCallerScreen({ navigation }) {
 
   const saveContact = async () => {
     if (!contactForm.name?.trim()) {
-      Alert.alert('Required', 'Please enter the contact\'s name.');
+      AlertManager.alert('Required', 'Please enter the contact\'s name.');
       return;
     }
 
     const phoneErr = validatePhone(contactForm.phone, contactForm.phoneCode);
     if (phoneErr) {
-      Alert.alert('Invalid Phone', phoneErr);
+      AlertManager.alert('Invalid Phone', phoneErr);
       return;
     }
 
     if (contactForm.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactForm.email.trim())) {
-      Alert.alert('Invalid Email', 'Please enter a valid email address.');
+      AlertManager.alert('Invalid Email', 'Please enter a valid email address.');
       return;
     }
 
@@ -226,7 +227,7 @@ export default function MyCallerScreen({ navigation }) {
     if (!editingContact) {
       const isDup = contacts.some(c => c.phone.replace(/[^0-9]/g, '') === fullPhone.replace(/[^0-9]/g, ''));
       if (isDup) {
-        Alert.alert('Duplicate', 'A contact with this phone number already exists.');
+        AlertManager.alert('Duplicate', 'A contact with this phone number already exists.');
         return;
       }
     }
@@ -253,7 +254,7 @@ export default function MyCallerScreen({ navigation }) {
       closeContactModal();
     } catch (err) {
       console.warn('Save contact error:', err.message);
-      Alert.alert('Error', 'Failed to save contact.');
+      AlertManager.alert('Error', 'Failed to save contact.');
     } finally {
       setIsSavingContact(false);
     }
@@ -274,7 +275,7 @@ export default function MyCallerScreen({ navigation }) {
       if (contactModal) closeContactModal();
     } catch (err) {
       console.warn('Remove contact error:', err.message);
-      Alert.alert('Error', 'Failed to remove contact.');
+      AlertManager.alert('Error', 'Failed to remove contact.');
     } finally {
       setIsDeleting(false);
     }

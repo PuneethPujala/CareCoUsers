@@ -12,13 +12,14 @@
 import React, { useState, useCallback } from 'react';
 import {
     View, Text, StyleSheet, Image, TextInput, TouchableOpacity,
-    ScrollView, ActivityIndicator, Alert, Platform,
+    ScrollView, ActivityIndicator, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ShieldCheck, Copy, ArrowLeft, CheckCircle2 } from 'lucide-react-native';
 import * as Clipboard from 'expo-clipboard' ;
 import { apiService } from '../../lib/api';
 
+import AlertManager from '../../utils/AlertManager';
 export default function MFASetupScreen({ navigation }) {
     const [step, setStep] = useState('loading'); // loading | qr | verify | done
     const [qrCode, setQrCode] = useState(null);
@@ -51,7 +52,7 @@ export default function MFASetupScreen({ navigation }) {
     const copySecret = useCallback(async () => {
         try {
             await Clipboard.setStringAsync(secretKey);
-            Alert.alert('Copied', 'Secret key copied to clipboard');
+            AlertManager.alert('Copied', 'Secret key copied to clipboard');
         } catch {}
     }, [secretKey]);
 
@@ -76,7 +77,7 @@ export default function MFASetupScreen({ navigation }) {
     const copyRecoveryCodes = useCallback(async () => {
         try {
             await Clipboard.setStringAsync(recoveryCodes.join('\n'));
-            Alert.alert('Copied', 'Recovery codes copied to clipboard. Store them safely!');
+            AlertManager.alert('Copied', 'Recovery codes copied to clipboard. Store them safely!');
         } catch {}
     }, [recoveryCodes]);
 

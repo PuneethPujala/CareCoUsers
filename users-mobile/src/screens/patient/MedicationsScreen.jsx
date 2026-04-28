@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
-import { View, Text, StyleSheet, ScrollView, Platform, Pressable, Animated, ActivityIndicator, Dimensions, Modal, TextInput, RefreshControl, DeviceEventEmitter, InteractionManager, LayoutAnimation, UIManager, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Platform, Pressable, Animated, ActivityIndicator, Dimensions, Modal, TextInput, RefreshControl, DeviceEventEmitter, InteractionManager, LayoutAnimation, UIManager } from 'react-native';
 import PremiumFormModal from '../../components/ui/PremiumFormModal';
 import { Pill, Sunrise, Sun, Moon, CheckCircle2, Circle, Bell, Activity, Plus, Coffee, Utensils, BedDouble, AlertCircle, Calendar, Pencil, Clock, PillBottle, Syringe, X, MessageCircle, ChevronDown, ChevronUp, Info } from 'lucide-react-native';
 import { Swipeable } from 'react-native-gesture-handler';
@@ -16,6 +16,7 @@ import usePatientStore from '../../store/usePatientStore';
 import { Buffer } from 'buffer';
 import * as Notifications from 'expo-notifications';
 
+import AlertManager from '../../utils/AlertManager';
 const { width } = Dimensions.get('window');
 
 const ACCENT_MAP = { morning: '#0D9488', afternoon: '#0F766E', evening: '#7C3AED', night: '#134E4A', as_needed: '#6366F1' };
@@ -558,7 +559,7 @@ export default function MedicationsScreen({ navigation }) {
                 },
             };
             const msg = funkyMessages[slot] || { title: 'Not yet! ⏰', body: 'This medication isn\'t due yet. We\'ll remind you when it\'s time!' };
-            Alert.alert(msg.title, msg.body, [{ text: 'Got it! 😁', style: 'default' }]);
+            AlertManager.alert(msg.title, msg.body, [{ text: 'Got it! 😁', style: 'default' }]);
             return;
         }
 

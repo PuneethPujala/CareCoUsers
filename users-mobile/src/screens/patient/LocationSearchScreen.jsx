@@ -12,6 +12,7 @@ import * as Location from 'expo-location';
 import { colors } from '../../theme';
 import { apiService } from '../../lib/api';
 
+import AlertManager from '../../utils/AlertManager';
 export default function LocationSearchScreen({ navigation }) {
     const [searchQuery, setSearchQuery] = useState('');
     const [loading, setLoading] = useState(false);
