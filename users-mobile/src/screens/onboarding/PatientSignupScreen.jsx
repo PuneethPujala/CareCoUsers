@@ -406,8 +406,8 @@ export default function PatientSignupScreen({ navigation, route }) {
         setSignupLoading(true);
         signupLoadingRef.current = true;
         try {
-            // Primary update — profile table (phoneNumber field)
-            await apiService.auth.updateProfile({ phoneNumber: form.phoneNumber });
+            // Primary update — profile table (phone field)
+            await apiService.auth.updateProfile({ phone: form.phoneNumber });
             // Secondary update — patient table (phone field); non-fatal if it fails
             try {
                 await apiService.patients.updateMe({ phone: form.phoneNumber });
