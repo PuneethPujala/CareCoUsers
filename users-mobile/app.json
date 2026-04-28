@@ -10,7 +10,7 @@
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/Splash.png",
-      "backgroundColor": "#FFFFFF",
+      "backgroundColor": "#F0F1FF",
       "resizeMode": "contain"
     },
     "ios": {
@@ -25,6 +25,10 @@
     "android": {
       "package": "com.careco.users",
       "googleServicesFile": "./google-services.json",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/logo.png",
+        "backgroundColor": "#FFFFFF"
+      },
       "permissions": [
         "android.permission.health.READ_HEART_RATE",
         "android.permission.health.READ_BLOOD_PRESSURE",

@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
     View, Text, StyleSheet, TextInput, Pressable, Platform,
-    KeyboardAvoidingView, Animated, ActivityIndicator, Alert, Modal,
+    KeyboardAvoidingView, Animated, ActivityIndicator, Modal,
     BackHandler, Dimensions, Image, ScrollView
 } from 'react-native';
+import AlertManager from '../../utils/AlertManager';
 import { Eye, EyeOff, AlertCircle, X, Lock, Mail } from 'lucide-react-native';
 import { useAuth } from '../../context/AuthContext';
 import { apiService } from '../../lib/api';
@@ -942,7 +943,6 @@ const styles = StyleSheet.create({
     },
     passwordInput: {
         flex: 1,
-        height: '100%',
         fontSize: 15,
         ...FONT.medium,
         color: C.dark,

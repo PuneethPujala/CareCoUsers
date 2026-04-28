@@ -61,18 +61,21 @@ const makeChartConfig = (accentColor) => ({
     backgroundGradientFrom: '#FFFFFF',
     backgroundGradientTo: '#FFFFFF',
     decimalPlaces: 0,
+    strokeWidth: 3,
     color: (opacity = 1) => {
+        // Ensure minimum opacity of 0.6 so lines are always clearly visible
+        const boosted = Math.max(opacity, 0.6);
         if (accentColor && accentColor.startsWith('#')) {
             const r = parseInt(accentColor.slice(1, 3), 16);
             const g = parseInt(accentColor.slice(3, 5), 16);
             const b = parseInt(accentColor.slice(5, 7), 16);
-            return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+            return `rgba(${r}, ${g}, ${b}, ${boosted})`;
         }
-        return accentColor ? accentColor.replace(')', `, ${opacity})`).replace('rgb', 'rgba') : `rgba(0,0,0,${opacity})`;
+        return accentColor ? accentColor.replace(')', `, ${boosted})`).replace('rgb', 'rgba') : `rgba(0,0,0,${boosted})`;
     },
-    labelColor: () => '#94A3B8',
-    propsForDots: { r: '5', strokeWidth: '2', stroke: '#FFFFFF' },
-    propsForBackgroundLines: { stroke: '#F1F5F9', strokeDasharray: '' },
+    labelColor: () => '#64748B',
+    propsForDots: { r: '6', strokeWidth: '3', stroke: '#FFFFFF' },
+    propsForBackgroundLines: { stroke: '#E8ECF2', strokeDasharray: '' },
     style: { borderRadius: 16 },
     paddingRight: 40,
 });
