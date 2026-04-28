@@ -184,21 +184,12 @@ const otpSt = StyleSheet.create({
 
 // ─── OTP Modal ────────────────────────────────────────────────────────────────
 const OTPModal = React.memo(({ visible, onClose, otp, setOtp, onVerify, timer, resend, attempts, field, error, otpLoading, remainingSlots }) => (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-        <Pressable style={styles.modalOverlay} onPress={onClose}>
-            <KeyboardAvoidingView
-                style={{ flex: 1, width: '100%', justifyContent: 'flex-end' }}
-                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-            >
-                <Pressable onPress={(e) => e.stopPropagation()} style={styles.modalSheet}>
-                    {/* Handle */}
-                    <View style={{
-                        width: 40, height: 4, borderRadius: 2,
-                        backgroundColor: C.border, alignSelf: 'center', marginBottom: 20,
-                    }} />
-
+    <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+            <Pressable style={styles.modalOverlayCentered} onPress={onClose}>
+                <Pressable onPress={(e) => e.stopPropagation()} style={styles.otpModalCard}>
                     <View style={styles.modalHeader}>
-                        <View>
+                        <View style={{ flex: 1, paddingRight: 8 }}>
                             <Text style={styles.modalTitle}>
                                 Verify {field === 'email' ? 'Email' : 'Phone'}
                             </Text>
@@ -275,8 +266,8 @@ const OTPModal = React.memo(({ visible, onClose, otp, setOtp, onVerify, timer, r
                         <Text style={styles.attemptsText}>{3 - attempts} attempt{3 - attempts !== 1 ? 's' : ''} remaining</Text>
                     )}
                 </Pressable>
-            </KeyboardAvoidingView>
-        </Pressable>
+            </Pressable>
+        </KeyboardAvoidingView>
     </Modal>
 ));
 
