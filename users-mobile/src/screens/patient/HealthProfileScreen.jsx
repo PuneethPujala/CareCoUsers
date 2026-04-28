@@ -571,7 +571,7 @@ export default function HealthProfileScreen({ navigation }) {
                 {/* Profile Completion */}
                 {completionPct < 100 && (
                     <Animated.View style={{ opacity: staggerAnims[0], transform: [{ translateY: staggerAnims[0].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>
-                        <View style={s.completionCard}>
+                        <Pressable style={s.completionCard} onPress={handleCompletionClick}>
                             <View style={s.completionLeft}>
                                 <View style={s.completionRing}>
                                     <Text style={s.completionPct}>{completionPct}%</Text>
@@ -581,11 +581,11 @@ export default function HealthProfileScreen({ navigation }) {
                                 <Text style={s.completionTitle}>Profile Completion</Text>
                                 <Text style={s.completionSub}>{completionPct >= 70 ? "You're doing great!" : 'Fill in more details for better care'}</Text>
                             </View>
-                            <Pressable style={s.completionAction}>
+                            <View style={s.completionAction}>
                                 <Text style={s.completionActionTxt}>Complete Now</Text>
                                 <ChevronRight size={16} color={C.primary} />
-                            </Pressable>
-                        </View>
+                            </View>
+                        </Pressable>
                     </Animated.View>
                 )}
 
@@ -632,9 +632,9 @@ export default function HealthProfileScreen({ navigation }) {
                                         <View style={[s.iconBg, { backgroundColor: '#FEE2E2' }]}><HeartPulse size={18} color="#EF4444" /></View>
                                         <View style={s.rowInfo}>
                                             <Text style={s.rowTitle}>{c.name}</Text>
-                                            <Text style={s.rowSub}>{c.diagnosed_on ? new Date(c.diagnosed_on).getFullYear() : 'Unknown'} • <Text style={{textTransform: 'capitalize'}}>{c.severity || 'Unspecified'}</Text></Text>
+                                            <Text style={s.rowSub}>{c.diagnosed_on ? new Date(c.diagnosed_on).getFullYear() : 'Unknown'} • <Text style={{textTransform: 'capitalize'}}>{c.severity && c.severity !== 'unknown' ? c.severity : 'Unspecified'}</Text></Text>
                                         </View>
-                                        <View style={[s.pill, { backgroundColor: statStyle.bg }]}><Text style={[s.pillTxt, { color: statStyle.text, textTransform: 'capitalize' }]}>{c.status}</Text></View>
+                                        <View style={[s.pill, { backgroundColor: statStyle.bg }]}><Text style={[s.pillTxt, { color: statStyle.text, textTransform: 'capitalize' }]}>{c.status === 'unknown' ? 'Unknown' : c.status}</Text></View>
                                     </Pressable>
                                 );
                             })}
