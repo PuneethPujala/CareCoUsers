@@ -18,6 +18,7 @@ import Svg, { Line, Path, Circle } from 'react-native-svg';
 import axiosInstance, { handleAxiosError } from '../../lib/axiosInstance';
 import { apiService } from '../../lib/api';
 import { colors } from '../../theme';
+import SmartInput from '../../components/ui/SmartInput';
 
 // ─── Skeleton Loader ──────────────────────────────────────────
 const SkeletonItem = ({ width, height, borderRadius = 8, style }) => {
@@ -144,6 +145,7 @@ export default function VitalsHistoryScreen({ navigation }) {
     const [vitals, setVitals] = useState([]);
     const [loading, setLoading] = useState(false);
     const [initialLoading, setInitialLoading] = useState(true);
+    const [dataRefreshing, setDataRefreshing] = useState(false);
     const [error, setError] = useState(null);
     const [isOffline, setIsOffline] = useState(false);
 
@@ -175,6 +177,7 @@ export default function VitalsHistoryScreen({ navigation }) {
     const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0, visible: false, value: 0, label: "" });
     const tooltipFade = useRef(new Animated.Value(0)).current;
     const scrollY = useRef(new Animated.Value(0)).current;
+    const dataFadeAnim = useRef(new Animated.Value(1)).current;
 
     const showTooltip = (x, y, value, label) => {
         setTooltipPos({ x, y, visible: true, value, label });
@@ -234,6 +237,11 @@ export default function VitalsHistoryScreen({ navigation }) {
         try {
             // Only show full loading on initial load, not date changes
             if (initialLoading) setLoading(true);
+            else {
+                // Micro-loading: fade chart to 40% while refreshing
+                setDataRefreshing(true);
+                Animated.timing(dataFadeAnim, { toValue: 0.4, duration: 150, useNativeDriver: true }).start();
+            }
             
             // Consolidate parallel requests: Charts and History List
             const [vitalsRes, historyRes] = await Promise.all([
@@ -254,8 +262,10 @@ export default function VitalsHistoryScreen({ navigation }) {
         } finally {
             setLoading(false);
             setInitialLoading(false);
+            setDataRefreshing(false);
+            Animated.timing(dataFadeAnim, { toValue: 1, duration: 200, useNativeDriver: true }).start();
         }
-    }, [startDate, endDate, rangeMode, historyDate, isOffline, initialLoading]);
+    }, [startDate, endDate, rangeMode, historyDate, isOffline, initialLoading, dataFadeAnim]);
 
     // Debounced fetch for date changes
     const debounceRef = useRef(null);
@@ -637,7 +647,7 @@ export default function VitalsHistoryScreen({ navigation }) {
         };
 
         return (
-            <Animated.View style={[styles.chartCard, { opacity: staggerAnims[2], transform: [{ translateY: staggerAnims[2].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }]}>
+            <Animated.View style={[styles.chartCard, { opacity: Animated.multiply(staggerAnims[2], dataFadeAnim), transform: [{ translateY: staggerAnims[2].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }]}>
                 <View style={styles.chartTitleRow}>
                     <View style={[styles.chartIconPill, { backgroundColor: def.accent + '15' }]}>
                         <def.icon size={22} color={def.accent} />
@@ -882,13 +892,11 @@ export default function VitalsHistoryScreen({ navigation }) {
 
                                         <View style={styles.formRow}>
                                             <View style={styles.formGroup}>
-                                                <Text style={styles.formLabel}>Heart Rate (bpm)</Text>
-                                                <TextInput style={styles.formInput} keyboardType="numeric" placeholder="72" placeholderTextColor="#94A3B8"
+                                                <SmartInput label="Heart Rate (bpm)" keyboardType="numeric" placeholder="72"
                                                     value={formValues.heart_rate} onChangeText={(t) => setFormValues((p) => ({ ...p, heart_rate: t }))} />
                                             </View>
                                             <View style={styles.formGroup}>
-                                                <Text style={styles.formLabel}>O₂ Saturation (%)</Text>
-                                                <TextInput style={styles.formInput} keyboardType="numeric" placeholder="98" placeholderTextColor="#94A3B8"
+                                                <SmartInput label="O₂ Saturation (%)" keyboardType="numeric" placeholder="98"
                                                     value={formValues.oxygen_saturation} onChangeText={(t) => setFormValues((p) => ({ ...p, oxygen_saturation: t }))} />
                                             </View>
                                         </View>
@@ -896,18 +904,17 @@ export default function VitalsHistoryScreen({ navigation }) {
                                         <Text style={[styles.formLabel, { marginTop: 14 }]}>Blood Pressure (mmHg)</Text>
                                         <View style={styles.formRow}>
                                             <View style={styles.formGroup}>
-                                                <TextInput style={styles.formInput} keyboardType="numeric" placeholder="Systolic (120)" placeholderTextColor="#94A3B8"
+                                                <SmartInput keyboardType="numeric" placeholder="Systolic (120)"
                                                     value={formValues.systolic} onChangeText={(t) => setFormValues((p) => ({ ...p, systolic: t }))} />
                                             </View>
                                             <View style={styles.formGroup}>
-                                                <TextInput style={styles.formInput} keyboardType="numeric" placeholder="Diastolic (80)" placeholderTextColor="#94A3B8"
+                                                <SmartInput keyboardType="numeric" placeholder="Diastolic (80)"
                                                     value={formValues.diastolic} onChangeText={(t) => setFormValues((p) => ({ ...p, diastolic: t }))} />
                                             </View>
                                         </View>
 
                                         <View style={styles.formGroup}>
-                                            <Text style={[styles.formLabel, { marginTop: 14 }]}>Hydration (%)</Text>
-                                            <TextInput style={styles.formInput} keyboardType="numeric" placeholder="65" placeholderTextColor="#94A3B8"
+                                            <SmartInput label="Hydration (%)" keyboardType="numeric" placeholder="65"
                                                 value={formValues.hydration} onChangeText={(t) => setFormValues((p) => ({ ...p, hydration: t }))} />
                                         </View>
 
