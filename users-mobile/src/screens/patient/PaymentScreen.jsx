@@ -163,7 +163,7 @@ export default function PaymentScreen({ navigation, route }) {
                             </LinearGradient>
                         </Animated.View>
                         <Text style={styles.successTitle}>Payment Successful!</Text>
-                        <Text style={styles.successDesc}>Setting up your Samvaya experience...</Text>
+                        <Text style={styles.successDesc}>Setting up your CareMyMed experience...</Text>
                     </View>
                 )}
 

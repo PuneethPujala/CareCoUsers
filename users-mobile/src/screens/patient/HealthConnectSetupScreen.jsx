@@ -114,14 +114,14 @@ export default function HealthConnectSetupScreen({ navigation }) {
                 await HealthSyncService.setSyncEnabled(true);
                 Alert.alert(
                     '✅ Connected!',
-                    'Your wearable data will now sync automatically with Samvaya. You\'ll see your readings on the home dashboard.',
+                    'Your wearable data will now sync automatically with CareMyMed. You\'ll see your readings on the home dashboard.',
                     [{ text: 'Go to Dashboard', onPress: () => navigation.goBack() }]
                 );
             } else {
                 setStatus('denied');
                 Alert.alert(
                     'Permissions Denied',
-                    'Samvaya needs health data access to monitor your vitals. You can grant permissions later from your device settings.'
+                    'CareMyMed needs health data access to monitor your vitals. You can grant permissions later from your device settings.'
                 );
             }
         } catch (err) {
@@ -185,7 +185,7 @@ export default function HealthConnectSetupScreen({ navigation }) {
                         </Text>
                         <Text style={styles.heroDesc}>
                             {isConnected
-                                ? `Samvaya is actively syncing vitals from ${platformName}. Your health data is being monitored in real-time.`
+                                ? `CareMyMed is actively syncing vitals from ${platformName}. Your health data is being monitored in real-time.`
                                 : `Link your smartwatch via ${platformName} for automatic, passive health monitoring. No manual logging needed.`
                             }
                         </Text>
@@ -207,7 +207,7 @@ export default function HealthConnectSetupScreen({ navigation }) {
                 </Animated.View>
 
                 {/* ── Data Types ─────────────────────────────────── */}
-                <Text style={styles.sectionLabel}>WHAT SAMVAYA READS</Text>
+                <Text style={styles.sectionLabel}>WHAT CareMyMed READS</Text>
                 {FEATURES.map((feature, i) => (
                     <Animated.View
                         key={feature.title}
@@ -247,7 +247,7 @@ export default function HealthConnectSetupScreen({ navigation }) {
                         </View>
                     ))}
                     <Text style={styles.deviceNote}>
-                        Any device that syncs to {Platform.OS === 'ios' ? 'Apple Health' : 'Google Health Connect'} will work with Samvaya.
+                        Any device that syncs to {Platform.OS === 'ios' ? 'Apple Health' : 'Google Health Connect'} will work with CareMyMed.
                     </Text>
                 </View>
 
@@ -306,7 +306,7 @@ export default function HealthConnectSetupScreen({ navigation }) {
                 <View style={styles.privacyCard}>
                     <ShieldCheck size={16} color="#64748B" />
                     <Text style={styles.privacyText}>
-                        Your health data is encrypted and stored securely. Samvaya only reads data — it never writes to or modifies your health records.
+                        Your health data is encrypted and stored securely. CareMyMed only reads data — it never writes to or modifies your health records.
                     </Text>
                 </View>
             </ScrollView>

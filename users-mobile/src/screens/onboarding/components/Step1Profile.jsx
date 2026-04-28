@@ -41,7 +41,7 @@ const Step1Profile = ({
 
             {/* Title */}
             <Text style={styles.stepTitleLine1}>Create your</Text>
-            <Text style={styles.stepTitleLine2}>SAMVAYA account</Text>
+            <Text style={styles.stepTitleLine2}>CareMyMed account</Text>
 
             {/* Google signup */}
             <Pressable style={styles.googleBtnEnhanced} onPress={handleGooglePress} disabled={googleLoading}>

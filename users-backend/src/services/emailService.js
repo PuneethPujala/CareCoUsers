@@ -28,17 +28,17 @@ const getTransporter = () => {
  */
 const sendEmail = async (to, subject, html, { textBody } = {}) => {
     const transport = getTransporter();
-    const fromEmail = process.env.FROM_EMAIL || 'noreply@samvaya.com';
+    const fromEmail = process.env.FROM_EMAIL || 'noreply@CareMyMed.com';
 
     const mailOptions = {
-        from: `"Samvaya Health" <${fromEmail}>`,
+        from: `"CareMyMed Health" <${fromEmail}>`,
         to,
         subject,
         html,
         // Plain-text fallback — spam filters penalize HTML-only emails
         text: textBody || html.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim().slice(0, 500),
         headers: {
-            'X-Mailer': 'Samvaya Health Platform',
+            'X-Mailer': 'CareMyMed Health Platform',
             'Precedence': 'bulk',
             'List-Unsubscribe': `<mailto:${fromEmail}?subject=unsubscribe>`,
         },
@@ -83,7 +83,7 @@ const sendOTPEmail = async (to, otp) => {
     <body>
       <div class="container">
         <div class="header">
-          <p>SAMVAYA</p>
+          <p>CareMyMed</p>
           <h1>Verify Your Email</h1>
         </div>
         <div class="body">
@@ -101,15 +101,15 @@ const sendOTPEmail = async (to, otp) => {
           </div>
         </div>
         <div class="footer">
-          &copy; ${new Date().getFullYear()} Team Samvaya &mdash; Your Health, Our Priority
+          &copy; ${new Date().getFullYear()} Team CareMyMed &mdash; Your Health, Our Priority
         </div>
       </div>
     </body>
     </html>
   `;
 
-    return sendEmail(to, `Your Samvaya code: ${otp}`, html, {
-        textBody: `Your Samvaya verification code is: ${otp}\n\nThis code expires in 10 minutes.\nIf you didn't request this, ignore this email.`,
+    return sendEmail(to, `Your CareMyMed code: ${otp}`, html, {
+        textBody: `Your CareMyMed verification code is: ${otp}\n\nThis code expires in 10 minutes.\nIf you didn't request this, ignore this email.`,
     });
 };
 
@@ -117,7 +117,7 @@ const sendOTPEmail = async (to, otp) => {
  * Send temporary password email to newly created user
  */
 const sendTempPasswordEmail = async (to, fullName, tempPassword, roleName) => {
-    const loginUrl = process.env.FRONTEND_URL || 'https://app.samvaya.com';
+    const loginUrl = process.env.FRONTEND_URL || 'https://app.CareMyMed.com';
 
     const html = `
     <!DOCTYPE html>
@@ -144,12 +144,12 @@ const sendTempPasswordEmail = async (to, fullName, tempPassword, roleName) => {
     <body>
       <div class="container">
         <div class="header">
-          <p>SAMVAYA</p>
+          <p>CareMyMed</p>
           <h1>🏥 Your Account Has Been Created</h1>
         </div>
         <div class="body">
           <p>Hello <strong>${fullName}</strong>,</p>
-          <p>Your Samvaya account has been created with the role <strong>${roleName}</strong>. Please use the credentials below to log in:</p>
+          <p>Your CareMyMed account has been created with the role <strong>${roleName}</strong>. Please use the credentials below to log in:</p>
           
           <div class="creds">
             <p><strong>Email:</strong> ${to}</p>
@@ -160,19 +160,19 @@ const sendTempPasswordEmail = async (to, fullName, tempPassword, roleName) => {
             <p>⚠️ <strong>You must change your password on first login.</strong> You will not be able to access any features until you set a new password.</p>
           </div>
 
-          <a href="${loginUrl}" class="btn">Log In to Samvaya</a>
+          <a href="${loginUrl}" class="btn">Log In to CareMyMed</a>
 
           <p style="font-size: 13px; color: #64748B; margin-top: 24px;">If you did not expect this account, please contact your organization administrator.</p>
         </div>
         <div class="footer">
-          &copy; ${new Date().getFullYear()} Team Samvaya &mdash; Your Health, Our Priority
+          &copy; ${new Date().getFullYear()} Team CareMyMed &mdash; Your Health, Our Priority
         </div>
       </div>
     </body>
     </html>
   `;
 
-    return sendEmail(to, 'Your Samvaya account is ready', html);
+    return sendEmail(to, 'Your CareMyMed account is ready', html);
 };
 
 /**
@@ -198,23 +198,23 @@ const sendPasswordChangedEmail = async (to, fullName) => {
     <body>
       <div class="container">
         <div class="header">
-          <p>SAMVAYA</p>
+          <p>CareMyMed</p>
           <h1>✅ Password Changed Successfully</h1>
         </div>
         <div class="body">
           <p>Hello <strong>${fullName}</strong>,</p>
-          <p>Your Samvaya password has been changed successfully. If you did not make this change, please contact your administrator immediately.</p>
+          <p>Your CareMyMed password has been changed successfully. If you did not make this change, please contact your administrator immediately.</p>
           <p style="font-size: 13px; color: #64748B;">Changed at: ${new Date().toISOString()}</p>
         </div>
         <div class="footer">
-          &copy; ${new Date().getFullYear()} Team Samvaya &mdash; Your Health, Our Priority
+          &copy; ${new Date().getFullYear()} Team CareMyMed &mdash; Your Health, Our Priority
         </div>
       </div>
     </body>
     </html>
   `;
 
-    return sendEmail(to, 'Your Samvaya password was changed', html);
+    return sendEmail(to, 'Your CareMyMed password was changed', html);
 };
 
 /**
@@ -245,7 +245,7 @@ const sendPasswordResetEmail = async (to, otp) => {
     <body>
       <div class="container">
         <div class="header">
-          <p>SAMVAYA</p>
+          <p>CareMyMed</p>
           <h1>Reset Your Password</h1>
         </div>
         <div class="body">
@@ -263,14 +263,14 @@ const sendPasswordResetEmail = async (to, otp) => {
           </div>
         </div>
         <div class="footer">
-          &copy; ${new Date().getFullYear()} Team Samvaya &mdash; Your Health, Our Priority
+          &copy; ${new Date().getFullYear()} Team CareMyMed &mdash; Your Health, Our Priority
         </div>
       </div>
     </body>
     </html>
   `;
 
-    return sendEmail(to, `Samvaya password reset code: ${otp}`, html, {
+    return sendEmail(to, `CareMyMed password reset code: ${otp}`, html, {
         textBody: `Your password reset code is: ${otp}\n\nThis code expires in 10 minutes.\nIf you didn't request this, ignore this email.`,
     });
 };
@@ -303,7 +303,7 @@ const sendSecurityOTPEmail = async (to, otp) => {
     <body>
       <div class="container">
         <div class="header">
-          <p>SAMVAYA SECURITY</p>
+          <p>CareMyMed SECURITY</p>
           <h1>Security Action Verification</h1>
         </div>
         <div class="body">
@@ -321,14 +321,14 @@ const sendSecurityOTPEmail = async (to, otp) => {
           </div>
         </div>
         <div class="footer">
-          &copy; ${new Date().getFullYear()} Team Samvaya &mdash; Your Health, Our Priority
+          &copy; ${new Date().getFullYear()} Team CareMyMed &mdash; Your Health, Our Priority
         </div>
       </div>
     </body>
     </html>
   `;
 
-    return sendEmail(to, `Samvaya security code: ${otp}`, html, {
+    return sendEmail(to, `CareMyMed security code: ${otp}`, html, {
         textBody: `Your security verification code is: ${otp}\n\nThis code expires in 10 minutes.\nIf you didn't authorize this, ignore this email.`,
     });
 };

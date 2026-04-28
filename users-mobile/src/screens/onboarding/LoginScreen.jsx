@@ -517,7 +517,7 @@ export default function LoginScreen({ navigation }) {
 
                     {/* Title */}
                     <Text style={styles.titleLine1}>Sign in to</Text>
-                    <Text style={styles.titleAppName}>SAMVAYA</Text>
+                    <Text style={styles.titleAppName}>CareMyMed</Text>
 
                     {/* Tab switcher */}
                     <View style={styles.tabTrack}>
