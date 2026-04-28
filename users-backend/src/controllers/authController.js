@@ -27,25 +27,32 @@ async function register(req, res) {
   } catch (err) {
     if (err.status) return sendError(res, err);
     console.error('Registration error:', err);
-    res.status(500).json({ error: 'Registration failed' });
+    // Surface a more specific message for common infra errors
+    if (err.name === 'MongooseServerSelectionError' || err.name === 'MongoServerError') {
+      return res.status(503).json({ error: 'Our servers are temporarily busy. Please try again in a moment.', code: 'SERVICE_UNAVAILABLE' });
+    }
+    if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
+      return res.status(504).json({ error: 'The request timed out. Please try again.', code: 'TIMEOUT' });
+    }
+    res.status(500).json({ error: 'Registration failed. Please try again or contact support.', code: 'REGISTRATION_FAILED' });
   }
 }
 
 async function login(req, res) {
   try {
     const data = await authService.login(req.body, req);
-    
-    // ── DEPRECATED: Streak gamification removed in favour of adherence tracking ──
-    // if (data.profile && data.profile.role === 'patient') {
-    //     const streakService = require('../services/streakService');
-    //     streakService.evaluateAndUpdateStreak(data.profile._id).catch(e => console.error('Streak Update Failed:', e));
-    // }
-
     res.json(data);
   } catch (err) {
     if (err.status) return sendError(res, err);
     console.error('Login error:', err);
-    res.status(500).json({ error: 'Login failed' });
+    // Surface a more specific message for common infra errors
+    if (err.name === 'MongooseServerSelectionError' || err.name === 'MongoServerError') {
+      return res.status(503).json({ error: 'Our servers are temporarily busy. Please try again in a moment.', code: 'SERVICE_UNAVAILABLE' });
+    }
+    if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
+      return res.status(504).json({ error: 'The request timed out. Please try again.', code: 'TIMEOUT' });
+    }
+    res.status(500).json({ error: 'Login failed. Please try again or contact support.', code: 'LOGIN_FAILED' });
   }
 }
 
@@ -407,10 +414,10 @@ async function sendOtp(req, res) {
 
     if (type === 'email') {
       const emailNorm = identifier.toLowerCase().trim();
-      const existingPatient = await Patient.findOne({ email: emailNorm, is_active: true });
-      if (existingPatient) {
-        return res.status(400).json({ error: 'This email is already registered.' });
-      }
+      // NOTE: We intentionally do NOT block "already registered" emails here.
+      // The registerPatient() endpoint has its own robust duplicate handling
+      // (OAuth linking, deactivation detection, E11000 dedup). Blocking here
+      // was preventing users with partial/incomplete signups from retrying.
 
       const { createOTP } = require('../services/otpService');
       const { sendOTPEmail } = require('../services/emailService');
