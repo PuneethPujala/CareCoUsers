@@ -1,0 +1,41 @@
+# Dependencies (reinstalled on build server)
+node_modules/
+
+# Environment files (vars are in eas.json)
+.env
+.env.local
+.env.*.local
+
+# Test files
+__tests__/
+*.test.js
+*.test.jsx
+*.spec.js
+
+# Dev tools
+.vscode/
+.idea/
+.gemini/
+
+# Git
+.git/
+.gitignore
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+dist/
+build/
+*.tsbuildinfo
+
+# Documentation
+README.md
+CHANGELOG.md
+docs/
+
+# Other project folders (monorepo — only admin-app needed)
+../backend/
+../users-backend/
+../users-mobile/
