@@ -29,7 +29,13 @@
     },
     "plugins": [
       "expo-web-browser",
-      "expo-font"
-    ]
+      "expo-font",
+      "expo-splash-screen"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "15eed2df-88f7-4f51-b924-88218c54b7be"
+      }
+    }
   }
 }

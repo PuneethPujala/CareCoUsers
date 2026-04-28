@@ -8,6 +8,7 @@ const Medication = require('../models/Medication');
 const Notification = require('../models/Notification');
 const AuditLog = require('../models/AuditLog');
 const CaretakerPatient = require('../models/CaretakerPatient');
+const MedicineLog = require('../models/MedicineLog');
 const { authenticate, requireRole } = require('../middleware/authenticate');
 
 const router = express.Router();
@@ -48,6 +49,7 @@ function getCurrentShift() {
 
 /** Filter medication list to only those scheduled for the given shift */
 function filterMedsByShift(medications, shift) {
+    shift = (shift || 'morning').toLowerCase().trim(); // normalize to lowercase
     return medications.filter(med => {
         const times = med.scheduledTimes && med.scheduledTimes.length > 0 ? med.scheduledTimes : (med.times || []);
 
@@ -181,15 +183,25 @@ async function syncTodayMedicineLog(patientId, medName, timeBuckets, action = 'a
                         });
                     }
                 }
+                log.markModified('medicines');
                 await log.save();
             }
         } else if (action === 'remove' && log) {
-            // Mark as inactive rather than deleting (preserves history)
-            log.medicines.forEach(m => {
-                if (m.medicine_name === medName) {
-                    m.is_active = false;
-                }
-            });
+            // Check if there are taken logs
+            const hasBeenTaken = log.medicines.some(m => m.medicine_name === medName && m.taken);
+            
+            if (!hasBeenTaken) {
+                // If it was never taken today, completely drop it from today's schema
+                log.medicines = log.medicines.filter(m => m.medicine_name !== medName);
+            } else {
+                // If they took a dose earlier today before it got deleted, just mark the remaining ones inactive
+                log.medicines.forEach(m => {
+                    if (m.medicine_name === medName) {
+                        m.is_active = false;
+                    }
+                });
+            }
+            log.markModified('medicines');
             await log.save();
         }
     } catch (err) {
@@ -223,20 +235,23 @@ async function getPatientMedications(patientId, activeOnly = true) {
         embeddedMeds = [...embeddedMeds, ...profile.metadata.medications];
     }
 
-    // Deduplicate by ID
-    const uniqueEmbedded = [];
+    // Deduplicate by ID across BOTH sources
+    const finalMeds = [];
     const seen = new Set();
-    for (const m of embeddedMeds) {
-        if (!m) continue;
+    
+    // First, add all from master collection
+    for (const m of meds) {
         const mId = (m._id || m.id || '').toString();
         if (mId && !seen.has(mId)) {
             seen.add(mId);
-            uniqueEmbedded.push(m);
+            finalMeds.push(m);
+        } else if (!mId) {
+            finalMeds.push(m); // Fallback for no-ID
         }
     }
 
-    if (uniqueEmbedded.length > 0) {
-        const mappedEmbedded = uniqueEmbedded
+    if (embeddedMeds.length > 0) {
+        const mappedEmbedded = embeddedMeds
             .filter(m => activeOnly ? (m.is_active !== false && m.isActive !== false) : true)
             .map(m => ({
                 _id: m._id || m.id,
@@ -258,10 +273,19 @@ async function getPatientMedications(patientId, activeOnly = true) {
                 _embedded: true, // flag to identify source
             }));
 
-        meds = [...meds, ...mappedEmbedded];
+        for (const m of mappedEmbedded) {
+            if (!m) continue;
+            const mId = (m._id || m.id || '').toString();
+            if (mId && !seen.has(mId)) {
+                seen.add(mId);
+                finalMeds.push(m);
+            } else if (!mId) {
+                finalMeds.push(m);
+            }
+        }
     }
 
-    return meds;
+    return finalMeds;
 }
 
 /**
@@ -269,7 +293,7 @@ async function getPatientMedications(patientId, activeOnly = true) {
  * If explicit CaretakerPatient assignments exist, use those.
  * Otherwise, fallback to ALL active patients in the caller's organization.
  */
-async function getAssignedPatientIds(caretakerId, orgId) {
+async function getAssignedPatientIds(caretakerId, orgId, callerRole) {
     const assignments = await CaretakerPatient.find({
         caretakerId,
         status: 'active',
@@ -277,8 +301,9 @@ async function getAssignedPatientIds(caretakerId, orgId) {
 
     let pIds = assignments.map(a => a.patientId);
 
-    // FALLBACK: If no explicit assignments, get all org patients
-    if (pIds.length === 0 && orgId) {
+    // FLAW 5 FIX: Only care_manager/org_admin/super_admin get the org-wide fallback.
+    // Regular callers with no assignments see an empty list (they must be formally assigned).
+    if (pIds.length === 0 && orgId && ['care_manager', 'org_admin', 'super_admin'].includes(callerRole)) {
         const orgPatients = await Patient.find({
             organization_id: orgId,
             is_active: true
@@ -312,8 +337,8 @@ async function getAssignedPatientIds(caretakerId, orgId) {
     return pIds.filter(id => validIds.has(id.toString()));
 }
 
-/** Verifies a patient is assigned to this caretaker (or in same org as fallback) */
-async function isPatientAssigned(caretakerId, patientId) {
+/** Verifies a patient is assigned to this caretaker. Org fallback only for managers+ */
+async function isPatientAssigned(caretakerId, patientId, callerRole) {
     const assignment = await CaretakerPatient.findOne({
         caretakerId,
         patientId,
@@ -321,7 +346,13 @@ async function isPatientAssigned(caretakerId, patientId) {
     });
     if (assignment) return true;
 
-    // Fallback: check if caller and patient are in the same org
+    // FLAW 6 FIX: Only care_manager/org_admin/super_admin get the org-wide fallback.
+    // Regular callers must have an explicit assignment.
+    if (!['care_manager', 'org_admin', 'super_admin'].includes(callerRole)) {
+        return false;
+    }
+
+    // Fallback for managers+: check if caller and patient are in the same org
     const caller = await Profile.findById(caretakerId).select('organizationId').lean();
     if (!caller || !caller.organizationId) return false;
 
@@ -408,7 +439,7 @@ router.get('/dashboard', async (req, res) => {
     try {
         const caretakerId = req.profile._id;
         const orgId = req.profile.organizationId?._id || req.profile.organizationId;
-        const patientIds = await getAssignedPatientIds(caretakerId, orgId);
+        const patientIds = await getAssignedPatientIds(caretakerId, orgId, req.profile.role);
 
         const now = new Date();
         const currentShift = getCurrentShift();
@@ -593,7 +624,7 @@ router.get('/call-queue', async (req, res) => {
         const currentShift = getCurrentShift();
         const { shiftStart, shiftEnd } = getShiftBounds(currentShift);
 
-        const patientIds = await getAssignedPatientIds(caretakerId, orgId);
+        const patientIds = await getAssignedPatientIds(caretakerId, orgId, req.profile.role);
 
         if (patientIds.length === 0) {
             return res.json({ calls: [], summary: { total: 0, scheduled: 0, completed: 0, missed: 0, overdue: 0 } });
@@ -734,7 +765,7 @@ router.get('/patients', async (req, res) => {
     try {
         const caretakerId = req.profile._id;
         const orgId = req.profile.organizationId?._id || req.profile.organizationId;
-        const patientIds = await getAssignedPatientIds(caretakerId, orgId);
+        const patientIds = await getAssignedPatientIds(caretakerId, orgId, req.profile.role);
 
         if (patientIds.length === 0) {
             return res.json({ patients: [] });
@@ -816,7 +847,7 @@ router.get('/patients/:id', async (req, res) => {
             return res.status(400).json({ error: 'Invalid patient ID' });
         }
 
-        if (!(await isPatientAssigned(caretakerId, patientId))) {
+        if (!(await isPatientAssigned(caretakerId, patientId, req.profile.role))) {
             return res.status(403).json({ error: 'Patient not assigned to you' });
         }
 
@@ -893,7 +924,7 @@ router.get('/patients/:id/meds', async (req, res) => {
         if (!mongoose.Types.ObjectId.isValid(patientId)) {
             return res.status(400).json({ error: 'Invalid patient ID' });
         }
-        if (!(await isPatientAssigned(caretakerId, patientId))) {
+        if (!(await isPatientAssigned(caretakerId, patientId, req.profile.role))) {
             return res.status(403).json({ error: 'Patient not assigned to you' });
         }
 
@@ -906,7 +937,16 @@ router.get('/patients/:id/meds', async (req, res) => {
             medications = filterMedsByShift(medications, shift);
         }
 
-        // For each med, get the last confirmation from call logs
+        // Fetch today's MedicineLog to see what the Patient marked themselves
+        const _now = new Date();
+        const _y = _now.getFullYear();
+        const _m = String(_now.getMonth() + 1).padStart(2, '0');
+        const _d = String(_now.getDate()).padStart(2, '0');
+        const today = new Date(`${_y}-${_m}-${_d}T00:00:00.000Z`);
+        
+        const todayLog = await MedicineLog.findOne({ patient_id: patientId, date: today }).lean();
+
+        // For each med, get the last confirmation from call logs AND patient logs
         const enriched = await Promise.all(medications.map(async (med) => {
             const lastConfirmation = await CallLog.findOne({
                 patientId,
@@ -921,12 +961,42 @@ router.get('/patients/:id/meds', async (req, res) => {
             const confirmation = lastConfirmation?.medicationConfirmations?.find(
                 m => m.medicationId?.toString() === med._id.toString()
             );
+            
+            // Check patient application marked status
+            let patientMarked = false;
+            let callerMarkedFromLog = false;
+            let takenLogs = [];
+            
+            if (todayLog && todayLog.medicines) {
+                 const medLogEntries = todayLog.medicines.filter(m => 
+                     m.medicine_name && med.name && 
+                     m.medicine_name.toLowerCase() === med.name.toLowerCase() &&
+                     (!shift || (m.scheduled_time && m.scheduled_time.toLowerCase() === shift.toLowerCase()))
+                 );
+                 
+                 for (const m of medLogEntries) {
+                     if (m.taken) {
+                         if (m.marked_by === 'patient' || !m.marked_by) patientMarked = true;
+                         else if (m.marked_by === 'caller') callerMarkedFromLog = true;
+                         
+                         takenLogs.push({
+                             date: `${_y}-${_m}-${_d}`,
+                             timestamp: m.taken_at || m.timestamp || new Date(),
+                             shift: m.scheduled_time || 'morning',
+                             marked_by: m.marked_by || 'patient'
+                         });
+                     }
+                 }
+            }
 
             return {
                 ...med,
                 lastConfirmed: confirmation?.confirmed ?? null,
                 lastConfirmedAt: lastConfirmation?.scheduledTime || null,
                 lastReason: confirmation?.reason || null,
+                patientMarked: patientMarked,
+                callerMarked: callerMarkedFromLog,
+                takenLogs: takenLogs
             };
         }));
 
@@ -948,7 +1018,7 @@ router.post('/patients/:id/medications', async (req, res) => {
         if (!mongoose.Types.ObjectId.isValid(patientId)) {
             return res.status(400).json({ error: 'Invalid patient ID' });
         }
-        if (!(await isPatientAssigned(caretakerId, patientId))) {
+        if (!(await isPatientAssigned(caretakerId, patientId, req.profile.role))) {
             return res.status(403).json({ error: 'Patient not assigned to you' });
         }
 
@@ -971,6 +1041,22 @@ router.post('/patients/:id/medications', async (req, res) => {
             if (profile && profile.organizationId) {
                 orgId = profile.organizationId;
             }
+        }
+
+        // Check for duplicates in both Medication and Patient scopes
+        const trimmedName = name.trim();
+        const existingMedsQuery = await Medication.find({ patientId, name: { $regex: new RegExp('^' + trimmedName + '$', 'i') }, isActive: true });
+        
+        let embeddedMedsQuery = [];
+        const pDocCheck = await Patient.findById(patientId).lean();
+        if (pDocCheck && pDocCheck.medications) {
+            embeddedMedsQuery = pDocCheck.medications.filter(m => m.name && m.name.toLowerCase().trim() === trimmedName.toLowerCase() && (m.isActive !== false && m.is_active !== false));
+        }
+        
+        const existingMeds = [...existingMedsQuery, ...embeddedMedsQuery];
+
+        if (existingMeds.length > 0) {
+            return res.status(400).json({ error: 'This medication already exists in the patient\'s records. Please edit the existing entry to update shifts or dosage instead of creating a duplicate.' });
         }
 
         const newMed = await Medication.create({
@@ -1029,6 +1115,7 @@ router.post('/patients/:id/medications', async (req, res) => {
                 takenLogs: [],
                 takenDates: []
             });
+            pDoc.markModified('medications');
             await pDoc.save();
 
             // Sync today's MedicineLog so patient sees it immediately
@@ -1053,7 +1140,7 @@ router.put('/patients/:id/medications/:medId', async (req, res) => {
         if (!mongoose.Types.ObjectId.isValid(patientId) || !mongoose.Types.ObjectId.isValid(medId)) {
             return res.status(400).json({ error: 'Invalid ID' });
         }
-        if (!(await isPatientAssigned(caretakerId, patientId))) {
+        if (!(await isPatientAssigned(caretakerId, patientId, req.profile.role))) {
             return res.status(403).json({ error: 'Patient not assigned to you' });
         }
 
@@ -1070,6 +1157,29 @@ router.put('/patients/:id/medications/:medId', async (req, res) => {
         }
         if (updateFields.scheduledTimes !== undefined) {
             updateFields.times = mapScheduledTimesToBuckets(updateFields.scheduledTimes);
+        }
+
+        // Check for duplicates if name or scheduledTimes are being updated
+        if (updateFields.name || updateFields.scheduledTimes) {
+            const checkName = (updateFields.name || (await Medication.findById(medId))?.name || (await Patient.findOne({ 'medications._id': medId }))?.medications?.find(m => m._id.toString() === medId)?.name).trim();
+            const existingMedsQuery = await Medication.find({ 
+                patientId, 
+                _id: { $ne: medId }, // Exclude the current med being updated
+                name: { $regex: new RegExp('^' + checkName + '$', 'i') }, 
+                isActive: true 
+            });
+
+            let embeddedMedsQuery = [];
+            const pDocCheck = await Patient.findById(patientId).lean();
+            if (pDocCheck && pDocCheck.medications) {
+                embeddedMedsQuery = pDocCheck.medications.filter(m => m._id.toString() !== medId && m.name && m.name.toLowerCase().trim() === checkName.toLowerCase() && (m.isActive !== false && m.is_active !== false));
+            }
+
+            const existingMeds = [...existingMedsQuery, ...embeddedMedsQuery];
+
+            if (existingMeds.length > 0) {
+                return res.status(400).json({ error: 'This medication name already exists in the patient\'s records. Please use the existing entry or choose a unique name.' });
+            }
         }
 
         // Try updating from Medication collection first
@@ -1146,30 +1256,37 @@ router.delete('/patients/:id/medications/:medId', async (req, res) => {
         if (!mongoose.Types.ObjectId.isValid(patientId) || !mongoose.Types.ObjectId.isValid(medId)) {
             return res.status(400).json({ error: 'Invalid ID' });
         }
-        if (!(await isPatientAssigned(caretakerId, patientId))) {
+        if (!(await isPatientAssigned(caretakerId, patientId, req.profile.role))) {
             return res.status(403).json({ error: 'Patient not assigned to you' });
         }
 
+        const medObjId = new mongoose.Types.ObjectId(medId);
+        const patientObjId = mongoose.Types.ObjectId.isValid(patientId) ? new mongoose.Types.ObjectId(patientId) : patientId;
+
         // 1. Try marking inactive in Medication collection (Soft Delete)
         const med = await Medication.findOneAndUpdate(
-            { _id: medId, patientId },
+            { _id: medObjId },
             { $set: { status: 'inactive', isActive: false, is_active: false } },
             { new: true }
         );
 
         let found = !!med;
 
-        // 2. Try marking inactive in embedded arrays (NOT pulling to preserve history)
-        const patient1 = await Patient.findOneAndUpdate(
-            { $or: [{ _id: patientId }, { profile_id: patientId }], 'medications._id': medId },
-            { $set: { 'medications.$.isActive': false, 'medications.$.is_active': false } },
+        // 2. Try marking inactive in embedded arrays
+        let patient1 = await Patient.findOneAndUpdate(
+            { $or: [{ _id: patientObjId }, { profile_id: patientObjId }], 'medications._id': medObjId },
+            { $set: { 'medications.$.isActive': false, 'medications.$.is_active': false, 'medications.$.status': 'inactive' } },
             { new: true }
         );
-        const patient2 = await Patient.findOneAndUpdate(
-            { $or: [{ _id: patientId }, { profile_id: patientId }], 'metadata.medications._id': medId },
-            { $set: { 'metadata.medications.$.isActive': false, 'metadata.medications.$.is_active': false } },
-            { new: true }
-        );
+        
+        let patient2 = null;
+        if (!patient1) {
+            patient2 = await Patient.findOneAndUpdate(
+                { $or: [{ _id: patientObjId }, { profile_id: patientObjId }], 'metadata.medications._id': medObjId },
+                { $set: { 'metadata.medications.$.isActive': false, 'metadata.medications.$.is_active': false, 'metadata.medications.$.status': 'inactive' } },
+                { new: true }
+            );
+        }
 
         if (!found && !patient1 && !patient2) {
             return res.status(404).json({ error: 'Medication or Patient not found' });
@@ -1186,7 +1303,7 @@ router.delete('/patients/:id/medications/:medId', async (req, res) => {
         }
 
         if (medName) {
-            const pDoc = patient1 || patient2 || await Patient.findOne({ $or: [{ _id: patientId }, { profile_id: patientId }] });
+            const pDoc = patient1 || patient2 || await Patient.findById(patientObjId) || await Patient.findOne({ profile_id: patientObjId });
             if (pDoc) {
                 await syncTodayMedicineLog(pDoc._id, medName, [], 'remove');
             }
@@ -1419,12 +1536,51 @@ router.post('/calls', async (req, res) => {
                     }
 
                     // 3. 3-Layer Sync: Update the Patient's Daily Checklist (MedicineLog)
-                    let timeString = null;
-                    if (scheduledTime) {
-                        const dObj = new Date(scheduledTime);
-                        timeString = String(dObj.getHours()).padStart(2, '0') + ':' + String(dObj.getMinutes()).padStart(2, '0');
+                    // CRITICAL: Derive bucket from the MEDICATION's own scheduledTimes,
+                    // NOT from the call's clock time. This prevents a 6 PM catch-up call
+                    // from writing an Afternoon medication into the Night bucket.
+                    let medBucketTime = null;
+                    try {
+                        // Look up the medication's own schedule to determine correct bucket
+                        let medSchedule = null;
+                        const medDocLookup = await Medication.findById(mc.medicationId).select('scheduledTimes times').lean();
+                        if (medDocLookup) {
+                            medSchedule = medDocLookup.scheduledTimes && medDocLookup.scheduledTimes.length > 0
+                                ? medDocLookup.scheduledTimes : medDocLookup.times;
+                        }
+                        if (!medSchedule) {
+                            // Check embedded Patient.medications
+                            const ptDoc = await Patient.findOne(
+                                { $or: [{ _id: patientId }, { profile_id: patientId }], 'medications._id': mc.medicationId },
+                                { 'medications.$': 1 }
+                            ).lean();
+                            if (ptDoc && ptDoc.medications && ptDoc.medications[0]) {
+                                const embMed = ptDoc.medications[0];
+                                medSchedule = embMed.scheduledTimes && embMed.scheduledTimes.length > 0
+                                    ? embMed.scheduledTimes : embMed.times;
+                            }
+                        }
+                        // Convert the medication's schedule into a representative time string
+                        // that syncMedicineLogHelper will parse into the correct bucket
+                        if (medSchedule && medSchedule.length > 0) {
+                            const buckets = mapScheduledTimesToBuckets(medSchedule);
+                            // Use the current shift as the target if the med spans multiple shifts
+                            const currentShift = getCurrentShift();
+                            const targetBucket = buckets.includes(currentShift) ? currentShift : buckets[0];
+                            // Convert bucket name to a representative hour for the helper
+                            if (targetBucket === 'morning') medBucketTime = '08:00';
+                            else if (targetBucket === 'afternoon') medBucketTime = '13:00';
+                            else if (targetBucket === 'night') medBucketTime = '20:00';
+                        }
+                    } catch (lookupErr) {
+                        console.warn('[CallLog] Med schedule lookup failed:', lookupErr.message);
                     }
-                    await syncMedicineLogHelper(patientId, today, timeString, mc.medicationName, true, req.profile.role);
+                    // Fallback to call's scheduled time only if we couldn't determine from med
+                    if (!medBucketTime && scheduledTime) {
+                        const dObj = new Date(scheduledTime);
+                        medBucketTime = String(dObj.getHours()).padStart(2, '0') + ':' + String(dObj.getMinutes()).padStart(2, '0');
+                    }
+                    await syncMedicineLogHelper(patientId, today, medBucketTime, mc.medicationName, true, req.profile.role);
                 }
             }
         }
