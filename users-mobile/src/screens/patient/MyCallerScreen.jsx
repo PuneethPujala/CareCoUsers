@@ -1174,7 +1174,8 @@ const s = StyleSheet.create({
   formGroup: { marginBottom: 16 },
   formLabel: { fontSize: 13, ...FONT.bold, color: '#475569', marginBottom: 6 },
   formInput: {
-    backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 14,
-    paddingHorizontal: 16, paddingVertical: 14, fontSize: 15, color: '#0F172A', ...FONT.medium,
+    backgroundColor: '#FAFBFF', borderWidth: 1.5, borderColor: '#E2E8F0', borderRadius: 20,
+    paddingHorizontal: 16, paddingVertical: 12, fontSize: 15, color: '#0F172A', ...FONT.medium,
+    height: 48,
   },
 });
