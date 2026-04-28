@@ -376,6 +376,14 @@ async function updateMe(req, res) {
     if (phone !== undefined) updateData.phone = phone;
     if (avatarUrl !== undefined) updateData.avatarUrl = avatarUrl;
 
+    if (req.user?.userType === 'Patient') {
+      const patientUpdate = {};
+      if (updateData.fullName !== undefined) patientUpdate.name = updateData.fullName;
+      if (updateData.phone !== undefined) patientUpdate.phone = updateData.phone;
+      await Patient.findByIdAndUpdate(req.profile._id, patientUpdate, { new: true, runValidators: true });
+      return res.json({ message: 'Profile updated successfully' });
+    }
+
     const profile = await Profile.findByIdAndUpdate(req.profile._id, updateData, {
       new: true,
       runValidators: true,
