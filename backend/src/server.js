@@ -20,6 +20,7 @@ const adminRoutes = require('./routes/admin');
 const orgRoutes = require('./routes/org');
 const managerRoutes = require('./routes/manager');
 const caretakerDashRoutes = require('./routes/caretaker');
+const notificationRoutes = require('./routes/notifications');
 
 // Register shared models early so they're available via mongoose.model()
 require('./models/MedicineLog');
@@ -92,6 +93,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/org', orgRoutes);
 app.use('/api/manager', managerRoutes);
 app.use('/api/caretaker', caretakerDashRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // ── 404 handler ──────────────────────────────────────────────
 app.use('*', (req, res) => {
