@@ -95,8 +95,8 @@ export default function AIPredictionChart({ vitalsHistory, predictionData, metri
     labels: labels.map((l, i) => (i % 2 === 0 ? l : '')), 
     datasets: [
       {
-        data: validValues,
-        color: (opacity = 1) => `rgba(186, 230, 253, ${opacity})`, // Light blue connecting line
+        data: validValues.map(Number),
+        color: (opacity = 1) => `rgba(99, 102, 241, ${opacity})`, // Indigo connecting line
         strokeWidth: 2
       }
     ]
@@ -106,9 +106,11 @@ export default function AIPredictionChart({ vitalsHistory, predictionData, metri
     backgroundGradientFrom: '#FFFFFF',
     backgroundGradientTo: '#FFFFFF',
     color: (opacity = 1) => `rgba(226, 232, 240, ${opacity})`, // grid line color
+    labelColor: (opacity = 1) => `rgba(100, 116, 139, ${opacity})`, // text label color
     strokeWidth: 2, 
     barPercentage: 0.5,
     useShadowColorFromDataset: false,
+    formatYLabel: (y) => Math.round(Number(y)).toString(), // ensure integers, not '00'
     propsForDots: {
       r: '5',
       strokeWidth: '2',
