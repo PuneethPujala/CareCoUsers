@@ -158,18 +158,14 @@ const ResetPasswordModal = ({ visible, onClose, email }) => {
                         {step === 'request' && (
                             <>
                                 <Text style={rs.subtitle}>Enter your email and we'll send a 6-digit code to reset your password.</Text>
-                                <View style={rs.inputWrap}>
-                                    <Mail size={18} color={C.muted} />
-                                    <TextInput
-                                        style={rs.input}
-                                        placeholder="name@example.com"
-                                        placeholderTextColor={C.muted}
-                                        value={resetEmail}
-                                        onChangeText={(v) => { setResetEmail(v); setError(''); }}
-                                        autoCapitalize="none"
-                                        keyboardType="email-address"
-                                    />
-                                </View>
+                                <SmartInput
+                                    placeholder="name@example.com"
+                                    value={resetEmail}
+                                    onChangeText={(v) => { setResetEmail(v); setError(''); }}
+                                    autoCapitalize="none"
+                                    keyboardType="email-address"
+                                    leftAccessory={<Mail size={18} color={C.muted} style={{ marginRight: 8 }} />}
+                                />
                                 <Pressable style={[rs.btn, loading && { opacity: 0.7 }]} onPress={handleSendCode} disabled={loading}>
                                     {loading ? <ActivityIndicator size="small" color="#FFF" /> : <Text style={rs.btnText}>Send Reset Code</Text>}
                                 </Pressable>
@@ -179,18 +175,15 @@ const ResetPasswordModal = ({ visible, onClose, email }) => {
                         {step === 'otp' && (
                             <>
                                 <Text style={rs.subtitle}>Enter the code sent to <Text style={{ ...FONT.bold }}>{resetEmail}</Text> and set your new password.</Text>
-                                <View style={rs.inputWrap}>
-                                    <Lock size={18} color={C.muted} />
-                                    <TextInput
-                                        style={[rs.input, { letterSpacing: 6, fontSize: 22, textAlign: 'center' }]}
-                                        placeholder="000000"
-                                        placeholderTextColor="#CBD5E1"
-                                        maxLength={6}
-                                        keyboardType="number-pad"
-                                        value={otp}
-                                        onChangeText={(v) => { setOtp(v); setError(''); }}
-                                    />
-                                </View>
+                                <SmartInput
+                                    placeholder="000000"
+                                    maxLength={6}
+                                    keyboardType="number-pad"
+                                    value={otp}
+                                    onChangeText={(v) => { setOtp(v); setError(''); }}
+                                    leftAccessory={<Lock size={18} color={C.muted} style={{ marginRight: 8 }} />}
+                                    style={{ marginBottom: 12 }}
+                                />
                                 <View style={rs.resendRow}>
                                     {resendTimer > 0 ? (
                                         <Text style={rs.timerText}>Resend in {resendTimer}s</Text>
@@ -200,31 +193,27 @@ const ResetPasswordModal = ({ visible, onClose, email }) => {
                                         </Pressable>
                                     )}
                                 </View>
-                                <View style={rs.inputWrap}>
-                                    <Lock size={18} color={C.muted} />
-                                    <TextInput
-                                        style={rs.input}
-                                        placeholder="New password"
-                                        placeholderTextColor={C.muted}
-                                        value={newPassword}
-                                        onChangeText={(v) => { setNewPassword(v); setError(''); }}
-                                        secureTextEntry={!showPass}
-                                    />
-                                    <Pressable onPress={() => setShowPass(!showPass)} hitSlop={12}>
-                                        {showPass ? <Eye size={18} color={C.primary} /> : <EyeOff size={18} color={C.muted} />}
-                                    </Pressable>
-                                </View>
-                                <View style={rs.inputWrap}>
-                                    <Lock size={18} color={C.muted} />
-                                    <TextInput
-                                        style={rs.input}
-                                        placeholder="Confirm new password"
-                                        placeholderTextColor={C.muted}
-                                        value={confirmPassword}
-                                        onChangeText={(v) => { setConfirmPassword(v); setError(''); }}
-                                        secureTextEntry={!showPass}
-                                    />
-                                </View>
+                                <SmartInput
+                                    placeholder="New password"
+                                    value={newPassword}
+                                    onChangeText={(v) => { setNewPassword(v); setError(''); }}
+                                    secureTextEntry={!showPass}
+                                    leftAccessory={<Lock size={18} color={C.muted} style={{ marginRight: 8 }} />}
+                                    rightAccessory={
+                                        <Pressable onPress={() => setShowPass(!showPass)} hitSlop={12} style={{ paddingLeft: 8 }}>
+                                            {showPass ? <Eye size={18} color={C.primary} /> : <EyeOff size={18} color={C.muted} />}
+                                        </Pressable>
+                                    }
+                                    style={{ marginBottom: 14 }}
+                                />
+                                <SmartInput
+                                    placeholder="Confirm new password"
+                                    value={confirmPassword}
+                                    onChangeText={(v) => { setConfirmPassword(v); setError(''); }}
+                                    secureTextEntry={!showPass}
+                                    leftAccessory={<Lock size={18} color={C.muted} style={{ marginRight: 8 }} />}
+                                    style={{ marginBottom: 14 }}
+                                />
                                 <Pressable style={[rs.btn, loading && { opacity: 0.7 }]} onPress={handleVerifyAndReset} disabled={loading}>
                                     {loading ? <ActivityIndicator size="small" color="#FFF" /> : <Text style={rs.btnText}>Reset Password</Text>}
                                 </Pressable>
@@ -243,8 +232,6 @@ const rs = StyleSheet.create({
     header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
     title: { fontSize: 20, ...FONT.heavy, color: C.dark },
     subtitle: { fontSize: 14, ...FONT.medium, color: C.muted, lineHeight: 22, marginBottom: 20 },
-    inputWrap: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.inputBg, borderWidth: 1.5, borderColor: C.border, borderRadius: 14, height: 56, paddingHorizontal: 16, marginBottom: 14, gap: 12 },
-    input: { flex: 1, fontSize: 16, color: C.dark, ...FONT.semibold, paddingVertical: 0 },
     btn: { backgroundColor: C.primary, borderRadius: 14, height: 52, alignItems: 'center', justifyContent: 'center', marginTop: 8 },
     btnText: { color: '#FFF', fontSize: 16, ...FONT.bold },
     errorBox: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: C.dangerBg, borderRadius: 12, padding: 14, marginBottom: 14 },
