@@ -1,48 +1,14 @@
-/**
- * PatientSignupScreen.jsx
- *
- * Fixes applied in this revision on top of the restored version:
- *
- * C1. setErrors proxy called function-form callbacks with {} instead of current errors.
- *     All setErrors(prev => ({ ...prev, someField: '...' })) calls throughout the file
- *     appeared to merge errors but actually started from an empty object because the
- *     proxy called errs({}) unconditionally. Any existing field errors (e.g. an email
- *     error while a location error was being set) were silently dropped.
- *     FIX: The proxy now reads the current RHF error state and passes it as `prev`
- *     so the function-form callback receives the actual current errors map.
- *
- * C2. selectedPlan state and RHF selectedPlanId were not kept in sync.
- *     Step3Membership calls RHF setValue('selectedPlanId', 'basic') internally,
- *     but handlePaymentSuccess read from the separate selectedPlan state object
- *     which was never updated from Step3. This meant subscribe() always sent
- *     plan: 'basic' regardless of what the user actually selected.
- *     FIX: handlePaymentSuccess now reads form.selectedPlanId (from RHF via watch())
- *     as the authoritative plan value. The selectedPlan state is kept only for
- *     display purposes (name/price strings in the UPI modal).
- *
- * C3. handleCompleteSignUp called refreshPatient() then completeSignUp().
- *     Since completeSignUp() now internally calls fetchPatientData() (AuthContext A3 fix),
- *     this caused two sequential getMe() network calls. Simplified to just completeSignUp()
- *     which handles the refresh and onboarding resolution atomically.
- *
- * All prior fixes (B1–B7, FormProvider wrap, setForm function-form support) preserved.
- */
-
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
     View, Text, StyleSheet, TextInput, Pressable, Platform,
     KeyboardAvoidingView, ScrollView, Animated, ActivityIndicator,
-    Modal, Image, Alert, Easing,
+    Modal, Alert, Easing,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { LinearGradient } from 'expo-linear-gradient';
 import {
-    User, Mail, MapPin, Lock, Eye, EyeOff, CheckCircle2, ArrowLeft, AlertCircle,
-    Search, X, CreditCard, Smartphone, Check, ChevronLeft, Activity, CloudUpload,
-    Shield, Crown, Sparkles, Star, Zap, ChevronRight, LogOut, Navigation,
-    RotateCcw
+    ChevronLeft, X, Search, MapPin, Activity, User, AlertCircle,
+    Sparkles, RotateCcw, Heart, ShieldCheck, Check,
 } from 'lucide-react-native';
-import { colors } from '../../theme';
 import { useAuth } from '../../context/AuthContext';
 import { resolveOnboardingStep } from '../../utils/authUtils';
 import { apiService } from '../../lib/api';
@@ -54,18 +20,18 @@ import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { step1Schema, step2Schema, step3Schema, step5Schema } from './signupSchema';
 
-import {
-    StepIndicator, OTPModal, UPIPaymentModal, styles, FONT
-} from './components';
+import { OTPModal, UPIPaymentModal } from './components';
+import { styles, FONT, C } from './components/SignupStyles';
 import Step1Profile from './components/Step1Profile';
 import Step2Locality from './components/Step2Locality';
 import Step3Membership from './components/Step3Membership';
 import Step4Verification from './components/Step4Verification';
 import Step5FinalDetails from './components/Step5FinalDetails';
 
-const UI_MOCK_LABELS = ['Profile', 'Locality', 'Health', 'Lifestyle', 'Complete'];
 const ONBOARDING_STORAGE_KEY = 'samvaya_onboarding_progress';
 const STALE_PROGRESS_DAYS = 7;
+
+const STEP_COUNTS = 5;
 
 export default function PatientSignupScreen({ navigation, route }) {
     const {
@@ -93,17 +59,11 @@ export default function PatientSignupScreen({ navigation, route }) {
 
     const form = methods.watch();
 
-    // setForm: supports both object and function (prev => ...) patterns
     const setForm = (newVal) => {
         const valueToSet = typeof newVal === 'function' ? newVal(form) : newVal;
-        Object.entries(valueToSet).forEach(([key, value]) => {
-            methods.setValue(key, value);
-        });
+        Object.entries(valueToSet).forEach(([key, value]) => methods.setValue(key, value));
     };
 
-    // C1 FIX: setErrors proxy previously called function-form callbacks with {}
-    // as `prev`, silently discarding all existing field errors. Now derives the
-    // current error map from RHF state so prev is accurate.
     const setErrors = useCallback((errs) => {
         const currentErrors = {};
         Object.keys(methods.formState.errors).forEach(key => {
@@ -124,9 +84,7 @@ export default function PatientSignupScreen({ navigation, route }) {
         return e;
     }, [methods.formState.errors]);
 
-    // selectedPlan is kept only for display strings in the UPI modal (name, price).
-    // The authoritative plan ID for API calls is form.selectedPlanId (RHF).
-    const [selectedPlan, setSelectedPlan] = useState({ id: 'basic', name: 'Basic Plan', price: '₹500 / month' });
+    const [selectedPlan, setSelectedPlan] = useState({ id: 'basic', name: 'Basic Plan', price: '₹500/mo' });
 
     const [otpVisible, setOtpVisible] = useState(false);
     const [verificationField, setVerificationField] = useState(null);
@@ -140,10 +98,8 @@ export default function PatientSignupScreen({ navigation, route }) {
 
     const [detectingLocation, setDetectingLocation] = useState(false);
     const [locationAddress, setLocationAddress] = useState('');
-    const [cityModalVisible, setCityModalVisible] = useState(false);
     const [availableCities, setAvailableCities] = useState([]);
     const [loadingCities, setLoadingCities] = useState(false);
-    const [citySearchQuery, setCitySearchQuery] = useState('');
 
     const [showPass, setShowPass] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
@@ -166,203 +122,152 @@ export default function PatientSignupScreen({ navigation, route }) {
     const passwordRef = useRef(null);
     const confirmPassRef = useRef(null);
 
-    // Snapshot ref so saveProgress doesn't need form state in its dep array
     const progressSnapshotRef = useRef({});
     useEffect(() => {
         progressSnapshotRef.current = { form, locationAddress, paymentAttempted, selectedPlan };
     });
 
-    // B2 FIX: guard so recovery effect doesn't override manual step transitions
     const isManualTransitionRef = useRef(false);
-    // B5 FIX: ref so clearProgress isn't a dep of the recovery effect
     const clearProgressRef = useRef(null);
 
-    // ── AsyncStorage persistence ──────────────────────────────────────────────
+    // ── Step transition animations ─────────────────────────────────────────────
+    const fadeAnim = useRef(new Animated.Value(1)).current;
+    const slideAnim = useRef(new Animated.Value(0)).current;
+    const syncRotateAnim = useRef(new Animated.Value(0)).current;
+    const staggerAnims = useRef([...Array(10)].map(() => new Animated.Value(0))).current;
+
+    const animateIn = useCallback(() => {
+        staggerAnims.forEach(a => { a.stopAnimation(); a.setValue(0); });
+        fadeAnim.stopAnimation(); fadeAnim.setValue(0);
+        slideAnim.stopAnimation(); slideAnim.setValue(18);
+
+        Animated.parallel([
+            Animated.timing(fadeAnim, { toValue: 1, duration: 260, useNativeDriver: true }),
+            Animated.timing(slideAnim, { toValue: 0, duration: 280, useNativeDriver: true }),
+            Animated.stagger(60, staggerAnims.map(a =>
+                Animated.timing(a, { toValue: 1, duration: 360, useNativeDriver: true })
+            )),
+        ]).start();
+    }, [fadeAnim, slideAnim, staggerAnims]);
+
+    useEffect(() => {
+        animateIn();
+        if (mainScrollRef.current) mainScrollRef.current.scrollTo({ y: 0, animated: false });
+        if (step === 2) fetchCities();
+    }, [step]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // Processing spinner
+    useEffect(() => {
+        if (signupLoading) {
+            const loop = Animated.loop(
+                Animated.timing(syncRotateAnim, { toValue: 1, duration: 1200, easing: Easing.linear, useNativeDriver: true })
+            );
+            loop.start();
+            return () => { loop.stop(); syncRotateAnim.setValue(0); };
+        }
+    }, [signupLoading, syncRotateAnim]);
+
+    // ── AsyncStorage persistence ───────────────────────────────────────────────
 
     const saveProgress = useCallback(async (currentStep, extraData = {}) => {
         try {
             const { form: f, locationAddress: la, paymentAttempted: pa, selectedPlan: sp } = progressSnapshotRef.current;
-            const progress = {
-                step: currentStep,
-                savedAt: Date.now(),
-                email: f.email,
-                fullName: f.fullName,
-                city: f.city,
+            await AsyncStorage.setItem(ONBOARDING_STORAGE_KEY, JSON.stringify({
+                step: currentStep, savedAt: Date.now(),
+                email: f.email, fullName: f.fullName, city: f.city,
                 locationAddress: la,
                 paymentAttempted: extraData.paymentAttempted ?? pa,
-                selectedPlan: sp,
-                ...extraData,
-            };
-            await AsyncStorage.setItem(ONBOARDING_STORAGE_KEY, JSON.stringify(progress));
-        } catch (err) {
-            console.warn('[Onboarding] Failed to save progress:', err.message);
-        }
+                selectedPlan: sp, ...extraData,
+            }));
+        } catch (err) { console.warn('[Onboarding] Failed to save progress:', err.message); }
     }, []);
 
     const clearProgress = useCallback(async () => {
-        try {
-            await AsyncStorage.removeItem(ONBOARDING_STORAGE_KEY);
-        } catch { }
+        try { await AsyncStorage.removeItem(ONBOARDING_STORAGE_KEY); } catch { }
     }, []);
 
-    useEffect(() => {
-        clearProgressRef.current = clearProgress;
-    }, [clearProgress]);
+    useEffect(() => { clearProgressRef.current = clearProgress; }, [clearProgress]);
 
-    // ── Recovery effect ───────────────────────────────────────────────────────
+    // ── Recovery ───────────────────────────────────────────────────────────────
 
     useEffect(() => {
         if (!profile && !patient) return;
-
         const dbName = patient?.name || profile?.fullName;
         const dbEmail = patient?.email || profile?.email;
         const dbPhone = patient?.phone || profile?.phoneNumber;
         const dbCity = patient?.city || profile?.city;
-
         if (dbName && !form.fullName) {
             setForm(prev => ({
-                ...prev,
-                fullName: dbName,
+                ...prev, fullName: dbName,
                 email: dbEmail || prev.email,
                 phoneNumber: dbPhone || prev.phoneNumber,
                 city: dbCity || prev.city,
             }));
             if (dbEmail) setIsEmailVerified(true);
             if (dbPhone) setIsPhoneVerified(true);
-            if (dbCity) setLocationAddress(`${dbCity}`);
+            if (dbCity) setLocationAddress(dbCity);
         }
-
-        // B2 FIX: skip override if step was just set manually
-        if (isManualTransitionRef.current) {
-            isManualTransitionRef.current = false;
-            return;
-        }
-
+        if (isManualTransitionRef.current) { isManualTransitionRef.current = false; return; }
         const isProcessing = signupLoading || googleLoading;
         const targetStep = resolveOnboardingStep(patient, profile);
-
-        if (targetStep === null) {
-            clearProgressRef.current?.();
-        } else if (step !== targetStep && !isProcessing && !isSubmittingRef.current) {
-            setStep(targetStep);
-        }
+        if (targetStep === null) { clearProgressRef.current?.(); }
+        else if (step !== targetStep && !isProcessing && !isSubmittingRef.current) { setStep(targetStep); }
     }, [profile, patient, signupLoading, googleLoading]);
 
     useEffect(() => {
-        GoogleSignin.configure({
-            webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
-            offlineAccess: false,
-        });
-
-        // Cleanup pending API requests on unmount
-        return () => {
-            if (abortRef.current) {
-                abortRef.current.abort();
-            }
-        };
+        GoogleSignin.configure({ webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID, offlineAccess: false });
+        return () => { if (abortRef.current) abortRef.current.abort(); };
     }, []);
 
-    const heroAnim = useRef(new Animated.Value(-15)).current;
-    const heroOpacity = useRef(new Animated.Value(0)).current;
-    const cardAnim = useRef(new Animated.Value(30)).current;
-    const cardOpacity = useRef(new Animated.Value(0)).current;
-    const syncRotateAnim = useRef(new Animated.Value(0)).current;
-    const staggerAnims = useRef([...Array(10)].map(() => new Animated.Value(0))).current;
-
+    // Restore saved progress
     useEffect(() => {
-        if (signupLoading) {
-            const loop = Animated.loop(
-                Animated.timing(syncRotateAnim, {
-                    toValue: 1, duration: 1200,
-                    easing: Easing.linear, useNativeDriver: true,
-                })
-            );
-            const frameId = requestAnimationFrame(() => loop.start());
-            return () => {
-                cancelAnimationFrame(frameId);
-                loop.stop();
-                syncRotateAnim.setValue(0);
-            };
-        }
-    }, [signupLoading, syncRotateAnim]);
-
-    // Load saved progress on mount
-    useEffect(() => {
-        const applyProgress = (progress) => {
-            if (progress.step && progress.step > 1) setStep(progress.step);
-            if (progress.email || progress.fullName) {
-                setForm(prev => ({
-                    ...prev,
-                    email: progress.email || prev.email,
-                    fullName: progress.fullName || prev.fullName,
-                    city: progress.city || prev.city,
-                }));
-            }
-            if (progress.locationAddress) setLocationAddress(progress.locationAddress);
-            if (progress.selectedPlan) setSelectedPlan(progress.selectedPlan);
-            if (progress.paymentAttempted && progress.step === 3) {
-                setPaymentAttempted(true);
-                setPaymentCrashWarning(true);
-            }
-        };
-
         const loadProgress = async () => {
             try {
                 const raw = await AsyncStorage.getItem(ONBOARDING_STORAGE_KEY);
                 if (!raw) return;
                 const progress = JSON.parse(raw);
                 const ageDays = (Date.now() - (progress.savedAt || 0)) / (1000 * 60 * 60 * 24);
+                const apply = () => {
+                    if (progress.step && progress.step > 1) setStep(progress.step);
+                    if (progress.email || progress.fullName) {
+                        setForm(prev => ({
+                            ...prev,
+                            email: progress.email || prev.email,
+                            fullName: progress.fullName || prev.fullName,
+                            city: progress.city || prev.city,
+                        }));
+                    }
+                    if (progress.locationAddress) setLocationAddress(progress.locationAddress);
+                    if (progress.selectedPlan) setSelectedPlan(progress.selectedPlan);
+                    if (progress.paymentAttempted && progress.step === 3) {
+                        setPaymentAttempted(true); setPaymentCrashWarning(true);
+                    }
+                };
                 if (ageDays > STALE_PROGRESS_DAYS) {
                     Alert.alert(
-                        'Incomplete Signup Found',
-                        `You started signing up ${Math.floor(ageDays)} days ago. Continue or start fresh?`,
+                        'Resume signup?',
+                        `You started signing up ${Math.floor(ageDays)} days ago.`,
                         [
-                            { text: 'Start Fresh', style: 'destructive', onPress: () => clearProgress() },
-                            { text: 'Continue', onPress: () => applyProgress(progress) },
+                            { text: 'Start fresh', style: 'destructive', onPress: clearProgress },
+                            { text: 'Continue', onPress: apply },
                         ]
                     );
                     return;
                 }
-                applyProgress(progress);
-            } catch (err) {
-                console.warn('[Onboarding] Failed to load progress:', err.message);
-            }
+                apply();
+            } catch (err) { console.warn('[Onboarding] Failed to load progress:', err.message); }
         };
-
         loadProgress();
     }, [clearProgress]);
 
-    // OTP countdown timer
+    // OTP countdown
     useEffect(() => {
         if (resendTimer <= 0) return;
         const interval = setInterval(() => setResendTimer(prev => prev - 1), 1000);
         return () => clearInterval(interval);
     }, [resendTimer]);
 
-    // Step change animations
-    useEffect(() => {
-        staggerAnims.forEach(a => { a.stopAnimation(); a.setValue(0); });
-        heroAnim.stopAnimation(); heroAnim.setValue(-20);
-        heroOpacity.stopAnimation(); heroOpacity.setValue(0);
-        cardAnim.stopAnimation(); cardAnim.setValue(20);
-        cardOpacity.stopAnimation(); cardOpacity.setValue(0);
-
-        Animated.parallel([
-            Animated.timing(heroAnim, { toValue: 0, duration: 400, useNativeDriver: true }),
-            Animated.timing(heroOpacity, { toValue: 1, duration: 400, useNativeDriver: true }),
-            Animated.timing(cardAnim, { toValue: 0, duration: 500, delay: 100, useNativeDriver: true }),
-            Animated.timing(cardOpacity, { toValue: 1, duration: 500, delay: 100, useNativeDriver: true }),
-        ]).start();
-
-        Animated.stagger(100, staggerAnims.map(a =>
-            Animated.timing(a, { toValue: 1, duration: 400, useNativeDriver: true })
-        )).start();
-
-        if (mainScrollRef.current) mainScrollRef.current.scrollTo({ y: 0, animated: true });
-        if (step === 2) fetchCities();
-    }, [step]); // eslint-disable-line react-hooks/exhaustive-deps
-
-    // ── Fetchers ──────────────────────────────────────────────────────────────
+    // ── Fetchers ───────────────────────────────────────────────────────────────
 
     const fetchCities = useCallback(async () => {
         setLoadingCities(true);
@@ -373,12 +278,10 @@ export default function PatientSignupScreen({ navigation, route }) {
         } catch (error) {
             console.warn('Failed to fetch cities:', error);
             setErrors(prev => ({ ...prev, location: 'Failed to load cities. Try detecting your location instead.' }));
-        } finally {
-            setLoadingCities(false);
-        }
+        } finally { setLoadingCities(false); }
     }, [setErrors]);
 
-    // ── Google Sign Up ────────────────────────────────────────────────────────
+    // ── Google Sign Up ─────────────────────────────────────────────────────────
 
     const handleGooglePress = useCallback(async () => {
         try {
@@ -388,63 +291,37 @@ export default function PatientSignupScreen({ navigation, route }) {
             try { await GoogleSignin.signOut(); } catch { }
             const signInResult = await GoogleSignin.signIn();
             const idToken = signInResult?.data?.idToken;
-            if (!idToken) {
-                setErrors({ google: 'Failed to get Google ID token. Please try again.' });
-                return;
-            }
+            if (!idToken) { setErrors({ google: 'Failed to get Google ID token. Please try again.' }); return; }
             await clearProgress();
             const result = await signInWithGoogle(idToken);
             if (result?.isNewUser) {
                 const googleUser = result.user;
-                const fullName = googleUser.user_metadata?.full_name
-                    || googleUser.user_metadata?.name
-                    || googleUser.email.split('@')[0];
+                const fullName = googleUser.user_metadata?.full_name || googleUser.user_metadata?.name || googleUser.email.split('@')[0];
                 try {
-                    const regRes = await apiService.auth.register({
-                        email: googleUser.email, fullName, role: 'patient',
-                        supabaseUid: googleUser.id,
-                    });
+                    const regRes = await apiService.auth.register({ email: googleUser.email, fullName, role: 'patient', supabaseUid: googleUser.id });
                     const regProfile = regRes.data?.profile;
                     const regSession = regRes.data?.session;
-                    if (regProfile && regSession) {
-                        await injectSession(regSession, regProfile);
-                    } else if (regProfile) {
-                        await injectSession(result.session, regProfile);
-                    } else {
-                        setErrors({ google: 'Registration succeeded but no profile returned.' });
-                        await signOut();
-                    }
+                    if (regProfile && regSession) await injectSession(regSession, regProfile);
+                    else if (regProfile) await injectSession(result.session, regProfile);
+                    else { setErrors({ google: 'Registration succeeded but no profile returned.' }); await signOut(); }
                 } catch (regError) {
                     const code = regError?.response?.data?.code;
                     const regProfile = regError?.response?.data?.profile;
                     const regSession = regError?.response?.data?.session;
-                    const msg = regError?.response?.data?.error || regError.message || 'Failed to create account';
-                    if (code === 'EMAIL_ALREADY_EXISTS' && regProfile && regSession) {
-                        await injectSession(regSession, regProfile);
-                    } else if (code === 'EMAIL_ALREADY_EXISTS') {
-                        setErrors({ google: 'An account with this email already exists. Please log in instead.' });
-                        await signOut();
-                    } else {
-                        setErrors({ google: msg });
-                        await signOut();
-                    }
+                    if (code === 'EMAIL_ALREADY_EXISTS' && regProfile && regSession) await injectSession(regSession, regProfile);
+                    else if (code === 'EMAIL_ALREADY_EXISTS') { setErrors({ google: 'An account with this email already exists. Please log in instead.' }); await signOut(); }
+                    else { setErrors({ google: regError?.response?.data?.error || 'Failed to create account' }); await signOut(); }
                 }
             }
         } catch (error) {
             try { await GoogleSignin.signOut(); } catch { }
-            if (error?.code === statusCodes.SIGN_IN_CANCELLED) {
-                // user cancelled — do nothing
-            } else if (error?.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
-                setErrors({ google: 'Google Play Services not available. Please update.' });
-            } else {
-                setErrors({ google: error?.message || 'Google sign-up failed' });
-            }
-        } finally {
-            setGoogleLoading(false);
-        }
+            if (error?.code === statusCodes.SIGN_IN_CANCELLED) { /* user cancelled */ }
+            else if (error?.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) setErrors({ google: 'Google Play Services not available. Please update.' });
+            else setErrors({ google: error?.message || 'Google sign-up failed' });
+        } finally { setGoogleLoading(false); }
     }, [signInWithGoogle, injectSession, clearProgress, setErrors]);
 
-    // ── OTP ───────────────────────────────────────────────────────────────────
+    // ── OTP ────────────────────────────────────────────────────────────────────
 
     const handleVerifyPress = useCallback(async (field) => {
         const e = {};
@@ -471,22 +348,16 @@ export default function PatientSignupScreen({ navigation, route }) {
             setOtp('');
         } catch (error) {
             let { general } = parseError(error);
-            if (error?.response?.data?.code === 'PHONE_LIMIT_REACHED') {
-                general = error.response.data.error;
-            } else if (error?.response?.data?.error) {
-                general = error.response.data.error;
-            }
+            if (error?.response?.data?.code === 'PHONE_LIMIT_REACHED') general = error.response.data.error;
+            else if (error?.response?.data?.error) general = error.response.data.error;
             const errorField = field === 'phone' ? 'phoneNumber' : field;
             setErrors(prev => ({ ...prev, [errorField]: general || `Failed to send OTP to ${field}` }));
-        } finally {
-            setOtpLoading(false);
-        }
+        } finally { setOtpLoading(false); }
     }, [form.email, form.phoneNumber, sendOtp, setErrors]);
 
     const executeSignup = useCallback(async () => {
         if (isSubmittingRef.current) return;
         isSubmittingRef.current = true;
-
         if (user && user.email?.toLowerCase().trim() === form.email.toLowerCase().trim()) {
             try {
                 const profileRes = await apiService.auth.getProfile();
@@ -499,7 +370,6 @@ export default function PatientSignupScreen({ navigation, route }) {
                 }
             } catch { }
         }
-
         setSignupLoading(true);
         try {
             const cleanEmail = form.email.trim().toLowerCase();
@@ -508,22 +378,13 @@ export default function PatientSignupScreen({ navigation, route }) {
             analytics.signupSuccess(cleanEmail);
         } catch (error) {
             const { general, fields } = parseError(error);
-            setErrors({
-                general,
-                ...(fields?.email ? { email: fields.email } : {}),
-            });
+            setErrors({ general, ...(fields?.email ? { email: fields.email } : {}) });
             analytics.signupFailure(error?.response?.data?.code || error?.message || 'signup_error');
-        } finally {
-            setSignupLoading(false);
-            isSubmittingRef.current = false;
-        }
+        } finally { setSignupLoading(false); isSubmittingRef.current = false; }
     }, [form, user, signUp, saveProgress, clearProgress, setErrors]);
 
     const handleVerifyOtp = useCallback(async () => {
-        if (!otp || otp.length < 6) {
-            setErrors(prev => ({ ...prev, otp: 'Please enter a 6-digit code' }));
-            return;
-        }
+        if (!otp || otp.length < 6) { setErrors(prev => ({ ...prev, otp: 'Please enter the 6-digit code' })); return; }
         const value = verificationField === 'email'
             ? form.email.trim().toLowerCase()
             : `+91${form.phoneNumber.trim()}`;
@@ -534,14 +395,10 @@ export default function PatientSignupScreen({ navigation, route }) {
             setOtpVisible(false);
             setOtp('');
             analytics.track('otp_verification_success', { field: verificationField });
-
             if (verificationField === 'email') {
                 setIsEmailVerified(true);
-                if (!isPhoneVerified) {
-                    setTimeout(() => handleVerifyPress('phone'), 500);
-                } else {
-                    executeSignup();
-                }
+                if (!isPhoneVerified) setTimeout(() => handleVerifyPress('phone'), 500);
+                else executeSignup();
             } else {
                 setIsPhoneVerified(true);
                 executeSignup();
@@ -558,65 +415,63 @@ export default function PatientSignupScreen({ navigation, route }) {
                 let { general } = parseError(error);
                 setErrors(prev => ({ ...prev, otp: general || 'OTP not correct' }));
             }
-        } finally {
-            setOtpLoading(false);
-        }
+        } finally { setOtpLoading(false); }
     }, [otp, verificationField, form.email, form.phoneNumber, verifyOtp, otpAttempts, executeSignup, handleVerifyPress, isPhoneVerified, setErrors]);
 
     const handleResendOtp = useCallback(async () => {
         if (resendTimer > 0) return;
-        const value = verificationField === 'email'
-            ? form.email.trim().toLowerCase()
-            : `+91${form.phoneNumber.trim()}`;
+        const value = verificationField === 'email' ? form.email.trim().toLowerCase() : `+91${form.phoneNumber.trim()}`;
         setOtpLoading(true);
         try {
             await sendOtp(verificationField, value);
-            setResendTimer(60);
-            setOtp('');
-            setOtpAttempts(0);
+            setResendTimer(60); setOtp(''); setOtpAttempts(0);
             const errorField = verificationField === 'phone' ? 'phoneNumber' : verificationField;
             setErrors(prev => ({ ...prev, [errorField]: '', otp: '' }));
         } catch (error) {
             const { general } = parseError(error);
             setErrors(prev => ({ ...prev, otp: general || 'Failed to resend code' }));
-        } finally {
-            setOtpLoading(false);
-        }
+        } finally { setOtpLoading(false); }
     }, [resendTimer, verificationField, form.email, form.phoneNumber, sendOtp, setErrors]);
 
-    // ── Location ──────────────────────────────────────────────────────────────
+    // ── Location ───────────────────────────────────────────────────────────────
 
     const handleDetectLocation = useCallback(async () => {
         setDetectingLocation(true);
         setErrors(prev => ({ ...prev, location: '' }));
         try {
             const { status } = await Location.requestForegroundPermissionsAsync();
-            if (status !== 'granted') {
-                setErrors(prev => ({ ...prev, location: 'Permission to access location was denied' }));
-                return;
-            }
+            if (status !== 'granted') { setErrors(prev => ({ ...prev, location: 'Location permission denied' })); return; }
             const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
             const { latitude, longitude } = loc.coords;
             const res = await apiService.patients.reverseGeocode(latitude, longitude);
-            const data = res.data;
-            if (data?.address) {
-                const addr = data.address;
+            const addr = res.data?.address;
+            if (addr) {
                 const city = addr.city || addr.town || addr.village || addr.county || '';
                 const state = addr.state || '';
                 const post = addr.postcode || '';
                 setLocationAddress([city, state, post].filter(Boolean).join(', '));
                 setForm(prev => ({ ...prev, city }));
             } else {
-                setErrors(prev => ({ ...prev, location: 'Could not determine your city. Please enter it manually.' }));
+                setErrors(prev => ({ ...prev, location: 'Could not determine your city. Please select manually.' }));
             }
         } catch {
-            setErrors(prev => ({ ...prev, location: 'Failed to detect location. Please enter it manually.' }));
-        } finally {
-            setDetectingLocation(false);
-        }
+            setErrors(prev => ({ ...prev, location: 'Failed to detect location. Please select manually.' }));
+        } finally { setDetectingLocation(false); }
     }, [setErrors]);
 
-    // ── Step handlers ─────────────────────────────────────────────────────────
+    const handleCitySelect = useCallback((city) => {
+        if (!city.name) {
+            // Clear selection
+            setForm(prev => ({ ...prev, city: '' }));
+            setLocationAddress('');
+            return;
+        }
+        setForm(prev => ({ ...prev, city: city.name }));
+        setLocationAddress(`${city.name}${city.state ? `, ${city.state}` : ''}`);
+        setErrors(prev => ({ ...prev, location: '' }));
+    }, [setErrors]);
+
+    // ── Step handlers ──────────────────────────────────────────────────────────
 
     const handleStep1Submit = useCallback(async () => {
         const isValid = await methods.trigger(['fullName', 'email', 'phoneNumber', 'password', 'confirmPassword']);
@@ -627,18 +482,13 @@ export default function PatientSignupScreen({ navigation, route }) {
         executeSignup();
     }, [methods, isEmailVerified, isPhoneVerified, handleVerifyPress, executeSignup]);
 
-    // B1 + B3 FIX: city save → manual transition guard → background refresh
     const handleStep2Continue = useCallback(async () => {
         const isValid = await methods.trigger('city');
         if (!isValid) return;
         setSignupLoading(true);
-        try {
-            await apiService.auth.updatePatientCity({ city: form.city });
-        } catch (error) {
-            console.warn('Failed to save city:', error.message);
-        } finally {
-            setSignupLoading(false);
-        }
+        try { await apiService.auth.updatePatientCity({ city: form.city }); }
+        catch (error) { console.warn('Failed to save city:', error.message); }
+        finally { setSignupLoading(false); }
         await saveProgress(3);
         isManualTransitionRef.current = true;
         setStep(3);
@@ -648,242 +498,55 @@ export default function PatientSignupScreen({ navigation, route }) {
     const handlePaymentSuccess = useCallback(async () => {
         if (isPayingRef.current) return;
         isPayingRef.current = true;
-
         setUpiModalVisible(false);
-        setSignupLoading(true); // Show processing state
-
-        // C2 FIX: Use form.selectedPlanId (RHF) as the authoritative plan value.
+        setSignupLoading(true);
         const planId = form.selectedPlanId || 'basic';
         try {
-            await apiService.patients.subscribe({ planId: planId, paid: 1, paymentId: 'mock_payment_123' });
-            
-            // Success: Proceed to Step 4
+            await apiService.patients.subscribe({ planId, paid: 1, paymentId: 'mock_payment_123' });
             await saveProgress(3, { paymentAttempted: false });
-            setPaymentAttempted(true);
-            setPaymentCrashWarning(false);
+            setPaymentAttempted(true); setPaymentCrashWarning(false);
             isManualTransitionRef.current = true;
             setStep(4);
-            
-            // Refresh in background
-            refreshPatient().catch(err => console.warn('[Onboarding] Background patient refresh failed:', err.message));
+            refreshPatient().catch(err => console.warn('[Onboarding] Background refresh failed:', err.message));
         } catch (err) {
             console.error('Backend payment save failed:', err.message);
-            Alert.alert(
-                "Subscription Error",
-                "We couldn't record your payment on our server. Please try again or contact support if you were already charged.",
-                [{ text: "OK" }]
-            );
-            // Stay on Step 3 so they can retry
-        } finally {
-            setSignupLoading(false);
-            isPayingRef.current = false;
-        }
+            Alert.alert('Subscription Error', "We couldn't record your payment. Please try again.", [{ text: 'OK' }]);
+        } finally { setSignupLoading(false); isPayingRef.current = false; }
     }, [saveProgress, form.selectedPlanId, refreshPatient]);
 
     const handleBack = useCallback(() => {
-        if (step > 1) {
-            isManualTransitionRef.current = true;
-            setStep(prev => prev - 1);
-        }
+        if (step > 1) { isManualTransitionRef.current = true; setStep(prev => prev - 1); }
     }, [step]);
 
     const handleCompleteSignUp = useCallback(async (actualDob) => {
         const isValid = await methods.trigger(['age', 'gender']);
         if (!isValid) return;
-        
-        // Cancel any pending request
         if (abortRef.current) abortRef.current.abort();
         abortRef.current = new AbortController();
-        
         setSignupLoading(true);
         signupLoadingRef.current = true;
-        
         const timeoutId = setTimeout(() => {
             if (signupLoadingRef.current) {
-                setSignupLoading(false);
-                signupLoadingRef.current = false;
+                setSignupLoading(false); signupLoadingRef.current = false;
                 setErrors(prev => ({ ...prev, general: 'Saving is taking longer than expected. Your data is likely safe. Please check your dashboard.' }));
             }
         }, 15000);
-
         try {
-            // Use the actual DOB if provided (from Step 5 picker), otherwise fallback to estimate
             const dobToSend = actualDob || new Date(new Date().getFullYear() - parseInt(form.age), 0, 1).toISOString();
-            
-            await apiService.patients.updateMe({ 
-                date_of_birth: dobToSend, 
-                gender: form.gender.toLowerCase(),
-                profile_complete: true
-            }, { signal: abortRef.current.signal });
-            
+            await apiService.patients.updateMe({ date_of_birth: dobToSend, gender: form.gender.toLowerCase(), profile_complete: true }, { signal: abortRef.current.signal });
             await clearProgress();
-            
             setShowCelebration(true);
             setSignupLoading(false);
-            
         } catch (error) {
             if (error.name === 'AbortError') return;
             clearTimeout(timeoutId);
             signupLoadingRef.current = false;
             setErrors(prev => ({ ...prev, general: 'Failed to save details. Please try again.' }));
             setSignupLoading(false);
-        } finally {
-            abortRef.current = null;
-        }
-    }, [form.age, form.gender, clearProgress, completeSignUp, setErrors, methods]);
+        } finally { abortRef.current = null; }
+    }, [form.age, form.gender, clearProgress, setErrors, methods]);
 
-    const proceedToDashboard = useCallback(async () => {
-        await completeSignUp();
-    }, [completeSignUp]);
-
-    const toggleShowPass = useCallback(() => setShowPass(v => !v), []);
-    const toggleShowConfirm = useCallback(() => setShowConfirm(v => !v), []);
-
-    // ── Render helpers ────────────────────────────────────────────────────────
-
-    const renderHeader = () => {
-        if (step === 1) {
-            return (
-                <Animated.View style={[styles.hero, { transform: [{ translateY: heroAnim }], opacity: heroOpacity, overflow: 'hidden' }]}>
-                    <LinearGradient
-                        colors={['#7C3AED', '#5c55e9', '#818CF8']}
-                        start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-                        style={StyleSheet.absoluteFill}
-                    />
-                    <View style={styles.heroContent}>
-                        <View style={styles.heroLogoContainer}>
-                            <Image
-                                source={require('../../../assets/logo.png')}
-                                style={{ width: 40, height: 40 }}
-                                resizeMode="contain"
-                            />
-                        </View>
-                        <Text style={styles.heroLabel}>SAMVAYA</Text>
-                        <Text style={styles.heroTitle}>Let's set up your health profile</Text>
-                        <Text style={styles.heroSubtitle}>It takes less than 5 minutes</Text>
-                    </View>
-                    <StepIndicator current={step} />
-                </Animated.View>
-            );
-        }
-
-        // For steps 2-5, simple white header with subtle purple wash and full text
-        let stepSubtitle = '';
-        if (step === 2) stepSubtitle = 'Help us find nearby serviceable hubs';
-        else if (step === 3) stepSubtitle = 'Choose a plan that fits your needs';
-        else if (step === 4) stepSubtitle = 'Secure your account';
-        else if (step === 5) stepSubtitle = 'Almost there. Finalizing your profile.';
-
-        return (
-            <Animated.View style={[{ paddingTop: 60, paddingBottom: 20 }, { transform: [{ translateY: heroAnim }], opacity: heroOpacity, overflow: 'hidden' }]}>
-                <LinearGradient
-                    colors={['#EEF2FF', '#FFFFFF']}
-                    start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
-                    style={StyleSheet.absoluteFill}
-                />
-                
-                <Pressable
-                    style={{ position: 'absolute', top: 50, left: 20, width: 44, height: 44, justifyContent: 'center', zIndex: 20 }}
-                    onPress={handleBack}
-                    hitSlop={12}
-                >
-                    <ChevronLeft size={28} color="#1E293B" strokeWidth={2.5} />
-                </Pressable>
-
-                <View style={{ alignItems: 'center', marginBottom: 20, zIndex: 10 }}>
-                    <View style={[styles.heroLogoContainer, { width: 48, height: 48, borderRadius: 24, marginBottom: 8, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5, elevation: 2 }]}>
-                        <Image
-                            source={require('../../../assets/logo.png')}
-                            style={{ width: 30, height: 30 }}
-                            resizeMode="contain"
-                        />
-                    </View>
-                    <Text style={[styles.heroLabel, { color: '#5c55e9', fontSize: 11, letterSpacing: 3, marginBottom: 16 }]}>SAMVAYA</Text>
-                    <Text style={{ fontSize: 24, ...FONT.heavy, color: '#5c55e9', marginBottom: 6 }}>{`Step ${step}: ${UI_MOCK_LABELS[step - 1]}`}</Text>
-                    <Text style={{ fontSize: 13, color: '#64748B', ...FONT.medium }}>{stepSubtitle}</Text>
-                </View>
-                
-                <View style={{ zIndex: 10 }}>
-                    <StepIndicator current={step} />
-                </View>
-            </Animated.View>
-        );
-    };
-
-    const renderStep1 = () => (
-        <Step1Profile
-            googleLoading={googleLoading} handleGooglePress={handleGooglePress}
-            signupLoading={signupLoading} handleStep1Submit={handleStep1Submit}
-            isEmailVerified={isEmailVerified} isPhoneVerified={isPhoneVerified}
-            showPass={showPass} toggleShowPass={toggleShowPass}
-            showConfirm={showConfirm} toggleShowConfirm={toggleShowConfirm}
-            fullNameRef={fullNameRef} emailRef={emailRef} phoneRef={phoneRef}
-            passwordRef={passwordRef} confirmPassRef={confirmPassRef}
-        />
-    );
-
-    const renderStep2 = () => (
-        <Step2Locality
-            staggerAnims={staggerAnims}
-            detectingLocation={detectingLocation} handleDetectLocation={handleDetectLocation}
-            loadingCities={loadingCities} setCityModalVisible={setCityModalVisible}
-            locationAddress={locationAddress}
-            signupLoading={signupLoading} handleStep2Continue={handleStep2Continue}
-        />
-    );
-
-    const renderStep3_PlanSelection = () => (
-        <Step3Membership
-            paymentCrashWarning={paymentCrashWarning} staggerAnims={staggerAnims}
-            setFeaturesModalVisible={setFeaturesModalVisible}
-            selectedPlan={selectedPlan} setSelectedPlan={setSelectedPlan}
-            setUpiModalVisible={setUpiModalVisible}
-        />
-    );
-
-    const renderFeaturesModal = () => (
-        <Modal visible={featuresModalVisible} animationType="fade" transparent>
-            <View style={styles.modalOverlay}>
-                <View style={[styles.modalSheet, { maxHeight: '80%' }]}>
-                    <View style={styles.modalHeader}>
-                        <Text style={styles.modalTitle}>Explore Features</Text>
-                        <Pressable onPress={() => setFeaturesModalVisible(false)} hitSlop={12}>
-                            <X size={22} color="#64748B" />
-                        </Pressable>
-                    </View>
-                    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }}>
-                        <Text style={styles.otpSubtext}>With a guest account, you can access core health tools for free:</Text>
-                        <View style={{ marginTop: 24, gap: 20 }}>
-                            {[
-                                { title: 'Personal Health Log', desc: 'Track symptoms and vitals.', icon: Activity },
-                                { title: 'Community Support', desc: 'Join health groups.', icon: User },
-                                { title: 'Emergency SOS', desc: 'Quick emergency access.', icon: AlertCircle },
-                            ].map(({ title, desc, icon: Icon }) => (
-                                <View key={title} style={styles.journeyItem}>
-                                    <View style={[styles.journeyIconBox, { marginTop: 0 }]}>
-                                        <Icon size={18} color="#6366F1" />
-                                    </View>
-                                    <View style={{ flex: 1, paddingLeft: 4 }}>
-                                        <Text style={{ fontSize: 16, fontWeight: '700', color: '#1E293B', marginBottom: 4 }}>{title}</Text>
-                                        <Text style={{ fontSize: 14, color: '#64748B', lineHeight: 20 }}>{desc}</Text>
-                                    </View>
-                                </View>
-                            ))}
-                        </View>
-                        <Pressable style={[styles.primaryBtnEnhanced, { marginTop: 32 }]} onPress={() => setFeaturesModalVisible(false)}>
-                            <LinearGradient
-                                colors={['#6366F1', '#4F46E5']}
-                                start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-                                style={styles.primaryBtnGradientEnhanced}
-                            >
-                                <Text style={styles.primaryBtnText}>Got it</Text>
-                            </LinearGradient>
-                        </Pressable>
-                    </ScrollView>
-                </View>
-            </View>
-        </Modal>
-    );
+    const proceedToDashboard = useCallback(async () => { await completeSignUp(); }, [completeSignUp]);
 
     const handleGoToStep5 = async () => {
         isManualTransitionRef.current = true;
@@ -891,155 +554,184 @@ export default function PatientSignupScreen({ navigation, route }) {
         setStep(5);
     };
 
-    const renderStep4_PaymentSuccess = () => (
-        <Step4Verification staggerAnims={staggerAnims} handleGoToStep5={handleGoToStep5} />
-    );
+    const toggleShowPass = useCallback(() => setShowPass(v => !v), []);
+    const toggleShowConfirm = useCallback(() => setShowConfirm(v => !v), []);
+
+    // ── Processing state ───────────────────────────────────────────────────────
 
     const renderProcessingState = () => {
         const spin = syncRotateAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
         return (
             <View style={styles.processingContainer}>
                 <Animated.View style={{ transform: [{ rotate: spin }] }}>
-                    <RotateCcw size={48} color="#6366F1" strokeWidth={1.5} />
+                    <RotateCcw size={44} color={C.primary} strokeWidth={1.5} />
                 </Animated.View>
-                <Text style={styles.processingTitle}>Configuring Your Profile</Text>
-                <Text style={styles.processingSub}>Synchronizing your health data...</Text>
+                <Text style={styles.processingTitle}>Configuring your profile</Text>
+                <Text style={styles.processingSub}>Synchronising your health data...</Text>
                 <View style={styles.processingProgress}>
-                    <ActivityIndicator size="small" color="#6366F1" />
+                    <ActivityIndicator size="small" color={C.primary} />
                 </View>
             </View>
         );
     };
 
-    const renderStep5 = () => (
-        <Step5FinalDetails
-            staggerAnims={staggerAnims}
-            handleCompleteSignUp={handleCompleteSignUp}
-            signupLoading={signupLoading}
-            showCelebration={showCelebration}
-            proceedToDashboard={proceedToDashboard}
-            userName={form.fullName.split(' ')[0]}
-        />
-    );
+    // ── Features modal ─────────────────────────────────────────────────────────
 
-    const filteredCities = useMemo(
-        () => availableCities.filter(c => c.name.toLowerCase().includes(citySearchQuery.toLowerCase())),
-        [availableCities, citySearchQuery]
-    );
-
-    const renderCityModal = () => (
-        <Modal visible={cityModalVisible} animationType="slide" transparent>
-            <View style={{ flex: 1 }}>
-                <View style={styles.modalOverlay}>
-                    <View style={[styles.modalSheet, { height: '80%', padding: 0 }]}>
-                        <View style={[styles.modalHeader, { padding: 24, paddingBottom: 16 }]}>
-                            <View>
-                                <Text style={styles.modalTitle}>Select Your City</Text>
-                                <Text style={styles.modalSub}>Choose where you need care</Text>
-                            </View>
-                            <Pressable onPress={() => setCityModalVisible(false)} hitSlop={12} style={styles.closeBtnBox}>
-                                <X size={20} color="#64748B" />
-                            </Pressable>
-                        </View>
-                        <View style={{ paddingHorizontal: 24, paddingBottom: 16 }}>
-                            <View style={styles.searchWrap}>
-                                <Search size={18} color="#8899BB" />
-                                <TextInput
-                                    style={styles.searchInput}
-                                    placeholder="Search cities..."
-                                    placeholderTextColor="#8899BB"
-                                    value={citySearchQuery}
-                                    onChangeText={setCitySearchQuery}
-                                />
-                                {citySearchQuery.length > 0 && (
-                                    <Pressable onPress={() => setCitySearchQuery('')}>
-                                        <X size={16} color="#8899BB" />
-                                    </Pressable>
-                                )}
-                            </View>
-                        </View>
-                        <ScrollView
-                            style={{ flex: 1 }}
-                            contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 40 }}
-                        >
-                            {loadingCities ? (
-                                <ActivityIndicator size="large" color="#3B5BDB" style={{ marginTop: 40 }} />
-                            ) : filteredCities.length === 0 ? (
-                                <View style={styles.emptyState}>
-                                    <MapPin size={32} color="#CBD5E1" />
-                                    <Text style={styles.emptyTitle}>No cities found</Text>
-                                    <Text style={styles.emptyDesc}>No areas matching "{citySearchQuery}".</Text>
-                                </View>
-                            ) : filteredCities.map((city) => (
-                                <Pressable
-                                    key={city.id || city._id}
-                                    style={[styles.cityOption, form.city === city.name && styles.cityOptionActive]}
-                                    onPress={() => {
-                                        setForm(prev => ({ ...prev, city: city.name }));
-                                        setLocationAddress(`${city.name}, ${city.state}`);
-                                        setCityModalVisible(false);
-                                        setErrors(prev => ({ ...prev, location: '' }));
-                                    }}
-                                >
-                                    <View style={[styles.cityIconBox, form.city === city.name && { backgroundColor: '#EFF3FF' }]}>
-                                        <MapPin size={20} color={form.city === city.name ? '#3B5BDB' : '#64748B'} />
-                                    </View>
-                                    <View style={{ flex: 1, marginLeft: 16 }}>
-                                        <Text style={[styles.cityName, form.city === city.name && { color: '#3B5BDB', fontWeight: '700' }]}>
-                                            {city.name}
-                                        </Text>
-                                        <Text style={styles.cityState}>{city.state}</Text>
-                                    </View>
-                                    <View style={[styles.radioOutline, form.city === city.name && styles.radioActive]}>
-                                        {form.city === city.name && <View style={styles.radioDot} />}
-                                    </View>
-                                </Pressable>
-                            ))}
-                        </ScrollView>
+    const renderFeaturesModal = () => (
+        <Modal visible={featuresModalVisible} animationType="fade" transparent>
+            <View style={styles.modalOverlay}>
+                <View style={[styles.modalSheet, { maxHeight: '80%' }]}>
+                    <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: C.border, alignSelf: 'center', marginBottom: 20 }} />
+                    <View style={styles.modalHeader}>
+                        <Text style={styles.modalTitle}>Free features</Text>
+                        <Pressable onPress={() => setFeaturesModalVisible(false)} hitSlop={12} style={styles.closeBtnBox}>
+                            <X size={18} color={C.mid} />
+                        </Pressable>
                     </View>
+                    <ScrollView showsVerticalScrollIndicator={false}>
+                        <Text style={{ fontSize: 14, ...FONT.medium, color: C.mid, lineHeight: 22, marginBottom: 20 }}>
+                            With a guest account, you can access these core health tools for free:
+                        </Text>
+                        {[
+                            { icon: Activity, title: 'Personal Health Log', desc: 'Track symptoms and vitals' },
+                            { icon: User, title: 'Community Support', desc: 'Join health groups' },
+                            { icon: AlertCircle, title: 'Emergency SOS', desc: 'Quick emergency access' },
+                        ].map(({ icon: Icon, title, desc }) => (
+                            <View key={title} style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 16, padding: 14, backgroundColor: C.bg, borderRadius: 14 }}>
+                                <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: C.primarySoft, alignItems: 'center', justifyContent: 'center' }}>
+                                    <Icon size={18} color={C.primary} />
+                                </View>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={{ fontSize: 15, ...FONT.semibold, color: C.dark }}>{title}</Text>
+                                    <Text style={{ fontSize: 13, ...FONT.medium, color: C.muted, marginTop: 2 }}>{desc}</Text>
+                                </View>
+                            </View>
+                        ))}
+                        <Pressable
+                            style={[styles.primaryBtnEnhanced, { marginTop: 8 }]}
+                            onPress={() => setFeaturesModalVisible(false)}
+                        >
+                            <View style={styles.primaryBtnGradientEnhanced}>
+                                <Text style={[styles.primaryBtnText, { flex: 1, textAlign: 'center' }]}>Got it</Text>
+                            </View>
+                        </Pressable>
+                    </ScrollView>
                 </View>
             </View>
         </Modal>
     );
 
-    // ── Root render ───────────────────────────────────────────────────────────
+    // ── Render ─────────────────────────────────────────────────────────────────
 
     return (
         <FormProvider {...methods}>
-            <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+            <KeyboardAvoidingView
+                style={sc.container}
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            >
                 <ScrollView
                     ref={mainScrollRef}
-                    style={styles.scroll}
-                    contentContainerStyle={styles.scrollContent}
+                    style={sc.scroll}
+                    contentContainerStyle={sc.content}
                     showsVerticalScrollIndicator={false}
                     keyboardShouldPersistTaps="handled"
                 >
-                    {renderHeader()}
+                    {/* ── Flat header ── */}
+                    <View style={sc.headerRow}>
+                        {step > 1 ? (
+                            <Pressable style={sc.backBtn} onPress={handleBack} hitSlop={10}>
+                                <ChevronLeft size={22} color={C.dark} strokeWidth={2.5} />
+                            </Pressable>
+                        ) : (
+                            <View style={sc.backBtnPlaceholder} />
+                        )}
+                        <Text style={sc.stepCounter}>Step {step} of {STEP_COUNTS}</Text>
+                        {/* Dots */}
+                        <View style={sc.dotsRow}>
+                            {Array.from({ length: STEP_COUNTS }).map((_, i) => (
+                                <View
+                                    key={i}
+                                    style={[sc.dot, i + 1 <= step && sc.dotFilled, i + 1 === step && sc.dotActive]}
+                                />
+                            ))}
+                        </View>
+                    </View>
 
-                    <Animated.View style={[styles.formCard, { transform: [{ translateY: cardAnim }], opacity: cardOpacity }]}>
+                    {/* Progress bar */}
+                    <View style={sc.progressTrack}>
+                        <Animated.View style={[sc.progressFill, { width: `${(step / STEP_COUNTS) * 100}%` }]} />
+                    </View>
+
+                    {/* ── Step content ── */}
+                    <Animated.View style={[sc.stepWrap, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
                         {signupLoading ? renderProcessingState() : (
                             <>
-                                {step === 1 && renderStep1()}
-                                {step === 2 && renderStep2()}
-                                {step === 3 && renderStep3_PlanSelection()}
-                                {step === 4 && renderStep4_PaymentSuccess()}
-                                {step === 5 && renderStep5()}
+                                {step === 1 && (
+                                    <Step1Profile
+                                        googleLoading={googleLoading} handleGooglePress={handleGooglePress}
+                                        signupLoading={signupLoading} handleStep1Submit={handleStep1Submit}
+                                        isEmailVerified={isEmailVerified} isPhoneVerified={isPhoneVerified}
+                                        showPass={showPass} toggleShowPass={toggleShowPass}
+                                        showConfirm={showConfirm} toggleShowConfirm={toggleShowConfirm}
+                                        fullNameRef={fullNameRef} emailRef={emailRef} phoneRef={phoneRef}
+                                        passwordRef={passwordRef} confirmPassRef={confirmPassRef}
+                                    />
+                                )}
+                                {step === 2 && (
+                                    <Step2Locality
+                                        staggerAnims={staggerAnims}
+                                        detectingLocation={detectingLocation}
+                                        handleDetectLocation={handleDetectLocation}
+                                        loadingCities={loadingCities}
+                                        availableCities={availableCities}
+                                        locationAddress={locationAddress}
+                                        onCitySelect={handleCitySelect}
+                                        signupLoading={signupLoading}
+                                        handleStep2Continue={handleStep2Continue}
+                                    />
+                                )}
+                                {step === 3 && (
+                                    <Step3Membership
+                                        paymentCrashWarning={paymentCrashWarning}
+                                        staggerAnims={staggerAnims}
+                                        setFeaturesModalVisible={setFeaturesModalVisible}
+                                        selectedPlan={selectedPlan}
+                                        setSelectedPlan={setSelectedPlan}
+                                        setUpiModalVisible={setUpiModalVisible}
+                                    />
+                                )}
+                                {step === 4 && (
+                                    <Step4Verification
+                                        staggerAnims={staggerAnims}
+                                        handleGoToStep5={handleGoToStep5}
+                                    />
+                                )}
+                                {step === 5 && (
+                                    <Step5FinalDetails
+                                        staggerAnims={staggerAnims}
+                                        handleCompleteSignUp={handleCompleteSignUp}
+                                        signupLoading={signupLoading}
+                                        showCelebration={showCelebration}
+                                        proceedToDashboard={proceedToDashboard}
+                                        userName={form.fullName.split(' ')[0]}
+                                    />
+                                )}
                             </>
                         )}
                     </Animated.View>
 
-                    {step === 1 && (
-                        <View style={styles.footer}>
-                            <Text style={styles.footerText}>Already have an account? </Text>
+                    {/* Sign-in link — step 1 only */}
+                    {step === 1 && !signupLoading && (
+                        <View style={sc.footer}>
+                            <Text style={sc.footerText}>Already have an account? </Text>
                             <Pressable onPress={() => navigation.navigate('Login')}>
-                                <Text style={styles.footerAction}>Sign In</Text>
+                                <Text style={sc.footerLink}>Sign In</Text>
                             </Pressable>
-                            <View style={{ height: 40 }} />
-                            <Text style={styles.madeWith}>Made with ♥ by Samvaya</Text>
                         </View>
                     )}
                 </ScrollView>
 
+                {/* OTP Modal */}
                 <OTPModal
                     visible={otpVisible}
                     onClose={() => setOtpVisible(false)}
@@ -1055,9 +747,7 @@ export default function PatientSignupScreen({ navigation, route }) {
                     remainingSlots={remainingSlots}
                 />
 
-                {renderCityModal()}
-                {renderFeaturesModal()}
-
+                {/* UPI Payment Modal */}
                 <UPIPaymentModal
                     visible={upiModalVisible}
                     onClose={() => setUpiModalVisible(false)}
@@ -1065,7 +755,54 @@ export default function PatientSignupScreen({ navigation, route }) {
                     planName={selectedPlan.name}
                     planPrice={selectedPlan.price}
                 />
+
+                {renderFeaturesModal()}
             </KeyboardAvoidingView>
         </FormProvider>
     );
 }
+
+// ── Screen-level styles (not shared) ──────────────────────────────────────────
+const sc = StyleSheet.create({
+    container: { flex: 1, backgroundColor: C.bg },
+    scroll: { flex: 1 },
+    content: { paddingBottom: 48 },
+    stepWrap: { paddingHorizontal: 24, paddingTop: 4, paddingBottom: 16 },
+
+    headerRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 20,
+        paddingTop: Platform.OS === 'ios' ? 60 : 48,
+        paddingBottom: 14,
+    },
+    backBtn: {
+        width: 40, height: 40, borderRadius: 12,
+        backgroundColor: C.surface, borderWidth: 1.5, borderColor: C.border,
+        alignItems: 'center', justifyContent: 'center',
+    },
+    backBtnPlaceholder: { width: 40, height: 40 },
+    stepCounter: {
+        fontSize: 13, ...FONT.semibold, color: C.mid,
+    },
+    dotsRow: { flexDirection: 'row', gap: 5, alignItems: 'center' },
+    dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: C.border },
+    dotFilled: { backgroundColor: C.primary, opacity: 0.4 },
+    dotActive: { backgroundColor: C.primary, opacity: 1, width: 18, borderRadius: 3 },
+
+    progressTrack: {
+        height: 3, backgroundColor: C.border,
+        marginHorizontal: 20, borderRadius: 2, marginBottom: 8,
+    },
+    progressFill: {
+        height: 3, backgroundColor: C.primary, borderRadius: 2,
+    },
+
+    footer: {
+        flexDirection: 'row', justifyContent: 'center', alignItems: 'center',
+        paddingHorizontal: 24, paddingBottom: 24, paddingTop: 4,
+    },
+    footerText: { fontSize: 14, ...FONT.medium, color: C.mid },
+    footerLink: { fontSize: 14, ...FONT.heavy, color: C.primary },
+});
