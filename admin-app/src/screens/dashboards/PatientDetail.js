@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import GradientHeader from '../../components/common/GradientHeader';
 import PremiumCard from '../../components/common/PremiumCard';
 import SkeletonLoader from '../../components/common/SkeletonLoader';
+import CustomAlertModal from '../../components/common/CustomAlertModal';
 import { apiService, handleApiError } from '../../lib/api';
 import { ArrowLeft, Mail, Phone, Heart, Calendar, Activity, CheckCircle, XCircle, Plus, Edit2, Trash2, Clock } from 'lucide-react-native';
 
@@ -26,6 +27,12 @@ export default function PatientDetail({ route, navigation }) {
     const [showMedModal, setShowMedModal] = useState(false);
     const [editingMed, setEditingMed] = useState(null);
     const [medForm, setMedForm] = useState({ name: '', dosage: '', frequency: '', timePhase: 'morning' });
+
+    const [customAlert, setCustomAlert] = useState({ visible: false, title: '', message: '', buttons: [], type: 'info' });
+
+    const showAlert = (title, message, type = 'info', buttons = []) => {
+        setCustomAlert({ visible: true, title, message, type, buttons });
+    };
 
     const fetchData = async () => {
         try {
@@ -53,7 +60,7 @@ export default function PatientDetail({ route, navigation }) {
             setMedications(fetchedMeds);
         } catch (err) {
             console.error('Failed to load patient detail', err);
-            Alert.alert('Error', handleApiError(err).message);
+            showAlert('Error', handleApiError(err).message, 'error');
         } finally {
             setLoading(false);
         }
@@ -63,7 +70,7 @@ export default function PatientDetail({ route, navigation }) {
 
     const handleCall = () => {
         if (!patient || !patient.phone || patient.phone === 'N/A') {
-            Alert.alert('Phone Number Missing', 'No phone number is available for this patient.');
+            showAlert('Phone Number Missing', 'No phone number is available for this patient.', 'warning');
             return;
         }
         Linking.openURL(`tel:${patient.phone}`);
@@ -71,7 +78,7 @@ export default function PatientDetail({ route, navigation }) {
 
     const handleEmail = () => {
         if (!patient || !patient.email) {
-            Alert.alert('Email Missing', 'No email address is available for this patient.');
+            showAlert('Email Missing', 'No email address is available for this patient.', 'warning');
             return;
         }
         Linking.openURL(`mailto:${patient.email}`);
@@ -81,10 +88,10 @@ export default function PatientDetail({ route, navigation }) {
         setSubmitting(true);
         try {
             await apiService.caretaker.logCall({ patientId: patient.id, status, outcome });
-            Alert.alert('Success', `Call logged as ${status}.`);
+            showAlert('Success', `Call logged as ${status}.`, 'success');
             navigation.goBack();
         } catch (err) {
-            Alert.alert('Error', handleApiError(err).message);
+            showAlert('Error', handleApiError(err).message, 'error');
         } finally {
             setSubmitting(false);
         }
@@ -115,7 +122,7 @@ export default function PatientDetail({ route, navigation }) {
 
     const saveMedication = async () => {
         if (!medForm.name.trim() || !medForm.dosage.trim()) {
-            Alert.alert('Validation Error', 'Please provide name and dosage.');
+            showAlert('Validation Error', 'Please provide name and dosage.', 'warning');
             return;
         }
         setSubmitting(true);
@@ -136,14 +143,14 @@ export default function PatientDetail({ route, navigation }) {
             setShowMedModal(false);
             fetchData();
         } catch (err) {
-            Alert.alert('Error', handleApiError(err).message);
+            showAlert('Error', handleApiError(err).message, 'error');
         } finally {
             setSubmitting(false);
         }
     };
 
     const deleteMedication = (med) => {
-        Alert.alert('Remove Medication', `Remove ${med.name}?`, [
+        showAlert('Remove Medication', `Remove ${med.name}?`, 'destructive', [
             { text: 'Cancel', style: 'cancel' },
             { 
                 text: 'Remove', 
@@ -153,7 +160,7 @@ export default function PatientDetail({ route, navigation }) {
                         await apiService.caretaker.deleteMedication(patient.id, med._id || med.id);
                         fetchData();
                     } catch (err) {
-                        Alert.alert('Error', handleApiError(err).message);
+                        showAlert('Error', handleApiError(err).message, 'error');
                     }
                 } 
             }
@@ -205,7 +212,30 @@ export default function PatientDetail({ route, navigation }) {
                                 medications.map((med, idx) => (
                                     <View key={med._id || med.id || idx} style={[s.medRow, idx > 0 && s.medDivider]}>
                                         <View style={s.medInfo}>
-                                            <Text style={s.medName}>{med.name} <Text style={s.medDosage}>{med.dosage}</Text></Text>
+                                            <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginBottom: 4 }}>
+                                                <Text style={s.medName}>{med.name} <Text style={s.medDosage}>{med.dosage}</Text></Text>
+                                                {(() => {
+                                                    const today = new Date().toDateString();
+                                                    const confirmedToday = med.lastConfirmed && med.lastConfirmedAt && new Date(med.lastConfirmedAt).toDateString() === today;
+
+                                                    if (med.patientMarked) {
+                                                        return (
+                                                            <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#ECFDF5', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, gap: 4 }}>
+                                                                <CheckCircle size={10} color="#10B981" />
+                                                                <Text style={{ fontSize: 10, color: '#10B981', fontWeight: 'bold' }}>Marked by Patient</Text>
+                                                            </View>
+                                                        );
+                                                    } else if (confirmedToday) {
+                                                        return (
+                                                            <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#EEF2FF', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, gap: 4 }}>
+                                                                <CheckCircle size={10} color="#6366F1" />
+                                                                <Text style={{ fontSize: 10, color: '#6366F1', fontWeight: 'bold' }}>Marked by Caller</Text>
+                                                            </View>
+                                                        );
+                                                    }
+                                                    return null;
+                                                })()}
+                                            </View>
                                             <View style={s.medSubInfo}>
                                                 <Clock size={12} color={Colors.textMuted} />
                                                 <Text style={s.medTime}>
@@ -291,6 +321,11 @@ export default function PatientDetail({ route, navigation }) {
                     </View>
                 </View>
             </Modal>
+
+            <CustomAlertModal
+                {...customAlert}
+                onClose={() => setCustomAlert({ ...customAlert, visible: false })}
+            />
         </View>
     );
 }
