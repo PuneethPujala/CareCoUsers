@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import {
     View, Text, StyleSheet, ScrollView, Platform, Pressable, Modal,
-    TextInput, Alert, Switch, Animated, StatusBar, FlatList, KeyboardAvoidingView,
+    TextInput, Switch, Animated, StatusBar, FlatList, KeyboardAvoidingView,
 } from 'react-native';
 import SmartInput from '../../components/ui/SmartInput';
 import PremiumFormModal from '../../components/ui/PremiumFormModal';
@@ -36,6 +36,7 @@ const BLOOD_OPTIONS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'unknow
 
 import { COUNTRY_CODES, parsePhoneWithCode, validatePhone } from '../../utils/phoneUtils';
 
+import AlertManager from '../../utils/AlertManager';
 // ── Skeleton Loader ──────────────────────────────────────────
 const SkeletonItem = ({ width, height, borderRadius = 8, style }) => {
     const anim = useRef(new Animated.Value(0.3)).current;
@@ -209,20 +210,20 @@ export default function PatientProfileScreen({ navigation }) {
             setPatient(prev => ({ ...prev, emergency_contact: {} }));
             setEcName(''); setEcPhone(''); setEcPhoneCode('+91'); setEcRelation('');
             setEcModalVisible(false);
-            Alert.alert('Success', 'Emergency contact removed.');
-        } catch { Alert.alert('Error', 'Failed to remove emergency contact.'); }
+            AlertManager.alert('Success', 'Emergency contact removed.');
+        } catch { AlertManager.alert('Error', 'Failed to remove emergency contact.'); }
         finally { setSaving(false); }
     };
 
     const handleSaveEC = async () => {
         const nameRegex = /^[a-zA-Z\s'-]+$/;
         if (ecName && !nameRegex.test(ecName)) {
-            Alert.alert('Invalid Name', 'Contact names can only contain letters, spaces, hyphens, and apostrophes.');
+            AlertManager.alert('Invalid Name', 'Contact names can only contain letters, spaces, hyphens, and apostrophes.');
             return;
         }
         if (ecPhone) {
             const phoneErr = validatePhone(ecPhone, ecPhoneCode);
-            if (phoneErr) { Alert.alert('Invalid Phone', phoneErr); return; }
+            if (phoneErr) { AlertManager.alert('Invalid Phone', phoneErr); return; }
         }
         setSaving(true);
         const fullEcPhone = ecPhone ? `${ecPhoneCode}${ecPhone.replace(/[^0-9]/g, '')}` : '';
@@ -230,19 +231,19 @@ export default function PatientProfileScreen({ navigation }) {
             await apiService.patients.updateEmergencyContact({ name: ecName, phone: fullEcPhone, relation: ecRelation });
             setPatient(prev => ({ ...prev, emergency_contact: { name: ecName, phone: fullEcPhone, relation: ecRelation } }));
             setEcModalVisible(false);
-            Alert.alert('Success', 'Emergency contact updated.');
-        } catch { Alert.alert('Error', 'Failed to update emergency contact.'); }
+            AlertManager.alert('Success', 'Emergency contact updated.');
+        } catch { AlertManager.alert('Error', 'Failed to update emergency contact.'); }
         finally { setSaving(false); }
     };
 
     const handleSaveAccount = async () => {
         const nameRegex = /^[a-zA-Z\s'-]+$/;
         if (editName && !nameRegex.test(editName)) {
-            Alert.alert('Invalid Name', 'Names can only contain letters, spaces, hyphens, and apostrophes.');
+            AlertManager.alert('Invalid Name', 'Names can only contain letters, spaces, hyphens, and apostrophes.');
             return;
         }
         if (editName && editName.trim().length < 2) {
-            Alert.alert('Too Short', 'Name must be at least 2 characters.');
+            AlertManager.alert('Too Short', 'Name must be at least 2 characters.');
             return;
         }
         setSavingAccount(true);
@@ -257,9 +258,9 @@ export default function PatientProfileScreen({ navigation }) {
             setEditAccountModalVisible(false);
         } catch (err) {
             if (err?.name === 'AbortError' || err?.code === 'ECONNABORTED') {
-                Alert.alert('Slow Connection', 'The server is waking up. Your changes were saved locally — please try again in a few seconds.');
+                AlertManager.alert('Slow Connection', 'The server is waking up. Your changes were saved locally — please try again in a few seconds.');
             } else {
-                Alert.alert('Error', 'Failed to update profile.');
+                AlertManager.alert('Error', 'Failed to update profile.');
             }
         } finally {
             setSavingAccount(false);
@@ -295,7 +296,7 @@ export default function PatientProfileScreen({ navigation }) {
                         // Permission permanently denied — prompt user to open Settings
                         setPushEnabled(false);
                         await apiService.patients.updateMe({ push_notifications_enabled: false });
-                        Alert.alert(
+                        AlertManager.alert(
                             'Notifications Blocked',
                             'You previously denied notification permissions. Please enable them in your device Settings to receive health reminders.',
                             [
@@ -329,15 +330,15 @@ export default function PatientProfileScreen({ navigation }) {
 
     const handleSavePhone = async () => {
         const phoneErr = validatePhone(editPhone, editPhoneCode);
-        if (phoneErr) { Alert.alert('Invalid Phone', phoneErr); return; }
+        if (phoneErr) { AlertManager.alert('Invalid Phone', phoneErr); return; }
         const fullPhone = `${editPhoneCode}${editPhone.replace(/[^0-9]/g, '')}`;
         setSaving(true);
         try {
             await apiService.patients.updateMe({ phone: fullPhone });
             setPatient(prev => ({ ...prev, phone: fullPhone }));
             setPhoneModalVisible(false);
-            Alert.alert('Success', 'Phone number updated.');
-        } catch { Alert.alert('Error', 'Failed to update phone number.'); }
+            AlertManager.alert('Success', 'Phone number updated.');
+        } catch { AlertManager.alert('Error', 'Failed to update phone number.'); }
         finally { setSaving(false); }
     };
 
@@ -357,7 +358,7 @@ export default function PatientProfileScreen({ navigation }) {
             await apiService.patients.updateMe({ gender: g });
             setPatient(prev => ({ ...prev, gender: g }));
             setGenderModalVisible(false);
-        } catch { Alert.alert('Error', 'Failed to update gender.'); }
+        } catch { AlertManager.alert('Error', 'Failed to update gender.'); }
     };
 
     const handleSelectBlood = async (b) => {
@@ -365,7 +366,7 @@ export default function PatientProfileScreen({ navigation }) {
             await apiService.patients.updateMe({ blood_type: b });
             setPatient(prev => ({ ...prev, blood_type: b }));
             setBloodModalVisible(false);
-        } catch { Alert.alert('Error', 'Failed to update blood group.'); }
+        } catch { AlertManager.alert('Error', 'Failed to update blood group.'); }
     };
 
     const handleSaveDob = async () => {
@@ -375,8 +376,8 @@ export default function PatientProfileScreen({ navigation }) {
             await apiService.patients.updateMe({ date_of_birth: dateStr });
             setPatient(prev => ({ ...prev, date_of_birth: dateStr }));
             setDobModalVisible(false);
-            Alert.alert('Success', 'Date of birth updated.');
-        } catch { Alert.alert('Error', 'Failed to update date of birth.'); }
+            AlertManager.alert('Success', 'Date of birth updated.');
+        } catch { AlertManager.alert('Error', 'Failed to update date of birth.'); }
         finally { setSaving(false); }
     };
 
@@ -386,12 +387,12 @@ export default function PatientProfileScreen({ navigation }) {
         try {
             await apiService.patients.updateMe({ language: langCode });
             const langName = LANGUAGES.find(l => l.code === langCode)?.label || langCode;
-            Alert.alert('Language Updated', `App language set to ${langName}.`);
-        } catch { Alert.alert('Error', 'Failed to save language preference.'); }
+            AlertManager.alert('Language Updated', `App language set to ${langName}.`);
+        } catch { AlertManager.alert('Error', 'Failed to save language preference.'); }
     };
 
     const handleAddAddress = async () => {
-        if (!addrLine.trim()) { Alert.alert('Error', 'Please enter an address.'); return; }
+        if (!addrLine.trim()) { AlertManager.alert('Error', 'Please enter an address.'); return; }
         setSaving(true);
         try {
             const { data } = await apiService.patients.addSavedAddress({
@@ -400,8 +401,8 @@ export default function PatientProfileScreen({ navigation }) {
             setSavedAddresses(data.saved_addresses || []);
             setAddAddressModalVisible(false);
             setAddrLine(''); setAddrCity(''); setAddrState(''); setAddrPostcode('');
-            Alert.alert('Success', 'Address saved.');
-        } catch { Alert.alert('Error', 'Failed to save address.'); }
+            AlertManager.alert('Success', 'Address saved.');
+        } catch { AlertManager.alert('Error', 'Failed to save address.'); }
         finally { setSaving(false); }
     };
 
@@ -409,40 +410,40 @@ export default function PatientProfileScreen({ navigation }) {
         try {
             const { data } = await apiService.patients.deleteSavedAddress(id);
             setSavedAddresses(data.saved_addresses || []);
-        } catch { Alert.alert('Error', 'Failed to delete address.'); }
+        } catch { AlertManager.alert('Error', 'Failed to delete address.'); }
     };
 
     const handleChangePassword = async () => {
-        if (!currentPassword || !newPassword || !confirmPassword) { Alert.alert('Error', 'Please fill all fields.'); return; }
-        if (newPassword !== confirmPassword) { Alert.alert('Error', 'Passwords do not match.'); return; }
+        if (!currentPassword || !newPassword || !confirmPassword) { AlertManager.alert('Error', 'Please fill all fields.'); return; }
+        if (newPassword !== confirmPassword) { AlertManager.alert('Error', 'Passwords do not match.'); return; }
         setSavingCp(true);
         try {
             await apiService.auth.changePassword({ currentPassword, newPassword });
             setCpModalVisible(false);
             setCurrentPassword(''); setNewPassword(''); setConfirmPassword('');
-            Alert.alert('Success', 'Password changed. Please log back in.');
+            AlertManager.alert('Success', 'Password changed. Please log back in.');
             signOut();
-        } catch (err) { Alert.alert('Error', err?.message || 'Failed to change password.'); }
+        } catch (err) { AlertManager.alert('Error', err?.message || 'Failed to change password.'); }
         finally { setSavingCp(false); }
     };
 
     const handleSetPassword = async () => {
-        if (!setPassNew || !setPassConfirm) { Alert.alert('Error', 'Please fill all fields.'); return; }
-        if (setPassNew.length < 8) { Alert.alert('Error', 'Password must be at least 8 characters.'); return; }
-        if (!/[A-Z]/.test(setPassNew)) { Alert.alert('Error', 'Password must contain an uppercase letter.'); return; }
-        if (!/[0-9]/.test(setPassNew)) { Alert.alert('Error', 'Password must contain a number.'); return; }
-        if (setPassNew !== setPassConfirm) { Alert.alert('Error', 'Passwords do not match.'); return; }
+        if (!setPassNew || !setPassConfirm) { AlertManager.alert('Error', 'Please fill all fields.'); return; }
+        if (setPassNew.length < 8) { AlertManager.alert('Error', 'Password must be at least 8 characters.'); return; }
+        if (!/[A-Z]/.test(setPassNew)) { AlertManager.alert('Error', 'Password must contain an uppercase letter.'); return; }
+        if (!/[0-9]/.test(setPassNew)) { AlertManager.alert('Error', 'Password must contain a number.'); return; }
+        if (setPassNew !== setPassConfirm) { AlertManager.alert('Error', 'Passwords do not match.'); return; }
         setSavingSetPass(true);
         try {
             await apiService.auth.setPassword(setPassNew);
             setSetPassModalVisible(false);
             setSetPassNew(''); setSetPassConfirm('');
-            Alert.alert('Success', 'Password set! Please log in again with your new password.', [
+            AlertManager.alert('Success', 'Password set! Please log in again with your new password.', [
                 { text: 'OK', onPress: () => signOut() }
             ]);
         } catch (err) {
             const msg = err?.response?.data?.error || err?.message || 'Failed to set password.';
-            Alert.alert('Error', msg);
+            AlertManager.alert('Error', msg);
         } finally {
             setSavingSetPass(false);
         }
@@ -479,13 +480,13 @@ export default function PatientProfileScreen({ navigation }) {
             setScreenshotOTP('');
             setScreenshotOTPModalVisible(true);
         } catch (err) {
-            Alert.alert('Error', err.response?.data?.error || 'Failed to request OTP. Please try again later.');
+            AlertManager.alert('Error', err.response?.data?.error || 'Failed to request OTP. Please try again later.');
         }
     };
 
     const handleVerifyScreenshotOTP = async () => {
         if (!screenshotOTP || screenshotOTP.length !== 6) {
-            Alert.alert('Invalid', 'Please enter a valid 6-digit OTP.');
+            AlertManager.alert('Invalid', 'Please enter a valid 6-digit OTP.');
             return;
         }
         setVerifyingScreenshotOTP(true);
@@ -494,9 +495,9 @@ export default function PatientProfileScreen({ navigation }) {
             usePatientStore.getState().setPatient(res.data.patient);
             setPatient(res.data.patient);
             setScreenshotOTPModalVisible(false);
-            Alert.alert('Security Updated', res.data.message);
+            AlertManager.alert('Security Updated', res.data.message);
         } catch (err) {
-            Alert.alert('Verification Failed', err.response?.data?.error || 'Invalid or expired OTP.');
+            AlertManager.alert('Verification Failed', err.response?.data?.error || 'Invalid or expired OTP.');
         } finally {
             setVerifyingScreenshotOTP(false);
         }
@@ -597,7 +598,7 @@ export default function PatientProfileScreen({ navigation }) {
                         <InfoRow icon={Phone} iconBg="#F0FDF4" iconColor="#22C55E" label="Phone Number" value={patient?.phone} placeholder="Add Phone" onPress={() => { const p = parsePhoneWithCode(patient?.phone || ''); setEditPhoneCode(p.code); setEditPhone(p.number); setPhoneModalVisible(true); }}
                             rightElement={patient?.phone ? <View style={s.verifiedBadge}><ShieldCheck size={16} color={C.success} /></View> : <ChevronRight size={18} color={C.light} />}
                         />
-                        <InfoRow icon={Mail} iconBg="#EFF6FF" iconColor="#6366F1" label="Email Address" value={userEmail} placeholder="Add Email" onPress={() => Alert.alert('Email Locked', 'Your email is linked to your login credentials and cannot be changed. Contact support if you need assistance.')} rightElement={<View style={s.verifiedBadge}><LockIcon size={14} color={C.muted} /></View>} />
+                        <InfoRow icon={Mail} iconBg="#EFF6FF" iconColor="#6366F1" label="Email Address" value={userEmail} placeholder="Add Email" onPress={() => AlertManager.alert('Email Locked', 'Your email is linked to your login credentials and cannot be changed. Contact support if you need assistance.')} rightElement={<View style={s.verifiedBadge}><LockIcon size={14} color={C.muted} /></View>} />
                         <InfoRow icon={Calendar} iconBg="#EFF6FF" iconColor="#3B82F6" label="Date of Birth" value={dobStr} placeholder="Add DOB" onPress={() => setDobModalVisible(true)} />
                         <InfoRow icon={Users} iconBg="#EEF2FF" iconColor="#6366F1" label="Gender" value={genderStr} placeholder="Not specified" onPress={() => setGenderModalVisible(true)} />
                         <InfoRow icon={Droplets} iconBg="#FFF1F2" iconColor="#EF4444" label="Blood Group" value={bloodStr} placeholder="Add Blood Group" onPress={() => setBloodModalVisible(true)} />
@@ -720,20 +721,20 @@ export default function PatientProfileScreen({ navigation }) {
                                                     text: 'Disable',
                                                     style: 'destructive',
                                                     onPress: async (pwd) => {
-                                                        if (!pwd) return Alert.alert('Error', 'Password is required.');
+                                                        if (!pwd) return AlertManager.alert('Error', 'Password is required.');
                                                         try {
                                                             await apiService.auth.mfaDisable(pwd);
                                                             setMfaEnabled(false);
-                                                            Alert.alert('Success', 'MFA has been disabled.');
+                                                            AlertManager.alert('Success', 'MFA has been disabled.');
                                                         } catch (err) {
-                                                            Alert.alert('Error', err.response?.data?.error || 'Failed to disable MFA.');
+                                                            AlertManager.alert('Error', err.response?.data?.error || 'Failed to disable MFA.');
                                                         }
                                                     }
                                                 }
                                             ],
                                             'secure-text'
                                         )
-                                        : Alert.alert(
+                                        : AlertManager.alert(
                                             'Disable MFA',
                                             'To disable Two-Factor Authentication, please go to Change Password first to verify your identity, then return here.',
                                             [{ text: 'OK' }]
@@ -752,9 +753,9 @@ export default function PatientProfileScreen({ navigation }) {
                         <InfoRow icon={FileText} iconBg="#F0FDF4" iconColor="#16A34A" label="Download My Data" value={null} placeholder="Export your records" onPress={async () => {
                             try {
                                 const { data } = await apiService.auth.exportMyData();
-                                Alert.alert('Data Export', 'Your data export has been prepared. In production, this will download as a file.');
+                                AlertManager.alert('Data Export', 'Your data export has been prepared. In production, this will download as a file.');
                             } catch (e) {
-                                Alert.alert('Error', 'Failed to export data.');
+                                AlertManager.alert('Error', 'Failed to export data.');
                             }
                         }} isLast />
                     </View>
@@ -769,7 +770,7 @@ export default function PatientProfileScreen({ navigation }) {
                         </Pressable>
                         <Pressable
                             style={[s.logoutBtn, { backgroundColor: '#FFFBEB', borderColor: '#FDE68A' }]}
-                            onPress={() => Alert.alert(
+                            onPress={() => AlertManager.alert(
                                 'Deactivate Account',
                                 'Your account will be paused and you will be signed out.\n\n• All your health data will be safely preserved\n• You can reactivate anytime by logging in again\n• Your callers and care team won\'t be able to reach you',
                                 [
@@ -778,10 +779,10 @@ export default function PatientProfileScreen({ navigation }) {
                                         text: 'Deactivate', style: 'default', onPress: async () => {
                                             try {
                                                 await apiService.auth.deactivateAccount();
-                                                Alert.alert('Account Deactivated', 'Your account has been paused. Log in anytime to reactivate.');
+                                                AlertManager.alert('Account Deactivated', 'Your account has been paused. Log in anytime to reactivate.');
                                                 signOut();
                                             } catch (e) {
-                                                Alert.alert('Error', 'Failed to deactivate account. Please try again.');
+                                                AlertManager.alert('Error', 'Failed to deactivate account. Please try again.');
                                             }
                                         }
                                     }
@@ -793,7 +794,7 @@ export default function PatientProfileScreen({ navigation }) {
                         </Pressable>
                         <Pressable
                             style={[s.logoutBtn, { backgroundColor: '#FEF2F2', borderColor: '#FECACA' }]}
-                            onPress={() => Alert.alert(
+                            onPress={() => AlertManager.alert(
                                 'Delete Account Permanently',
                                 '⚠️ This action CANNOT be undone.\n\nAll your data will be permanently deleted:\n• Health records & vitals\n• Medications & prescriptions\n• Call history & appointments\n• Profile information\n\nYou can create a new account with the same email later, but as a fresh start.',
                                 [
@@ -801,16 +802,16 @@ export default function PatientProfileScreen({ navigation }) {
                                     {
                                         text: 'Delete Forever', style: 'destructive', onPress: () => {
                                             // Double confirmation for permanent deletion
-                                            Alert.alert('Are you absolutely sure?', 'Type DELETE in your mind and confirm. This is irreversible.', [
+                                            AlertManager.alert('Are you absolutely sure?', 'Type DELETE in your mind and confirm. This is irreversible.', [
                                                 { text: 'Go Back', style: 'cancel' },
                                                 {
                                                     text: 'Yes, Delete Everything', style: 'destructive', onPress: async () => {
                                                         try {
                                                             await apiService.auth.deleteAccount();
-                                                            Alert.alert('Account Deleted', 'Your account and all data have been permanently removed.');
+                                                            AlertManager.alert('Account Deleted', 'Your account and all data have been permanently removed.');
                                                             signOut();
                                                         } catch (e) {
-                                                            Alert.alert('Error', 'Failed to delete account. Please try again.');
+                                                            AlertManager.alert('Error', 'Failed to delete account. Please try again.');
                                                         }
                                                     }
                                                 }
@@ -1097,7 +1098,7 @@ export default function PatientProfileScreen({ navigation }) {
                                                 <Text style={s.addrLine} numberOfLines={2}>{addr.address_line || [addr.street, addr.city, addr.state].filter(Boolean).join(', ') || 'No details'}</Text>
                                             </View>
                                         </View>
-                                        <Pressable onPress={() => Alert.alert('Delete Address?', 'This cannot be undone.', [{ text: 'Cancel' }, { text: 'Delete', style: 'destructive', onPress: () => handleDeleteAddress(addr._id) }])} hitSlop={8}>
+                                        <Pressable onPress={() => AlertManager.alert('Delete Address?', 'This cannot be undone.', [{ text: 'Cancel' }, { text: 'Delete', style: 'destructive', onPress: () => handleDeleteAddress(addr._id) }])} hitSlop={8}>
                                             <X size={18} color={C.danger} />
                                         </Pressable>
                                     </View>
@@ -1168,7 +1169,7 @@ export default function PatientProfileScreen({ navigation }) {
                             <View style={s.featureRow}><ShieldCheck size={16} color={C.success} /><Text style={s.featureTxt}>Track medications for family members</Text></View>
                             <View style={s.featureRow}><ShieldCheck size={16} color={C.success} /><Text style={s.featureTxt}>Manage appointments in one dashboard</Text></View>
                         </View>
-                        <Pressable style={[s.saveBtn, { backgroundColor: C.primarySoft }]} onPress={() => { Alert.alert('Coming Soon', 'This feature will be available in a future update!'); setFamilyModalVisible(false); }}>
+                        <Pressable style={[s.saveBtn, { backgroundColor: C.primarySoft }]} onPress={() => { AlertManager.alert('Coming Soon', 'This feature will be available in a future update!'); setFamilyModalVisible(false); }}>
                             <Users size={18} color={C.primary} />
                             <Text style={[s.saveBtnTxt, { color: C.primary }]}>Add Family Member</Text>
                         </Pressable>
