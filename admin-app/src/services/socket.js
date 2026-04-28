@@ -24,12 +24,12 @@ import { Platform } from 'react-native';
 const BACKEND_PORT = 5000; // Must match backend .env PORT
 
 const getSocketUrl = () => {
-    if (__DEV__) {
-        // Use env var if explicitly set (strip /api suffix for socket)
-        if (process.env.EXPO_PUBLIC_API_URL) {
-            return process.env.EXPO_PUBLIC_API_URL.replace(/\/api\/?$/, '');
-        }
+    // Use env var if set (strip /api suffix for socket connection)
+    if (process.env.EXPO_PUBLIC_API_URL) {
+        return process.env.EXPO_PUBLIC_API_URL.replace(/\/api\/?$/, '');
+    }
 
+    if (__DEV__) {
         // Auto-detect from Expo debugger host
         const Constants = require('expo-constants').default;
         const debuggerHost =
@@ -46,7 +46,9 @@ const getSocketUrl = () => {
             ? `http://10.0.2.2:${BACKEND_PORT}`
             : `http://localhost:${BACKEND_PORT}`;
     }
-    return 'https://your-production-api.com';
+
+    // Fallback (should never reach here if env is set)
+    return `https://caremymed-admin.onrender.com`;
 };
 
 const RECONNECT_ATTEMPTS = 10;
