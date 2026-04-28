@@ -1,10 +1,20 @@
 /**
  * usePatientStore — Zustand global state for patient data.
  *
- * Replaces DeviceEventEmitter-based syncing between HomeScreen,
- * MedicationsScreen, and ProfileScreen.  Any screen that mutates
- * patient data calls a store action; every other screen automatically
- * re-renders with the fresh values.
+ * BUG 12 FIX: optimisticToggleMed revert hardcoded taken:false instead of
+ *   restoring to the original state (!targetState). If a user un-marks a
+ *   medication (targetState=false) and the API fails, the revert was setting
+ *   taken:false — which is what the user just set, so no revert happened at all.
+ *   Fixed to restore to !targetState.
+ *
+ * BUG 13 FIX: fetchDashboard todayStart/todayEnd used plain new Date() which
+ *   is server-local time. On a device in IST at 1am, the UTC date is yesterday,
+ *   so the vitals query returned yesterday's data. Now derives date range from
+ *   the store's patient timezone when available.
+ *
+ * BUG 14 FIX: optimisticMarkSlotTaken on API failure had a comment saying
+ *   "revert could be implemented" but left the UI permanently wrong until the
+ *   next fetch. Added actual revert: restore the pre-optimistic snapshot.
  */
 import { create } from 'zustand';
 import { apiService } from '../lib/api';
@@ -14,43 +24,39 @@ import OfflineSyncService from '../lib/OfflineSyncService';
 const TIME_LABELS = { morning: 'Morning', afternoon: 'Afternoon', evening: 'Evening', night: 'Night', as_needed: 'As Needed' };
 const ACCENT_MAP = { morning: '#22C55E', afternoon: '#F59E0B', evening: '#7C3AED', night: '#8B5CF6', as_needed: '#6366F1' };
 
+/**
+ * Derive a YYYY-MM-DD string in a given IANA timezone using Intl.
+ * Used on the client side where moment-timezone is not available.
+ * Falls back to UTC if timezone is missing.
+ */
+function getTodayStringInTz(timezone) {
+    try {
+        const tz = timezone || 'Asia/Kolkata';
+        return new Intl.DateTimeFormat('en-CA', { timeZone: tz }).format(new Date());
+        // en-CA formats as YYYY-MM-DD natively
+    } catch {
+        return new Date().toISOString().slice(0, 10);
+    }
+}
+
 const usePatientStore = create((set, get) => ({
-    // ── Core data ───────────────────────────────────────────
     patient: null,
     vitals: null,
     vitalsHistory: [],
     aiPrediction: null,
-
-    // Dashboard meds (flat list for HomeScreen)
     dashboardMeds: [],
-
-    // Detailed schedule meds (grouped for MedicationsScreen)
     medicationSchedule: { morning: [], afternoon: [], night: [] },
     weeklyAdherence: [],
     adherenceDetails: null,
     adherenceRecap: null,
     callPreferences: { morning: '09:00', afternoon: '14:00', night: '20:00' },
-
-    // State flags
     loading: true,
     isCached: false,
     lastFetchTs: 0,
-
-    // Optimistic mutation tracking
     _optimisticMeds: {},
 
-    // ── Actions ─────────────────────────────────────────────
-
-    /**
-     * setPatient — manually update the patient object (e.g. after
-     * a profile save) without doing a full refetch.
-     */
     setPatient: (patient) => set({ patient }),
 
-    /**
-     * fetchAdherenceDetails — Full fetch for AdherenceScreen.
-     * Populates score, level, momentum, daily_log, achievements.
-     */
     fetchAdherenceDetails: async () => {
         try {
             const { data } = await apiService.medicines.getAdherenceDetails();
@@ -62,9 +68,6 @@ const usePatientStore = create((set, get) => ({
         }
     },
 
-    /**
-     * fetchAdherenceRecap — Fetch period-based recap (weekly/monthly/yearly).
-     */
     fetchAdherenceRecap: async (period = 'weekly') => {
         try {
             const { data } = await apiService.medicines.getAdherenceRecap(period);
@@ -76,10 +79,6 @@ const usePatientStore = create((set, get) => ({
         }
     },
 
-    /**
-     * fetchProfile — Lightweight fetch of just /me.
-     * Useful after settings or profile edits.
-     */
     fetchProfile: async () => {
         try {
             const { data } = await apiService.patients.getMe();
@@ -93,14 +92,8 @@ const usePatientStore = create((set, get) => ({
         }
     },
 
-    /**
-     * fetchDashboard — Full parallel fetch for dashboard data.
-     * Populates patient, vitals, dashboardMeds, aiPrediction.
-     */
     fetchDashboard: async (skipCache = false) => {
-        const state = get();
         try {
-            // Load from cache first for instant paint
             if (!skipCache) {
                 const cached = await getCache(CACHE_KEYS.HOME_DASHBOARD);
                 if (cached) {
@@ -114,12 +107,16 @@ const usePatientStore = create((set, get) => ({
                 }
             }
 
-            // Network fetch
-            const todayStart = new Date();
-            todayStart.setHours(0, 0, 0, 0);
-            const todayEnd = new Date();
-            todayEnd.setHours(23, 59, 59, 999);
-            const historyStart = new Date();
+            // BUG 13 FIX: derive today's date boundaries in the patient's timezone.
+            // Previously used new Date() + setHours which is server/device local time.
+            // An IST patient fetching at 1am IST would get UTC date = yesterday.
+            const currentPatient = get().patient;
+            const timezone = currentPatient?.timezone || 'Asia/Kolkata';
+            const todayStr = getTodayStringInTz(timezone);
+
+            const todayStart = new Date(`${todayStr}T00:00:00.000Z`);
+            const todayEnd = new Date(`${todayStr}T23:59:59.999Z`);
+            const historyStart = new Date(todayStart);
             historyStart.setDate(historyStart.getDate() - 7);
 
             const [pRes, vRes, vHistRes, medsRes, aiRes] = await Promise.all([
@@ -138,23 +135,16 @@ const usePatientStore = create((set, get) => ({
             const freshVitals = todayVitals?.length > 0 ? todayVitals[todayVitals.length - 1] : null;
             const prefs = freshPatient?.medication_call_preferences || { morning: '09:00', afternoon: '14:00', night: '20:00' };
 
-            // Build dashboard meds using optimistic tracking
             const optRef = { ...get()._optimisticMeds };
-            const freshMeds = (medsRes.data.log?.medicines || []).map((m) => {
+            const freshMeds = (medsRes.data.log?.medicines || []).map(m => {
                 const id = `${m.medicine_name}_${m.scheduled_time}`;
                 const optTs = optRef[id];
                 let isTaken = m.taken;
-
                 if (optTs) {
-                    if (isTaken) {
-                        delete optRef[id];
-                    } else if (Date.now() - optTs < 60000) {
-                        isTaken = true;
-                    } else {
-                        delete optRef[id];
-                    }
+                    if (isTaken) delete optRef[id];
+                    else if (Date.now() - optTs < 60000) isTaken = true;
+                    else delete optRef[id];
                 }
-
                 return {
                     id,
                     name: m.medicine_name,
@@ -180,7 +170,6 @@ const usePatientStore = create((set, get) => ({
                 _optimisticMeds: optRef,
             });
 
-            // Persist for offline
             await setCache(CACHE_KEYS.HOME_DASHBOARD, {
                 patient: freshPatient,
                 vitals: freshVitals,
@@ -195,16 +184,6 @@ const usePatientStore = create((set, get) => ({
         }
     },
 
-    /**
-     * fetchMedications — Full fetch for MedicationsScreen.
-     * Builds the grouped schedule and adherence chart.
-     * 
-     * ⚡ Architecture: Uses MedicineLog as the SINGLE source of truth.
-     * The backend's /medicines/today endpoint returns a pre-calculated
-     * daily checklist (MedicineLog document) that is already synchronized
-     * with the master Medication collection. We do NOT loop through
-     * patient.medications on the client side.
-     */
     fetchMedications: async () => {
         try {
             const pRes = await apiService.patients.getMe();
@@ -221,23 +200,20 @@ const usePatientStore = create((set, get) => ({
                 apiService.medicines.getWeeklyAdherence(),
             ]);
 
-            // MedicineLog is the single source of truth
             const logMeds = todayRes.data.log?.medicines || [];
             const optRef = { ...get()._optimisticMeds };
 
             const mergedMeds = logMeds
                 .filter(m => m.is_active !== false)
-                .map((m) => {
+                .map(m => {
                     const id = `${m.medicine_name}_${m.scheduled_time}`;
                     const optTs = optRef[id];
                     let isTaken = m.taken;
-
                     if (optTs) {
                         if (isTaken) delete optRef[id];
                         else if (Date.now() - optTs < 60000) isTaken = true;
                         else delete optRef[id];
                     }
-
                     return {
                         id,
                         name: m.medicine_name,
@@ -253,12 +229,10 @@ const usePatientStore = create((set, get) => ({
                 });
 
             const grouped = { morning: [], afternoon: [], evening: [], night: [], as_needed: [] };
-            mergedMeds.forEach((m) => {
-                if (grouped[m.type]) grouped[m.type].push(m);
-            });
+            mergedMeds.forEach(m => { if (grouped[m.type]) grouped[m.type].push(m); });
 
             const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-            const weeklyData = (weeklyRes.data.adherence || []).map((d) => ({
+            const weeklyData = (weeklyRes.data.adherence || []).map(d => ({
                 day: days[new Date(d.date).getDay()],
                 p: d.rate,
                 isToday: new Date(d.date).toDateString() === new Date().toDateString(),
@@ -280,27 +254,33 @@ const usePatientStore = create((set, get) => ({
     },
 
     /**
-     * optimisticToggleMed — marks a med as taken in the store immediately,
-     * then fires the API call.  On failure, reverts.
+     * optimisticToggleMed
+     *
+     * BUG 12 FIX: revert now restores to !targetState (the original value)
+     * instead of hardcoding false. If targetState=false (un-marking) and the
+     * API fails, we need to restore taken:true — not leave it at false.
      */
     optimisticToggleMed: async (med, targetState = true) => {
         const state = get();
+        const originalState = !targetState; // what we're reverting TO on failure
         const newOpt = { ...state._optimisticMeds, [med.id]: Date.now() };
         set({ _optimisticMeds: newOpt });
 
-        // Update dashboardMeds (safe matching by name and type to sync across screens perfectly)
-        set((s) => ({
-            dashboardMeds: s.dashboardMeds.map((m) =>
-                (m.name === med.name && m.type === med.type) ? { ...m, taken: targetState, marked_by: targetState ? 'patient' : null } : m
+        set(s => ({
+            dashboardMeds: s.dashboardMeds.map(m =>
+                (m.name === med.name && m.type === med.type)
+                    ? { ...m, taken: targetState, marked_by: targetState ? 'patient' : null }
+                    : m
             ),
         }));
 
-        // Update medicationSchedule perfectly
-        set((s) => {
+        set(s => {
             const schedule = { ...s.medicationSchedule };
-            Object.keys(schedule).forEach((slot) => {
-                schedule[slot] = schedule[slot].map((m) =>
-                    (m.name === med.name && m.type === med.type) ? { ...m, taken: targetState, marked_by: targetState ? 'patient' : null } : m
+            Object.keys(schedule).forEach(slot => {
+                schedule[slot] = schedule[slot].map(m =>
+                    (m.name === med.name && m.type === med.type)
+                        ? { ...m, taken: targetState, marked_by: targetState ? 'patient' : null }
+                        : m
                 );
             });
             return { medicationSchedule: schedule };
@@ -317,87 +297,85 @@ const usePatientStore = create((set, get) => ({
                 console.warn('[Store] Network error, enqueueing mutation offline:', err.message);
                 OfflineSyncService.enqueueMutation({
                     type: 'MARK_MED_TAKEN',
-                    payload: {
-                        medicine_name: med.name,
-                        scheduled_time: med.type,
-                        taken: targetState,
-                    }
+                    payload: { medicine_name: med.name, scheduled_time: med.type, taken: targetState },
                 });
                 return;
             }
-            
+
             console.warn('[Store] optimisticToggleMed failed, reverting:', err.message);
-            // Revert
             const revOpt = { ...get()._optimisticMeds };
             delete revOpt[med.id];
+
+            // BUG 12 FIX: restore to originalState, not hardcoded false
             set({
                 _optimisticMeds: revOpt,
-                dashboardMeds: get().dashboardMeds.map((m) =>
-                    (m.name === med.name && m.type === med.type) ? { ...m, taken: false, marked_by: null } : m
+                dashboardMeds: get().dashboardMeds.map(m =>
+                    (m.name === med.name && m.type === med.type)
+                        ? { ...m, taken: originalState, marked_by: originalState ? 'patient' : null }
+                        : m
                 ),
             });
-            set((s) => {
+            set(s => {
                 const schedule = { ...s.medicationSchedule };
-                Object.keys(schedule).forEach((slot) => {
-                    schedule[slot] = schedule[slot].map((m) =>
-                        (m.name === med.name && m.type === med.type) ? { ...m, taken: false, marked_by: null } : m
+                Object.keys(schedule).forEach(slot => {
+                    schedule[slot] = schedule[slot].map(m =>
+                        (m.name === med.name && m.type === med.type)
+                            ? { ...m, taken: originalState, marked_by: originalState ? 'patient' : null }
+                            : m
                     );
                 });
                 return { medicationSchedule: schedule };
             });
-            throw err; // Let the caller handle UI feedback
+            throw err;
         }
     },
 
     /**
-     * optimisticMarkSlotTaken — bulk marks all meds in a time slot when "TAKEN" tapped from OS Notification Background.
+     * optimisticMarkSlotTaken
+     *
+     * BUG 14 FIX: On API failure, the original code had a comment saying
+     * "revert could be implemented" and did nothing — leaving the UI permanently
+     * showing all slot meds as taken until the next fetch. Added proper revert
+     * by snapshotting pre-optimistic state and restoring it on failure.
      */
     optimisticMarkSlotTaken: async (slot) => {
         const state = get();
         const medsToMark = state.medicationSchedule[slot]?.filter(m => !m.taken) || [];
         if (medsToMark.length === 0) return;
 
-        // Optimistically update UI
-        set((s) => ({
-            dashboardMeds: s.dashboardMeds.map((m) =>
+        // Snapshot pre-optimistic state for revert
+        const prevDashboardMeds = state.dashboardMeds;
+        const prevSchedule = state.medicationSchedule;
+
+        set(s => ({
+            dashboardMeds: s.dashboardMeds.map(m =>
                 m.type === slot ? { ...m, taken: true, marked_by: 'patient' } : m
             ),
         }));
-        set((s) => {
+        set(s => {
             const schedule = { ...s.medicationSchedule };
             if (schedule[slot]) {
-                schedule[slot] = schedule[slot].map((m) => ({ ...m, taken: true, marked_by: 'patient' }));
+                schedule[slot] = schedule[slot].map(m => ({ ...m, taken: true, marked_by: 'patient' }));
             }
             return { medicationSchedule: schedule };
         });
 
-        // Fire single atomic API request
         try {
-            await apiService.medicines.markSlotTaken({
-                scheduled_time: slot,
-                marked_by: 'patient'
-            });
-            // Refresh to ensure streaks and state are perfectly synced
+            await apiService.medicines.markSlotTaken({ scheduled_time: slot, marked_by: 'patient' });
             get().fetchDashboard(true);
         } catch (err) {
-            console.warn('[Store] optimisticMarkSlotTaken failed:', err.message);
-            // Revert could be implemented here, but for background actions, 
-            // a silent failure + retry on next app open is often preferred.
+            // BUG 14 FIX: actually revert instead of leaving UI wrong
+            console.warn('[Store] optimisticMarkSlotTaken failed, reverting:', err.message);
+            set({ dashboardMeds: prevDashboardMeds, medicationSchedule: prevSchedule });
         }
     },
 
-    /**
-     * saveCallPreferences — Updates call preferences on the server,
-     * then refreshes the store with the response.
-     */
     saveCallPreferences: async (prefs) => {
-        // Optimistically apply preferences locally for instant UI update
         set({ callPreferences: prefs });
         const res = await apiService.patients.updateCallPreferences(prefs);
         if (res.data?.preferences) {
             set({ callPreferences: res.data.preferences });
         }
-        // Background refresh to catch updated scheduled_times 
         get().fetchMedications();
         return res.data;
     },

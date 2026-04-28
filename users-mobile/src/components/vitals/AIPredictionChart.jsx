@@ -22,11 +22,11 @@ export default function AIPredictionChart({ vitalsHistory, predictionData, metri
   if (!safePrediction || safePrediction.length === 0) {
     return (
       <View style={styles.container}>
-        <Text style={styles.title}>{metricName} Forecast</Text>
+        <Text style={styles.title}>Health Outlook</Text>
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyIcon}>🤖</Text>
           <Text style={styles.emptyTitle}>AI Model Learning...</Text>
-          <Text style={styles.emptyDesc}>Our AI needs at least 7 historical {metricName.toLowerCase()} readings to identify your baseline and forecast future trends. Keep logging!</Text>
+          <Text style={styles.emptyDesc}>Our AI needs at least 7 historical readings to identify your baseline and forecast future trends. Keep logging!</Text>
         </View>
       </View>
     );
@@ -36,11 +36,11 @@ export default function AIPredictionChart({ vitalsHistory, predictionData, metri
   if (allValues.length < 2) {
     return (
       <View style={styles.container}>
-        <Text style={styles.title}>{metricName} Forecast</Text>
+        <Text style={styles.title}>Health Outlook</Text>
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyIcon}>📊</Text>
           <Text style={styles.emptyTitle}>Insufficient Data</Text>
-          <Text style={styles.emptyDesc}>Log at least two {metricName.toLowerCase()} readings to activate the AI forecast.</Text>
+          <Text style={styles.emptyDesc}>Log at least two vitals readings to activate the AI health forecast.</Text>
         </View>
       </View>
     );
@@ -79,7 +79,7 @@ export default function AIPredictionChart({ vitalsHistory, predictionData, metri
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>{metricName} Forecast</Text>
+      <Text style={styles.title}>{metricName} Outlook</Text>
       
       {/* Custom Legend */}
       <View style={styles.legendContainer}>
