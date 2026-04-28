@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import {
     View, Text, StyleSheet, Platform, Pressable, Animated, Image,
-    ActivityIndicator, Alert, Dimensions
+    ActivityIndicator, Dimensions
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
@@ -10,6 +10,7 @@ import {
 import { colors } from '../../theme';
 import { apiService } from '../../lib/api';
 
+import AlertManager from '../../utils/AlertManager';
 const UPI_APPS = [
     { id: 'gpay', name: 'Google Pay', color: '#4285F4', initials: 'G' },
     { id: 'phonepe', name: 'PhonePe', color: '#5F259F', initials: 'Pe' },
@@ -60,7 +61,7 @@ export default function PaymentScreen({ navigation, route }) {
             setProcessing(false);
             setSuccess(false);
             progressAnim.setValue(0);
-            Alert.alert('Payment Failed', 'Something went wrong. Please try again.');
+            AlertManager.alert('Payment Failed', 'Something went wrong. Please try again.');
         }
     };
 

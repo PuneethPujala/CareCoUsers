@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, Platform, ActivityIndicator, Animated, Pressable, Linking, Modal, TouchableWithoutFeedback, TextInput, KeyboardAvoidingView, Alert, FlatList, Switch, Keyboard } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Platform, ActivityIndicator, Animated, Pressable, Linking, Modal, TouchableWithoutFeedback, TextInput, KeyboardAvoidingView, FlatList, Switch, Keyboard } from 'react-native';
 import SmartInput from '../../components/ui/SmartInput';
 import PremiumFormModal from '../../components/ui/PremiumFormModal';
 import { useFocusEffect } from '@react-navigation/native';
@@ -10,6 +10,7 @@ import { initializeHealthPlatform, requestHealthPermissions, fetchDailyVitalsSum
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { COUNTRY_CODES, parsePhoneWithCode, validatePhone } from '../../utils/phoneUtils';
 
+import AlertManager from '../../utils/AlertManager';
 // ── Skeleton Loader ──────────────────────────────────────────
 const SkeletonItem = ({ width, height, borderRadius = 8, style }) => {
     const anim = useRef(new Animated.Value(0.3)).current;
@@ -91,7 +92,7 @@ export default function HealthProfileScreen({ navigation }) {
 
     const handleWearableSync = async () => {
         if (!healthSdkReady) {
-            Alert.alert('Unsupported', 'Health integration is not available on this device.');
+            AlertManager.alert('Unsupported', 'Health integration is not available on this device.');
             return;
         }
         
@@ -99,7 +100,7 @@ export default function HealthProfileScreen({ navigation }) {
         try {
             const hasPermissions = await requestHealthPermissions();
             if (!hasPermissions) {
-                Alert.alert('Permission Denied', 'Please enable health permissions in your system settings to seamlessly sync vitals.');
+                AlertManager.alert('Permission Denied', 'Please enable health permissions in your system settings to seamlessly sync vitals.');
                 setIsSyncing(false);
                 return;
             }
@@ -119,13 +120,13 @@ export default function HealthProfileScreen({ navigation }) {
                     hydration: 50, // HealthKit rarely guarantees hydration, send placeholder
                     source: Platform.OS === 'android' ? 'health_connect' : 'healthkit'
                 });
-                Alert.alert('Sync Complete', 'Successfully securely pulled your latest smartwatch data into CareMyMed.');
+                AlertManager.alert('Sync Complete', 'Successfully securely pulled your latest smartwatch data into CareMyMed.');
             } else {
-                Alert.alert('No Data Found', "We couldn't find any recent vitals recorded by your watch today.");
+                AlertManager.alert('No Data Found', "We couldn't find any recent vitals recorded by your watch today.");
             }
         } catch (e) {
             console.error(e);
-            Alert.alert('Sync Error', 'An error occurred while connecting to your health data.');
+            AlertManager.alert('Sync Error', 'An error occurred while connecting to your health data.');
         } finally {
             setIsSyncing(false);
         }
@@ -248,7 +249,7 @@ export default function HealthProfileScreen({ navigation }) {
             closeModal();
         } catch (e) {
             if (Platform.OS === 'web') window.alert("Could not delete item");
-            else Alert.alert("Error", "Could not delete item");
+            else AlertManager.alert("Error", "Could not delete item");
         } finally {
             setIsSaving(false);
         }
@@ -260,7 +261,7 @@ export default function HealthProfileScreen({ navigation }) {
                 executeDelete(collection, id);
             }
         } else {
-            Alert.alert("Confirm Delete", "Are you sure you want to permanently delete this item?", [
+            AlertManager.alert("Confirm Delete", "Are you sure you want to permanently delete this item?", [
                 { text: "Cancel", style: "cancel" },
                 { text: "Delete", style: "destructive", onPress: () => executeDelete(collection, id) }
             ]);
@@ -272,34 +273,34 @@ export default function HealthProfileScreen({ navigation }) {
         
         // ── Person Name Validation ──
         if (editingType === 'contact' && formState.name && !nameRegex.test(formState.name)) {
-            return Alert.alert('Invalid Name', 'Contact names can only contain letters, spaces, hyphens, and apostrophes.');
+            return AlertManager.alert('Invalid Name', 'Contact names can only contain letters, spaces, hyphens, and apostrophes.');
         }
         if (editingType === 'gp' && formState.gp_name && !nameRegex.test(formState.gp_name)) {
-            return Alert.alert('Invalid Name', 'Doctor names can only contain letters, spaces, hyphens, and apostrophes.');
+            return AlertManager.alert('Invalid Name', 'Doctor names can only contain letters, spaces, hyphens, and apostrophes.');
         }
         if (editingType === 'appointment' && formState.doctor_name && !nameRegex.test(formState.doctor_name)) {
-            return Alert.alert('Invalid Name', 'Doctor names can only contain letters, spaces, hyphens, and apostrophes.');
+            return AlertManager.alert('Invalid Name', 'Doctor names can only contain letters, spaces, hyphens, and apostrophes.');
         }
 
         // ── Presence Validation ──
         if (['condition', 'allergy', 'medication', 'vaccination', 'contact'].includes(editingType) && !formState.name?.trim()) {
-            return Platform.OS === 'web' ? window.alert('Please provide a valid name.') : Alert.alert('Missing Field', 'Please provide a valid name.');
+            return Platform.OS === 'web' ? window.alert('Please provide a valid name.') : AlertManager.alert('Missing Field', 'Please provide a valid name.');
         }
         if (['contact'].includes(editingType) && !formState.phone?.trim()) {
-            return Platform.OS === 'web' ? window.alert('Please provide a phone number.') : Alert.alert('Missing Field', 'Please provide a phone number.');
+            return Platform.OS === 'web' ? window.alert('Please provide a phone number.') : AlertManager.alert('Missing Field', 'Please provide a phone number.');
         }
         if (editingType === 'history' && !formState.event?.trim()) {
-            return Platform.OS === 'web' ? window.alert('Please provide an event name.') : Alert.alert('Missing Field', 'Please provide an event name.');
+            return Platform.OS === 'web' ? window.alert('Please provide an event name.') : AlertManager.alert('Missing Field', 'Please provide an event name.');
         }
         if (editingType === 'appointment' && (!formState.title?.trim() || !formState.doctor_name?.trim())) {
-            return Platform.OS === 'web' ? window.alert('Please provide appointment details.') : Alert.alert('Missing Field', 'Please provide appointment details.');
+            return Platform.OS === 'web' ? window.alert('Please provide appointment details.') : AlertManager.alert('Missing Field', 'Please provide appointment details.');
         }
 
         // ── Length Validation ──
         if (['condition', 'allergy', 'medication', 'history'].includes(editingType)) {
             const val = formState.name || formState.event;
             if (val && val.trim().length < 2) {
-                return Alert.alert('Too Short', 'Please enter a more descriptive name (at least 2 characters).');
+                return AlertManager.alert('Too Short', 'Please enter a more descriptive name (at least 2 characters).');
             }
         }
         
@@ -307,32 +308,32 @@ export default function HealthProfileScreen({ navigation }) {
         // ── Date Range Validation ──
         if (['history', 'condition', 'allergy'].includes(editingType) && formState.date) {
             if (new Date(formState.date) > new Date()) {
-                return Alert.alert('Invalid Date', 'Date cannot be in the future.');
+                return AlertManager.alert('Invalid Date', 'Date cannot be in the future.');
             }
         }
         if (editingType === 'vaccination' && formState.date_given) {
             if (new Date(formState.date_given) > new Date()) {
-                return Alert.alert('Invalid Date', 'Vaccination date cannot be in the future.');
+                return AlertManager.alert('Invalid Date', 'Vaccination date cannot be in the future.');
             }
         }
         if (editingType === 'appointment' && formState.date) {
             const today = new Date();
             today.setHours(0,0,0,0);
             if (new Date(formState.date) < today && formState.status === 'upcoming') {
-                return Alert.alert('Invalid Date', 'Upcoming appointment date cannot be in the past.');
+                return AlertManager.alert('Invalid Date', 'Upcoming appointment date cannot be in the past.');
             }
         }
 
         if (editingType === 'gp' && formState.gp_phone) {
             const phoneErr = validatePhone(formState.gp_phone, formState.gp_phoneCode);
             if (phoneErr) {
-                return Alert.alert('Invalid Phone', phoneErr);
+                return AlertManager.alert('Invalid Phone', phoneErr);
             }
         }
         if (editingType === 'contact' && formState.phone) {
             // Check if it's at least 10 digits
             if (formState.phone.replace(/[^0-9]/g, '').length < 10) {
-                return Alert.alert('Invalid Phone', 'Please enter a valid 10-digit phone number.');
+                return AlertManager.alert('Invalid Phone', 'Please enter a valid 10-digit phone number.');
             }
         }
 
@@ -341,15 +342,15 @@ export default function HealthProfileScreen({ navigation }) {
             const h = Number(formState.height_cm);
             const w = Number(formState.weight_kg);
             if (formState.height_cm && (h < 50 || h > 300)) {
-                return Platform.OS === 'web' ? window.alert('Height must be between 50–300 cm.') : Alert.alert('Invalid Height', 'Height must be between 50 and 300 cm.');
+                return Platform.OS === 'web' ? window.alert('Height must be between 50–300 cm.') : AlertManager.alert('Invalid Height', 'Height must be between 50 and 300 cm.');
             }
             if (formState.weight_kg && (w < 10 || w > 500)) {
-                return Platform.OS === 'web' ? window.alert('Weight must be between 10–500 kg.') : Alert.alert('Invalid Weight', 'Weight must be between 10 and 500 kg.');
+                return Platform.OS === 'web' ? window.alert('Weight must be between 10–500 kg.') : AlertManager.alert('Invalid Weight', 'Weight must be between 10 and 500 kg.');
             }
             if (h && w) {
                 const bmi = w / Math.pow(h / 100, 2);
                 if (bmi < 10 || bmi > 60) {
-                    return Alert.alert('Invalid Vitals', `The calculated BMI of ${bmi.toFixed(1)} seems highly unlikely. Please verify your height and weight inputs.`);
+                    return AlertManager.alert('Invalid Vitals', `The calculated BMI of ${bmi.toFixed(1)} seems highly unlikely. Please verify your height and weight inputs.`);
                 }
             }
         }
@@ -358,19 +359,19 @@ export default function HealthProfileScreen({ navigation }) {
         if (!formState._id) {
             const checkDuplicate = (list, key) => list.some(item => item[key]?.toLowerCase().trim() === formState[key]?.toLowerCase().trim());
             if (editingType === 'condition' && checkDuplicate(conditions, 'name')) {
-                return Platform.OS === 'web' ? window.alert('This condition already exists.') : Alert.alert('Duplicate', 'This condition already exists in your health profile.');
+                return Platform.OS === 'web' ? window.alert('This condition already exists.') : AlertManager.alert('Duplicate', 'This condition already exists in your health profile.');
             }
             if (editingType === 'allergy' && checkDuplicate(allergies, 'name')) {
-                return Platform.OS === 'web' ? window.alert('This allergy already exists.') : Alert.alert('Duplicate', 'This allergy already exists in your health profile.');
+                return Platform.OS === 'web' ? window.alert('This allergy already exists.') : AlertManager.alert('Duplicate', 'This allergy already exists in your health profile.');
             }
             if (editingType === 'medication' && checkDuplicate(medications, 'name')) {
-                return Platform.OS === 'web' ? window.alert('This medication already exists.') : Alert.alert('Duplicate', 'This medication already exists in your health profile.');
+                return Platform.OS === 'web' ? window.alert('This medication already exists.') : AlertManager.alert('Duplicate', 'This medication already exists in your health profile.');
             }
             if (editingType === 'vaccination' && checkDuplicate(vaccinations, 'name')) {
-                return Platform.OS === 'web' ? window.alert('This vaccination already exists.') : Alert.alert('Duplicate', 'This vaccination already exists in your health profile.');
+                return Platform.OS === 'web' ? window.alert('This vaccination already exists.') : AlertManager.alert('Duplicate', 'This vaccination already exists in your health profile.');
             }
             if (editingType === 'history' && medical_history.some(item => item.event?.toLowerCase().trim() === formState.event?.toLowerCase().trim())) {
-                return Platform.OS === 'web' ? window.alert('This medical history entry already exists.') : Alert.alert('Duplicate', 'This entry already exists in your medical history.');
+                return Platform.OS === 'web' ? window.alert('This medical history entry already exists.') : AlertManager.alert('Duplicate', 'This entry already exists in your medical history.');
             }
         }
         
@@ -413,7 +414,7 @@ export default function HealthProfileScreen({ navigation }) {
             closeModal();
         } catch (error) {
             if (Platform.OS === 'web') window.alert('Failed to save data. Please check your inputs.');
-            else Alert.alert('Error', 'Failed to save data. Please check your inputs.');
+            else AlertManager.alert('Error', 'Failed to save data. Please check your inputs.');
             console.warn(error);
         } finally {
             setIsSaving(false);
@@ -1016,7 +1017,7 @@ export default function HealthProfileScreen({ navigation }) {
                         </View>
                         <View style={s.formGroup}>
                             <Text style={s.formLabel}>Prescription Details</Text>
-                            <Pressable style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#F8FAFC', padding: 14, borderRadius: 12, borderWidth: 1, borderColor: '#E2E8F0', borderStyle: 'dashed' }} onPress={() => Alert.alert('Coming Soon', 'Upload functionality will be added in a future update.')}>
+                            <Pressable style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#F8FAFC', padding: 14, borderRadius: 12, borderWidth: 1, borderColor: '#E2E8F0', borderStyle: 'dashed' }} onPress={() => AlertManager.alert('Coming Soon', 'Upload functionality will be added in a future update.')}>
                                 <Upload size={18} color={C.primary} />
                                 <Text style={{ color: C.primary, fontSize: 15, fontWeight: '600' }}>Upload Prescription</Text>
                             </Pressable>
