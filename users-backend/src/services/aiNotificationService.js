@@ -73,7 +73,7 @@ async function triggerAiNotification(trigger, patient, category = 'health_tips',
     const notificationDoc = await Notification.create({
         patient_id: patient._id,
         type: category,
-        title: 'Samvaya Companion', // Title could also be dynamic later
+        title: 'CareMyMed Companion', // Title could also be dynamic later
         message: messageBody,
         target_screen: targetScreen,
         push_delivered: false,
