@@ -690,13 +690,13 @@ export default function PatientProfileScreen({ navigation }) {
                             </View>
                             <View style={s.infoTextCol}>
                                 <Text style={s.infoLabel}>Allow Screenshots</Text>
-                                <Text style={[s.infoValue, { color: C.muted }]}>{patient?.allow_screenshots ? 'Allowed' : 'Blocked (Secure)'}</Text>
+                                <Text style={[s.infoValue, { color: C.muted }]}>{patient?.allow_screenshots !== false ? 'Allowed' : 'Blocked (Secure)'}</Text>
                             </View>
                             <Switch
                                 trackColor={{ false: '#E2E8F0', true: '#818CF8' }}
-                                thumbColor={patient?.allow_screenshots ? '#4338CA' : '#F8FAFC'}
+                                thumbColor={patient?.allow_screenshots !== false ? '#4338CA' : '#F8FAFC'}
                                 onValueChange={handleToggleScreenshots}
-                                value={patient?.allow_screenshots || false}
+                                value={patient?.allow_screenshots !== false}
                             />
                         </View>
 

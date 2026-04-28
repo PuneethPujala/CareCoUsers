@@ -195,10 +195,10 @@ export default function AppNavigator() {
 
     useEffect(() => {
         if (user) {
-            if (patient?.allow_screenshots === true) {
-                ScreenCapture.allowScreenCaptureAsync().catch(err => console.warn('allowScreenCaptureAsync failed', err));
-            } else {
+            if (patient?.allow_screenshots === false) {
                 ScreenCapture.preventScreenCaptureAsync().catch(err => console.warn('preventScreenCaptureAsync failed', err));
+            } else {
+                ScreenCapture.allowScreenCaptureAsync().catch(err => console.warn('allowScreenCaptureAsync failed', err));
             }
         } else {
             ScreenCapture.allowScreenCaptureAsync().catch(() => { });
