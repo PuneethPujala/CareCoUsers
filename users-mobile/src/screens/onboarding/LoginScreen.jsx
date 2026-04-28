@@ -12,6 +12,7 @@ import { parseError } from '../../utils/parseError';
 import analytics from '../../utils/analytics';
 import { colors } from '../../theme';
 import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
+import SmartInput from '../../components/ui/SmartInput';
 
 const C = {
     bg: '#F4F7FB',
@@ -546,25 +547,16 @@ export default function LoginScreen({ navigation }) {
                                 </View>
                             ) : null}
 
-                            <Text style={styles.fieldLabel}>EMAIL ADDRESS</Text>
-                            <TextInput
-                                ref={emailRef}
-                                style={[styles.input, emailFocused && styles.inputFocused]}
+                            <SmartInput
+                                label="EMAIL ADDRESS"
                                 placeholder="you@example.com"
-                                placeholderTextColor={C.muted}
                                 value={email}
                                 onChangeText={handleEmailChange}
-                                autoCapitalize="none"
                                 keyboardType="email-address"
-                                autoCorrect={false}
-                                spellCheck={false}
-                                textContentType="emailAddress"
-                                onFocus={() => setEmailFocused(true)}
-                                onBlur={() => setEmailFocused(false)}
-                                blurOnSubmit={false}
-                                autoFocus
+                                autoCapitalize="none"
                                 returnKeyType="next"
                                 onSubmitEditing={() => passwordRef.current?.focus()}
+                                autoFocus
                             />
 
                             <View style={styles.passwordLabelRow}>
@@ -573,28 +565,20 @@ export default function LoginScreen({ navigation }) {
                                     <Text style={styles.forgotLink}>Forgot?</Text>
                                 </Pressable>
                             </View>
-                            <View style={[styles.passwordWrap, passFocused && styles.inputFocused]}>
-                                <TextInput
-                                    ref={passwordRef}
-                                    style={styles.passwordInput}
-                                    placeholder="Enter your password"
-                                    placeholderTextColor={C.muted}
-                                    value={password}
-                                    onChangeText={handlePasswordChange}
-                                    secureTextEntry={!showPassword}
-                                    textContentType="password"
-                                    onFocus={() => setPassFocused(true)}
-                                    onBlur={() => setPassFocused(false)}
-                                    returnKeyType="done"
-                                    onSubmitEditing={handleLogin}
-                                />
-                                <Pressable onPress={() => setShowPassword(!showPassword)} hitSlop={12}>
-                                    {showPassword
-                                        ? <Eye size={18} color={C.primary} />
-                                        : <EyeOff size={18} color={C.muted} />
-                                    }
-                                </Pressable>
-                            </View>
+                            
+                            <SmartInput
+                                placeholder="Enter your password"
+                                value={password}
+                                onChangeText={handlePasswordChange}
+                                secureTextEntry={!showPassword}
+                                returnKeyType="done"
+                                onSubmitEditing={handleLogin}
+                                rightAccessory={
+                                    <Pressable onPress={() => setShowPassword(!showPassword)} hitSlop={12} style={{ paddingLeft: 8 }}>
+                                        {showPassword ? <Eye size={18} color={C.primary} /> : <EyeOff size={18} color={C.muted} />}
+                                    </Pressable>
+                                }
+                            />
 
                             <Pressable
                                 style={[styles.signInBtn, loading && { opacity: 0.7 }]}
@@ -620,23 +604,19 @@ export default function LoginScreen({ navigation }) {
                                 </View>
                             ) : null}
 
-                            <Text style={styles.fieldLabel}>PHONE NUMBER</Text>
-                            <View style={[styles.passwordWrap, phoneFocused && styles.inputFocused, { marginBottom: 26 }]}>
-                                <Text style={{ fontSize: 15, ...FONT.medium, color: C.mid, marginRight: 4 }}>+91</Text>
-                                <TextInput
-                                    style={styles.passwordInput}
-                                    placeholder="10-digit mobile number"
-                                    placeholderTextColor={C.muted}
-                                    value={phone}
-                                    onChangeText={(v) => { setPhone(v.replace(/\D/g, '').slice(0, 10)); setPhoneError(''); }}
-                                    keyboardType="phone-pad"
-                                    maxLength={10}
-                                    onFocus={() => setPhoneFocused(true)}
-                                    onBlur={() => setPhoneFocused(false)}
-                                    returnKeyType="done"
-                                    onSubmitEditing={handleSendPhoneOtp}
-                                />
-                            </View>
+                            <SmartInput
+                                label="PHONE NUMBER"
+                                placeholder="10-digit mobile number"
+                                value={phone}
+                                onChangeText={(v) => { setPhone(v.replace(/\D/g, '').slice(0, 10)); setPhoneError(''); }}
+                                keyboardType="phone-pad"
+                                maxLength={10}
+                                returnKeyType="done"
+                                onSubmitEditing={handleSendPhoneOtp}
+                                leftAccessory={
+                                    <Text style={{ fontSize: 15, ...FONT.medium, color: C.mid, marginRight: 8 }}>+91</Text>
+                                }
+                            />
 
                             <Pressable
                                 style={[styles.signInBtn, phoneOtpLoading && { opacity: 0.7 }]}
@@ -929,24 +909,6 @@ const styles = StyleSheet.create({
         fontSize: 13,
         ...FONT.bold,
         color: C.primary,
-    },
-    passwordWrap: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: C.surface,
-        borderWidth: 1.5,
-        borderColor: C.border,
-        borderRadius: 14,
-        height: 52,
-        paddingHorizontal: 16,
-        marginBottom: 26,
-    },
-    passwordInput: {
-        flex: 1,
-        fontSize: 15,
-        ...FONT.medium,
-        color: C.dark,
-        paddingVertical: 0,
     },
 
     // ─── Sign In button ───────────────────────────
