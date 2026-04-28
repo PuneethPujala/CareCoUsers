@@ -9,6 +9,7 @@ import {
     View, Text, StyleSheet, Animated, ActivityIndicator,
     TouchableOpacity, Pressable, Image,
 } from "react-native";
+import { LinearGradient } from 'expo-linear-gradient';
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { LayoutDashboard, Users, Pill, ShieldPlus, UserCircle } from "lucide-react-native";
@@ -158,10 +159,15 @@ const MainAppStack = () => (
 
 function AppSplashScreen() {
     return (
-        <View style={styles.splashContainer}>
+        <LinearGradient
+            colors={['#E0E7FF', '#E0E7FF', '#C7D2FE', '#A5B4FC']}
+            style={styles.splashContainer}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+        >
             <Image source={require('../../assets/logo.png')} style={styles.splashLogo} resizeMode="contain" />
-            <ActivityIndicator size="small" color="#FFFFFF" style={styles.splashLoader} />
-        </View>
+            <ActivityIndicator size="small" color="#6366F1" style={styles.splashLoader} />
+        </LinearGradient>
     );
 }
 
@@ -365,7 +371,7 @@ const styles = StyleSheet.create({
         shadowColor: "#2563EB", shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.35, shadowRadius: 8, elevation: 8,
     },
-    splashContainer: { flex: 1, backgroundColor: '#0A2463', justifyContent: 'center', alignItems: 'center' },
+    splashContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
     splashLogo: { width: 200, height: 200 },
     splashLoader: { marginTop: 24 },
 });
