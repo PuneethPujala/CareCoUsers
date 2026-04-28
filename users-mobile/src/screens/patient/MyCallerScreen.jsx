@@ -4,6 +4,7 @@ import {
   Pressable, ActivityIndicator, Linking, Animated,
   Modal, TouchableOpacity, TouchableWithoutFeedback, Alert, TextInput, Keyboard, KeyboardAvoidingView, FlatList, Switch
 } from 'react-native';
+import SmartInput from '../../components/ui/SmartInput';
 import PremiumFormModal from '../../components/ui/PremiumFormModal';
 import {
   Phone, PhoneIncoming, AlertTriangle, ShieldCheck,
@@ -712,11 +713,9 @@ export default function MyCallerScreen({ navigation }) {
       >
         {/* Name */}
         <View style={s.formGroup}>
-          <Text style={s.formLabel}>Full Name *</Text>
-          <TextInput
-            style={s.formInput}
+          <SmartInput
+            label="Full Name *"
             placeholder="e.g. Ramesh Kumar"
-            placeholderTextColor="#94A3B8"
             value={contactForm.name}
             onChangeText={(t) => setContactForm({ ...contactForm, name: t })}
             returnKeyType="next"
@@ -738,15 +737,14 @@ export default function MyCallerScreen({ navigation }) {
               <Text style={{ fontSize: 15, color: '#334155', fontWeight: '500' }}>{contactForm.phoneCode}</Text>
               <ChevronDown size={14} color="#94A3B8" />
             </Pressable>
-            <TextInput
-              style={[s.formInput, { flex: 1, marginTop: 0 }]}
-              placeholder="98765 43210"
-              placeholderTextColor="#94A3B8"
+            <SmartInput
               keyboardType="phone-pad"
+              placeholder="98765 43210"
               value={contactForm.phone}
               onChangeText={(t) => setContactForm({ ...contactForm, phone: t.replace(/[^0-9]/g, '') })}
               maxLength={COUNTRY_CODES.find(c => c.code === contactForm.phoneCode)?.maxDigits || 12}
               returnKeyType="next"
+              style={{ flex: 1 }}
             />
           </View>
         </View>
@@ -776,11 +774,9 @@ export default function MyCallerScreen({ navigation }) {
 
         {/* Email */}
         <View style={s.formGroup}>
-          <Text style={s.formLabel}>Email (Optional)</Text>
-          <TextInput
-            style={s.formInput}
+          <SmartInput
+            label="Email (Optional)"
             placeholder="email@example.com"
-            placeholderTextColor="#94A3B8"
             keyboardType="email-address"
             autoCapitalize="none"
             value={contactForm.email}
@@ -814,13 +810,11 @@ export default function MyCallerScreen({ navigation }) {
         saving={flagging}
       >
         <View style={s.formGroup}>
-          <Text style={s.formLabel}>What went wrong?</Text>
-          <TextInput
-            style={[s.formInput, { height: 120, paddingTop: 16 }]}
-            placeholder="Please describe the issue with your caller..."
-            placeholderTextColor="#94A3B8"
+          <SmartInput
+            label="What went wrong?"
+            variant="multiline"
             multiline
-            textAlignVertical="top"
+            placeholder="Please describe the issue with your caller..."
             value={flagDescription}
             onChangeText={setFlagDescription}
           />
