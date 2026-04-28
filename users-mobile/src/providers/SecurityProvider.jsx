@@ -15,10 +15,11 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { Alert, Platform, View, Text, StyleSheet, BackHandler } from 'react-native';
+import { Platform, View, Text, StyleSheet, BackHandler } from 'react-native';
 import { ShieldAlert } from 'lucide-react-native';
 import * as ScreenCapture from 'expo-screen-capture';
 
+import AlertManager from '../utils/AlertManager';
 let JailMonkey = null;
 let EncryptedStorage = null;
 
@@ -80,7 +81,7 @@ export default function SecurityProvider({ children }) {
                     // finally block knows not to resolve securityChecked here.
                     showingAlert = true;
 
-                    Alert.alert(
+                    AlertManager.alert(
                         '⚠️ Security Warning',
                         'This device appears to be rooted/jailbroken. ' +
                         'For the safety of your health data, some features may be restricted.\n\n' +
