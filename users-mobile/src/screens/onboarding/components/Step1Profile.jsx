@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { View, Text, Pressable, ActivityIndicator } from 'react-native';
-import { User, Mail, Lock, Eye, EyeOff, CheckCircle2, AlertCircle, Smartphone } from 'lucide-react-native';
+import { User, Mail, Lock, Eye, EyeOff, CheckCircle2, AlertCircle } from 'lucide-react-native';
 import { useFormContext, Controller } from 'react-hook-form';
 import { IconInput, PasswordStrength } from './SignupUI';
 import { styles, FONT, C } from './SignupStyles';
@@ -8,10 +8,10 @@ import { styles, FONT, C } from './SignupStyles';
 const Step1Profile = ({
     googleLoading, handleGooglePress,
     signupLoading, handleStep1Submit,
-    isEmailVerified, isPhoneVerified,
+    isEmailVerified,
     showPass, toggleShowPass,
     showConfirm, toggleShowConfirm,
-    fullNameRef, emailRef, phoneRef, passwordRef, confirmPassRef,
+    fullNameRef, emailRef, passwordRef, confirmPassRef,
 }) => {
     const { control, formState: { errors }, watch } = useFormContext();
     const formValues = watch();
@@ -24,13 +24,6 @@ const Step1Profile = ({
         </View>
     ), [isEmailVerified]);
 
-    const phoneLabel = useMemo(() => (
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 8 }}>
-            <Text style={styles.label}>PHONE NUMBER</Text>
-            {isPhoneVerified && <CheckCircle2 size={13} color={C.success} />}
-        </View>
-    ), [isPhoneVerified]);
-
     return (
         <View>
             {/* Pill badge */}
@@ -41,7 +34,7 @@ const Step1Profile = ({
 
             {/* Title */}
             <Text style={styles.stepTitleLine1}>Create your</Text>
-            <Text style={styles.stepTitleLine2}>CareMyMed account</Text>
+            <Text style={styles.stepTitleLine2}>SAMVAYA account</Text>
 
             {/* Google signup */}
             <Pressable style={styles.googleBtnEnhanced} onPress={handleGooglePress} disabled={googleLoading}>
@@ -110,35 +103,13 @@ const Step1Profile = ({
                         spellCheck={false}
                         textContentType="emailAddress"
                         returnKeyType="next"
-                        onSubmitEditing={() => phoneRef?.current?.focus()}
+                        onSubmitEditing={() => passwordRef?.current?.focus()}
                         error={errors.email?.message}
                     />
                 )}
             />
 
-            {/* Phone */}
-            <Controller
-                control={control}
-                name="phoneNumber"
-                render={({ field: { onChange, value } }) => (
-                    <IconInput
-                        ref={phoneRef}
-                        icon={Smartphone}
-                        label={phoneLabel}
-                        placeholder="10-digit number"
-                        value={value}
-                        onChangeText={onChange}
-                        keyboardType="phone-pad"
-                        maxLength={10}
-                        textPrefix="+91 "
-                        returnKeyType="next"
-                        onSubmitEditing={() => passwordRef?.current?.focus()}
-                        error={errors.phoneNumber?.message}
-                    />
-                )}
-            />
-
-            {/* Divider between contact and security */}
+            {/* Divider between identity and security */}
             <View style={{ height: 1, backgroundColor: C.border, marginBottom: 20 }} />
 
             {/* Password */}
@@ -206,7 +177,7 @@ const Step1Profile = ({
                 )}
             />
 
-            {/* OTP info note */}
+            {/* Email OTP note */}
             <View style={{
                 flexDirection: 'row', alignItems: 'flex-start', gap: 8,
                 backgroundColor: C.primarySoft, borderRadius: 12,
@@ -214,7 +185,7 @@ const Step1Profile = ({
             }}>
                 <CheckCircle2 size={15} color={C.primary} style={{ marginTop: 1 }} />
                 <Text style={{ fontSize: 12, ...FONT.medium, color: C.primary, flex: 1, lineHeight: 18 }}>
-                    We'll send OTP codes to verify both your email and phone number before creating your account.
+                    We'll send a one-time code to verify your email before creating your account.
                 </Text>
             </View>
 
