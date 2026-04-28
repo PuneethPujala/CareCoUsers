@@ -1,10 +1,13 @@
 import { isValidEmail, isValidName, isValidPhone, isValidPassword, isValidAmount } from '../../utils/validators';
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, ScrollView, StyleSheet, StatusBar, TouchableOpacity, ActivityIndicator, Linking, Alert, Modal, TextInput } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { View, Text, ScrollView, StyleSheet, StatusBar, TouchableOpacity, ActivityIndicator, Linking, Alert, Modal, TextInput, Switch } from 'react-native';
 import { Feather, FontAwesome5 } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
+
 import { Theme } from '../../theme/theme';
 import GradientHeader from '../../components/common/GradientHeader';
 import PatientHealthView from '../../components/common/PatientHealthView';
+import CustomAlertModal from '../../components/common/CustomAlertModal';
 import { apiService, handleApiError } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 
@@ -113,16 +116,27 @@ export default function PatientDetailScreen({ navigation, route }) {
     // Caller Medication Management
     const [showMedModal, setShowMedModal] = useState(false);
     const [editingMed, setEditingMed] = useState(null);
-    const [medForm, setMedForm] = useState({ name: '', dosage: '', frequency: 'Daily', timePhase: 'morning' });
+    const [medForm, setMedForm] = useState({ 
+        name: '', dosage: '', frequency: 'Daily', 
+        timePhases: ['morning'], route: 'oral', instructions: '', withFood: false 
+    });
     const [submitting, setSubmitting] = useState(false);
+
+    const [customAlert, setCustomAlert] = useState({ visible: false, title: '', message: '', buttons: [], type: 'info' });
+
+    const showAlert = (title, message, type = 'info', buttons = []) => {
+        setCustomAlert({ visible: true, title, message, type, buttons });
+    };
 
     const getCurrentPhase = () => {
         const hour = new Date().getHours();
-        if (hour >= 17) return 'Night';
-        if (hour >= 12) return 'Afternoon';
-        return 'Morning';
+        if (hour >= 17) return 'night';
+        if (hour >= 12) return 'afternoon';
+        return 'morning';
     };
     const currentPhase = getCurrentPhase();
+
+    const [enrichedMeds, setEnrichedMeds] = useState([]);
 
     const fetchPatient = useCallback(async () => {
         try {
@@ -130,6 +144,15 @@ export default function PatientDetailScreen({ navigation, route }) {
             setError(null);
             const res = await apiService.patients.getById(patientId);
             setPatient(res.data);
+            
+            // Fetch ALL medications with enriched status (patientMarked/callerMarked)
+            // No shift filter — we want the complete medication list for this patient
+            try {
+                const medRes = await apiService.caretaker.getPatientMeds(patientId);
+                setEnrichedMeds(medRes.data?.medications || []);
+            } catch (err) {
+                console.error('Failed to fetch enriched logic meds', err);
+            }
         } catch (err) {
             console.error('Failed to load patient detail', err);
             setError(handleApiError(err).message || 'Failed to load patient details');
@@ -138,23 +161,28 @@ export default function PatientDetailScreen({ navigation, route }) {
         }
     }, [patientId]);
 
-    useEffect(() => {
-        fetchPatient();
-    }, [fetchPatient]);
+    useFocusEffect(
+        useCallback(() => {
+            fetchPatient();
+        }, [fetchPatient])
+    );
 
     const handleCall = (phone) => {
-        if (!phone) return Alert.alert('No Phone', 'No phone on file.');
+        if (!phone) return showAlert('No Phone', 'No phone on file.', 'warning');
         Linking.openURL(`tel:${phone}`);
     };
 
     const handleEmail = (email) => {
-        if (!email) return Alert.alert('No Email', 'No email on file.');
+        if (!email) return showAlert('No Email', 'No email on file.', 'warning');
         Linking.openURL(`mailto:${email}`);
     };
 
     const openAddMedModal = () => {
         setEditingMed(null);
-        setMedForm({ name: '', dosage: '', frequency: 'Daily', timePhase: 'morning' });
+        setMedForm({ 
+            name: '', dosage: '', frequency: 'daily', 
+            timePhases: ['morning'], route: 'oral', instructions: '', withFood: false 
+        });
         setShowMedModal(true);
     };
 
@@ -162,20 +190,31 @@ export default function PatientDetailScreen({ navigation, route }) {
         setEditingMed(med);
         const times = med.scheduledTimes && med.scheduledTimes.length > 0 ? med.scheduledTimes : (med.times || []);
         
-        let phase = getPhaseForTimes(times);
+        let phases = [];
+        if (filterMedsByShift([med], 'morning').length > 0) phases.push('morning');
+        if (filterMedsByShift([med], 'afternoon').length > 0) phases.push('afternoon');
+        if (filterMedsByShift([med], 'night').length > 0) phases.push('night');
+        if (phases.length === 0) phases.push('morning');
 
         setMedForm({
             name: med.name || '',
             dosage: med.dosage || '',
-            frequency: med.frequency || 'Daily',
-            timePhase: phase
+            frequency: med.frequency || 'daily',
+            timePhases: phases,
+            route: med.route || 'oral',
+            instructions: med.instructions || '',
+            withFood: !!med.withFood
         });
         setShowMedModal(true);
     };
 
     const saveMedication = async () => {
         if (!medForm.name.trim()) {
-            Alert.alert('Validation Error', 'Please provide a medication name.');
+            showAlert('Validation Error', 'Please provide a medication name.', 'warning');
+            return;
+        }
+        if (medForm.timePhases.length === 0) {
+            showAlert('Validation Error', 'Please select at least one time phase.', 'warning');
             return;
         }
         setSubmitting(true);
@@ -189,11 +228,19 @@ export default function PatientDetailScreen({ navigation, route }) {
             updatedLogs = updatedLogs.filter(l => l.date !== todayStr);
             updatedDates = updatedDates.filter(d => d !== todayStr);
 
+            let combinedScheduledTimes = [];
+            if (medForm.timePhases.includes('morning')) combinedScheduledTimes.push(...PHASE_TIMES['morning']);
+            if (medForm.timePhases.includes('afternoon')) combinedScheduledTimes.push(...PHASE_TIMES['afternoon']);
+            if (medForm.timePhases.includes('night')) combinedScheduledTimes.push(...PHASE_TIMES['night']);
+
             const medData = {
                 name: medForm.name,
                 dosage: medForm.dosage || 'As prescribed',
                 frequency: medForm.frequency,
-                scheduledTimes: PHASE_TIMES[medForm.timePhase],
+                route: medForm.route,
+                instructions: medForm.instructions,
+                withFood: medForm.withFood,
+                scheduledTimes: combinedScheduledTimes,
                 startDate: editingMed ? (editingMed.startDate || new Date()) : new Date(),
                 takenLogs: updatedLogs,
                 takenDates: updatedDates
@@ -207,14 +254,14 @@ export default function PatientDetailScreen({ navigation, route }) {
             setShowMedModal(false);
             fetchPatient(); 
         } catch (err) {
-            Alert.alert('Error', handleApiError(err).message);
+            showAlert('Error', handleApiError(err).message, 'error');
         } finally {
             setSubmitting(false);
         }
     };
 
     const deleteMedication = (med) => {
-        Alert.alert('Remove Medication', `Remove ${med.name}?`, [
+        showAlert('Remove Medication', `Remove ${med.name}?`, 'destructive', [
             { text: 'Cancel', style: 'cancel' },
             { 
                 text: 'Remove', 
@@ -224,7 +271,7 @@ export default function PatientDetailScreen({ navigation, route }) {
                         await apiService.caretaker.deleteMedication(patientId, med._id || med.id);
                         fetchPatient();
                     } catch (err) {
-                        Alert.alert('Error', handleApiError(err).message);
+                        showAlert('Error', handleApiError(err).message, 'error');
                     }
                 } 
             }
@@ -234,16 +281,17 @@ export default function PatientDetailScreen({ navigation, route }) {
     const handleToggleMedication = async (med) => {
         // Block callers from toggling meds outside Active Call screen
         if (true) { // Block EVERYONE from toggling meds outside Active Call screen
-            Alert.alert(
+            showAlert(
                 'Read-Only View',
                 'Medications can only be marked as completed by a Caller during an active routing call.',
+                'info',
                 [{ text: 'OK' }]
             );
             return;
         }
 
         const medId = typeof med === 'object' ? (med._id || med.id) : null;
-        if (!medId) return Alert.alert('Error', 'Cannot toggle this medication, ID is missing.');
+        if (!medId) return showAlert('Error', 'Cannot toggle this medication, ID is missing.', 'error');
         
         const now = new Date();
         const todayStr = now.toLocaleDateString('en-CA'); // Gets local YYYY-MM-DD
@@ -302,10 +350,15 @@ export default function PatientDetailScreen({ navigation, route }) {
             });
             
             // Backend commit
-            await apiService.patients.toggleMedication(patientId, medId, todayStr, timeStr);
+            const res = await apiService.patients.toggleMedication(patientId, medId, todayStr, timeStr);
+            if (res.success) {
+                fetchPatient();
+            } else {
+                showAlert('Error', 'Failed to update medication status.', 'error');
+            }
         } catch (err) {
             console.error('Toggle medication failed', err);
-            Alert.alert('Error', 'Failed to update medication status.');
+            showAlert('Error', 'Failed to update medication status.', 'error');
             fetchPatient(); // Reset state on failure
         }
     };
@@ -358,9 +411,11 @@ export default function PatientDetailScreen({ navigation, route }) {
     };
 
     const conditions = unique([...(metadata.conditions || []), ...rootCond]);
-    const medications = unique([...(metadata.medications || []), ...rootMeds]);
+    const rawMedications = unique([...(metadata.medications || []), ...rootMeds])
+        .filter(m => m.is_active !== false && m.isActive !== false && m.status !== 'inactive');
 
-    const phaseMedications = filterMedsByShift(medications, currentPhase);
+    // Use API-enriched meds (with patientMarked/callerMarked flags) when available
+    const medications = enrichedMeds.length > 0 ? enrichedMeds : rawMedications;
 
     const joinDate = patient.created_at ? new Date(patient.created_at).toLocaleDateString() : 'Unknown';
     const dobFormatted = date_of_birth ? new Date(date_of_birth).toLocaleDateString() : null;
@@ -411,14 +466,14 @@ export default function PatientDetailScreen({ navigation, route }) {
                     </TouchableOpacity>
                 </View>
 
-                {/* Core Medical Data: PatientHealthView */}
+                {/* All Prescribed Medications */}
                 <View style={{ marginTop: 8, marginBottom: 16 }}>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                        <Text style={[s.sectionTitle, Theme.typography.common, { marginTop: 12, marginBottom: 0 }]}>{currentPhase} Focus</Text>
+                        <Text style={[s.sectionTitle, Theme.typography.common, { marginTop: 12, marginBottom: 0 }]}>All Prescribed Medications</Text>
                     </View>
                     <PatientHealthView 
                         conditions={conditions} 
-                        medications={phaseMedications} 
+                        medications={medications} 
                         editable={false} 
                         currentShift={currentPhase}
                         onToggleMedication={handleToggleMedication}
@@ -554,75 +609,126 @@ export default function PatientDetailScreen({ navigation, route }) {
                     </>
                 )}
 
-                {/* Overall Medications Management */}
-                <View style={{ marginTop: 24 }}>
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                        <Text style={[s.sectionTitle, Theme.typography.common, { marginTop: 0, marginBottom: 0 }]}>All Prescribed Medications</Text>
+                {/* ═══ All Prescribed Medications ═══ */}
+                <View style={{ marginTop: 24, marginBottom: 16 }}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                            <View style={{ width: 28, height: 28, borderRadius: 8, backgroundColor: '#EEF2FF', justifyContent: 'center', alignItems: 'center' }}>
+                                <Feather name="package" size={14} color="#6366F1" />
+                            </View>
+                            <Text style={[s.sectionTitle, Theme.typography.common, { marginTop: 0, marginBottom: 0 }]}>All Prescribed Medications</Text>
+                        </View>
                         <TouchableOpacity style={s.addMedBtn} onPress={openAddMedModal}>
                             <Feather name="plus" size={14} color="#FFF" />
-                            <Text style={s.addMedBtnText}>Add Med</Text>
+                            <Text style={s.addMedBtnText}>Add</Text>
                         </TouchableOpacity>
                     </View>
-                    <View style={s.infoCard}>
-                        {medications.length === 0 ? (
-                            <View style={{ padding: 24, alignItems: 'center' }}>
-                                <Text style={{ color: '#94A3B8', fontSize: 13, fontWeight: '600' }}>No medications found on record.</Text>
-                            </View>
-                        ) : (
-                            medications.map((med, idx) => (
-                                <View key={med._id || med.id || idx}>
-                                    <View style={[s.infoRow, { alignItems: 'center' }]}>
-                                        <View style={[s.infoIconBox, { width: 36, height: 36, borderRadius: 10, backgroundColor: '#EEF2FF', borderColor: '#E0E7FF' }]}>
-                                            <Feather name="clock" size={14} color="#6366F1" />
-                                        </View>
-                                        <View style={{ flex: 1 }}>
-                                            <Text style={[s.infoValue, { fontSize: 14 }]}>{med.name} {med.dosage ? <Text style={{ fontWeight: '600', color: '#64748B' }}>{med.dosage}</Text> : null}</Text>
-                                            <Text style={s.infoLabel}>{med.scheduledTimes?.length > 0 ? med.scheduledTimes.join(', ') : 'No schedule set'}</Text>
-                                        </View>
-                                        <View style={{ flexDirection: 'row', gap: 6 }}>
-                                            <TouchableOpacity onPress={() => openEditMedModal(med)} style={{ padding: 8, backgroundColor: '#EEF2FF', borderRadius: 8 }}>
-                                                <Feather name="edit-2" size={16} color="#6366F1" />
-                                            </TouchableOpacity>
-                                            <TouchableOpacity onPress={() => deleteMedication(med)} style={{ padding: 8, backgroundColor: '#FEF2F2', borderRadius: 8 }}>
-                                                <Feather name="trash-2" size={16} color="#EF4444" />
-                                            </TouchableOpacity>
-                                        </View>
-                                    </View>
-                                    {idx < medications.length - 1 && <View style={s.cardDivider} />}
-                                </View>
-                            ))
-                        )}
-                    </View>
+
+                    {medications.length === 0 ? (
+                        <View style={{ backgroundColor: '#FFF', borderRadius: 14, padding: 40, alignItems: 'center', borderWidth: 1, borderColor: '#F1F5F9' }}>
+                            <Feather name="inbox" size={32} color="#CBD5E1" />
+                            <Text style={{ color: '#94A3B8', fontSize: 13, fontWeight: '600', marginTop: 10 }}>No medications on record</Text>
+                        </View>
+                    ) : (
+                        <View style={{ gap: 10 }}>
+                            {medications.map((med, idx) => {
+                                const schedTimes = med.scheduledTimes && med.scheduledTimes.length > 0 ? med.scheduledTimes : (med.times || []);
+                                const shiftLabels = schedTimes.map(t => {
+                                    const lower = (t || '').toLowerCase().trim();
+                                    if (['morning', 'afternoon', 'night', 'evening'].includes(lower)) return lower.charAt(0).toUpperCase() + lower.slice(1);
+                                    return t;
+                                });
+                                const hasRoute = med.route && med.route.trim();
+                                const hasFreq = med.frequency && med.frequency.trim();
+                                const hasInstructions = med.instructions && med.instructions.trim();
+
+                                return (
+                                    <View key={med._id || med.id || idx} style={{ backgroundColor: '#FFF', borderRadius: 14, borderWidth: 1.5, borderColor: '#CBD5E1', overflow: 'hidden' }}><View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, backgroundColor: '#F8FAFC', borderBottomWidth: 1.5, borderBottomColor: '#CBD5E1' }}><View style={{ width: 34, height: 34, borderRadius: 9, backgroundColor: '#EEF2FF', borderWidth: 1, borderColor: '#E0E7FF', justifyContent: 'center', alignItems: 'center', marginRight: 10 }}><FontAwesome5 name="pills" size={13} color="#6366F1" /></View><Text style={{ flex: 1, fontSize: 15, fontWeight: '700', color: '#1E293B', letterSpacing: -0.3 }}>{med.name}</Text>{med.dosage ? (<View style={{ backgroundColor: '#F1F5F9', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 5, marginRight: 10 }}><Text style={{ fontSize: 11, fontWeight: '700', color: '#64748B' }}>{med.dosage}</Text></View>) : null}<TouchableOpacity onPress={() => openEditMedModal(med)} style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: '#EEF2FF', justifyContent: 'center', alignItems: 'center', marginRight: 6 }}><Feather name="edit-2" size={13} color="#6366F1" /></TouchableOpacity><TouchableOpacity onPress={() => deleteMedication(med)} style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: '#FEF2F2', justifyContent: 'center', alignItems: 'center' }}><Feather name="trash-2" size={13} color="#EF4444" /></TouchableOpacity></View><View style={{ flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: (hasRoute || hasFreq || hasInstructions) ? 1 : 0, borderBottomColor: '#E2E8F0' }}><Text style={{ width: 78, fontSize: 10, fontWeight: '700', color: '#94A3B8', letterSpacing: 0.5, paddingTop: 5 }}>SCHEDULE</Text><View style={{ flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>{shiftLabels.length > 0 ? shiftLabels.map((label, li) => {
+                                                        const lw = label.toLowerCase();
+                                                        const icon = lw === 'morning' ? 'sunrise' : lw === 'afternoon' ? 'sun' : 'moon';
+                                                        const clr = lw === 'morning' ? '#F59E0B' : lw === 'afternoon' ? '#F97316' : '#6366F1';
+                                                        const bg = lw === 'morning' ? '#FFFBEB' : lw === 'afternoon' ? '#FFF7ED' : '#EEF2FF';
+                                                        const bdr = lw === 'morning' ? '#FDE68A' : lw === 'afternoon' ? '#FDBA74' : '#C7D2FE';
+                                                        return (
+                                                            <View key={li} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: bg, borderWidth: 1, borderColor: bdr, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 }}>
+                                                                <Feather name={icon} size={11} color={clr} />
+                                                                <Text style={{ fontSize: 11, fontWeight: '600', color: clr }}>{label}</Text>
+                                                            </View>
+                                                        );
+                                                    }) : (
+                                                        <Text style={{ fontSize: 12, color: '#CBD5E1', fontStyle: 'italic', paddingTop: 3 }}>Not scheduled</Text>
+                                                    )}</View></View>{hasRoute && (<View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: (hasFreq || hasInstructions) ? 1 : 0, borderBottomColor: '#E2E8F0' }}><Text style={{ width: 78, fontSize: 10, fontWeight: '700', color: '#94A3B8', letterSpacing: 0.5 }}>ROUTE</Text><Text style={{ flex: 1, fontSize: 13, fontWeight: '500', color: '#475569' }}>{med.route}</Text></View>)}{hasFreq && (<View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: hasInstructions ? 1 : 0, borderBottomColor: '#E2E8F0' }}><Text style={{ width: 78, fontSize: 10, fontWeight: '700', color: '#94A3B8', letterSpacing: 0.5 }}>FREQUENCY</Text><Text style={{ flex: 1, fontSize: 13, fontWeight: '500', color: '#475569' }}>{med.frequency}</Text></View>)}{hasInstructions && (<View style={{ flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: 16, paddingVertical: 10 }}><Text style={{ width: 78, fontSize: 10, fontWeight: '700', color: '#94A3B8', letterSpacing: 0.5, paddingTop: 2 }}>NOTES</Text><Text style={{ flex: 1, fontSize: 12, fontWeight: '500', color: '#64748B', lineHeight: 17 }}>{med.instructions}</Text></View>)}</View>
+                                );
+                            })}
+                        </View>
+                    )}
                 </View>
 
             </ScrollView>
 
             <Modal visible={showMedModal} transparent={true} animationType="fade" onRequestClose={() => setShowMedModal(false)}>
                 <View style={s.modalOverlay}>
-                    <View style={s.modalContent}>
+                    <View style={[s.modalContent, { maxHeight: '90%' }]}>
                         <Text style={s.modalTitle}>{editingMed ? 'Edit Medication' : 'Add Medication'}</Text>
                         
-                        <Text style={s.inputLabel}>Medication Name</Text>
-                        <TextInput style={s.input} placeholder="e.g. Metformin" value={medForm.name} onChangeText={(t) => setMedForm({...medForm, name: t})} />
+                        <ScrollView showsVerticalScrollIndicator={false} style={{ flexGrow: 0 }}>
+                            <Text style={s.inputLabel}>Medication Name</Text>
+                            <TextInput style={s.input} placeholder="e.g. Metformin" value={medForm.name} onChangeText={(t) => setMedForm({...medForm, name: t})} />
+                            
+                            <Text style={s.inputLabel}>Dosage</Text>
+                            <TextInput style={s.input} placeholder="e.g. 500mg" value={medForm.dosage} onChangeText={(t) => setMedForm({...medForm, dosage: t})} />
+                            
+                            <View style={{ flexDirection: 'row', gap: 12, marginBottom: 16 }}>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={s.inputLabel}>Route</Text>
+                                    <TextInput style={[s.input, { marginBottom: 0 }]} placeholder="e.g. Oral" value={medForm.route} onChangeText={(t) => setMedForm({...medForm, route: t})} />
+                                </View>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={s.inputLabel}>Frequency</Text>
+                                    <TextInput style={[s.input, { marginBottom: 0 }]} placeholder="e.g. Daily" value={medForm.frequency} onChangeText={(t) => setMedForm({...medForm, frequency: t})} />
+                                </View>
+                            </View>
+
+                            <Text style={s.inputLabel}>Instructions / Notes (Optional)</Text>
+                            <TextInput style={[s.input, { height: 80, textAlignVertical: 'top' }]} placeholder="e.g. Take with a full glass of water" multiline={true} value={medForm.instructions} onChangeText={(t) => setMedForm({...medForm, instructions: t})} />
+
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                                <View>
+                                    <Text style={[s.inputLabel, { marginBottom: 0 }]}>Take with food</Text>
+                                    <Text style={{ fontSize: 11, color: '#94A3B8' }}>Toggle if required</Text>
+                                </View>
+                                <Switch 
+                                    trackColor={{ false: '#E2E8F0', true: '#6366F1' }}
+                                    thumbColor={'#FFF'}
+                                    value={medForm.withFood} 
+                                    onValueChange={(v) => setMedForm({...medForm, withFood: v})} 
+                                />
+                            </View>
+
+                            <Text style={s.inputLabel}>Time Phase (Select Multiple)</Text>
+                            <View style={s.phaseOptions}>
+                                {['morning', 'afternoon', 'night'].map(phase => {
+                                    const isActive = medForm.timePhases.includes(phase);
+                                    return (
+                                        <TouchableOpacity 
+                                            key={phase} 
+                                            style={[s.phaseBtn, isActive && s.phaseBtnActive]}
+                                            onPress={() => {
+                                                const newPhases = isActive 
+                                                    ? medForm.timePhases.filter(p => p !== phase)
+                                                    : [...medForm.timePhases, phase];
+                                                setMedForm({...medForm, timePhases: newPhases});
+                                            }}>
+                                            <Text style={[s.phaseBtnTxt, isActive && s.phaseBtnTxtActive]}>
+                                                {phase.charAt(0).toUpperCase() + phase.slice(1)}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    );
+                                })}
+                            </View>
+                        </ScrollView>
                         
-                        <Text style={s.inputLabel}>Dosage</Text>
-                        <TextInput style={s.input} placeholder="e.g. 500mg" value={medForm.dosage} onChangeText={(t) => setMedForm({...medForm, dosage: t})} />
-                        
-                        <Text style={s.inputLabel}>Time Phase</Text>
-                        <View style={s.phaseOptions}>
-                            {['morning', 'afternoon', 'night'].map(phase => (
-                                <TouchableOpacity 
-                                    key={phase} 
-                                    style={[s.phaseBtn, medForm.timePhase === phase && s.phaseBtnActive]}
-                                    onPress={() => setMedForm({...medForm, timePhase: phase})}>
-                                    <Text style={[s.phaseBtnTxt, medForm.timePhase === phase && s.phaseBtnTxtActive]}>
-                                        {phase.charAt(0).toUpperCase() + phase.slice(1)}
-                                    </Text>
-                                </TouchableOpacity>
-                            ))}
-                        </View>
-                        
-                        <View style={s.modalActions}>
+                        <View style={[s.modalActions, { marginTop: 16 }]}>
                             <TouchableOpacity style={[s.modalBtn, { backgroundColor: '#F1F5F9' }]} onPress={() => setShowMedModal(false)}>
                                 <Text style={{ color: '#64748B', fontWeight: '700' }}>Cancel</Text>
                             </TouchableOpacity>
@@ -633,6 +739,11 @@ export default function PatientDetailScreen({ navigation, route }) {
                     </View>
                 </View>
             </Modal>
+
+            <CustomAlertModal
+                {...customAlert}
+                onClose={() => setCustomAlert({ ...customAlert, visible: false })}
+            />
         </View>
     );
 }
