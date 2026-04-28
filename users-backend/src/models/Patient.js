@@ -92,7 +92,7 @@ const PatientSchema = new mongoose.Schema(
         
         allow_screenshots: {
             type: Boolean,
-            default: false,
+            default: true,
         },
 
         // ── Notifications ─────────────────────────────
