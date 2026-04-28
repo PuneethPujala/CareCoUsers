@@ -17,6 +17,7 @@ import { parseError } from '../../utils/parseError';
 import analytics from '../../utils/analytics';
 import { useAuth } from '../../context/AuthContext';
 import { isRecoveryExpired } from '../../utils/authUtils';
+import SmartInput from '../../components/ui/SmartInput';
 
 export default function ResetPasswordScreen({ navigation }) {
     const [newPassword, setNewPassword] = useState('');
@@ -147,22 +148,20 @@ export default function ResetPasswordScreen({ navigation }) {
                     ) : null}
 
                     <View style={styles.fieldGroup}>
-                        <Text style={styles.label}>New Password</Text>
-                        <View style={styles.inputWrap}>
-                            <Lock size={18} color="#94A3B8" style={{ marginRight: 10 }} />
-                            <TextInput
-                                style={styles.textInput}
-                                placeholder="Enter new password"
-                                placeholderTextColor="#94A3B8"
-                                value={newPassword}
-                                onChangeText={(v) => { setNewPassword(v); if (error) setError(''); }}
-                                secureTextEntry={!showPassword}
-                                textContentType="newPassword"
-                            />
-                            <Pressable onPress={() => setShowPassword(!showPassword)} hitSlop={12}>
-                                {showPassword ? <Eye size={18} color="#6366F1" /> : <EyeOff size={18} color="#94A3B8" />}
-                            </Pressable>
-                        </View>
+                        <SmartInput
+                            label="New Password"
+                            placeholder="Enter new password"
+                            value={newPassword}
+                            onChangeText={(v) => { setNewPassword(v); if (error) setError(''); }}
+                            secureTextEntry={!showPassword}
+                            textContentType="newPassword"
+                            leftAccessory={<Lock size={18} color="#94A3B8" style={{ marginRight: 10 }} />}
+                            rightAccessory={
+                                <Pressable onPress={() => setShowPassword(!showPassword)} hitSlop={12} style={{ paddingLeft: 8 }}>
+                                    {showPassword ? <Eye size={18} color="#6366F1" /> : <EyeOff size={18} color="#94A3B8" />}
+                                </Pressable>
+                            }
+                        />
                     </View>
 
                     {/* Requirements */}
@@ -179,22 +178,20 @@ export default function ResetPasswordScreen({ navigation }) {
                     </View>
 
                     <View style={styles.fieldGroup}>
-                        <Text style={styles.label}>Confirm Password</Text>
-                        <View style={styles.inputWrap}>
-                            <Lock size={18} color="#94A3B8" style={{ marginRight: 10 }} />
-                            <TextInput
-                                style={styles.textInput}
-                                placeholder="Confirm new password"
-                                placeholderTextColor="#94A3B8"
-                                value={confirmPassword}
-                                onChangeText={(v) => { setConfirmPassword(v); if (error) setError(''); }}
-                                secureTextEntry={!showConfirm}
-                                textContentType="newPassword"
-                            />
-                            <Pressable onPress={() => setShowConfirm(!showConfirm)} hitSlop={12}>
-                                {showConfirm ? <Eye size={18} color="#6366F1" /> : <EyeOff size={18} color="#94A3B8" />}
-                            </Pressable>
-                        </View>
+                        <SmartInput
+                            label="Confirm Password"
+                            placeholder="Confirm new password"
+                            value={confirmPassword}
+                            onChangeText={(v) => { setConfirmPassword(v); if (error) setError(''); }}
+                            secureTextEntry={!showConfirm}
+                            textContentType="newPassword"
+                            leftAccessory={<Lock size={18} color="#94A3B8" style={{ marginRight: 10 }} />}
+                            rightAccessory={
+                                <Pressable onPress={() => setShowConfirm(!showConfirm)} hitSlop={12} style={{ paddingLeft: 8 }}>
+                                    {showConfirm ? <Eye size={18} color="#6366F1" /> : <EyeOff size={18} color="#94A3B8" />}
+                                </Pressable>
+                            }
+                        />
                     </View>
 
                     <Pressable style={[styles.primaryBtn, loading && { opacity: 0.7 }]} onPress={handleResetPassword} disabled={loading}>
@@ -225,9 +222,6 @@ const styles = StyleSheet.create({
     errorBox: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#FFE4E6', borderRadius: 20, padding: 16, marginBottom: 20, borderWidth: 1, borderColor: '#FCA5A5' },
     errorMsg: { color: '#991B1B', fontSize: 13, flex: 1, fontWeight: '600' },
     fieldGroup: { marginBottom: 20 },
-    label: { fontSize: 13, fontWeight: '700', color: '#94A3B8', marginBottom: 10, marginLeft: 2, letterSpacing: 0.5 },
-    inputWrap: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', borderWidth: 1.5, borderColor: '#F1F5F9', borderRadius: 20, height: 64, paddingHorizontal: 16 },
-    textInput: { flex: 1, fontSize: 16, color: '#0F172A', fontWeight: '600' },
     reqWrap: { marginTop: -8, marginBottom: 20, marginLeft: 4, gap: 6 },
     reqItem: { fontSize: 12, color: '#94A3B8', fontWeight: '500' },
     reqMet: { color: '#22C55E', fontWeight: '700' },
