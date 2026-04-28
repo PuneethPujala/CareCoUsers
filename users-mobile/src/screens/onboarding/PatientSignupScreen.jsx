@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import {
     View, Text, StyleSheet, TextInput, Pressable, Platform,
     KeyboardAvoidingView, ScrollView, Animated, ActivityIndicator,
-    Modal, Alert, Easing,
+    Modal, Alert, Easing, BackHandler,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
@@ -18,11 +18,12 @@ import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-si
 import * as Location from 'expo-location';
 import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { step1Schema, step2Schema, step3Schema, step5Schema } from './signupSchema';
+import { step1Schema, stepPhoneSchema, step2Schema, step3Schema, step5Schema } from './signupSchema';
 
 import { OTPModal, UPIPaymentModal } from './components';
 import { styles, FONT, C } from './components/SignupStyles';
 import Step1Profile from './components/Step1Profile';
+import Step2Phone from './components/Step2Phone';
 import Step2Locality from './components/Step2Locality';
 import Step3Membership from './components/Step3Membership';
 import Step4Verification from './components/Step4Verification';
@@ -31,7 +32,14 @@ import Step5FinalDetails from './components/Step5FinalDetails';
 const ONBOARDING_STORAGE_KEY = 'samvaya_onboarding_progress';
 const STALE_PROGRESS_DAYS = 7;
 
-const STEP_COUNTS = 5;
+// Step layout:
+// 1 - Profile (name/email/phone/password)
+// 2 - Phone collection (Google sign-up users only)
+// 3 - Locality
+// 4 - Membership / payment
+// 5 - Payment success (transitional)
+// 6 - Final details (DOB, gender)
+const STEP_COUNTS = 6;
 
 export default function PatientSignupScreen({ navigation, route }) {
     const {
@@ -45,9 +53,10 @@ export default function PatientSignupScreen({ navigation, route }) {
     const methods = useForm({
         resolver: zodResolver(
             step === 1 ? step1Schema :
-                step === 2 ? step2Schema :
-                    step === 3 ? step3Schema :
-                        step5Schema
+                step === 2 ? stepPhoneSchema :
+                    step === 3 ? step2Schema :
+                        step === 4 ? step3Schema :
+                            step5Schema
         ),
         defaultValues: {
             fullName: '', email: '', phoneNumber: '', city: '',
@@ -153,7 +162,7 @@ export default function PatientSignupScreen({ navigation, route }) {
     useEffect(() => {
         animateIn();
         if (mainScrollRef.current) mainScrollRef.current.scrollTo({ y: 0, animated: false });
-        if (step === 2) fetchCities();
+        if (step === 3) fetchCities();
     }, [step]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Processing spinner
@@ -166,6 +175,16 @@ export default function PatientSignupScreen({ navigation, route }) {
             return () => { loop.stop(); syncRotateAnim.setValue(0); };
         }
     }, [signupLoading, syncRotateAnim]);
+
+    // Block Android hardware back button after payment (step >= 5)
+    useEffect(() => {
+        const backAction = () => {
+            if (step >= 5) return true; // Consume the event — no going back
+            return false;
+        };
+        const sub = BackHandler.addEventListener('hardwareBackPress', backAction);
+        return () => sub.remove();
+    }, [step]);
 
     // ── AsyncStorage persistence ───────────────────────────────────────────────
 
@@ -239,7 +258,7 @@ export default function PatientSignupScreen({ navigation, route }) {
                     }
                     if (progress.locationAddress) setLocationAddress(progress.locationAddress);
                     if (progress.selectedPlan) setSelectedPlan(progress.selectedPlan);
-                    if (progress.paymentAttempted && progress.step === 3) {
+                    if (progress.paymentAttempted && progress.step === 4) {
                         setPaymentAttempted(true); setPaymentCrashWarning(true);
                     }
                 };
@@ -363,8 +382,8 @@ export default function PatientSignupScreen({ navigation, route }) {
                 const profileRes = await apiService.auth.getProfile();
                 if (profileRes.data?.profile) {
                     isManualTransitionRef.current = true;
-                    await saveProgress(2);
-                    setStep(2);
+                    await saveProgress(3);
+                    setStep(3);
                     isSubmittingRef.current = false;
                     return;
                 }
@@ -382,6 +401,24 @@ export default function PatientSignupScreen({ navigation, route }) {
             analytics.signupFailure(error?.response?.data?.code || error?.message || 'signup_error');
         } finally { setSignupLoading(false); isSubmittingRef.current = false; }
     }, [form, user, signUp, saveProgress, clearProgress, setErrors]);
+
+    // Save phone for Google users at step 2, then advance to step 3
+    const handlePhoneStep2Save = useCallback(async () => {
+        setSignupLoading(true);
+        signupLoadingRef.current = true;
+        try {
+            await apiService.auth.updateProfile({ phoneNumber: form.phoneNumber });
+            await refreshPatient();
+            isManualTransitionRef.current = true;
+            await saveProgress(3);
+            setStep(3);
+        } catch (error) {
+            setErrors(prev => ({ ...prev, phoneNumber: 'Failed to save phone number. Please try again.' }));
+        } finally {
+            setSignupLoading(false);
+            signupLoadingRef.current = false;
+        }
+    }, [form.phoneNumber, saveProgress, refreshPatient, setErrors]);
 
     const handleVerifyOtp = useCallback(async () => {
         if (!otp || otp.length < 6) { setErrors(prev => ({ ...prev, otp: 'Please enter the 6-digit code' })); return; }
@@ -401,7 +438,12 @@ export default function PatientSignupScreen({ navigation, route }) {
                 else executeSignup();
             } else {
                 setIsPhoneVerified(true);
-                executeSignup();
+                if (step === 2) {
+                    // Google user phone collection step — save and advance
+                    handlePhoneStep2Save();
+                } else {
+                    executeSignup();
+                }
             }
         } catch (error) {
             const newAttempts = otpAttempts + 1;
@@ -416,7 +458,7 @@ export default function PatientSignupScreen({ navigation, route }) {
                 setErrors(prev => ({ ...prev, otp: general || 'OTP not correct' }));
             }
         } finally { setOtpLoading(false); }
-    }, [otp, verificationField, form.email, form.phoneNumber, verifyOtp, otpAttempts, executeSignup, handleVerifyPress, isPhoneVerified, setErrors]);
+    }, [otp, verificationField, form.email, form.phoneNumber, verifyOtp, otpAttempts, executeSignup, handleVerifyPress, isPhoneVerified, setErrors, step, handlePhoneStep2Save]);
 
     const handleResendOtp = useCallback(async () => {
         if (resendTimer > 0) return;
@@ -461,7 +503,6 @@ export default function PatientSignupScreen({ navigation, route }) {
 
     const handleCitySelect = useCallback((city) => {
         if (!city.name) {
-            // Clear selection
             setForm(prev => ({ ...prev, city: '' }));
             setLocationAddress('');
             return;
@@ -482,16 +523,17 @@ export default function PatientSignupScreen({ navigation, route }) {
         executeSignup();
     }, [methods, isEmailVerified, isPhoneVerified, handleVerifyPress, executeSignup]);
 
-    const handleStep2Continue = useCallback(async () => {
+    // Step 3: Locality (was step 2)
+    const handleStep3Continue = useCallback(async () => {
         const isValid = await methods.trigger('city');
         if (!isValid) return;
         setSignupLoading(true);
         try { await apiService.auth.updatePatientCity({ city: form.city }); }
         catch (error) { console.warn('Failed to save city:', error.message); }
         finally { setSignupLoading(false); }
-        await saveProgress(3);
+        await saveProgress(4);
         isManualTransitionRef.current = true;
-        setStep(3);
+        setStep(4);
         refreshPatient().catch(err => console.warn('[Onboarding] Background patient refresh failed:', err.message));
     }, [form.city, saveProgress, refreshPatient, methods]);
 
@@ -503,10 +545,10 @@ export default function PatientSignupScreen({ navigation, route }) {
         const planId = form.selectedPlanId || 'basic';
         try {
             await apiService.patients.subscribe({ planId, paid: 1, paymentId: 'mock_payment_123' });
-            await saveProgress(3, { paymentAttempted: false });
+            await saveProgress(4, { paymentAttempted: false });
             setPaymentAttempted(true); setPaymentCrashWarning(false);
             isManualTransitionRef.current = true;
-            setStep(4);
+            setStep(5); // transitional payment-success screen
             refreshPatient().catch(err => console.warn('[Onboarding] Background refresh failed:', err.message));
         } catch (err) {
             console.error('Backend payment save failed:', err.message);
@@ -515,6 +557,7 @@ export default function PatientSignupScreen({ navigation, route }) {
     }, [saveProgress, form.selectedPlanId, refreshPatient]);
 
     const handleBack = useCallback(() => {
+        if (step >= 5) return; // No going back after payment
         if (step > 1) { isManualTransitionRef.current = true; setStep(prev => prev - 1); }
     }, [step]);
 
@@ -548,10 +591,11 @@ export default function PatientSignupScreen({ navigation, route }) {
 
     const proceedToDashboard = useCallback(async () => { await completeSignUp(); }, [completeSignUp]);
 
-    const handleGoToStep5 = async () => {
+    // Advance from payment-success (step 5) to final details (step 6)
+    const handleGoToStep6 = async () => {
         isManualTransitionRef.current = true;
-        await saveProgress(5);
-        setStep(5);
+        await saveProgress(6);
+        setStep(6);
     };
 
     const toggleShowPass = useCallback(() => setShowPass(v => !v), []);
@@ -638,7 +682,7 @@ export default function PatientSignupScreen({ navigation, route }) {
                 >
                     {/* ── Flat header ── */}
                     <View style={sc.headerRow}>
-                        {step > 1 ? (
+                        {step > 1 && step < 5 ? (
                             <Pressable style={sc.backBtn} onPress={handleBack} hitSlop={10}>
                                 <ChevronLeft size={22} color={C.dark} strokeWidth={2.5} />
                             </Pressable>
@@ -678,6 +722,14 @@ export default function PatientSignupScreen({ navigation, route }) {
                                     />
                                 )}
                                 {step === 2 && (
+                                    <Step2Phone
+                                        isPhoneVerified={isPhoneVerified}
+                                        onSendOtp={() => handleVerifyPress('phone')}
+                                        otpLoading={otpLoading}
+                                        signupLoading={signupLoading}
+                                    />
+                                )}
+                                {step === 3 && (
                                     <Step2Locality
                                         staggerAnims={staggerAnims}
                                         detectingLocation={detectingLocation}
@@ -687,10 +739,10 @@ export default function PatientSignupScreen({ navigation, route }) {
                                         locationAddress={locationAddress}
                                         onCitySelect={handleCitySelect}
                                         signupLoading={signupLoading}
-                                        handleStep2Continue={handleStep2Continue}
+                                        handleStep2Continue={handleStep3Continue}
                                     />
                                 )}
-                                {step === 3 && (
+                                {step === 4 && (
                                     <Step3Membership
                                         paymentCrashWarning={paymentCrashWarning}
                                         staggerAnims={staggerAnims}
@@ -700,13 +752,13 @@ export default function PatientSignupScreen({ navigation, route }) {
                                         setUpiModalVisible={setUpiModalVisible}
                                     />
                                 )}
-                                {step === 4 && (
+                                {step === 5 && (
                                     <Step4Verification
                                         staggerAnims={staggerAnims}
-                                        handleGoToStep5={handleGoToStep5}
+                                        handleGoToStep5={handleGoToStep6}
                                     />
                                 )}
-                                {step === 5 && (
+                                {step === 6 && (
                                     <Step5FinalDetails
                                         staggerAnims={staggerAnims}
                                         handleCompleteSignUp={handleCompleteSignUp}
