@@ -196,7 +196,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#0F172A',
     flex: 1,
-    paddingVertical: Platform.OS === 'ios' ? 0 : 0,
+    height: '100%',
+    paddingVertical: 0,
   },
   inputMultiline: {
     paddingTop: 14,

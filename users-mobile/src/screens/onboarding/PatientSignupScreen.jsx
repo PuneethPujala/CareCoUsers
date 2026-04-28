@@ -726,6 +726,8 @@ export default function PatientSignupScreen({ navigation, route }) {
                                         onSendOtp={() => handleVerifyPress('phone')}
                                         otpLoading={otpLoading}
                                         signupLoading={signupLoading}
+                                        phoneError={errors.phoneNumber}
+                                        onRetry={isPhoneVerified ? handlePhoneStep2Save : undefined}
                                     />
                                 )}
                                 {step === 3 && (
