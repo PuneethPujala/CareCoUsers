@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
-import { View, Text, StyleSheet, ScrollView, Platform, Pressable, Animated, ActivityIndicator, Dimensions, Modal, TextInput, RefreshControl, DeviceEventEmitter, InteractionManager, LayoutAnimation, UIManager } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Platform, Pressable, Animated, ActivityIndicator, Dimensions, Modal, TextInput, RefreshControl, DeviceEventEmitter, InteractionManager, LayoutAnimation, UIManager, Alert } from 'react-native';
 import PremiumFormModal from '../../components/ui/PremiumFormModal';
 import { Pill, Sunrise, Sun, Moon, CheckCircle2, Circle, Bell, Activity, Plus, Coffee, Utensils, BedDouble, AlertCircle, Calendar, Pencil, Clock, PillBottle, Syringe, X, MessageCircle, ChevronDown, ChevronUp, Info } from 'lucide-react-native';
 import { Swipeable } from 'react-native-gesture-handler';
@@ -525,6 +525,43 @@ export default function MedicationsScreen({ navigation }) {
     const handleMedIconPress = useCallback((med) => {
         if (med.taken) return; // ONE-WAY: User cannot unmark once confirmed
         
+        // ── Future Time-Slot Guard ─────────────────────────────────
+        // Users can mark past/current slots but NOT future ones.
+        const hour = new Date().getHours();
+        const slot = med.type; // 'morning' | 'afternoon' | 'evening' | 'night'
+        
+        const SLOT_START_HOURS = {
+            morning: 5,     // Available from 5 AM
+            afternoon: 11,  // Available from 11 AM
+            evening: 16,    // Available from 4 PM
+            night: 19,      // Available from 7 PM
+        };
+
+        const slotStart = SLOT_START_HOURS[slot];
+        if (slotStart !== undefined && hour < slotStart) {
+            const funkyMessages = {
+                morning: {
+                    title: 'Easy there, early bird! 🐦',
+                    body: 'Morning meds aren\'t due yet. Grab some breakfast first and come back later!',
+                },
+                afternoon: {
+                    title: 'Hold up! ☀️',
+                    body: 'It\'s still morning vibes! Your afternoon meds will be ready after 11 AM. Patience is a virtue 😄',
+                },
+                evening: {
+                    title: 'Not so fast! 🌅',
+                    body: 'Evening hasn\'t arrived yet! Your evening meds unlock after 4 PM. Enjoy your afternoon first!',
+                },
+                night: {
+                    title: 'Lol it\'s not night yet! 🌙',
+                    body: 'Your night meds are for later. We\'ll remind you 15 minutes before — relax and enjoy the day!',
+                },
+            };
+            const msg = funkyMessages[slot] || { title: 'Not yet! ⏰', body: 'This medication isn\'t due yet. We\'ll remind you when it\'s time!' };
+            Alert.alert(msg.title, msg.body, [{ text: 'Got it! 😁', style: 'default' }]);
+            return;
+        }
+
         setConfirmingMed(med);
         setIsConfirmVisible(true);
     }, [schedule]);
