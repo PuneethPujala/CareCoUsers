@@ -15,7 +15,7 @@ const Patient = require('../models/Patient');
 const { logEvent, logSecurityEvent } = require('./auditService');
 const redis = require('../lib/redis');
 
-const APP_NAME = 'CareCo (Samvaya)';
+const APP_NAME = 'CareCo (CareMyMed)';
 
 /**
  * Generate a new TOTP secret and QR code for enrollment.

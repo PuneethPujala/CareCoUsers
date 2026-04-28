@@ -566,15 +566,15 @@ export default function PatientProfileScreen({ navigation }) {
                             </View>
                             <View style={s.profileInfo}>
                                 <Text style={s.profileName}>{patient?.name || displayName || 'User'}</Text>
-                                <Text style={s.profileEmail}>{userEmail || 'patient@samvaya.com'}</Text>
+                                <Text style={s.profileEmail}>{userEmail || 'patient@CareMyMed.com'}</Text>
                             </View>
                         </View>
                     </View>
                 </Animated.View>
 
-                {/* ── Samvaya Plan Banner (Upgrade hidden) ── */}
+                {/* ── CareMyMed Plan Banner (Upgrade hidden) ── */}
                 <Animated.View style={anim(2)}>
-                    <Text style={s.sectionTitle}>SAMVAYA PLAN</Text>
+                    <Text style={s.sectionTitle}>CareMyMed PLAN</Text>
                     <Pressable style={s.premiumCard} onPress={() => setBasicPlanModalVisible(true)}>
                         <View style={s.premiumLeft}>
                             <View style={s.starBadge}><Star size={18} color="#FFF" fill="#FFF" /></View>
@@ -668,7 +668,7 @@ export default function PatientProfileScreen({ navigation }) {
                             />
                         </View>
                         <InfoRow icon={Globe} iconBg="#EFF6FF" iconColor="#3B82F6" label="Language" value={LANGUAGES.find(l => l.code === selectedLang)?.label || 'English (India)'} placeholder="" onPress={() => setLanguageModalVisible(true)} />
-                        <InfoRow icon={Shield} iconBg="#F0FDF4" iconColor="#16A34A" label="Privacy Policy" value={null} placeholder="Read our policy" onPress={() => WebBrowser.openBrowserAsync('https://samvaya.com/privacy-policy')} isLast />
+                        <InfoRow icon={Shield} iconBg="#F0FDF4" iconColor="#16A34A" label="Privacy Policy" value={null} placeholder="Read our policy" onPress={() => WebBrowser.openBrowserAsync('https://CareMyMed.com/privacy-policy')} isLast />
                     </View>
                 </Animated.View>
 
@@ -824,7 +824,7 @@ export default function PatientProfileScreen({ navigation }) {
                             <Text style={[s.logoutTxt, { color: '#DC2626' }]}>Delete Account Permanently</Text>
                         </Pressable>
                     </View>
-                    <Text style={s.versionTxt}>v1.0.4 • Made with ♥ by Samvaya</Text>
+                    <Text style={s.versionTxt}>v1.0.4 • Made with ♥ by CareMyMed</Text>
                 </Animated.View>
             </ScrollView>
 

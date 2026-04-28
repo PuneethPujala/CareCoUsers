@@ -29,7 +29,7 @@ import Step3Membership from './components/Step3Membership';
 import Step4Verification from './components/Step4Verification';
 import Step5FinalDetails from './components/Step5FinalDetails';
 
-const ONBOARDING_STORAGE_KEY = 'samvaya_onboarding_progress';
+const ONBOARDING_STORAGE_KEY = 'CareMyMed_onboarding_progress';
 const STALE_PROGRESS_DAYS = 7;
 
 // Step layout:

@@ -190,7 +190,7 @@ export const NOTIFICATION_TEMPLATES = {
         "Celebrating your health journey today and every day! 🎉"
     ],
     welcome: [
-        "Welcome back to Samvaya. Stay on top of your health today! ☀️",
+        "Welcome back to CareMyMed. Stay on top of your health today! ☀️",
         "Great to see you! Check your daily goals and keep up the great work. 🏃",
         "We're here for you! Let's make today a healthy, happy day. ❤️"
     ]

@@ -10,10 +10,10 @@ import { apiService } from '../lib/api';
 
 // ─── Storage keys ───────────────────────────────────────────────
 const STORAGE_KEYS = {
-    LAST_SYNC_TIMESTAMP: '@samvaya_health_last_sync',
-    SYNC_ENABLED: '@samvaya_health_sync_enabled',
-    TOTAL_SYNCED_TODAY: '@samvaya_health_synced_today',
-    TODAY_DATE: '@samvaya_health_today_date',
+    LAST_SYNC_TIMESTAMP: '@CareMyMed_health_last_sync',
+    SYNC_ENABLED: '@CareMyMed_health_sync_enabled',
+    TOTAL_SYNCED_TODAY: '@CareMyMed_health_synced_today',
+    TODAY_DATE: '@CareMyMed_health_today_date',
 };
 
 // ─── Config ─────────────────────────────────────────────────────
