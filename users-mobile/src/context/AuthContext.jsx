@@ -46,8 +46,8 @@ import { navigate } from '../lib/navigationRef';
 
 const AuthContext = createContext(null);
 
-const ONBOARDING_STORAGE_KEY = 'samvaya_onboarding_progress';
-const PROFILE_SECURE_KEY = 'samvaya_user_profile';
+const ONBOARDING_STORAGE_KEY = 'CareMyMed_onboarding_progress';
+const PROFILE_SECURE_KEY = 'CareMyMed_user_profile';
 
 import { normaliseStatus, resolveOnboardingStep } from '../utils/authUtils';
 
