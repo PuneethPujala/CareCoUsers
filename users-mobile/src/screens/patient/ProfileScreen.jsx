@@ -4,6 +4,7 @@ import {
     View, Text, StyleSheet, ScrollView, Platform, Pressable, Modal,
     TextInput, Alert, Switch, Animated, StatusBar, FlatList, KeyboardAvoidingView,
 } from 'react-native';
+import SmartInput from '../../components/ui/SmartInput';
 import PremiumFormModal from '../../components/ui/PremiumFormModal';
 import {
     Bell, Settings, LogOut, ChevronRight, ChevronDown, UserRound, Phone, X, Save,
@@ -689,13 +690,13 @@ export default function PatientProfileScreen({ navigation }) {
                             </View>
                             <View style={s.infoTextCol}>
                                 <Text style={s.infoLabel}>Allow Screenshots</Text>
-                                <Text style={[s.infoValue, { color: C.muted }]}>{patient?.allow_screenshots ? 'Allowed' : 'Blocked (Secure)'}</Text>
+                                <Text style={[s.infoValue, { color: C.muted }]}>{patient?.allow_screenshots !== false ? 'Allowed' : 'Blocked (Secure)'}</Text>
                             </View>
                             <Switch
                                 trackColor={{ false: '#E2E8F0', true: '#818CF8' }}
-                                thumbColor={patient?.allow_screenshots ? '#4338CA' : '#F8FAFC'}
+                                thumbColor={patient?.allow_screenshots !== false ? '#4338CA' : '#F8FAFC'}
                                 onValueChange={handleToggleScreenshots}
-                                value={patient?.allow_screenshots || false}
+                                value={patient?.allow_screenshots !== false}
                             />
                         </View>
 
@@ -882,7 +883,7 @@ export default function PatientProfileScreen({ navigation }) {
                         <Text style={s.countryCodeTxt}>{editPhoneCode}</Text>
                         <ChevronDown size={14} color={C.muted} />
                     </Pressable>
-                    <TextInput style={[s.input, { flex: 1 }]} value={editPhone} onChangeText={(t) => setEditPhone(t.replace(/[^0-9]/g, ''))} placeholder="Phone number" placeholderTextColor="#94A3B8" keyboardType="phone-pad" maxLength={COUNTRY_CODES.find(c => c.code === editPhoneCode)?.maxDigits || 12} />
+                    <SmartInput value={editPhone} onChangeText={(t) => setEditPhone(t.replace(/[^0-9]/g, ''))} placeholder="Phone number" keyboardType="phone-pad" maxLength={COUNTRY_CODES.find(c => c.code === editPhoneCode)?.maxDigits || 12} style={{ flex: 1 }} />
                 </View>
             </PremiumFormModal>
 
@@ -895,8 +896,7 @@ export default function PatientProfileScreen({ navigation }) {
                 saveText={saving ? 'Saving...' : 'Save Contact'}
                 saving={saving}
             >
-                <Text style={s.inputLabel}>Name</Text>
-                <TextInput style={s.input} value={ecName} onChangeText={setEcName} placeholder="Contact name" placeholderTextColor="#94A3B8" />
+                <SmartInput label="Name" value={ecName} onChangeText={setEcName} placeholder="Contact name" />
                 <Text style={s.inputLabel}>Phone</Text>
                 <View style={s.phoneInputRow}>
                     <Pressable style={s.countryCodeBtn} onPress={() => openCountryCodePicker('ec')}>
@@ -904,10 +904,9 @@ export default function PatientProfileScreen({ navigation }) {
                         <Text style={s.countryCodeTxt}>{ecPhoneCode}</Text>
                         <ChevronDown size={14} color={C.muted} />
                     </Pressable>
-                    <TextInput style={[s.input, { flex: 1 }]} value={ecPhone} onChangeText={(t) => setEcPhone(t.replace(/[^0-9]/g, ''))} placeholder="Phone number" placeholderTextColor="#94A3B8" keyboardType="phone-pad" maxLength={COUNTRY_CODES.find(c => c.code === ecPhoneCode)?.maxDigits || 12} />
+                    <SmartInput value={ecPhone} onChangeText={(t) => setEcPhone(t.replace(/[^0-9]/g, ''))} placeholder="Phone number" keyboardType="phone-pad" maxLength={COUNTRY_CODES.find(c => c.code === ecPhoneCode)?.maxDigits || 12} style={{ flex: 1 }} />
                 </View>
-                <Text style={s.inputLabel}>Relation</Text>
-                <TextInput style={s.input} value={ecRelation} onChangeText={setEcRelation} placeholder="e.g. Son, Daughter, Spouse" placeholderTextColor="#94A3B8" />
+                <SmartInput label="Relation" value={ecRelation} onChangeText={setEcRelation} placeholder="e.g. Son, Daughter, Spouse" />
                 {patient?.emergency_contact?.name && (
                     <Pressable style={[s.saveBtn, { backgroundColor: '#FEE2E2', marginTop: 12 }]} onPress={handleRemoveEC} disabled={saving}>
                         <Trash2 size={18} color="#EF4444" />
@@ -949,10 +948,8 @@ export default function PatientProfileScreen({ navigation }) {
                 saveText={savingAccount ? 'Saving...' : 'Save Profile'}
                 saving={savingAccount}
             >
-                <Text style={s.inputLabel}>Full Name</Text>
-                <TextInput style={s.input} value={editName} onChangeText={setEditName} placeholder="Your name" placeholderTextColor="#94A3B8" />
-                <Text style={s.inputLabel}>City</Text>
-                <TextInput style={s.input} value={editCity} onChangeText={setEditCity} placeholder="e.g. Hyderabad" placeholderTextColor="#94A3B8" />
+                <SmartInput label="Full Name" value={editName} onChangeText={setEditName} placeholder="Your name" />
+                <SmartInput label="City" value={editCity} onChangeText={setEditCity} placeholder="e.g. Hyderabad" />
             </PremiumFormModal>
 
             {/* ── Change Password ── */}
@@ -964,12 +961,9 @@ export default function PatientProfileScreen({ navigation }) {
                 saveText={savingCp ? 'Changing...' : 'Change Password'}
                 saving={savingCp}
             >
-                <Text style={s.inputLabel}>Current Password</Text>
-                <TextInput style={s.input} value={currentPassword} onChangeText={setCurrentPassword} placeholder="Enter current password" placeholderTextColor="#94A3B8" secureTextEntry />
-                <Text style={s.inputLabel}>New Password</Text>
-                <TextInput style={s.input} value={newPassword} onChangeText={setNewPassword} placeholder="Enter new password" placeholderTextColor="#94A3B8" secureTextEntry />
-                <Text style={s.inputLabel}>Confirm Password</Text>
-                <TextInput style={s.input} value={confirmPassword} onChangeText={setConfirmPassword} placeholder="Confirm new password" placeholderTextColor="#94A3B8" secureTextEntry />
+                <SmartInput label="Current Password" value={currentPassword} onChangeText={setCurrentPassword} placeholder="Enter current password" secureTextEntry />
+                <SmartInput label="New Password" value={newPassword} onChangeText={setNewPassword} placeholder="Enter new password" secureTextEntry />
+                <SmartInput label="Confirm Password" value={confirmPassword} onChangeText={setConfirmPassword} placeholder="Confirm new password" secureTextEntry />
             </PremiumFormModal>
 
             {/* ── Set Password (Google Users) ── */}
@@ -981,10 +975,8 @@ export default function PatientProfileScreen({ navigation }) {
                 saveText={savingSetPass ? 'Saving...' : 'Set Password'}
                 saving={savingSetPass}
             >
-                <Text style={s.inputLabel}>New Password</Text>
-                <TextInput style={s.input} value={setPassNew} onChangeText={setSetPassNew} placeholder="Enter password (min 6 chars)" placeholderTextColor="#94A3B8" secureTextEntry />
-                <Text style={s.inputLabel}>Confirm Password</Text>
-                <TextInput style={s.input} value={setPassConfirm} onChangeText={setSetPassConfirm} placeholder="Confirm new password" placeholderTextColor="#94A3B8" secureTextEntry />
+                <SmartInput label="New Password" value={setPassNew} onChangeText={setSetPassNew} placeholder="Enter password (min 6 chars)" secureTextEntry />
+                <SmartInput label="Confirm Password" value={setPassConfirm} onChangeText={setSetPassConfirm} placeholder="Confirm new password" secureTextEntry />
             </PremiumFormModal>
 
             {/* ── Screenshots OTP Modal ── */}
@@ -1000,12 +992,10 @@ export default function PatientProfileScreen({ navigation }) {
                     Enter the 6-digit code sent to your email to {pendingScreenshotSetting ? 'allow' : 'block'} screenshots.
                 </Text>
 
-                <TextInput
-                    style={[s.input, { fontSize: 24, letterSpacing: 8, textAlign: 'center', fontWeight: '800' }]}
+                <SmartInput
                     value={screenshotOTP}
                     onChangeText={(t) => setScreenshotOTP(t.replace(/[^0-9]/g, ''))}
                     placeholder="••••••"
-                    placeholderTextColor="#CBD5E1"
                     keyboardType="number-pad"
                     maxLength={6}
                 />
@@ -1140,20 +1130,16 @@ export default function PatientProfileScreen({ navigation }) {
                                         </Pressable>
                                     ))}
                                 </View>
-                                <Text style={s.inputLabel}>Full Address</Text>
-                                <TextInput style={s.input} value={addrLine} onChangeText={setAddrLine} placeholder="e.g. 12-4-82, Flat 301, Banjara Hills" placeholderTextColor="#94A3B8" />
+                                <SmartInput label="Full Address" value={addrLine} onChangeText={setAddrLine} placeholder="e.g. 12-4-82, Flat 301, Banjara Hills" />
                                 <View style={s.dobRow}>
                                     <View style={s.dobCol}>
-                                        <Text style={s.inputLabel}>City</Text>
-                                        <TextInput style={s.input} value={addrCity} onChangeText={setAddrCity} placeholder="City" placeholderTextColor="#94A3B8" />
+                                        <SmartInput label="City" value={addrCity} onChangeText={setAddrCity} placeholder="City" />
                                     </View>
                                     <View style={s.dobCol}>
-                                        <Text style={s.inputLabel}>State</Text>
-                                        <TextInput style={s.input} value={addrState} onChangeText={setAddrState} placeholder="State" placeholderTextColor="#94A3B8" />
+                                        <SmartInput label="State" value={addrState} onChangeText={setAddrState} placeholder="State" />
                                     </View>
                                 </View>
-                                <Text style={s.inputLabel}>Postcode</Text>
-                                <TextInput style={s.input} value={addrPostcode} onChangeText={setAddrPostcode} placeholder="500034" placeholderTextColor="#94A3B8" keyboardType="number-pad" />
+                                <SmartInput label="Postcode" value={addrPostcode} onChangeText={setAddrPostcode} placeholder="500034" keyboardType="number-pad" />
                                 <Pressable style={s.saveBtn} onPress={handleAddAddress} disabled={saving}>
                                     <Save size={18} color="#FFFFFF" />
                                     <Text style={s.saveBtnTxt}>{saving ? 'Saving...' : 'Save Address'}</Text>

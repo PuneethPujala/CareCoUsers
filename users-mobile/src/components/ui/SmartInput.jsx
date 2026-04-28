@@ -77,7 +77,7 @@ export default function SmartInput({
         toValue: isFocused ? 1.005 : 1,
         friction: 10,
         tension: 120,
-        useNativeDriver: true,
+        useNativeDriver: false,
       }),
     ]).start();
   }, [isFocused]);
