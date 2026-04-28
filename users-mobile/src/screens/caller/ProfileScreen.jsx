@@ -1,15 +1,16 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Platform, Pressable, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Platform, Pressable } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import { colors } from '../../theme';
 import { LogOut, Star, TrendingUp, AlertTriangle, ShieldCheck } from 'lucide-react-native';
 
+import AlertManager from '../../utils/AlertManager';
 export default function CallerProfileScreen() {
     const { displayName, signOut } = useAuth();
 
     const handleLogout = async () => {
         const res = await signOut();
-        if (res.error) Alert.alert('Error', res.error);
+        if (res.error) AlertManager.alert('Error', res.error);
     };
 
     return (

@@ -1,4 +1,6 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
+import CustomAlert from '../components/ui/CustomAlert';
+import AlertManager from '../utils/AlertManager';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Notifications from 'expo-notifications';
 import * as ScreenCapture from 'expo-screen-capture';
@@ -297,30 +299,49 @@ export default function AppNavigator() {
         setupNotifications();
     }, [onboardingComplete, user, profile]);
 
-    if (isBootstrapping) return <AppSplashScreen />;
-    if (!user) return <AuthStack />;
-    if (!onboardingComplete) return <PatientOnboardingStack />;
+    const alertRef = useCallback((ref) => {
+        if (ref) AlertManager.setRef(ref);
+    }, []);
+
+    if (isBootstrapping) return (
+        <>
+            <AppSplashScreen />
+            <CustomAlert ref={alertRef} />
+        </>
+    );
+    if (!user) return (
+        <>
+            <AuthStack />
+            <CustomAlert ref={alertRef} />
+        </>
+    );
+    if (!onboardingComplete) return (
+        <>
+            <PatientOnboardingStack />
+            <CustomAlert ref={alertRef} />
+        </>
+    );
 
     if (subscriptionStatus !== 'active') {
-        // BUG 13 FIX: The original Payment-only stack had no escape hatch. If a
-        // user's subscription lapses while they're in the app, they land here with
-        // no way to log out — effectively trapped. Added a PatientProfile screen
-        // (which contains sign-out functionality) as an accessible route.
         return (
-            <Stack.Navigator screenOptions={{ headerShown: false, animation: "fade" }}>
-                <Stack.Screen name="Payment" component={PaymentScreen} />
-                <Stack.Screen
-                    name="Profile"
-                    component={PatientProfileScreen}
-                    options={{ presentation: "modal" }}
-                />
-            </Stack.Navigator>
+            <>
+                <Stack.Navigator screenOptions={{ headerShown: false, animation: "fade" }}>
+                    <Stack.Screen name="Payment" component={PaymentScreen} />
+                    <Stack.Screen
+                        name="Profile"
+                        component={PatientProfileScreen}
+                        options={{ presentation: "modal" }}
+                    />
+                </Stack.Navigator>
+                <CustomAlert ref={alertRef} />
+            </>
         );
     }
 
     return (
         <View style={{ flex: 1 }}>
             <MainAppStack />
+            <CustomAlert ref={alertRef} />
         </View>
     );
 }

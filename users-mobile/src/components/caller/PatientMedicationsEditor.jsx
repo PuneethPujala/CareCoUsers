@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Pressable, ActivityIndicator, Alert, Modal, TextInput, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ActivityIndicator, Modal, TextInput, ScrollView } from 'react-native';
 import { Pill, Clock, Plus, Edit2, Trash2, X, Info } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { apiService } from '../../lib/api';
 
+import AlertManager from '../../utils/AlertManager';
 const TIME_OPTIONS = ['morning', 'afternoon', 'evening', 'night', 'as_needed'];
 
 const PatientMedicationsEditor = ({ patientId }) => {
@@ -32,7 +33,7 @@ const PatientMedicationsEditor = ({ patientId }) => {
             setMedications(data.patient?.medications || []);
         } catch (error) {
             console.error('Failed to fetch medications:', error);
-            Alert.alert('Error', 'Could not load medications list.');
+            AlertManager.alert('Error', 'Could not load medications list.');
         } finally {
             setLoading(false);
         }
@@ -46,7 +47,7 @@ const PatientMedicationsEditor = ({ patientId }) => {
             await apiService.callers.updatePatientMedications(patientId, newMedicationsArray);
         } catch (error) {
             console.error('Failed to save medications:', error);
-            Alert.alert('Save Error', 'Failed to update medications array.');
+            AlertManager.alert('Save Error', 'Failed to update medications array.');
             fetchMedications(); // Rollback to actual backend state
         } finally {
             setSaveLoading(false);
@@ -55,7 +56,7 @@ const PatientMedicationsEditor = ({ patientId }) => {
     };
 
     const handleRemove = (index) => {
-        Alert.alert(
+        AlertManager.alert(
             "Remove Medication",
             "Are you sure you want to remove this medication?",
             [
@@ -101,7 +102,7 @@ const PatientMedicationsEditor = ({ patientId }) => {
 
     const submitModal = () => {
         if (!formData.name.trim()) {
-            Alert.alert("Required", "Medicine name is required.");
+            AlertManager.alert("Required", "Medicine name is required.");
             return;
         }
 
