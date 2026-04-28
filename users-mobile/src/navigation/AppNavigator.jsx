@@ -160,7 +160,7 @@ function AppSplashScreen() {
     return (
         <View style={styles.splashContainer}>
             <Image source={require('../../assets/logo.png')} style={styles.splashLogo} resizeMode="contain" />
-            <ActivityIndicator size="small" color="#FFFFFF" style={styles.splashLoader} />
+            <ActivityIndicator size="small" color="#6366F1" style={styles.splashLoader} />
         </View>
     );
 }
@@ -365,7 +365,7 @@ const styles = StyleSheet.create({
         shadowColor: "#2563EB", shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.35, shadowRadius: 8, elevation: 8,
     },
-    splashContainer: { flex: 1, backgroundColor: '#0A2463', justifyContent: 'center', alignItems: 'center' },
-    splashLogo: { width: 140, height: 140 },
+    splashContainer: { flex: 1, backgroundColor: '#F0F1FF', justifyContent: 'center', alignItems: 'center' },
+    splashLogo: { width: 200, height: 200 },
     splashLoader: { marginTop: 24 },
 });
