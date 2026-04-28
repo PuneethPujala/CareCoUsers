@@ -41,7 +41,7 @@ const analytics = {
      */
     async init() {
         try {
-            const consent = await AsyncStorage.getItem('samvaya_tracking_consent');
+            const consent = await AsyncStorage.getItem('CareMyMed_tracking_consent');
             if (consent === 'granted') this.consentGranted = true;
         } catch {}
 
@@ -53,7 +53,7 @@ const analytics = {
     async setConsent(granted) {
         this.consentGranted = granted;
         try {
-            await AsyncStorage.setItem('samvaya_tracking_consent', granted ? 'granted' : 'denied');
+            await AsyncStorage.setItem('CareMyMed_tracking_consent', granted ? 'granted' : 'denied');
         } catch {}
     },
 

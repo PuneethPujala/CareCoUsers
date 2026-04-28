@@ -19,7 +19,7 @@ const api = axios.create({
     timeout: 40000,
     headers: {
         'Content-Type': 'application/json',
-        'x-app-name': 'Samvaya',
+        'x-app-name': 'CareMyMed',
         'x-app-platform': 'mobile',
     },
 });
