@@ -407,7 +407,7 @@ export default function PatientSignupScreen({ navigation, route }) {
         setSignupLoading(true);
         signupLoadingRef.current = true;
         try {
-            await apiService.auth.updateProfile({ phoneNumber: form.phoneNumber });
+            await apiService.patients.updateMe({ phone: form.phoneNumber });
             await refreshPatient();
             isManualTransitionRef.current = true;
             await saveProgress(3);
