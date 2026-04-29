@@ -56,10 +56,15 @@ export default function PatientHealthView({
         const medShifts = times.length > 0 ? [...new Set(times.map(parseTimeToShift))] : ['morning'];
         totalSlots += medShifts.length;
         
-        // Check which slots are confirmed via takenLogs
+        // Track which slots have been matched to prevent double-counting
+        const matchedSlots = new Set();
+
+        // 1. First, check takenLogs for explicitly matched shifts and timestamps
         if (med.takenLogs && med.takenLogs.length > 0) {
             const todayLogs = med.takenLogs.filter(l => l.date === todayStr);
             for (const sk of medShifts) {
+                if (matchedSlots.has(sk)) continue;
+                
                 const found = todayLogs.find(l => {
                     if (l.shift) {
                         let logSk = l.shift.toLowerCase().trim();
@@ -69,15 +74,31 @@ export default function PatientHealthView({
                         return logSk === sk;
                     }
                     if (l.timestamp) return isTimestampInShift(l.timestamp, sk);
+                    // Legacy: if we only have 1 shift, assume the timestamp applies to it
                     return medShifts.length === 1;
                 });
-                if (found) completedSlots++;
+                
+                if (found) {
+                    completedSlots++;
+                    matchedSlots.add(sk);
+                }
             }
-        } else {
-            // Fallback: callerMarked / patientMarked / lastConfirmed (legacy single-slot)
-            const confirmedToday = med.lastConfirmed && med.lastConfirmedAt && new Date(med.lastConfirmedAt).toDateString() === now.toDateString();
-            if (med.patientMarked || med.callerMarked || confirmedToday) {
+        }
+        
+        // 2. Fallbacks: callerMarked / patientMarked / lastConfirmed
+        const confirmedToday = med.lastConfirmed && med.lastConfirmedAt && new Date(med.lastConfirmedAt).toDateString() === now.toDateString();
+        if (med.patientMarked || med.callerMarked || confirmedToday) {
+            // If the caller just confirmed it in ActiveCall, the backend maps it to the CURRENT shift.
+            // But since this is a summary view, we want to match it to the slots.
+            // If there's a currentShift prop, match it. Otherwise manually mark the current time's shift.
+            const currentSk = (currentShift || (now.getHours() < 12 ? 'morning' : now.getHours() < 17 ? 'afternoon' : 'night')).toLowerCase();
+            
+            if (medShifts.includes(currentSk) && !matchedSlots.has(currentSk)) {
                 completedSlots++;
+                matchedSlots.add(currentSk);
+            } else if (!matchedSlots.has(medShifts[0])) { // legacy safety
+                completedSlots++;
+                matchedSlots.add(medShifts[0]);
             }
         }
     });
