@@ -192,8 +192,8 @@ export default function HealthProfileScreen({ navigation }) {
             if (type === 'condition') setFormState({ name: '', status: 'managed', severity: 'moderate', notes: '' });
             else if (type === 'allergy') setFormState({ name: '', severity: 'moderate', reaction: '' });
             else if (type === 'vitals') setFormState({ height_cm: profile?.lifestyle?.height_cm || '', weight_kg: profile?.lifestyle?.weight_kg || '' });
-            else if (type === 'habits') setFormState({ smoking_status: profile?.lifestyle?.smoking_status || 'never', alcohol_use: profile?.lifestyle?.alcohol_use || 'none' });
-            else if (type === 'activity') setFormState({ exercise_frequency: profile?.lifestyle?.exercise_frequency || 'none', mobility_level: profile?.lifestyle?.mobility_level || 'full', mobility_aids: profile?.lifestyle?.mobility_aids?.join(', ') || '' });
+            else if (type === 'habits') setFormState({ smoking_status: profile?.lifestyle?.smoking_status || '', alcohol_use: profile?.lifestyle?.alcohol_use || '' });
+            else if (type === 'activity') setFormState({ exercise_frequency: profile?.lifestyle?.exercise_frequency || '', mobility_level: profile?.lifestyle?.mobility_level || 'full', mobility_aids: profile?.lifestyle?.mobility_aids?.join(', ') || '' });
             else if (type === 'identity') setFormState({ blood_type: profile?.blood_type || 'unknown', dietary_restrictions: profile?.lifestyle?.dietary_restrictions?.join(', ') || '' });
             else if (type === 'contact') setFormState({ name: '', phone: '', relation: '', is_emergency: false, can_view_data: false });
             else if (type === 'gp') {
@@ -599,8 +599,14 @@ export default function HealthProfileScreen({ navigation }) {
                             </Pressable>
                             <Pressable style={s.bentoCard} onPress={() => openModal('contact')}>
                                 <View style={[s.bentoCircle, { backgroundColor: '#FEF3C7' }]}><BellRing size={18} color="#F59E0B" /></View>
-                                <Text style={s.bentoVal} numberOfLines={1}>{profile?.trusted_contacts?.find(c => c.is_emergency)?.name || 'Not Set'}</Text>
-                                <Text style={s.bentoLbl}>EMERGENCY</Text>
+                                <Text style={s.bentoVal} numberOfLines={1}>
+                                    {profile?.trusted_contacts?.find(c => c.is_emergency)?.name || 'Not Set'}
+                                </Text>
+                                <Text style={s.bentoLbl}>
+                                    {profile?.trusted_contacts?.filter(c => c.is_emergency)?.length > 1 
+                                        ? `EMERGENCY (+${profile?.trusted_contacts?.filter(c => c.is_emergency)?.length - 1})` 
+                                        : 'EMERGENCY'}
+                                </Text>
                             </Pressable>
                         </View>
                     </Animated.View>
@@ -769,10 +775,10 @@ export default function HealthProfileScreen({ navigation }) {
                                 <Text style={s.metricLbl}>HABITS</Text>
                                 <Text style={[s.metricSub, { color: habitColor }]}>{habitLabel}</Text>
                             </Pressable>
-                            <Pressable style={[s.metricCard, { backgroundColor: '#F0FDF4', borderColor: '#BBF7D0' }]} onPress={() => openModal('activity')}>
+                            <Pressable style={[s.metricCard, { backgroundColor: '#F0FDF4', borderColor: '#BBF7D0' }]} onPress={() => openModal('vitals')}>
                                 <TrendingUp size={20} color="#10B981" />
                                 <Text style={[s.metricVal, { color: '#10B981' }]}>{trendLabel}</Text>
-                                <Text style={s.metricLbl}>TREND</Text>
+                                <Text style={s.metricLbl}>CONDITIONS</Text>
                                 <Text style={[s.metricSub, { color: trendColor }]}>{trendSub}</Text>
                             </Pressable>
                         </View>
