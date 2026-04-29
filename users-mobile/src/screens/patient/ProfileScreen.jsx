@@ -779,8 +779,9 @@ export default function PatientProfileScreen({ navigation }) {
                                         text: 'Deactivate', style: 'default', onPress: async () => {
                                             try {
                                                 await apiService.auth.deactivateAccount();
-                                                AlertManager.alert('Account Deactivated', 'Your account has been paused. Log in anytime to reactivate.');
-                                                signOut();
+                                                AlertManager.alert('Account Deactivated', 'Your account has been paused. Log in anytime to reactivate.', [
+                                                    { text: 'OK', onPress: () => signOut() }
+                                                ]);
                                             } catch (e) {
                                                 AlertManager.alert('Error', 'Failed to deactivate account. Please try again.');
                                             }
@@ -808,8 +809,9 @@ export default function PatientProfileScreen({ navigation }) {
                                                     text: 'Yes, Delete Everything', style: 'destructive', onPress: async () => {
                                                         try {
                                                             await apiService.auth.deleteAccount();
-                                                            AlertManager.alert('Account Deleted', 'Your account and all data have been permanently removed.');
-                                                            signOut();
+                                                            AlertManager.alert('Account Deleted', 'Your account and all data have been permanently removed.', [
+                                                                { text: 'OK', onPress: () => signOut() }
+                                                            ]);
                                                         } catch (e) {
                                                             AlertManager.alert('Error', 'Failed to delete account. Please try again.');
                                                         }
