@@ -50,14 +50,17 @@ export default function AIPredictionChart({ vitalsHistory, predictionData, metri
   const safePrediction = effectivePrediction;
   const isBackendAI = predictionData && predictionData.length > 0;
   
+  const filteredHistory = safeHistory.filter(item => item.value != null && !isNaN(Number(item.value)));
+  const filteredPrediction = safePrediction.filter(item => item.value != null && !isNaN(Number(item.value)));
+
   const labels = [
-    ...safeHistory.map((item) => item.label),
-    ...safePrediction.map((item) => item.label)
+    ...filteredHistory.map((item) => item.label),
+    ...filteredPrediction.map((item) => item.label)
   ];
 
   const allValues = [
-    ...safeHistory.map(item => item.value),
-    ...safePrediction.map(item => item.value)
+    ...filteredHistory.map(item => item.value),
+    ...filteredPrediction.map(item => item.value)
   ];
 
   // AI Models need prediction data to exist to render an actual forecast chart
@@ -160,7 +163,7 @@ export default function AIPredictionChart({ vitalsHistory, predictionData, metri
           style={styles.chart}
           withInnerLines={true}
           withOuterLines={false}
-          fromZero={false}
+          fromZero={true}
         />
       </View>
     </View>
