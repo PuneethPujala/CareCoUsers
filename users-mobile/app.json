@@ -10,7 +10,7 @@
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/Splash.png",
-      "backgroundColor": "#FFFFFF",
+      "backgroundColor": "#E0E7FF",
       "resizeMode": "contain"
     },
     "ios": {
@@ -25,6 +25,10 @@
     "android": {
       "package": "com.careco.users",
       "googleServicesFile": "./google-services.json",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/logo.png",
+        "backgroundColor": "#FFFFFF"
+      },
       "permissions": [
         "android.permission.health.READ_HEART_RATE",
         "android.permission.health.READ_BLOOD_PRESSURE",
@@ -71,9 +75,9 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "55eb530a-473e-4d2a-ada3-b95294730ba2"
+        "projectId": "796ecd27-9884-4922-9ed1-4970cda35074"
       }
     },
-    "owner": "medisettypriyanka05"
+    "owner": "kavitha87"
   }
 }

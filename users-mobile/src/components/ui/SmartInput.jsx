@@ -55,6 +55,8 @@ export default function SmartInput({
   textAlignVertical,
   secureTextEntry,
   editable = true,
+  leftAccessory,
+  rightAccessory,
   ...rest
 }) {
   const [isFocused, setIsFocused] = useState(false);
@@ -135,6 +137,7 @@ export default function SmartInput({
           hasError && styles.inputError,
         ]}
       >
+        {leftAccessory}
         <TextInput
           style={[
             styles.input,
@@ -157,6 +160,7 @@ export default function SmartInput({
           onBlur={() => setIsFocused(false)}
           {...rest}
         />
+        {rightAccessory}
       </Animated.View>
 
       {hasError && typeof error === 'string' && (
@@ -184,14 +188,16 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderRadius: 20,
     paddingHorizontal: 16,
-    justifyContent: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   input: {
     fontSize: 15,
     fontWeight: '600',
     color: '#0F172A',
     flex: 1,
-    paddingVertical: Platform.OS === 'ios' ? 0 : 0,
+    height: '100%',
+    paddingVertical: 0,
   },
   inputMultiline: {
     paddingTop: 14,
