@@ -5,6 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Theme } from '../../theme/theme';
 import { Shadows } from '../../theme/colors';
 import { useAuth } from '../../context/AuthContext';
+import { useFocusEffect } from '@react-navigation/native';
 import GradientHeader from '../../components/common/GradientHeader';
 import SkeletonLoader from '../../components/common/SkeletonLoader';
 import { apiService } from '../../lib/api';
@@ -76,7 +77,11 @@ export default function CallerDashboard({ navigation }) {
         }
     }, [fadeAnim, slideAnim]);
 
-    useEffect(() => { fetchDashboardData(); }, [fetchDashboardData]);
+    useFocusEffect(
+        useCallback(() => {
+            fetchDashboardData();
+        }, [fetchDashboardData])
+    );
 
     const onRefresh = useCallback(() => {
         setRefreshing(true);
