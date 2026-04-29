@@ -18,15 +18,29 @@ class WidgetModule(reactContext: ReactApplicationContext) : ReactContextBaseJava
     fun setWidgetData(data: String) {
         val context = reactApplicationContext
         val prefs = context.getSharedPreferences("CareCoWidgetPrefs", Context.MODE_PRIVATE)
-        prefs.edit().putString("medicine_list", data).apply()
+        prefs.edit().putString("medicine_data", data).apply()
 
         // Trigger widget update
         val intent = Intent(context, MedicineWidgetProvider::class.java)
         intent.action = AppWidgetManager.ACTION_APPWIDGET_UPDATE
-        
+
         val ids = AppWidgetManager.getInstance(context)
             .getAppWidgetIds(ComponentName(context, MedicineWidgetProvider::class.java))
-            
+
+        intent.putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, ids)
+        context.sendBroadcast(intent)
+    }
+
+    @ReactMethod
+    fun clearWidgetData() {
+        val context = reactApplicationContext
+        val prefs = context.getSharedPreferences("CareCoWidgetPrefs", Context.MODE_PRIVATE)
+        prefs.edit().remove("medicine_data").apply()
+
+        val intent = Intent(context, MedicineWidgetProvider::class.java)
+        intent.action = AppWidgetManager.ACTION_APPWIDGET_UPDATE
+        val ids = AppWidgetManager.getInstance(context)
+            .getAppWidgetIds(ComponentName(context, MedicineWidgetProvider::class.java))
         intent.putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, ids)
         context.sendBroadcast(intent)
     }

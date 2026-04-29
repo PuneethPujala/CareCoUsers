@@ -42,6 +42,7 @@ import { setCacheUserId, clearUserCache } from '../lib/CacheService';
 import analytics from '../utils/analytics';
 import * as WebBrowser from 'expo-web-browser';
 import usePatientStore from '../store/usePatientStore';
+import WidgetBridge from '../lib/WidgetBridge';
 import { navigate } from '../lib/navigationRef';
 
 const AuthContext = createContext(null);
@@ -148,6 +149,7 @@ export function AuthProvider({ children }) {
             setProfile(null);
             setPatient(null);
             usePatientStore.getState().setPatient(null);
+            WidgetBridge.clearWidget();
             setRecoverySessionAt(null);
             profileRef.current = null;
             skipNextSignedInRef.current = false;
