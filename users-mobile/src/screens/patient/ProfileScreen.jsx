@@ -13,7 +13,7 @@ import {
     Shield, Droplets, Calendar, User2, Trash2, ShieldCheck as ShieldCheckIcon, Smartphone,
     Mail, TrendingUp
 } from 'lucide-react-native';
-import { colors } from '../../theme';
+import { colors, layout } from '../../theme';
 import { useAuth } from '../../context/AuthContext';
 import { apiService } from '../../lib/api';
 import { registerForPushNotificationsAsync } from '../../utils/notifications';
@@ -1282,7 +1282,7 @@ const s = StyleSheet.create({
 
     /* Scroll */
     scroll: { flex: 1 },
-    scrollContent: { paddingHorizontal: 20, paddingBottom: 110, paddingTop: 8 },
+    scrollContent: { paddingHorizontal: 20, paddingBottom: layout.TAB_BAR_CLEARANCE, paddingTop: 8 },
 
     /* Profile Card */
     profileCard: { backgroundColor: C.white, borderRadius: 24, padding: 20, marginBottom: 24, borderWidth: 1, borderColor: C.border, shadowColor: C.primary, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.04, shadowRadius: 16, elevation: 4 },

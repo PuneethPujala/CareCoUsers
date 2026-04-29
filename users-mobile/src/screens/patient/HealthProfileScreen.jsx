@@ -9,6 +9,7 @@ import { apiService } from '../../lib/api';
 import { initializeHealthPlatform, requestHealthPermissions, fetchDailyVitalsSummary, isHealthSupported } from '../../lib/healthIntegration';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { COUNTRY_CODES, parsePhoneWithCode, validatePhone } from '../../utils/phoneUtils';
+import { layout } from '../../theme';
 
 import AlertManager from '../../utils/AlertManager';
 // ── Skeleton Loader ──────────────────────────────────────────
@@ -1221,7 +1222,7 @@ const s = StyleSheet.create({
     editIconInBadge: { marginRight: 6, opacity: 0.8 },
     ageBadgeTxt: { color: C.primaryDark, ...FONT.bold, fontSize: 14 },
     body: { flex: 1 },
-    bodyContent: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 220 },
+    bodyContent: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: layout.TAB_BAR_CLEARANCE },
     section: { marginBottom: 28, width: '100%' },
     sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, paddingHorizontal: 4 },
     sectionHeaderBase: { fontSize: 13, ...FONT.bold, color: '#64748B', letterSpacing: 1 },

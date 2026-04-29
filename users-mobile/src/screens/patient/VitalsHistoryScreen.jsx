@@ -17,7 +17,7 @@ import {
 import Svg, { Line, Path, Circle } from 'react-native-svg';
 import axiosInstance, { handleAxiosError } from '../../lib/axiosInstance';
 import { apiService } from '../../lib/api';
-import { colors } from '../../theme';
+import { colors, layout } from '../../theme';
 import SmartInput from '../../components/ui/SmartInput';
 
 // ─── Skeleton Loader ──────────────────────────────────────────
@@ -1184,7 +1184,7 @@ const styles = StyleSheet.create({
     skeletonContainer: { gap: 20 },
     skeletonItem: { backgroundColor: '#F1F5F9' },
 
-    scrollContent: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 120 },
+    scrollContent: { paddingHorizontal: 24, paddingTop: 110, paddingBottom: layout.TAB_BAR_CLEARANCE },
 
     /* Date Picker */
     dateSection: {
