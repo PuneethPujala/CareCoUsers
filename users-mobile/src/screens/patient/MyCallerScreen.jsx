@@ -12,7 +12,7 @@ import {
   Plus, Edit2, Bell, Trash2
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { colors } from '../../theme';
+import { colors, layout } from '../../theme';
 import { apiService } from '../../lib/api';
 import { COUNTRY_CODES, parsePhoneWithCode, validatePhone } from '../../utils/phoneUtils';
 
