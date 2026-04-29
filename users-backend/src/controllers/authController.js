@@ -376,7 +376,7 @@ async function updateMe(req, res) {
     if (phone !== undefined) updateData.phone = phone;
     if (avatarUrl !== undefined) updateData.avatarUrl = avatarUrl;
 
-    if (req.user?.userType === 'Patient') {
+    if (req.auth?.userType === 'Patient') {
       const patientUpdate = {};
       if (updateData.fullName !== undefined) patientUpdate.name = updateData.fullName;
       if (updateData.phone !== undefined) patientUpdate.phone = updateData.phone;
