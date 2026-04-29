@@ -127,8 +127,16 @@ const IconInput = React.memo(React.forwardRef(({ icon: Icon, label, rightIcon, e
 }));
 
 // ─── OTP input boxes (auto-advance) ──────────────────────────────────────────
-const OTPBoxes = ({ value = '', onChange, onComplete, length = 6, editable = true }) => {
+const OTPBoxes = ({ value = '', onChange, onComplete, length = 6, editable = true, autoFocus = true }) => {
     const refs = React.useRef([...Array(length)].map(() => React.createRef()));
+
+    // Use a timed ref-based focus instead of native autoFocus to avoid Android
+    // crashes when OTPBoxes mounts inside an already-open Modal (step transitions).
+    React.useEffect(() => {
+        if (!autoFocus) return;
+        const t = setTimeout(() => refs.current[0]?.current?.focus(), 120);
+        return () => clearTimeout(t);
+    }, [autoFocus]);
 
     const handleChange = (text, idx) => {
         const digit = text.replace(/\D/g, '').slice(-1);
@@ -160,7 +168,6 @@ const OTPBoxes = ({ value = '', onChange, onComplete, length = 6, editable = tru
                     maxLength={1}
                     textAlign="center"
                     editable={editable}
-                    autoFocus={i === 0}
                     selectTextOnFocus
                 />
             ))}
