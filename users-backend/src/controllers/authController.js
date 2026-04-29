@@ -86,6 +86,7 @@ async function deleteMe(req, res) {
       const Notification = require('../models/Notification');
       const RefreshToken = require('../models/RefreshToken');
       const AIVitalPrediction = require('../models/AIVitalPrediction');
+      const Medication = require('../models/Medication');
 
       // Delete all associated records
       await Promise.all([
@@ -95,6 +96,7 @@ async function deleteMe(req, res) {
         Notification.deleteMany({ patient_id: userId }),
         RefreshToken.deleteMany({ userId, userType: 'Patient' }),
         AIVitalPrediction.deleteMany({ patient_id: userId }),
+        Medication.deleteMany({ patientId: userId }),
       ]);
 
       // Delete the patient record itself — frees email & phone for re-registration

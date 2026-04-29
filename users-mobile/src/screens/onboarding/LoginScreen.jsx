@@ -4,7 +4,7 @@ import {
     KeyboardAvoidingView, Animated, ActivityIndicator, Modal,
     BackHandler, ScrollView,
 } from 'react-native';
-import { Eye, EyeOff, AlertCircle, X, Mail, ShieldCheck } from 'lucide-react-native';
+import { Eye, EyeOff, AlertCircle, X, Mail, ShieldCheck, Lock } from 'lucide-react-native';
 import { useAuth } from '../../context/AuthContext';
 import { apiService } from '../../lib/api';
 import { parseError } from '../../utils/parseError';
@@ -173,16 +173,19 @@ const ResetPasswordModal = ({ visible, onClose, email }) => {
 
                         {step === 'otp' && (
                             <>
-                                <Text style={rs.subtitle}>Enter the code sent to <Text style={{ ...FONT.bold }}>{resetEmail}</Text> and set your new password.</Text>
-                                <SmartInput
-                                    placeholder="000000"
-                                    maxLength={6}
-                                    keyboardType="number-pad"
+                                <Text style={rs.subtitle}>
+                                    Code sent to{' '}
+                                    <Text style={{ ...FONT.bold }}>{resetEmail}</Text>
+                                    {'. '}Enter it below and set your new password.
+                                </Text>
+
+                                <OTPBoxes
                                     value={otp}
-                                    onChangeText={(v) => { setOtp(v); setError(''); }}
-                                    leftAccessory={<Lock size={18} color={C.muted} style={{ marginRight: 8 }} />}
-                                    style={{ marginBottom: 12 }}
+                                    onChange={(v) => { setOtp(v); setError(''); }}
+                                    length={6}
+                                    editable={!loading}
                                 />
+
                                 <View style={rs.resendRow}>
                                     {resendTimer > 0 ? (
                                         <Text style={rs.timerText}>Resend in {resendTimer}s</Text>
@@ -192,6 +195,7 @@ const ResetPasswordModal = ({ visible, onClose, email }) => {
                                         </Pressable>
                                     )}
                                 </View>
+
                                 <SmartInput
                                     placeholder="New password"
                                     value={newPassword}
@@ -213,7 +217,11 @@ const ResetPasswordModal = ({ visible, onClose, email }) => {
                                     leftAccessory={<Lock size={18} color={C.muted} style={{ marginRight: 8 }} />}
                                     style={{ marginBottom: 14 }}
                                 />
-                                <Pressable style={[rs.btn, loading && { opacity: 0.7 }]} onPress={handleVerifyAndReset} disabled={loading}>
+                                <Pressable
+                                    style={[rs.btn, (loading || otp.length < 6) && { opacity: 0.6 }]}
+                                    onPress={handleVerifyAndReset}
+                                    disabled={loading || otp.length < 6}
+                                >
                                     {loading ? <ActivityIndicator size="small" color="#FFF" /> : <Text style={rs.btnText}>Reset Password</Text>}
                                 </Pressable>
                             </>
