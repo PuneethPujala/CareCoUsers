@@ -20,6 +20,7 @@ import { create } from 'zustand';
 import { apiService } from '../lib/api';
 import { getCache, setCache, CACHE_KEYS } from '../lib/CacheService';
 import OfflineSyncService from '../lib/OfflineSyncService';
+import WidgetBridge from '../lib/WidgetBridge';
 
 const TIME_LABELS = { morning: 'Morning', afternoon: 'Afternoon', evening: 'Evening', night: 'Night', as_needed: 'As Needed' };
 const ACCENT_MAP = { morning: '#22C55E', afternoon: '#F59E0B', evening: '#7C3AED', night: '#8B5CF6', as_needed: '#6366F1' };
@@ -176,6 +177,8 @@ const usePatientStore = create((set, get) => ({
                 meds: freshMeds,
             }, 60);
 
+            WidgetBridge.updateMedicineWidget(freshMeds);
+
             return { patient: freshPatient, vitals: freshVitals, meds: freshMeds };
         } catch (err) {
             console.warn('[Store] fetchDashboard error:', err.message);
@@ -247,6 +250,8 @@ const usePatientStore = create((set, get) => ({
                 lastFetchTs: Date.now(),
                 _optimisticMeds: optRef,
             });
+
+            WidgetBridge.updateMedicineWidget(mergedMeds);
         } catch (err) {
             console.warn('[Store] fetchMedications error:', err.message);
             set({ loading: false });
@@ -285,6 +290,8 @@ const usePatientStore = create((set, get) => ({
             });
             return { medicationSchedule: schedule };
         });
+
+        WidgetBridge.updateMedicineWidget(get().dashboardMeds);
 
         try {
             await apiService.medicines.markMedicine({
