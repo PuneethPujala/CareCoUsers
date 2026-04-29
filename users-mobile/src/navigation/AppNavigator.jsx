@@ -20,7 +20,7 @@ import {
     sendSeamlessExperienceNotification,
 } from "../utils/notifications";
 import { apiService } from "../lib/api";
-import { colors } from "../theme";
+import { colors, layout } from "../theme";
 import usePatientStore from '../store/usePatientStore';
 import NetInfo from '@react-native-community/netinfo';
 import OfflineSyncService from '../lib/OfflineSyncService';
@@ -50,9 +50,9 @@ import AdherenceScreen from "../screens/patient/AdherenceScreen";
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
-export const TAB_BAR_HEIGHT = 64;
-export const TAB_BAR_BOTTOM = 8;
-export const TAB_BAR_CLEARANCE = TAB_BAR_HEIGHT + TAB_BAR_BOTTOM + 12;
+export const TAB_BAR_HEIGHT = layout.TAB_BAR_HEIGHT;
+export const TAB_BAR_BOTTOM = layout.TAB_BAR_BOTTOM;
+export const TAB_BAR_CLEARANCE = layout.TAB_BAR_CLEARANCE;
 
 // ── Stale notification threshold: ignore responses older than 30 seconds ──
 // BUG 12 FIX: getLastNotificationResponseAsync() is called on every mount.
@@ -69,7 +69,7 @@ function isStaleNotification(response) {
 
 function CustomTabBar({ state, descriptors, navigation }) {
     const insets = useSafeAreaInsets();
-    const dynamicBottom = insets.bottom > 0 ? insets.bottom : TAB_BAR_BOTTOM;
+    const dynamicBottom = insets.bottom > 0 ? insets.bottom : layout.TAB_BAR_BOTTOM;
     return (
         <View style={[styles.tabBarContainer, { bottom: dynamicBottom }]}>
             {state.routes.map((route, index) => {
