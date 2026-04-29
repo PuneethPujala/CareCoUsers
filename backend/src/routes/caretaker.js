@@ -39,9 +39,31 @@ function getTimeAgo(date) {
     return new Date(date).toLocaleDateString();
 }
 
+function getISTDate() {
+    const d = new Date();
+    // Use Math to ensure IST (+05:30) is evaluated correctly regardless of NodeJS timezone
+    const utcHours = d.getUTCHours();
+    const utcMinutes = d.getUTCMinutes();
+    
+    let istHours = utcHours + 5;
+    let istMinutes = utcMinutes + 30;
+    
+    if (istMinutes >= 60) {
+        istHours += 1;
+        istMinutes -= 60;
+    }
+    if (istHours >= 24) {
+        istHours -= 24;
+    }
+    
+    const dummyDate = new Date(d);
+    dummyDate.getHours = () => istHours;
+    return dummyDate;
+}
+
 /** Returns the current shift: 'morning' | 'afternoon' | 'night' */
 function getCurrentShift() {
-    const hour = new Date().getHours();
+    const hour = getISTDate().getHours();
     if (hour < 12) return 'morning';
     if (hour < 17) return 'afternoon';
     return 'night';
@@ -55,7 +77,7 @@ function filterMedsByShift(medications, shift) {
 
         if (times.length === 0) return shift === 'morning';
 
-        return times.some(t => {
+        const isMatch = times.some(t => {
             const lower = (t || '').toLowerCase().trim();
 
             // Check direct string match
@@ -77,15 +99,19 @@ function filterMedsByShift(medications, shift) {
 
             if (hour === -1) {
                 // If it's an unrecognized format, default it to morning shift so it's not lost
+                console.log(`[DEBUG] filterMedsByShift: Unrecognized format ${t}, defaulting to morning`);
                 return shift === 'morning';
             }
 
+            console.log(`[DEBUG] filterMedsByShift: Evaluated hour ${hour} against shift ${shift}`);
             if (shift === 'morning') return hour >= 0 && hour < 12;
             if (shift === 'afternoon') return hour >= 12 && hour < 17;
             if (shift === 'night') return hour >= 17;
 
             return false;
         });
+        console.log(`[DEBUG] filterMedsByShift result for ${med.name || med.medicine_name}:`, isMatch);
+        return isMatch;
     });
 }
 
@@ -370,20 +396,33 @@ async function isPatientAssigned(caretakerId, patientId, callerRole) {
 // SHIFT HELPER: Compute shift time bounds
 // ═══════════════════════════════════════════════════════════════
 function getShiftBounds(shift) {
-    const now = new Date();
-    const shiftStart = new Date(now);
-    const shiftEnd = new Date(now);
+    // Determine the current user calendar date in IST
+    const istNow = getISTDate();
+    const year = istNow.getFullYear();
+    const month = String(istNow.getMonth() + 1).padStart(2, '0');
+    const date = String(istNow.getDate()).padStart(2, '0');
+    
+    // We construct ISO strings with +05:30 offset
+    const dStr = `${year}-${month}-${date}T`;
+    
+    let startStr = `${dStr}00:00:00+05:30`;
+    let endStr   = `${dStr}23:59:59+05:30`;
+    
     if (shift === 'morning') {
-        shiftStart.setHours(0, 0, 0, 0);
-        shiftEnd.setHours(11, 59, 59, 999);
+        startStr = `${dStr}00:00:00+05:30`;
+        endStr   = `${dStr}11:59:59+05:30`;
     } else if (shift === 'afternoon') {
-        shiftStart.setHours(12, 0, 0, 0);
-        shiftEnd.setHours(16, 59, 59, 999);
+        startStr = `${dStr}12:00:00+05:30`;
+        endStr   = `${dStr}16:59:59+05:30`;
     } else {
-        shiftStart.setHours(17, 0, 0, 0);
-        shiftEnd.setHours(23, 59, 59, 999);
+        startStr = `${dStr}17:00:00+05:30`;
+        endStr   = `${dStr}23:59:59+05:30`;
     }
-    return { shiftStart, shiftEnd };
+    
+    return { 
+        shiftStart: new Date(startStr), 
+        shiftEnd: new Date(endStr) 
+    };
 }
 
 /**
@@ -685,7 +724,16 @@ router.get('/call-queue', async (req, res) => {
         const currentShift = getCurrentShift();
         const { shiftStart, shiftEnd } = getShiftBounds(currentShift);
 
+        const debugInfo = {
+            istDateStr: getISTDate().toString(),
+            istHour: getISTDate().getHours(),
+            currentShift,
+            shiftStart,
+            shiftEnd
+        };
+
         const patientIds = await getAssignedPatientIds(caretakerId, orgId, req.profile.role);
+        debugInfo.assignedPatientIdsLength = patientIds.length;
 
         if (patientIds.length === 0) {
             return res.json({ calls: [], summary: { total: 0, scheduled: 0, completed: 0, missed: 0, overdue: 0 } });
@@ -1016,7 +1064,7 @@ router.get('/patients/:id/meds', async (req, res) => {
                 'medicationConfirmations.medicationId': med._id,
             })
                 .sort({ scheduledTime: -1 })
-                .select('scheduledTime medicationConfirmations')
+                .select('scheduledTime actualEndTime createdAt medicationConfirmations')
                 .lean();
 
             const confirmation = lastConfirmation?.medicationConfirmations?.find(
@@ -1053,7 +1101,7 @@ router.get('/patients/:id/meds', async (req, res) => {
             return {
                 ...med,
                 lastConfirmed: confirmation?.confirmed ?? null,
-                lastConfirmedAt: lastConfirmation?.scheduledTime || null,
+                lastConfirmedAt: lastConfirmation?.actualEndTime || lastConfirmation?.createdAt || lastConfirmation?.scheduledTime || null,
                 lastReason: confirmation?.reason || null,
                 patientMarked: patientMarked,
                 callerMarked: callerMarkedFromLog,
@@ -1382,7 +1430,7 @@ router.delete('/patients/:id/medications/:medId', async (req, res) => {
 // ═══════════════════════════════════════════════════════════════
 
 // --- Helper to sync with Daily Checklist (MedicineLog) ---
-const syncMedicineLogHelper = async (pId, d, t, mName, isTaken, role) => {
+const syncMedicineLogHelper = async (pId, d, exactTimeStr, bucketIdentifier, mName, isTaken, role) => {
     try {
         const mongoose = require('mongoose');
         const MedicineLog = mongoose.model('MedicineLog');
@@ -1399,13 +1447,6 @@ const syncMedicineLogHelper = async (pId, d, t, mName, isTaken, role) => {
             patient_id: actualPatientId,
             date: targetDate
         });
-
-        let bucket = 'morning';
-        if (t) {
-            const hour = parseInt(t.split(':')[0], 10);
-            if (hour >= 12 && hour < 17) bucket = 'afternoon';
-            else if (hour >= 17) bucket = 'night';
-        }
 
         if (!log) {
             const medsToLog = [];
@@ -1444,21 +1485,23 @@ const syncMedicineLogHelper = async (pId, d, t, mName, isTaken, role) => {
 
         // Find exact medicine+bucket match. NO fallback to avoid wrong bucket for multi-dose meds.
         const dailyMed = log.medicines.find(m => 
-            m.medicine_name === mName && m.scheduled_time === bucket
+            m.medicine_name === mName && m.scheduled_time === bucketIdentifier
         );
+
+        const takingTime = isTaken ? (exactTimeStr ? new Date(exactTimeStr) : new Date()) : null;
 
         if (dailyMed) {
             dailyMed.taken = isTaken;
-            dailyMed.taken_at = isTaken ? (t ? new Date(d + 'T' + t) : new Date()) : null;
+            dailyMed.taken_at = takingTime;
             dailyMed.marked_by = ['caller', 'care_manager', 'org_admin', 'super_admin'].includes(role) ? 'caller' : 'patient';
             await log.save();
             console.log(`[MedicineLog Sync] Updated ${mName} to taken=${isTaken} by ${dailyMed.marked_by}`);
         } else {
             log.medicines.push({
                 medicine_name: mName,
-                scheduled_time: bucket,
+                scheduled_time: bucketIdentifier,
                 taken: isTaken,
-                taken_at: isTaken ? (t ? new Date(d + 'T' + t) : new Date()) : null,
+                taken_at: takingTime,
                 marked_by: ['caller', 'care_manager', 'org_admin', 'super_admin'].includes(role) ? 'caller' : 'patient',
                 is_active: true
             });
@@ -1628,20 +1671,21 @@ router.post('/calls', async (req, res) => {
                             // Use the current shift as the target if the med spans multiple shifts
                             const currentShift = getCurrentShift();
                             const targetBucket = buckets.includes(currentShift) ? currentShift : buckets[0];
-                            // Convert bucket name to a representative hour for the helper
-                            if (targetBucket === 'morning') medBucketTime = '08:00';
-                            else if (targetBucket === 'afternoon') medBucketTime = '13:00';
-                            else if (targetBucket === 'night') medBucketTime = '20:00';
+                            medBucketTime = targetBucket;
                         }
                     } catch (lookupErr) {
                         console.warn('[CallLog] Med schedule lookup failed:', lookupErr.message);
                     }
-                    // Fallback to call's scheduled time only if we couldn't determine from med
-                    if (!medBucketTime && scheduledTime) {
-                        const dObj = new Date(scheduledTime);
-                        medBucketTime = String(dObj.getHours()).padStart(2, '0') + ':' + String(dObj.getMinutes()).padStart(2, '0');
+                    
+                    // Fallback to call's scheduled time bucket if we couldn't determine from med
+                    if (!medBucketTime) {
+                        const hour = new Date(scheduledTime || new Date()).getHours();
+                        if (hour < 12) medBucketTime = 'morning';
+                        else if (hour < 17) medBucketTime = 'afternoon';
+                        else medBucketTime = 'night';
                     }
-                    await syncMedicineLogHelper(patientId, today, medBucketTime, mc.medicationName, true, req.profile.role);
+
+                    await syncMedicineLogHelper(patientId, today, endedAt || new Date().toISOString(), medBucketTime, mc.medicationName, true, req.profile.role);
                 }
             }
         }
