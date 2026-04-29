@@ -17,6 +17,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { ShieldCheck, ArrowLeft, AlertCircle, KeyRound } from 'lucide-react-native';
 import { apiService } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
+import SmartInput from '../../components/ui/SmartInput';
 
 const FONT = {
     regular: { fontFamily: 'Inter_400Regular' },
@@ -226,23 +227,19 @@ export default function MFAVerifyScreen({ route, navigation }) {
                         </>
                     ) : (
                         <View style={styles.fieldGroup}>
-                            <Text style={styles.inputLabel}>Recovery Code</Text>
-                            <View style={[styles.inputWrap, { marginTop: 8 }]}>
-                                <KeyRound size={18} color="#94A3B8" />
-                                <TextInput
-                                    ref={recoveryRef}
-                                    style={[styles.textInput, { letterSpacing: 4, fontSize: 18, textAlign: 'center' }]}
-                                    placeholder="ABCD1234"
-                                    placeholderTextColor="#CBD5E1"
-                                    value={code}
-                                    onChangeText={handleRecoveryChange}
-                                    keyboardType="default"
-                                    maxLength={8}
-                                    autoCapitalize="characters"
-                                    autoCorrect={false}
-                                    editable={!loading}
-                                />
-                            </View>
+                            <SmartInput
+                                label="Recovery Code"
+                                placeholder="ABCD1234"
+                                value={code}
+                                onChangeText={handleRecoveryChange}
+                                keyboardType="default"
+                                maxLength={8}
+                                autoCapitalize="characters"
+                                autoCorrect={false}
+                                editable={!loading}
+                                leftAccessory={<KeyRound size={18} color="#94A3B8" style={{ marginRight: 8 }} />}
+                                style={{ letterSpacing: 4, fontSize: 18, textAlign: 'center' }}
+                            />
                         </View>
                     )}
 
@@ -341,14 +338,6 @@ const styles = StyleSheet.create({
     inputLabel: { fontSize: 13, ...FONT.bold, color: '#64748B', textAlign: 'center', letterSpacing: 0.4 },
 
     fieldGroup: { marginBottom: 4 },
-    inputWrap: {
-        flexDirection: 'row', alignItems: 'center',
-        backgroundColor: '#FAFBFF',
-        borderWidth: 1.5, borderColor: '#E2E8F0',
-        borderRadius: 20, height: 60,
-        paddingHorizontal: 20, gap: 12,
-    },
-    textInput: { flex: 1, fontSize: 15, color: '#0F172A', ...FONT.semibold, paddingVertical: 0 },
 
     primaryBtn: {
         borderRadius: 20, height: 54,

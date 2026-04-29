@@ -50,14 +50,17 @@ export default function AIPredictionChart({ vitalsHistory, predictionData, metri
   const safePrediction = effectivePrediction;
   const isBackendAI = predictionData && predictionData.length > 0;
   
+  const filteredHistory = safeHistory.filter(item => item.value != null && !isNaN(Number(item.value)));
+  const filteredPrediction = safePrediction.filter(item => item.value != null && !isNaN(Number(item.value)));
+
   const labels = [
-    ...safeHistory.map((item) => item.label),
-    ...safePrediction.map((item) => item.label)
+    ...filteredHistory.map((item) => item.label),
+    ...filteredPrediction.map((item) => item.label)
   ];
 
   const allValues = [
-    ...safeHistory.map(item => item.value),
-    ...safePrediction.map(item => item.value)
+    ...filteredHistory.map(item => item.value),
+    ...filteredPrediction.map(item => item.value)
   ];
 
   // AI Models need prediction data to exist to render an actual forecast chart
@@ -95,8 +98,8 @@ export default function AIPredictionChart({ vitalsHistory, predictionData, metri
     labels: labels.map((l, i) => (i % 2 === 0 ? l : '')), 
     datasets: [
       {
-        data: validValues,
-        color: (opacity = 1) => `rgba(186, 230, 253, ${opacity})`, // Light blue connecting line
+        data: validValues.map(Number),
+        color: (opacity = 1) => `rgba(99, 102, 241, ${opacity})`, // Indigo connecting line
         strokeWidth: 2
       }
     ]
@@ -106,9 +109,11 @@ export default function AIPredictionChart({ vitalsHistory, predictionData, metri
     backgroundGradientFrom: '#FFFFFF',
     backgroundGradientTo: '#FFFFFF',
     color: (opacity = 1) => `rgba(226, 232, 240, ${opacity})`, // grid line color
+    labelColor: (opacity = 1) => `rgba(100, 116, 139, ${opacity})`, // text label color
     strokeWidth: 2, 
     barPercentage: 0.5,
     useShadowColorFromDataset: false,
+    formatYLabel: (y) => Math.round(Number(y)).toString(), // ensure integers, not '00'
     propsForDots: {
       r: '5',
       strokeWidth: '2',
@@ -158,7 +163,7 @@ export default function AIPredictionChart({ vitalsHistory, predictionData, metri
           style={styles.chart}
           withInnerLines={true}
           withOuterLines={false}
-          fromZero={false}
+          fromZero={true}
         />
       </View>
     </View>
