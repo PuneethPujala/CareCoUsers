@@ -97,7 +97,8 @@ export default function ActiveCallScreen({ navigation, route }) {
                 shiftMeds.forEach(m => {
                     // Was it natively marked by Patient or Caller for THIS specific shift today?
                     // (Backend explicitly bounds these flags by the current shift)
-                    if (m.patientMarked || m.callerMarked) {
+                    const confirmedToday = m.lastConfirmed && m.lastConfirmedAt && new Date(m.lastConfirmedAt).toDateString() === new Date().toDateString();
+                    if (m.patientMarked || m.callerMarked || confirmedToday) {
                         initialChecked[m._id] = true;
                     }
                 });
