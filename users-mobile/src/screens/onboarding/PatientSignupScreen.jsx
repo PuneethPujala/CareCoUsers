@@ -382,9 +382,7 @@ export default function PatientSignupScreen({ navigation, route }) {
             try {
                 const profileRes = await apiService.auth.getProfile();
                 if (profileRes.data?.profile) {
-                    isManualTransitionRef.current = true;
-                    await saveProgress(3);
-                    setStep(3);
+                    // Profile already exists — let recovery effect determine correct step
                     isSubmittingRef.current = false;
                     return;
                 }
@@ -394,7 +392,7 @@ export default function PatientSignupScreen({ navigation, route }) {
         try {
             const cleanEmail = form.email.trim().toLowerCase();
             await clearProgress();
-            await signUp(cleanEmail, form.password, form.fullName.trim(), 'patient', { phoneNumber: form.phoneNumber });
+            await signUp(cleanEmail, form.password, form.fullName.trim(), 'patient');
             analytics.signupSuccess(cleanEmail);
         } catch (error) {
             const { general, fields } = parseError(error);
@@ -403,12 +401,19 @@ export default function PatientSignupScreen({ navigation, route }) {
         } finally { setSignupLoading(false); isSubmittingRef.current = false; }
     }, [form, user, signUp, saveProgress, clearProgress, setErrors]);
 
-    // Save phone for Google users at step 2, then advance to step 3
+    // Step 2: save verified phone to both profile and patient records, then advance to step 3
     const handlePhoneStep2Save = useCallback(async () => {
         setSignupLoading(true);
         signupLoadingRef.current = true;
         try {
-            await apiService.patients.updateMe({ phone: form.phoneNumber });
+            // Primary update — profile table (phone field)
+            await apiService.auth.updateProfile({ phone: form.phoneNumber });
+            // Secondary update — patient table (phone field); non-fatal if it fails
+            try {
+                await apiService.patients.updateMe({ phone: form.phoneNumber });
+            } catch (patientErr) {
+                console.warn('[Onboarding] Patient phone field update failed:', patientErr.message);
+            }
             await refreshPatient();
             isManualTransitionRef.current = true;
             await saveProgress(3);
@@ -435,16 +440,10 @@ export default function PatientSignupScreen({ navigation, route }) {
             analytics.track('otp_verification_success', { field: verificationField });
             if (verificationField === 'email') {
                 setIsEmailVerified(true);
-                if (!isPhoneVerified) setTimeout(() => handleVerifyPress('phone'), 500);
-                else executeSignup();
+                executeSignup(); // Email verified — create account, then step 2 collects phone
             } else {
                 setIsPhoneVerified(true);
-                if (step === 2) {
-                    // Google user phone collection step — save and advance
-                    handlePhoneStep2Save();
-                } else {
-                    executeSignup();
-                }
+                handlePhoneStep2Save(); // Phone verified — save and advance to step 3
             }
         } catch (error) {
             const newAttempts = otpAttempts + 1;
@@ -459,7 +458,7 @@ export default function PatientSignupScreen({ navigation, route }) {
                 setErrors(prev => ({ ...prev, otp: general || 'OTP not correct' }));
             }
         } finally { setOtpLoading(false); }
-    }, [otp, verificationField, form.email, form.phoneNumber, verifyOtp, otpAttempts, executeSignup, handleVerifyPress, isPhoneVerified, setErrors, step, handlePhoneStep2Save]);
+    }, [otp, verificationField, form.email, form.phoneNumber, verifyOtp, otpAttempts, executeSignup, setErrors, handlePhoneStep2Save]);
 
     const handleResendOtp = useCallback(async () => {
         if (resendTimer > 0) return;
@@ -516,13 +515,12 @@ export default function PatientSignupScreen({ navigation, route }) {
     // ── Step handlers ──────────────────────────────────────────────────────────
 
     const handleStep1Submit = useCallback(async () => {
-        const isValid = await methods.trigger(['fullName', 'email', 'phoneNumber', 'password', 'confirmPassword']);
+        const isValid = await methods.trigger(['fullName', 'email', 'password', 'confirmPassword']);
         if (!isValid) return;
         if (isSubmittingRef.current) return;
         if (!isEmailVerified) { handleVerifyPress('email'); return; }
-        if (!isPhoneVerified) { handleVerifyPress('phone'); return; }
         executeSignup();
-    }, [methods, isEmailVerified, isPhoneVerified, handleVerifyPress, executeSignup]);
+    }, [methods, isEmailVerified, handleVerifyPress, executeSignup]);
 
     // Step 3: Locality (was step 2)
     const handleStep3Continue = useCallback(async () => {
@@ -553,7 +551,7 @@ export default function PatientSignupScreen({ navigation, route }) {
             refreshPatient().catch(err => console.warn('[Onboarding] Background refresh failed:', err.message));
         } catch (err) {
             console.error('Backend payment save failed:', err.message);
-            AlertManager.alert('Subscription Error', "We couldn't record your payment. Please try again.", [{ text: 'OK' }]);
+            Alert.alert('Subscription Error', "We couldn't record your payment. Please try again.", [{ text: 'OK' }]);
         } finally { setSignupLoading(false); isPayingRef.current = false; }
     }, [saveProgress, form.selectedPlanId, refreshPatient]);
 
@@ -715,10 +713,10 @@ export default function PatientSignupScreen({ navigation, route }) {
                                     <Step1Profile
                                         googleLoading={googleLoading} handleGooglePress={handleGooglePress}
                                         signupLoading={signupLoading} handleStep1Submit={handleStep1Submit}
-                                        isEmailVerified={isEmailVerified} isPhoneVerified={isPhoneVerified}
+                                        isEmailVerified={isEmailVerified}
                                         showPass={showPass} toggleShowPass={toggleShowPass}
                                         showConfirm={showConfirm} toggleShowConfirm={toggleShowConfirm}
-                                        fullNameRef={fullNameRef} emailRef={emailRef} phoneRef={phoneRef}
+                                        fullNameRef={fullNameRef} emailRef={emailRef}
                                         passwordRef={passwordRef} confirmPassRef={confirmPassRef}
                                     />
                                 )}
@@ -728,6 +726,8 @@ export default function PatientSignupScreen({ navigation, route }) {
                                         onSendOtp={() => handleVerifyPress('phone')}
                                         otpLoading={otpLoading}
                                         signupLoading={signupLoading}
+                                        phoneError={errors.phoneNumber}
+                                        onRetry={isPhoneVerified ? handlePhoneStep2Save : undefined}
                                     />
                                 )}
                                 {step === 3 && (

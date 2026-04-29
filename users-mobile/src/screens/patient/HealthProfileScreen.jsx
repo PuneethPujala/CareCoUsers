@@ -483,6 +483,26 @@ export default function HealthProfileScreen({ navigation }) {
     };
     const completionPct = calcCompletion();
 
+    const handleCompletionClick = () => {
+        const missing = [];
+        if (!profile?.blood_type || profile.blood_type === 'unknown') missing.push('Blood Type');
+        if (conditions.length === 0) missing.push('Current Conditions');
+        if (allergies.length === 0) missing.push('Allergies');
+        if (medical_history.length === 0) missing.push('Medical History');
+        if (medications.length === 0) missing.push('Medications');
+        if (vaccinations.length === 0) missing.push('Vaccinations');
+        if (!lifestyle.height_cm || !lifestyle.weight_kg) missing.push('Height & Weight');
+        if (!profile?.trusted_contacts?.length) missing.push('Emergency Contact');
+        if (!gp.name) missing.push('Primary GP');
+        if (!lifestyle.smoking_status || lifestyle.smoking_status === 'unknown') missing.push('Smoking Status');
+
+        if (missing.length === 0) {
+            AlertManager.alert('Profile Complete', 'You have completed 100% of your health profile. Great job!');
+        } else {
+            AlertManager.alert('Incomplete Profile', 'Please add the following information to complete your profile:\n\n• ' + missing.join('\n• '));
+        }
+    };
+
     // Habit Score (0-100)
     const calcHabitScore = () => {
         let s = 50;
@@ -551,7 +571,7 @@ export default function HealthProfileScreen({ navigation }) {
                 {/* Profile Completion */}
                 {completionPct < 100 && (
                     <Animated.View style={{ opacity: staggerAnims[0], transform: [{ translateY: staggerAnims[0].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>
-                        <View style={s.completionCard}>
+                        <Pressable style={s.completionCard} onPress={handleCompletionClick}>
                             <View style={s.completionLeft}>
                                 <View style={s.completionRing}>
                                     <Text style={s.completionPct}>{completionPct}%</Text>
@@ -561,11 +581,11 @@ export default function HealthProfileScreen({ navigation }) {
                                 <Text style={s.completionTitle}>Profile Completion</Text>
                                 <Text style={s.completionSub}>{completionPct >= 70 ? "You're doing great!" : 'Fill in more details for better care'}</Text>
                             </View>
-                            <Pressable style={s.completionAction}>
+                            <View style={s.completionAction}>
                                 <Text style={s.completionActionTxt}>Complete Now</Text>
                                 <ChevronRight size={16} color={C.primary} />
-                            </Pressable>
-                        </View>
+                            </View>
+                        </Pressable>
                     </Animated.View>
                 )}
 
@@ -612,9 +632,9 @@ export default function HealthProfileScreen({ navigation }) {
                                         <View style={[s.iconBg, { backgroundColor: '#FEE2E2' }]}><HeartPulse size={18} color="#EF4444" /></View>
                                         <View style={s.rowInfo}>
                                             <Text style={s.rowTitle}>{c.name}</Text>
-                                            <Text style={s.rowSub}>{c.diagnosed_on ? new Date(c.diagnosed_on).getFullYear() : 'Unknown'} • <Text style={{textTransform: 'capitalize'}}>{c.severity || 'Unspecified'}</Text></Text>
+                                            <Text style={s.rowSub}>{c.diagnosed_on ? new Date(c.diagnosed_on).getFullYear() : 'Unknown'} • <Text style={{textTransform: 'capitalize'}}>{c.severity && c.severity !== 'unknown' ? c.severity : 'Unspecified'}</Text></Text>
                                         </View>
-                                        <View style={[s.pill, { backgroundColor: statStyle.bg }]}><Text style={[s.pillTxt, { color: statStyle.text, textTransform: 'capitalize' }]}>{c.status}</Text></View>
+                                        <View style={[s.pill, { backgroundColor: statStyle.bg }]}><Text style={[s.pillTxt, { color: statStyle.text, textTransform: 'capitalize' }]}>{c.status === 'unknown' ? 'Unknown' : c.status}</Text></View>
                                     </Pressable>
                                 );
                             })}
@@ -1201,7 +1221,7 @@ const s = StyleSheet.create({
     editIconInBadge: { marginRight: 6, opacity: 0.8 },
     ageBadgeTxt: { color: C.primaryDark, ...FONT.bold, fontSize: 14 },
     body: { flex: 1 },
-    bodyContent: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 160 },
+    bodyContent: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 220 },
     section: { marginBottom: 28, width: '100%' },
     sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, paddingHorizontal: 4 },
     sectionHeaderBase: { fontSize: 13, ...FONT.bold, color: '#64748B', letterSpacing: 1 },
