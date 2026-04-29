@@ -28,7 +28,7 @@ const PatientSchema = new mongoose.Schema(
             required: true,
             trim: true,
             validate: {
-                validator: function(v) {
+                validator: function (v) {
                     return /^[a-zA-Z0-9\s'-]+$/.test(v);
                 },
                 message: props => `${props.value} is not a valid name! Names can only contain letters, numbers, spaces, hyphens, and apostrophes.`
@@ -40,6 +40,12 @@ const PatientSchema = new mongoose.Schema(
             unique: true,
             lowercase: true,
             trim: true,
+            validate: {
+                validator: function (v) {
+                    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+                },
+                message: props => `${props.value} is not a valid email!`
+            }
         },
         phone: {
             type: String,
@@ -89,7 +95,7 @@ const PatientSchema = new mongoose.Schema(
         },
         // Stores last 3 hashed passwords to prevent reuse (Audit Bug #6)
         passwordHistory: [{ type: String }],
-        
+
         allow_screenshots: {
             type: Boolean,
             default: true,
@@ -308,11 +314,11 @@ const PatientSchema = new mongoose.Schema(
         ],
         trusted_contacts: [
             {
-                name: { 
-                    type: String, 
+                name: {
+                    type: String,
                     required: true,
                     validate: {
-                        validator: function(v) {
+                        validator: function (v) {
                             return /^[a-zA-Z0-9\s'-]+$/.test(v);
                         },
                         message: props => `${props.value} is not a valid name!`
