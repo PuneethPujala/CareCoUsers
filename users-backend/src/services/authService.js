@@ -153,6 +153,49 @@ async function registerPatient(body, req) {
   // Check for deactivated accounts — user should log in to reactivate, not re-register
   const deactivatedPatient = await Patient.findOne({ email: emailNorm, is_active: false, deactivated_reason: 'user_requested' });
   if (deactivatedPatient) {
+    if (isOAuth) {
+      // Reactivate on OAuth signup
+      deactivatedPatient.is_active = true;
+      deactivatedPatient.deactivated_at = undefined;
+      deactivatedPatient.deactivated_reason = undefined;
+      deactivatedPatient.supabase_uid = supabaseUid;
+      if (fullName && !deactivatedPatient.name) deactivatedPatient.name = fullName;
+      await deactivatedPatient.save();
+
+      await logEvent(supabaseUid, 'account_reactivated', 'patient', deactivatedPatient._id, req, { method: 'google_oauth' });
+
+      const tokens = await tokenService.issueTokenPair(
+        {
+          userId: deactivatedPatient._id,
+          userType: 'Patient',
+          subject: supabaseUid,
+          role: 'patient',
+          email: deactivatedPatient.email,
+          emailVerified: deactivatedPatient.emailVerified,
+        },
+        req
+      );
+
+      return {
+        message: 'Account reactivated successfully',
+        user: { id: supabaseUid, email: emailNorm },
+        session: {
+          access_token: tokens.access_token,
+          refresh_token: tokens.refresh_token,
+          expires_in: tokens.expires_in,
+          expires_at: tokens.expires_at,
+          user: buildSessionUser(supabaseUid, emailNorm, deactivatedPatient.emailVerified),
+        },
+        profile: {
+          id: deactivatedPatient._id,
+          email: deactivatedPatient.email,
+          fullName: deactivatedPatient.name,
+          role: deactivatedPatient.role,
+          organizationId: deactivatedPatient.organization_id,
+          isActive: deactivatedPatient.is_active,
+        },
+      };
+    }
     const err = new Error('Your account was deactivated. Please log in with your credentials to reactivate it.');
     err.status = 400;
     err.code = 'ACCOUNT_DEACTIVATED';
