@@ -765,7 +765,14 @@ export default function PatientProfileScreen({ navigation }) {
                 {/* ── Sign Out, Deactivate & Delete ── */}
                 <Animated.View style={anim(9)}>
                     <View style={{ marginBottom: 24, paddingHorizontal: 24, gap: 12 }}>
-                        <Pressable style={s.logoutBtn} onPress={() => signOut()}>
+                        <Pressable style={s.logoutBtn} onPress={() => AlertManager.alert(
+                            'Sign Out',
+                            'Are you sure you want to sign out of your account?',
+                            [
+                                { text: 'Cancel', style: 'cancel' },
+                                { text: 'Sign Out', style: 'destructive', onPress: () => signOut() }
+                            ]
+                        )}>
                             <LogOut size={20} color="#E11D48" strokeWidth={2.5} />
                             <Text style={s.logoutTxt}>Sign Out Account</Text>
                         </Pressable>
