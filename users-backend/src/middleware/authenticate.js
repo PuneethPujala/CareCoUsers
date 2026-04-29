@@ -45,7 +45,23 @@ async function attachJwtUser(token, req) {
 
   let profile;
   if (isPatient) {
-    profile = await Patient.findOne({ supabase_uid: subject, is_active: true });
+    profile = await Patient.findOne({ supabase_uid: subject });
+    if (profile && !profile.is_active && profile.deactivated_reason === 'user_requested') {
+      profile.is_active = true;
+      profile.deactivated_at = undefined;
+      profile.deactivated_reason = undefined;
+      await profile.save();
+      await AuditLog.createLog({
+        supabaseUid: subject,
+        action: 'account_reactivated',
+        resourceType: 'patient',
+        resourceId: profile._id,
+        ipAddress: req.ip,
+        outcome: 'success',
+        details: { method: 'jwt_auto' },
+      });
+    }
+    if (profile && !profile.is_active) profile = null; // Still block if deactivated for other reasons
     if (profile) profile.organizationId = profile.organization_id;
   } else {
     profile = await Profile.findOne({ supabaseUid: subject, isActive: true }).populate(
@@ -69,13 +85,21 @@ async function attachJwtUser(token, req) {
   if (!profile && isPatient && payload.email) {
     const emailPatient = await Patient.findOne({
       email: String(payload.email).toLowerCase().trim(),
-      is_active: true,
     });
     if (emailPatient) {
-      emailPatient.supabase_uid = subject;
-      await emailPatient.save();
-      profile = emailPatient;
-      profile.organizationId = profile.organization_id;
+      if (!emailPatient.is_active && emailPatient.deactivated_reason === 'user_requested') {
+        emailPatient.is_active = true;
+        emailPatient.deactivated_at = undefined;
+        emailPatient.deactivated_reason = undefined;
+        await emailPatient.save();
+        // Log reactivation
+      }
+      if (emailPatient.is_active) {
+        emailPatient.supabase_uid = subject;
+        await emailPatient.save();
+        profile = emailPatient;
+        profile.organizationId = profile.organization_id;
+      }
     }
   }
 
@@ -139,16 +163,32 @@ async function attachSupabaseUser(token, req) {
   }
 
   if (!profile) {
-    let patient = await Patient.findOne({ supabase_uid: user.id, is_active: true });
+    let patient = await Patient.findOne({ supabase_uid: user.id });
+    if (patient && !patient.is_active && patient.deactivated_reason === 'user_requested') {
+      patient.is_active = true;
+      patient.deactivated_at = undefined;
+      patient.deactivated_reason = undefined;
+      await patient.save();
+      // Log reactivation
+    }
+    if (patient && !patient.is_active) patient = null;
+
     if (!patient && user.email) {
       const emailPatient = await Patient.findOne({
         email: user.email.toLowerCase().trim(),
-        is_active: true,
       });
       if (emailPatient) {
-        emailPatient.supabase_uid = user.id;
-        await emailPatient.save();
-        patient = emailPatient;
+        if (!emailPatient.is_active && emailPatient.deactivated_reason === 'user_requested') {
+          emailPatient.is_active = true;
+          emailPatient.deactivated_at = undefined;
+          emailPatient.deactivated_reason = undefined;
+          await emailPatient.save();
+        }
+        if (emailPatient.is_active) {
+          emailPatient.supabase_uid = user.id;
+          await emailPatient.save();
+          patient = emailPatient;
+        }
       }
     }
     if (patient) {
