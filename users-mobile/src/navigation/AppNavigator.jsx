@@ -160,13 +160,13 @@ const MainAppStack = () => (
 function AppSplashScreen() {
     return (
         <LinearGradient
-            colors={['#E0E7FF', '#E0E7FF', '#C7D2FE', '#A5B4FC']}
+            colors={['#1A0533', '#2D1B69', '#3B2FA0', '#2563EB', '#1D4ED8']}
             style={styles.splashContainer}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
+            start={{ x: 0.1, y: 0 }}
+            end={{ x: 0.9, y: 1 }}
         >
             <Image source={require('../../assets/logo.png')} style={styles.splashLogo} resizeMode="contain" />
-            <ActivityIndicator size="small" color="#6366F1" style={styles.splashLoader} />
+            <ActivityIndicator size="small" color="#FFFFFF" style={styles.splashLoader} />
         </LinearGradient>
     );
 }
