@@ -113,7 +113,7 @@ export default function AIPredictionChart({ vitalsHistory, predictionData, metri
     strokeWidth: 2, 
     barPercentage: 0.5,
     useShadowColorFromDataset: false,
-    formatYLabel: (y) => Math.round(Number(y)).toString(), // ensure integers, not '00'
+    decimalPlaces: 0,
     propsForDots: {
       r: '5',
       strokeWidth: '2',
@@ -164,6 +164,7 @@ export default function AIPredictionChart({ vitalsHistory, predictionData, metri
           withInnerLines={true}
           withOuterLines={false}
           fromZero={true}
+          formatYLabel={(y) => Math.round(Number(y)).toString()}
         />
       </View>
     </View>
@@ -218,8 +219,7 @@ const styles = StyleSheet.create({
   },
   chartWrapper: {
     alignItems: 'center',
-    marginLeft: -10,
-    overflow: 'hidden',
+    marginVertical: 4,
   },
   chart: {
     borderRadius: 16,
