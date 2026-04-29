@@ -403,23 +403,79 @@ async function getPatientShiftStatus(caretakerId, patientId, shiftMeds, shiftSta
     const failedAttempts = shiftLogs.filter(l => ['no_answer', 'missed'].includes(l.status)).length;
     const completedLogs = shiftLogs.filter(l => l.status === 'completed');
 
-    // Check if ANY completed call has ALL shift meds confirmed
-    let isFullyCompleted = false;
+    // Collect ALL confirmed med IDs across ALL completed call logs for this shift
+    // (covers cases where caller does multiple calls for the same patient)
+    const confirmedMedIds = new Set();
     for (const log of completedLogs) {
         const confirmations = log.medicationConfirmations || [];
-        if (shiftMeds.length === 0) {
-            isFullyCompleted = true;
-            break;
+        for (const c of confirmations) {
+            if (c.confirmed === true && c.medicationId) {
+                confirmedMedIds.add(c.medicationId.toString());
+            }
         }
-        const allConfirmed = shiftMeds.every(med => {
-            return confirmations.some(c =>
-                c.medicationId?.toString() === med._id?.toString() && c.confirmed === true
-            );
-        });
-        if (allConfirmed) {
-            isFullyCompleted = true;
-            break;
+    }
+
+    // NEW: Also check native patient app confirmations (MedicineLog / takenLogs)
+    try {
+        const now = new Date();
+        const y = now.getFullYear();
+        const m = String(now.getMonth() + 1).padStart(2, '0');
+        const d = String(now.getDate()).padStart(2, '0');
+        const todayStr = `${y}-${m}-${d}`;
+        const today = new Date(`${todayStr}T00:00:00.000Z`);
+
+        const MedicineLog = mongoose.model('MedicineLog');
+        const todayLog = await MedicineLog.findOne({ patient_id: patientId, date: today }).lean();
+
+        // Determine current shift string bucket based on shiftStart hour
+        const shiftHour = shiftStart.getHours();
+        const currentShiftString = shiftHour < 12 ? 'morning' : (shiftHour < 17 ? 'afternoon' : 'night');
+
+        // Check MedicineLog array
+        if (todayLog && todayLog.medicines) {
+            for (const medLog of todayLog.medicines) {
+                if (medLog.taken) {
+                    const matchedMed = shiftMeds.find(sm => sm.name && medLog.medicine_name && sm.name.toLowerCase() === medLog.medicine_name.toLowerCase());
+                    if (matchedMed) {
+                         const logShift = medLog.scheduled_time?.toLowerCase();
+                         if (logShift === currentShiftString || !logShift) {
+                             confirmedMedIds.add(matchedMed._id?.toString());
+                         }
+                    }
+                }
+            }
         }
+
+        // Check takenLogs inside the shiftMeds directly (if it was updated elsewhere)
+        for (const med of shiftMeds) {
+            if (med.takenLogs && med.takenLogs.some(l => l.date === todayStr)) {
+                // Find if the log matches this shift
+                const isTakenThisShift = med.takenLogs.some(l => {
+                    if (l.date !== todayStr) return false;
+                    if (l.shift && l.shift.toLowerCase() === currentShiftString) return true;
+                    if (l.timestamp) {
+                        const tsHour = new Date(l.timestamp).getHours();
+                        if (currentShiftString === 'morning' && tsHour < 12) return true;
+                        if (currentShiftString === 'afternoon' && tsHour >= 12 && tsHour < 17) return true;
+                        if (currentShiftString === 'night' && tsHour >= 17) return true;
+                    }
+                    // Legacy fallback
+                    return !l.shift && !l.timestamp;
+                });
+                if (isTakenThisShift) {
+                    confirmedMedIds.add(med._id?.toString());
+                }
+            }
+        }
+    } catch (e) {
+        console.error('[getPatientShiftStatus] Error checking native medicine log', e);
+    }
+
+    let isFullyCompleted = false;
+    if (shiftMeds.length === 0 && completedLogs.length > 0) {
+        isFullyCompleted = true;
+    } else if (shiftMeds.length > 0) {
+        isFullyCompleted = shiftMeds.every(med => confirmedMedIds.has(med._id?.toString()));
     }
 
     let status = 'pending';
@@ -429,7 +485,10 @@ async function getPatientShiftStatus(caretakerId, patientId, shiftMeds, shiftSta
         status = 'missed';
     }
 
-    return { status, attempts: shiftLogs.length, failedAttempts };
+    // Count how many meds are still unconfirmed
+    const unconfirmedCount = shiftMeds.filter(med => !confirmedMedIds.has(med._id?.toString())).length;
+
+    return { status, attempts: shiftLogs.length, failedAttempts, confirmedMedIds, unconfirmedCount };
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -525,7 +584,9 @@ router.get('/dashboard', async (req, res) => {
                     phone: pDoc.phone
                 };
                 const allMeds = await getPatientMedications(pDoc._id, true);
-                nextCallMedCount = filterMedsByShift(allMeds, currentShift).length;
+                const shiftMeds = filterMedsByShift(allMeds, currentShift);
+                const { unconfirmedCount } = await getPatientShiftStatus(caretakerId, pDoc._id, shiftMeds, shiftStart, shiftEnd);
+                nextCallMedCount = unconfirmedCount;
                 nextCall = {
                     _id: new mongoose.Types.ObjectId(),
                     patientId: nextCallPatient,
@@ -662,7 +723,7 @@ router.get('/call-queue', async (req, res) => {
             if (shiftMeds.length === 0) continue; // Skip — no meds this shift
 
             // Get strict shift status
-            const { status, attempts, failedAttempts } = await getPatientShiftStatus(
+            const { status, attempts, failedAttempts, unconfirmedCount } = await getPatientShiftStatus(
                 caretakerId, pid, shiftMeds, shiftStart, shiftEnd
             );
 
@@ -712,7 +773,7 @@ router.get('/call-queue', async (req, res) => {
                 notes: latestLog?.notes || '',
                 patientAge: age,
                 medications: shiftMeds,
-                medicationCount: shiftMeds.length,
+                medicationCount: unconfirmedCount,
                 totalMedicationCount: allMeds.length,
                 currentShift,
                 previousCall: previousCall ? {
