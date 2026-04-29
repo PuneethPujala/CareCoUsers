@@ -12,6 +12,7 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import usePatientStore from '../../store/usePatientStore';
 import RecapStoryModal from '../../components/adherence/RecapStoryModal';
+import { layout } from '../../theme';
 import {
     startOfMonth, endOfMonth, eachDayOfInterval, format, isToday,
     startOfWeek, endOfWeek, isSameMonth, parseISO,
@@ -909,7 +910,7 @@ const styles = StyleSheet.create({
     tabText: { fontSize: 14, fontWeight: '700', color: C.light },
     tabTextActive: { color: C.dark },
 
-    scrollContent: { paddingHorizontal: 20, paddingTop: 4, paddingBottom: 40 },
+    scrollContent: { paddingHorizontal: 20, paddingTop: 4, paddingBottom: layout.TAB_BAR_CLEARANCE },
 
     // ── Hero Card ──
     heroCard: {
