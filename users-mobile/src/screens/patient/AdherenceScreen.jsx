@@ -1,145 +1,132 @@
 import React, { useEffect, useRef, useMemo, useCallback, useState } from 'react';
 import {
     View, Text, StyleSheet, Animated, Pressable, ScrollView, SafeAreaView,
-    Platform, ActivityIndicator, Dimensions, Easing, RefreshControl, Modal, Share
+    Platform, Dimensions, Easing, RefreshControl, Modal, Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { LineChart } from 'react-native-chart-kit';
 import {
     X, TrendingUp, TrendingDown, Minus, Award, Target, Calendar as CalIcon,
-    CheckCircle2, Zap, ChevronLeft, Sparkles, Heart, Star, Share2, Flame, Bell
+    CheckCircle2, Zap, ChevronLeft, Sparkles, Heart, Star, Share2, Flame, Lock,
 } from 'lucide-react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import usePatientStore from '../../store/usePatientStore';
 import RecapStoryModal from '../../components/adherence/RecapStoryModal';
 import {
     startOfMonth, endOfMonth, eachDayOfInterval, format, isToday,
-    startOfWeek, endOfWeek, isSameMonth, parseISO, isSameDay,
+    startOfWeek, endOfWeek, isSameMonth, parseISO,
 } from 'date-fns';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-// ── Color System ────────────────────────────────────────────
+// ── Color System ──────────────────────────────────────────────
 const C = {
-    bg: '#F8FAFC',
+    bg: '#F0F4FF',
     card: '#FFFFFF',
-    primary: '#3B82F6',
-    primarySoft: '#EFF6FF',
-    success: '#22C55E',
-    successBg: '#F0FDF4',
+    primary: '#4361EE',
+    primarySoft: '#EEF2FF',
+    success: '#10B981',
+    successBg: '#ECFDF5',
     warning: '#F59E0B',
     warningBg: '#FFFBEB',
-    danger: '#EF4444',
-    dangerBg: '#FEF2F2',
-    purple: '#8B5CF6',
+    danger: '#F43F5E',
+    dangerBg: '#FFF1F2',
+    purple: '#7C3AED',
     purpleBg: '#F5F3FF',
     dark: '#0F172A',
     mid: '#334155',
     muted: '#64748B',
     light: '#94A3B8',
-    border: '#F1F5F9',
-    ring90: '#22C55E',
+    border: '#E8EDF5',
+    ring90: '#10B981',
     ring70: '#F59E0B',
-    ringLow: '#EF4444',
+    ringLow: '#F43F5E',
 };
 
 const LEVEL_COLORS = {
-    optimal: '#22C55E',
-    consistent: '#3B82F6',
+    optimal: '#10B981',
+    consistent: '#4361EE',
     improving: '#F59E0B',
     beginner: '#94A3B8',
 };
 
 const STATUS_COLORS = {
-    complete: '#22C55E',
+    complete: '#10B981',
     partial: '#F59E0B',
-    missed: '#EF4444',
+    missed: '#F43F5E',
     none: '#E2E8F0',
 };
 
-// ── Animated Circular Progress ────────────────────────────────
-const CircularProgress = ({ progress, size = 160, strokeWidth = 12, color }) => {
+// ── Animated Circular Progress ─────────────────────────────────
+const CircularProgress = ({ progress, size = 160, strokeWidth = 14, color }) => {
     const animValue = useRef(new Animated.Value(0)).current;
-    const radius = (size - strokeWidth) / 2;
-    const circumference = 2 * Math.PI * radius;
 
     useEffect(() => {
         Animated.timing(animValue, {
             toValue: progress,
-            duration: 1200,
+            duration: 1400,
             easing: Easing.out(Easing.cubic),
             useNativeDriver: false,
         }).start();
     }, [progress]);
 
-    const strokeDashoffset = animValue.interpolate({
-        inputRange: [0, 100],
-        outputRange: [circumference, 0],
-        extrapolate: 'clamp',
-    });
-
-    const ringColor = progress >= 90 ? C.ring90 : progress >= 70 ? C.ring70 : C.ringLow;
-    const finalColor = color || ringColor;
+    const ringColor = color || (progress >= 90 ? C.ring90 : progress >= 70 ? C.ring70 : C.ringLow);
 
     return (
         <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
             {/* Background ring */}
-            <View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]}>
-                <View style={{
-                    width: size, height: size, borderRadius: size / 2,
-                    borderWidth: strokeWidth, borderColor: '#F1F5F9',
-                }} />
-            </View>
-            {/* Foreground ring (SVG-like via border trick) */}
+            <View style={{
+                position: 'absolute',
+                width: size, height: size, borderRadius: size / 2,
+                borderWidth: strokeWidth, borderColor: 'rgba(255,255,255,0.15)',
+            }} />
+            {/* Progress arc */}
             <Animated.View style={{
                 position: 'absolute',
-                width: size - 4,
-                height: size - 4,
+                width: size - 4, height: size - 4,
                 borderRadius: (size - 4) / 2,
                 borderWidth: strokeWidth,
-                borderColor: finalColor,
+                borderColor: ringColor,
                 borderTopColor: 'transparent',
                 borderRightColor: 'transparent',
                 transform: [{
                     rotate: animValue.interpolate({
                         inputRange: [0, 100],
-                        outputRange: ['0deg', '360deg'],
+                        outputRange: ['-45deg', '315deg'],
                     }),
                 }],
                 opacity: animValue.interpolate({
-                    inputRange: [0, 5],
-                    outputRange: [0.3, 1],
+                    inputRange: [0, 8],
+                    outputRange: [0.2, 1],
                     extrapolate: 'clamp',
                 }),
             }} />
-            {/* Pulsing Glow effect for high scores */}
+            {/* Glow for high scores */}
             {progress >= 90 && (
-                <View style={[StyleSheet.absoluteFill, {
-                    alignItems: 'center', justifyContent: 'center',
-                }]}>
-                    <Animated.View style={{
-                        width: size + 16, height: size + 16, borderRadius: (size + 16) / 2,
-                        backgroundColor: finalColor + '15',
-                        position: 'absolute',
-                        transform: [{
-                            scale: animValue.interpolate({
-                                inputRange: [0, 50, 100],
-                                outputRange: [1, 1.02, 1.05],
-                            })
-                        }],
-                        opacity: animValue.interpolate({
-                            inputRange: [90, 100],
-                            outputRange: [0, 1],
+                <Animated.View style={{
+                    position: 'absolute',
+                    width: size + 20, height: size + 20,
+                    borderRadius: (size + 20) / 2,
+                    backgroundColor: ringColor + '20',
+                    transform: [{
+                        scale: animValue.interpolate({
+                            inputRange: [85, 100],
+                            outputRange: [0.95, 1.06],
                             extrapolate: 'clamp',
-                        })
-                    }} />
-                </View>
+                        }),
+                    }],
+                    opacity: animValue.interpolate({
+                        inputRange: [88, 100],
+                        outputRange: [0, 1],
+                        extrapolate: 'clamp',
+                    }),
+                }} />
             )}
         </View>
     );
 };
 
-// ── Animated Number Counter ────────────────────────────────
+// ── Animated Number Counter ─────────────────────────────────────
 const AnimatedNumber = ({ value, style, suffix = '%' }) => {
     const animValue = useRef(new Animated.Value(0)).current;
     const [displayValue, setDisplayValue] = useState(0);
@@ -148,21 +135,18 @@ const AnimatedNumber = ({ value, style, suffix = '%' }) => {
         animValue.setValue(0);
         Animated.timing(animValue, {
             toValue: value,
-            duration: 1000,
+            duration: 1100,
             easing: Easing.out(Easing.cubic),
             useNativeDriver: false,
         }).start();
-
-        const listener = animValue.addListener(({ value: v }) => {
-            setDisplayValue(Math.round(v));
-        });
+        const listener = animValue.addListener(({ value: v }) => setDisplayValue(Math.round(v)));
         return () => animValue.removeListener(listener);
     }, [value]);
 
     return <Text style={style}>{displayValue}{suffix}</Text>;
 };
 
-// ── Smart Feedback Message ─────────────────────────────────
+// ── Feedback Message ────────────────────────────────────────────
 const getFeedbackMessage = (score, momentum) => {
     if (score >= 95) return { text: "Outstanding! You're at peak consistency 🌟", color: C.success };
     if (score >= 90) return { text: "Excellent work! You're building great habits 💙", color: C.success };
@@ -173,41 +157,40 @@ const getFeedbackMessage = (score, momentum) => {
     return { text: "Every new day is a fresh start. You've got this 💪", color: C.muted };
 };
 
-// ── Calendar Day Cell ────────────────────────────────────────
-const CalendarDay = ({ date, status, rate, isCurrentMonth, onPress }) => {
+// ── Calendar Day Cell ───────────────────────────────────────────
+const CalendarDay = ({ date, status, isCurrentMonth, onPress }) => {
     const scaleAnim = useRef(new Animated.Value(1)).current;
     const todayFlag = isToday(date);
-    const bg = status ? STATUS_COLORS[status] : '#F8FAFC';
-    const opacity = isCurrentMonth ? 1 : 0.3;
+    const bg = STATUS_COLORS[status] || 'transparent';
 
     const handlePress = () => {
         Animated.sequence([
-            Animated.spring(scaleAnim, { toValue: 1.15, friction: 5, useNativeDriver: true }),
+            Animated.spring(scaleAnim, { toValue: 1.2, friction: 5, useNativeDriver: true }),
             Animated.spring(scaleAnim, { toValue: 1, friction: 5, useNativeDriver: true }),
         ]).start();
         if (onPress) onPress();
     };
 
     return (
-        <Pressable onPress={handlePress} style={{ width: `${100 / 7}%`, aspectRatio: 1, padding: 2 }}>
+        <Pressable onPress={handlePress} style={{ width: `${100 / 7}%`, aspectRatio: 1, padding: 2.5 }}>
             <Animated.View style={[
                 styles.dayCell,
                 {
-                    opacity,
-                    backgroundColor: status === 'none' || !status ? '#F8FAFC' : bg + '18',
-                    borderColor: todayFlag ? C.primary : status && status !== 'none' ? bg + '40' : 'transparent',
-                    borderWidth: todayFlag ? 2 : 1,
+                    opacity: isCurrentMonth ? 1 : 0.25,
+                    backgroundColor: status && status !== 'none' ? bg + '22' : todayFlag ? C.primarySoft : 'transparent',
+                    borderWidth: todayFlag ? 2 : status && status !== 'none' ? 1.5 : 0,
+                    borderColor: todayFlag ? C.primary : status && status !== 'none' ? bg + '60' : 'transparent',
                     transform: [{ scale: scaleAnim }],
                 },
             ]}>
                 {status === 'complete' ? (
-                    <CheckCircle2 size={14} color={C.success} fill={C.successBg} />
+                    <CheckCircle2 size={15} color={C.success} />
                 ) : (
                     <Text style={[
                         styles.dayText,
                         todayFlag && { color: C.primary, fontWeight: '800' },
-                        status === 'partial' && { color: C.warning },
-                        status === 'missed' && { color: C.danger },
+                        status === 'partial' && { color: C.warning, fontWeight: '700' },
+                        status === 'missed' && { color: C.danger, fontWeight: '700' },
                     ]}>
                         {format(date, 'd')}
                     </Text>
@@ -217,47 +200,49 @@ const CalendarDay = ({ date, status, rate, isCurrentMonth, onPress }) => {
     );
 };
 
-// ── Achievement Badge Icon Mapping ──────────────────────────
-const BADGE_ICONS = {
-    first_perfect_day: { Icon: CheckCircle2, bg: ['#22C55E', '#16A34A'], iconColor: '#FFFFFF' },
-    '3_day_consistent': { Icon: Zap, bg: ['#F59E0B', '#D97706'], iconColor: '#FFFFFF' },
-    never_missed_morning: { Icon: Star, bg: ['#3B82F6', '#2563EB'], iconColor: '#FFFFFF' },
-    weekly_90: { Icon: Target, bg: ['#8B5CF6', '#7C3AED'], iconColor: '#FFFFFF' },
-    '7_perfect_days': { Icon: Sparkles, bg: ['#06B6D4', '#0891B2'], iconColor: '#FFFFFF' },
-    monthly_consistent: { Icon: Award, bg: ['#F43F5E', '#E11D48'], iconColor: '#FFFFFF' },
+// ── Achievement Badge ───────────────────────────────────────────
+const BADGE_CONFIGS = {
+    first_perfect_day: { Icon: CheckCircle2, grad: ['#10B981', '#059669'] },
+    '3_day_consistent': { Icon: Zap, grad: ['#F59E0B', '#D97706'] },
+    never_missed_morning: { Icon: Star, grad: ['#4361EE', '#2563EB'] },
+    weekly_90: { Icon: Target, grad: ['#7C3AED', '#6D28D9'] },
+    '7_perfect_days': { Icon: Sparkles, grad: ['#06B6D4', '#0891B2'] },
+    monthly_consistent: { Icon: Award, grad: ['#F43F5E', '#E11D48'] },
 };
 
-// ── Achievement Badge ────────────────────────────────────────
 const AchievementBadge = ({ achievement, index }) => {
     const scaleAnim = useRef(new Animated.Value(0)).current;
 
     useEffect(() => {
         Animated.spring(scaleAnim, {
             toValue: 1,
-            delay: index * 80,
+            delay: index * 70,
             friction: 6,
-            tension: 50,
+            tension: 55,
             useNativeDriver: true,
         }).start();
     }, []);
 
     const unlocked = achievement.unlocked;
-    const badgeConfig = BADGE_ICONS[achievement.key] || { Icon: Award, bg: ['#94A3B8', '#64748B'], iconColor: '#FFF' };
-    const { Icon: BadgeIcon, bg: badgeBg, iconColor } = badgeConfig;
+    const cfg = BADGE_CONFIGS[achievement.key] || { Icon: Award, grad: ['#94A3B8', '#64748B'] };
+    const { Icon: BadgeIcon, grad } = cfg;
+    const cardWidth = (SCREEN_WIDTH - 40 - 12) / 2;
 
     return (
         <Animated.View style={[
             styles.achievementCard,
+            { width: cardWidth, transform: [{ scale: scaleAnim }] },
             !unlocked && styles.achievementLocked,
-            { transform: [{ scale: scaleAnim }] },
         ]}>
             <LinearGradient
-                colors={unlocked ? badgeBg : ['#E2E8F0', '#CBD5E1']}
+                colors={unlocked ? grad : ['#E2E8F0', '#CBD5E1']}
                 style={styles.achievementIconCircle}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
+                start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
             >
-                <BadgeIcon size={18} color={unlocked ? iconColor : '#94A3B8'} strokeWidth={2.5} />
+                {unlocked
+                    ? <BadgeIcon size={20} color="#FFFFFF" strokeWidth={2.5} />
+                    : <Lock size={16} color="#94A3B8" strokeWidth={2.5} />
+                }
             </LinearGradient>
             <Text style={[styles.achievementLabel, !unlocked && { color: C.light }]} numberOfLines={2}>
                 {achievement.label}
@@ -265,42 +250,33 @@ const AchievementBadge = ({ achievement, index }) => {
             <Text style={[styles.achievementDesc, !unlocked && { color: '#CBD5E1' }]} numberOfLines={2}>
                 {achievement.description}
             </Text>
-            {unlocked && (
-                <View style={styles.unlockedBadge}>
-                    <CheckCircle2 size={10} color={C.success} />
-                    <Text style={styles.unlockedText}>Unlocked</Text>
-                </View>
-            )}
-            {!unlocked && (
-                <View style={[styles.unlockedBadge, { backgroundColor: '#F1F5F9' }]}>
-                    <Text style={[styles.unlockedText, { color: C.light }]}>Locked</Text>
-                </View>
-            )}
+            <View style={[styles.achievementStatus, { backgroundColor: unlocked ? C.successBg : '#F1F5F9' }]}>
+                {unlocked && <CheckCircle2 size={10} color={C.success} />}
+                <Text style={[styles.achievementStatusText, { color: unlocked ? C.success : C.light }]}>
+                    {unlocked ? 'Unlocked' : 'Locked'}
+                </Text>
+            </View>
         </Animated.View>
     );
 };
 
-// ── Skeleton Loader ──────────────────────────────────────────
-const SkeletonItem = ({ width, height, borderRadius = 8, style }) => {
-    const anim = useRef(new Animated.Value(0.3)).current;
-
+// ── Skeleton Loader ─────────────────────────────────────────────
+const Skeleton = ({ width, height, borderRadius = 10, style }) => {
+    const anim = useRef(new Animated.Value(0.4)).current;
     useEffect(() => {
         Animated.loop(
             Animated.sequence([
-                Animated.timing(anim, { toValue: 1, duration: 800, useNativeDriver: true }),
-                Animated.timing(anim, { toValue: 0.3, duration: 800, useNativeDriver: true })
+                Animated.timing(anim, { toValue: 1, duration: 700, useNativeDriver: true }),
+                Animated.timing(anim, { toValue: 0.4, duration: 700, useNativeDriver: true }),
             ])
         ).start();
     }, []);
-
-    return (
-        <Animated.View style={[{ width, height, borderRadius, backgroundColor: '#E2E8F0', opacity: anim }, style]} />
-    );
+    return <Animated.View style={[{ width, height, borderRadius, backgroundColor: '#E2E8F0', opacity: anim }, style]} />;
 };
 
-// ════════════════════════════════════════════════════════════
-// ══ MAIN SCREEN ════════════════════════════════════════════
-// ════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════
+// ══ MAIN SCREEN ═══════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════
 const RECAP_TABS = ['weekly', 'monthly', 'yearly'];
 const RECAP_LABELS = { weekly: 'Weekly', monthly: 'Monthly', yearly: 'Yearly' };
 
@@ -309,21 +285,27 @@ export default function AdherenceScreen({ navigation }) {
     const adherenceRecap = usePatientStore((s) => s.adherenceRecap);
     const fetchAdherenceDetails = usePatientStore((s) => s.fetchAdherenceDetails);
     const fetchAdherenceRecap = usePatientStore((s) => s.fetchAdherenceRecap);
-    const patient = usePatientStore((s) => s.patient);
 
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [selectedDay, setSelectedDay] = useState(null);
     const [activeRecapTab, setActiveRecapTab] = useState('weekly');
     const [showStoryModal, setShowStoryModal] = useState(false);
-    const tabIndicatorAnim = useRef(new Animated.Value(0)).current;
 
-    // Stagger animations
-    const staggerAnims = useRef([...Array(8)].map(() => new Animated.Value(0))).current;
+    // Use ref to avoid double-fetch when tab changes while screen is focused
+    const activeRecapTabRef = useRef('weekly');
+    useEffect(() => { activeRecapTabRef.current = activeRecapTab; }, [activeRecapTab]);
+
+    // Tab slide indicator
+    const tabSlideAnim = useRef(new Animated.Value(0)).current;
+    const tabWidth = (SCREEN_WIDTH - 48) / 3;
+
+    // Stagger animations — 7 unique slots
+    const staggerAnims = useRef([...Array(7)].map(() => new Animated.Value(0))).current;
 
     const runAnimations = useCallback(() => {
         staggerAnims.forEach(a => a.setValue(0));
-        Animated.stagger(120,
+        Animated.stagger(100,
             staggerAnims.map(a => Animated.spring(a, { toValue: 1, friction: 8, tension: 40, useNativeDriver: true }))
         ).start();
     }, [staggerAnims]);
@@ -331,21 +313,19 @@ export default function AdherenceScreen({ navigation }) {
     const loadData = useCallback(async () => {
         await Promise.all([
             fetchAdherenceDetails(),
-            fetchAdherenceRecap(activeRecapTab),
+            fetchAdherenceRecap(activeRecapTabRef.current),
         ]);
         setLoading(false);
         runAnimations();
-    }, [fetchAdherenceDetails, fetchAdherenceRecap, activeRecapTab, runAnimations]);
+    }, [fetchAdherenceDetails, fetchAdherenceRecap, runAnimations]);
 
     useFocusEffect(
-        useCallback(() => {
-            loadData();
-        }, [loadData])
+        useCallback(() => { loadData(); }, [loadData])
     );
 
     const switchRecapTab = (tab) => {
         const idx = RECAP_TABS.indexOf(tab);
-        Animated.spring(tabIndicatorAnim, { toValue: idx, friction: 7, useNativeDriver: true }).start();
+        Animated.spring(tabSlideAnim, { toValue: idx * tabWidth, friction: 8, useNativeDriver: true }).start();
         setActiveRecapTab(tab);
         fetchAdherenceRecap(tab);
     };
@@ -354,12 +334,12 @@ export default function AdherenceScreen({ navigation }) {
         setRefreshing(true);
         await Promise.all([
             fetchAdherenceDetails(),
-            fetchAdherenceRecap(activeRecapTab),
+            fetchAdherenceRecap(activeRecapTabRef.current),
         ]);
         setRefreshing(false);
     };
 
-    // ── Derived data ──────────────────────────────────────
+    // ── Derived data ──────────────────────────────────────────
     const data = adherenceDetails || {};
     const score = data.score || { weekly: 0, monthly: 0 };
     const level = data.level || { key: 'beginner', label: 'Beginner', emoji: '🌱' };
@@ -374,13 +354,18 @@ export default function AdherenceScreen({ navigation }) {
     const weeklyTrend = data.weekly_trend || [];
 
     const feedback = getFeedbackMessage(score.monthly, momentum);
+    const levelColor = LEVEL_COLORS[level.key] || C.light;
 
-    // Calendar generation
+    const MomentumIcon = momentum === 'rising' ? TrendingUp : momentum === 'falling' ? TrendingDown : Minus;
+    const momentumColor = momentum === 'rising' ? C.success : momentum === 'falling' ? C.danger : C.warning;
+    const momentumLabel = momentum === 'rising' ? 'Rising' : momentum === 'falling' ? 'Falling' : 'Steady';
+
+    const ringColor = score.monthly >= 90 ? C.ring90 : score.monthly >= 70 ? C.ring70 : C.ringLow;
+
+    // Calendar
     const calendarDays = useMemo(() => {
         const now = new Date();
-        const start = startOfWeek(startOfMonth(now));
-        const end = endOfWeek(endOfMonth(now));
-        return eachDayOfInterval({ start, end });
+        return eachDayOfInterval({ start: startOfWeek(startOfMonth(now)), end: endOfWeek(endOfMonth(now)) });
     }, []);
 
     const dailyLogMap = useMemo(() => {
@@ -391,762 +376,751 @@ export default function AdherenceScreen({ navigation }) {
 
     const anim = (i) => ({
         opacity: staggerAnims[i],
-        transform: [{ translateY: staggerAnims[i].interpolate({ inputRange: [0, 1], outputRange: [30, 0] }) }],
+        transform: [{ translateY: staggerAnims[i].interpolate({ inputRange: [0, 1], outputRange: [28, 0] }) }],
     });
 
-    const MomentumIcon = momentum === 'rising' ? TrendingUp : momentum === 'falling' ? TrendingDown : Minus;
-    const momentumColor = momentum === 'rising' ? C.success : momentum === 'falling' ? C.danger : C.warning;
-    const momentumLabel = momentum === 'rising' ? 'Rising' : momentum === 'falling' ? 'Needs Focus' : 'Steady';
-    const levelColor = LEVEL_COLORS[level.key] || C.muted;
-
+    // ── Loading Skeleton ────────────────────────────────────
     if (loading) {
         return (
-            <SafeAreaView style={[styles.container, { backgroundColor: '#FFFFFF' }]}>
-                <View style={[styles.header, { borderBottomWidth: 0 }]}>
-                    <SkeletonItem width={40} height={40} borderRadius={12} />
-                    <SkeletonItem width={180} height={24} style={{ marginLeft: 10 }} />
+            <SafeAreaView style={{ flex: 1, backgroundColor: C.bg }}>
+                <View style={styles.header}>
+                    <Skeleton width={40} height={40} borderRadius={14} />
+                    <Skeleton width={160} height={22} style={{ marginLeft: 12 }} />
                 </View>
-                <View style={{ padding: 20 }}>
-                    <SkeletonItem width="100%" height={80} borderRadius={16} style={{ marginBottom: 16 }} />
-                    <SkeletonItem width="100%" height={120} borderRadius={20} style={{ marginBottom: 16 }} />
-                    <SkeletonItem width="100%" height={200} borderRadius={20} style={{ marginBottom: 16 }} />
-                    <View style={{ flexDirection: 'row', gap: 10 }}>
-                        <SkeletonItem width="30%" height={100} borderRadius={16} />
-                        <SkeletonItem width="30%" height={100} borderRadius={16} />
-                        <SkeletonItem width="30%" height={100} borderRadius={16} />
-                    </View>
-                </View>
+                <ScrollView contentContainerStyle={{ padding: 20, gap: 16 }}>
+                    <Skeleton width="100%" height={220} borderRadius={28} />
+                    <Skeleton width="100%" height={80} borderRadius={20} />
+                    <Skeleton width="100%" height={130} borderRadius={20} />
+                    <Skeleton width="100%" height={200} borderRadius={20} />
+                </ScrollView>
             </SafeAreaView>
         );
     }
 
     return (
-        <View style={{ flex: 1, backgroundColor: '#F8FAFC' }}>
-            <LinearGradient colors={['#F8FAFC', '#EEF2FF', '#E0E7FF']} style={StyleSheet.absoluteFillObject} />
-            {/* Dynamic Mesh Background Simulation */}
-            <Animated.View style={{ position: 'absolute', top: -100, left: -50, width: 300, height: 300, borderRadius: 150, backgroundColor: C.primary, opacity: 0.1, transform: [{ scale: staggerAnims[0].interpolate({ inputRange: [0, 1], outputRange: [1, 1.5] }) }] }} />
-            <Animated.View style={{ position: 'absolute', top: 250, right: -100, width: 250, height: 250, borderRadius: 125, backgroundColor: score.monthly >= 80 ? C.success : C.primary, opacity: 0.1, transform: [{ scale: staggerAnims[2].interpolate({ inputRange: [0, 1], outputRange: [1, 2] }) }] }} />
+        <View style={{ flex: 1, backgroundColor: C.bg }}>
+            {/* Decorative blobs */}
+            <View style={{ position: 'absolute', top: -80, right: -60, width: 260, height: 260, borderRadius: 130, backgroundColor: C.primary + '18' }} />
+            <View style={{ position: 'absolute', top: 380, left: -80, width: 200, height: 200, borderRadius: 100, backgroundColor: C.purple + '12' }} />
 
-            <SafeAreaView style={styles.container}>
+            <SafeAreaView style={{ flex: 1 }}>
                 {/* ── Header ── */}
-            <View style={styles.header}>
-                <Pressable onPress={() => navigation.goBack()} style={styles.backBtn}>
-                    <ChevronLeft size={24} color={C.dark} />
-                </Pressable>
-                <View style={styles.headerCenter}>
-                    <Text style={styles.headerTitle}>Adherence</Text>
-                </View>
-                <Pressable style={[styles.levelPill, { backgroundColor: '#3B82F6', borderColor: '#2563EB', shadowColor: '#3B82F6', shadowOffset: {width:0, height:4}, shadowOpacity:0.3, shadowRadius:8, elevation:4 }]} onPress={() => setShowStoryModal(true)}>
-                    <Share2 size={14} color="#FFF" />
-                    <Text style={[styles.levelText, { color: '#FFF' }]}>Share</Text>
-                </Pressable>
-            </View>
-
-            {/* ── Recap Period Tabs ── */}
-            <View style={styles.recapTabsContainer}>
-                <View style={styles.recapTabsInner}>
-                    {RECAP_TABS.map((tab, idx) => (
-                        <Pressable
-                            key={tab}
-                            style={[styles.recapTab, activeRecapTab === tab && styles.recapTabActive]}
-                            onPress={() => switchRecapTab(tab)}
-                        >
-                            <Text style={[styles.recapTabText, activeRecapTab === tab && styles.recapTabTextActive]}>
-                                {RECAP_LABELS[tab]}
-                            </Text>
-                        </Pressable>
-                    ))}
-                </View>
-            </View>
-
-            <ScrollView
-                style={styles.scroll}
-                contentContainerStyle={styles.scrollContent}
-                showsVerticalScrollIndicator={false}
-                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={C.primary} />}
-            >
-                {/* ── 0. Hero Streak Banner ── */}
-                <Animated.View style={anim(0)}>
-                    <View style={[styles.glassCard, { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, paddingVertical: 24, marginBottom: 20 }]}>
-                        <Flame size={32} color="#EF4444" fill="#EF4444" />
-                        <View>
-                            <Text style={{ fontSize: 28, fontWeight: '900', color: '#0F172A', letterSpacing: -1 }}>{streak} Day Streak</Text>
-                            <Text style={{ fontSize: 13, color: '#64748B', fontWeight: '600' }}>
-                                {streak >= 7 ? "You're on fire! Keep it up. 🔥" : streak >= 3 ? 'Building momentum! 💪' : streak > 0 ? 'Great start! Keep going! 🌱' : 'Take your meds to start your streak!'}
-                            </Text>
-                        </View>
+                <View style={styles.header}>
+                    <Pressable onPress={() => navigation.goBack()} style={styles.backBtn}>
+                        <ChevronLeft size={22} color={C.dark} />
+                    </Pressable>
+                    <View style={{ flex: 1, marginLeft: 12 }}>
+                        <Text style={styles.headerTitle}>Adherence</Text>
+                        <Text style={styles.headerSub}>Track your medication journey</Text>
                     </View>
-                </Animated.View>
+                    <Pressable
+                        style={styles.shareBtn}
+                        onPress={() => setShowStoryModal(true)}
+                    >
+                        <Share2 size={15} color="#FFF" />
+                        <Text style={styles.shareBtnText}>Share</Text>
+                    </Pressable>
+                </View>
 
-                {/* ── Recap Stats Summary ── */}
-                {adherenceRecap && (
-                    <Animated.View style={anim(0)}>
-                        <View style={[styles.glassCard, { padding: 20, marginBottom: 16 }]}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-                                <Text style={styles.sectionTitle}>
-                                    {activeRecapTab === 'yearly' && adherenceRecap.is_all_time_fallback 
-                                        ? 'ALL TIME RECAP' 
-                                        : `${RECAP_LABELS[activeRecapTab].toUpperCase()} RECAP`}
+                {/* ── Period Tabs ── */}
+                <View style={styles.tabsContainer}>
+                    <View style={styles.tabsInner}>
+                        <Animated.View
+                            style={[styles.tabSlider, { width: tabWidth - 4, transform: [{ translateX: tabSlideAnim }] }]}
+                        />
+                        {RECAP_TABS.map((tab) => (
+                            <Pressable key={tab} style={[styles.tab, { width: tabWidth }]} onPress={() => switchRecapTab(tab)}>
+                                <Text style={[styles.tabText, activeRecapTab === tab && styles.tabTextActive]}>
+                                    {RECAP_LABELS[tab]}
                                 </Text>
-                                <View style={[styles.levelPill, { backgroundColor: (adherenceRecap.level?.key === 'optimal' ? C.success : adherenceRecap.level?.key === 'consistent' ? C.primary : C.warning) + '15' }]}>
-                                    <Text style={{ fontSize: 12 }}>{adherenceRecap.level?.emoji || '🌱'}</Text>
-                                    <Text style={[styles.levelText, { color: adherenceRecap.level?.key === 'optimal' ? C.success : adherenceRecap.level?.key === 'consistent' ? C.primary : C.warning }]}>{adherenceRecap.level?.label || 'Beginner'}</Text>
-                                </View>
-                            </View>
-                            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                                <View style={{ alignItems: 'center', flex: 1 }}>
-                                    <Text style={{ fontSize: 24, fontWeight: '900', color: C.dark }}>{adherenceRecap.adherence_rate || 0}%</Text>
-                                    <Text style={{ fontSize: 11, color: C.muted, fontWeight: '600', marginTop: 2 }}>Adherence</Text>
-                                </View>
-                                <View style={{ width: 1, backgroundColor: '#F1F5F9' }} />
-                                <View style={{ alignItems: 'center', flex: 1 }}>
-                                    <Text style={{ fontSize: 24, fontWeight: '900', color: C.dark }}>{adherenceRecap.perfect_days || 0}</Text>
-                                    <Text style={{ fontSize: 11, color: C.muted, fontWeight: '600', marginTop: 2 }}>Perfect Days</Text>
-                                </View>
-                                <View style={{ width: 1, backgroundColor: '#F1F5F9' }} />
-                                <View style={{ alignItems: 'center', flex: 1 }}>
-                                    <Text style={{ fontSize: 24, fontWeight: '900', color: C.dark }}>{adherenceRecap.total_doses_taken || 0}</Text>
-                                    <Text style={{ fontSize: 11, color: C.muted, fontWeight: '600', marginTop: 2 }}>Doses Taken</Text>
-                                </View>
-                            </View>
-                            {adherenceRecap.improvement_vs_previous !== 0 && (
-                                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 14, gap: 4 }}>
-                                    {adherenceRecap.improvement_vs_previous > 0 ? <TrendingUp size={14} color={C.success} /> : <TrendingDown size={14} color={C.danger} />}
-                                    <Text style={{ fontSize: 12, fontWeight: '700', color: adherenceRecap.improvement_vs_previous > 0 ? C.success : C.danger }}>
-                                        {adherenceRecap.improvement_vs_previous > 0 ? '+' : ''}{adherenceRecap.improvement_vs_previous}% vs previous {activeRecapTab === 'yearly' ? 'year' : activeRecapTab === 'monthly' ? 'month' : 'week'}
-                                    </Text>
-                                </View>
-                            )}
-                        </View>
-                    </Animated.View>
-                )}
-
-                {/* ── 1. Smart Feedback Banner ── */}
-                <Animated.View style={anim(0)}>
-                    <View style={[styles.feedbackBanner, { backgroundColor: feedback.color + '10', borderColor: feedback.color + '30' }]}>
-                        <Heart size={16} color={feedback.color} fill={feedback.color + '30'} />
-                        <Text style={[styles.feedbackText, { color: feedback.color }]}>{feedback.text}</Text>
+                            </Pressable>
+                        ))}
                     </View>
-                    
-                    {insights.length > 0 && (
-                        <View style={styles.insightsContainer}>
-                            {insights.map((insight, idx) => (
-                                <View key={idx} style={[styles.insightRow, styles.glassCard]}>
-                                    <View style={{ flex: 1, flexDirection: 'row', gap: 10 }}>
-                                        <Sparkles size={16} color={C.purple} style={{ marginTop: 2 }} />
-                                        <Text style={styles.insightText}>{insight}</Text>
+                </View>
+
+                <ScrollView
+                    showsVerticalScrollIndicator={false}
+                    contentContainerStyle={styles.scrollContent}
+                    refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={C.primary} />}
+                >
+
+                    {/* ── [0] Hero Gradient Card ── */}
+                    <Animated.View style={anim(0)}>
+                        <LinearGradient
+                            colors={['#1E1B4B', '#312E81', '#4338CA']}
+                            start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                            style={styles.heroCard}
+                        >
+                            {/* Inner glow accent */}
+                            <View style={{ position: 'absolute', top: -40, right: -40, width: 180, height: 180, borderRadius: 90, backgroundColor: '#6366F1', opacity: 0.25 }} />
+
+                            <View style={styles.heroTopRow}>
+                                {/* Ring */}
+                                <View style={styles.heroRingWrap}>
+                                    <CircularProgress progress={score.monthly} size={148} strokeWidth={13} color={ringColor} />
+                                    <View style={styles.heroRingCenter}>
+                                        <AnimatedNumber value={score.monthly} style={styles.heroRingPercent} />
+                                        <Text style={styles.heroRingLabel}>Monthly</Text>
                                     </View>
-                                    {insight.includes('afternoon') && (
-                                        <Pressable style={{ backgroundColor: '#EEF2FF', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: '#C7D2FE', marginTop: 10, alignSelf: 'flex-start' }}>
-                                            <Text style={{ color: '#4F46E5', fontSize: 12, fontWeight: '700' }}>Set Reminder</Text>
-                                        </Pressable>
+                                </View>
+
+                                {/* Right stats */}
+                                <View style={styles.heroRightCol}>
+                                    <View style={styles.heroStatBox}>
+                                        <Text style={styles.heroStatLabel}>This Week</Text>
+                                        <AnimatedNumber value={score.weekly} style={styles.heroStatValue} />
+                                    </View>
+                                    <View style={styles.heroStatDivider} />
+                                    <View style={styles.heroStatBox}>
+                                        <Text style={styles.heroStatLabel}>Momentum</Text>
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}>
+                                            <View style={{ backgroundColor: momentumColor + '30', borderRadius: 8, padding: 3 }}>
+                                                <MomentumIcon size={14} color={momentumColor} />
+                                            </View>
+                                            <Text style={[styles.heroStatValue, { color: momentumColor, fontSize: 15 }]}>{momentumLabel}</Text>
+                                        </View>
+                                    </View>
+                                    <View style={styles.heroStatDivider} />
+                                    <View style={styles.heroStatBox}>
+                                        <Text style={styles.heroStatLabel}>Level</Text>
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 4 }}>
+                                            <Text style={{ fontSize: 16 }}>{level.emoji}</Text>
+                                            <Text style={[styles.heroStatValue, { color: levelColor, fontSize: 13 }]}>{level.label}</Text>
+                                        </View>
+                                    </View>
+                                </View>
+                            </View>
+
+                            {/* Today's progress bar */}
+                            <View style={styles.heroProgressSection}>
+                                <View style={styles.heroProgressHeader}>
+                                    <Target size={13} color="rgba(255,255,255,0.7)" />
+                                    <Text style={styles.heroProgressTitle}>Today's Goal</Text>
+                                    <Text style={styles.heroProgressCount}>
+                                        {today.taken}<Text style={{ fontSize: 13, opacity: 0.6 }}>/{today.total || '—'} doses</Text>
+                                    </Text>
+                                    {today.completed && (
+                                        <View style={styles.heroCompletedPill}>
+                                            <Sparkles size={10} color="#10B981" />
+                                            <Text style={styles.heroCompletedText}>Done!</Text>
+                                        </View>
                                     )}
                                 </View>
-                            ))}
-                        </View>
-                    )}
-                </Animated.View>
-
-                {/* ── 2. Today's Quest ── */}
-                <Animated.View style={anim(1)}>
-                    <View style={styles.questCard}>
-                        <View style={styles.questHeader}>
-                            <View style={styles.questIconBox}>
-                                <Target size={18} color={C.primary} />
-                            </View>
-                            <Text style={styles.questTitle}>Today's Goal</Text>
-                            {today.completed && (
-                                <View style={styles.completedPill}>
-                                    <Sparkles size={12} color={C.success} />
-                                    <Text style={styles.completedText}>Complete!</Text>
-                                </View>
-                            )}
-                        </View>
-                        <View style={styles.questProgressRow}>
-                            <Text style={styles.questCount}>{today.taken}</Text>
-                            <Text style={styles.questTotal}>/ {today.total || '—'} doses</Text>
-                        </View>
-                        <View style={styles.questBarBg}>
-                            <Animated.View style={[
-                                styles.questBarFill,
-                                {
-                                    width: today.total > 0 ? `${(today.taken / today.total) * 100}%` : '0%',
-                                    backgroundColor: today.completed ? C.success : C.primary,
-                                },
-                            ]} />
-                        </View>
-                    </View>
-                </Animated.View>
-
-                {/* ── 3. Hero Adherence Ring ── */}
-                <Animated.View style={anim(2)}>
-                    <View style={styles.ringCard}>
-                        <View style={styles.ringRow}>
-                            <View style={styles.ringWrap}>
-                                <CircularProgress progress={score.monthly} size={150} strokeWidth={14} />
-                                <View style={styles.ringCenter}>
-                                    <AnimatedNumber value={score.monthly} style={styles.ringPercent} />
-                                    <Text style={styles.ringLabel}>Monthly</Text>
+                                <View style={styles.heroProgressBg}>
+                                    <Animated.View style={[
+                                        styles.heroProgressFill,
+                                        {
+                                            width: today.total > 0 ? `${Math.min(100, (today.taken / today.total) * 100)}%` : '0%',
+                                            backgroundColor: today.completed ? '#10B981' : '#818CF8',
+                                        },
+                                    ]} />
                                 </View>
                             </View>
-                            <View style={styles.ringStats}>
-                                <View style={styles.ringStatItem}>
-                                    <Text style={styles.ringStatLabel}>This Week</Text>
-                                    <AnimatedNumber value={score.weekly} style={styles.ringStatValue} />
-                                </View>
-                                <View style={[styles.ringStatDivider]} />
-                                <View style={styles.ringStatItem}>
-                                    <Text style={styles.ringStatLabel}>Momentum</Text>
-                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                                        <MomentumIcon size={16} color={momentumColor} />
-                                        <Text style={[styles.ringStatValue, { color: momentumColor, fontSize: 16 }]}>{momentumLabel}</Text>
-                                    </View>
-                                </View>
-                            </View>
-                        </View>
-                    </View>
-                </Animated.View>
+                        </LinearGradient>
+                    </Animated.View>
 
-                {/* ── 4. Weekly Performance Spline Chart ── */}
-                <Animated.View style={anim(3)}>
-                    <View style={[styles.weeklyCard, styles.glassCard]}>
-                        <Text style={styles.sectionTitle}>7-DAY ADHERENCE TREND</Text>
-                        
-                        <View style={{ alignItems: 'center', marginLeft: -20, marginTop: 10, marginBottom: 20 }}>
-                            <LineChart
-                                data={{
-                                    labels: weeklyTrend.length > 0 ? weeklyTrend.map(d => d.day) : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-                                    datasets: [{ data: weeklyTrend.length > 0 ? weeklyTrend.map(d => Math.max(d.rate, 1)) : [1, 1, 1, 1, 1, 1, 1] }]
-                                }}
-                                width={SCREEN_WIDTH - 40}
-                                height={180}
-                                chartConfig={{
-                                    backgroundColor: 'transparent',
-                                    backgroundGradientFrom: '#FFFFFF',
-                                    backgroundGradientFromOpacity: 0,
-                                    backgroundGradientTo: '#FFFFFF',
-                                    backgroundGradientToOpacity: 0,
-                                    decimalPlaces: 0,
-                                    color: (opacity = 1) => `rgba(59, 130, 246, ${opacity})`,
-                                    labelColor: (opacity = 1) => `rgba(100, 116, 139, ${opacity})`,
-                                    style: { borderRadius: 16 },
-                                    propsForDots: { r: '5', strokeWidth: '2', stroke: '#3B82F6', fill: '#FFF' },
-                                    propsForBackgroundLines: { strokeDasharray: '', strokeWidth: 1, stroke: 'rgba(226, 232, 240, 0.5)' }
-                                }}
-                                bezier
-                                style={{ marginVertical: 8, borderRadius: 16 }}
-                                withInnerLines={true}
-                                withOuterLines={false}
-                                withVerticalLines={false}
-                            />
-                        </View>
-
-                        <View style={styles.weeklyStatsRow}>
-                            <View style={styles.weeklyStatInline}>
-                                <View style={[styles.weeklyStatDot, { backgroundColor: C.success }]} />
-                                <Text style={styles.weeklyStatNum}>{weeklySummary.taken}</Text>
-                                <Text style={styles.weeklyStatLabel}>Taken</Text>
-                            </View>
-                            <View style={styles.weeklyStatDivider} />
-                            <View style={styles.weeklyStatInline}>
-                                <View style={[styles.weeklyStatDot, { backgroundColor: C.danger }]} />
-                                <Text style={styles.weeklyStatNum}>{weeklySummary.missed}</Text>
-                                <Text style={styles.weeklyStatLabel}>Missed</Text>
-                            </View>
-                            <View style={styles.weeklyStatDivider} />
-                            <View style={styles.weeklyStatInline}>
-                                <MomentumIcon size={16} color={weeklySummary.improvement >= 0 ? C.success : C.danger} />
-                                <Text style={[styles.weeklyStatNum, { color: weeklySummary.improvement >= 0 ? C.success : C.danger }]}>
-                                    {weeklySummary.improvement >= 0 ? '+' : ''}{weeklySummary.improvement}%
-                                </Text>
-                                <Text style={styles.weeklyStatLabel}>vs Last</Text>
-                            </View>
-                        </View>
-                        
-                        {/* Vitals Adherence Mini-Bar */}
-                        <View style={styles.vitalsAdherenceRow}>
-                            <View style={styles.vitalsAdherenceHeader}>
-                                <Heart size={14} color={C.danger} />
-                                <Text style={styles.vitalsAdherenceLabel}>Vitals Logging</Text>
-                                <Text style={styles.vitalsAdherenceValue}>{vitalsAdherence}%</Text>
-                            </View>
-                            <View style={styles.questBarBg}>
-                                <View style={[styles.questBarFill, { width: `${vitalsAdherence}%`, backgroundColor: vitalsAdherence >= 70 ? C.success : vitalsAdherence >= 40 ? C.warning : C.danger }]} />
-                            </View>
-                        </View>
-                        
-                    </View>
-                </Animated.View>
-
-                {/* ── 5. Calendar Heatmap ── */}
-                <Animated.View style={anim(4)}>
-                    <View style={styles.calendarCard}>
-                        <View style={styles.calendarHeaderRow}>
-                            <CalIcon size={18} color={C.primary} />
-                            <Text style={styles.sectionTitle}>{format(new Date(), 'MMMM yyyy').toUpperCase()}</Text>
-                        </View>
-
-                        <View style={styles.weekDaysRow}>
-                            {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, i) => (
-                                <Text key={`wd-${i}`} style={styles.weekDayLabel}>{d}</Text>
-                            ))}
-                        </View>
-
-                        <View style={styles.calendarGrid}>
-                            {calendarDays.map((date, idx) => {
-                                const dateStr = format(date, 'yyyy-MM-dd');
-                                const entry = dailyLogMap[dateStr];
-                                return (
-                                    <CalendarDay
-                                        key={idx}
-                                        date={date}
-                                        status={entry?.status}
-                                        rate={entry?.rate}
-                                        isCurrentMonth={isSameMonth(date, new Date())}
-                                        onPress={() => {
-                                            // Always allow selection — create synthetic entry for empty days
-                                            const dayEntry = entry || {
-                                                date: dateStr,
-                                                status: 'none',
-                                                rate: 0,
-                                                medicines: [],
-                                                vitals: null,
-                                            };
-                                            setSelectedDay(dayEntry);
-                                        }}
-                                    />
-                                );
-                            })}
-                        </View>
-
-                        {/* Calendar Legend */}
-                        <View style={styles.legendRow}>
-                            {[
-                                { label: 'Complete', color: C.success },
-                                { label: 'Partial', color: C.warning },
-                                { label: 'Missed', color: C.danger },
-                                { label: 'No Data', color: '#E2E8F0' },
-                            ].map((item) => (
-                                <View key={item.label} style={styles.legendItem}>
-                                    <View style={[styles.legendDot, { backgroundColor: item.color }]} />
-                                    <Text style={styles.legendText}>{item.label}</Text>
-                                </View>
-                            ))}
-                        </View>
-
-                    </View>
-                </Animated.View>
-
-                {/* ── 6. Achievements ── */}
-                <Animated.View style={anim(5)}>
-                    <View style={styles.achievementsSection}>
-                        <View style={styles.achievementsHeader}>
-                            <Award size={18} color={C.purple} />
-                            <Text style={styles.sectionTitle}>ACHIEVEMENTS</Text>
-                        </View>
-                        <View style={styles.achievementsGrid}>
-                            {achievements.map((achievement, idx) => (
-                                <AchievementBadge key={achievement.key} achievement={achievement} index={idx} />
-                            ))}
-                        </View>
-                    </View>
-                </Animated.View>
-
-                {/* ── Bottom Spacer ── */}
-                <View style={{ height: 120 }} />
-            </ScrollView>
-        </SafeAreaView>
-
-        {/* ── Recap Story Modal ── */}
-        <RecapStoryModal
-            visible={showStoryModal}
-            onClose={() => setShowStoryModal(false)}
-            recap={adherenceRecap}
-            period={activeRecapTab}
-        />
-
-        {/* ── Seamless Slide-Up Modal Date Details ── */}
-        <Modal
-            visible={!!selectedDay}
-            animationType="slide"
-            transparent={true}
-            onRequestClose={() => setSelectedDay(null)}
-        >
-            <View style={styles.modalOverlay}>
-                <Pressable style={styles.modalBackdrop} onPress={() => setSelectedDay(null)} />
-                <View style={styles.dayDetail}>
-                    <View style={styles.modalDragHandleContainer}>
-                        <View style={styles.modalDragHandle} />
-                    </View>
-                    
-                    {selectedDay && (
-                        <>
-                            <View style={styles.dayDetailHeader}>
-                                <Text style={styles.dayDetailDate}>{format(parseISO(selectedDay.date), 'EEEE, MMMM do yyyy')}</Text>
-                                <View style={[styles.dayDetailBadge, { backgroundColor: STATUS_COLORS[selectedDay.status] + '20' }]}>
-                                    <Text style={[styles.dayDetailBadgeText, { color: STATUS_COLORS[selectedDay.status] }]}>
-                                        {selectedDay.rate}% Adherence
+                    {/* ── [1] Streak Banner ── */}
+                    <Animated.View style={anim(1)}>
+                        <LinearGradient
+                            colors={streak >= 7 ? ['#F97316', '#EF4444'] : streak >= 3 ? ['#F59E0B', '#F97316'] : ['#64748B', '#475569']}
+                            start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                            style={styles.streakCard}
+                        >
+                            <View style={styles.streakLeft}>
+                                <Flame size={36} color="#FFF" fill={streak > 0 ? '#FFF' : 'transparent'} />
+                                <View>
+                                    <Text style={styles.streakNum}>{streak} Day Streak</Text>
+                                    <Text style={styles.streakSub}>
+                                        {streak >= 7 ? "You're on fire! Keep it up 🔥" :
+                                            streak >= 3 ? 'Building momentum! 💪' :
+                                                streak > 0 ? 'Great start! Keep going 🌱' :
+                                                    'Take your meds to start your streak'}
                                     </Text>
                                 </View>
                             </View>
-                            
-                            {selectedDay.medicines && selectedDay.medicines.length > 0 ? (
-                                <View style={styles.dayDetailMeds}>
-                                    <Text style={styles.dayDetailSectionTitle}>Medications</Text>
-                                    {selectedDay.medicines.map((med, idx) => (
-                                        <View key={idx} style={styles.dayDetailMedRow}>
-                                            {med.taken ? <CheckCircle2 size={16} color={C.success} /> : <X size={16} color={C.danger} />}
-                                            <Text style={[styles.dayDetailMedName, med.taken ? { color: C.dark } : { color: C.muted, textDecorationLine: 'line-through' }]}>
-                                                {med.name} <Text style={{ color: C.light, fontSize: 11 }}>({med.time})</Text>
-                                            </Text>
+                            {streak > 0 && (
+                                <View style={styles.streakBadge}>
+                                    <Text style={styles.streakBadgeNum}>{streak}</Text>
+                                    <Text style={styles.streakBadgeLabel}>DAYS</Text>
+                                </View>
+                            )}
+                        </LinearGradient>
+                    </Animated.View>
+
+                    {/* ── [2] Recap Stats ── */}
+                    {adherenceRecap && (
+                        <Animated.View style={anim(2)}>
+                            <View style={styles.card}>
+                                <View style={styles.cardHeaderRow}>
+                                    <Text style={styles.cardTitle}>
+                                        {activeRecapTab === 'yearly' && adherenceRecap.is_all_time_fallback
+                                            ? 'ALL TIME RECAP'
+                                            : `${RECAP_LABELS[activeRecapTab].toUpperCase()} RECAP`}
+                                    </Text>
+                                    <View style={[styles.levelPill, { backgroundColor: (adherenceRecap.level?.key === 'optimal' ? C.success : adherenceRecap.level?.key === 'consistent' ? C.primary : C.warning) + '18' }]}>
+                                        <Text style={{ fontSize: 12 }}>{adherenceRecap.level?.emoji || '🌱'}</Text>
+                                        <Text style={[styles.levelPillText, {
+                                            color: adherenceRecap.level?.key === 'optimal' ? C.success :
+                                                adherenceRecap.level?.key === 'consistent' ? C.primary : C.warning
+                                        }]}>{adherenceRecap.level?.label || 'Beginner'}</Text>
+                                    </View>
+                                </View>
+
+                                <View style={styles.recapStatsRow}>
+                                    {[
+                                        { label: 'Adherence', value: `${adherenceRecap.adherence_rate || 0}%`, color: C.primary, grad: ['#4361EE', '#818CF8'] },
+                                        { label: 'Perfect Days', value: adherenceRecap.perfect_days || 0, color: C.success, grad: ['#10B981', '#34D399'] },
+                                        { label: 'Doses Taken', value: adherenceRecap.total_doses_taken || 0, color: C.purple, grad: ['#7C3AED', '#A78BFA'] },
+                                    ].map((item, i) => (
+                                        <View key={i} style={styles.recapStatItem}>
+                                            <LinearGradient colors={item.grad} style={styles.recapStatIconBg} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+                                                <Text style={{ fontSize: 18, fontWeight: '900', color: '#FFF' }}>{item.value}</Text>
+                                            </LinearGradient>
+                                            <Text style={styles.recapStatLabel}>{item.label}</Text>
                                         </View>
                                     ))}
                                 </View>
-                            ) : (
-                                <Text style={styles.dayDetailEmpty}>No medications scheduled for this day.</Text>
-                            )}
-                            
-                            {selectedDay.vitals && (
-                                <View style={styles.dayDetailVitals}>
-                                    <Text style={styles.dayDetailSectionTitle}>Vitals Logged</Text>
-                                    <Text style={styles.dayDetailVitalText}>
-                                        {selectedDay.vitals.heart_rate ? `💓 ${selectedDay.vitals.heart_rate} bpm   ` : ''}
-                                        {selectedDay.vitals.systolic ? `🩸 ${selectedDay.vitals.systolic}/${selectedDay.vitals.diastolic}   ` : ''}
-                                        {selectedDay.vitals.oxygen_saturation ? `💨 ${selectedDay.vitals.oxygen_saturation}%   ` : ''}
-                                        {selectedDay.vitals.hydration ? `💧 ${selectedDay.vitals.hydration}%` : ''}
+
+                                {adherenceRecap.improvement_vs_previous !== 0 && (
+                                    <View style={styles.improvementRow}>
+                                        {adherenceRecap.improvement_vs_previous > 0
+                                            ? <TrendingUp size={13} color={C.success} />
+                                            : <TrendingDown size={13} color={C.danger} />}
+                                        <Text style={[styles.improvementText, { color: adherenceRecap.improvement_vs_previous > 0 ? C.success : C.danger }]}>
+                                            {adherenceRecap.improvement_vs_previous > 0 ? '+' : ''}{adherenceRecap.improvement_vs_previous}% vs previous {activeRecapTab === 'yearly' ? 'year' : activeRecapTab === 'monthly' ? 'month' : 'week'}
+                                        </Text>
+                                    </View>
+                                )}
+                            </View>
+                        </Animated.View>
+                    )}
+
+                    {/* ── [3] Feedback + Insights ── */}
+                    <Animated.View style={anim(3)}>
+                        <View style={[styles.feedbackBanner, { backgroundColor: feedback.color + '12', borderColor: feedback.color + '30' }]}>
+                            <Heart size={16} color={feedback.color} fill={feedback.color + '40'} />
+                            <Text style={[styles.feedbackText, { color: feedback.color }]}>{feedback.text}</Text>
+                        </View>
+
+                        {insights.length > 0 && (
+                            <View style={{ gap: 10, marginBottom: 20 }}>
+                                {insights.map((insight, idx) => (
+                                    <View key={idx} style={styles.insightCard}>
+                                        <View style={styles.insightLeft}>
+                                            <View style={styles.insightIconBox}>
+                                                <Sparkles size={14} color={C.purple} />
+                                            </View>
+                                            <Text style={styles.insightText}>{insight}</Text>
+                                        </View>
+                                        {insight.includes('afternoon') && (
+                                            <Pressable
+                                                style={styles.reminderBtn}
+                                                onPress={() => Alert.alert('Set Reminder', 'Afternoon medication reminder will be added to your notifications.', [{ text: 'OK' }])}
+                                            >
+                                                <Text style={styles.reminderBtnText}>Set Reminder</Text>
+                                            </Pressable>
+                                        )}
+                                    </View>
+                                ))}
+                            </View>
+                        )}
+                    </Animated.View>
+
+                    {/* ── [4] 7-Day Trend ── */}
+                    <Animated.View style={anim(4)}>
+                        <View style={styles.card}>
+                            <Text style={styles.cardTitle}>7-DAY ADHERENCE TREND</Text>
+
+                            <View style={{ alignItems: 'center', marginHorizontal: -8, marginTop: 4, marginBottom: 16 }}>
+                                <LineChart
+                                    data={{
+                                        labels: weeklyTrend.length > 0 ? weeklyTrend.map(d => d.day) : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                                        datasets: [{ data: weeklyTrend.length > 0 ? weeklyTrend.map(d => Math.max(d.rate, 1)) : [1, 1, 1, 1, 1, 1, 1] }],
+                                    }}
+                                    width={SCREEN_WIDTH - 48}
+                                    height={170}
+                                    chartConfig={{
+                                        backgroundColor: 'transparent',
+                                        backgroundGradientFrom: '#FFFFFF',
+                                        backgroundGradientFromOpacity: 0,
+                                        backgroundGradientTo: '#FFFFFF',
+                                        backgroundGradientToOpacity: 0,
+                                        decimalPlaces: 0,
+                                        color: (opacity = 1) => `rgba(67, 97, 238, ${opacity})`,
+                                        labelColor: (opacity = 1) => `rgba(100, 116, 139, ${opacity})`,
+                                        propsForDots: { r: '5', strokeWidth: '2', stroke: '#4361EE', fill: '#EEF2FF' },
+                                        propsForBackgroundLines: { strokeDasharray: '4', strokeWidth: 1, stroke: 'rgba(226, 232, 240, 0.8)' },
+                                    }}
+                                    bezier
+                                    style={{ borderRadius: 16 }}
+                                    withInnerLines
+                                    withOuterLines={false}
+                                    withVerticalLines={false}
+                                />
+                            </View>
+
+                            <View style={styles.trendStatsRow}>
+                                <View style={styles.trendStatItem}>
+                                    <View style={[styles.trendDot, { backgroundColor: C.success }]} />
+                                    <Text style={styles.trendStatNum}>{weeklySummary.taken}</Text>
+                                    <Text style={styles.trendStatLabel}>Taken</Text>
+                                </View>
+                                <View style={styles.trendDivider} />
+                                <View style={styles.trendStatItem}>
+                                    <View style={[styles.trendDot, { backgroundColor: C.danger }]} />
+                                    <Text style={styles.trendStatNum}>{weeklySummary.missed}</Text>
+                                    <Text style={styles.trendStatLabel}>Missed</Text>
+                                </View>
+                                <View style={styles.trendDivider} />
+                                <View style={styles.trendStatItem}>
+                                    <MomentumIcon size={14} color={weeklySummary.improvement >= 0 ? C.success : C.danger} />
+                                    <Text style={[styles.trendStatNum, { color: weeklySummary.improvement >= 0 ? C.success : C.danger }]}>
+                                        {weeklySummary.improvement >= 0 ? '+' : ''}{weeklySummary.improvement}%
+                                    </Text>
+                                    <Text style={styles.trendStatLabel}>vs Last</Text>
+                                </View>
+                            </View>
+
+                            {/* Vitals adherence row */}
+                            <View style={styles.vitalsRow}>
+                                <View style={styles.vitalsHeader}>
+                                    <Heart size={14} color={C.danger} />
+                                    <Text style={styles.vitalsLabel}>Vitals Logging</Text>
+                                    <Text style={[styles.vitalsValue, { color: vitalsAdherence >= 70 ? C.success : vitalsAdherence >= 40 ? C.warning : C.danger }]}>
+                                        {vitalsAdherence}%
                                     </Text>
                                 </View>
-                            )}
-                        </>
-                    )}
-                </View>
-            </View>
-        </Modal>
+                                <View style={styles.vitalsBarBg}>
+                                    <View style={[styles.vitalsBarFill, {
+                                        width: `${vitalsAdherence}%`,
+                                        backgroundColor: vitalsAdherence >= 70 ? C.success : vitalsAdherence >= 40 ? C.warning : C.danger,
+                                    }]} />
+                                </View>
+                            </View>
+                        </View>
+                    </Animated.View>
 
+                    {/* ── [5] Calendar Heatmap ── */}
+                    <Animated.View style={anim(5)}>
+                        <View style={styles.card}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+                                <View style={[styles.cardIconBox, { backgroundColor: C.primarySoft }]}>
+                                    <CalIcon size={15} color={C.primary} />
+                                </View>
+                                <Text style={styles.cardTitle}>{format(new Date(), 'MMMM yyyy').toUpperCase()}</Text>
+                            </View>
+
+                            <View style={styles.weekDaysRow}>
+                                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d, i) => (
+                                    <Text key={i} style={styles.weekDayLabel}>{d.charAt(0)}</Text>
+                                ))}
+                            </View>
+
+                            <View style={styles.calendarGrid}>
+                                {calendarDays.map((date, idx) => {
+                                    const dateStr = format(date, 'yyyy-MM-dd');
+                                    const entry = dailyLogMap[dateStr];
+                                    return (
+                                        <CalendarDay
+                                            key={idx}
+                                            date={date}
+                                            status={entry?.status}
+                                            isCurrentMonth={isSameMonth(date, new Date())}
+                                            onPress={() => setSelectedDay(entry || {
+                                                date: dateStr, status: 'none', rate: 0, medicines: [], vitals: null,
+                                            })}
+                                        />
+                                    );
+                                })}
+                            </View>
+
+                            <View style={styles.legendRow}>
+                                {[
+                                    { label: 'Complete', color: C.success },
+                                    { label: 'Partial', color: C.warning },
+                                    { label: 'Missed', color: C.danger },
+                                    { label: 'No Data', color: '#CBD5E1' },
+                                ].map((item) => (
+                                    <View key={item.label} style={styles.legendItem}>
+                                        <View style={[styles.legendDot, { backgroundColor: item.color }]} />
+                                        <Text style={styles.legendText}>{item.label}</Text>
+                                    </View>
+                                ))}
+                            </View>
+                        </View>
+                    </Animated.View>
+
+                    {/* ── [6] Achievements ── */}
+                    <Animated.View style={anim(6)}>
+                        <View style={styles.achievementsSection}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+                                <LinearGradient colors={['#7C3AED', '#4361EE']} style={styles.cardIconBox} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+                                    <Award size={15} color="#FFF" />
+                                </LinearGradient>
+                                <Text style={styles.cardTitle}>ACHIEVEMENTS</Text>
+                                <View style={{ marginLeft: 'auto', backgroundColor: C.purpleBg, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10 }}>
+                                    <Text style={{ fontSize: 11, fontWeight: '700', color: C.purple }}>
+                                        {achievements.filter(a => a.unlocked).length}/{achievements.length}
+                                    </Text>
+                                </View>
+                            </View>
+                            <View style={styles.achievementsGrid}>
+                                {achievements.map((achievement, idx) => (
+                                    <AchievementBadge key={achievement.key} achievement={achievement} index={idx} />
+                                ))}
+                            </View>
+                        </View>
+                    </Animated.View>
+
+                    <View style={{ height: 100 }} />
+                </ScrollView>
+            </SafeAreaView>
+
+            {/* ── Recap Story Modal ── */}
+            <RecapStoryModal
+                visible={showStoryModal}
+                onClose={() => setShowStoryModal(false)}
+                recap={adherenceRecap}
+                period={activeRecapTab}
+            />
+
+            {/* ── Day Detail Bottom Sheet ── */}
+            <Modal
+                visible={!!selectedDay}
+                animationType="slide"
+                transparent
+                onRequestClose={() => setSelectedDay(null)}
+            >
+                <View style={styles.modalOverlay}>
+                    <Pressable style={styles.modalBackdrop} onPress={() => setSelectedDay(null)} />
+                    <View style={styles.bottomSheet}>
+                        <View style={styles.sheetHandle} />
+                        {selectedDay && (
+                            <>
+                                <View style={styles.sheetHeader}>
+                                    <View>
+                                        <Text style={styles.sheetDate}>{format(parseISO(selectedDay.date), 'EEEE, MMMM do')}</Text>
+                                        <Text style={styles.sheetYear}>{format(parseISO(selectedDay.date), 'yyyy')}</Text>
+                                    </View>
+                                    <View style={[styles.sheetBadge, { backgroundColor: STATUS_COLORS[selectedDay.status] + '22' }]}>
+                                        <Text style={[styles.sheetBadgeText, { color: STATUS_COLORS[selectedDay.status] }]}>
+                                            {selectedDay.rate}% adherence
+                                        </Text>
+                                    </View>
+                                </View>
+
+                                {selectedDay.medicines && selectedDay.medicines.length > 0 ? (
+                                    <View style={{ marginBottom: 16 }}>
+                                        <Text style={styles.sheetSectionLabel}>MEDICATIONS</Text>
+                                        {selectedDay.medicines.map((med, idx) => (
+                                            <View key={idx} style={styles.sheetMedRow}>
+                                                <View style={[styles.sheetMedIcon, { backgroundColor: med.taken ? C.successBg : C.dangerBg }]}>
+                                                    {med.taken
+                                                        ? <CheckCircle2 size={14} color={C.success} />
+                                                        : <X size={14} color={C.danger} />}
+                                                </View>
+                                                <View style={{ flex: 1 }}>
+                                                    <Text style={[styles.sheetMedName, !med.taken && { textDecorationLine: 'line-through', color: C.muted }]}>
+                                                        {med.name}
+                                                    </Text>
+                                                    <Text style={styles.sheetMedTime}>{med.time}</Text>
+                                                </View>
+                                            </View>
+                                        ))}
+                                    </View>
+                                ) : (
+                                    <Text style={styles.sheetEmpty}>No medications scheduled for this day.</Text>
+                                )}
+
+                                {selectedDay.vitals && (
+                                    <View style={styles.sheetVitals}>
+                                        <Text style={styles.sheetSectionLabel}>VITALS LOGGED</Text>
+                                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 8 }}>
+                                            {selectedDay.vitals.heart_rate && (
+                                                <View style={styles.sheetVitalChip}><Text style={styles.sheetVitalText}>💓 {selectedDay.vitals.heart_rate} bpm</Text></View>
+                                            )}
+                                            {selectedDay.vitals.systolic && (
+                                                <View style={styles.sheetVitalChip}><Text style={styles.sheetVitalText}>🩸 {selectedDay.vitals.systolic}/{selectedDay.vitals.diastolic}</Text></View>
+                                            )}
+                                            {selectedDay.vitals.oxygen_saturation && (
+                                                <View style={styles.sheetVitalChip}><Text style={styles.sheetVitalText}>💨 {selectedDay.vitals.oxygen_saturation}%</Text></View>
+                                            )}
+                                            {selectedDay.vitals.hydration && (
+                                                <View style={styles.sheetVitalChip}><Text style={styles.sheetVitalText}>💧 {selectedDay.vitals.hydration}%</Text></View>
+                                            )}
+                                        </View>
+                                    </View>
+                                )}
+                            </>
+                        )}
+                    </View>
+                </View>
+            </Modal>
         </View>
     );
 }
 
-// ════════════════════════════════════════════════════════════
-// ══ STYLES ═════════════════════════════════════════════════
-// ════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════
+// ══ STYLES ════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: 'transparent',
-    },
-    
-    // Glassmorphism Base
-    glassCard: {
-        backgroundColor: '#FFFFFF',
-        borderRadius: 24,
-        padding: 20,
-        marginBottom: 20,
-        borderWidth: 1,
-        borderColor: '#F1F5F9',
-        shadowColor: '#3B82F6',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.08,
-        shadowRadius: 24,
-        elevation: 8,
-    },
-
-    // ── Recap Tabs ──
-    recapTabsContainer: {
-        paddingHorizontal: 20,
-        paddingBottom: 8,
-    },
-    recapTabsInner: {
-        flexDirection: 'row',
-        backgroundColor: '#F1F5F9',
-        borderRadius: 14,
-        padding: 4,
-    },
-    recapTab: {
-        flex: 1,
-        paddingVertical: 10,
-        alignItems: 'center',
-        borderRadius: 12,
-    },
-    recapTabActive: {
-        backgroundColor: '#FFFFFF',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.08,
-        shadowRadius: 4,
-        elevation: 3,
-    },
-    recapTabText: {
-        fontSize: 14,
-        fontWeight: '700',
-        color: '#94A3B8',
-    },
-    recapTabTextActive: {
-        color: '#0F172A',
-    },
-
     // ── Header ──
     header: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 16,
+        paddingHorizontal: 20,
         paddingTop: Platform.OS === 'android' ? 44 : 8,
-        paddingBottom: 16,
-        backgroundColor: 'transparent',
+        paddingBottom: 14,
     },
     backBtn: {
-        width: 40,
-        height: 40,
-        borderRadius: 12,
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: C.bg,
+        width: 42, height: 42, borderRadius: 14,
+        alignItems: 'center', justifyContent: 'center',
+        backgroundColor: '#FFFFFF',
+        shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.06, shadowRadius: 6, elevation: 3,
     },
-    headerCenter: { flex: 1, marginLeft: 10 },
-    headerTitle: { fontSize: 20, fontWeight: '700', color: C.dark, letterSpacing: -0.3 },
-    levelPill: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 4,
-        paddingHorizontal: 10,
-        paddingVertical: 6,
-        borderRadius: 20,
-        borderWidth: 1,
+    headerTitle: { fontSize: 20, fontWeight: '800', color: C.dark, letterSpacing: -0.4 },
+    headerSub: { fontSize: 12, color: C.muted, fontWeight: '500', marginTop: 1 },
+    shareBtn: {
+        flexDirection: 'row', alignItems: 'center', gap: 5,
+        paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20,
+        backgroundColor: C.primary,
+        shadowColor: C.primary, shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.35, shadowRadius: 10, elevation: 6,
     },
-    levelText: { fontSize: 12, fontWeight: '700' },
+    shareBtnText: { fontSize: 13, fontWeight: '700', color: '#FFF' },
 
-    // ── Scroll ──
-    scroll: { flex: 1 },
-    scrollContent: { padding: 20, paddingTop: 16, paddingBottom: 40 },
+    // ── Tabs ──
+    tabsContainer: { paddingHorizontal: 20, paddingBottom: 16 },
+    tabsInner: {
+        flexDirection: 'row', backgroundColor: '#E8EDF5',
+        borderRadius: 16, padding: 4, position: 'relative',
+    },
+    tabSlider: {
+        position: 'absolute', top: 4, left: 4,
+        height: 38, borderRadius: 12,
+        backgroundColor: '#FFFFFF',
+        shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1, shadowRadius: 6, elevation: 3,
+    },
+    tab: {
+        paddingVertical: 10, alignItems: 'center', zIndex: 1,
+    },
+    tabText: { fontSize: 14, fontWeight: '700', color: C.light },
+    tabTextActive: { color: C.dark },
+
+    scrollContent: { paddingHorizontal: 20, paddingTop: 4, paddingBottom: 40 },
+
+    // ── Hero Card ──
+    heroCard: {
+        borderRadius: 28, padding: 24,
+        marginBottom: 16, overflow: 'hidden',
+        shadowColor: '#312E81', shadowOffset: { width: 0, height: 12 },
+        shadowOpacity: 0.4, shadowRadius: 24, elevation: 12,
+    },
+    heroTopRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
+    heroRingWrap: { alignItems: 'center', justifyContent: 'center', position: 'relative' },
+    heroRingCenter: { position: 'absolute', alignItems: 'center' },
+    heroRingPercent: { fontSize: 34, fontWeight: '900', color: '#FFFFFF', letterSpacing: -1 },
+    heroRingLabel: { fontSize: 11, fontWeight: '600', color: 'rgba(255,255,255,0.6)', marginTop: -2 },
+    heroRightCol: { flex: 1, marginLeft: 20, gap: 0 },
+    heroStatBox: { paddingVertical: 10 },
+    heroStatLabel: { fontSize: 11, fontWeight: '600', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 4 },
+    heroStatValue: { fontSize: 18, fontWeight: '800', color: '#FFFFFF' },
+    heroStatDivider: { height: 1, backgroundColor: 'rgba(255,255,255,0.1)' },
+    heroProgressSection: {
+        borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.15)', paddingTop: 16,
+    },
+    heroProgressHeader: {
+        flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10,
+    },
+    heroProgressTitle: { flex: 1, fontSize: 12, fontWeight: '700', color: 'rgba(255,255,255,0.7)' },
+    heroProgressCount: { fontSize: 15, fontWeight: '800', color: '#FFFFFF' },
+    heroCompletedPill: {
+        flexDirection: 'row', alignItems: 'center', gap: 4,
+        backgroundColor: 'rgba(16,185,129,0.25)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10,
+    },
+    heroCompletedText: { fontSize: 11, fontWeight: '700', color: '#10B981' },
+    heroProgressBg: {
+        height: 7, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 4, overflow: 'hidden',
+    },
+    heroProgressFill: { height: '100%', borderRadius: 4 },
+
+    // ── Streak Card ──
+    streakCard: {
+        borderRadius: 22, paddingHorizontal: 20, paddingVertical: 18,
+        flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+        marginBottom: 16, overflow: 'hidden',
+        shadowColor: '#F97316', shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.3, shadowRadius: 14, elevation: 8,
+    },
+    streakLeft: { flexDirection: 'row', alignItems: 'center', gap: 14, flex: 1 },
+    streakNum: { fontSize: 20, fontWeight: '900', color: '#FFF', letterSpacing: -0.5 },
+    streakSub: { fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.75)', marginTop: 2 },
+    streakBadge: {
+        backgroundColor: 'rgba(255,255,255,0.25)', borderRadius: 16,
+        paddingHorizontal: 14, paddingVertical: 10, alignItems: 'center',
+    },
+    streakBadgeNum: { fontSize: 22, fontWeight: '900', color: '#FFF' },
+    streakBadgeLabel: { fontSize: 9, fontWeight: '800', color: 'rgba(255,255,255,0.8)', letterSpacing: 1 },
+
+    // ── Generic Card ──
+    card: {
+        backgroundColor: '#FFFFFF', borderRadius: 24,
+        padding: 20, marginBottom: 16,
+        borderWidth: 1, borderColor: C.border,
+        shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.05, shadowRadius: 14, elevation: 4,
+    },
+    cardHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 },
+    cardTitle: {
+        fontSize: 12, fontWeight: '800', color: C.light,
+        letterSpacing: 1.4, textTransform: 'uppercase',
+    },
+    cardIconBox: {
+        width: 30, height: 30, borderRadius: 10,
+        alignItems: 'center', justifyContent: 'center',
+    },
+    levelPill: {
+        flexDirection: 'row', alignItems: 'center', gap: 4,
+        paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20,
+    },
+    levelPillText: { fontSize: 12, fontWeight: '700' },
+
+    // ── Recap Stats ──
+    recapStatsRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 10 },
+    recapStatItem: { flex: 1, alignItems: 'center', gap: 8 },
+    recapStatIconBg: {
+        width: '100%', paddingVertical: 14, borderRadius: 16,
+        alignItems: 'center', justifyContent: 'center',
+    },
+    recapStatLabel: { fontSize: 11, fontWeight: '700', color: C.muted, textAlign: 'center' },
+    improvementRow: {
+        flexDirection: 'row', alignItems: 'center', gap: 5,
+        justifyContent: 'center', marginTop: 14,
+        paddingTop: 14, borderTopWidth: 1, borderTopColor: C.border,
+    },
+    improvementText: { fontSize: 13, fontWeight: '700' },
 
     // ── Feedback Banner ──
     feedbackBanner: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 10,
-        padding: 14,
-        borderRadius: 16,
-        borderWidth: 1,
-        marginBottom: 16,
+        flexDirection: 'row', alignItems: 'center', gap: 10,
+        padding: 14, borderRadius: 16, borderWidth: 1, marginBottom: 16,
     },
     feedbackText: { flex: 1, fontSize: 14, fontWeight: '600', lineHeight: 20 },
 
-    // ── Quest Card ──
-    questCard: {
-        backgroundColor: '#FFFFFF',
-        borderRadius: 24,
-        padding: 24,
-        marginBottom: 20,
-        borderWidth: 1,
-        borderColor: '#F1F5F9',
-        shadowColor: '#0F172A',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.04,
-        shadowRadius: 16,
-        elevation: 3,
+    // ── Insight Card ──
+    insightCard: {
+        backgroundColor: '#FFFFFF', borderRadius: 18,
+        padding: 14, borderWidth: 1, borderColor: C.border,
+        shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.04, shadowRadius: 8, elevation: 2,
     },
-    questHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 },
-    questIconBox: {
-        width: 32, height: 32, borderRadius: 10,
-        backgroundColor: C.primarySoft, alignItems: 'center', justifyContent: 'center',
+    insightLeft: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+    insightIconBox: {
+        width: 28, height: 28, borderRadius: 9,
+        backgroundColor: C.purpleBg, alignItems: 'center', justifyContent: 'center',
     },
-    questTitle: { flex: 1, fontSize: 15, fontWeight: '700', color: C.dark },
-    completedPill: {
-        flexDirection: 'row', alignItems: 'center', gap: 4,
-        backgroundColor: C.successBg, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12,
+    insightText: { flex: 1, fontSize: 13, fontWeight: '600', color: C.dark, lineHeight: 20 },
+    reminderBtn: {
+        marginTop: 10, backgroundColor: C.primarySoft,
+        paddingHorizontal: 14, paddingVertical: 7, borderRadius: 10,
+        borderWidth: 1, borderColor: '#C7D2FE', alignSelf: 'flex-start',
     },
-    completedText: { fontSize: 11, fontWeight: '700', color: C.success },
-    questProgressRow: { flexDirection: 'row', alignItems: 'baseline', marginBottom: 10 },
-    questCount: { fontSize: 36, fontWeight: '800', color: C.dark, letterSpacing: -1 },
-    questTotal: { fontSize: 16, fontWeight: '500', color: C.muted, marginLeft: 4 },
-    questBarBg: {
-        height: 8, backgroundColor: '#F1F5F9', borderRadius: 4, overflow: 'hidden',
-    },
-    questBarFill: {
-        height: '100%', borderRadius: 4,
-    },
+    reminderBtnText: { fontSize: 12, fontWeight: '700', color: C.primary },
 
-    // ── Ring Card ──
-    ringCard: {
-        backgroundColor: '#FFFFFF',
-        borderRadius: 24,
-        padding: 24,
-        marginBottom: 20,
-        borderWidth: 1,
-        borderColor: '#F1F5F9',
-        shadowColor: '#0F172A',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.04,
-        shadowRadius: 16,
-        elevation: 3,
-    },
-    ringRow: { flexDirection: 'row', alignItems: 'center' },
-    ringWrap: { alignItems: 'center', justifyContent: 'center', position: 'relative' },
-    ringCenter: { position: 'absolute', alignItems: 'center' },
-    ringPercent: { fontSize: 36, fontWeight: '800', color: C.dark, letterSpacing: -1 },
-    ringLabel: { fontSize: 12, fontWeight: '600', color: C.muted, marginTop: -2 },
-    ringStats: { flex: 1, marginLeft: 24, gap: 16 },
-    ringStatItem: {},
-    ringStatLabel: { fontSize: 12, fontWeight: '600', color: C.muted, marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 },
-    ringStatValue: { fontSize: 20, fontWeight: '800', color: C.dark },
-    ringStatDivider: { height: 1, backgroundColor: C.border },
-
-    // ── Weekly Card ──
-    weeklyCard: {
-        backgroundColor: '#FFFFFF',
-        borderRadius: 24,
-        padding: 24,
-        marginBottom: 20,
-        borderWidth: 1,
-        borderColor: '#F1F5F9',
-        shadowColor: '#0F172A',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.04,
-        shadowRadius: 16,
-        elevation: 3,
-    },
-    sectionTitle: {
-        fontSize: 13, fontWeight: '800', color: C.light,
-        letterSpacing: 1.2, marginBottom: 16,
-    },
-    weeklyStatsRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-    weeklyStatInline: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
-    weeklyStatDot: { width: 8, height: 8, borderRadius: 4 },
-    weeklyStatDivider: { width: 1, height: 32, backgroundColor: C.border },
-    weeklyStatNum: { fontSize: 20, fontWeight: '800', color: C.dark },
-    weeklyStatLabel: { fontSize: 11, fontWeight: '600', color: C.muted },
+    // ── Trend Stats ──
+    trendStatsRow: { flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center' },
+    trendStatItem: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
+    trendDot: { width: 8, height: 8, borderRadius: 4 },
+    trendStatNum: { fontSize: 20, fontWeight: '800', color: C.dark },
+    trendStatLabel: { fontSize: 11, fontWeight: '600', color: C.muted },
+    trendDivider: { width: 1, height: 32, backgroundColor: C.border },
 
     // ── Vitals Adherence ──
-    vitalsAdherenceRow: { marginTop: 20 },
-    vitalsAdherenceHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 6 },
-    vitalsAdherenceLabel: { flex: 1, fontSize: 13, fontWeight: '700', color: C.muted },
-    vitalsAdherenceValue: { fontSize: 14, fontWeight: '800', color: C.dark },
+    vitalsRow: { marginTop: 18, paddingTop: 16, borderTopWidth: 1, borderTopColor: C.border },
+    vitalsHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
+    vitalsLabel: { flex: 1, fontSize: 13, fontWeight: '700', color: C.dark },
+    vitalsValue: { fontSize: 14, fontWeight: '800' },
+    vitalsBarBg: { height: 8, backgroundColor: '#F1F5F9', borderRadius: 4, overflow: 'hidden' },
+    vitalsBarFill: { height: '100%', borderRadius: 4 },
 
     // ── Calendar ──
-    calendarCard: {
-        backgroundColor: '#FFFFFF',
-        borderRadius: 24,
-        padding: 24,
-        marginBottom: 20,
-        borderWidth: 1,
-        borderColor: '#F1F5F9',
-        shadowColor: '#0F172A',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.04,
-        shadowRadius: 16,
-        elevation: 3,
-    },
-    calendarHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 },
-    weekDaysRow: {
-        flexDirection: 'row', marginBottom: 8, paddingHorizontal: 2,
-    },
+    weekDaysRow: { flexDirection: 'row', marginBottom: 6 },
     weekDayLabel: {
         width: `${100 / 7}%`, textAlign: 'center',
-        fontSize: 12, fontWeight: '700', color: C.light,
+        fontSize: 11, fontWeight: '800', color: C.light, letterSpacing: 0.5,
     },
-    calendarGrid: {
-        flexDirection: 'row', flexWrap: 'wrap',
-    },
+    calendarGrid: { flexDirection: 'row', flexWrap: 'wrap' },
     dayCell: {
-        flex: 1, borderRadius: 20,
+        flex: 1, borderRadius: 22,
         alignItems: 'center', justifyContent: 'center',
-        backgroundColor: 'transparent',
     },
     dayText: { fontSize: 13, fontWeight: '600', color: C.mid },
     legendRow: {
-        flexDirection: 'row', justifyContent: 'center', gap: 16, marginTop: 16, paddingTop: 12,
-        borderTopWidth: 1, borderTopColor: C.border,
+        flexDirection: 'row', justifyContent: 'center', gap: 14,
+        marginTop: 14, paddingTop: 12, borderTopWidth: 1, borderTopColor: C.border,
     },
-    legendItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+    legendItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
     legendDot: { width: 8, height: 8, borderRadius: 4 },
     legendText: { fontSize: 11, fontWeight: '600', color: C.light },
-    
-    // ── Modal Bottom Sheet ──
-    modalOverlay: { flex: 1, justifyContent: 'flex-end' },
-    modalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(15, 23, 42, 0.4)' },
-    modalDragHandleContainer: { alignItems: 'center', marginBottom: 20 },
-    modalDragHandle: { width: 40, height: 5, borderRadius: 3, backgroundColor: '#CBD5E1' },
-    
-    dayDetail: {
-        padding: 24, paddingBottom: Platform.OS === 'ios' ? 40 : 24, backgroundColor: '#FFFFFF',
-        borderTopLeftRadius: 32, borderTopRightRadius: 32,
-        shadowColor: '#000', shadowOffset: { width: 0, height: -10 },
-        shadowOpacity: 0.1, shadowRadius: 20, elevation: 10,
-    },
-    dayDetailHeader: {
-        flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-        paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: C.border, marginBottom: 12,
-    },
-    dayDetailDate: { fontSize: 16, fontWeight: '700', color: C.dark },
-    dayDetailBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 },
-    dayDetailBadgeText: { fontSize: 11, fontWeight: '700' },
-    
-    dayDetailSectionTitle: { fontSize: 12, fontWeight: '700', color: C.light, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 },
-    dayDetailMeds: { marginBottom: 16 },
-    dayDetailMedRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
-    dayDetailMedName: { fontSize: 14, fontWeight: '600' },
-    dayDetailEmpty: { fontSize: 13, color: C.muted, fontStyle: 'italic', marginBottom: 16 },
-    
-    dayDetailVitals: { backgroundColor: '#F8FAFC', padding: 12, borderRadius: 12 },
-    dayDetailVitalText: { fontSize: 14, fontWeight: '500', color: C.mid, lineHeight: 22 },
-
-    // ── Vitals & Insights ──
-    insightsContainer: { marginTop: 16, gap: 12 },
-    insightRow: { flexDirection: 'column', alignItems: 'flex-start' },
-    insightText: { flex: 1, fontSize: 13, color: C.dark, fontWeight: '600', lineHeight: 20 },
-    
-    vitalsAdherenceRow: { marginTop: 24, paddingTop: 16, borderTopWidth: 1, borderTopColor: C.border },
-    vitalsAdherenceHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 },
-    vitalsAdherenceLabel: { flex: 1, fontSize: 13, fontWeight: '700', color: C.dark },
-    vitalsAdherenceValue: { fontSize: 14, fontWeight: '800', color: C.primary },
 
     // ── Achievements ──
-    achievementsSection: {
-        marginBottom: 16,
-    },
-    achievementsHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-    achievementsGrid: {
-        flexDirection: 'row', flexWrap: 'wrap', gap: 12,
-    },
+    achievementsSection: { marginBottom: 8 },
+    achievementsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
     achievementCard: {
-        width: (SCREEN_WIDTH - 40 - 24) / 3,
-        backgroundColor: '#FFFFFF',
-        borderRadius: 18,
-        padding: 12,
-        paddingTop: 14,
-        alignItems: 'center',
-        borderWidth: 1,
-        borderColor: '#F1F5F9',
-        shadowColor: '#0F172A',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.04,
-        shadowRadius: 8,
-        elevation: 2,
+        backgroundColor: '#FFFFFF', borderRadius: 20,
+        padding: 16, paddingTop: 18, alignItems: 'center',
+        borderWidth: 1, borderColor: C.border,
+        shadowColor: '#000', shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.06, shadowRadius: 10, elevation: 3,
     },
-    achievementLocked: {
-        opacity: 0.5,
-        backgroundColor: '#FAFBFC',
-        borderColor: '#F1F5F9',
-        shadowOpacity: 0,
-    },
+    achievementLocked: { opacity: 0.45, backgroundColor: '#FAFBFC' },
     achievementIconCircle: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: 8,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.15,
-        shadowRadius: 4,
-        elevation: 4,
+        width: 48, height: 48, borderRadius: 24,
+        alignItems: 'center', justifyContent: 'center', marginBottom: 10,
+        shadowColor: '#000', shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.18, shadowRadius: 6, elevation: 5,
     },
-    achievementLabel: { fontSize: 11, fontWeight: '700', color: C.dark, textAlign: 'center', lineHeight: 14 },
-    achievementDesc: { fontSize: 9, fontWeight: '500', color: C.muted, textAlign: 'center', marginTop: 3, lineHeight: 12 },
-    unlockedBadge: {
-        flexDirection: 'row', alignItems: 'center', gap: 3,
-        backgroundColor: C.successBg, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, marginTop: 8,
+    achievementLabel: { fontSize: 12, fontWeight: '800', color: C.dark, textAlign: 'center', lineHeight: 16 },
+    achievementDesc: { fontSize: 10, fontWeight: '500', color: C.muted, textAlign: 'center', marginTop: 4, lineHeight: 13 },
+    achievementStatus: {
+        flexDirection: 'row', alignItems: 'center', gap: 4,
+        paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10, marginTop: 10,
     },
-    unlockedText: { fontSize: 9, fontWeight: '700', color: C.success },
+    achievementStatusText: { fontSize: 10, fontWeight: '700' },
+
+    // ── Modal / Bottom Sheet ──
+    modalOverlay: { flex: 1, justifyContent: 'flex-end' },
+    modalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(15, 23, 42, 0.5)' },
+    bottomSheet: {
+        backgroundColor: '#FFFFFF', borderTopLeftRadius: 32, borderTopRightRadius: 32,
+        padding: 24, paddingBottom: Platform.OS === 'ios' ? 40 : 24,
+        shadowColor: '#000', shadowOffset: { width: 0, height: -10 },
+        shadowOpacity: 0.12, shadowRadius: 24, elevation: 14,
+    },
+    sheetHandle: {
+        width: 40, height: 5, borderRadius: 3, backgroundColor: '#CBD5E1',
+        alignSelf: 'center', marginBottom: 20,
+    },
+    sheetHeader: {
+        flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start',
+        paddingBottom: 14, borderBottomWidth: 1, borderBottomColor: C.border, marginBottom: 16,
+    },
+    sheetDate: { fontSize: 17, fontWeight: '800', color: C.dark },
+    sheetYear: { fontSize: 12, color: C.muted, fontWeight: '600', marginTop: 2 },
+    sheetBadge: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 12 },
+    sheetBadgeText: { fontSize: 12, fontWeight: '700' },
+    sheetSectionLabel: { fontSize: 11, fontWeight: '800', color: C.light, letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 10 },
+    sheetMedRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
+    sheetMedIcon: { width: 30, height: 30, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+    sheetMedName: { fontSize: 14, fontWeight: '700', color: C.dark },
+    sheetMedTime: { fontSize: 11, color: C.muted, fontWeight: '500', marginTop: 1 },
+    sheetEmpty: { fontSize: 13, color: C.muted, fontStyle: 'italic', marginBottom: 16 },
+    sheetVitals: { marginTop: 4 },
+    sheetVitalChip: {
+        backgroundColor: '#F8FAFC', paddingHorizontal: 12, paddingVertical: 7,
+        borderRadius: 12, borderWidth: 1, borderColor: C.border,
+    },
+    sheetVitalText: { fontSize: 13, fontWeight: '600', color: C.mid },
 });
