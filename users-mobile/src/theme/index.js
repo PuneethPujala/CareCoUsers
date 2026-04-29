@@ -139,7 +139,7 @@ export const headerGradient = [colors.primary, colors.primaryMid];
 export const layout = {
     TAB_BAR_HEIGHT: 64,
     TAB_BAR_BOTTOM: 8,
-    TAB_BAR_CLEARANCE: 64 + 8 + 12, // 84
+    TAB_BAR_CLEARANCE: 140, 
 };
 
 export default { colors, typography, radius, spacing, shadows, layout };
