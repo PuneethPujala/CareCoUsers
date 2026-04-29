@@ -811,6 +811,7 @@ export default function PatientProfileScreen({ navigation }) {
                                     { text: 'Cancel', style: 'cancel' },
                                     {
                                         text: 'Delete Forever', style: 'destructive', onPress: () => {
+<<<<<<< HEAD
                                             AlertManager.alert(
                                                 'Are you absolutely sure?',
                                                 'This is irreversible. All your health records, medications, and account data will be erased permanently.',
@@ -832,6 +833,20 @@ export default function PatientProfileScreen({ navigation }) {
                                                             } finally {
                                                                 setAccountActionLoading(false);
                                                             }
+=======
+                                            // Double confirmation for permanent deletion
+                                            AlertManager.alert('Are you absolutely sure?', 'Type DELETE in your mind and confirm. This is irreversible.', [
+                                                { text: 'Go Back', style: 'cancel' },
+                                                {
+                                                    text: 'Yes, Delete Everything', style: 'destructive', onPress: async () => {
+                                                        try {
+                                                            await apiService.auth.deleteAccount();
+                                                            AlertManager.alert('Account Deleted', 'Your account and all data have been permanently removed.', [
+                                                                { text: 'OK', onPress: () => signOut() }
+                                                            ]);
+                                                        } catch (e) {
+                                                            AlertManager.alert('Error', 'Failed to delete account. Please try again.');
+>>>>>>> 8a33ae8a822c085eac0a2c872d2eaa6f03005d68
                                                         }
                                                     }
                                                 ]
