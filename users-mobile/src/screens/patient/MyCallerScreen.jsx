@@ -932,7 +932,7 @@ const s = StyleSheet.create({
   addBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: C.primary, alignItems: 'center', justifyContent: 'center', shadowColor: C.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 },
   miniEmergencyPill: { backgroundColor: C.dangerBg, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
   miniEmergencyTxt: { fontSize: 10, ...FONT.bold, color: C.danger },
-  bodyContent: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 120 },
+  bodyContent: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: layout.TAB_BAR_CLEARANCE },
 
   // ── Contact Card ──
   contactCard: {
