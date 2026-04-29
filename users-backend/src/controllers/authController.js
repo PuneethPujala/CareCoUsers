@@ -477,7 +477,6 @@ async function verifyOtp(req, res) {
     let result;
     if (type === 'phone') {
       const smsService = require('../services/smsService');
-      // Twilio Verify handles checking the OTP code for us
       result = await smsService.checkVerification(identifier.trim(), otp);
     } else {
       const { verifyOTP } = require('../services/otpService');
@@ -487,6 +486,78 @@ async function verifyOtp(req, res) {
 
     if (!result.valid) {
       return res.status(400).json({ error: result.reason });
+    }
+
+    // For phone login: look up the patient and issue a session
+    if (type === 'phone') {
+      const phoneNorm = identifier.trim();
+      // Phone may be stored with or without +91 country code — support both
+      const phoneVariants = [phoneNorm];
+      if (phoneNorm.startsWith('+91')) phoneVariants.push(phoneNorm.slice(3));
+      else phoneVariants.push(`+91${phoneNorm}`);
+
+      const patient = await Patient.findOne({ phone: { $in: phoneVariants }, is_active: true });
+
+      // If deactivated by user request, reactivate on login
+      let reactivated = false;
+      let activePatient = patient;
+      if (!patient) {
+        const deactivated = await Patient.findOne({ phone: { $in: phoneVariants }, is_active: false, deactivated_reason: 'user_requested' });
+        if (deactivated) {
+          deactivated.is_active = true;
+          deactivated.deactivated_at = undefined;
+          deactivated.deactivated_reason = undefined;
+          await deactivated.save();
+          activePatient = deactivated;
+          reactivated = true;
+        }
+      }
+
+      if (!activePatient) {
+        // Phone not registered — OTP was valid but no account exists
+        return res.json({ message: 'Verification successful', verified: true });
+      }
+
+      const tokenService = require('../services/tokenService');
+      const subject = activePatient.supabase_uid || activePatient._id.toString();
+      const tokens = await tokenService.issueTokenPair(
+        {
+          userId: activePatient._id,
+          userType: 'Patient',
+          subject,
+          role: 'patient',
+          email: activePatient.email,
+          emailVerified: activePatient.emailVerified,
+        },
+        req
+      );
+
+      if (reactivated) {
+        await logEvent(subject, 'account_reactivated', 'patient', activePatient._id, req, { method: 'phone_otp' });
+      }
+      await logEvent(subject, 'login', 'patient', activePatient._id, req, { method: 'phone_otp' });
+
+      return res.json({
+        message: 'Login successful',
+        verified: true,
+        session: {
+          access_token: tokens.access_token,
+          refresh_token: tokens.refresh_token,
+          expires_in: tokens.expires_in,
+          expires_at: tokens.expires_at,
+          user: { id: subject, email: activePatient.email },
+        },
+        profile: {
+          id: activePatient._id,
+          email: activePatient.email,
+          fullName: activePatient.name,
+          role: 'patient',
+          organizationId: activePatient.organization_id,
+          isActive: activePatient.is_active,
+          emailVerified: activePatient.emailVerified,
+          subscription_status: activePatient.subscription?.status || 'pending_payment',
+        },
+      });
     }
 
     res.json({ message: 'Verification successful', verified: true });
