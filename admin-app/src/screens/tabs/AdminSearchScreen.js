@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, ScrollView, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Linking, Modal, Platform } from 'react-native';
+import { View, Text, ScrollView, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Linking, Modal, Platform, KeyboardAvoidingView } from 'react-native';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Colors, Spacing, Radius, Shadows } from '../../theme/colors';
@@ -252,7 +252,10 @@ export default function AdminSearchScreen({ navigation }) {
                 )}
 
                 <Modal animationType="slide" transparent={true} visible={deleteModalVisible}>
-                    <View style={s.modalOverlay}>
+                    <KeyboardAvoidingView 
+                        behavior={Platform.OS === 'ios' ? 'padding' : undefined} 
+                        style={s.modalOverlay}
+                    >
                         <TouchableOpacity style={s.modalDismissLayer} activeOpacity={1} onPress={() => setDeleteModalVisible(false)} />
                         
                         <View style={s.modalSheet}>
@@ -335,7 +338,7 @@ export default function AdminSearchScreen({ navigation }) {
                                 </TouchableOpacity>
                             </View>
                         </View>
-                    </View>
+                    </KeyboardAvoidingView>
                 </Modal>
             </View>
         );
