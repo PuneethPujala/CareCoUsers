@@ -7,7 +7,7 @@ import {
     Heart, Wind, Thermometer, Droplets, MapPin, AlertTriangle, PillBottle, Syringe, WifiOff, Clock
 } from 'lucide-react-native';
 import { handleAxiosError } from '../../lib/axiosInstance';
-import { colors } from '../../theme';
+import { colors, layout } from '../../theme';
 import { useAuth } from '../../context/AuthContext';
 import { apiService } from '../../lib/api';
 import { getCache, setCache, CACHE_KEYS } from '../../lib/CacheService';
@@ -886,7 +886,7 @@ const styles = StyleSheet.create({
     statMiniLabel: { fontSize: 10, fontWeight: '700', color: '#64748B', marginTop: 2, textAlign: 'center', textTransform: 'uppercase', letterSpacing: 0.5 },
 
     body: { flex: 1, width: '100%' },
-    bodyContent: { paddingHorizontal: 20, paddingBottom: 110, paddingTop: 12, width: '100%' },
+    bodyContent: { paddingHorizontal: 20, paddingBottom: layout.TAB_BAR_CLEARANCE, paddingTop: 12, width: '100%' },
 
     section: { marginBottom: 32, width: '100%' },
     sectionHeader: { fontSize: 13, fontWeight: '800', color: '#94A3B8', letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 16, marginLeft: 4 },
