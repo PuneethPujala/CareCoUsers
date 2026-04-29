@@ -6,7 +6,7 @@ import { Pill, Sunrise, Sun, Moon, CheckCircle2, Circle, Bell, Activity, Plus, C
 import { Swipeable } from 'react-native-gesture-handler';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Circle as SvgCircle, Defs, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg';
-import { colors } from '../../theme';
+import { colors, layout } from '../../theme';
 import { apiService } from '../../lib/api';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
@@ -1060,7 +1060,7 @@ const styles = StyleSheet.create({
     headerBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#FFF', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#E2E8F0' },
 
     body: { flex: 1 },
-    bodyContent: { paddingHorizontal: 20, paddingBottom: 140, paddingTop: 12 },
+    bodyContent: { paddingHorizontal: 20, paddingBottom: layout.TAB_BAR_CLEARANCE, paddingTop: 12 },
 
     // Empty State
     emptyStateContainer: { backgroundColor: '#FFF', borderRadius: 28, padding: 32, alignItems: 'center', marginTop: 32, borderWidth: 1, borderColor: '#F1F5F9', shadowColor: '#6366F1', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.04, shadowRadius: 16, elevation: 4 },
