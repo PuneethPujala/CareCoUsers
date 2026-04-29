@@ -56,6 +56,7 @@ export default function PatientProfileScreen({ navigation }) {
     const [patient, setPatient] = useState(null);
     const [loading, setLoading] = useState(true);
     const [mfaEnabled, setMfaEnabled] = useState(false);
+    const [accountActionLoading, setAccountActionLoading] = useState(false);
 
     // Modals
     const [ecModalVisible, setEcModalVisible] = useState(false);
@@ -769,7 +770,8 @@ export default function PatientProfileScreen({ navigation }) {
                             <Text style={s.logoutTxt}>Sign Out Account</Text>
                         </Pressable>
                         <Pressable
-                            style={[s.logoutBtn, { backgroundColor: '#FFFBEB', borderColor: '#FDE68A' }]}
+                            style={[s.logoutBtn, { backgroundColor: '#FFFBEB', borderColor: '#FDE68A' }, accountActionLoading && { opacity: 0.6 }]}
+                            disabled={accountActionLoading}
                             onPress={() => AlertManager.alert(
                                 'Deactivate Account',
                                 'Your account will be paused and you will be signed out.\n\n• All your health data will be safely preserved\n• You can reactivate anytime by logging in again\n• Your callers and care team won\'t be able to reach you',
@@ -777,12 +779,19 @@ export default function PatientProfileScreen({ navigation }) {
                                     { text: 'Cancel', style: 'cancel' },
                                     {
                                         text: 'Deactivate', style: 'default', onPress: async () => {
+                                            setAccountActionLoading(true);
                                             try {
                                                 await apiService.auth.deactivateAccount();
-                                                AlertManager.alert('Account Deactivated', 'Your account has been paused. Log in anytime to reactivate.');
-                                                signOut();
+                                                AlertManager.alert(
+                                                    'Account Deactivated',
+                                                    'Your account has been paused. Log in anytime with your credentials to reactivate.',
+                                                    [{ text: 'OK', onPress: () => signOut() }],
+                                                    { type: 'success' }
+                                                );
                                             } catch (e) {
-                                                AlertManager.alert('Error', 'Failed to deactivate account. Please try again.');
+                                                AlertManager.alert('Error', e?.response?.data?.error || 'Failed to deactivate account. Please try again.', undefined, { type: 'error' });
+                                            } finally {
+                                                setAccountActionLoading(false);
                                             }
                                         }
                                     }
@@ -793,29 +802,40 @@ export default function PatientProfileScreen({ navigation }) {
                             <Text style={[s.logoutTxt, { color: '#D97706' }]}>Deactivate Account</Text>
                         </Pressable>
                         <Pressable
-                            style={[s.logoutBtn, { backgroundColor: '#FEF2F2', borderColor: '#FECACA' }]}
+                            style={[s.logoutBtn, { backgroundColor: '#FEF2F2', borderColor: '#FECACA' }, accountActionLoading && { opacity: 0.6 }]}
+                            disabled={accountActionLoading}
                             onPress={() => AlertManager.alert(
                                 'Delete Account Permanently',
-                                '⚠️ This action CANNOT be undone.\n\nAll your data will be permanently deleted:\n• Health records & vitals\n• Medications & prescriptions\n• Call history & appointments\n• Profile information\n\nYou can create a new account with the same email later, but as a fresh start.',
+                                '⚠️ This action CANNOT be undone.\n\nAll your data will be permanently deleted:\n• Health records & vitals\n• Medications & prescriptions\n• Call history & appointments\n• Profile information\n\nYou can register again with the same email as a fresh start.',
                                 [
                                     { text: 'Cancel', style: 'cancel' },
                                     {
                                         text: 'Delete Forever', style: 'destructive', onPress: () => {
-                                            // Double confirmation for permanent deletion
-                                            AlertManager.alert('Are you absolutely sure?', 'Type DELETE in your mind and confirm. This is irreversible.', [
-                                                { text: 'Go Back', style: 'cancel' },
-                                                {
-                                                    text: 'Yes, Delete Everything', style: 'destructive', onPress: async () => {
-                                                        try {
-                                                            await apiService.auth.deleteAccount();
-                                                            AlertManager.alert('Account Deleted', 'Your account and all data have been permanently removed.');
-                                                            signOut();
-                                                        } catch (e) {
-                                                            AlertManager.alert('Error', 'Failed to delete account. Please try again.');
+                                            AlertManager.alert(
+                                                'Are you absolutely sure?',
+                                                'This is irreversible. All your health records, medications, and account data will be erased permanently.',
+                                                [
+                                                    { text: 'Go Back', style: 'cancel' },
+                                                    {
+                                                        text: 'Yes, Delete Everything', style: 'destructive', onPress: async () => {
+                                                            setAccountActionLoading(true);
+                                                            try {
+                                                                await apiService.auth.deleteAccount();
+                                                                AlertManager.alert(
+                                                                    'Account Deleted',
+                                                                    'Your account and all data have been permanently removed. You may register again with the same email.',
+                                                                    [{ text: 'OK', onPress: () => signOut() }],
+                                                                    { type: 'success' }
+                                                                );
+                                                            } catch (e) {
+                                                                AlertManager.alert('Error', e?.response?.data?.error || 'Failed to delete account. Please try again.', undefined, { type: 'error' });
+                                                            } finally {
+                                                                setAccountActionLoading(false);
+                                                            }
                                                         }
                                                     }
-                                                }
-                                            ]);
+                                                ]
+                                            );
                                         }
                                     }
                                 ]
