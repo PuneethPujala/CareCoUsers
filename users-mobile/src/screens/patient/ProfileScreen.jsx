@@ -543,7 +543,7 @@ export default function PatientProfileScreen({ navigation }) {
             <StatusBar barStyle="dark-content" />
 
             {/* ── Header ── */}
-            <View style={{ zIndex: 10, elevation: 10 }}>
+            <View>
                 <Animated.View style={[s.header, { opacity: staggerAnims[0], transform: [{ translateY: staggerAnims[0].interpolate({ inputRange: [0, 1], outputRange: [-20, 0] }) }] }]}>
                     <View style={s.headerRow}>
                         <View style={s.headerLeft}>
@@ -812,37 +812,29 @@ export default function PatientProfileScreen({ navigation }) {
                             style={[s.logoutBtn, { backgroundColor: '#FEF2F2', borderColor: '#FECACA' }, accountActionLoading && { opacity: 0.6 }]}
                             disabled={accountActionLoading}
                             onPress={() => AlertManager.alert(
-                                'Delete Account Permanently',
-                                '⚠️ This action CANNOT be undone.\n\nAll your data will be permanently deleted:\n• Health records & vitals\n• Medications & prescriptions\n• Call history & appointments\n• Profile information\n\nYou can register again with the same email as a fresh start.',
+                                'Permanently Delete Account?',
+                                '⚠️ IRREVERSIBLE ACTION\n\nAll health records, medications, and profile data will be permanently erased. You will be signed out immediately.\n\nAre you absolutely sure you want to proceed?',
                                 [
                                     { text: 'Cancel', style: 'cancel' },
                                     {
-                                        text: 'Delete Forever', style: 'destructive', onPress: () => {
-                                            AlertManager.alert(
-                                                'Are you absolutely sure?',
-                                                'This is irreversible. All your health records, medications, and account data will be erased permanently.',
-                                                [
-                                                    { text: 'Go Back', style: 'cancel' },
-                                                    {
-                                                        text: 'Yes, Delete Everything', style: 'destructive', onPress: async () => {
-                                                            setAccountActionLoading(true);
-                                                            try {
-                                                                await apiService.auth.deleteAccount();
-                                                                AlertManager.alert(
-                                                                    'Account Deleted',
-                                                                    'Your account and all data have been permanently removed. You may register again with the same email.',
-                                                                    [{ text: 'OK', onPress: () => signOut() }],
-                                                                    { type: 'success' }
-                                                                );
-                                                            } catch (e) {
-                                                                AlertManager.alert('Error', e?.response?.data?.error || 'Failed to delete account. Please try again.', undefined, { type: 'error' });
-                                                            } finally {
-                                                                setAccountActionLoading(false);
-                                                            }
-                                                        }
-                                                    }
-                                                ]
-                                            );
+                                        text: 'Yes, Delete Permanently', style: 'destructive', onPress: async () => {
+                                            setAccountActionLoading(true);
+                                            try {
+                                                await apiService.auth.deleteAccount();
+                                                // After successful hard-delete, sign out immediately
+                                                await signOut();
+                                            } catch (e) {
+                                                const status = e?.response?.status;
+                                                const errorMsg = e?.response?.data?.error || 'Failed to delete account.';
+                                                
+                                                if (status === 401 || status === 403 || status === 404) {
+                                                    // Account likely already gone or session expired
+                                                    await signOut();
+                                                } else {
+                                                    AlertManager.alert('Error', errorMsg, undefined, { type: 'error' });
+                                                    setAccountActionLoading(false);
+                                                }
+                                            }
                                         }
                                     }
                                 ]
@@ -1273,19 +1265,19 @@ const s = StyleSheet.create({
     container: { flex: 1, backgroundColor: C.pageBg },
 
     /* Header */
-    header: { paddingTop: Platform.OS === 'ios' ? 70 : 50, paddingHorizontal: 24, paddingBottom: 16, backgroundColor: C.pageBg },
+    header: { paddingTop: Platform.OS === 'ios' ? 70 : 50, paddingHorizontal: 24, paddingBottom: 16, backgroundColor: C.pageBg, elevation: 0, shadowOpacity: 0 },
     headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
     headerLeft: { flex: 1 },
     heroLabel: { fontSize: 13, fontWeight: '800', color: C.primary, letterSpacing: 1.5, marginBottom: 4 },
     headerTitle: { fontSize: 32, fontWeight: '800', color: C.dark, letterSpacing: -1 },
-    headerBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#FFF', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#E2E8F0' },
+    headerBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#FFF', alignItems: 'center', justifyContent: 'center', shadowColor: '#4361EE', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 12, elevation: 3 },
 
     /* Scroll */
     scroll: { flex: 1 },
     scrollContent: { paddingHorizontal: 20, paddingBottom: layout.TAB_BAR_CLEARANCE, paddingTop: 8 },
 
     /* Profile Card */
-    profileCard: { backgroundColor: C.white, borderRadius: 24, padding: 20, marginBottom: 24, borderWidth: 1, borderColor: C.border, shadowColor: C.primary, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.04, shadowRadius: 16, elevation: 4 },
+    profileCard: { backgroundColor: C.white, borderRadius: 24, padding: 20, marginBottom: 24, shadowColor: '#4361EE', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.06, shadowRadius: 16, elevation: 4 },
     profileMain: { flexDirection: 'row', alignItems: 'center' },
     avatar: { width: 64, height: 64, borderRadius: 32, backgroundColor: C.primarySoft, alignItems: 'center', justifyContent: 'center', borderWidth: 2.5, borderColor: 'rgba(99,102,241,0.1)' },
     avatarTxt: { fontSize: 26, fontWeight: '800', color: C.primary },
@@ -1298,7 +1290,7 @@ const s = StyleSheet.create({
     sectionTitle: { fontSize: 12, fontWeight: '800', color: C.muted, letterSpacing: 1.5, marginBottom: 12, marginLeft: 4, marginTop: 8 },
 
     /* Premium Card */
-    premiumCard: { backgroundColor: C.white, borderRadius: 20, padding: 16, marginBottom: 24, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderColor: C.border },
+    premiumCard: { backgroundColor: C.white, borderRadius: 20, padding: 16, marginBottom: 24, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', shadowColor: '#4361EE', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 3 },
     premiumLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1, flexShrink: 1 },
     starBadge: { width: 40, height: 40, borderRadius: 14, backgroundColor: '#F59E0B', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
     premiumPlan: { fontSize: 15, fontWeight: '700', color: C.dark },
@@ -1313,7 +1305,7 @@ const s = StyleSheet.create({
     countryCodeTxt: { fontSize: 15, fontWeight: '700', color: C.dark },
 
     /* Card Group */
-    card: { backgroundColor: C.white, borderRadius: 20, marginBottom: 24, borderWidth: 1, borderColor: C.border, overflow: 'hidden' },
+    card: { backgroundColor: C.white, borderRadius: 20, marginBottom: 24, shadowColor: '#4361EE', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 3, overflow: 'hidden' },
 
     /* Info Row */
     infoRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 16, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: C.border },

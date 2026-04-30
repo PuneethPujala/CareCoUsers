@@ -84,8 +84,20 @@ async function deleteMe(req, res) {
       const RefreshToken = require('../models/RefreshToken');
       const AIVitalPrediction = require('../models/AIVitalPrediction');
       const Medication = require('../models/Medication');
+      const Alert = require('../models/Alert');
 
-      // Delete all associated records
+      // ── Decrement Organization Count ──
+      if (req.profile.organization_id) {
+        const Organization = require('../models/Organization');
+        await Organization.findByIdAndUpdate(req.profile.organization_id, { $inc: { 'counts.patients': -1 } }).catch(e => console.warn('Failed to decrement org count:', e.message));
+      }
+
+      // ── Purge Linked Profile if exists ──
+      if (req.profile.profile_id) {
+        await Profile.findByIdAndDelete(req.profile.profile_id).catch(e => console.warn('Failed to delete linked profile:', e.message));
+      }
+
+      // ── Purge all associated records ──
       await Promise.all([
         CallLog.deleteMany({ patient_id: userId }),
         MedicineLog.deleteMany({ patient_id: userId }),
@@ -94,6 +106,7 @@ async function deleteMe(req, res) {
         RefreshToken.deleteMany({ userId, userType: 'Patient' }),
         AIVitalPrediction.deleteMany({ patient_id: userId }),
         Medication.deleteMany({ patientId: userId }),
+        Alert.deleteMany({ patient_id: userId }),
       ]);
 
       // Delete the patient record itself — frees email & phone for re-registration
@@ -101,11 +114,23 @@ async function deleteMe(req, res) {
 
       await logEvent(subject, 'account_hard_deleted', 'patient', userId, req, {
         permanent: true,
-        purgedCollections: ['CallLog', 'MedicineLog', 'VitalLog', 'Notification', 'RefreshToken', 'AIVitalPrediction', 'Patient'],
+        purgedCollections: ['CallLog', 'MedicineLog', 'VitalLog', 'Notification', 'RefreshToken', 'AIVitalPrediction', 'Medication', 'Alert', 'Patient'],
       });
     } else {
-      await Profile.findByIdAndDelete(userId);
+      // For Staff/Admin profiles
       const RefreshToken = require('../models/RefreshToken');
+      
+      // Decrement Org Count for Staff
+      if (req.profile.organizationId) {
+        const Organization = require('../models/Organization');
+        const role = req.profile.role;
+        const incField = role === 'caller' ? 'counts.callers' : role === 'care_manager' ? 'counts.managers' : null;
+        if (incField) {
+          await Organization.findByIdAndUpdate(req.profile.organizationId, { $inc: { [incField]: -1 } }).catch(e => console.warn('Failed to decrement staff org count:', e.message));
+        }
+      }
+
+      await Profile.findByIdAndDelete(userId);
       await RefreshToken.deleteMany({ userId, userType: 'Profile' });
       await logEvent(subject, 'account_hard_deleted', 'profile', userId, req, { permanent: true });
     }

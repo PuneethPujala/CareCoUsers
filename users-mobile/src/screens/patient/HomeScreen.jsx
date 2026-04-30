@@ -78,7 +78,7 @@ const SkeletonItem = ({ width, height, borderRadius = 10, style }) => {
 const VitalsCard = ({ label, value, unit, icon: Icon, color, status = 'Stable' }) => {
     const isLogged = status === 'Recorded';
     return (
-        <View style={[styles.vitalsCard, { borderColor: isLogged ? color + '35' : '#E8EDF5' }]}>
+        <View style={[styles.vitalsCard, { backgroundColor: '#FFFFFF' }]}>
             <LinearGradient
                 colors={isLogged ? [color + '14', color + '06'] : ['#FAFBFF', '#F5F7FF']}
                 style={StyleSheet.absoluteFill}
@@ -772,7 +772,6 @@ const styles = StyleSheet.create({
     medSummaryCard: {
         backgroundColor: '#FFFFFF', borderRadius: 22, marginBottom: 12,
         flexDirection: 'row', overflow: 'hidden',
-        borderWidth: 1, borderColor: '#E8EDF5',
         shadowColor: '#4361EE', shadowOffset: { width: 0, height: 6 },
         shadowOpacity: 0.08, shadowRadius: 18, elevation: 6,
     },
@@ -799,7 +798,6 @@ const styles = StyleSheet.create({
     medCard: {
         backgroundColor: '#FFFFFF', borderRadius: 20, marginBottom: 10,
         flexDirection: 'row', overflow: 'hidden',
-        borderWidth: 1, borderColor: '#E8EDF5',
         shadowColor: '#000', shadowOffset: { width: 0, height: 3 },
         shadowOpacity: 0.04, shadowRadius: 10, elevation: 3,
     },
@@ -814,8 +812,8 @@ const styles = StyleSheet.create({
 
     // ── Vitals Card ──
     vitalsCard: {
-        width: 160, borderRadius: 22, padding: 18, borderWidth: 1.5, overflow: 'hidden',
-        shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 12, elevation: 4,
+        width: 160, borderRadius: 22, padding: 18, overflow: 'hidden',
+        shadowColor: '#4361EE', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.08, shadowRadius: 16, elevation: 5,
     },
     vitalsCardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 },
     vitalsIconBox: { width: 40, height: 40, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
@@ -832,10 +830,9 @@ const styles = StyleSheet.create({
     syncCard: {
         flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
         backgroundColor: '#FFFFFF', borderRadius: 18, padding: 16, marginBottom: 16,
-        borderWidth: 1.5, borderColor: '#E2E8F0', borderStyle: 'dashed',
         shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 8, elevation: 2,
     },
-    syncCardConnected: { borderColor: '#BBF7D0', borderStyle: 'solid', backgroundColor: '#F0FDF4' },
+    syncCardConnected: { backgroundColor: '#F0FDF4' },
     syncCardLeft: { flexDirection: 'row', alignItems: 'center', flex: 1, gap: 14 },
     syncIconBox: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
     syncTitle: { fontSize: 15, fontWeight: '700', color: '#1E293B' },
@@ -846,7 +843,6 @@ const styles = StyleSheet.create({
     // ── Generic Card ──
     card: {
         backgroundColor: '#FFFFFF', borderRadius: 22, padding: 20,
-        borderWidth: 1, borderColor: '#E8EDF5',
         shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 14, elevation: 4,
     },
     cardHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
@@ -879,7 +875,7 @@ const styles = StyleSheet.create({
     // ── Daily Tip ──
     tipCard: {
         backgroundColor: '#FFFFFF', borderRadius: 22, overflow: 'hidden',
-        flexDirection: 'row', borderWidth: 1, borderColor: '#E8EDF5',
+        flexDirection: 'row',
         shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.04, shadowRadius: 12, elevation: 3,
     },
     tipAccentBar: { width: 5, flexShrink: 0 },
@@ -893,7 +889,6 @@ const styles = StyleSheet.create({
     quickCard: {
         backgroundColor: '#FFFFFF', borderRadius: 18, padding: 16,
         flexDirection: 'row', alignItems: 'center', gap: 14,
-        borderWidth: 1, borderColor: '#E8EDF5',
         shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 3,
     },
     quickIconBox: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },

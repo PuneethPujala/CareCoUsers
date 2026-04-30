@@ -109,7 +109,7 @@ async function buildMergedMeds(patient) {
  * The one exception is today: if today has no log yet (app just opened, log not
  * created) we skip it without breaking — same as before.
  */
-function computeCurrentStreak(dailyLog, todayStr, startDateStr, threshold = 80) {
+function computeCurrentStreak(dailyLog, todayStr, startDateStr, threshold = 50) {
     let streak = 0;
     let cursor = moment(todayStr, 'YYYY-MM-DD');
     const limit = moment(startDateStr, 'YYYY-MM-DD');
@@ -127,7 +127,7 @@ function computeCurrentStreak(dailyLog, todayStr, startDateStr, threshold = 80) 
         }
 
         // Day has scheduled meds — evaluate it
-        if (entry.rate >= threshold) {
+        if (entry.rate > 50) {
             streak++;
         } else if (dStr === todayStr) {
             // Today is below threshold but the day isn't over yet — skip, don't break
