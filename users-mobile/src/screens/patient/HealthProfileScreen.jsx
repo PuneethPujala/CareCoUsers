@@ -12,7 +12,7 @@ import { COUNTRY_CODES, parsePhoneWithCode, validatePhone } from '../../utils/ph
 import { layout } from '../../theme';
 import AlertManager from '../../utils/AlertManager';
 
-const VAULT_GRAD = ['#0D1240', '#192076', '#2430A0'];
+const VAULT_GRAD = ['#071628', '#0C2240', '#0F3460'];
 
 // ── Skeleton Loader ──────────────────────────────────────────
 const SkeletonItem = ({ width, height, borderRadius = 8, style }) => {
@@ -29,7 +29,7 @@ const SkeletonItem = ({ width, height, borderRadius = 8, style }) => {
 };
 
 const C = {
-    primary: '#6366F1', primaryDark: '#4338CA', primarySoft: '#EEF2FF',
+    primary: '#0EA5E9', primaryDark: '#0284C7', primarySoft: '#E0F2FE',
     cardBg: '#FFFFFF', pageBg: '#F8FAFC',
     dark: '#0F172A', mid: '#334155', muted: '#94A3B8', light: '#CBD5E1',
     border: '#F1F5F9', borderMid: '#E2E8F0',
@@ -567,7 +567,7 @@ export default function HealthProfileScreen({ navigation }) {
                     {completionPct < 100 && (
                         <Animated.View style={anim(1)}>
                             <Pressable style={s.completionBanner} onPress={handleCompletionClick}>
-                                <LinearGradient colors={['#4F46E5', '#6366F1']} style={s.completionAccent} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} />
+                                <LinearGradient colors={['#0284C7', '#0EA5E9']} style={s.completionAccent} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} />
                                 <View style={s.completionInner}>
                                     <View style={s.completionTitleRow}>
                                         <Text style={s.completionTitle}>Profile Completion</Text>
@@ -671,22 +671,22 @@ export default function HealthProfileScreen({ navigation }) {
                     {/* ── TREATMENT PLAN ── */}
                     <Animated.View style={anim(3)}>
                         <View style={s.groupHeaderRow}>
-                            <View style={[s.groupIconWrap, { backgroundColor: '#F3E8FF' }]}><Pill size={14} color="#8B5CF6" /></View>
-                            <Text style={[s.groupLabelTxt, { marginBottom: 0, color: '#8B5CF6' }]}>TREATMENT PLAN</Text>
+                            <View style={[s.groupIconWrap, { backgroundColor: '#E0F2FE' }]}><Pill size={14} color="#0284C7" /></View>
+                            <Text style={[s.groupLabelTxt, { marginBottom: 0, color: '#0284C7' }]}>TREATMENT PLAN</Text>
                         </View>
 
                         {/* Active Medications */}
                         <View style={[s.docCard, { marginBottom: 12 }]}>
-                            <LinearGradient colors={['#8B5CF6', '#A78BFA']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={s.docAccentBar} />
+                            <LinearGradient colors={['#0284C7', '#38BDF8']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={s.docAccentBar} />
                             {renderHeader('Current Medications', 'medication', true)}
                             {activeMeds.map((m, i) => (
                                 <View key={i} style={[s.rowItem, i === activeMeds.length - 1 && { borderBottomWidth: 0 }]}>
-                                    <View style={[s.iconBg, { backgroundColor: '#F3E8FF' }]}><Pill size={18} color="#8B5CF6" /></View>
+                                    <View style={[s.iconBg, { backgroundColor: '#E0F2FE' }]}><Pill size={18} color="#0284C7" /></View>
                                     <View style={s.rowInfo}>
                                         <Text style={s.rowTitle}>{m.name}</Text>
                                         <Text style={s.rowSub}>{m.dosage} • {m.frequency}</Text>
                                     </View>
-                                    <View style={[s.pill, { backgroundColor: '#EDE9FE' }]}><Text style={[s.pillTxt, { color: '#7C3AED' }]}>Active</Text></View>
+                                    <View style={[s.pill, { backgroundColor: '#E0F2FE' }]}><Text style={[s.pillTxt, { color: '#0284C7' }]}>Active</Text></View>
                                 </View>
                             ))}
                             {activeMeds.length === 0 && <Text style={s.emptyRowTxt}>No active medications</Text>}
@@ -781,15 +781,15 @@ export default function HealthProfileScreen({ navigation }) {
                     {/* ── CARE NETWORK ── */}
                     <Animated.View style={anim(6)}>
                         <View style={s.groupHeaderRow}>
-                            <View style={[s.groupIconWrap, { backgroundColor: '#EEF2FF' }]}><Users size={14} color="#6366F1" /></View>
-                            <Text style={[s.groupLabelTxt, { marginBottom: 0, color: '#6366F1' }]}>CARE NETWORK</Text>
+                            <View style={[s.groupIconWrap, { backgroundColor: '#E0F2FE' }]}><Users size={14} color="#0284C7" /></View>
+                            <Text style={[s.groupLabelTxt, { marginBottom: 0, color: '#0284C7' }]}>CARE NETWORK</Text>
                         </View>
 
                         {/* Wearable Sync */}
                         {isHealthSupported() && (
                             <View style={[s.docCard, { marginBottom: 12 }]}>
                                 <View style={[s.rowItem, { borderBottomWidth: 0 }]}>
-                                    <View style={[s.iconBg, { backgroundColor: '#F3E8FF' }]}><Link2 size={20} color="#8B5CF6" /></View>
+                                    <View style={[s.iconBg, { backgroundColor: '#E0F2FE' }]}><Link2 size={20} color="#0284C7" /></View>
                                     <View style={s.rowInfo}>
                                         <Text style={s.rowTitle}>Health Connect</Text>
                                         <Text style={s.rowSub}>Sync smartwatch vitals</Text>
@@ -804,7 +804,7 @@ export default function HealthProfileScreen({ navigation }) {
 
                         {/* Care Team */}
                         <View style={[s.docCard, { marginBottom: 12 }]}>
-                            <LinearGradient colors={['#6366F1', '#818CF8']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={s.docAccentBar} />
+                            <LinearGradient colors={['#0284C7', '#38BDF8']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={s.docAccentBar} />
                             {renderHeader('Care Team & Contacts', 'contact')}
                             {profile?.trusted_contacts?.map((c, i) => (
                                 <Pressable key={i} style={[s.rowItem, i === profile.trusted_contacts.length - 1 && { borderBottomWidth: 0 }]} onPress={() => openModal('contact', c)}>
@@ -1022,8 +1022,8 @@ export default function HealthProfileScreen({ navigation }) {
                         <View style={[s.formGroup, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 }]}>
                             <Text style={s.formLabel}>Currently Active</Text>
                             <Switch
-                                trackColor={{ false: '#E2E8F0', true: '#818CF8' }}
-                                thumbColor={formState.is_active ? '#4338CA' : '#F8FAFC'}
+                                trackColor={{ false: '#E2E8F0', true: '#38BDF8' }}
+                                thumbColor={formState.is_active ? '#0284C7' : '#F8FAFC'}
                                 onValueChange={(val) => setFormState({ ...formState, is_active: val })}
                                 value={formState.is_active !== false}
                             />
@@ -1202,9 +1202,9 @@ const s = StyleSheet.create({
 
     // ── Vault Header ──
     vaultHeader: {
-        paddingTop: Platform.OS === 'ios' ? 60 : 46,
+        paddingTop: Platform.OS === 'ios' ? 54 : 42,
         paddingHorizontal: 24,
-        paddingBottom: 24,
+        paddingBottom: 16,
     },
     headerTopRow: {
         flexDirection: 'row',
@@ -1240,29 +1240,29 @@ const s = StyleSheet.create({
     statChip: {
         flex: 1,
         backgroundColor: 'rgba(255,255,255,0.1)',
-        borderRadius: 14,
-        paddingVertical: 10,
+        borderRadius: 12,
+        paddingVertical: 8,
         alignItems: 'center',
         borderWidth: 1,
         borderColor: 'rgba(255,255,255,0.15)',
     },
-    statChipVal: { fontSize: 18, ...FONT.heavy, color: '#FFFFFF', marginBottom: 2 },
-    statChipLbl: { fontSize: 9, ...FONT.bold, color: 'rgba(255,255,255,0.55)', letterSpacing: 0.8 },
+    statChipVal: { fontSize: 16, ...FONT.heavy, color: '#FFFFFF', marginBottom: 2 },
+    statChipLbl: { fontSize: 8, ...FONT.bold, color: 'rgba(255,255,255,0.55)', letterSpacing: 0.8 },
 
     // Decorative orbs
     orb1: {
-        position: 'absolute', width: 220, height: 220, borderRadius: 110,
-        backgroundColor: 'rgba(99,102,241,0.18)', top: -70, right: -70,
+        position: 'absolute', width: 200, height: 200, borderRadius: 100,
+        backgroundColor: 'rgba(14,165,233,0.1)', top: -70, right: -70,
     },
     orb2: {
-        position: 'absolute', width: 150, height: 150, borderRadius: 75,
-        backgroundColor: 'rgba(129,140,248,0.1)', top: 90, left: -55,
+        position: 'absolute', width: 140, height: 140, borderRadius: 70,
+        backgroundColor: 'rgba(14,165,233,0.07)', top: 90, left: -55,
     },
 
     // ── Content Panel ──
     contentPanel: {
         flex: 1,
-        backgroundColor: '#EEF2FF',
+        backgroundColor: '#F0F9FF',
         borderTopLeftRadius: 28,
         borderTopRightRadius: 28,
         overflow: 'hidden',
@@ -1282,14 +1282,14 @@ const s = StyleSheet.create({
         marginBottom: 20,
         overflow: 'hidden',
         borderWidth: 1,
-        borderColor: '#E8EAFF',
+        borderColor: '#BAE6FD',
     },
     completionAccent: { width: 5, alignSelf: 'stretch' },
     completionInner: { flex: 1, paddingVertical: 14, paddingHorizontal: 12 },
     completionTitleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
     completionTitle: { fontSize: 14, ...FONT.bold, color: '#1E293B' },
     completionPctTxt: { fontSize: 14, ...FONT.heavy, color: C.primary },
-    progressBarBg: { height: 5, borderRadius: 3, backgroundColor: '#E8EAFF', marginBottom: 6, overflow: 'hidden' },
+    progressBarBg: { height: 5, borderRadius: 3, backgroundColor: '#BAE6FD', marginBottom: 6, overflow: 'hidden' },
     progressBarFill: { height: '100%', borderRadius: 3, backgroundColor: C.primary },
     completionSub: { fontSize: 11, ...FONT.medium, color: '#94A3B8' },
 
@@ -1318,8 +1318,8 @@ const s = StyleSheet.create({
     bentoCard: {
         flex: 1, backgroundColor: '#FFF', borderRadius: 16, padding: 14,
         alignItems: 'center',
-        shadowColor: '#192076', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 2,
-        borderWidth: 1, borderColor: '#E8EAFF',
+        shadowColor: '#0C2240', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 2,
+        borderWidth: 1, borderColor: '#BAE6FD',
     },
     bentoCircle: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
     bentoVal: { fontSize: 16, ...FONT.heavy, color: '#0F172A', marginBottom: 3 },
@@ -1330,13 +1330,13 @@ const s = StyleSheet.create({
         backgroundColor: '#FFFFFF',
         borderRadius: 18,
         overflow: 'hidden',
-        shadowColor: '#192076',
+        shadowColor: '#0C2240',
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.06,
         shadowRadius: 10,
         elevation: 2,
         borderWidth: 1,
-        borderColor: '#E8EAFF',
+        borderColor: '#BAE6FD',
     },
     docAccentBar: { height: 3, width: '100%' },
 
@@ -1393,7 +1393,7 @@ const s = StyleSheet.create({
 
     // ── Primary Doctor ──
     gpRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 12 },
-    gpAvatar: { width: 50, height: 50, borderRadius: 25, backgroundColor: '#EEF2FF', alignItems: 'center', justifyContent: 'center', marginRight: 14 },
+    gpAvatar: { width: 50, height: 50, borderRadius: 25, backgroundColor: '#E0F2FE', alignItems: 'center', justifyContent: 'center', marginRight: 14 },
     gpAvatarTxt: { fontSize: 20, ...FONT.heavy, color: C.primary },
     gpInfo: { flex: 1 },
     gpName: { fontSize: 17, ...FONT.bold, color: '#0F172A', marginBottom: 3 },
@@ -1402,7 +1402,7 @@ const s = StyleSheet.create({
     callBtnTxt: { fontSize: 14, ...FONT.bold, color: '#FFF' },
 
     // ── Freemium Upgrade ──
-    upgradeIconWrap: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#EEF2FF', alignItems: 'center', justifyContent: 'center', marginBottom: 24 },
+    upgradeIconWrap: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#E0F2FE', alignItems: 'center', justifyContent: 'center', marginBottom: 24 },
     upgradeTitle: { fontSize: 24, ...FONT.bold, color: '#0F172A', marginBottom: 12, letterSpacing: -0.5 },
     upgradeBody: { fontSize: 16, ...FONT.regular, color: '#94A3B8', textAlign: 'center', lineHeight: 24 },
 
@@ -1417,13 +1417,13 @@ const s = StyleSheet.create({
     chipSelectorWrap: { flexDirection: 'row', gap: 10, paddingBottom: 4 },
     chipVerticalWrap: { flexDirection: 'column', paddingBottom: 4 },
     selectChip: { paddingHorizontal: 16, paddingVertical: 12, borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12, backgroundColor: '#FFF' },
-    selectChipActive: { borderColor: C.primary, backgroundColor: '#EEF2FF' },
+    selectChipActive: { borderColor: C.primary, backgroundColor: C.primarySoft },
     selectChipTxt: { fontSize: 14, ...FONT.bold, color: C.muted },
     selectChipTxtActive: { color: C.primaryDark },
 
     // DOB Picker
     pickerContainer: { paddingBottom: 20 },
-    pickerHeader: { backgroundColor: '#EEF2FF', padding: 16, borderRadius: 20, marginBottom: 20, alignItems: 'center' },
+    pickerHeader: { backgroundColor: '#E0F2FE', padding: 16, borderRadius: 20, marginBottom: 20, alignItems: 'center' },
     pickerPreview: { fontSize: 18, ...FONT.bold, color: C.primaryDark },
     pickerLabel: { fontSize: 13, ...FONT.bold, color: C.muted, marginBottom: 12, letterSpacing: 0.5 },
     yearScroll: { marginBottom: 10 },
