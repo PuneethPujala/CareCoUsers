@@ -22,7 +22,7 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 // ── Color System ──────────────────────────────────────────────
 const C = {
-    bg: '#F0F4FF',
+    bg: '#F8FAFC',
     card: '#FFFFFF',
     primary: '#4361EE',
     primarySoft: '#EEF2FF',
@@ -400,10 +400,6 @@ export default function AdherenceScreen({ navigation }) {
 
     return (
         <View style={{ flex: 1, backgroundColor: C.bg }}>
-            {/* Decorative blobs */}
-            <View style={{ position: 'absolute', top: -80, right: -60, width: 260, height: 260, borderRadius: 130, backgroundColor: C.primary + '18' }} />
-            <View style={{ position: 'absolute', top: 380, left: -80, width: 200, height: 200, borderRadius: 100, backgroundColor: C.purple + '12' }} />
-
             <SafeAreaView style={{ flex: 1 }}>
                 {/* ── Header ── */}
                 <View style={styles.header}>
