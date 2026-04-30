@@ -31,7 +31,6 @@
     },
     "preview": {
       "distribution": "internal",
-      "prebuild": false,
       "android": {
         "buildType": "apk"
       },
