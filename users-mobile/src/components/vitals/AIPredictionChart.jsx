@@ -94,21 +94,16 @@ export default function AIPredictionChart({ vitalsHistory, predictionData, metri
   // chart-kit crashes if all values are perfectly identical and 0
   const validValues = allValues.length ? allValues : [0];
 
+  // Max 5 labels to prevent overlap
+  const labelInterval = Math.max(1, Math.ceil(labels.length / 5));
+
   const data = {
-    labels: labels.map((l, i) => (i % 2 === 0 ? l : '')), 
+    labels: labels.map((l, i) => (i % labelInterval === 0 ? l : '')), 
     datasets: [
       {
-        // History data line (nulls for prediction part to stop the line)
-        data: allValues.map((v, i) => i < safeHistory.length ? Number(v) : null),
+        data: allValues.map(Number),
         color: (opacity = 1) => `rgba(14, 165, 233, ${opacity})`, // Light blue connecting line
         strokeWidth: 2
-      },
-      {
-        // Prediction data line (nulls for history part to start after)
-        data: allValues.map((v, i) => i >= safeHistory.length - 1 ? Number(v) : null), // overlap 1 point to connect
-        color: (opacity = 1) => isBackendAI ? `rgba(245, 158, 11, ${opacity})` : `rgba(167, 139, 250, ${opacity})`, 
-        strokeWidth: 2,
-        strokeDashArray: isBackendAI ? undefined : [5, 5]
       }
     ]
   };
@@ -128,7 +123,7 @@ export default function AIPredictionChart({ vitalsHistory, predictionData, metri
       stroke: '#FFF'
     },
     getDotColor: (dataPoint, index) => {
-      // Connect line uses index overlap, so safeHistory.length is the first prediction dot
+      // Connect line is solid, but dots change color for predictions
       return index >= safeHistory.length ? (isBackendAI ? '#F59E0B' : '#A78BFA') : '#0EA5E9';
     }
   };
@@ -174,7 +169,6 @@ export default function AIPredictionChart({ vitalsHistory, predictionData, metri
           withOuterLines={false}
           fromZero={true}
           formatYLabel={(y) => Math.round(Number(y)).toString()}
-          hidePointsAtIndex={allValues.map((_, i) => i === safeHistory.length - 1 && safePrediction.length > 0 ? i : -1).filter(i => i !== -1)} // Hide overlap dot
         />
       </View>
     </View>

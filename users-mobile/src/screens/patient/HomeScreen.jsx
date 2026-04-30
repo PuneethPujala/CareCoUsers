@@ -85,7 +85,7 @@ const VitalsCard = ({ label, value, unit, icon: Icon, color, status = 'Stable' }
                 start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
             />
             <View style={styles.vitalsCardTop}>
-                <View style={[styles.vitalsIconBox, { backgroundColor: isLogged ? color + '22' : '#F1F5F9' }]}>
+                <View style={[styles.vitalsIconBox, { backgroundColor: isLogged ? color + '22' : '#F8FAFC' }]}>
                     <Icon size={20} color={isLogged ? color : '#94A3B8'} strokeWidth={2.5} />
                 </View>
                 <View style={[styles.vitalsStatusBadge, { backgroundColor: isLogged ? color + '15' : '#F1F5F9' }]}>
@@ -150,6 +150,7 @@ export default function PatientHomeScreen({ navigation }) {
     const vitalsHistory = usePatientStore((s) => s.vitalsHistory);
     const aiPrediction = usePatientStore((s) => s.aiPrediction);
     const meds = usePatientStore((s) => s.dashboardMeds);
+    const adherenceDetails = usePatientStore((s) => s.adherenceDetails);
     const isCached = usePatientStore((s) => s.isCached);
     const storeFetchDashboard = usePatientStore((s) => s.fetchDashboard);
 
@@ -266,7 +267,7 @@ export default function PatientHomeScreen({ navigation }) {
     const takenCount = meds.filter(m => m.taken).length;
     const totalMeds = meds.length;
     const adherencePct = totalMeds > 0 ? Math.round((takenCount / totalMeds) * 100) : 0;
-    const vitalsStreak = vitalsHistory.length;
+    const medicationStreak = adherenceDetails?.streak || 0;
     const dateStr = new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' });
     const firstName = (patient?.name || displayName)?.split(' ')[0] || 'there';
 
@@ -377,7 +378,7 @@ export default function PatientHomeScreen({ navigation }) {
                     <Animated.View style={[styles.statsStrip, { opacity: staggerAnims[1] }]}>
                         {[
                             { Icon: Pill, value: `${takenCount}/${totalMeds}`, label: 'Meds Today', iconColor: 'rgba(255,255,255,0.85)', onPress: () => navigation.navigate('AdherenceDetails') },
-                            { Icon: Flame, value: String(vitalsStreak), label: 'Day Streak', iconColor: '#FB923C', onPress: null },
+                            { Icon: Flame, value: String(medicationStreak), label: 'Day Streak', iconColor: '#FB923C', onPress: () => navigation.navigate('AdherenceDetails') },
                             { Icon: Sparkles, value: String(daysPremiumRemaining), label: 'Days Premium', iconColor: '#A78BFA', onPress: null },
                         ].map(({ Icon: StatIcon, value, label, iconColor, onPress: statPress }, i) => (
                             <Pressable key={i} style={styles.statChip} onPress={statPress || undefined}>
@@ -412,13 +413,13 @@ export default function PatientHomeScreen({ navigation }) {
 
                         {/* ── Banners ── */}
                         <Animated.View style={anim(2)}>
-                            {showStreakBanner && vitalsStreak >= 3 && (
+                            {showStreakBanner && medicationStreak >= 3 && (
                                 <View style={[styles.banner, { borderColor: '#FDE68A' }]}>
                                     <LinearGradient colors={['#FEF3C7', '#FDE68A']} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
                                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
                                         <Text style={{ fontSize: 22 }}>🔥</Text>
                                         <View>
-                                            <Text style={styles.bannerTitle}>{vitalsStreak}-day vitals streak!</Text>
+                                            <Text style={styles.bannerTitle}>{medicationStreak}-day medication streak!</Text>
                                             <Text style={styles.bannerSub}>Keep logging to unlock better insights</Text>
                                         </View>
                                     </View>

@@ -120,7 +120,7 @@ const usePatientStore = create((set, get) => ({
             const historyStart = new Date(todayStart);
             historyStart.setDate(historyStart.getDate() - 7);
 
-            const [pRes, vRes, vHistRes, medsRes, aiRes] = await Promise.all([
+            const [pRes, vRes, vHistRes, medsRes, aiRes, adhRes] = await Promise.all([
                 apiService.patients.getMe(),
                 apiService.patients.getVitals({
                     start_date: todayStart.toISOString(),
@@ -129,6 +129,7 @@ const usePatientStore = create((set, get) => ({
                 apiService.patients.getVitals({ start_date: historyStart.toISOString() }),
                 apiService.medicines.getToday(),
                 apiService.patients.getAIPrediction().catch(() => ({ data: { prediction: null } })),
+                apiService.medicines.getAdherenceDetails().catch(() => ({ data: { streak: 0 } })),
             ]);
 
             const freshPatient = pRes.data.patient;
@@ -165,6 +166,7 @@ const usePatientStore = create((set, get) => ({
                 aiPrediction: aiRes.data.prediction,
                 dashboardMeds: freshMeds,
                 callPreferences: prefs,
+                adherenceDetails: adhRes.data,
                 isCached: false,
                 loading: false,
                 lastFetchTs: Date.now(),
