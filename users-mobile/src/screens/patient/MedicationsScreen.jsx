@@ -4,7 +4,6 @@ import { View, Text, StyleSheet, ScrollView, Platform, Pressable, Animated, Acti
 import PremiumFormModal from '../../components/ui/PremiumFormModal';
 import { Pill, Sunrise, Sun, Moon, CheckCircle2, Circle, Bell, Activity, Plus, Coffee, Utensils, BedDouble, AlertCircle, Calendar, Pencil, Clock, PillBottle, Syringe, X, MessageCircle, ChevronDown, ChevronUp, Info } from 'lucide-react-native';
 import { Swipeable } from 'react-native-gesture-handler';
-import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Circle as SvgCircle, Defs, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg';
 import { colors, layout } from '../../theme';
 import { apiService } from '../../lib/api';
@@ -585,7 +584,7 @@ export default function MedicationsScreen({ navigation }) {
 
     if (loading) {
         return (
-            <LinearGradient colors={['#F8FAFC', '#EEF2FF']} style={styles.container}>
+            <View style={styles.container}>
                 <View style={{ padding: 24, paddingTop: Platform.OS === 'android' ? 60 : 40 }}>
                     {/* Header Skeleton */}
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
@@ -607,17 +606,17 @@ export default function MedicationsScreen({ navigation }) {
                     <SkeletonItem width="100%" height={100} borderRadius={20} style={{ marginBottom: 12 }} />
                     <SkeletonItem width="100%" height={100} borderRadius={20} style={{ marginBottom: 12 }} />
                 </View>
-            </LinearGradient>
+            </View>
         );
     }
 
     if (patient?.subscription?.plan === 'free') {
         return (
-            <LinearGradient colors={['#F8FAFC', '#EEF2FF']} style={[styles.container, { justifyContent: 'center', alignItems: 'center', padding: 32 }]}>
+            <View style={[styles.container, { justifyContent: 'center', alignItems: 'center', padding: 32 }]}>
                 <View style={styles.upgradeIconWrap}><Pill size={32} color={'#6366F1'} /></View>
                 <Text style={styles.upgradeTitle}>Premium Feature</Text>
                 <Text style={styles.upgradeBody}>Medication tracking and adherence insights are included in the Premium Plan. Upgrade to manage your daily schedule.</Text>
-            </LinearGradient>
+            </View>
         );
     }
 
@@ -678,7 +677,7 @@ export default function MedicationsScreen({ navigation }) {
     };
 
     return (
-        <LinearGradient colors={['#F8FAFC', '#EEF2FF']} style={styles.container}>
+        <View style={styles.container}>
             <View style={[styles.headerWrap, { zIndex: 10 }]}>
                 <Animated.View style={[styles.minimalHeader, { opacity: staggerAnims[0], transform: [{ translateY: staggerAnims[0].interpolate({ inputRange: [0, 1], outputRange: [-20, 0] }) }] }]}>
                     <View style={styles.mainHeaderRow}>
@@ -948,9 +947,9 @@ export default function MedicationsScreen({ navigation }) {
             {/* Floating Action Button */}
             <Animated.View style={[styles.fabWrapper, { opacity: staggerAnims[5], transform: [{ scale: staggerAnims[5].interpolate({ inputRange: [0, 1], outputRange: [0, 1] }) }] }]}>
                 <Pressable style={styles.fabShadow} onPress={() => { setShowPrefModal(true); setTempPrefs(preferences); setActivePicker(null); }}>
-                    <LinearGradient colors={['#60A5FA', '#1E3A8A']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.fabMinimal}>
+                    <View style={[styles.fabMinimal, { backgroundColor: '#4361EE' }]}>
                         <Plus size={24} color="#FFF" strokeWidth={2.5} />
-                    </LinearGradient>
+                    </View>
                 </Pressable>
             </Animated.View>
 
@@ -1043,15 +1042,15 @@ export default function MedicationsScreen({ navigation }) {
                     </View>
                 </Animated.View>
             )}
-        </LinearGradient>
+        </View>
     );
 
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: 'transparent' },
+    container: { flex: 1, backgroundColor: '#F8FAFC' },
     headerWrap: { zIndex: 10 },
-    minimalHeader: { paddingTop: Platform.OS === 'ios' ? 70 : 50, paddingHorizontal: 24, paddingBottom: 16, backgroundColor: 'transparent' },
+    minimalHeader: { paddingTop: Platform.OS === 'ios' ? 70 : 50, paddingHorizontal: 24, paddingBottom: 16, backgroundColor: '#F8FAFC' },
     mainHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
     headerLeft: { flex: 1 },
     headerLabel: { fontSize: 13, fontWeight: '800', color: '#6366F1', letterSpacing: 1.5, marginBottom: 4 },

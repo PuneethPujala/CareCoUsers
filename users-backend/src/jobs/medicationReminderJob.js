@@ -1,6 +1,7 @@
 const cron = require('node-cron');
 const moment = require('moment-timezone');
 const Patient = require('../models/Patient');
+const Notification = require('../models/Notification');
 const NotificationService = require('../services/NotificationService');
 
 /**
@@ -100,7 +101,7 @@ const runMedicationReminders = async () => {
                     messageBody = `${medNames[0]}, ${medNames[1]} and ${medNames.length - 2} more — due in 15 minutes.`;
                 }
 
-                await NotificationService.sendPush(patient._id, {
+                const pushDelivered = await NotificationService.sendPush(patient._id, {
                     title: '💊 Medication Reminder',
                     body: messageBody,
                     data: {
@@ -110,6 +111,15 @@ const runMedicationReminders = async () => {
                         medication_ids: dueMeds.map(m => m._id.toString()).join(','),
                         categoryIdentifier: 'medication_reminder',
                     },
+                });
+
+                await Notification.create({
+                    patient_id: patient._id,
+                    type: 'reminders',
+                    title: '💊 Medication Reminder',
+                    message: messageBody,
+                    target_screen: 'Medications',
+                    push_delivered: pushDelivered,
                 });
             }
         }

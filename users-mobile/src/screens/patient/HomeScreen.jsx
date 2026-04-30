@@ -2,9 +2,8 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
     View, Text, StyleSheet, ScrollView, Platform, Pressable, Animated,
     ActivityIndicator, KeyboardAvoidingView, TouchableOpacity,
-    DeviceEventEmitter, InteractionManager, Dimensions,
+    DeviceEventEmitter, InteractionManager, Dimensions, StatusBar,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import {
     Pill, Package, Sparkles, ChevronRight, TrendingUp, Activity,
     CalendarDays, CheckCircle2, Bell, Heart, Wind, Droplets, MapPin,
@@ -56,8 +55,6 @@ const TIME_LABELS = {
     evening: 'Evening', night: 'Night', as_needed: 'As Needed',
 };
 
-const HERO_GRAD = ['#071628', '#0C2240', '#0F3460'];
-
 // ── Skeleton Loader ────────────────────────────────────────────────────────
 const SkeletonItem = ({ width, height, borderRadius = 10, style }) => {
     const anim = useRef(new Animated.Value(0.35)).current;
@@ -70,7 +67,7 @@ const SkeletonItem = ({ width, height, borderRadius = 10, style }) => {
         ).start();
     }, []);
     return (
-        <Animated.View style={[{ width, height, borderRadius, backgroundColor: 'rgba(255,255,255,0.12)', opacity: anim }, style]} />
+        <Animated.View style={[{ width, height, borderRadius, backgroundColor: '#CBD5E1', opacity: anim }, style]} />
     );
 };
 
@@ -78,12 +75,7 @@ const SkeletonItem = ({ width, height, borderRadius = 10, style }) => {
 const VitalsCard = ({ label, value, unit, icon: Icon, color, status = 'Stable' }) => {
     const isLogged = status === 'Recorded';
     return (
-        <View style={[styles.vitalsCard, { backgroundColor: '#FFFFFF' }]}>
-            <LinearGradient
-                colors={isLogged ? [color + '14', color + '06'] : ['#FAFBFF', '#F5F7FF']}
-                style={StyleSheet.absoluteFill}
-                start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-            />
+        <View style={[styles.vitalsCard, { backgroundColor: isLogged ? color + '08' : '#FAFBFF' }]}>
             <View style={styles.vitalsCardTop}>
                 <View style={[styles.vitalsIconBox, { backgroundColor: isLogged ? color + '22' : '#F8FAFC' }]}>
                     <Icon size={20} color={isLogged ? color : '#94A3B8'} strokeWidth={2.5} />
@@ -303,6 +295,7 @@ export default function PatientHomeScreen({ navigation }) {
     const nextDose = getNextDose();
 
     const adherenceColor = adherencePct >= 80 ? '#10B981' : adherencePct >= 50 ? '#F59E0B' : '#F43F5E';
+    const hasContextualAlerts = !vitals || meds.some(m => !m.taken);
 
     const anim = (i) => ({
         opacity: staggerAnims[i],
@@ -312,8 +305,9 @@ export default function PatientHomeScreen({ navigation }) {
     // ── Loading skeleton ──────────────────────────────────────────────────
     if (loading) {
         return (
-            <View style={{ flex: 1 }}>
-                <LinearGradient colors={HERO_GRAD} style={styles.skeletonHeader}>
+            <View style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
+                <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+                <View style={styles.skeletonHeader}>
                     <View style={{ paddingHorizontal: 24 }}>
                         <SkeletonItem width={90} height={11} borderRadius={6} style={{ marginBottom: 18 }} />
                         <SkeletonItem width={220} height={34} borderRadius={10} style={{ marginBottom: 8 }} />
@@ -324,7 +318,7 @@ export default function PatientHomeScreen({ navigation }) {
                             <SkeletonItem width="30%" height={68} borderRadius={18} />
                         </View>
                     </View>
-                </LinearGradient>
+                </View>
                 <View style={styles.skeletonPanel}>
                     <View style={{ padding: 20, gap: 14 }}>
                         <View style={{ backgroundColor: '#E2E8F0', borderRadius: 22, height: 130 }} />
@@ -338,10 +332,8 @@ export default function PatientHomeScreen({ navigation }) {
 
     return (
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-            <LinearGradient colors={HERO_GRAD} style={{ flex: 1 }}>
-                {/* Decorative orbs */}
-                <View style={styles.orb1} />
-                <View style={styles.orb2} />
+            <View style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
+                <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
                 {/* ── HEADER ── */}
                 <Animated.View style={[styles.header, anim(0)]}>
@@ -350,7 +342,7 @@ export default function PatientHomeScreen({ navigation }) {
                         <Text style={styles.locationText} numberOfLines={1}>
                             {patient?.city || profile?.city || 'Detecting...'}
                         </Text>
-                        <ChevronRight size={10} color="rgba(255,255,255,0.5)" strokeWidth={3} />
+                        <ChevronRight size={10} color="#CBD5E1" strokeWidth={3} />
                     </Pressable>
 
                     <View style={styles.mainHeaderRow}>
@@ -360,8 +352,8 @@ export default function PatientHomeScreen({ navigation }) {
                         </View>
                         <View style={styles.headerActions}>
                             <Pressable style={styles.headerIconBtn} onPress={() => navigation.navigate('Notifications')}>
-                                <Bell size={20} color="rgba(255,255,255,0.9)" strokeWidth={2.5} />
-                                {unreadCount > 0 && <View style={styles.bellDot} />}
+                                <Bell size={20} color="#475569" strokeWidth={2.5} />
+                                {(unreadCount > 0 || hasContextualAlerts) && <View style={styles.bellDot} />}
                             </Pressable>
                             <TouchableOpacity activeOpacity={0.85} style={styles.avatarBtn} onPress={() => navigation.navigate('Profile')}>
                                 <Text style={styles.avatarText}>{displayName?.charAt(0) || 'U'}</Text>
@@ -370,27 +362,23 @@ export default function PatientHomeScreen({ navigation }) {
                     </View>
 
                     <View style={styles.datePill}>
-                        <CalendarDays size={12} color="rgba(255,255,255,0.45)" />
+                        <CalendarDays size={12} color="#CBD5E1" />
                         <Text style={styles.dateText}>{dateStr}</Text>
                     </View>
 
                     {/* Quick stats strip */}
                     <Animated.View style={[styles.statsStrip, { opacity: staggerAnims[1] }]}>
                         {[
-                            { Icon: Pill, value: `${takenCount}/${totalMeds}`, label: 'Meds Today', iconColor: 'rgba(255,255,255,0.85)', onPress: () => navigation.navigate('AdherenceDetails') },
+                            { Icon: Pill, value: `${takenCount}/${totalMeds}`, label: 'Meds Today', iconColor: '#4361EE', onPress: () => navigation.navigate('AdherenceDetails') },
                             { Icon: Flame, value: String(medicationStreak), label: 'Day Streak', iconColor: '#FB923C', onPress: () => navigation.navigate('AdherenceDetails') },
                             { Icon: Sparkles, value: String(daysPremiumRemaining), label: 'Days Premium', iconColor: '#A78BFA', onPress: null },
                         ].map(({ Icon: StatIcon, value, label, iconColor, onPress: statPress }, i) => (
                             <Pressable key={i} style={styles.statChip} onPress={statPress || undefined}>
-                                <LinearGradient
-                                    colors={['rgba(255,255,255,0.18)', 'rgba(255,255,255,0.08)']}
-                                    style={styles.statChipGrad}
-                                    start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-                                >
+                                <View style={styles.statChipGrad}>
                                     <StatIcon size={16} color={iconColor} strokeWidth={2} />
                                     <Text style={styles.statChipValue}>{value}</Text>
                                     <Text style={styles.statChipLabel}>{label}</Text>
-                                </LinearGradient>
+                                </View>
                             </Pressable>
                         ))}
                     </Animated.View>
@@ -414,8 +402,7 @@ export default function PatientHomeScreen({ navigation }) {
                         {/* ── Banners ── */}
                         <Animated.View style={anim(2)}>
                             {showStreakBanner && medicationStreak >= 3 && (
-                                <View style={[styles.banner, { borderColor: '#FDE68A' }]}>
-                                    <LinearGradient colors={['#FEF3C7', '#FDE68A']} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
+                                <View style={[styles.banner, { borderColor: '#FDE68A', backgroundColor: '#FEF3C7' }]}>
                                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
                                         <Text style={{ fontSize: 22 }}>🔥</Text>
                                         <View>
@@ -429,8 +416,7 @@ export default function PatientHomeScreen({ navigation }) {
                                 </View>
                             )}
                             {takenCount === totalMeds && totalMeds > 0 && (
-                                <View style={[styles.banner, { borderColor: '#BBF7D0' }]}>
-                                    <LinearGradient colors={['#F0FDF4', '#DCFCE7']} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
+                                <View style={[styles.banner, { borderColor: '#BBF7D0', backgroundColor: '#F0FDF4' }]}>
                                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
                                         <Text style={{ fontSize: 22 }}>✅</Text>
                                         <View>
@@ -449,11 +435,7 @@ export default function PatientHomeScreen({ navigation }) {
 
                                 {totalMeds > 0 ? (
                                     <Pressable style={styles.medSummaryCard} onPress={() => setMedsExpanded(!medsExpanded)}>
-                                        <LinearGradient
-                                            colors={adherencePct >= 80 ? ['#10B981', '#34D399'] : adherencePct >= 50 ? ['#F59E0B', '#FCD34D'] : ['#F43F5E', '#FB7185']}
-                                            style={styles.medAccent}
-                                            start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }}
-                                        />
+                                        <View style={[styles.medAccent, { backgroundColor: adherencePct >= 80 ? '#10B981' : adherencePct >= 50 ? '#F59E0B' : '#F43F5E' }]} />
                                         <View style={styles.medSummaryBody}>
                                             <View style={styles.medSummaryRow}>
                                                 <View style={styles.medSummaryLeft}>
@@ -650,7 +632,7 @@ export default function PatientHomeScreen({ navigation }) {
                         <Animated.View style={anim(5)}>
                             <View style={styles.section}>
                                 <View style={styles.tipCard}>
-                                    <LinearGradient colors={['#0EA5E9', '#38BDF8']} style={styles.tipAccentBar} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} />
+                                    <View style={[styles.tipAccentBar, { backgroundColor: '#0EA5E9' }]} />
                                     <View style={styles.tipBody}>
                                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>
                                             <View style={styles.tipIconBox}><Sparkles size={15} color="#0EA5E9" /></View>
@@ -668,15 +650,15 @@ export default function PatientHomeScreen({ navigation }) {
                                 <Text style={styles.sectionTitle}>QUICK ACTIONS</Text>
                                 <View style={styles.quickGrid}>
                                     {[
-                                        { label: 'Med Adherence', sub: 'View Progress', grad: ['#10B981', '#34D399'], Icon: CheckCircle2, onPress: () => navigation.navigate('AdherenceDetails') },
-                                        { label: 'Med Delivery', sub: 'Coming Soon', grad: ['#0EA5E9', '#38BDF8'], Icon: Package, onPress: () => AlertManager.alert('Coming Soon! 🚀', "Med Delivery is on its way! We're building a seamless way to order and track your medications right from the app. Stay tuned!", [{ text: 'Got it!', style: 'default' }]) },
-                                        { label: 'Health Profile', sub: 'View & Edit', grad: ['#0284C7', '#38BDF8'], Icon: Activity, onPress: () => navigation.navigate('HealthProfile') },
-                                        { label: 'Schedule', sub: 'Next Appointment', grad: ['#F59E0B', '#FCD34D'], Icon: CalendarDays, onPress: () => navigation.navigate('HealthProfile') },
-                                    ].map(({ label, sub, grad, Icon, onPress }) => (
+                                        { label: 'Med Adherence', sub: 'View Progress', iconBg: '#10B981', Icon: CheckCircle2, onPress: () => navigation.navigate('AdherenceDetails') },
+                                        { label: 'Med Delivery', sub: 'Coming Soon', iconBg: '#0EA5E9', Icon: Package, onPress: () => AlertManager.alert('Coming Soon! 🚀', "Med Delivery is on its way! We're building a seamless way to order and track your medications right from the app. Stay tuned!", [{ text: 'Got it!', style: 'default' }]) },
+                                        { label: 'Health Profile', sub: 'View & Edit', iconBg: '#4361EE', Icon: Activity, onPress: () => navigation.navigate('HealthProfile') },
+                                        { label: 'Schedule', sub: 'Next Appointment', iconBg: '#F59E0B', Icon: CalendarDays, onPress: () => navigation.navigate('HealthProfile') },
+                                    ].map(({ label, sub, iconBg, Icon, onPress }) => (
                                         <Pressable key={label} style={styles.quickCard} onPress={onPress}>
-                                            <LinearGradient colors={grad} style={styles.quickIconBox} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+                                            <View style={[styles.quickIconBox, { backgroundColor: iconBg }]}>
                                                 <Icon size={20} color="#FFF" strokeWidth={2.5} />
-                                            </LinearGradient>
+                                            </View>
                                             <View style={{ flex: 1 }}>
                                                 <Text style={styles.quickCardTitle}>{label}</Text>
                                                 <Text style={styles.quickCardSub}>{sub}</Text>
@@ -691,7 +673,7 @@ export default function PatientHomeScreen({ navigation }) {
                         <View style={{ height: 30 }} />
                     </ScrollView>
                 </View>
-            </LinearGradient>
+            </View>
         </KeyboardAvoidingView>
     );
 }
@@ -701,47 +683,54 @@ export default function PatientHomeScreen({ navigation }) {
 // ════════════════════════════════════════════════════════════════════════════
 const styles = StyleSheet.create({
     // ── Skeleton ──
-    skeletonHeader: { paddingTop: Platform.OS === 'ios' ? 60 : 44, paddingBottom: 24 },
-    skeletonPanel: { flex: 1, backgroundColor: '#F2F4FF', borderTopLeftRadius: 32, borderTopRightRadius: 32 },
-
-    // ── Orbs ──
-    orb1: { position: 'absolute', top: -60, right: -40, width: 200, height: 200, borderRadius: 100, backgroundColor: '#0EA5E9', opacity: 0.1 },
-    orb2: { position: 'absolute', top: 180, left: -80, width: 160, height: 160, borderRadius: 80, backgroundColor: '#0369A1', opacity: 0.1 },
+    skeletonHeader: { paddingTop: Platform.OS === 'ios' ? 60 : 44, paddingBottom: 28, backgroundColor: '#FFFFFF' },
+    skeletonPanel: { flex: 1, backgroundColor: '#F8FAFC', borderTopLeftRadius: 32, borderTopRightRadius: 32 },
 
     // ── Header ──
-    header: { paddingTop: Platform.OS === 'ios' ? 52 : 40, paddingHorizontal: 24, paddingBottom: 12 },
+    header: {
+        paddingTop: Platform.OS === 'ios' ? 52 : 40, paddingHorizontal: 24, paddingBottom: 20,
+        backgroundColor: '#FFFFFF',
+    },
     locationPill: {
         flexDirection: 'row', alignItems: 'center', gap: 6,
-        backgroundColor: 'rgba(255,255,255,0.14)', paddingHorizontal: 12, paddingVertical: 6,
+        backgroundColor: '#F1F5F9', paddingHorizontal: 12, paddingVertical: 6,
         borderRadius: 20, alignSelf: 'flex-start', marginBottom: 16,
-        borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)',
+        borderWidth: 1, borderColor: '#E2E8F0',
     },
     locationDot: { width: 16, height: 16, borderRadius: 8, backgroundColor: '#4361EE', alignItems: 'center', justifyContent: 'center' },
-    locationText: { fontSize: 11, color: 'rgba(255,255,255,0.85)', fontWeight: '700', letterSpacing: 0.3, textTransform: 'uppercase' },
+    locationText: { fontSize: 11, color: '#475569', fontWeight: '700', letterSpacing: 0.3, textTransform: 'uppercase' },
     mainHeaderRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
-    greetingLabel: { fontSize: 13, fontWeight: '700', color: 'rgba(255,255,255,0.6)', letterSpacing: 0.3, marginBottom: 2 },
-    greetingName: { fontSize: 30, fontWeight: '900', color: '#FFFFFF', letterSpacing: -0.8 },
+    greetingLabel: { fontSize: 13, fontWeight: '700', color: '#64748B', letterSpacing: 0.3, marginBottom: 2 },
+    greetingName: { fontSize: 30, fontWeight: '900', color: '#0F172A', letterSpacing: -0.8 },
     headerActions: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingTop: 2 },
     headerIconBtn: {
         width: 42, height: 42, borderRadius: 21,
-        backgroundColor: 'rgba(255,255,255,0.14)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.22)',
+        backgroundColor: '#F1F5F9', borderWidth: 1, borderColor: '#E2E8F0',
         alignItems: 'center', justifyContent: 'center',
     },
-    bellDot: { position: 'absolute', top: 10, right: 10, width: 7, height: 7, borderRadius: 3.5, backgroundColor: '#EF4444', borderWidth: 1.5, borderColor: '#0C2240' },
-    avatarBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#4361EE', borderWidth: 2, borderColor: 'rgba(255,255,255,0.3)', alignItems: 'center', justifyContent: 'center' },
+    bellDot: { position: 'absolute', top: 10, right: 10, width: 7, height: 7, borderRadius: 3.5, backgroundColor: '#EF4444', borderWidth: 1.5, borderColor: '#FFFFFF' },
+    avatarBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#4361EE', borderWidth: 2, borderColor: 'rgba(67,97,238,0.2)', alignItems: 'center', justifyContent: 'center' },
     avatarText: { fontSize: 16, fontWeight: '900', color: '#FFFFFF' },
     datePill: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 },
-    dateText: { fontSize: 13, color: 'rgba(255,255,255,0.5)', fontWeight: '600' },
+    dateText: { fontSize: 13, color: '#94A3B8', fontWeight: '600' },
 
     // ── Stats Strip ──
-    statsStrip: { flexDirection: 'row', gap: 10, marginTop: 12 },
+    statsStrip: { flexDirection: 'row', gap: 10, marginTop: 16 },
     statChip: { flex: 1, borderRadius: 16, overflow: 'hidden' },
-    statChipGrad: { padding: 10, alignItems: 'center', gap: 3, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)' },
-    statChipValue: { fontSize: 16, fontWeight: '900', color: '#FFFFFF', letterSpacing: -0.5 },
-    statChipLabel: { fontSize: 9, color: 'rgba(255,255,255,0.6)', fontWeight: '700', letterSpacing: 0.3, textTransform: 'uppercase', textAlign: 'center' },
+    statChipGrad: {
+        padding: 10, alignItems: 'center', gap: 3, borderRadius: 16,
+        borderWidth: 1, borderColor: '#E2E8F0', backgroundColor: '#F8FAFC',
+    },
+    statChipValue: { fontSize: 16, fontWeight: '900', color: '#1E293B', letterSpacing: -0.5 },
+    statChipLabel: { fontSize: 9, color: '#94A3B8', fontWeight: '700', letterSpacing: 0.3, textTransform: 'uppercase', textAlign: 'center' },
 
     // ── Content Panel ──
-    contentPanel: { flex: 1, backgroundColor: '#F0F9FF', borderTopLeftRadius: 32, borderTopRightRadius: 32, overflow: 'hidden' },
+    contentPanel: {
+        flex: 1, backgroundColor: '#F8FAFC',
+        borderTopLeftRadius: 32, borderTopRightRadius: 32, overflow: 'hidden',
+        shadowColor: '#000', shadowOffset: { width: 0, height: -2 },
+        shadowOpacity: 0.04, shadowRadius: 8, elevation: 3,
+    },
     scrollContent: { paddingHorizontal: 20, paddingTop: 24, paddingBottom: 110 },
 
     // ── Offline Banner ──

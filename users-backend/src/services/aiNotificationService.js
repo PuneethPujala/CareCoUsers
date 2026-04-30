@@ -7,7 +7,7 @@
 
 const Patient = require('../models/Patient');
 const Notification = require('../models/Notification');
-const PushNotificationService = require('../utils/pushNotifications');
+const NotificationService = require('./NotificationService');
 const { generateMessage } = require('./notificationContentEngine');
 const moment = require('moment-timezone');
 
@@ -83,18 +83,15 @@ async function triggerAiNotification(trigger, patient, category = 'health_tips',
     });
 
     // 2. Dispatch Push
-    if (patient.expo_push_token) {
-        const pushResult = await PushNotificationService.sendPush(
-            patient.expo_push_token,
-            'CareCo Companion 🤖',
-            messageBody,
-            { screen: targetScreen, notification_id: notificationDoc._id.toString() }
-        );
+    const pushDelivered = await NotificationService.sendPush(patient._id, {
+        title: 'CareCo Companion 🤖',
+        body: messageBody,
+        data: { screen: targetScreen, notification_id: notificationDoc._id.toString() },
+    });
 
-        if (pushResult && pushResult.success) {
-            notificationDoc.push_delivered = true;
-            await notificationDoc.save();
-        }
+    if (pushDelivered) {
+        notificationDoc.push_delivered = true;
+        await notificationDoc.save();
     }
 
     // 3. Update Frequency Limits
