@@ -775,11 +775,11 @@ export default function HealthProfileScreen({ navigation }) {
                                 <Text style={s.metricLbl}>HABITS</Text>
                                 <Text style={[s.metricSub, { color: habitColor }]}>{habitLabel}</Text>
                             </Pressable>
-                            <Pressable style={[s.metricCard, { backgroundColor: '#F0FDF4', borderColor: '#BBF7D0' }]} onPress={() => openModal('vitals')}>
+                            <Pressable style={[s.metricCard, { backgroundColor: '#F0FDF4', borderColor: '#BBF7D0' }]} onPress={() => openModal('condition')}>
                                 <TrendingUp size={20} color="#10B981" />
-                                <Text style={[s.metricVal, { color: '#10B981' }]}>{trendLabel}</Text>
-                                <Text style={s.metricLbl}>CONDITIONS</Text>
-                                <Text style={[s.metricSub, { color: trendColor }]}>{trendSub}</Text>
+                                <Text style={[s.metricVal, { color: '#10B981' }]} numberOfLines={1} adjustsFontSizeToFit>{trendLabel}</Text>
+                                <Text style={s.metricLbl} numberOfLines={1} adjustsFontSizeToFit>CONDITIONS</Text>
+                                <Text style={[s.metricSub, { color: trendColor }]} numberOfLines={1} adjustsFontSizeToFit>{trendSub}</Text>
                             </Pressable>
                         </View>
                     </Animated.View>
