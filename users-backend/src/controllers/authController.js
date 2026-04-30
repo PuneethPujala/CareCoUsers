@@ -75,9 +75,6 @@ async function deleteMe(req, res) {
     const userId = req.profile._id;
     const subject = req.auth?.subject || req.profile?.supabaseUid || req.profile?.supabase_uid;
 
-    // Revoke all sessions first (while auth still works)
-    await authService.logout(subject, userId, isPatient ? 'Patient' : 'Profile', req);
-
     if (isPatient) {
       // Hard-delete: permanently remove ALL patient data
       const CallLog = require('../models/CallLog');
@@ -112,6 +109,9 @@ async function deleteMe(req, res) {
       await RefreshToken.deleteMany({ userId, userType: 'Profile' });
       await logEvent(subject, 'account_hard_deleted', 'profile', userId, req, { permanent: true });
     }
+
+    // Revoke all sessions LAST (so the auth validation for the above operations succeeds)
+    await authService.logout(subject, userId, isPatient ? 'Patient' : 'Profile', req);
 
     res.json({ message: 'Account permanently deleted. You may register again with the same email.' });
   } catch (err) {
