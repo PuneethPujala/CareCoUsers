@@ -344,13 +344,22 @@ router.get('/me/profile', authenticateSession, async (req, res) => {
     try {
         const patient = await getOrCreatePatient(req);
         const patientObj = patient.toObject();
+
+        // Merge top-level legacy fields with the actual lifestyle subdocument.
+        // The PUT /me/lifestyle handler writes to patient.lifestyle.*, so we must
+        // read from there. Legacy top-level fields (height_cm, weight_kg, etc.)
+        // are kept as fallbacks for patients who haven't used the new lifestyle form yet.
+        const savedLifestyle = patientObj.lifestyle || {};
         patientObj.lifestyle = {
-            height_cm: patientObj.height_cm,
-            weight_kg: patientObj.weight_kg,
-            smoking_status: patientObj.smoking_status,
-            alcohol_use: patientObj.alcohol_use,
-            exercise_frequency: patientObj.exercise_frequency,
-            mobility_level: patientObj.mobility_level,
+            height_cm: savedLifestyle.height_cm ?? patientObj.height_cm,
+            weight_kg: savedLifestyle.weight_kg ?? patientObj.weight_kg,
+            smoking_status: savedLifestyle.smoking_status ?? patientObj.smoking_status,
+            alcohol_use: savedLifestyle.alcohol_use ?? patientObj.alcohol_use,
+            exercise_frequency: savedLifestyle.exercise_frequency ?? patientObj.exercise_frequency,
+            mobility_level: savedLifestyle.mobility_level ?? patientObj.mobility_level,
+            mobility_aids: savedLifestyle.mobility_aids || [],
+            dietary_restrictions: savedLifestyle.dietary_restrictions || [],
+            device_sync_status: savedLifestyle.device_sync_status || null,
         };
         patientObj.gp = { name: patientObj.gp_name, phone: patientObj.gp_phone, email: patientObj.gp_email };
         res.json(patientObj);
