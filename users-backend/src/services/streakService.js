@@ -45,8 +45,11 @@ exports.evaluateAndUpdateStreak = async (patientId) => {
         const activeMeds = todayLog.medicines.filter(m => m.is_active !== false);
         if (activeMeds.length === 0) return patient.gamification;
 
-        const allTaken = activeMeds.every(m => m.taken === true);
-        if (!allTaken) return patient.gamification;
+        const takenCount = activeMeds.filter(m => m.taken === true).length;
+        const takenRatio = takenCount / activeMeds.length;
+        
+        // User requested: Taking >50% of meds continues the streak
+        if (takenRatio <= 0.5) return patient.gamification;
 
         if (!patient.gamification) {
             patient.gamification = {
