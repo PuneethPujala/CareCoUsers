@@ -1,12 +1,18 @@
 import { StatusBar } from 'expo-status-bar';
-import { LogBox, Platform, AppState, View, StyleSheet, Text } from 'react-native';
+import { LogBox, AppState, View, StyleSheet, Text } from 'react-native';
 import React, { useEffect, useState } from 'react';
 import { ShieldCheck } from 'lucide-react-native';
-import { useFonts, DMSans_400Regular, DMSans_500Medium, DMSans_600SemiBold, DMSans_700Bold } from '@expo-google-fonts/dm-sans';
-import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, Inter_800ExtraBold, Inter_900Black } from '@expo-google-fonts/inter';
+import {
+    useFonts,
+    DMSans_400Regular, DMSans_500Medium, DMSans_600SemiBold, DMSans_700Bold,
+} from '@expo-google-fonts/dm-sans';
+import {
+    Inter_400Regular, Inter_500Medium, Inter_600SemiBold,
+    Inter_700Bold, Inter_800ExtraBold, Inter_900Black,
+} from '@expo-google-fonts/inter';
 import * as SplashScreen from 'expo-splash-screen';
 
-// §SEC: Sentry crash reporting — must init before other code
+// Sentry — must init before anything else
 let Sentry = null;
 try {
     Sentry = require('@sentry/react-native');
@@ -26,7 +32,7 @@ try {
         });
     }
 } catch (e) {
-    console.warn('[Sentry] Not available:', e.message);
+    if (__DEV__) console.warn('[Sentry] Not available:', e.message);
 }
 
 SplashScreen.preventAutoHideAsync();
@@ -64,52 +70,41 @@ const linking = {
 
 export default function App() {
     const [fontsLoaded] = useFonts({
-        DMSans_400Regular,
-        DMSans_500Medium,
-        DMSans_600SemiBold,
-        DMSans_700Bold,
-        Inter_400Regular,
-        Inter_500Medium,
-        Inter_600SemiBold,
-        Inter_700Bold,
-        Inter_800ExtraBold,
-        Inter_900Black,
+        DMSans_400Regular, DMSans_500Medium, DMSans_600SemiBold, DMSans_700Bold,
+        Inter_400Regular, Inter_500Medium, Inter_600SemiBold,
+        Inter_700Bold, Inter_800ExtraBold, Inter_900Black,
     });
 
     const [appState, setAppState] = useState(AppState.currentState);
-
-    // BUG 9 FIX: Move splash hide logic to root for resilience.
-    // If fonts fail to load or the providers hang, we still want to hide the 
-    // native splash screen so the user sees SOMETHING (either the app or an error).
-    useEffect(() => {
-        // Last-resort fail-safe: hide splash screen after 10s regardless of state.
-        const timer = setTimeout(() => {
-            SplashScreen.hideAsync().catch(() => { });
-        }, 10000);
-
-        return () => clearTimeout(timer);
-    }, []);
 
     useEffect(() => {
         const sub = AppState.addEventListener('change', state => setAppState(state));
         return () => sub.remove();
     }, []);
 
-    // If fonts haven't loaded after 8 seconds, we continue anyway and let 
-    // the system fall back to default fonts rather than hanging forever.
-    if (!fontsLoaded) {
-        // You could return a loading view here, but returning null keeps 
-        // the native splash screen visible if it hasn't been hidden yet.
-        // We'll return null for the first 8s, then just render the app.
-        // For now, let's just ensure we don't hang forever.
-        return null;
-    }
+    // Last-resort fail-safe: if the native splash is somehow never hidden
+    // (e.g. AppNavigator doesn't mount, auth hangs beyond its own 6s timeout),
+    // we force-hide it after 12 seconds so the user always sees something.
+    // AppNavigator is the PRIMARY controller of SplashScreen.hideAsync().
+    // This is purely a safety net — do not move splash hide logic here.
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            SplashScreen.hideAsync().catch(() => { });
+        }, 12000);
+        return () => clearTimeout(timer);
+    }, []);
 
-    // BUG 9 FIX: The original used appState !== 'active', which also matched
-    // 'inactive'. On iOS, 'inactive' fires briefly when the control center or
-    // notification shade is pulled down — the user is still in the app and sees
-    // the privacy overlay flash unexpectedly. 'background' is the correct state
-    // for when the app is genuinely hidden in the task switcher.
+    // DO NOT return null here while fonts load.
+    // Returning null prevents AuthProvider and AppNavigator from mounting,
+    // which means AuthContext.init() never runs, isBootstrapping never becomes
+    // false, and AppNavigator never calls SplashScreen.hideAsync() — the native
+    // splash stays forever. The app tree must mount immediately regardless of
+    // font state. If fonts aren't ready, RN falls back to system fonts briefly.
+    // The native splash screen covers the UI until hideAsync() is called anyway.
+
+    // Privacy overlay: only when fully backgrounded (task switcher).
+    // 'inactive' fires on iOS when control center is pulled down — that's still
+    // "in app" from the user's perspective, so we don't cover the UI then.
     const showPrivacyOverlay = appState === 'background';
 
     return (
@@ -120,16 +115,13 @@ export default function App() {
                         <NetworkProvider>
                             <AuthProvider>
                                 <NavigationContainer linking={linking} ref={navigationRef}>
-                                    <AppNavigator />
+                                    <AppNavigator fontsLoaded={fontsLoaded} />
                                     <StatusBar style="light" />
                                 </NavigationContainer>
                             </AuthProvider>
                         </NetworkProvider>
                     </SecurityProvider>
 
-                    {/* SEC-FIX-8: Task Switcher Data Privacy Overlay.
-                        Only shown when appState === 'background' (not 'inactive') so
-                        pulling down the iOS control center doesn't flash this screen. */}
                     {showPrivacyOverlay && (
                         <View style={StyleSheet.absoluteFill}>
                             <View style={styles.privacyOverlay}>
