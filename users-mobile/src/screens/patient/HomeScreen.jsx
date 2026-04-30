@@ -47,16 +47,16 @@ const getDailyTip = () => HEALTH_TIPS[Math.floor((Date.now() / 86400000)) % HEAL
 const ACCENT_MAP = {
     morning: colors.success,
     afternoon: colors.warning,
-    evening: '#7C3AED',
-    night: '#8B5CF6',
-    as_needed: '#6366F1',
+    evening: '#0369A1',
+    night: '#1D4ED8',
+    as_needed: '#0EA5E9',
 };
 const TIME_LABELS = {
     morning: 'Morning', afternoon: 'Afternoon',
     evening: 'Evening', night: 'Night', as_needed: 'As Needed',
 };
 
-const HERO_GRAD = ['#0F0B2E', '#1E1B4B', '#312E81'];
+const HERO_GRAD = ['#071628', '#0C2240', '#0F3460'];
 
 // ── Skeleton Loader ────────────────────────────────────────────────────────
 const SkeletonItem = ({ width, height, borderRadius = 10, style }) => {
@@ -112,7 +112,7 @@ const VitalsCard = ({ label, value, unit, icon: Icon, color, status = 'Stable' }
 
 // ── MedicationCard ─────────────────────────────────────────────────────────
 const MedicationCard = ({ med, onPress }) => {
-    const accentColor = ACCENT_MAP[med.type] || '#6366F1';
+    const accentColor = ACCENT_MAP[med.type] || '#0EA5E9';
     return (
         <Pressable onPress={() => onPress && onPress()} style={[styles.medCard, med.taken && styles.medCardTaken]}>
             <View style={[styles.medAccentBar, { backgroundColor: med.taken ? colors.success : accentColor }]} />
@@ -378,7 +378,7 @@ export default function PatientHomeScreen({ navigation }) {
                         {[
                             { Icon: Pill, value: `${takenCount}/${totalMeds}`, label: 'Meds Today', iconColor: 'rgba(255,255,255,0.85)', onPress: () => navigation.navigate('AdherenceDetails') },
                             { Icon: Flame, value: String(vitalsStreak), label: 'Day Streak', iconColor: '#FB923C', onPress: null },
-                            { Icon: Sparkles, value: String(daysPremiumRemaining), label: 'Days Premium', iconColor: '#A78BFA', onPress: null },
+                            { Icon: Sparkles, value: String(daysPremiumRemaining), label: 'Days Premium', iconColor: '#F59E0B', onPress: null },
                         ].map(({ Icon: StatIcon, value, label, iconColor, onPress: statPress }, i) => (
                             <Pressable key={i} style={styles.statChip} onPress={statPress || undefined}>
                                 <LinearGradient
@@ -514,7 +514,7 @@ export default function PatientHomeScreen({ navigation }) {
                                     onPress={() => navigation.navigate('HealthConnectSetup')}
                                 >
                                     <View style={styles.syncCardLeft}>
-                                        <View style={[styles.syncIconBox, { backgroundColor: syncStatus.connected ? '#ECFDF5' : '#EEF2FF' }]}>
+                                        <View style={[styles.syncIconBox, { backgroundColor: syncStatus.connected ? '#ECFDF5' : '#E0F2FE' }]}>
                                             <Watch size={20} color={syncStatus.connected ? colors.success : '#4361EE'} strokeWidth={2.5} />
                                         </View>
                                         <View style={{ flex: 1 }}>
@@ -553,7 +553,7 @@ export default function PatientHomeScreen({ navigation }) {
                                         <View style={styles.cardHeaderRow}>
                                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                                                 <View style={styles.aiIconBox}>
-                                                    <Sparkles size={16} color="#7C3AED" />
+                                                    <Sparkles size={16} color="#0EA5E9" />
                                                 </View>
                                                 <Text style={styles.cardTitle}>AI Health Outlook</Text>
                                             </View>
@@ -669,7 +669,7 @@ export default function PatientHomeScreen({ navigation }) {
                                     {[
                                         { label: 'Med Adherence', sub: 'View Progress', grad: ['#10B981', '#34D399'], Icon: CheckCircle2, onPress: () => navigation.navigate('AdherenceDetails') },
                                         { label: 'Med Delivery', sub: 'Coming Soon', grad: ['#0EA5E9', '#38BDF8'], Icon: Package, onPress: () => AlertManager.alert('Coming Soon! 🚀', "Med Delivery is on its way! We're building a seamless way to order and track your medications right from the app. Stay tuned!", [{ text: 'Got it!', style: 'default' }]) },
-                                        { label: 'Health Profile', sub: 'View & Edit', grad: ['#7C3AED', '#A78BFA'], Icon: Activity, onPress: () => navigation.navigate('HealthProfile') },
+                                        { label: 'Health Profile', sub: 'View & Edit', grad: ['#0284C7', '#38BDF8'], Icon: Activity, onPress: () => navigation.navigate('HealthProfile') },
                                         { label: 'Schedule', sub: 'Next Appointment', grad: ['#F59E0B', '#FCD34D'], Icon: CalendarDays, onPress: () => navigation.navigate('HealthProfile') },
                                     ].map(({ label, sub, grad, Icon, onPress }) => (
                                         <Pressable key={label} style={styles.quickCard} onPress={onPress}>
@@ -704,11 +704,11 @@ const styles = StyleSheet.create({
     skeletonPanel: { flex: 1, backgroundColor: '#F2F4FF', borderTopLeftRadius: 32, borderTopRightRadius: 32 },
 
     // ── Orbs ──
-    orb1: { position: 'absolute', top: -60, right: -40, width: 220, height: 220, borderRadius: 110, backgroundColor: '#4338CA', opacity: 0.35 },
-    orb2: { position: 'absolute', top: 200, left: -80, width: 180, height: 180, borderRadius: 90, backgroundColor: '#7C3AED', opacity: 0.2 },
+    orb1: { position: 'absolute', top: -60, right: -40, width: 200, height: 200, borderRadius: 100, backgroundColor: '#0EA5E9', opacity: 0.1 },
+    orb2: { position: 'absolute', top: 180, left: -80, width: 160, height: 160, borderRadius: 80, backgroundColor: '#0369A1', opacity: 0.1 },
 
     // ── Header ──
-    header: { paddingTop: Platform.OS === 'ios' ? 56 : 44, paddingHorizontal: 24, paddingBottom: 20 },
+    header: { paddingTop: Platform.OS === 'ios' ? 52 : 40, paddingHorizontal: 24, paddingBottom: 12 },
     locationPill: {
         flexDirection: 'row', alignItems: 'center', gap: 6,
         backgroundColor: 'rgba(255,255,255,0.14)', paddingHorizontal: 12, paddingVertical: 6,
@@ -726,21 +726,21 @@ const styles = StyleSheet.create({
         backgroundColor: 'rgba(255,255,255,0.14)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.22)',
         alignItems: 'center', justifyContent: 'center',
     },
-    bellDot: { position: 'absolute', top: 10, right: 10, width: 7, height: 7, borderRadius: 3.5, backgroundColor: '#EF4444', borderWidth: 1.5, borderColor: '#1E1B4B' },
+    bellDot: { position: 'absolute', top: 10, right: 10, width: 7, height: 7, borderRadius: 3.5, backgroundColor: '#EF4444', borderWidth: 1.5, borderColor: '#0C2240' },
     avatarBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#4361EE', borderWidth: 2, borderColor: 'rgba(255,255,255,0.3)', alignItems: 'center', justifyContent: 'center' },
     avatarText: { fontSize: 16, fontWeight: '900', color: '#FFFFFF' },
     datePill: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 },
     dateText: { fontSize: 13, color: 'rgba(255,255,255,0.5)', fontWeight: '600' },
 
     // ── Stats Strip ──
-    statsStrip: { flexDirection: 'row', gap: 10, marginTop: 18 },
-    statChip: { flex: 1, borderRadius: 18, overflow: 'hidden' },
-    statChipGrad: { padding: 12, alignItems: 'center', gap: 4, borderRadius: 18, borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)' },
-    statChipValue: { fontSize: 18, fontWeight: '900', color: '#FFFFFF', letterSpacing: -0.5 },
-    statChipLabel: { fontSize: 10, color: 'rgba(255,255,255,0.6)', fontWeight: '700', letterSpacing: 0.3, textTransform: 'uppercase', textAlign: 'center' },
+    statsStrip: { flexDirection: 'row', gap: 10, marginTop: 12 },
+    statChip: { flex: 1, borderRadius: 16, overflow: 'hidden' },
+    statChipGrad: { padding: 10, alignItems: 'center', gap: 3, borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)' },
+    statChipValue: { fontSize: 16, fontWeight: '900', color: '#FFFFFF', letterSpacing: -0.5 },
+    statChipLabel: { fontSize: 9, color: 'rgba(255,255,255,0.6)', fontWeight: '700', letterSpacing: 0.3, textTransform: 'uppercase', textAlign: 'center' },
 
     // ── Content Panel ──
-    contentPanel: { flex: 1, backgroundColor: '#F2F4FF', borderTopLeftRadius: 32, borderTopRightRadius: 32, overflow: 'hidden' },
+    contentPanel: { flex: 1, backgroundColor: '#F0F9FF', borderTopLeftRadius: 32, borderTopRightRadius: 32, overflow: 'hidden' },
     scrollContent: { paddingHorizontal: 20, paddingTop: 24, paddingBottom: 110 },
 
     // ── Offline Banner ──
@@ -779,7 +779,7 @@ const styles = StyleSheet.create({
     medSummaryBody: { flex: 1, padding: 20 },
     medSummaryRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
     medSummaryLeft: { flexDirection: 'row', alignItems: 'center', gap: 14, flex: 1 },
-    medSummaryIcon: { width: 48, height: 48, borderRadius: 16, backgroundColor: '#EEF2FF', alignItems: 'center', justifyContent: 'center' },
+    medSummaryIcon: { width: 48, height: 48, borderRadius: 16, backgroundColor: '#E0F2FE', alignItems: 'center', justifyContent: 'center' },
     medSummaryCount: { fontSize: 17, fontWeight: '800', color: '#1E293B', letterSpacing: -0.3 },
     medSummaryNext: { fontSize: 13, fontWeight: '600', color: '#64748B', marginTop: 2 },
     adherencePct: { fontSize: 30, fontWeight: '900', letterSpacing: -1 },
@@ -850,7 +850,7 @@ const styles = StyleSheet.create({
     },
     cardHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
     cardTitle: { fontSize: 16, fontWeight: '800', color: '#1E293B' },
-    aiIconBox: { width: 30, height: 30, borderRadius: 10, backgroundColor: '#F5F3FF', alignItems: 'center', justifyContent: 'center' },
+    aiIconBox: { width: 30, height: 30, borderRadius: 10, backgroundColor: '#E0F2FE', alignItems: 'center', justifyContent: 'center' },
     aiDesc: { fontSize: 13, color: '#64748B', lineHeight: 18, marginTop: 4, marginBottom: 12 },
     aiBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10, borderWidth: 1 },
     aiBadgeText: { fontSize: 10, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5 },
