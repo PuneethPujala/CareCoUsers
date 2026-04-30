@@ -438,6 +438,8 @@ router.put('/me/lifestyle', authenticateSession, async (req, res) => {
         if (mobility_aids !== undefined) patient.lifestyle.mobility_aids = mobility_aids;
         if (dietary_restrictions !== undefined) patient.lifestyle.dietary_restrictions = dietary_restrictions;
         if (device_sync_status !== undefined) patient.lifestyle.device_sync_status = device_sync_status;
+        
+        patient.markModified('lifestyle');
         await patient.save();
         res.json({ message: 'Lifestyle updated', patient });
     } catch (err) {
