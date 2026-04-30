@@ -3,56 +3,52 @@
  *
  * Fixes applied in this revision:
  *
- * A1. skipFetchCountRef left at 1 after login:
- *     TOKEN_REFRESHED returns early before the skipFetch decrement, so after
- *     signIn sets the ref to 2, only SIGNED_IN decrements it — leaving 1 behind.
- *     The next foreground token refresh silently skips a legitimate profile fetch.
- *     FIX: replaced the decrement pattern with an explicit reset to 0 after
- *     signIn/completeMfaLogin/injectSession settle. The ref is now only used as
- *     a one-shot "skip the very next SIGNED_IN event" flag (set to 1, not 2).
+ * A1. skipFetchCountRef left at 1 after login.
+ *     FIX: replaced with skipNextSignedInRef one-shot boolean.
  *
- * A2. fetchPatientData concurrent race condition:
- *     init() and onAuthStateChange can fire simultaneously, causing two concurrent
- *     getMe() calls. The slower response overwrites the faster one with stale data.
- *     FIX: Added isFetchingPatientRef guard — second call returns the in-flight
- *     promise result rather than starting a new request.
+ * A2. fetchPatientData concurrent race condition.
+ *     FIX: patientFetchPromiseRef deduplicates concurrent getMe() calls.
  *
- * A3. completeSignUp no-op is fragile:
- *     If refreshPatient() silently failed before completeSignUp() was called,
- *     the onboarding step wouldn't advance and the user would be stuck on step 5.
- *     FIX: completeSignUp now explicitly calls fetchPatientData() as a backstop
- *     so the onboarding resolver always has fresh data to work with.
+ * A3. completeSignUp no-op is fragile.
+ *     FIX: completeSignUp explicitly calls fetchPatientData() as backstop.
  *
- * A4. recoverySessionAt set but never consumed:
- *     PASSWORD_RECOVERY set the timestamp but nothing navigated to ResetPassword.
- *     FIX: navigate() is called imperatively on PASSWORD_RECOVERY so the user
- *     lands on the ResetPassword screen automatically.
+ * A4. recoverySessionAt set but never consumed.
+ *     FIX: navigate('ResetPassword') called imperatively on PASSWORD_RECOVERY.
+ *
+ * A5 (THIS REVISION — CRITICAL): init() try/catch structural mismatch.
+ *     The inner try/catch inside if(apiTok?.access_token) consumed the brace
+ *     that was meant to close the outer try. The outer else block and the final
+ *     catch(error) were left dangling with no matching outer try — a SyntaxError
+ *     that prevented the entire module from loading. The app would crash
+ *     immediately on launch with "Cannot find module" or an unhandled parse error.
+ *     FIX: flattened to a single try/catch wrapping the entire if/else block.
+ *
+ * A6 (THIS REVISION): console.log/warn/error calls in init() fired in every
+ *     production build. Gated behind __DEV__ so Metro strips them from release.
  *
  * Prior fixes (§2, §3, §8, §15) preserved unchanged.
  */
 
 import React, { createContext, useState, useContext, useEffect, useCallback, useRef } from 'react';
-import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import * as SecureStore from 'expo-secure-store';
-import { supabase, auth, handleAuthError } from '../lib/supabase';
-import { apiService, handleApiError, saveApiTokens, clearApiTokens, getApiTokens } from '../lib/api';
+import { supabase, auth } from '../lib/supabase';
+import { apiService, saveApiTokens, clearApiTokens, getApiTokens } from '../lib/api';
 import { setCacheUserId, clearUserCache } from '../lib/CacheService';
 import analytics from '../utils/analytics';
 import * as WebBrowser from 'expo-web-browser';
 import usePatientStore from '../store/usePatientStore';
 import WidgetBridge from '../lib/WidgetBridge';
 import { navigate } from '../lib/navigationRef';
+import { normaliseStatus, resolveOnboardingStep } from '../utils/authUtils';
 
 const AuthContext = createContext(null);
 
 const ONBOARDING_STORAGE_KEY = 'CareMyMed_onboarding_progress';
 const PROFILE_SECURE_KEY = 'CareMyMed_user_profile';
 
-import { normaliseStatus, resolveOnboardingStep } from '../utils/authUtils';
-
-// ─── Profile SecureStore helpers ─────────────────────────────────────────────
+// ─── Profile SecureStore helpers ──────────────────────────────────────────────
 
 async function cacheProfile(profileData) {
     try {
@@ -75,6 +71,8 @@ async function clearCachedProfile() {
     } catch { }
 }
 
+// ─── Provider ─────────────────────────────────────────────────────────────────
+
 export function AuthProvider({ children }) {
     const [user, setUser] = useState(null);
     const [session, setSession] = useState(null);
@@ -84,20 +82,16 @@ export function AuthProvider({ children }) {
     const [isBootstrapping, setIsBootstrapping] = useState(true);
     const [recoverySessionAt, setRecoverySessionAt] = useState(null);
 
-    // A1 FIX: One-shot flag — set to true immediately after a programmatic
-    // sign-in so the next SIGNED_IN event from onAuthStateChange is skipped.
-    // Reset to false after it fires once (or on the next tick after signIn settles).
+    // A1 FIX: one-shot skip flag for the SIGNED_IN event that fires immediately
+    // after a programmatic login — avoids a redundant getMe() call.
     const skipNextSignedInRef = useRef(false);
-
-    // A2 FIX: In-flight guard so concurrent callers share a single getMe() request.
+    // A2 FIX: in-flight deduplication so concurrent callers share one getMe().
     const patientFetchPromiseRef = useRef(null);
 
     const profileRef = useRef(profile);
     useEffect(() => { profileRef.current = profile; }, [profile]);
 
-    useEffect(() => {
-        WebBrowser.maybeCompleteAuthSession();
-    }, []);
+    useEffect(() => { WebBrowser.maybeCompleteAuthSession(); }, []);
 
     const setProfileAndCache = useCallback(async (profileData) => {
         setProfile(profileData);
@@ -108,7 +102,7 @@ export function AuthProvider({ children }) {
         }
     }, []);
 
-    // A2 FIX: fetchPatientData deduplicates concurrent calls via a shared promise ref.
+    // A2 FIX: deduplicate concurrent fetchPatientData calls.
     const fetchPatientData = useCallback(async () => {
         if (patientFetchPromiseRef.current) {
             return patientFetchPromiseRef.current;
@@ -123,7 +117,7 @@ export function AuthProvider({ children }) {
                 return p || null;
             })
             .catch(err => {
-                console.warn('[Auth] fetchPatientData failed:', err.message);
+                if (__DEV__) console.warn('[Auth] fetchPatientData failed:', err.message);
                 return null;
             })
             .finally(() => {
@@ -157,110 +151,118 @@ export function AuthProvider({ children }) {
         }
     }, []);
 
-    // ── Initialization ──────────────────────────────────────────────────────
+    // ── Initialization ────────────────────────────────────────────────────────
 
     useEffect(() => {
         const init = async () => {
-            console.log('[Auth] Starting init...');
-            
-            // Fail-safe: if init doesn't complete in 6 seconds, force bootstrapping to false
+            if (__DEV__) console.log('[Auth] Starting init...');
+
+            // Fail-safe: force bootstrapping=false after 6s if init hangs
+            // (e.g. a network call that never resolves on a dead connection).
             const timeoutId = setTimeout(() => {
-                console.log('[Auth] Init timeout hit, forcing bootstrapping false');
+                if (__DEV__) console.warn('[Auth] Init timeout — forcing bootstrapping false');
                 setIsBootstrapping(false);
             }, 6000);
 
+            // A5 FIX: The original code nested a try/catch inside the if(apiTok) branch.
+            // That inner catch's closing brace consumed the outer try's brace, leaving
+            // the else block and the final catch(error) with no matching outer try —
+            // a SyntaxError on parse that crashed the module before a single line ran.
+            // Fixed by wrapping the entire if/else in one flat try/catch.
             try {
                 const apiTok = await getApiTokens();
-                console.log('[Auth] API tokens found:', !!apiTok?.access_token);
+                if (__DEV__) console.log('[Auth] API token present:', !!apiTok?.access_token);
+
                 if (apiTok?.access_token) {
-                        console.log('[Auth] Fetching profile and patient data...');
-                        const [profileRes, patientData] = await Promise.all([
-                            apiService.auth.getProfile().catch(() => ({ data: null })),
-                            fetchPatientData(),
-                        ]);
-                        console.log('[Auth] Data fetched. Profile:', !!profileRes?.data?.profile, 'Patient:', !!patientData);
+                    if (__DEV__) console.log('[Auth] Fetching profile + patient...');
 
-                        const profileData = profileRes?.data?.profile;
-                        const userData = profileRes?.data?.user;
+                    const [profileRes] = await Promise.all([
+                        apiService.auth.getProfile().catch(() => ({ data: null })),
+                        fetchPatientData(),
+                    ]);
 
-                        if (profileData && userData) {
-                            profileData.role = 'patient';
-                            setCacheUserId(userData.id);
-                            setUser(userData);
-                            setSession({ access_token: apiTok.access_token, user: userData });
-                            await setProfileAndCache(profileData);
-                            analytics.identify(userData.id, { role: 'patient' });
+                    const profileData = profileRes?.data?.profile;
+                    const userData = profileRes?.data?.user;
+
+                    if (__DEV__) console.log('[Auth] Profile:', !!profileData, '| User:', !!userData);
+
+                    if (profileData && userData) {
+                        profileData.role = 'patient';
+                        setCacheUserId(userData.id);
+                        setUser(userData);
+                        setSession({ access_token: apiTok.access_token, user: userData });
+                        await setProfileAndCache(profileData);
+                        analytics.identify(userData.id, { role: 'patient' });
+                    } else {
+                        // Network responded but returned no profile — serve cache.
+                        const cached = await getCachedProfile();
+                        if (cached) {
+                            cached.role = 'patient';
+                            const id = cached.id || cached._id;
+                            setCacheUserId(id);
+                            setUser({ id, email: cached.email });
+                            setSession({ user: { id } });
+                            setProfile(cached);
+                            profileRef.current = cached;
                         } else {
-                            const cached = await getCachedProfile();
-                            if (cached) {
-                                cached.role = 'patient';
-                                const id = cached.id || cached._id;
-                                setCacheUserId(id);
-                                setUser({ id, email: cached.email });
-                                setSession({ user: { id } });
-                                setProfile(cached);
-                                profileRef.current = cached;
-                            } else {
-                                await signOut();
-                            }
-                        }
-                    } catch (e) {
-                        if (e.response?.status === 403 || e.response?.status === 401) {
                             await signOut();
-                        } else {
-                            const cached = await getCachedProfile();
-                            if (cached) {
-                                cached.role = 'patient';
-                                const id = cached.id || cached._id;
-                                setCacheUserId(id);
-                                setUser({ id, email: cached.email });
-                                setSession({ user: { id } });
-                                setProfile(cached);
-                                profileRef.current = cached;
-                            }
                         }
                     }
                 } else {
-                    console.log('[Auth] No API tokens, checking Supabase session...');
+                    // No custom API token — fall back to Supabase session.
+                    if (__DEV__) console.log('[Auth] No API token, checking Supabase session...');
                     const currentSession = await auth.getCurrentSession().catch(() => null);
-                    console.log('[Auth] Supabase session:', !!currentSession?.user);
+                    if (__DEV__) console.log('[Auth] Supabase session:', !!currentSession?.user);
+
                     if (currentSession?.user) {
                         setCacheUserId(currentSession.user.id);
                         setUser(currentSession.user);
                         setSession(currentSession);
-                        try {
-                            const [profileRes] = await Promise.all([
-                                apiService.auth.getProfile().catch(() => ({ data: null })),
-                                fetchPatientData(),
-                            ]);
-                            const profileData = profileRes?.data?.profile;
-                            if (profileData) {
-                                profileData.role = 'patient';
-                                await setProfileAndCache(profileData);
-                            }
-                            analytics.identify(currentSession.user.id, { role: 'patient' });
-                        } catch {
-                            const cached = await getCachedProfile();
-                            if (cached) {
-                                cached.role = 'patient';
-                                setProfile(cached);
-                                profileRef.current = cached;
-                            }
+
+                        const [profileRes] = await Promise.all([
+                            apiService.auth.getProfile().catch(() => ({ data: null })),
+                            fetchPatientData(),
+                        ]);
+                        const profileData = profileRes?.data?.profile;
+                        if (profileData) {
+                            profileData.role = 'patient';
+                            await setProfileAndCache(profileData);
                         }
+                        analytics.identify(currentSession.user.id, { role: 'patient' });
                     }
+                    // No session at all → user stays on the auth stack (initial state).
                 }
             } catch (error) {
-                console.error('[Auth] Init error:', error.message);
+                if (__DEV__) console.error('[Auth] Init error:', error.message);
+
+                // Hard sign-out on invalid/expired token.
+                if (error.response?.status === 401 || error.response?.status === 403) {
+                    await signOut();
+                } else {
+                    // Offline or transient — serve cached profile so the user isn't
+                    // force-logged-out just because they launched with no network.
+                    const cached = await getCachedProfile();
+                    if (cached) {
+                        cached.role = 'patient';
+                        const id = cached.id || cached._id;
+                        setCacheUserId(id);
+                        setUser({ id, email: cached.email });
+                        setSession({ user: { id } });
+                        setProfile(cached);
+                        profileRef.current = cached;
+                    }
+                }
             } finally {
                 clearTimeout(timeoutId);
-                console.log('[Auth] Init complete, setting bootstrapping false');
+                if (__DEV__) console.log('[Auth] Init complete');
                 setIsBootstrapping(false);
             }
         };
+
         init();
     }, [signOut, setProfileAndCache, fetchPatientData]);
 
-    // ── Auth state listener ─────────────────────────────────────────────────
+    // ── Auth state listener ───────────────────────────────────────────────────
 
     useEffect(() => {
         const { data: { subscription } } = auth.onAuthStateChange(async (event, newSession) => {
@@ -269,6 +271,8 @@ export function AuthProvider({ children }) {
             }
 
             if (event === 'SIGNED_OUT') {
+                // Only clear React state if there's no custom API token keeping
+                // the user logged in via the dual-auth architecture.
                 const apiTok = await getApiTokens();
                 if (!apiTok) {
                     setUser(null);
@@ -310,8 +314,7 @@ export function AuthProvider({ children }) {
                 if (newSession?.user) {
                     setSession(newSession);
                     setRecoverySessionAt(Date.now());
-                    // A4 FIX: Navigate immediately so the user lands on the reset screen.
-                    // Without this, recoverySessionAt was set but nothing happened next.
+                    // A4 FIX: navigate immediately so the user lands on the reset screen.
                     navigate('ResetPassword');
                 }
                 return;
@@ -319,9 +322,8 @@ export function AuthProvider({ children }) {
 
             // SIGNED_IN
             if (newSession?.user) {
-                // A1 FIX: If a programmatic sign-in just completed, skip this event.
-                // Previously used a count ref (set to 2, decremented per event) which
-                // left a stale 1 behind when TOKEN_REFRESHED bypassed the decrement.
+                // A1 FIX: skip the SIGNED_IN that fires right after a programmatic
+                // login — we already have fresh profile/patient data from that flow.
                 if (skipNextSignedInRef.current) {
                     skipNextSignedInRef.current = false;
                     setSession(newSession);
@@ -342,16 +344,16 @@ export function AuthProvider({ children }) {
                         }
                         await fetchPatientData();
                     }
-                } catch { }
-                finally {
+                } catch { } finally {
                     setIsBootstrapping(false);
                 }
             }
         });
+
         return () => subscription.unsubscribe();
     }, [signOut, setProfileAndCache, fetchPatientData]);
 
-    // ── Auth actions ────────────────────────────────────────────────────────
+    // ── Auth actions ──────────────────────────────────────────────────────────
 
     const signIn = useCallback(async (email, password, role) => {
         setLoading(true);
@@ -370,10 +372,7 @@ export function AuthProvider({ children }) {
                 expires_at: loginSession.expires_at,
             });
             await fetchPatientData();
-
-            // A1 FIX: Set skip flag BEFORE setting user/session, which triggers
-            // onAuthStateChange. One skip only — the flag resets after firing once.
-            skipNextSignedInRef.current = true;
+            skipNextSignedInRef.current = true; // A1 FIX
             setUser(loginSession.user);
             setSession(loginSession);
             analytics.identify(loginSession.user.id, { role: 'patient' });
@@ -440,11 +439,11 @@ export function AuthProvider({ children }) {
             });
             if (error) throw error;
             setSession(data.session);
-            setLoading(false);
             return { isNewUser: true, user: data.user, session: data.session };
         } catch (error) {
-            setLoading(false);
             throw new Error(error?.message || 'Google sign-in failed');
+        } finally {
+            setLoading(false);
         }
     }, []);
 
@@ -466,9 +465,8 @@ export function AuthProvider({ children }) {
         setSession(newSession);
     }, [setProfileAndCache, fetchPatientData]);
 
-    // A3 FIX: completeSignUp was a no-op. If refreshPatient() failed silently
-    // before this was called, the onboarding resolver had stale data and the
-    // user got stuck on step 5. Now explicitly re-fetches patient as a backstop.
+    // A3 FIX: was a no-op () => {}. Now re-fetches patient so the onboarding
+    // resolver has fresh data even if an earlier refreshPatient() failed silently.
     const completeSignUp = useCallback(async () => {
         await fetchPatientData();
     }, [fetchPatientData]);
@@ -483,6 +481,8 @@ export function AuthProvider({ children }) {
         return res.data;
     }, []);
 
+    // ── Derived state ─────────────────────────────────────────────────────────
+
     const onboardingStep = resolveOnboardingStep(patient, profile);
     const onboardingComplete = onboardingStep === null;
     const subscriptionStatus = normaliseStatus(patient?.subscription?.status);
@@ -493,8 +493,8 @@ export function AuthProvider({ children }) {
         user, session, profile, patient, loading,
         isBootstrapping, onboardingComplete, subscriptionStatus, recoverySessionAt,
         displayName, userRole, userEmail: user?.email,
-        signIn, signUp, signOut, resetPassword, signInWithGoogle, completeSignUp, injectSession,
-        completeMfaLogin,
+        signIn, signUp, signOut, resetPassword, signInWithGoogle,
+        completeSignUp, injectSession, completeMfaLogin,
         sendOtp, verifyOtp, refreshPatient: fetchPatientData,
     };
 
