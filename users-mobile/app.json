@@ -92,7 +92,8 @@
             "READ_OXYGEN_SATURATION"
           ]
         }
-      ]
+      ],
+      "./plugins/withAndroidWidget.js"
     ],
     "extra": {
       "eas": {
