@@ -763,19 +763,19 @@ export default function HealthProfileScreen({ navigation }) {
                             <Text style={[s.groupLabelTxt, { marginBottom: 0, color: '#10B981' }]}>WELLNESS</Text>
                         </View>
                         <View style={[s.monitoringRow, { marginBottom: 20 }]}>
-                            <Pressable style={[s.metricCard, { backgroundColor: '#FFFBEB', borderColor: '#FDE68A' }]} onPress={() => openModal('vitals')}>
+                            <Pressable style={[s.metricCard, { backgroundColor: '#FFFBEB' }]} onPress={() => openModal('vitals')}>
                                 <Droplet size={20} color="#D97706" />
                                 <Text style={[s.metricVal, { color: '#D97706' }]}>{bmi || '—'}</Text>
                                 <Text style={s.metricLbl}>BMI</Text>
                                 <Text style={[s.metricSub, { color: bmi ? (parseFloat(bmi) < 25 ? '#10B981' : '#F59E0B') : '#94A3B8' }]}>{bmiTheme.label}</Text>
                             </Pressable>
-                            <Pressable style={[s.metricCard, { backgroundColor: '#FFF1F2', borderColor: '#FECDD3' }]} onPress={() => openModal('habits')}>
+                            <Pressable style={[s.metricCard, { backgroundColor: '#FFF1F2' }]} onPress={() => openModal('habits')}>
                                 <Activity size={20} color="#F43F5E" />
                                 <Text style={[s.metricVal, { color: '#F43F5E' }]}>{habitScore}%</Text>
                                 <Text style={s.metricLbl}>HABITS</Text>
                                 <Text style={[s.metricSub, { color: habitColor }]}>{habitLabel}</Text>
                             </Pressable>
-                            <Pressable style={[s.metricCard, { backgroundColor: '#F0FDF4', borderColor: '#BBF7D0' }]} onPress={() => openModal('condition')}>
+                            <Pressable style={[s.metricCard, { backgroundColor: '#F0FDF4' }]} onPress={() => openModal('condition')}>
                                 <TrendingUp size={20} color="#10B981" />
                                 <Text style={[s.metricVal, { color: '#10B981' }]} numberOfLines={1} adjustsFontSizeToFit>{trendLabel}</Text>
                                 <Text style={s.metricLbl} numberOfLines={1} adjustsFontSizeToFit>CONDITIONS</Text>
@@ -1236,8 +1236,6 @@ const s = StyleSheet.create({
         paddingHorizontal: 14,
         paddingVertical: 8,
         borderRadius: 22,
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.2)',
     },
     ageBadgeTxt: { color: '#FFFFFF', ...FONT.bold, fontSize: 14 },
 
@@ -1249,8 +1247,6 @@ const s = StyleSheet.create({
         borderRadius: 12,
         paddingVertical: 8,
         alignItems: 'center',
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.15)',
     },
     statChipVal: { fontSize: 16, ...FONT.heavy, color: '#FFFFFF', marginBottom: 2 },
     statChipLbl: { fontSize: 8, ...FONT.bold, color: 'rgba(255,255,255,0.55)', letterSpacing: 0.8 },
@@ -1268,7 +1264,7 @@ const s = StyleSheet.create({
     // ── Content Panel ──
     contentPanel: {
         flex: 1,
-        backgroundColor: '#F0F9FF',
+        backgroundColor: '#F0F4FF',
         borderTopLeftRadius: 28,
         borderTopRightRadius: 28,
         overflow: 'hidden',
@@ -1284,11 +1280,11 @@ const s = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: '#FFF',
-        borderRadius: 16,
+        borderRadius: 18,
         marginBottom: 20,
         overflow: 'hidden',
-        borderWidth: 1,
-        borderColor: '#BAE6FD',
+        shadowColor: '#4361EE', shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.06, shadowRadius: 16, elevation: 4,
     },
     completionAccent: { width: 5, alignSelf: 'stretch' },
     completionInner: { flex: 1, paddingVertical: 14, paddingHorizontal: 12 },
@@ -1322,10 +1318,9 @@ const s = StyleSheet.create({
     // ── Identity Bento ──
     bentoGrid: { flexDirection: 'row', gap: 10, marginBottom: 20 },
     bentoCard: {
-        flex: 1, backgroundColor: '#FFF', borderRadius: 16, padding: 14,
+        flex: 1, backgroundColor: '#FFF', borderRadius: 18, padding: 14,
         alignItems: 'center',
-        shadowColor: '#0C2240', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 2,
-        borderWidth: 1, borderColor: '#BAE6FD',
+        shadowColor: '#4361EE', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.06, shadowRadius: 16, elevation: 4,
     },
     bentoCircle: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
     bentoVal: { fontSize: 16, ...FONT.heavy, color: '#0F172A', marginBottom: 3 },
@@ -1334,15 +1329,14 @@ const s = StyleSheet.create({
     // ── Document Cards ──
     docCard: {
         backgroundColor: '#FFFFFF',
-        borderRadius: 18,
+        borderRadius: 20,
         overflow: 'hidden',
-        shadowColor: '#0C2240',
-        shadowOffset: { width: 0, height: 2 },
+        shadowColor: '#4361EE',
+        shadowOffset: { width: 0, height: 6 },
         shadowOpacity: 0.06,
-        shadowRadius: 10,
-        elevation: 2,
-        borderWidth: 1,
-        borderColor: '#BAE6FD',
+        shadowRadius: 16,
+        elevation: 4,
+        marginBottom: 16,
     },
     docAccentBar: { height: 3, width: '100%' },
 
@@ -1369,7 +1363,7 @@ const s = StyleSheet.create({
         paddingHorizontal: 16,
         paddingVertical: 14,
         borderBottomWidth: 1,
-        borderBottomColor: '#F8FAFC',
+        borderBottomColor: '#F1F5F9',
     },
     iconBg: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
     rowInfo: { flex: 1 },
@@ -1380,12 +1374,12 @@ const s = StyleSheet.create({
 
     // ── Allergy Chips ──
     chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: 14, paddingBottom: 14, paddingTop: 0 },
-    allergyChip: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, borderWidth: 1 },
+    allergyChip: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, backgroundColor: '#F1F5F9' },
     allergyChipTxt: { fontSize: 13, ...FONT.semibold },
 
     // ── Wellness Metrics ──
     monitoringRow: { flexDirection: 'row', gap: 10 },
-    metricCard: { flex: 1, borderRadius: 16, padding: 14, alignItems: 'center', borderWidth: 1 },
+    metricCard: { flex: 1, borderRadius: 18, padding: 14, alignItems: 'center', shadowColor: '#4361EE', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 3 },
     metricVal: { fontSize: 20, ...FONT.heavy, marginTop: 8, marginBottom: 2 },
     metricLbl: { fontSize: 9, ...FONT.bold, color: '#94A3B8', letterSpacing: 0.8, marginBottom: 2 },
     metricSub: { fontSize: 11, ...FONT.bold },

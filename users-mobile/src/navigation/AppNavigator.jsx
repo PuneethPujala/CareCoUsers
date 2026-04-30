@@ -158,15 +158,92 @@ const MainAppStack = () => (
 );
 
 function AppSplashScreen() {
+    const pulseAnim = useRef(new Animated.Value(0.6)).current;
+    const orb1Anim = useRef(new Animated.Value(0)).current;
+    const orb2Anim = useRef(new Animated.Value(0)).current;
+    const loadBarAnim = useRef(new Animated.Value(0)).current;
+    const fadeInAnim = useRef(new Animated.Value(0)).current;
+
+    useEffect(() => {
+        // Pulse the logo glow
+        Animated.loop(
+            Animated.sequence([
+                Animated.timing(pulseAnim, { toValue: 1, duration: 1200, useNativeDriver: true }),
+                Animated.timing(pulseAnim, { toValue: 0.6, duration: 1200, useNativeDriver: true }),
+            ])
+        ).start();
+
+        // Float orb 1
+        Animated.loop(
+            Animated.sequence([
+                Animated.timing(orb1Anim, { toValue: 1, duration: 3500, useNativeDriver: true }),
+                Animated.timing(orb1Anim, { toValue: 0, duration: 3500, useNativeDriver: true }),
+            ])
+        ).start();
+
+        // Float orb 2
+        Animated.loop(
+            Animated.sequence([
+                Animated.timing(orb2Anim, { toValue: 1, duration: 4000, useNativeDriver: true }),
+                Animated.timing(orb2Anim, { toValue: 0, duration: 4000, useNativeDriver: true }),
+            ])
+        ).start();
+
+        // Loading bar
+        Animated.loop(
+            Animated.sequence([
+                Animated.timing(loadBarAnim, { toValue: 1, duration: 1800, useNativeDriver: false }),
+                Animated.timing(loadBarAnim, { toValue: 0, duration: 0, useNativeDriver: false }),
+            ])
+        ).start();
+
+        // Fade in content
+        Animated.timing(fadeInAnim, { toValue: 1, duration: 800, useNativeDriver: true }).start();
+    }, []);
+
     return (
         <LinearGradient
-            colors={['#1A0533', '#2D1B69', '#3B2FA0', '#2563EB', '#1D4ED8']}
-            style={styles.splashContainer}
-            start={{ x: 0.1, y: 0 }}
-            end={{ x: 0.9, y: 1 }}
+            colors={['#4A1A8A', '#5B2FA0', '#3B5FDB', '#2575E8', '#1AA3D8']}
+            style={splashStyles.container}
+            start={{ x: 0.15, y: 0 }}
+            end={{ x: 0.85, y: 1 }}
         >
-            <Image source={require('../../assets/logo.png')} style={styles.splashLogo} resizeMode="contain" />
-            <ActivityIndicator size="small" color="#FFFFFF" style={styles.splashLoader} />
+            {/* Floating orbs */}
+            <Animated.View style={[splashStyles.orb1, {
+                opacity: pulseAnim,
+                transform: [{ translateY: orb1Anim.interpolate({ inputRange: [0, 1], outputRange: [0, -25] }) }],
+            }]} />
+            <Animated.View style={[splashStyles.orb2, {
+                opacity: orb2Anim.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0.3, 0.6, 0.3] }),
+                transform: [{ translateY: orb2Anim.interpolate({ inputRange: [0, 1], outputRange: [0, 20] }) }],
+            }]} />
+            <Animated.View style={[splashStyles.orb3, {
+                opacity: pulseAnim.interpolate({ inputRange: [0.6, 1], outputRange: [0.15, 0.35] }),
+                transform: [{ translateX: orb1Anim.interpolate({ inputRange: [0, 1], outputRange: [0, 15] }) }],
+            }]} />
+
+            {/* Content */}
+            <Animated.View style={[splashStyles.content, { opacity: fadeInAnim, transform: [{ translateY: fadeInAnim.interpolate({ inputRange: [0, 1], outputRange: [30, 0] }) }] }]}>
+                <View style={splashStyles.logoContainer}>
+                    <Image source={require('../../assets/logo.png')} style={splashStyles.logo} resizeMode="contain" />
+                </View>
+                <Text style={splashStyles.brandName}>CareMyMed</Text>
+                <Text style={splashStyles.tagline}>Smart. Simple. Seamless.</Text>
+            </Animated.View>
+
+            {/* Loading bar */}
+            <View style={splashStyles.loadingSection}>
+                <View style={splashStyles.loadBarBg}>
+                    <Animated.View style={[splashStyles.loadBarFill, {
+                        width: loadBarAnim.interpolate({ inputRange: [0, 0.5, 1], outputRange: ['5%', '70%', '100%'] }),
+                    }]} />
+                    <Animated.View style={[splashStyles.loadBarGlow, {
+                        left: loadBarAnim.interpolate({ inputRange: [0, 1], outputRange: ['0%', '90%'] }),
+                        opacity: pulseAnim,
+                    }]} />
+                </View>
+                <Text style={splashStyles.loadingText}>L O A D I N G . . .</Text>
+            </View>
         </LinearGradient>
     );
 }
@@ -374,4 +451,21 @@ const styles = StyleSheet.create({
     splashContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
     splashLogo: { width: 200, height: 200 },
     splashLoader: { marginTop: 24 },
+});
+
+const splashStyles = StyleSheet.create({
+    container: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+    orb1: { position: 'absolute', top: '15%', left: '10%', width: 120, height: 120, borderRadius: 60, backgroundColor: 'rgba(255, 255, 255, 0.15)', shadowColor: '#FFF', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.5, shadowRadius: 30 },
+    orb2: { position: 'absolute', bottom: '20%', right: '5%', width: 180, height: 180, borderRadius: 90, backgroundColor: 'rgba(255, 255, 255, 0.12)' },
+    orb3: { position: 'absolute', top: '40%', right: '15%', width: 60, height: 60, borderRadius: 30, backgroundColor: 'rgba(255, 255, 255, 0.1)' },
+    content: { alignItems: 'center', zIndex: 10 },
+    logoContainer: { width: 140, height: 140, backgroundColor: 'rgba(255, 255, 255, 0.15)', borderRadius: 35, alignItems: 'center', justifyContent: 'center', marginBottom: 24, shadowColor: '#FFF', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.2, shadowRadius: 20, elevation: 15 },
+    logo: { width: 90, height: 90 },
+    brandName: { fontSize: 42, ...colors.bold, color: '#FFF', letterSpacing: 2, textShadowColor: 'rgba(0, 0, 0, 0.2)', textShadowOffset: { width: 0, height: 4 }, textShadowRadius: 10 },
+    tagline: { fontSize: 14, ...colors.medium, color: 'rgba(255, 255, 255, 0.85)', marginTop: 8, letterSpacing: 1.5 },
+    loadingSection: { position: 'absolute', bottom: 60, width: '80%', alignItems: 'center' },
+    loadBarBg: { width: '100%', height: 4, backgroundColor: 'rgba(255, 255, 255, 0.2)', borderRadius: 2, overflow: 'hidden', marginBottom: 16 },
+    loadBarFill: { height: '100%', backgroundColor: '#FFF', borderRadius: 2 },
+    loadBarGlow: { position: 'absolute', top: -4, width: 40, height: 12, backgroundColor: 'rgba(255, 255, 255, 0.6)', borderRadius: 6, shadowColor: '#FFF', shadowRadius: 10, shadowOpacity: 1, elevation: 10 },
+    loadingText: { color: 'rgba(255, 255, 255, 0.7)', fontSize: 10, fontWeight: '800', letterSpacing: 4 },
 });
