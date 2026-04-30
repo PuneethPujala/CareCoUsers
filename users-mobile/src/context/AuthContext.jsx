@@ -161,14 +161,24 @@ export function AuthProvider({ children }) {
 
     useEffect(() => {
         const init = async () => {
+            console.log('[Auth] Starting init...');
+            
+            // Fail-safe: if init doesn't complete in 6 seconds, force bootstrapping to false
+            const timeoutId = setTimeout(() => {
+                console.log('[Auth] Init timeout hit, forcing bootstrapping false');
+                setIsBootstrapping(false);
+            }, 6000);
+
             try {
                 const apiTok = await getApiTokens();
+                console.log('[Auth] API tokens found:', !!apiTok?.access_token);
                 if (apiTok?.access_token) {
-                    try {
+                        console.log('[Auth] Fetching profile and patient data...');
                         const [profileRes, patientData] = await Promise.all([
                             apiService.auth.getProfile().catch(() => ({ data: null })),
                             fetchPatientData(),
                         ]);
+                        console.log('[Auth] Data fetched. Profile:', !!profileRes?.data?.profile, 'Patient:', !!patientData);
 
                         const profileData = profileRes?.data?.profile;
                         const userData = profileRes?.data?.user;
@@ -211,7 +221,9 @@ export function AuthProvider({ children }) {
                         }
                     }
                 } else {
+                    console.log('[Auth] No API tokens, checking Supabase session...');
                     const currentSession = await auth.getCurrentSession().catch(() => null);
+                    console.log('[Auth] Supabase session:', !!currentSession?.user);
                     if (currentSession?.user) {
                         setCacheUserId(currentSession.user.id);
                         setUser(currentSession.user);
@@ -238,8 +250,10 @@ export function AuthProvider({ children }) {
                     }
                 }
             } catch (error) {
-                console.warn('[Auth] Init error:', error.message);
+                console.error('[Auth] Init error:', error.message);
             } finally {
+                clearTimeout(timeoutId);
+                console.log('[Auth] Init complete, setting bootstrapping false');
                 setIsBootstrapping(false);
             }
         };
