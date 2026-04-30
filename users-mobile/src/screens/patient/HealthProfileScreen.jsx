@@ -5,6 +5,7 @@ import PremiumFormModal from '../../components/ui/PremiumFormModal';
 import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { TriangleAlert, ShieldCheck, HeartPulse, Activity, Droplet, Phone, Plus, Edit2, X, Trash2, CheckCircle2, RefreshCw, ChevronDown, Upload, Siren, ChevronRight, TrendingUp, BellRing, FileText, Pill, Syringe, Link2, Users, Calendar } from 'lucide-react-native';
+import { StatusBar } from 'react-native';
 import { apiService } from '../../lib/api';
 import { initializeHealthPlatform, requestHealthPermissions, fetchDailyVitalsSummary, isHealthSupported } from '../../lib/healthIntegration';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -12,7 +13,6 @@ import { COUNTRY_CODES, parsePhoneWithCode, validatePhone } from '../../utils/ph
 import { layout } from '../../theme';
 import AlertManager from '../../utils/AlertManager';
 
-const VAULT_GRAD = ['#071628', '#0C2240', '#0F3460'];
 
 // ── Skeleton Loader ──────────────────────────────────────────
 const SkeletonItem = ({ width, height, borderRadius = 8, style }) => {
@@ -528,10 +528,8 @@ export default function HealthProfileScreen({ navigation }) {
     const inactiveMeds = medications.filter(m => m.is_active === false);
 
     return (
-        <LinearGradient colors={VAULT_GRAD} style={{ flex: 1 }}>
-            {/* Decorative orbs */}
-            <View style={s.orb1} pointerEvents="none" />
-            <View style={s.orb2} pointerEvents="none" />
+        <View style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
+            <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
             {/* ── Vault Header ── */}
             <Animated.View style={[s.vaultHeader, anim(0)]}>
@@ -567,7 +565,7 @@ export default function HealthProfileScreen({ navigation }) {
                     {completionPct < 100 && (
                         <Animated.View style={anim(1)}>
                             <Pressable style={s.completionBanner} onPress={handleCompletionClick}>
-                                <LinearGradient colors={['#0284C7', '#0EA5E9']} style={s.completionAccent} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} />
+                                <View style={[s.completionAccent, { backgroundColor: '#0284C7' }]} />
                                 <View style={s.completionInner}>
                                     <View style={s.completionTitleRow}>
                                         <Text style={s.completionTitle}>Profile Completion</Text>
@@ -620,7 +618,7 @@ export default function HealthProfileScreen({ navigation }) {
 
                         {/* Conditions */}
                         <View style={[s.docCard, { marginBottom: 12 }]}>
-                            <LinearGradient colors={['#EF4444', '#F87171']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={s.docAccentBar} />
+                            <View style={[s.docAccentBar, { backgroundColor: '#EF4444' }]} />
                             {renderHeader('Current Conditions', 'condition')}
                             {conditions.map((c, i) => {
                                 const statStyle = CONDITION_STATUS[c.status] || CONDITION_STATUS.active;
@@ -640,7 +638,7 @@ export default function HealthProfileScreen({ navigation }) {
 
                         {/* Allergies */}
                         <View style={[s.docCard, { marginBottom: 12 }]}>
-                            <LinearGradient colors={['#F59E0B', '#FBBF24']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={s.docAccentBar} />
+                            <View style={[s.docAccentBar, { backgroundColor: '#F59E0B' }]} />
                             {renderHeader('Allergies', 'allergy')}
                             <View style={s.chipWrap}>
                                 {allergies.map((a, i) => {
@@ -658,7 +656,7 @@ export default function HealthProfileScreen({ navigation }) {
 
                         {/* Medical History */}
                         <View style={[s.docCard, { marginBottom: 20 }]}>
-                            <LinearGradient colors={['#3B82F6', '#60A5FA']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={s.docAccentBar} />
+                            <View style={[s.docAccentBar, { backgroundColor: '#3B82F6' }]} />
                             {renderHeader('Medical History', 'history')}
                             {medical_history.map((h, i) => (
                                 <Pressable key={i} style={[s.rowItem, i === medical_history.length - 1 && { borderBottomWidth: 0 }]} onPress={() => openModal('history', h)}>
@@ -683,7 +681,7 @@ export default function HealthProfileScreen({ navigation }) {
 
                         {/* Active Medications */}
                         <View style={[s.docCard, { marginBottom: 12 }]}>
-                            <LinearGradient colors={['#0284C7', '#38BDF8']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={s.docAccentBar} />
+                            <View style={[s.docAccentBar, { backgroundColor: '#0284C7' }]} />
                             {renderHeader('Current Medications', 'medication', true)}
                             {activeMeds.map((m, i) => (
                                 <View key={i} style={[s.rowItem, i === activeMeds.length - 1 && { borderBottomWidth: 0 }]}>
@@ -717,7 +715,7 @@ export default function HealthProfileScreen({ navigation }) {
 
                         {/* Vaccinations */}
                         <View style={[s.docCard, { marginBottom: 20 }]}>
-                            <LinearGradient colors={['#10B981', '#34D399']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={s.docAccentBar} />
+                            <View style={[s.docAccentBar, { backgroundColor: '#10B981' }]} />
                             {renderHeader('Vaccinations', 'vaccination')}
                             {vaccinations.map((vac, i) => (
                                 <Pressable key={i} style={[s.rowItem, i === vaccinations.length - 1 && { borderBottomWidth: 0 }]} onPress={() => openModal('vaccination', vac)}>
@@ -740,7 +738,7 @@ export default function HealthProfileScreen({ navigation }) {
                             <Text style={[s.groupLabelTxt, { marginBottom: 0, color: '#06B6D4' }]}>SCHEDULE</Text>
                         </View>
                         <View style={[s.docCard, { marginBottom: 20 }]}>
-                            <LinearGradient colors={['#06B6D4', '#22D3EE']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={s.docAccentBar} />
+                            <View style={[s.docAccentBar, { backgroundColor: '#06B6D4' }]} />
                             {renderHeader('Upcoming Appointments', 'appointment')}
                             {appointments.map((app, i) => (
                                 <Pressable key={i} style={[s.rowItem, i === appointments.length - 1 && { borderBottomWidth: 0 }]} onPress={() => openModal('appointment', app)}>
@@ -810,7 +808,7 @@ export default function HealthProfileScreen({ navigation }) {
 
                         {/* Care Team */}
                         <View style={[s.docCard, { marginBottom: 12 }]}>
-                            <LinearGradient colors={['#0284C7', '#38BDF8']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={s.docAccentBar} />
+                            <View style={[s.docAccentBar, { backgroundColor: '#0284C7' }]} />
                             {renderHeader('Care Team & Contacts', 'contact')}
                             {profile?.trusted_contacts?.map((c, i) => (
                                 <Pressable key={i} style={[s.rowItem, i === profile.trusted_contacts.length - 1 && { borderBottomWidth: 0 }]} onPress={() => openModal('contact', c)}>
@@ -832,7 +830,7 @@ export default function HealthProfileScreen({ navigation }) {
 
                         {/* Primary Doctor */}
                         <View style={[s.docCard, { marginBottom: 20 }]}>
-                            <LinearGradient colors={['#F43F5E', '#FB7185']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={s.docAccentBar} />
+                            <View style={[s.docAccentBar, { backgroundColor: '#F43F5E' }]} />
                             <View style={s.sectionHeaderRow}>
                                 <Text style={s.sectionHeaderBase}>Primary Doctor</Text>
                                 <Pressable style={({ pressed }) => [s.addBtn, pressed && { opacity: 0.7 }]} onPress={() => openModal('gp')}>
@@ -1198,7 +1196,7 @@ export default function HealthProfileScreen({ navigation }) {
                     />
                 </View>
             )}
-        </LinearGradient>
+        </View>
     );
 }
 
@@ -1210,7 +1208,8 @@ const s = StyleSheet.create({
     vaultHeader: {
         paddingTop: Platform.OS === 'ios' ? 54 : 42,
         paddingHorizontal: 24,
-        paddingBottom: 16,
+        paddingBottom: 20,
+        backgroundColor: '#FFFFFF',
     },
     headerTopRow: {
         flexDirection: 'row',
@@ -1221,53 +1220,52 @@ const s = StyleSheet.create({
     vaultLabel: {
         fontSize: 11,
         ...FONT.heavy,
-        color: 'rgba(255,255,255,0.5)',
+        color: '#94A3B8',
         letterSpacing: 2.5,
         marginBottom: 6,
     },
     vaultTitle: {
         fontSize: 32,
         ...FONT.heavy,
-        color: '#FFFFFF',
+        color: '#0F172A',
         letterSpacing: -1,
     },
     ageBadge: {
-        backgroundColor: 'rgba(255,255,255,0.12)',
+        backgroundColor: '#F1F5F9',
         paddingHorizontal: 14,
         paddingVertical: 8,
         borderRadius: 22,
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
     },
-    ageBadgeTxt: { color: '#FFFFFF', ...FONT.bold, fontSize: 14 },
+    ageBadgeTxt: { color: '#475569', ...FONT.bold, fontSize: 14 },
 
     // Stats row
     statsRow: { flexDirection: 'row', gap: 8 },
     statChip: {
         flex: 1,
-        backgroundColor: 'rgba(255,255,255,0.1)',
+        backgroundColor: '#F8FAFC',
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
         borderRadius: 12,
         paddingVertical: 8,
         alignItems: 'center',
     },
-    statChipVal: { fontSize: 16, ...FONT.heavy, color: '#FFFFFF', marginBottom: 2 },
-    statChipLbl: { fontSize: 8, ...FONT.bold, color: 'rgba(255,255,255,0.55)', letterSpacing: 0.8 },
-
-    // Decorative orbs
-    orb1: {
-        position: 'absolute', width: 200, height: 200, borderRadius: 100,
-        backgroundColor: 'rgba(14,165,233,0.1)', top: -70, right: -70,
-    },
-    orb2: {
-        position: 'absolute', width: 140, height: 140, borderRadius: 70,
-        backgroundColor: 'rgba(14,165,233,0.07)', top: 90, left: -55,
-    },
+    statChipVal: { fontSize: 16, ...FONT.heavy, color: '#0F172A', marginBottom: 2 },
+    statChipLbl: { fontSize: 8, ...FONT.bold, color: '#94A3B8', letterSpacing: 0.8 },
 
     // ── Content Panel ──
     contentPanel: {
         flex: 1,
-        backgroundColor: '#F0F4FF',
+        backgroundColor: '#F8FAFC',
         borderTopLeftRadius: 28,
         borderTopRightRadius: 28,
         overflow: 'hidden',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: -2 },
+        shadowOpacity: 0.04,
+        shadowRadius: 8,
+        elevation: 3,
     },
     scrollContent: {
         paddingHorizontal: 18,
