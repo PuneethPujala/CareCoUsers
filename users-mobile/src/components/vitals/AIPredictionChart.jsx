@@ -94,12 +94,15 @@ export default function AIPredictionChart({ vitalsHistory, predictionData, metri
   // chart-kit crashes if all values are perfectly identical and 0
   const validValues = allValues.length ? allValues : [0];
 
+  // Max 5 labels to prevent overlap
+  const labelInterval = Math.max(1, Math.ceil(labels.length / 5));
+
   const data = {
-    labels: labels.map((l, i) => (i % 2 === 0 ? l : '')), 
+    labels: labels.map((l, i) => (i % labelInterval === 0 ? l : '')), 
     datasets: [
       {
-        data: validValues.map(Number),
-        color: (opacity = 1) => `rgba(99, 102, 241, ${opacity})`, // Indigo connecting line
+        data: allValues.map(Number),
+        color: (opacity = 1) => `rgba(14, 165, 233, ${opacity})`, // Light blue connecting line
         strokeWidth: 2
       }
     ]
@@ -120,7 +123,8 @@ export default function AIPredictionChart({ vitalsHistory, predictionData, metri
       stroke: '#FFF'
     },
     getDotColor: (dataPoint, index) => {
-      return index >= vitalsHistory.length ? (isBackendAI ? '#F59E0B' : '#A78BFA') : '#0EA5E9';
+      // Connect line is solid, but dots change color for predictions
+      return index >= safeHistory.length ? (isBackendAI ? '#F59E0B' : '#A78BFA') : '#0EA5E9';
     }
   };
 
@@ -156,7 +160,7 @@ export default function AIPredictionChart({ vitalsHistory, predictionData, metri
       <View style={styles.chartWrapper}>
         <LineChart
           data={data}
-          width={screenWidth - 40}
+          width={screenWidth - 80}
           height={220}
           chartConfig={chartConfig}
           bezier={false} 
@@ -220,6 +224,8 @@ const styles = StyleSheet.create({
   chartWrapper: {
     alignItems: 'center',
     marginVertical: 4,
+    overflow: 'hidden',
+    width: '100%',
   },
   chart: {
     borderRadius: 16,
