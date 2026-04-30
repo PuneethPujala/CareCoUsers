@@ -14,6 +14,17 @@
       "resizeMode": "contain"
     },
     "ios": {
+      "splash": {
+        "image": "./assets/Splash.png",
+        "backgroundColor": "#F0F7FF",
+        "resizeMode": "contain",
+        "tabletImage": "./assets/Splash.png",
+        "dark": {
+          "image": "./assets/Splash.png",
+          "backgroundColor": "#F0F7FF",
+          "resizeMode": "contain"
+        }
+      },
       "supportsTablet": true,
       "bundleIdentifier": "com.careco.users",
       "googleServicesFile": "./GoogleService-Info.plist",
@@ -23,6 +34,16 @@
       }
     },
     "android": {
+      "splash": {
+        "image": "./assets/Splash.png",
+        "backgroundColor": "#F0F7FF",
+        "resizeMode": "contain",
+        "dark": {
+          "image": "./assets/Splash.png",
+          "backgroundColor": "#F0F7FF",
+          "resizeMode": "contain"
+        }
+      },
       "package": "com.careco.users",
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
