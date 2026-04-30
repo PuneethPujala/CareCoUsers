@@ -89,8 +89,8 @@ if (process.env.NODE_ENV !== 'test') {
   app.use(morgan('combined'));
 }
 
-// Health check endpoint
-app.get('/health', (req, res) => {
+// Health check endpoints
+app.get(['/', '/health'], (req, res) => {
   res.status(200).json({
     status: 'OK',
     timestamp: new Date().toISOString(),
