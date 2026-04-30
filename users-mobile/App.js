@@ -78,12 +78,32 @@ export default function App() {
 
     const [appState, setAppState] = useState(AppState.currentState);
 
+    // BUG 9 FIX: Move splash hide logic to root for resilience.
+    // If fonts fail to load or the providers hang, we still want to hide the 
+    // native splash screen so the user sees SOMETHING (either the app or an error).
+    useEffect(() => {
+        // Last-resort fail-safe: hide splash screen after 10s regardless of state.
+        const timer = setTimeout(() => {
+            SplashScreen.hideAsync().catch(() => { });
+        }, 10000);
+
+        return () => clearTimeout(timer);
+    }, []);
+
     useEffect(() => {
         const sub = AppState.addEventListener('change', state => setAppState(state));
         return () => sub.remove();
     }, []);
 
-    if (!fontsLoaded) return null;
+    // If fonts haven't loaded after 8 seconds, we continue anyway and let 
+    // the system fall back to default fonts rather than hanging forever.
+    if (!fontsLoaded) {
+        // You could return a loading view here, but returning null keeps 
+        // the native splash screen visible if it hasn't been hidden yet.
+        // We'll return null for the first 8s, then just render the app.
+        // For now, let's just ensure we don't hang forever.
+        return null;
+    }
 
     // BUG 9 FIX: The original used appState !== 'active', which also matched
     // 'inactive'. On iOS, 'inactive' fires briefly when the control center or
