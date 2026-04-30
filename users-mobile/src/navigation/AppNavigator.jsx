@@ -9,7 +9,6 @@ import {
     View, Text, StyleSheet, Animated, ActivityIndicator,
     TouchableOpacity, Pressable, Image,
 } from "react-native";
-import { LinearGradient } from 'expo-linear-gradient';
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { LayoutDashboard, Users, Pill, ShieldPlus, UserCircle } from "lucide-react-native";
@@ -117,15 +116,6 @@ function PatientTabNavigator() {
     );
 }
 
-function LoadingScreen() {
-    return (
-        <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={colors.primary} />
-            <Text style={styles.loadingText}>Configuring your experience...</Text>
-        </View>
-    );
-}
-
 const AuthStack = () => (
     <Stack.Navigator screenOptions={{ headerShown: false, animation: "fade", animationDuration: 300 }} initialRouteName="Login">
         <Stack.Screen name="Login" component={LoginScreen} />
@@ -157,105 +147,11 @@ const MainAppStack = () => (
     </Stack.Navigator>
 );
 
-function AppSplashScreen() {
-    const pulseAnim = useRef(new Animated.Value(0.6)).current;
-    const orb1Anim = useRef(new Animated.Value(0)).current;
-    const orb2Anim = useRef(new Animated.Value(0)).current;
-    const loadBarAnim = useRef(new Animated.Value(0)).current;
-    const fadeInAnim = useRef(new Animated.Value(0)).current;
-
-    useEffect(() => {
-        // Pulse the logo glow
-        Animated.loop(
-            Animated.sequence([
-                Animated.timing(pulseAnim, { toValue: 1, duration: 1200, useNativeDriver: true }),
-                Animated.timing(pulseAnim, { toValue: 0.6, duration: 1200, useNativeDriver: true }),
-            ])
-        ).start();
-
-        // Float orb 1
-        Animated.loop(
-            Animated.sequence([
-                Animated.timing(orb1Anim, { toValue: 1, duration: 3500, useNativeDriver: true }),
-                Animated.timing(orb1Anim, { toValue: 0, duration: 3500, useNativeDriver: true }),
-            ])
-        ).start();
-
-        // Float orb 2
-        Animated.loop(
-            Animated.sequence([
-                Animated.timing(orb2Anim, { toValue: 1, duration: 4000, useNativeDriver: true }),
-                Animated.timing(orb2Anim, { toValue: 0, duration: 4000, useNativeDriver: true }),
-            ])
-        ).start();
-
-        // Loading bar
-        Animated.loop(
-            Animated.sequence([
-                Animated.timing(loadBarAnim, { toValue: 1, duration: 1800, useNativeDriver: false }),
-                Animated.timing(loadBarAnim, { toValue: 0, duration: 0, useNativeDriver: false }),
-            ])
-        ).start();
-
-        // Fade in content
-        Animated.timing(fadeInAnim, { toValue: 1, duration: 800, useNativeDriver: true }).start();
-    }, []);
-
-    return (
-        <LinearGradient
-            colors={['#4A1A8A', '#5B2FA0', '#3B5FDB', '#2575E8', '#1AA3D8']}
-            style={splashStyles.container}
-            start={{ x: 0.15, y: 0 }}
-            end={{ x: 0.85, y: 1 }}
-        >
-            {/* Floating orbs */}
-            <Animated.View style={[splashStyles.orb1, {
-                opacity: pulseAnim,
-                transform: [{ translateY: orb1Anim.interpolate({ inputRange: [0, 1], outputRange: [0, -25] }) }],
-            }]} />
-            <Animated.View style={[splashStyles.orb2, {
-                opacity: orb2Anim.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0.3, 0.6, 0.3] }),
-                transform: [{ translateY: orb2Anim.interpolate({ inputRange: [0, 1], outputRange: [0, 20] }) }],
-            }]} />
-            <Animated.View style={[splashStyles.orb3, {
-                opacity: pulseAnim.interpolate({ inputRange: [0.6, 1], outputRange: [0.15, 0.35] }),
-                transform: [{ translateX: orb1Anim.interpolate({ inputRange: [0, 1], outputRange: [0, 15] }) }],
-            }]} />
-
-            {/* Content */}
-            <Animated.View style={[splashStyles.content, { opacity: fadeInAnim, transform: [{ translateY: fadeInAnim.interpolate({ inputRange: [0, 1], outputRange: [30, 0] }) }] }]}>
-                <View style={splashStyles.logoContainer}>
-                    <Image source={require('../../assets/logo.png')} style={splashStyles.logo} resizeMode="contain" />
-                </View>
-                <Text style={splashStyles.brandName}>CareMyMed</Text>
-                <Text style={splashStyles.tagline}>Smart. Simple. Seamless.</Text>
-            </Animated.View>
-
-            {/* Loading bar */}
-            <View style={splashStyles.loadingSection}>
-                <View style={splashStyles.loadBarBg}>
-                    <Animated.View style={[splashStyles.loadBarFill, {
-                        width: loadBarAnim.interpolate({ inputRange: [0, 0.5, 1], outputRange: ['5%', '70%', '100%'] }),
-                    }]} />
-                    <Animated.View style={[splashStyles.loadBarGlow, {
-                        left: loadBarAnim.interpolate({ inputRange: [0, 1], outputRange: ['0%', '90%'] }),
-                        opacity: pulseAnim,
-                    }]} />
-                </View>
-                <Text style={splashStyles.loadingText}>L O A D I N G . . .</Text>
-            </View>
-        </LinearGradient>
-    );
-}
-
 export default function AppNavigator() {
     const { isBootstrapping, onboardingComplete, subscriptionStatus, user, profile, signOut } = useAuth();
     const patient = usePatientStore(state => state.patient);
 
     // BUG 6 FIX: hasNotified must reset when the user signs out and back in.
-    // Previously it was a plain ref that survived sign-out, so setupNotifications
-    // was permanently skipped on subsequent logins — push token never re-registered.
-    // Now it's derived from the user's id: when user changes, the effect re-runs.
     const hasNotifiedForUserRef = useRef(null); // stores the userId that was notified
 
     useEffect(() => {
@@ -272,6 +168,9 @@ export default function AppNavigator() {
     const notificationListener = useRef();
     const responseListener = useRef();
 
+    // Hide the native splash screen once bootstrapping is done.
+    // This is the ONLY place SplashScreen.hideAsync() should be called
+    // (App.js has a 12s failsafe but this is the primary controller).
     useEffect(() => {
         if (!isBootstrapping) {
             setTimeout(() => { SplashScreen.hideAsync().catch(() => { }); }, 100);
@@ -311,8 +210,6 @@ export default function AppNavigator() {
             if (actionId === 'SNOOZE') {
                 console.log('⏳ Background Action: SNOOZED (+10m)');
                 // BUG 14 FIX: Expo SDK 50+ requires explicit type field on trigger.
-                // { seconds: 600, channelId: 'meds' } silently fails — must be:
-                // { type: 'timeInterval', seconds: 600, channelId: 'meds' }
                 Notifications.scheduleNotificationAsync({
                     content,
                     trigger: { type: 'timeInterval', seconds: 10 * 60, channelId: 'meds' },
@@ -327,11 +224,7 @@ export default function AppNavigator() {
             }
         });
 
-        // BUG 12 FIX: getLastNotificationResponseAsync() is called on every mount.
-        // Without a freshness check, a stale notification from a previous session
-        // would fire navigate() spuriously every time the component mounts
-        // (e.g. on sign-out/sign-in, on hot reload in dev). Now we reject any
-        // response older than STALE_NOTIFICATION_MS (30 seconds).
+        // BUG 12 FIX: reject stale notifications older than STALE_NOTIFICATION_MS.
         Notifications.getLastNotificationResponseAsync().then(response => {
             if (response && !isStaleNotification(response)) {
                 const screen = response.notification.request.content.data?.screen;
@@ -348,13 +241,11 @@ export default function AppNavigator() {
         };
     }, []);
 
-    // BUG 6 FIX: Track notification setup per userId instead of a one-shot boolean.
-    // When user logs out (user becomes null) and back in as a different or same user,
-    // the ref no longer matches and setup runs again, re-registering the push token.
+    // BUG 6 FIX: Track notification setup per userId.
     useEffect(() => {
         const setupNotifications = async () => {
             if (!user || !onboardingComplete) return;
-            if (hasNotifiedForUserRef.current === user.id) return; // already done for this session
+            if (hasNotifiedForUserRef.current === user.id) return;
 
             hasNotifiedForUserRef.current = user.id;
 
@@ -386,12 +277,11 @@ export default function AppNavigator() {
         if (ref) AlertManager.setRef(ref);
     }, []);
 
-    if (isBootstrapping) return (
-        <>
-            <AppSplashScreen />
-            <CustomAlert ref={alertRef} />
-        </>
-    );
+    // During bootstrapping, render nothing visible — the native splash screen
+    // (configured in app.json) is covering the UI. We still mount CustomAlert
+    // so AlertManager has its ref ready as soon as the app becomes interactive.
+    if (isBootstrapping) return <CustomAlert ref={alertRef} />;
+
     if (!user) return (
         <>
             <AuthStack />
@@ -430,8 +320,6 @@ export default function AppNavigator() {
 }
 
 const styles = StyleSheet.create({
-    loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: colors.background },
-    loadingText: { color: colors.primary, marginTop: 12, fontSize: 16, fontWeight: "500" },
     tabBarContainer: {
         position: "absolute", left: 24, right: 24,
         height: TAB_BAR_HEIGHT, backgroundColor: "#FFFFFF",
@@ -448,24 +336,4 @@ const styles = StyleSheet.create({
         shadowColor: "#2563EB", shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.35, shadowRadius: 8, elevation: 8,
     },
-    splashContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    splashLogo: { width: 200, height: 200 },
-    splashLoader: { marginTop: 24 },
-});
-
-const splashStyles = StyleSheet.create({
-    container: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    orb1: { position: 'absolute', top: '15%', left: '10%', width: 120, height: 120, borderRadius: 60, backgroundColor: 'rgba(255, 255, 255, 0.15)', shadowColor: '#FFF', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.5, shadowRadius: 30 },
-    orb2: { position: 'absolute', bottom: '20%', right: '5%', width: 180, height: 180, borderRadius: 90, backgroundColor: 'rgba(255, 255, 255, 0.12)' },
-    orb3: { position: 'absolute', top: '40%', right: '15%', width: 60, height: 60, borderRadius: 30, backgroundColor: 'rgba(255, 255, 255, 0.1)' },
-    content: { alignItems: 'center', zIndex: 10 },
-    logoContainer: { width: 140, height: 140, backgroundColor: 'rgba(255, 255, 255, 0.15)', borderRadius: 35, alignItems: 'center', justifyContent: 'center', marginBottom: 24, shadowColor: '#FFF', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.2, shadowRadius: 20, elevation: 15 },
-    logo: { width: 90, height: 90 },
-    brandName: { fontSize: 42, ...colors.bold, color: '#FFF', letterSpacing: 2, textShadowColor: 'rgba(0, 0, 0, 0.2)', textShadowOffset: { width: 0, height: 4 }, textShadowRadius: 10 },
-    tagline: { fontSize: 14, ...colors.medium, color: 'rgba(255, 255, 255, 0.85)', marginTop: 8, letterSpacing: 1.5 },
-    loadingSection: { position: 'absolute', bottom: 60, width: '80%', alignItems: 'center' },
-    loadBarBg: { width: '100%', height: 4, backgroundColor: 'rgba(255, 255, 255, 0.2)', borderRadius: 2, overflow: 'hidden', marginBottom: 16 },
-    loadBarFill: { height: '100%', backgroundColor: '#FFF', borderRadius: 2 },
-    loadBarGlow: { position: 'absolute', top: -4, width: 40, height: 12, backgroundColor: 'rgba(255, 255, 255, 0.6)', borderRadius: 6, shadowColor: '#FFF', shadowRadius: 10, shadowOpacity: 1, elevation: 10 },
-    loadingText: { color: 'rgba(255, 255, 255, 0.7)', fontSize: 10, fontWeight: '800', letterSpacing: 4 },
 });
