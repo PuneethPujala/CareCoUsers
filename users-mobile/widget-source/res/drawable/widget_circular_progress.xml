@@ -3,8 +3,8 @@
     <item android:id="@android:id/background">
         <shape
             android:shape="ring"
-            android:innerRadiusRatio="2.5"
-            android:thicknessRatio="10"
+            android:innerRadius="24dp"
+            android:thickness="6dp"
             android:useLevel="false">
             <solid android:color="@color/widget_progress_bg" />
         </shape>
@@ -17,8 +17,8 @@
             android:pivotY="50%">
             <shape
                 android:shape="ring"
-                android:innerRadiusRatio="2.5"
-                android:thicknessRatio="10"
+                android:innerRadius="24dp"
+                android:thickness="6dp"
                 android:useLevel="true">
                 <solid android:color="@color/widget_accent_color" />
             </shape>
