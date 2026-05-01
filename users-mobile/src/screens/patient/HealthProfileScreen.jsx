@@ -528,38 +528,23 @@ export default function HealthProfileScreen({ navigation }) {
     const inactiveMeds = medications.filter(m => m.is_active === false);
 
     return (
-        <View style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
-            <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+        <View style={s.root}>
+            <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
 
-            {/* ── Vault Header ── */}
-            <Animated.View style={[s.vaultHeader, anim(0)]}>
-                <View style={s.headerTopRow}>
-                    <View>
-                        <Text style={s.vaultLabel}>HEALTH VAULT</Text>
-                        <Text style={s.vaultTitle}>My Records</Text>
+            {/* ── Simple Header (like care team) ── */}
+            <View style={s.header}>
+                <View style={s.headerRow}>
+                    <View style={{ flex: 1 }}>
+                        <Text style={s.headerEyebrow}>HEALTH VAULT</Text>
+                        <Text style={s.headerTitle}>My Records</Text>
                     </View>
-                    <View style={s.ageBadge}>
-                        <Text style={s.ageBadgeTxt}>{age ? `${age} Yrs` : 'Age not set'}</Text>
-                    </View>
+                    <Pressable style={s.headerBtn} onPress={() => navigation.navigate('Notifications')}>
+                        <BellRing size={20} color="#0F172A" strokeWidth={2.5} />
+                    </Pressable>
                 </View>
-                <View style={s.statsRow}>
-                    {[
-                        { val: conditions.length, lbl: 'CONDITIONS' },
-                        { val: activeMeds.length, lbl: 'MEDICATIONS' },
-                        { val: vaccinations.length, lbl: 'VACCINES' },
-                        { val: `${completionPct}%`, lbl: 'COMPLETE' },
-                    ].map((item, i) => (
-                        <View key={i} style={s.statChip}>
-                            <Text style={s.statChipVal}>{item.val}</Text>
-                            <Text style={s.statChipLbl}>{item.lbl}</Text>
-                        </View>
-                    ))}
-                </View>
-            </Animated.View>
+            </View>
 
-            {/* ── Content Panel ── */}
-            <View style={s.contentPanel}>
-                <ScrollView contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
+            <ScrollView contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
 
                     {/* Completion Banner */}
                     {completionPct < 100 && (
@@ -860,7 +845,6 @@ export default function HealthProfileScreen({ navigation }) {
                     </Animated.View>
 
                 </ScrollView>
-            </View>
 
             {/* ── Dynamic Form Modal ── */}
             <PremiumFormModal
@@ -1203,73 +1187,30 @@ export default function HealthProfileScreen({ navigation }) {
 const s = StyleSheet.create({
     // Base
     container: { flex: 1, backgroundColor: '#F8FAFC' },
+    root: { flex: 1, backgroundColor: '#F8FAFC' },
 
-    // ── Vault Header ──
-    vaultHeader: {
-        paddingTop: Platform.OS === 'ios' ? 54 : 42,
+    // ── Simple Header (like care team / medications) ──
+    header: {
+        paddingTop: Platform.OS === 'ios' ? 60 : 48,
         paddingHorizontal: 24,
-        paddingBottom: 20,
-        backgroundColor: '#FFFFFF',
-    },
-    headerTopRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'flex-start',
-        marginBottom: 16,
-    },
-    vaultLabel: {
-        fontSize: 11,
-        ...FONT.heavy,
-        color: '#94A3B8',
-        letterSpacing: 2.5,
-        marginBottom: 6,
-    },
-    vaultTitle: {
-        fontSize: 32,
-        ...FONT.heavy,
-        color: '#0F172A',
-        letterSpacing: -1,
-    },
-    ageBadge: {
-        backgroundColor: '#F1F5F9',
-        paddingHorizontal: 14,
-        paddingVertical: 8,
-        borderRadius: 22,
-        borderWidth: 1,
-        borderColor: '#E2E8F0',
-    },
-    ageBadgeTxt: { color: '#475569', ...FONT.bold, fontSize: 14 },
-
-    // Stats row
-    statsRow: { flexDirection: 'row', gap: 8 },
-    statChip: {
-        flex: 1,
+        paddingBottom: 14,
         backgroundColor: '#F8FAFC',
-        borderWidth: 1,
-        borderColor: '#E2E8F0',
-        borderRadius: 12,
-        paddingVertical: 8,
-        alignItems: 'center',
     },
-    statChipVal: { fontSize: 16, ...FONT.heavy, color: '#0F172A', marginBottom: 2 },
-    statChipLbl: { fontSize: 8, ...FONT.bold, color: '#94A3B8', letterSpacing: 0.8 },
+    headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    headerEyebrow: {
+        fontSize: 13, fontWeight: '800', color: '#6366F1',
+        letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 4,
+    },
+    headerTitle: { fontSize: 32, fontWeight: '800', color: '#0F172A', letterSpacing: -1 },
+    headerBtn: {
+        width: 44, height: 44, borderRadius: 22,
+        backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center',
+        borderWidth: 1, borderColor: '#E2E8F0',
+    },
 
-    // ── Content Panel ──
-    contentPanel: {
-        flex: 1,
-        backgroundColor: '#F8FAFC',
-        borderTopLeftRadius: 28,
-        borderTopRightRadius: 28,
-        overflow: 'hidden',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: -2 },
-        shadowOpacity: 0.04,
-        shadowRadius: 8,
-        elevation: 3,
-    },
     scrollContent: {
         paddingHorizontal: 18,
-        paddingTop: 20,
+        paddingTop: 8,
         paddingBottom: layout.TAB_BAR_CLEARANCE,
     },
 
