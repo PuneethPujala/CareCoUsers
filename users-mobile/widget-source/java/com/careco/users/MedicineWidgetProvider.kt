@@ -57,7 +57,7 @@ class MedicineWidgetProvider : AppWidgetProvider() {
 
                 // ── Progress bar ──
                 views.setProgressBar(R.id.widget_progress, 100, adherence, false)
-                views.setTextViewText(R.id.widget_progress_label, "$taken of $total taken")
+                views.setTextViewText(R.id.widget_progress_label, "$taken/$total taken today")
 
                 // ── Toggle sections ──
                 if (total == 0) {
