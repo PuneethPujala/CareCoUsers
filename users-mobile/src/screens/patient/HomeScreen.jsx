@@ -4,10 +4,11 @@ import {
     ActivityIndicator, KeyboardAvoidingView, TouchableOpacity,
     DeviceEventEmitter, InteractionManager, Dimensions, StatusBar,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import {
     Pill, Package, Sparkles, ChevronRight, TrendingUp, Activity,
     CalendarDays, CheckCircle2, Bell, Heart, Wind, Droplets, MapPin,
-    AlertTriangle, WifiOff, Flame, Zap, Watch,
+    AlertTriangle, WifiOff, Flame, Zap, Watch, Shield,
 } from 'lucide-react-native';
 import { handleAxiosError } from '../../lib/axiosInstance';
 import { colors } from '../../theme';
@@ -23,7 +24,7 @@ import AlertManager from '../../utils/AlertManager';
 
 const { width: SW } = Dimensions.get('window');
 
-// ── Constants ──────────────────────────────────────────────────────────────
+// ── Health tips ────────────────────────────────────────────────────────────
 const HEALTH_TIPS = [
     '💧 Stay hydrated! Drinking 8 glasses of water daily helps manage blood pressure and significantly improves kidney function.',
     '🥗 Eating a handful of leafy greens daily can reduce your risk of heart disease by up to 15%. Your heart will thank you!',
@@ -44,18 +45,18 @@ const HEALTH_TIPS = [
 const getDailyTip = () => HEALTH_TIPS[Math.floor((Date.now() / 86400000)) % HEALTH_TIPS.length];
 
 const ACCENT_MAP = {
-    morning: colors.success,
-    afternoon: colors.warning,
-    evening: '#0369A1',
-    night: '#1D4ED8',
-    as_needed: '#0EA5E9',
+    morning: '#F97316',
+    afternoon: '#0EA5E9',
+    evening: '#A855F7',
+    night: '#6366F1',
+    as_needed: '#10B981',
 };
 const TIME_LABELS = {
     morning: 'Morning', afternoon: 'Afternoon',
     evening: 'Evening', night: 'Night', as_needed: 'As Needed',
 };
 
-// ── Skeleton Loader ────────────────────────────────────────────────────────
+// ── Skeleton loader ────────────────────────────────────────────────────────
 const SkeletonItem = ({ width, height, borderRadius = 10, style }) => {
     const anim = useRef(new Animated.Value(0.35)).current;
     useEffect(() => {
@@ -66,21 +67,25 @@ const SkeletonItem = ({ width, height, borderRadius = 10, style }) => {
             ])
         ).start();
     }, []);
-    return (
-        <Animated.View style={[{ width, height, borderRadius, backgroundColor: '#CBD5E1', opacity: anim }, style]} />
-    );
+    return <Animated.View style={[{ width, height, borderRadius, backgroundColor: '#CBD5E1', opacity: anim }, style]} />;
 };
 
-// ── VitalsCard ─────────────────────────────────────────────────────────────
+// ── Vitals card ────────────────────────────────────────────────────────────
 const VitalsCard = ({ label, value, unit, icon: Icon, color, status = 'Stable' }) => {
     const isLogged = status === 'Recorded';
     return (
-        <View style={[styles.vitalsCard, { backgroundColor: isLogged ? color + '08' : '#FAFBFF' }]}>
+        <View style={[styles.vitalsCard, isLogged && { shadowColor: color, shadowOpacity: 0.14 }]}>
+            {isLogged && (
+                <LinearGradient
+                    colors={[color + '12', color + '04']}
+                    style={StyleSheet.absoluteFill}
+                />
+            )}
             <View style={styles.vitalsCardTop}>
-                <View style={[styles.vitalsIconBox, { backgroundColor: isLogged ? color + '22' : '#F8FAFC' }]}>
+                <View style={[styles.vitalsIconBox, { backgroundColor: isLogged ? color + '20' : '#F1F5F9' }]}>
                     <Icon size={20} color={isLogged ? color : '#94A3B8'} strokeWidth={2.5} />
                 </View>
-                <View style={[styles.vitalsStatusBadge, { backgroundColor: isLogged ? color + '15' : '#F1F5F9' }]}>
+                <View style={[styles.vitalsStatusBadge, { backgroundColor: isLogged ? color + '18' : '#F1F5F9' }]}>
                     <View style={[styles.statusDot, { backgroundColor: isLogged ? color : '#CBD5E1' }]} />
                     <Text style={[styles.statusLabel, { color: isLogged ? color : '#94A3B8' }]}>
                         {isLogged ? 'Logged' : 'Pending'}
@@ -88,28 +93,28 @@ const VitalsCard = ({ label, value, unit, icon: Icon, color, status = 'Stable' }
                 </View>
             </View>
             <Text style={styles.vitalsCardLabel}>{label}</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 3, marginTop: 2 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 3, marginTop: 3 }}>
                 <Text style={[styles.vitalsCardValue, { color: isLogged ? '#0F172A' : '#CBD5E1' }]}>{value}</Text>
                 <Text style={styles.vitalsCardUnit}>{unit}</Text>
             </View>
             <View style={styles.vitalsCardFooter}>
                 {isLogged
-                    ? <><TrendingUp size={12} color={colors.success} /><Text style={[styles.vitalsFooterText, { color: colors.success }]}>Logged today</Text></>
-                    : <><Activity size={12} color="#94A3B8" /><Text style={styles.vitalsFooterText}>Tap History to log</Text></>
+                    ? <><TrendingUp size={12} color={color} /><Text style={[styles.vitalsFooterText, { color }]}>Logged today</Text></>
+                    : <><Activity size={12} color="#94A3B8" /><Text style={styles.vitalsFooterText}>Tap History</Text></>
                 }
             </View>
         </View>
     );
 };
 
-// ── MedicationCard ─────────────────────────────────────────────────────────
+// ── Mini medication card ───────────────────────────────────────────────────
 const MedicationCard = ({ med, onPress }) => {
-    const accentColor = ACCENT_MAP[med.type] || '#0EA5E9';
+    const accentColor = ACCENT_MAP[med.type] || '#6366F1';
     return (
         <Pressable onPress={() => onPress && onPress()} style={[styles.medCard, med.taken && styles.medCardTaken]}>
             <View style={[styles.medAccentBar, { backgroundColor: med.taken ? colors.success : accentColor }]} />
             <View style={styles.medCardContent}>
-                <View style={[styles.medIconBox, { backgroundColor: med.taken ? '#ECFDF5' : accentColor + '15' }]}>
+                <View style={[styles.medIconBox, { backgroundColor: med.taken ? '#ECFDF5' : accentColor + '18' }]}>
                     {med.taken
                         ? <CheckCircle2 size={20} color={colors.success} strokeWidth={2.5} />
                         : <Pill size={20} color={accentColor} strokeWidth={2.5} />
@@ -117,7 +122,7 @@ const MedicationCard = ({ med, onPress }) => {
                 </View>
                 <View style={{ flex: 1 }}>
                     <Text style={[styles.medName, med.taken && { color: colors.success }]}>{med.name}</Text>
-                    <Text style={styles.medDose}>{med.dosage}{med.instructions ? ` • ${med.instructions}` : ''}</Text>
+                    <Text style={styles.medDose}>{med.dosage}{med.instructions ? ` · ${med.instructions}` : ''}</Text>
                 </View>
                 {med.taken && (
                     <View style={styles.takenBadge}>
@@ -130,13 +135,12 @@ const MedicationCard = ({ med, onPress }) => {
     );
 };
 
-// ════════════════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════════════════
 // ══ MAIN SCREEN ══════════════════════════════════════════════════════════════
-// ════════════════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════════════════
 export default function PatientHomeScreen({ navigation }) {
     const { displayName, profile } = useAuth();
 
-    // ── Zustand store ────────────────────────────────────────────────────
     const patient = usePatientStore((s) => s.patient);
     const vitals = usePatientStore((s) => s.vitals);
     const vitalsHistory = usePatientStore((s) => s.vitalsHistory);
@@ -146,7 +150,6 @@ export default function PatientHomeScreen({ navigation }) {
     const isCached = usePatientStore((s) => s.isCached);
     const storeFetchDashboard = usePatientStore((s) => s.fetchDashboard);
 
-    // ── Local state ──────────────────────────────────────────────────────
     const [loading, setLoading] = useState(true);
     const [unreadCount, setUnreadCount] = useState(0);
     const [isLogging, setIsLogging] = useState(false);
@@ -165,7 +168,7 @@ export default function PatientHomeScreen({ navigation }) {
 
     const runAnimations = useCallback(() => {
         staggerAnims.forEach(a => a.setValue(0));
-        Animated.stagger(90,
+        Animated.stagger(80,
             staggerAnims.map(a => Animated.spring(a, { toValue: 1, friction: 8, tension: 42, useNativeDriver: true }))
         ).start();
     }, [staggerAnims]);
@@ -255,7 +258,7 @@ export default function PatientHomeScreen({ navigation }) {
         return () => unsub();
     }, [fetchData]);
 
-    // ── Derived values ────────────────────────────────────────────────────
+    // ── Derived values ─────────────────────────────────────────────────────
     const takenCount = meds.filter(m => m.taken).length;
     const totalMeds = meds.length;
     const adherencePct = totalMeds > 0 ? Math.round((takenCount / totalMeds) * 100) : 0;
@@ -294,37 +297,77 @@ export default function PatientHomeScreen({ navigation }) {
     };
     const nextDose = getNextDose();
 
-    const adherenceColor = adherencePct >= 80 ? '#10B981' : adherencePct >= 50 ? '#F59E0B' : '#F43F5E';
+    const adherenceColor = adherencePct >= 80 ? '#10B981' : adherencePct >= 50 ? '#F59E0B' : '#EF4444';
     const hasContextualAlerts = !vitals || meds.some(m => !m.taken);
 
     const anim = (i) => ({
         opacity: staggerAnims[i],
-        transform: [{ translateY: staggerAnims[i].interpolate({ inputRange: [0, 1], outputRange: [22, 0] }) }],
+        transform: [{ translateY: staggerAnims[i].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }],
     });
 
-    // ── Loading skeleton ──────────────────────────────────────────────────
+    // ── Stat chip configs ──────────────────────────────────────────────────
+    const STATS = [
+        {
+            Icon: Pill, value: `${takenCount}/${totalMeds}`, label: 'Meds Today',
+            iconColor: '#6366F1', bg: ['#EEF2FF', '#E0E7FF'], iconBg: '#C7D2FE',
+            onPress: () => navigation.navigate('AdherenceDetails'),
+        },
+        {
+            Icon: Flame, value: String(medicationStreak), label: 'Day Streak',
+            iconColor: '#F97316', bg: ['#FFF7ED', '#FEF3C7'], iconBg: '#FED7AA',
+            onPress: () => navigation.navigate('AdherenceDetails'),
+        },
+        {
+            Icon: Sparkles, value: String(daysPremiumRemaining), label: 'Days Premium',
+            iconColor: '#A855F7', bg: ['#FAF5FF', '#F3E8FF'], iconBg: '#E9D5FF',
+            onPress: null,
+        },
+    ];
+
+    // ── Quick actions ──────────────────────────────────────────────────────
+    const QUICK_ACTIONS = [
+        {
+            label: 'Med Adherence', sub: 'View Progress',
+            grad: ['#10B981', '#059669'], Icon: CheckCircle2,
+            onPress: () => navigation.navigate('AdherenceDetails'),
+        },
+        {
+            label: 'Med Delivery', sub: 'Coming Soon',
+            grad: ['#0EA5E9', '#0284C7'], Icon: Package,
+            onPress: () => AlertManager.alert('Coming Soon! 🚀', "Med Delivery is on its way! We're building a seamless way to order and track your medications right from the app.", [{ text: 'Got it!', style: 'default' }]),
+        },
+        {
+            label: 'Health Profile', sub: 'View & Edit',
+            grad: ['#6366F1', '#4F46E5'], Icon: Activity,
+            onPress: () => navigation.navigate('HealthProfile'),
+        },
+        {
+            label: 'Schedule', sub: 'Next Appointment',
+            grad: ['#F59E0B', '#D97706'], Icon: CalendarDays,
+            onPress: () => navigation.navigate('HealthProfile'),
+        },
+    ];
+
+    // ── Loading skeleton ───────────────────────────────────────────────────
     if (loading) {
         return (
-            <View style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
-                <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+            <View style={{ flex: 1, backgroundColor: '#F8FAFC' }}>
+                <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
                 <View style={styles.skeletonHeader}>
                     <View style={{ paddingHorizontal: 24 }}>
-                        <SkeletonItem width={90} height={11} borderRadius={6} style={{ marginBottom: 18 }} />
-                        <SkeletonItem width={220} height={34} borderRadius={10} style={{ marginBottom: 8 }} />
-                        <SkeletonItem width={150} height={14} borderRadius={6} style={{ marginBottom: 28 }} />
+                        <SkeletonItem width={90} height={11} borderRadius={6} style={{ marginBottom: 14 }} />
+                        <SkeletonItem width={220} height={32} borderRadius={10} style={{ marginBottom: 28 }} />
                         <View style={{ flexDirection: 'row', gap: 10 }}>
-                            <SkeletonItem width="30%" height={68} borderRadius={18} />
-                            <SkeletonItem width="30%" height={68} borderRadius={18} />
-                            <SkeletonItem width="30%" height={68} borderRadius={18} />
+                            <SkeletonItem width="30%" height={78} borderRadius={20} />
+                            <SkeletonItem width="30%" height={78} borderRadius={20} />
+                            <SkeletonItem width="30%" height={78} borderRadius={20} />
                         </View>
                     </View>
                 </View>
-                <View style={styles.skeletonPanel}>
-                    <View style={{ padding: 20, gap: 14 }}>
-                        <View style={{ backgroundColor: '#E2E8F0', borderRadius: 22, height: 130 }} />
-                        <View style={{ backgroundColor: '#E2E8F0', borderRadius: 22, height: 110 }} />
-                        <View style={{ backgroundColor: '#E2E8F0', borderRadius: 22, height: 200 }} />
-                    </View>
+                <View style={{ flex: 1, padding: 20, gap: 14 }}>
+                    <View style={{ backgroundColor: '#E2E8F0', borderRadius: 24, height: 140 }} />
+                    <View style={{ backgroundColor: '#E2E8F0', borderRadius: 24, height: 120 }} />
+                    <View style={{ backgroundColor: '#E2E8F0', borderRadius: 24, height: 210 }} />
                 </View>
             </View>
         );
@@ -332,19 +375,11 @@ export default function PatientHomeScreen({ navigation }) {
 
     return (
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-            <View style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
-                <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+            <View style={{ flex: 1, backgroundColor: '#F8FAFC' }}>
+                <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
 
-                {/* ── HEADER ── */}
-                <Animated.View style={[styles.header, anim(0)]}>
-                    <Pressable onPress={() => navigation.navigate('LocationSearch')} style={styles.locationPill}>
-                        <View style={styles.locationDot}><MapPin size={10} color="#FFF" fill="#FFF" /></View>
-                        <Text style={styles.locationText} numberOfLines={1}>
-                            {patient?.city || profile?.city || 'Detecting...'}
-                        </Text>
-                        <ChevronRight size={10} color="#CBD5E1" strokeWidth={3} />
-                    </Pressable>
-
+                {/* ── SIMPLE HEADER (fixed, like care team) ── */}
+                <View style={styles.header}>
                     <View style={styles.mainHeaderRow}>
                         <View style={{ flex: 1 }}>
                             <Text style={styles.greetingLabel}>{getGreeting()},</Text>
@@ -360,49 +395,57 @@ export default function PatientHomeScreen({ navigation }) {
                             </TouchableOpacity>
                         </View>
                     </View>
+                </View>
 
-                    <View style={styles.datePill}>
-                        <CalendarDays size={12} color="#CBD5E1" />
-                        <Text style={styles.dateText}>{dateStr}</Text>
-                    </View>
+                {/* ── ALL SCROLLABLE CONTENT ── */}
+                <ScrollView
+                    showsVerticalScrollIndicator={false}
+                    contentContainerStyle={styles.scrollContent}
+                    keyboardShouldPersistTaps="handled"
+                >
+                    {/* Date + location row */}
+                    <Animated.View style={[anim(0), { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16 }]}>
+                        <View style={styles.datePill}>
+                            <CalendarDays size={12} color="#CBD5E1" />
+                            <Text style={styles.dateText}>{dateStr}</Text>
+                        </View>
+                        <Pressable onPress={() => navigation.navigate('LocationSearch')} style={styles.locationPill}>
+                            <View style={styles.locationDot}>
+                                <MapPin size={10} color="#FFF" fill="#FFF" />
+                            </View>
+                            <Text style={styles.locationText} numberOfLines={1}>
+                                {patient?.city || profile?.city || 'Detecting...'}
+                            </Text>
+                        </Pressable>
+                    </Animated.View>
 
-                    {/* Quick stats strip */}
-                    <Animated.View style={[styles.statsStrip, { opacity: staggerAnims[1] }]}>
-                        {[
-                            { Icon: Pill, value: `${takenCount}/${totalMeds}`, label: 'Meds Today', iconColor: '#4361EE', onPress: () => navigation.navigate('AdherenceDetails') },
-                            { Icon: Flame, value: String(medicationStreak), label: 'Day Streak', iconColor: '#FB923C', onPress: () => navigation.navigate('AdherenceDetails') },
-                            { Icon: Sparkles, value: String(daysPremiumRemaining), label: 'Days Premium', iconColor: '#A78BFA', onPress: null },
-                        ].map(({ Icon: StatIcon, value, label, iconColor, onPress: statPress }, i) => (
-                            <Pressable key={i} style={styles.statChip} onPress={statPress || undefined}>
-                                <View style={styles.statChipGrad}>
-                                    <StatIcon size={16} color={iconColor} strokeWidth={2} />
-                                    <Text style={styles.statChipValue}>{value}</Text>
+                    {/* Stats strip */}
+                    <Animated.View style={[styles.statsStrip, anim(1)]}>
+                        {STATS.map(({ Icon: StatIcon, value, label, iconColor, bg, iconBg, onPress: statPress }, i) => (
+                            <Pressable key={i} style={{ flex: 1 }} onPress={statPress || undefined}>
+                                <LinearGradient colors={bg} style={styles.statChip}>
+                                    <View style={[styles.statChipIcon, { backgroundColor: iconBg }]}>
+                                        <StatIcon size={14} color={iconColor} strokeWidth={2.5} />
+                                    </View>
+                                    <Text style={[styles.statChipValue, { color: iconColor }]}>{value}</Text>
                                     <Text style={styles.statChipLabel}>{label}</Text>
-                                </View>
+                                </LinearGradient>
                             </Pressable>
                         ))}
                     </Animated.View>
-                </Animated.View>
 
-                {/* ── CONTENT PANEL ── */}
-                <View style={styles.contentPanel}>
-                    <ScrollView
-                        showsVerticalScrollIndicator={false}
-                        contentContainerStyle={styles.scrollContent}
-                        keyboardShouldPersistTaps="handled"
-                    >
-                        {/* Offline banner */}
-                        {isCached && (
-                            <View style={styles.offlineBanner}>
-                                <WifiOff size={13} color="#92400E" />
-                                <Text style={styles.offlineBannerText}>Showing cached data • Pull to refresh</Text>
-                            </View>
-                        )}
+                    {/* Offline banner */}
+                    {isCached && (
+                        <View style={styles.offlineBanner}>
+                            <WifiOff size={13} color="#92400E" />
+                            <Text style={styles.offlineBannerText}>Showing cached data · Pull to refresh</Text>
+                        </View>
+                    )}
 
-                        {/* ── Banners ── */}
+                        {/* ── BANNERS ── */}
                         <Animated.View style={anim(2)}>
                             {showStreakBanner && medicationStreak >= 3 && (
-                                <View style={[styles.banner, { borderColor: '#FDE68A', backgroundColor: '#FEF3C7' }]}>
+                                <LinearGradient colors={['#FEF3C7', '#FFF7ED']} style={[styles.banner, { borderColor: '#FDE68A' }]}>
                                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
                                         <Text style={{ fontSize: 22 }}>🔥</Text>
                                         <View>
@@ -411,12 +454,12 @@ export default function PatientHomeScreen({ navigation }) {
                                         </View>
                                     </View>
                                     <Pressable onPress={() => setShowStreakBanner(false)} hitSlop={12}>
-                                        <Text style={{ fontSize: 16, color: '#D97706', fontWeight: '700', padding: 4 }}>✕</Text>
+                                        <Text style={{ fontSize: 16, color: '#D97706', fontWeight: '800', padding: 4 }}>✕</Text>
                                     </Pressable>
-                                </View>
+                                </LinearGradient>
                             )}
                             {takenCount === totalMeds && totalMeds > 0 && (
-                                <View style={[styles.banner, { borderColor: '#BBF7D0', backgroundColor: '#F0FDF4' }]}>
+                                <LinearGradient colors={['#F0FDF4', '#ECFDF5']} style={[styles.banner, { borderColor: '#BBF7D0' }]}>
                                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
                                         <Text style={{ fontSize: 22 }}>✅</Text>
                                         <View>
@@ -424,7 +467,7 @@ export default function PatientHomeScreen({ navigation }) {
                                             <Text style={[styles.bannerSub, { color: '#15803D' }]}>Great job staying on track</Text>
                                         </View>
                                     </View>
-                                </View>
+                                </LinearGradient>
                             )}
                         </Animated.View>
 
@@ -435,12 +478,16 @@ export default function PatientHomeScreen({ navigation }) {
 
                                 {totalMeds > 0 ? (
                                     <Pressable style={styles.medSummaryCard} onPress={() => setMedsExpanded(!medsExpanded)}>
-                                        <View style={[styles.medAccent, { backgroundColor: adherencePct >= 80 ? '#10B981' : adherencePct >= 50 ? '#F59E0B' : '#F43F5E' }]} />
+                                        {/* Gradient left accent */}
+                                        <LinearGradient
+                                            colors={adherencePct >= 80 ? ['#10B981', '#059669'] : adherencePct >= 50 ? ['#F59E0B', '#D97706'] : ['#EF4444', '#DC2626']}
+                                            style={styles.medAccentGrad}
+                                        />
                                         <View style={styles.medSummaryBody}>
                                             <View style={styles.medSummaryRow}>
                                                 <View style={styles.medSummaryLeft}>
                                                     <View style={styles.medSummaryIcon}>
-                                                        <Pill size={22} color="#4361EE" strokeWidth={2.5} />
+                                                        <Pill size={22} color="#6366F1" strokeWidth={2.5} />
                                                     </View>
                                                     <View>
                                                         <Text style={styles.medSummaryCount}>
@@ -457,11 +504,16 @@ export default function PatientHomeScreen({ navigation }) {
                                                     <Text style={styles.adherencePctLabel}>Adherence</Text>
                                                 </View>
                                             </View>
+                                            {/* Progress bar */}
                                             <View style={styles.progBarBg}>
-                                                <View style={[styles.progBarFill, { width: `${adherencePct}%`, backgroundColor: adherenceColor }]} />
+                                                <LinearGradient
+                                                    colors={adherencePct >= 80 ? ['#34D399', '#10B981'] : adherencePct >= 50 ? ['#FCD34D', '#F59E0B'] : ['#FC8181', '#EF4444']}
+                                                    start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                                                    style={[styles.progBarFill, { width: `${adherencePct}%` }]}
+                                                />
                                             </View>
                                             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                                                <Text style={styles.medFooterText}>{takenCount} of {totalMeds} taken  •  {medsExpanded ? 'Hide details' : 'View details'}</Text>
+                                                <Text style={styles.medFooterText}>{takenCount} of {totalMeds} taken  ·  {medsExpanded ? 'Hide' : 'View details'}</Text>
                                                 <ChevronRight size={14} color="#94A3B8" style={{ transform: [{ rotate: medsExpanded ? '90deg' : '0deg' }] }} />
                                             </View>
                                         </View>
@@ -487,18 +539,21 @@ export default function PatientHomeScreen({ navigation }) {
                                     <Text style={styles.sectionTitle}>MY VITALS</Text>
                                     <Pressable style={styles.viewAllBtn} onPress={() => navigation.navigate('VitalsHistory')}>
                                         <Text style={styles.viewAllText}>History</Text>
-                                        <ChevronRight size={13} color="#64748B" />
+                                        <ChevronRight size={13} color="#6366F1" />
                                     </Pressable>
                                 </View>
 
-                                {/* Wearable sync */}
+                                {/* Wearable sync card */}
                                 <Pressable
                                     style={[styles.syncCard, syncStatus.connected && styles.syncCardConnected]}
                                     onPress={() => navigation.navigate('HealthConnectSetup')}
                                 >
+                                    {syncStatus.connected && (
+                                        <LinearGradient colors={['#ECFDF5', '#F0FDF4']} style={StyleSheet.absoluteFill} />
+                                    )}
                                     <View style={styles.syncCardLeft}>
-                                        <View style={[styles.syncIconBox, { backgroundColor: syncStatus.connected ? '#ECFDF5' : '#E0F2FE' }]}>
-                                            <Watch size={20} color={syncStatus.connected ? colors.success : '#4361EE'} strokeWidth={2.5} />
+                                        <View style={[styles.syncIconBox, { backgroundColor: syncStatus.connected ? '#DCFCE7' : '#EEF2FF' }]}>
+                                            <Watch size={20} color={syncStatus.connected ? colors.success : '#6366F1'} strokeWidth={2.5} />
                                         </View>
                                         <View style={{ flex: 1 }}>
                                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 }}>
@@ -514,30 +569,30 @@ export default function PatientHomeScreen({ navigation }) {
                                             </View>
                                             <Text style={styles.syncSub}>
                                                 {syncStatus.connected
-                                                    ? `${syncStatus.readingsToday} readings today${syncStatus.lastSync ? ' • Last: ' + new Date(syncStatus.lastSync).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}`
+                                                    ? `${syncStatus.readingsToday} readings today${syncStatus.lastSync ? ' · Last: ' + new Date(syncStatus.lastSync).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}`
                                                     : 'Auto-track vitals from your smartwatch'}
                                             </Text>
                                         </View>
                                     </View>
-                                    <ChevronRight size={18} color={syncStatus.connected ? colors.success : '#94A3B8'} />
+                                    <ChevronRight size={18} color={syncStatus.connected ? colors.success : '#CBD5E1'} />
                                 </Pressable>
 
-                                {/* Vitals cards */}
-                                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 14, paddingRight: 4, marginBottom: 16 }}>
+                                {/* Vitals cards row */}
+                                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingRight: 4, marginBottom: 16 }}>
                                     <VitalsCard label="Heart Rate" value={vitals?.heart_rate || '—'} unit="bpm" icon={Heart} color="#EF4444" status={vitals?.heart_rate ? 'Recorded' : 'Not Logged'} />
-                                    <VitalsCard label="Blood Pressure" value={vitals?.blood_pressure?.systolic ? `${vitals.blood_pressure.systolic}/${vitals.blood_pressure.diastolic}` : '—'} unit="mmHg" icon={Activity} color="#3B82F6" status={vitals?.blood_pressure?.systolic ? 'Recorded' : 'Not Logged'} />
-                                    <VitalsCard label="Oxygen" value={vitals?.oxygen_saturation != null ? vitals.oxygen_saturation : '—'} unit="%" icon={Wind} color="#06B6D4" status={vitals?.oxygen_saturation != null ? 'Recorded' : 'Not Logged'} />
-                                    <VitalsCard label="Hydration" value={vitals?.hydration != null ? vitals.hydration : '—'} unit="%" icon={Droplets} color="#0EA5E9" status={vitals?.hydration != null ? 'Recorded' : 'Not Logged'} />
+                                    <VitalsCard label="Blood Pressure" value={vitals?.blood_pressure?.systolic ? `${vitals.blood_pressure.systolic}/${vitals.blood_pressure.diastolic}` : '—'} unit="mmHg" icon={Activity} color="#6366F1" status={vitals?.blood_pressure?.systolic ? 'Recorded' : 'Not Logged'} />
+                                    <VitalsCard label="Oxygen" value={vitals?.oxygen_saturation != null ? vitals.oxygen_saturation : '—'} unit="%" icon={Wind} color="#0EA5E9" status={vitals?.oxygen_saturation != null ? 'Recorded' : 'Not Logged'} />
+                                    <VitalsCard label="Hydration" value={vitals?.hydration != null ? vitals.hydration : '—'} unit="%" icon={Droplets} color="#06B6D4" status={vitals?.hydration != null ? 'Recorded' : 'Not Logged'} />
                                 </ScrollView>
 
                                 {/* AI Outlook */}
                                 {(aiPrediction || vitalsHistory.length > 0) && (
                                     <View style={styles.card}>
                                         <View style={styles.cardHeaderRow}>
-                                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                                                <View style={styles.aiIconBox}>
-                                                    <Sparkles size={16} color="#0EA5E9" />
-                                                </View>
+                                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                                                <LinearGradient colors={['#EEF2FF', '#C7D2FE']} style={styles.aiIconBox}>
+                                                    <Sparkles size={16} color="#6366F1" />
+                                                </LinearGradient>
                                                 <Text style={styles.cardTitle}>AI Health Outlook</Text>
                                             </View>
                                             {aiPrediction && (
@@ -547,6 +602,10 @@ export default function PatientHomeScreen({ navigation }) {
                                                         aiPrediction.health_label === 'Warning' ? styles.aiBadgeOrange :
                                                             styles.aiBadgeGreen,
                                                 ]}>
+                                                    <View style={[styles.aiBadgeDot, {
+                                                        backgroundColor: aiPrediction.health_label === 'Critical' ? '#EF4444' :
+                                                            aiPrediction.health_label === 'Warning' ? '#F59E0B' : '#10B981'
+                                                    }]} />
                                                     <Text style={[
                                                         styles.aiBadgeText,
                                                         { color: aiPrediction.health_label === 'Critical' ? '#DC2626' : aiPrediction.health_label === 'Warning' ? '#D97706' : '#16A34A' },
@@ -572,8 +631,8 @@ export default function PatientHomeScreen({ navigation }) {
                                     </View>
                                 )}
 
-                                {/* Log vitals form */}
-                                <View style={[styles.card, { marginTop: 16 }]}>
+                                {/* Log vitals */}
+                                <View style={[styles.card, { marginTop: 14 }]}>
                                     <Pressable
                                         style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}
                                         onPress={() => { setIsLogging(!isLogging); setFormError(null); }}
@@ -617,6 +676,7 @@ export default function PatientHomeScreen({ navigation }) {
                                             <SmartInput label="Hydration (%)" keyboardType="numeric" placeholder="65"
                                                 value={formValues.hydration} onChangeText={(t) => setFormValues(p => ({ ...p, hydration: t }))} />
                                             <Pressable style={styles.submitBtn} onPress={handleLogVitals} disabled={submitLoading}>
+                                                <LinearGradient colors={['#818CF8', '#4F46E5']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} />
                                                 {submitLoading
                                                     ? <ActivityIndicator color="#FFF" />
                                                     : <Text style={styles.submitBtnText}>Save Record</Text>
@@ -631,16 +691,15 @@ export default function PatientHomeScreen({ navigation }) {
                         {/* ── DAILY TIP ── */}
                         <Animated.View style={anim(5)}>
                             <View style={styles.section}>
-                                <View style={styles.tipCard}>
-                                    <View style={[styles.tipAccentBar, { backgroundColor: '#0EA5E9' }]} />
-                                    <View style={styles.tipBody}>
-                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                                            <View style={styles.tipIconBox}><Sparkles size={15} color="#0EA5E9" /></View>
-                                            <Text style={styles.tipLabel}>DAILY HEALTH TIP</Text>
-                                        </View>
-                                        <Text style={styles.tipText}>{getDailyTip()}</Text>
+                                <LinearGradient colors={['#EEF2FF', '#E0E7FF']} style={styles.tipCard}>
+                                    <View style={styles.tipHeader}>
+                                        <LinearGradient colors={['#818CF8', '#6366F1']} style={styles.tipIconBox}>
+                                            <Sparkles size={14} color="#FFF" />
+                                        </LinearGradient>
+                                        <Text style={styles.tipLabel}>DAILY HEALTH TIP</Text>
                                     </View>
-                                </View>
+                                    <Text style={styles.tipText}>{getDailyTip()}</Text>
+                                </LinearGradient>
                             </View>
                         </Animated.View>
 
@@ -649,16 +708,11 @@ export default function PatientHomeScreen({ navigation }) {
                             <View style={styles.section}>
                                 <Text style={styles.sectionTitle}>QUICK ACTIONS</Text>
                                 <View style={styles.quickGrid}>
-                                    {[
-                                        { label: 'Med Adherence', sub: 'View Progress', iconBg: '#10B981', Icon: CheckCircle2, onPress: () => navigation.navigate('AdherenceDetails') },
-                                        { label: 'Med Delivery', sub: 'Coming Soon', iconBg: '#0EA5E9', Icon: Package, onPress: () => AlertManager.alert('Coming Soon! 🚀', "Med Delivery is on its way! We're building a seamless way to order and track your medications right from the app. Stay tuned!", [{ text: 'Got it!', style: 'default' }]) },
-                                        { label: 'Health Profile', sub: 'View & Edit', iconBg: '#4361EE', Icon: Activity, onPress: () => navigation.navigate('HealthProfile') },
-                                        { label: 'Schedule', sub: 'Next Appointment', iconBg: '#F59E0B', Icon: CalendarDays, onPress: () => navigation.navigate('HealthProfile') },
-                                    ].map(({ label, sub, iconBg, Icon, onPress }) => (
+                                    {QUICK_ACTIONS.map(({ label, sub, grad, Icon, onPress }) => (
                                         <Pressable key={label} style={styles.quickCard} onPress={onPress}>
-                                            <View style={[styles.quickIconBox, { backgroundColor: iconBg }]}>
-                                                <Icon size={20} color="#FFF" strokeWidth={2.5} />
-                                            </View>
+                                            <LinearGradient colors={grad} style={styles.quickIconBox}>
+                                                <Icon size={22} color="#FFF" strokeWidth={2.5} />
+                                            </LinearGradient>
                                             <View style={{ flex: 1 }}>
                                                 <Text style={styles.quickCardTitle}>{label}</Text>
                                                 <Text style={styles.quickCardSub}>{sub}</Text>
@@ -672,68 +726,65 @@ export default function PatientHomeScreen({ navigation }) {
 
                         <View style={{ height: 30 }} />
                     </ScrollView>
-                </View>
             </View>
         </KeyboardAvoidingView>
     );
 }
 
-// ════════════════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════════════════
 // ══ STYLES ═══════════════════════════════════════════════════════════════════
-// ════════════════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════════════════
 const styles = StyleSheet.create({
     // ── Skeleton ──
-    skeletonHeader: { paddingTop: Platform.OS === 'ios' ? 60 : 44, paddingBottom: 28, backgroundColor: '#FFFFFF' },
-    skeletonPanel: { flex: 1, backgroundColor: '#F8FAFC', borderTopLeftRadius: 32, borderTopRightRadius: 32 },
+    skeletonHeader: { paddingTop: Platform.OS === 'ios' ? 60 : 44, paddingBottom: 20, backgroundColor: '#F8FAFC', paddingHorizontal: 24 },
 
-    // ── Header ──
+    // ── Header (simple, like care team) ──
     header: {
-        paddingTop: Platform.OS === 'ios' ? 52 : 40, paddingHorizontal: 24, paddingBottom: 20,
-        backgroundColor: '#FFFFFF',
+        paddingTop: Platform.OS === 'ios' ? 60 : 48,
+        paddingHorizontal: 24, paddingBottom: 14,
+        backgroundColor: '#F8FAFC',
     },
     locationPill: {
         flexDirection: 'row', alignItems: 'center', gap: 6,
-        backgroundColor: '#F1F5F9', paddingHorizontal: 12, paddingVertical: 6,
-        borderRadius: 20, alignSelf: 'flex-start', marginBottom: 16,
-        borderWidth: 1, borderColor: '#E2E8F0',
+        backgroundColor: '#F1F5F9', paddingHorizontal: 10, paddingVertical: 5,
+        borderRadius: 14, borderWidth: 1, borderColor: '#E2E8F0',
     },
-    locationDot: { width: 16, height: 16, borderRadius: 8, backgroundColor: '#4361EE', alignItems: 'center', justifyContent: 'center' },
-    locationText: { fontSize: 11, color: '#475569', fontWeight: '700', letterSpacing: 0.3, textTransform: 'uppercase' },
-    mainHeaderRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
-    greetingLabel: { fontSize: 13, fontWeight: '700', color: '#64748B', letterSpacing: 0.3, marginBottom: 2 },
-    greetingName: { fontSize: 30, fontWeight: '900', color: '#0F172A', letterSpacing: -0.8 },
-    headerActions: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingTop: 2 },
+    locationDot: {
+        width: 16, height: 16, borderRadius: 8,
+        backgroundColor: '#6366F1', alignItems: 'center', justifyContent: 'center',
+    },
+    locationText: { fontSize: 11, color: '#475569', fontWeight: '700', letterSpacing: 0.2 },
+    mainHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    greetingLabel: { fontSize: 13, fontWeight: '700', color: '#6366F1', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 2 },
+    greetingName: { fontSize: 28, fontWeight: '800', color: '#0F172A', letterSpacing: -0.8 },
+    headerActions: { flexDirection: 'row', alignItems: 'center', gap: 10 },
     headerIconBtn: {
         width: 42, height: 42, borderRadius: 21,
-        backgroundColor: '#F1F5F9', borderWidth: 1, borderColor: '#E2E8F0',
+        backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0',
         alignItems: 'center', justifyContent: 'center',
     },
     bellDot: { position: 'absolute', top: 10, right: 10, width: 7, height: 7, borderRadius: 3.5, backgroundColor: '#EF4444', borderWidth: 1.5, borderColor: '#FFFFFF' },
-    avatarBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#4361EE', borderWidth: 2, borderColor: 'rgba(67,97,238,0.2)', alignItems: 'center', justifyContent: 'center' },
+    avatarBtn: {
+        width: 42, height: 42, borderRadius: 21,
+        backgroundColor: '#6366F1', borderWidth: 2, borderColor: '#C7D2FE',
+        alignItems: 'center', justifyContent: 'center',
+    },
     avatarText: { fontSize: 16, fontWeight: '900', color: '#FFFFFF' },
-    datePill: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 },
+    datePill: { flexDirection: 'row', alignItems: 'center', gap: 5 },
     dateText: { fontSize: 13, color: '#94A3B8', fontWeight: '600' },
 
-    // ── Stats Strip ──
-    statsStrip: { flexDirection: 'row', gap: 10, marginTop: 16 },
-    statChip: { flex: 1, borderRadius: 16, overflow: 'hidden' },
-    statChipGrad: {
-        padding: 10, alignItems: 'center', gap: 3, borderRadius: 16,
-        borderWidth: 1, borderColor: '#E2E8F0', backgroundColor: '#F8FAFC',
+    // ── Stats strip ──
+    statsStrip: { flexDirection: 'row', gap: 10, marginBottom: 20 },
+    statChip: {
+        padding: 12, alignItems: 'center', gap: 4,
+        borderRadius: 18, borderWidth: 1, borderColor: 'rgba(0,0,0,0.06)',
     },
-    statChipValue: { fontSize: 16, fontWeight: '900', color: '#1E293B', letterSpacing: -0.5 },
+    statChipIcon: { width: 28, height: 28, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginBottom: 2 },
+    statChipValue: { fontSize: 16, fontWeight: '900', letterSpacing: -0.5 },
     statChipLabel: { fontSize: 9, color: '#94A3B8', fontWeight: '700', letterSpacing: 0.3, textTransform: 'uppercase', textAlign: 'center' },
+    scrollContent: { paddingHorizontal: 20, paddingTop: 4, paddingBottom: 120 },
 
-    // ── Content Panel ──
-    contentPanel: {
-        flex: 1, backgroundColor: '#F8FAFC',
-        borderTopLeftRadius: 32, borderTopRightRadius: 32, overflow: 'hidden',
-        shadowColor: '#000', shadowOffset: { width: 0, height: -2 },
-        shadowOpacity: 0.04, shadowRadius: 8, elevation: 3,
-    },
-    scrollContent: { paddingHorizontal: 20, paddingTop: 24, paddingBottom: 110 },
-
-    // ── Offline Banner ──
+    // ── Offline banner ──
     offlineBanner: {
         flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7,
         backgroundColor: '#FEF3C7', borderWidth: 1, borderColor: '#FDE68A',
@@ -741,10 +792,10 @@ const styles = StyleSheet.create({
     },
     offlineBannerText: { fontSize: 12, fontWeight: '600', color: '#92400E' },
 
-    // ── Alert Banners ──
+    // ── Banners ──
     banner: {
         flexDirection: 'row', alignItems: 'center',
-        borderWidth: 1, borderRadius: 18, padding: 14, paddingHorizontal: 16,
+        borderWidth: 1, borderRadius: 20, padding: 14, paddingHorizontal: 16,
         marginBottom: 12, overflow: 'hidden',
     },
     bannerTitle: { fontSize: 14, fontWeight: '800', color: '#92400E' },
@@ -752,38 +803,41 @@ const styles = StyleSheet.create({
 
     // ── Sections ──
     section: { marginBottom: 28 },
-    sectionTitle: { fontSize: 12, fontWeight: '800', color: '#94A3B8', letterSpacing: 1.6, textTransform: 'uppercase', marginBottom: 14 },
+    sectionTitle: {
+        fontSize: 11, fontWeight: '800', color: '#94A3B8',
+        letterSpacing: 1.8, textTransform: 'uppercase', marginBottom: 14,
+    },
     sectionTitleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
     viewAllBtn: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-    viewAllText: { fontSize: 13, fontWeight: '700', color: '#64748B' },
+    viewAllText: { fontSize: 13, fontWeight: '700', color: '#6366F1' },
 
-    // ── Med Summary Card ──
+    // ── Med summary card ──
     medSummaryCard: {
-        backgroundColor: '#FFFFFF', borderRadius: 22, marginBottom: 12,
+        backgroundColor: '#FFFFFF', borderRadius: 24, marginBottom: 12,
         flexDirection: 'row', overflow: 'hidden',
-        shadowColor: '#4361EE', shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.08, shadowRadius: 18, elevation: 6,
+        shadowColor: '#6366F1', shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.1, shadowRadius: 20, elevation: 6,
     },
-    medAccent: { width: 5, flexShrink: 0 },
+    medAccentGrad: { width: 6, flexShrink: 0 },
     medSummaryBody: { flex: 1, padding: 20 },
     medSummaryRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
     medSummaryLeft: { flexDirection: 'row', alignItems: 'center', gap: 14, flex: 1 },
-    medSummaryIcon: { width: 48, height: 48, borderRadius: 16, backgroundColor: '#E0F2FE', alignItems: 'center', justifyContent: 'center' },
+    medSummaryIcon: { width: 50, height: 50, borderRadius: 16, backgroundColor: '#EEF2FF', alignItems: 'center', justifyContent: 'center' },
     medSummaryCount: { fontSize: 17, fontWeight: '800', color: '#1E293B', letterSpacing: -0.3 },
     medSummaryNext: { fontSize: 13, fontWeight: '600', color: '#64748B', marginTop: 2 },
-    adherencePct: { fontSize: 30, fontWeight: '900', letterSpacing: -1 },
+    adherencePct: { fontSize: 32, fontWeight: '900', letterSpacing: -1.2 },
     adherencePctLabel: { fontSize: 10, fontWeight: '700', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: 0.5 },
-    progBarBg: { height: 7, backgroundColor: '#F1F5F9', borderRadius: 4, overflow: 'hidden', marginBottom: 14 },
-    progBarFill: { height: 7, borderRadius: 4 },
+    progBarBg: { height: 8, backgroundColor: '#F1F5F9', borderRadius: 4, overflow: 'hidden', marginBottom: 14 },
+    progBarFill: { height: 8, borderRadius: 4 },
     medFooterText: { fontSize: 13, fontWeight: '600', color: '#94A3B8' },
 
     // ── Empty state ──
-    emptyCard: { backgroundColor: '#FAFBFF', borderRadius: 22, padding: 32, alignItems: 'center', borderWidth: 1.5, borderColor: '#E2E8F0', borderStyle: 'dashed' },
-    emptyIconBox: { width: 64, height: 64, borderRadius: 32, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
-    emptyTitle: { fontSize: 16, fontWeight: '700', color: '#475569', marginBottom: 6 },
+    emptyCard: { backgroundColor: '#FAFBFF', borderRadius: 24, padding: 32, alignItems: 'center', borderWidth: 1.5, borderColor: '#E2E8F0', borderStyle: 'dashed' },
+    emptyIconBox: { width: 68, height: 68, borderRadius: 34, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
+    emptyTitle: { fontSize: 17, fontWeight: '800', color: '#475569', marginBottom: 6 },
     emptySub: { fontSize: 13, fontWeight: '500', color: '#94A3B8', textAlign: 'center', lineHeight: 20 },
 
-    // ── Individual Med Card ──
+    // ── Mini med cards ──
     medCard: {
         backgroundColor: '#FFFFFF', borderRadius: 20, marginBottom: 10,
         flexDirection: 'row', overflow: 'hidden',
@@ -791,18 +845,21 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.04, shadowRadius: 10, elevation: 3,
     },
     medCardTaken: { backgroundColor: '#F0FDF4', borderColor: '#DCFCE7' },
-    medAccentBar: { width: 4, flexShrink: 0 },
+    medAccentBar: { width: 5, flexShrink: 0 },
     medCardContent: { flex: 1, flexDirection: 'row', alignItems: 'center', padding: 16, gap: 14 },
-    medIconBox: { width: 42, height: 42, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
+    medIconBox: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
     medName: { fontSize: 15, fontWeight: '700', color: '#0F172A', marginBottom: 3 },
     medDose: { fontSize: 12, color: '#64748B', fontWeight: '500' },
     takenBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#DCFCE7', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10 },
     takenBadgeText: { fontSize: 10, fontWeight: '700', color: colors.success },
 
-    // ── Vitals Card ──
+    // ── Vitals card ──
     vitalsCard: {
-        width: 160, borderRadius: 22, padding: 18, overflow: 'hidden',
-        shadowColor: '#4361EE', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.08, shadowRadius: 16, elevation: 5,
+        width: 162, borderRadius: 22, padding: 18, overflow: 'hidden',
+        backgroundColor: '#FFFFFF',
+        shadowColor: '#6366F1', shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.06, shadowRadius: 16, elevation: 4,
+        borderWidth: 1, borderColor: '#F1F5F9',
     },
     vitalsCardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 },
     vitalsIconBox: { width: 40, height: 40, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
@@ -810,48 +867,51 @@ const styles = StyleSheet.create({
     statusDot: { width: 5, height: 5, borderRadius: 2.5 },
     statusLabel: { fontSize: 9, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5 },
     vitalsCardLabel: { fontSize: 12, fontWeight: '700', color: '#64748B' },
-    vitalsCardValue: { fontSize: 22, fontWeight: '800' },
+    vitalsCardValue: { fontSize: 22, fontWeight: '800', letterSpacing: -0.5 },
     vitalsCardUnit: { fontSize: 12, fontWeight: '600', color: '#94A3B8' },
     vitalsCardFooter: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 12 },
     vitalsFooterText: { fontSize: 11, color: '#94A3B8', fontWeight: '500' },
 
-    // ── Sync Card ──
+    // ── Sync card ──
     syncCard: {
         flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-        backgroundColor: '#FFFFFF', borderRadius: 18, padding: 16, marginBottom: 16,
+        backgroundColor: '#FFFFFF', borderRadius: 20, padding: 16, marginBottom: 16,
         shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 8, elevation: 2,
+        overflow: 'hidden', borderWidth: 1, borderColor: '#F1F5F9',
     },
-    syncCardConnected: { backgroundColor: '#F0FDF4' },
+    syncCardConnected: { borderColor: '#DCFCE7' },
     syncCardLeft: { flexDirection: 'row', alignItems: 'center', flex: 1, gap: 14 },
-    syncIconBox: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+    syncIconBox: { width: 46, height: 46, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
     syncTitle: { fontSize: 15, fontWeight: '700', color: '#1E293B' },
     syncSub: { fontSize: 12, color: '#64748B', fontWeight: '500' },
     syncingBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: '#FEF3C7', paddingHorizontal: 7, paddingVertical: 3, borderRadius: 8 },
     syncingText: { fontSize: 10, fontWeight: '700', color: '#D97706' },
 
-    // ── Generic Card ──
+    // ── Generic card ──
     card: {
-        backgroundColor: '#FFFFFF', borderRadius: 22, padding: 20,
-        shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 14, elevation: 4,
+        backgroundColor: '#FFFFFF', borderRadius: 24, padding: 20,
+        shadowColor: '#6366F1', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 14, elevation: 4,
+        borderWidth: 1, borderColor: '#F1F5F9',
     },
-    cardHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
+    cardHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
     cardTitle: { fontSize: 16, fontWeight: '800', color: '#1E293B' },
-    aiIconBox: { width: 30, height: 30, borderRadius: 10, backgroundColor: '#E0F2FE', alignItems: 'center', justifyContent: 'center' },
-    aiDesc: { fontSize: 13, color: '#64748B', lineHeight: 18, marginTop: 4, marginBottom: 12 },
-    aiBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10, borderWidth: 1 },
-    aiBadgeText: { fontSize: 10, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5 },
+    aiIconBox: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+    aiDesc: { fontSize: 13, color: '#64748B', lineHeight: 19, marginBottom: 14 },
+    aiBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 12, borderWidth: 1 },
+    aiBadgeDot: { width: 6, height: 6, borderRadius: 3 },
+    aiBadgeText: { fontSize: 11, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5 },
     aiBadgeGreen: { backgroundColor: '#F0FDF4', borderColor: '#BBF7D0' },
     aiBadgeOrange: { backgroundColor: '#FFFBEB', borderColor: '#FDE68A' },
     aiBadgeRed: { backgroundColor: '#FEF2F2', borderColor: '#FECACA' },
-    toggleBadge: { backgroundColor: 'rgba(67,97,238,0.1)', paddingHorizontal: 14, paddingVertical: 7, borderRadius: 10 },
-    toggleBadgeCancel: { backgroundColor: 'rgba(239,68,68,0.1)' },
-    toggleBadgeText: { color: '#4361EE', fontSize: 13, fontWeight: '700' },
+    toggleBadge: { backgroundColor: 'rgba(99,102,241,0.1)', paddingHorizontal: 14, paddingVertical: 7, borderRadius: 10 },
+    toggleBadgeCancel: { backgroundColor: 'rgba(239,68,68,0.08)' },
+    toggleBadgeText: { color: '#6366F1', fontSize: 13, fontWeight: '700' },
     formRow: { flexDirection: 'row', gap: 12, marginBottom: 4 },
     formLabel: { fontSize: 11, fontWeight: '700', color: '#64748B', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 14, marginBottom: 8 },
     submitBtn: {
-        borderRadius: 16, paddingVertical: 15, alignItems: 'center', marginTop: 20,
-        backgroundColor: '#4361EE',
-        shadowColor: '#4361EE', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 10, elevation: 6,
+        borderRadius: 18, paddingVertical: 16, alignItems: 'center', marginTop: 20,
+        overflow: 'hidden',
+        shadowColor: '#6366F1', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 10, elevation: 6,
     },
     submitBtnText: { color: '#FFF', fontSize: 15, fontWeight: '700', letterSpacing: 0.3 },
     errorBanner: {
@@ -861,26 +921,26 @@ const styles = StyleSheet.create({
     },
     errorText: { flex: 1, color: '#991B1B', fontSize: 13, fontWeight: '600', lineHeight: 18 },
 
-    // ── Daily Tip ──
-    tipCard: {
-        backgroundColor: '#FFFFFF', borderRadius: 22, overflow: 'hidden',
-        flexDirection: 'row',
-        shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.04, shadowRadius: 12, elevation: 3,
-    },
-    tipAccentBar: { width: 5, flexShrink: 0 },
-    tipBody: { flex: 1, padding: 18 },
-    tipIconBox: { width: 28, height: 28, borderRadius: 9, backgroundColor: '#E0F2FE', alignItems: 'center', justifyContent: 'center' },
-    tipLabel: { fontSize: 11, fontWeight: '800', color: '#0EA5E9', letterSpacing: 1.2 },
-    tipText: { fontSize: 14, color: '#334155', lineHeight: 22, fontWeight: '500' },
+    // ── Daily tip ──
+    tipCard: { borderRadius: 22, overflow: 'hidden', padding: 18, borderWidth: 1, borderColor: '#C7D2FE' },
+    tipHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
+    tipIconBox: { width: 30, height: 30, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+    tipLabel: { fontSize: 11, fontWeight: '800', color: '#6366F1', letterSpacing: 1.2, textTransform: 'uppercase' },
+    tipText: { fontSize: 14, color: '#3730A3', lineHeight: 22, fontWeight: '500' },
 
-    // ── Quick Actions ──
+    // ── Quick actions ──
     quickGrid: { gap: 12 },
     quickCard: {
-        backgroundColor: '#FFFFFF', borderRadius: 18, padding: 16,
-        flexDirection: 'row', alignItems: 'center', gap: 14,
-        shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 3,
+        backgroundColor: '#FFFFFF', borderRadius: 20, padding: 16,
+        flexDirection: 'row', alignItems: 'center', gap: 16,
+        shadowColor: '#6366F1', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 3,
+        borderWidth: 1, borderColor: '#F1F5F9',
     },
-    quickIconBox: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+    quickIconBox: {
+        width: 48, height: 48, borderRadius: 15,
+        alignItems: 'center', justifyContent: 'center',
+        shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 8, elevation: 4,
+    },
     quickCardTitle: { fontSize: 15, fontWeight: '800', color: '#1E293B' },
     quickCardSub: { fontSize: 12, color: '#64748B', marginTop: 2, fontWeight: '600' },
 });
