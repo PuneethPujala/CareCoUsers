@@ -3,173 +3,129 @@
     android:id="@+id/widget_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/widget_bg"
-    android:padding="2dp">
+    android:background="@drawable/widget_bg_adaptive"
+    android:padding="16dp">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:orientation="vertical"
-        android:padding="16dp">
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
 
-        <!-- ═══ HEADER ROW ═══ -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:layout_marginBottom="16dp">
+        <!-- Left: Circular Progress -->
+        <RelativeLayout
+            android:layout_width="64dp"
+            android:layout_height="64dp"
+            android:layout_marginEnd="16dp">
 
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical">
+            <ProgressBar
+                android:id="@+id/widget_progress"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:progressDrawable="@drawable/widget_circular_progress"
+                android:max="100"
+                android:progress="0" />
 
-                <TextView
-                    android:id="@+id/widget_title"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="CareCo"
-                    android:textColor="#FFFFFFFF"
-                    android:textSize="18sp"
-                    android:letterSpacing="-0.02"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:id="@+id/widget_greeting"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Your Health"
-                    android:textColor="#99FFFFFF"
-                    android:textSize="12sp"
-                    android:layout_marginTop="2dp" />
-            </LinearLayout>
-
-            <!-- Adherence Percentage Badge -->
             <TextView
                 android:id="@+id/widget_pct"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
-                android:background="@drawable/widget_pct_circle"
-                android:gravity="center"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_centerInParent="true"
                 android:text="0%"
-                android:textColor="#FFFFFFFF"
-                android:textSize="14sp"
+                android:textColor="@color/widget_text_primary"
+                android:textSize="15sp"
                 android:textStyle="bold" />
-        </LinearLayout>
+        </RelativeLayout>
 
-        <!-- ═══ PROGRESS BAR ═══ -->
-        <ProgressBar
-            android:id="@+id/widget_progress"
-            style="@android:style/Widget.ProgressBar.Horizontal"
-            android:layout_width="match_parent"
-            android:layout_height="6dp"
-            android:max="100"
-            android:progress="0"
-            android:progressDrawable="@drawable/widget_progress_bar"
-            android:layout_marginBottom="8dp" />
-
-        <TextView
-            android:id="@+id/widget_progress_label"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="0 of 0 taken"
-            android:textColor="#A6FFFFFF"
-            android:textSize="11sp"
-            android:textStyle="bold"
-            android:layout_marginBottom="16dp" />
-
-        <!-- ═══ NEXT DOSE SECTION ═══ -->
+        <!-- Right: Details -->
         <LinearLayout
-            android:id="@+id/widget_next_section"
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:padding="12dp"
-            android:background="#1AFFFFFF"
-            android:visibility="gone">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="NEXT DOSE"
-                android:textColor="#80FFFFFF"
-                android:textSize="10sp"
-                android:textStyle="bold"
-                android:letterSpacing="0.1"
-                android:layout_marginBottom="4dp" />
-
-            <TextView
-                android:id="@+id/widget_next_name"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Medication Name"
-                android:textColor="#FFFFFFFF"
-                android:textSize="14sp"
-                android:textStyle="bold"
-                android:maxLines="1"
-                android:ellipsize="end" />
-
-            <TextView
-                android:id="@+id/widget_next_time"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Today • 9:00 AM"
-                android:textColor="#CCFFFFFF"
-                android:textSize="12sp"
-                android:layout_marginTop="2dp" />
-        </LinearLayout>
-
-        <!-- ═══ ALL DONE SECTION ═══ -->
-        <LinearLayout
-            android:id="@+id/widget_done_section"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:padding="12dp"
-            android:background="#1AFFFFFF"
-            android:gravity="center"
-            android:visibility="gone">
-
-            <TextView
-                android:id="@+id/widget_done_title"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Done for Today! 🎉"
-                android:textColor="#FFFFFFFF"
-                android:textSize="14sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/widget_done_sub"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Great job staying on track"
-                android:textColor="#CCFFFFFF"
-                android:textSize="11sp"
-                android:layout_marginTop="2dp" />
-        </LinearLayout>
-
-        <!-- ═══ EMPTY / NOT LOGGED IN ═══ -->
-        <LinearLayout
-            android:id="@+id/widget_empty_section"
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
             android:layout_weight="1"
-            android:orientation="vertical"
-            android:gravity="center"
-            android:visibility="visible">
+            android:orientation="vertical">
 
             <TextView
-                android:id="@+id/widget_empty_text"
+                android:id="@+id/widget_title"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Connect to see your schedule"
-                android:textColor="#99FFFFFF"
-                android:textSize="12sp"
-                android:gravity="center" />
-        </LinearLayout>
+                android:text="CareMyMed"
+                android:textColor="@color/widget_text_primary"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="2dp" />
 
+            <TextView
+                android:id="@+id/widget_progress_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="0/0 taken today"
+                android:textColor="@color/widget_text_secondary"
+                android:textSize="11sp"
+                android:layout_marginBottom="6dp" />
+
+            <!-- Next Dose Info -->
+            <LinearLayout
+                android:id="@+id/widget_next_section"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone">
+                
+                <TextView
+                    android:id="@+id/widget_next_time"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Next at 9:00 AM"
+                    android:textColor="@color/widget_accent_color"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+                
+                <TextView
+                    android:id="@+id/widget_next_name"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Medication Name"
+                    android:textColor="@color/widget_text_primary"
+                    android:textSize="13sp"
+                    android:maxLines="2"
+                    android:ellipsize="end" />
+            </LinearLayout>
+
+            <!-- All Done Info -->
+            <LinearLayout
+                android:id="@+id/widget_done_section"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone">
+                
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="All done today! 🎉"
+                    android:textColor="@color/widget_accent_color"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <!-- Empty Info -->
+            <LinearLayout
+                android:id="@+id/widget_empty_section"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="visible">
+                
+                <TextView
+                    android:id="@+id/widget_empty_text"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="No medicines scheduled."
+                    android:textColor="@color/widget_text_secondary"
+                    android:textSize="13sp" />
+            </LinearLayout>
+
+        </LinearLayout>
     </LinearLayout>
 </FrameLayout>

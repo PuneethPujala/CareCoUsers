@@ -52,20 +52,12 @@ class MedicineWidgetProvider : AppWidgetProvider() {
                 val greeting = json.optString("greeting", "Hello")
                 val allDone = json.optBoolean("allDone", false)
 
-                // ── Header ──
-                views.setTextViewText(R.id.widget_greeting, greeting)
-
                 // ── Percentage badge ──
                 views.setTextViewText(R.id.widget_pct, "$adherence%")
-                if (allDone) {
-                    views.setInt(R.id.widget_pct, "setBackgroundResource", R.drawable.widget_pct_circle_done)
-                } else {
-                    views.setInt(R.id.widget_pct, "setBackgroundResource", R.drawable.widget_pct_circle)
-                }
 
                 // ── Progress bar ──
                 views.setProgressBar(R.id.widget_progress, 100, adherence, false)
-                views.setTextViewText(R.id.widget_progress_label, "$taken of $total taken")
+                views.setTextViewText(R.id.widget_progress_label, "$taken/$total taken today")
 
                 // ── Toggle sections ──
                 if (total == 0) {
