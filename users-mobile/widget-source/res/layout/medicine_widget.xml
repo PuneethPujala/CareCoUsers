@@ -65,7 +65,7 @@
                 android:layout_centerInParent="true"
                 android:text="0%"
                 android:textColor="@color/widget_text_primary"
-                android:textSize="20sp"
+                android:textSize="20dp"
                 android:textStyle="bold" />
         </RelativeLayout>
 
@@ -131,7 +131,9 @@
                     android:text="All done today! 🎉"
                     android:textColor="@color/widget_accent_color"
                     android:textSize="14sp"
-                    android:textStyle="bold" />
+                    android:textStyle="bold"
+                    android:maxLines="1"
+                    android:ellipsize="end" />
             </LinearLayout>
 
             <!-- Empty Info -->
@@ -148,7 +150,9 @@
                     android:layout_height="wrap_content"
                     android:text="No medicines scheduled."
                     android:textColor="@color/widget_text_secondary"
-                    android:textSize="14sp" />
+                    android:textSize="14sp"
+                    android:maxLines="1"
+                    android:ellipsize="end" />
             </LinearLayout>
 
         </LinearLayout>
