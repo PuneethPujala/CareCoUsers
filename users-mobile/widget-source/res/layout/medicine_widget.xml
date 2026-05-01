@@ -35,7 +35,7 @@
                 android:layout_centerInParent="true"
                 android:text="0%"
                 android:textColor="@color/widget_text_primary"
-                android:textSize="15sp"
+                android:textSize="18sp"
                 android:textStyle="bold" />
         </RelativeLayout>
 
@@ -52,7 +52,7 @@
                 android:layout_height="wrap_content"
                 android:text="CareMyMed"
                 android:textColor="@color/widget_text_primary"
-                android:textSize="14sp"
+                android:textSize="16sp"
                 android:textStyle="bold"
                 android:maxLines="1"
                 android:ellipsize="end"
@@ -64,7 +64,7 @@
                 android:layout_height="wrap_content"
                 android:text="0/0 taken today"
                 android:textColor="@color/widget_text_secondary"
-                android:textSize="12sp"
+                android:textSize="13sp"
                 android:maxLines="1"
                 android:ellipsize="end"
                 android:layout_marginBottom="4dp" />
@@ -83,7 +83,7 @@
                     android:layout_height="wrap_content"
                     android:text="Next at 9:00 AM"
                     android:textColor="@color/widget_accent_color"
-                    android:textSize="12sp"
+                    android:textSize="13sp"
                     android:textStyle="bold"
                     android:maxLines="1"
                     android:ellipsize="end" />
@@ -94,8 +94,8 @@
                     android:layout_height="wrap_content"
                     android:text="Medication Name"
                     android:textColor="@color/widget_text_primary"
-                    android:textSize="13sp"
-                    android:maxLines="2"
+                    android:textSize="15sp"
+                    android:maxLines="1"
                     android:ellipsize="end" />
             </LinearLayout>
 
