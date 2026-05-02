@@ -16,6 +16,7 @@ import { colors, layout } from '../../theme';
 import { apiService } from '../../lib/api';
 import { COUNTRY_CODES, parsePhoneWithCode, validatePhone } from '../../utils/phoneUtils';
 
+import { useTranslation } from 'react-i18next';
 import AlertManager from '../../utils/AlertManager';
 // ── Skeleton Loader ──────────────────────────────────────────
 const SkeletonItem = ({ width, height, borderRadius = 8, style }) => {
@@ -69,6 +70,7 @@ const AVATAR_COLORS = [
 ];
 
 export default function MyCallerScreen({ navigation }) {
+  const { t } = useTranslation();
   const [patient, setPatient] = useState(null);
   const [caller, setCaller] = useState(null);
   const [calls, setCalls] = useState([]);
@@ -338,8 +340,8 @@ export default function MyCallerScreen({ navigation }) {
         <Animated.View style={[s.minimalHeader, { opacity: staggerAnims[0], transform: [{ translateY: staggerAnims[0].interpolate({ inputRange: [0, 1], outputRange: [-20, 0] }) }] }]}>
           <View style={s.mainHeaderRow}>
             <View style={s.headerLeft}>
-              <Text style={s.headerLabel}>SUPPORT</Text>
-              <Text style={s.headerTitle}>Care Team</Text>
+              <Text style={s.headerLabel}>{t('caller.support', { defaultValue: 'SUPPORT' })}</Text>
+              <Text style={s.headerTitle}>{t('caller.care_team', { defaultValue: 'Care Team' })}</Text>
             </View>
             <View style={s.headerRight}>
               <TouchableOpacity
@@ -368,7 +370,7 @@ export default function MyCallerScreen({ navigation }) {
       >
         {/* CALLERS SECTION */}
         <View style={[s.section, { marginTop: -40 }]}>
-          <Text style={s.sectionHeader}>YOUR CALLER</Text>
+          <Text style={s.sectionHeader}>{t('caller.your_caller', { defaultValue: 'YOUR CALLER' })}</Text>
           {caller ? (
             <Animated.View style={{ opacity: staggerAnims[0], transform: [{ translateY: staggerAnims[0].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>
               <Pressable onPress={() => openModal(caller)} style={({ pressed }) => [s.callerCard, pressed && s.callerCardPressed]}>
@@ -446,7 +448,7 @@ export default function MyCallerScreen({ navigation }) {
         <Animated.View style={{ opacity: staggerAnims[1], transform: [{ translateY: staggerAnims[1].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>
           <View style={s.section}>
             <View style={s.sectionHeaderRow}>
-              <Text style={s.sectionHeaderBase}>MANAGER</Text>
+              <Text style={s.sectionHeaderBase}>{t('caller.manager', { defaultValue: 'MANAGER' })}</Text>
             </View>
             {manager ? (
               <Pressable onPress={() => openModal({ ...manager, isManager: true })} style={({ pressed }) => [s.callerCard, pressed && s.callerCardPressed]}>
@@ -494,7 +496,7 @@ export default function MyCallerScreen({ navigation }) {
         <Animated.View style={{ opacity: staggerAnims[2], transform: [{ translateY: staggerAnims[2].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>
           <View style={s.section}>
             <View style={s.sectionHeaderRow}>
-              <Text style={s.sectionHeaderBase}>CARE TEAM & CONTACTS</Text>
+              <Text style={s.sectionHeaderBase}>{t('caller.care_team_contacts', { defaultValue: 'CARE TEAM & CONTACTS' })}</Text>
               <Pressable style={s.addBtn} onPress={() => openContactModal()}>
                 <Plus size={14} color="#FFF" strokeWidth={2.5} />
               </Pressable>
