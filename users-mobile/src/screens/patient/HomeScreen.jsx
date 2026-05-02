@@ -523,8 +523,8 @@ export default function PatientHomeScreen({ navigation }) {
                                 ) : (
                                     <View style={styles.emptyCard}>
                                         <View style={styles.emptyIconBox}><Pill size={28} color="#CBD5E1" strokeWidth={1.5} /></View>
-                                        <Text style={styles.emptyTitle}>No Medications Yet</Text>
-                                        <Text style={styles.emptySub}>Your care team will add medications here. They'll show up as actionable cards.</Text>
+                                        <Text style={styles.emptyTitle}>{t('common.no_medications_yet', { defaultValue: 'No Medications Yet' })}</Text>
+                                        <Text style={styles.emptySub}>{t('common.your_care_team_will_add_medications_here_they_ll_show_up_as_actionable_cards', { defaultValue: "Your care team will add medications here. They'll show up as actionable cards." })}</Text>
                                     </View>
                                 )}
 
@@ -595,7 +595,7 @@ export default function PatientHomeScreen({ navigation }) {
                                                 <LinearGradient colors={['#EEF2FF', '#C7D2FE']} style={styles.aiIconBox}>
                                                     <Sparkles size={16} color="#6366F1" />
                                                 </LinearGradient>
-                                                <Text style={styles.cardTitle}>AI Health Outlook</Text>
+                                                <Text style={styles.cardTitle}>{t('common.ai_health_outlook', { defaultValue: 'AI Health Outlook' })}</Text>
                                             </View>
                                             {aiPrediction && (
                                                 <View style={[
@@ -639,7 +639,7 @@ export default function PatientHomeScreen({ navigation }) {
                                         style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}
                                         onPress={() => { setIsLogging(!isLogging); setFormError(null); }}
                                     >
-                                        <Text style={styles.cardTitle}>Log Today's Vitals</Text>
+                                        <Text style={styles.cardTitle}>{t('common.log_today_s_vitals', { defaultValue: "Log Today's Vitals" })}</Text>
                                         <View style={[styles.toggleBadge, isLogging && styles.toggleBadgeCancel]}>
                                             <Text style={[styles.toggleBadgeText, isLogging && { color: '#EF4444' }]}>
                                                 {isLogging ? 'Cancel' : '+ Add Entry'}
@@ -708,7 +708,7 @@ export default function PatientHomeScreen({ navigation }) {
                         {/* ── QUICK ACTIONS ── */}
                         <Animated.View style={anim(6)}>
                             <View style={styles.section}>
-                                <Text style={styles.sectionTitle}>QUICK ACTIONS</Text>
+                                <Text style={styles.sectionTitle}>{t('common.quick_actions', { defaultValue: 'QUICK ACTIONS' })}</Text>
                                 <View style={styles.quickGrid}>
                                     {QUICK_ACTIONS.map(({ label, sub, grad, Icon, onPress }) => (
                                         <Pressable key={label} style={styles.quickCard} onPress={onPress}>

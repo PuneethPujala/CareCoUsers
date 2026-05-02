@@ -552,8 +552,8 @@ export default function PatientProfileScreen({ navigation }) {
                 <Animated.View style={[s.header, { opacity: staggerAnims[0], transform: [{ translateY: staggerAnims[0].interpolate({ inputRange: [0, 1], outputRange: [-20, 0] }) }] }]}>
                     <View style={s.headerRow}>
                         <View style={s.headerLeft}>
-                            <Text style={s.heroLabel}>CARE RECORD</Text>
-                            <Text style={s.headerTitle}>My Profile</Text>
+                            <Text style={s.heroLabel}>{t('profile.care_record_label', { defaultValue: 'CARE RECORD' })}</Text>
+                            <Text style={s.headerTitle}>{t('profile.my_profile', { defaultValue: 'My Profile' })}</Text>
                         </View>
                         <Pressable style={s.headerBtn} onPress={() => navigation.navigate('Notifications')}>
                             <Bell size={20} color={C.primary} strokeWidth={2.5} />
@@ -581,17 +581,17 @@ export default function PatientProfileScreen({ navigation }) {
 
                 {/* ── CareMyMed Plan Banner (Upgrade hidden) ── */}
                 <Animated.View style={anim(2)}>
-                    <Text style={s.sectionTitle}>CareMyMed PLAN</Text>
+                    <Text style={s.sectionTitle}>{t('profile.caremymed_plan', { defaultValue: 'CareMyMed PLAN' })}</Text>
                     <Pressable style={s.premiumCard} onPress={() => setBasicPlanModalVisible(true)}>
                         <View style={s.premiumLeft}>
                             <View style={s.starBadge}><Star size={18} color="#FFF" fill="#FFF" /></View>
                             <View style={{ flexShrink: 1 }}>
                                 <Text style={s.premiumPlan}>{planLabel}</Text>
-                                <Text style={s.premiumSub}>Your active care plan</Text>
+                                <Text style={s.premiumSub}>{t('profile.active_care_plan', { defaultValue: 'Your active care plan' })}</Text>
                             </View>
                         </View>
                         <View style={[s.premiumBtn, { backgroundColor: planBg }]}>
-                            <Text style={[s.premiumBtnTxt, { color: planColor }]}>Active</Text>
+                            <Text style={[s.premiumBtnTxt, { color: planColor }]}>{t('profile.active', { defaultValue: 'Active' })}</Text>
                         </View>
                     </Pressable>
                 </Animated.View>
@@ -769,7 +769,7 @@ export default function PatientProfileScreen({ navigation }) {
 
                 {/* ── Account Actions ── */}
                 <Animated.View style={anim(9)}>
-                    <Text style={s.sectionTitle}>ACCOUNT ACTIONS</Text>
+                    <Text style={s.sectionTitle}>{t('profile.account_actions', { defaultValue: 'ACCOUNT ACTIONS' })}</Text>
                     <View style={s.card}>
                         <Pressable style={[s.infoRow]} onPress={() => AlertManager.alert(
                             'Sign Out',
@@ -784,7 +784,7 @@ export default function PatientProfileScreen({ navigation }) {
                             </View>
                             <View style={s.infoTextCol}>
                                 <Text style={s.infoLabel}>{t('profile.sign_out', { defaultValue: 'Sign Out' })}</Text>
-                                <Text style={[s.infoValue, { color: C.muted }]}>Log out of your account</Text>
+                                <Text style={[s.infoValue, { color: C.muted }]}>{t('profile.sign_out_desc', { defaultValue: 'Log out of your account' })}</Text>
                             </View>
                             <ChevronRight size={18} color={C.light} />
                         </Pressable>
@@ -858,8 +858,8 @@ export default function PatientProfileScreen({ navigation }) {
                                 <Trash2 size={20} color="#DC2626" strokeWidth={2} />
                             </View>
                             <View style={s.infoTextCol}>
-                                <Text style={[s.infoLabel, { color: '#DC2626' }]}>Delete Account Permanently</Text>
-                                <Text style={[s.infoValue, { color: C.muted }]}>Erase all data forever</Text>
+                                <Text style={[s.infoLabel, { color: '#DC2626' }]}>{t('profile.delete_account', { defaultValue: 'Delete Account Permanently' })}</Text>
+                                <Text style={[s.infoValue, { color: C.muted }]}>{t('profile.delete_account_desc', { defaultValue: 'Erase all data forever' })}</Text>
                             </View>
                             <ChevronRight size={18} color={C.light} />
                         </Pressable>
@@ -1123,7 +1123,7 @@ export default function PatientProfileScreen({ navigation }) {
                         {savedAddresses.length === 0 ? (
                             <View style={s.emptyState}>
                                 <MapPin size={40} color={C.light} />
-                                <Text style={s.emptyTitle}>No addresses saved</Text>
+                                <Text style={s.emptyTitle}>{t('common.no_addresses_saved', { defaultValue: 'No addresses saved' })}</Text>
                                 <Text style={s.emptyDesc}>Add your home, office, or family addresses for quick access.</Text>
                             </View>
                         ) : (
@@ -1200,7 +1200,7 @@ export default function PatientProfileScreen({ navigation }) {
                         </View>
                         <View style={s.emptyState}>
                             <Users size={40} color={C.light} />
-                            <Text style={s.emptyTitle}>No family profiles yet</Text>
+                            <Text style={s.emptyTitle}>{t('common.no_family_profiles_yet', { defaultValue: 'No family profiles yet' })}</Text>
                             <Text style={s.emptyDesc}>Add your family members to share health records and manage their care from one place.</Text>
                         </View>
                         <View style={s.familyFeatures}>
