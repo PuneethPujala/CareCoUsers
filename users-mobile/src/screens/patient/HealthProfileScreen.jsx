@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, Platform, ActivityIndicator, Animat
 import SmartInput from '../../components/ui/SmartInput';
 import PremiumFormModal from '../../components/ui/PremiumFormModal';
 import { useFocusEffect } from '@react-navigation/native';
+import { useTranslation } from 'react-i18next';
 import { LinearGradient } from 'expo-linear-gradient';
 import { TriangleAlert, ShieldCheck, HeartPulse, Activity, Droplet, Phone, Plus, Edit2, X, Trash2, CheckCircle2, RefreshCw, ChevronDown, Upload, Siren, ChevronRight, TrendingUp, BellRing, FileText, Pill, Syringe, Link2, Users, Calendar, Info } from 'lucide-react-native';
 import { StatusBar } from 'react-native';
@@ -558,50 +559,54 @@ export default function HealthProfileScreen({ navigation }) {
                 {/* ── TOP DASHBOARD / HEALTH SCORE ── */}
                 <Animated.View style={anim(0)}>
                     <View style={s.dashboardCard}>
-                        <View style={s.dashLeft}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-                                <Text style={s.dashEyebrow}>{t('health_profile.health_score', { defaultValue: 'HEALTH SCORE' })}</Text>
-                                <Info size={12} color="#94A3B8" />
+                        {/* Top row: Score + Ring */}
+                        <View style={s.dashTopRow}>
+                            <View style={s.dashLeft}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                                    <Text style={s.dashEyebrow}>{t('health_profile.health_score', { defaultValue: 'HEALTH SCORE' })}</Text>
+                                    <Info size={12} color="#94A3B8" />
+                                </View>
+                                <View style={s.dashScoreRow}>
+                                    <Text style={s.dashScoreMain}>{completionPct}</Text>
+                                    <Text style={s.dashScoreSub}>/ 100</Text>
+                                </View>
+                                <View style={s.dashStatusRow}>
+                                    <ShieldCheck size={14} color="#10B981" />
+                                    <Text style={s.dashStatusTxt}>{t('health_profile.status_stable', { defaultValue: 'Stable' })}</Text>
+                                </View>
+                                <View style={s.dashSyncRow}>
+                                    <RefreshCw size={10} color="#94A3B8" />
+                                    <Text style={s.dashSyncTxt}>{t('health_profile.last_sync', { defaultValue: 'Last sync: 2h ago' })}</Text>
+                                </View>
                             </View>
-                            <View style={s.dashScoreRow}>
-                                <Text style={s.dashScoreMain}>{completionPct}</Text>
-                                <Text style={s.dashScoreSub}>/ 100</Text>
-                            </View>
-                            <View style={s.dashStatusRow}>
-                                <ShieldCheck size={14} color="#10B981" />
-                                <Text style={s.dashStatusTxt}>{t('health_profile.status_stable', { defaultValue: 'Stable' })}</Text>
-                            </View>
-                            <View style={s.dashSyncRow}>
-                                <RefreshCw size={10} color="#94A3B8" />
-                                <Text style={s.dashSyncTxt}>{t('health_profile.last_sync', { defaultValue: 'Last sync: 2h ago' })}</Text>
+                            <View style={s.dashCenter}>
+                                <View style={s.ringWrap}>
+                                    <Svg width={88} height={88} viewBox="0 0 88 88">
+                                        <SvgCircle cx="44" cy="44" r="38" stroke="#EEF2FF" strokeWidth="8" fill="transparent" />
+                                        <SvgCircle cx="44" cy="44" r="38" stroke="#4F46E5" strokeWidth="8" fill="transparent" strokeDasharray={`${2 * Math.PI * 38}`} strokeDashoffset={`${2 * Math.PI * 38 * (1 - completionPct / 100)}`} strokeLinecap="round" transform="rotate(-90 44 44)" />
+                                    </Svg>
+                                    <HeartPulse size={24} color="#94A3B8" style={{ position: 'absolute' }} />
+                                </View>
                             </View>
                         </View>
-                        <View style={s.dashCenter}>
-                            <View style={s.ringWrap}>
-                                <Svg width={80} height={80} viewBox="0 0 80 80">
-                                    <SvgCircle cx="40" cy="40" r="34" stroke="#EEF2FF" strokeWidth="8" fill="transparent" />
-                                    <SvgCircle cx="40" cy="40" r="34" stroke="#4F46E5" strokeWidth="8" fill="transparent" strokeDasharray={`${2 * Math.PI * 34}`} strokeDashoffset={`${2 * Math.PI * 34 * (1 - completionPct / 100)}`} strokeLinecap="round" transform="rotate(-90 40 40)" />
-                                </Svg>
-                                <HeartPulse size={24} color="#94A3B8" style={{ position: 'absolute' }} />
-                            </View>
-                        </View>
-                        <View style={s.dashRight}>
+                        {/* Bottom row: Mini metrics */}
+                        <View style={s.dashMetricsRow}>
                             <View style={s.dashMiniMetric}>
-                                <View style={[s.dashMiniIcon, { backgroundColor: '#EEF2FF' }]}><TrendingUp size={10} color="#4F46E5" /></View>
+                                <View style={[s.dashMiniIcon, { backgroundColor: '#EEF2FF' }]}><TrendingUp size={12} color="#4F46E5" /></View>
                                 <View>
                                     <Text style={s.dashMiniLbl}>{t('health_profile.good_habits', { defaultValue: 'Good Habits' })}</Text>
                                     <Text style={[s.dashMiniVal, { color: '#10B981' }]}>{habitScore}%</Text>
                                 </View>
                             </View>
                             <View style={s.dashMiniMetric}>
-                                <View style={[s.dashMiniIcon, { backgroundColor: '#FFF7ED' }]}><Users size={10} color="#F97316" /></View>
+                                <View style={[s.dashMiniIcon, { backgroundColor: '#FFF7ED' }]}><Users size={12} color="#F97316" /></View>
                                 <View>
                                     <Text style={s.dashMiniLbl}>{t('health_profile.bmi', { defaultValue: 'BMI' })}</Text>
                                     <Text style={[s.dashMiniVal, { color: '#F97316' }]}>{bmi || '—'}</Text>
                                 </View>
                             </View>
                             <View style={s.dashMiniMetric}>
-                                <View style={[s.dashMiniIcon, { backgroundColor: '#ECFDF5' }]}><ShieldCheck size={10} color="#10B981" /></View>
+                                <View style={[s.dashMiniIcon, { backgroundColor: '#ECFDF5' }]}><ShieldCheck size={12} color="#10B981" /></View>
                                 <View>
                                     <Text style={s.dashMiniLbl}>{t('health_profile.conditions', { defaultValue: 'Conditions' })}</Text>
                                     <Text style={[s.dashMiniVal, { color: '#10B981' }]}>{trendLabel}</Text>
@@ -1363,23 +1368,24 @@ const s = StyleSheet.create({
     countryCodeText: { fontSize: 16, color: C.primary, ...FONT.bold },
 
     // ── NEW LAYOUT STYLES ──
-    dashboardCard: { backgroundColor: '#FFF', borderRadius: 24, padding: 20, flexDirection: 'row', alignItems: 'center', shadowColor: '#4F46E5', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.08, shadowRadius: 24, elevation: 6, marginBottom: 20 },
-    dashLeft: { flex: 1, paddingRight: 12 },
+    dashboardCard: { backgroundColor: '#FFF', borderRadius: 24, padding: 20, shadowColor: '#4F46E5', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.08, shadowRadius: 24, elevation: 6, marginBottom: 20 },
+    dashTopRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
+    dashLeft: { flex: 1, paddingRight: 16 },
     dashEyebrow: { fontSize: 11, ...FONT.heavy, color: '#94A3B8', letterSpacing: 1 },
-    dashScoreRow: { flexDirection: 'row', alignItems: 'baseline', marginBottom: 12 },
+    dashScoreRow: { flexDirection: 'row', alignItems: 'baseline', marginBottom: 10 },
     dashScoreMain: { fontSize: 48, ...FONT.heavy, color: '#3B82F6', letterSpacing: -2 },
     dashScoreSub: { fontSize: 16, ...FONT.bold, color: '#94A3B8', marginLeft: 4 },
     dashStatusRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
     dashStatusTxt: { fontSize: 13, ...FONT.bold, color: '#10B981' },
     dashSyncRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
     dashSyncTxt: { fontSize: 11, ...FONT.medium, color: '#94A3B8' },
-    dashCenter: { paddingHorizontal: 12, alignItems: 'center', justifyContent: 'center' },
-    ringWrap: { width: 80, height: 80, alignItems: 'center', justifyContent: 'center' },
-    dashRight: { gap: 12, paddingLeft: 12, borderLeftWidth: 1, borderLeftColor: '#F1F5F9' },
+    dashCenter: { alignItems: 'center', justifyContent: 'center' },
+    ringWrap: { width: 88, height: 88, alignItems: 'center', justifyContent: 'center' },
+    dashMetricsRow: { flexDirection: 'row', justifyContent: 'space-between', paddingTop: 16, borderTopWidth: 1, borderTopColor: '#F1F5F9' },
     dashMiniMetric: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-    dashMiniIcon: { width: 24, height: 24, borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
+    dashMiniIcon: { width: 28, height: 28, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
     dashMiniLbl: { fontSize: 10, ...FONT.bold, color: '#64748B' },
-    dashMiniVal: { fontSize: 13, ...FONT.heavy },
+    dashMiniVal: { fontSize: 14, ...FONT.heavy },
 
     alertsCard: { backgroundColor: '#FFF', borderRadius: 20, padding: 16, marginBottom: 20, shadowColor: '#EF4444', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.06, shadowRadius: 16, elevation: 4 },
     alertHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16 },
@@ -1410,10 +1416,10 @@ const s = StyleSheet.create({
     gridChip: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20, backgroundColor: '#FFFBEB', borderWidth: 1, borderColor: '#FEF3C7', flexDirection: 'row', alignItems: 'center' },
     gridChipTxt: { fontSize: 11, ...FONT.bold, color: '#D97706' },
 
-    wellBox: { flex: 1, backgroundColor: '#FFF', borderWidth: 1, borderRadius: 12, padding: 8, alignItems: 'center' },
-    wellVal: { fontSize: 15, ...FONT.heavy, marginBottom: 2 },
-    wellLbl: { fontSize: 10, ...FONT.bold, color: '#64748B', marginBottom: 2 },
-    wellSub: { fontSize: 9, ...FONT.heavy },
+    wellBox: { flex: 1, backgroundColor: '#FFF', borderWidth: 1, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 6, alignItems: 'center', minWidth: 0 },
+    wellVal: { fontSize: 14, ...FONT.heavy, marginBottom: 2 },
+    wellLbl: { fontSize: 9, ...FONT.bold, color: '#64748B', marginBottom: 2, textAlign: 'center' },
+    wellSub: { fontSize: 8, ...FONT.heavy, textAlign: 'center' },
 
     gridTimeLbl: { fontSize: 12, ...FONT.bold, color: '#3B82F6', marginBottom: 6 },
     tinyDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: '#0F172A', marginRight: 8 },
