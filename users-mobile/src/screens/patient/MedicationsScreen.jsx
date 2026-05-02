@@ -655,7 +655,7 @@ export default function MedicationsScreen({ navigation }) {
                 <View style={styles.header}>
                     <View style={styles.headerRow}>
                         <View>
-                            <Text style={styles.headerEyebrow}>CARE PLAN</Text>
+                            <Text style={styles.headerEyebrow}>{t('meds.care_plan', { defaultValue: 'CARE PLAN' })}</Text>
                             <Text style={styles.headerTitle}>{t('common.medications', { defaultValue: 'Medications' })}</Text>
                         </View>
                     </View>
@@ -682,7 +682,7 @@ export default function MedicationsScreen({ navigation }) {
             <View style={styles.header}>
                 <View style={styles.headerRow}>
                     <View style={{ flex: 1 }}>
-                        <Text style={styles.headerEyebrow}>CARE PLAN</Text>
+                        <Text style={styles.headerEyebrow}>{t('meds.care_plan', { defaultValue: 'CARE PLAN' })}</Text>
                         <Text style={styles.headerTitle}>{t('common.medications', { defaultValue: 'Medications' })}</Text>
                     </View>
                     <Pressable style={styles.headerBtn} onPress={() => navigation.navigate('Notifications')}>
@@ -702,7 +702,7 @@ export default function MedicationsScreen({ navigation }) {
                 {totalCount > 0 && (
                     <Animated.View style={[anim(0), styles.progressCard]}>
                         <View style={{ flex: 1 }}>
-                            <Text style={styles.progressLabel}>Today's Progress</Text>
+                            <Text style={styles.progressLabel}>{t('meds.todays_progress', { defaultValue: "Today's Progress" })}</Text>
                             <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4, marginVertical: 6 }}>
                                 <Text style={styles.progressCount}>{takenCount}</Text>
                                 <Text style={styles.progressTotal}>/ {totalCount} taken</Text>
