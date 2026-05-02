@@ -1,0 +1,33 @@
+{
+  "tabs": {
+    "home": "Home",
+    "meds": "Meds",
+    "vitals": "Vitals",
+    "profile": "Profile"
+  },
+  "home": {
+    "good_morning": "Good Morning",
+    "good_afternoon": "Good Afternoon",
+    "good_evening": "Good Evening",
+    "care_record": "Your Care Record",
+    "todays_plan": "Today's Plan",
+    "vitals": "Vitals"
+  },
+  "time_slots": {
+    "morning": "Morning",
+    "afternoon": "Afternoon",
+    "evening": "Evening",
+    "night": "Night",
+    "as_needed": "As Needed"
+  },
+  "profile": {
+    "personal_info": "PERSONAL INFORMATION",
+    "saved_addresses": "SAVED ADDRESSES",
+    "care_records": "CARE & RECORDS",
+    "health_info": "HEALTH INFORMATION",
+    "notifications": "NOTIFICATIONS & PREFERENCES",
+    "account_security": "ACCOUNT & SECURITY",
+    "sign_out": "Sign Out Account",
+    "deactivate": "Deactivate Account"
+  }
+}

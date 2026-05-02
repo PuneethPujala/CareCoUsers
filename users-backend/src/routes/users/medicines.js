@@ -423,19 +423,19 @@ router.get('/adherence/details', authenticateSession, async (req, res) => {
         const VitalLog = require('../../models/VitalLog');
         const timezone = patient.timezone || 'Asia/Kolkata';
 
-        // BUG 4 + 6 FIX: derive all date boundaries from patient timezone
+        // Fetch 180 days of history to support calendar scrolling
         const { todayStr } = getTodayUtcMidnight(timezone);
-        const thirtyDaysAgo = getDaysAgoUtcMidnight(timezone, 30);
-        const thirtyDaysAgoStr = moment().tz(timezone).subtract(30, 'days').format('YYYY-MM-DD');
+        const historyStart = getDaysAgoUtcMidnight(timezone, 180);
+        const historyStartStr = moment().tz(timezone).subtract(180, 'days').format('YYYY-MM-DD');
 
         const logs = await MedicineLog.find({
             patient_id: patient._id,
-            date: { $gte: thirtyDaysAgo },
+            date: { $gte: historyStart },
         }).sort({ date: 1 });
 
         const vitals = await VitalLog.find({
             patient_id: patient._id,
-            date: { $gte: thirtyDaysAgo },
+            date: { $gte: historyStart },
         }).sort({ date: 1 });
 
         const vitalsMap = {};
@@ -473,7 +473,7 @@ router.get('/adherence/details', authenticateSession, async (req, res) => {
         });
 
         const last7 = dailyLog.slice(-7);
-        const last30 = dailyLog;
+        const last30 = dailyLog.slice(-30);
 
         const calcScore = arr => {
             if (arr.length === 0) return 0;
@@ -571,7 +571,7 @@ router.get('/adherence/details', authenticateSession, async (req, res) => {
         else if (vitalsAdherence < 30) insights.push("Try to log your vitals more frequently to build a complete health profile.");
 
         // BUG 5 FIX: replaced native Date arithmetic with TZ-safe moment string iteration
-        const currentStreak = computeCurrentStreak(dailyLog, todayStr, thirtyDaysAgoStr);
+        const currentStreak = computeCurrentStreak(dailyLog, todayStr, historyStartStr);
 
         const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
         const weeklyTrend = [];
