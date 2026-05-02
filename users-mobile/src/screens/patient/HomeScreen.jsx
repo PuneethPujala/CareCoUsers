@@ -26,24 +26,8 @@ import { useTranslation } from 'react-i18next';
 const { width: SW } = Dimensions.get('window');
 
 // ── Health tips ────────────────────────────────────────────────────────────
-const HEALTH_TIPS = [
-    '💧 Stay hydrated! Drinking 8 glasses of water daily helps manage blood pressure and significantly improves kidney function.',
-    '🥗 Eating a handful of leafy greens daily can reduce your risk of heart disease by up to 15%. Your heart will thank you!',
-    '🚶 A brisk 20-minute walk after meals helps regulate blood sugar levels — even better than medication for some people.',
-    '😴 Aim for 7–8 hours of sleep. Poor sleep raises cortisol, which increases blood pressure and blood sugar levels.',
-    '🧘 Just 5 minutes of deep breathing can lower your heart rate by 10–15 bpm. Try box breathing: inhale 4s, hold 4s, exhale 4s.',
-    '🫐 Blueberries are a superfood! They contain anthocyanins that improve memory and reduce inflammation. Add them to breakfast.',
-    '☀️ 15 minutes of morning sunlight boosts Vitamin D production and helps regulate your circadian rhythm for better sleep.',
-    '🥜 A small handful of almonds (about 23) provides your daily magnesium needs, helping reduce muscle cramps and anxiety.',
-    '🍌 Bananas are rich in potassium, which helps counteract the effects of sodium on blood pressure. Great as a midday snack!',
-    '🫁 Practice the 4-7-8 breathing technique before bed: inhale 4s, hold 7s, exhale 8s. It activates your parasympathetic system.',
-    '🥑 Avocados contain healthy monounsaturated fats that help lower LDL cholesterol while raising HDL (the good kind).',
-    '🏋️ Even 10 minutes of light stretching in the morning improves circulation and reduces joint stiffness throughout the day.',
-    '🍵 Green tea contains L-theanine, which promotes calm alertness without the jitters. Perfect alternative to a second coffee.',
-    '🧄 Garlic contains allicin, a compound shown to reduce blood pressure by 5–8 mmHg in people with hypertension.',
-    '🥕 Orange and yellow vegetables like carrots are packed with beta-carotene, which your body converts to Vitamin A for eye health.',
-];
-const getDailyTip = () => HEALTH_TIPS[Math.floor((Date.now() / 86400000)) % HEALTH_TIPS.length];
+const HEALTH_TIPS_COUNT = 15;
+const getDailyTipIndex = () => Math.floor((Date.now() / 86400000)) % HEALTH_TIPS_COUNT;
 
 const ACCENT_MAP = {
     morning: '#F97316',
@@ -52,10 +36,7 @@ const ACCENT_MAP = {
     night: '#6366F1',
     as_needed: '#10B981',
 };
-const TIME_LABELS = {
-    morning: 'Morning', afternoon: 'Afternoon',
-    evening: 'Evening', night: 'Night', as_needed: 'As Needed',
-};
+// TIME_LABELS now resolved via t() inside the component
 
 // ── Skeleton loader ────────────────────────────────────────────────────────
 const SkeletonItem = ({ width, height, borderRadius = 10, style }) => {
@@ -73,6 +54,7 @@ const SkeletonItem = ({ width, height, borderRadius = 10, style }) => {
 
 // ── Vitals card ────────────────────────────────────────────────────────────
 const VitalsCard = ({ label, value, unit, icon: Icon, color, status = 'Stable' }) => {
+    const { t } = useTranslation();
     const isLogged = status === 'Recorded';
     return (
         <View style={[styles.vitalsCard, isLogged && { shadowColor: color, shadowOpacity: 0.14 }]}>
@@ -89,7 +71,7 @@ const VitalsCard = ({ label, value, unit, icon: Icon, color, status = 'Stable' }
                 <View style={[styles.vitalsStatusBadge, { backgroundColor: isLogged ? color + '18' : '#F1F5F9' }]}>
                     <View style={[styles.statusDot, { backgroundColor: isLogged ? color : '#CBD5E1' }]} />
                     <Text style={[styles.statusLabel, { color: isLogged ? color : '#94A3B8' }]}>
-                        {isLogged ? 'Logged' : 'Pending'}
+                        {isLogged ? t('home.logged', { defaultValue: 'Logged' }) : t('home.pending', { defaultValue: 'Pending' })}
                     </Text>
                 </View>
             </View>
@@ -100,8 +82,8 @@ const VitalsCard = ({ label, value, unit, icon: Icon, color, status = 'Stable' }
             </View>
             <View style={styles.vitalsCardFooter}>
                 {isLogged
-                    ? <><TrendingUp size={12} color={color} /><Text style={[styles.vitalsFooterText, { color }]}>Logged today</Text></>
-                    : <><Activity size={12} color="#94A3B8" /><Text style={styles.vitalsFooterText}>Tap History</Text></>
+                    ? <><TrendingUp size={12} color={color} /><Text style={[styles.vitalsFooterText, { color }]}>{t('home.logged_today', { defaultValue: 'Logged today' })}</Text></>
+                    : <><Activity size={12} color="#94A3B8" /><Text style={styles.vitalsFooterText}>{t('home.tap_history', { defaultValue: 'Tap History' })}</Text></>
                 }
             </View>
         </View>
@@ -128,7 +110,7 @@ const MedicationCard = ({ med, onPress }) => {
                 {med.taken && (
                     <View style={styles.takenBadge}>
                         <CheckCircle2 size={10} color={colors.success} />
-                        <Text style={styles.takenBadgeText}>Done</Text>
+                        <Text style={styles.takenBadgeText}>{t('home.done', { defaultValue: 'Done' })}</Text>
                     </View>
                 )}
             </View>
@@ -288,14 +270,15 @@ export default function PatientHomeScreen({ navigation }) {
         if (pending.length === 0) return null;
         const slots = ['morning', 'afternoon', 'evening', 'night'];
         const slotHours = { morning: 5, afternoon: 11, evening: 16, night: 19 };
+        const timeLabels = { morning: t('time_slots.morning', { defaultValue: 'Morning' }), afternoon: t('time_slots.afternoon', { defaultValue: 'Afternoon' }), evening: t('time_slots.evening', { defaultValue: 'Evening' }), night: t('time_slots.night', { defaultValue: 'Night' }) };
         for (const s of slots) {
             if (hour < (slotHours[s] || 24)) {
                 const slotPending = pending.filter(m => m.type === s);
                 if (slotPending.length > 0)
-                    return { slot: TIME_LABELS[s] || s, time: prefs[s] || '', count: slotPending.length };
+                    return { slot: timeLabels[s] || s, time: prefs[s] || '', count: slotPending.length };
             }
         }
-        return { slot: 'Later', time: '', count: pending.length };
+        return { slot: t('home.later', { defaultValue: 'Later' }), time: '', count: pending.length };
     };
     const nextDose = getNextDose();
 
@@ -310,17 +293,17 @@ export default function PatientHomeScreen({ navigation }) {
     // ── Stat chip configs ──────────────────────────────────────────────────
     const STATS = [
         {
-            Icon: Pill, value: `${takenCount}/${totalMeds}`, label: 'Meds Today',
+            Icon: Pill, value: `${takenCount}/${totalMeds}`, label: t('home.meds_today', { defaultValue: 'Meds Today' }),
             iconColor: '#6366F1', bg: ['#EEF2FF', '#E0E7FF'], iconBg: '#C7D2FE',
             onPress: () => navigation.navigate('AdherenceDetails'),
         },
         {
-            Icon: Flame, value: String(medicationStreak), label: 'Day Streak',
+            Icon: Flame, value: String(medicationStreak), label: t('home.day_streak', { defaultValue: 'Day Streak' }),
             iconColor: '#F97316', bg: ['#FFF7ED', '#FEF3C7'], iconBg: '#FED7AA',
             onPress: () => navigation.navigate('AdherenceDetails'),
         },
         {
-            Icon: Sparkles, value: String(daysPremiumRemaining), label: 'Days Premium',
+            Icon: Sparkles, value: String(daysPremiumRemaining), label: t('home.days_premium', { defaultValue: 'Days Premium' }),
             iconColor: '#A855F7', bg: ['#FAF5FF', '#F3E8FF'], iconBg: '#E9D5FF',
             onPress: null,
         },
@@ -329,22 +312,22 @@ export default function PatientHomeScreen({ navigation }) {
     // ── Quick actions ──────────────────────────────────────────────────────
     const QUICK_ACTIONS = [
         {
-            label: 'Med Adherence', sub: 'View Progress',
+            label: t('home.med_adherence', { defaultValue: 'Med Adherence' }), sub: t('home.view_progress', { defaultValue: 'View Progress' }),
             grad: ['#10B981', '#059669'], Icon: CheckCircle2,
             onPress: () => navigation.navigate('AdherenceDetails'),
         },
         {
-            label: 'Med Delivery', sub: 'Coming Soon',
+            label: t('home.med_delivery', { defaultValue: 'Med Delivery' }), sub: t('home.coming_soon', { defaultValue: 'Coming Soon' }),
             grad: ['#0EA5E9', '#0284C7'], Icon: Package,
-            onPress: () => AlertManager.alert('Coming Soon! 🚀', "Med Delivery is on its way! We're building a seamless way to order and track your medications right from the app.", [{ text: 'Got it!', style: 'default' }]),
+            onPress: () => AlertManager.alert(t('home.coming_soon_title', { defaultValue: 'Coming Soon! 🚀' }), t('home.coming_soon_body', { defaultValue: "Med Delivery is on its way! We're building a seamless way to order and track your medications right from the app." }), [{ text: t('common.got_it', { defaultValue: 'Got it!' }), style: 'default' }]),
         },
         {
-            label: 'Health Profile', sub: 'View & Edit',
+            label: t('home.health_profile', { defaultValue: 'Health Profile' }), sub: t('home.view_edit', { defaultValue: 'View & Edit' }),
             grad: ['#6366F1', '#4F46E5'], Icon: Activity,
             onPress: () => navigation.navigate('HealthProfile'),
         },
         {
-            label: 'Schedule', sub: 'Next Appointment',
+            label: t('home.schedule', { defaultValue: 'Schedule' }), sub: t('home.next_appointment', { defaultValue: 'Next Appointment' }),
             grad: ['#F59E0B', '#D97706'], Icon: CalendarDays,
             onPress: () => navigation.navigate('HealthProfile'),
         },
@@ -416,7 +399,7 @@ export default function PatientHomeScreen({ navigation }) {
                                 <MapPin size={10} color="#FFF" fill="#FFF" />
                             </View>
                             <Text style={styles.locationText} numberOfLines={1}>
-                                {patient?.city || profile?.city || 'Detecting...'}
+                                {patient?.city || profile?.city || t('home.detecting', { defaultValue: 'Detecting...' })}
                             </Text>
                         </Pressable>
                     </Animated.View>
@@ -440,7 +423,7 @@ export default function PatientHomeScreen({ navigation }) {
                     {isCached && (
                         <View style={styles.offlineBanner}>
                             <WifiOff size={13} color="#92400E" />
-                            <Text style={styles.offlineBannerText}>Showing cached data · Pull to refresh</Text>
+                            <Text style={styles.offlineBannerText}>{t('home.offline_banner', { defaultValue: 'Showing cached data · Pull to refresh' })}</Text>
                         </View>
                     )}
 
@@ -451,8 +434,8 @@ export default function PatientHomeScreen({ navigation }) {
                                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
                                         <Text style={{ fontSize: 22 }}>🔥</Text>
                                         <View>
-                                            <Text style={styles.bannerTitle}>{medicationStreak}-day medication streak!</Text>
-                                            <Text style={styles.bannerSub}>Keep logging to unlock better insights</Text>
+                                            <Text style={styles.bannerTitle}>{t('home.streak_banner', { defaultValue: '{{count}}-day medication streak!', count: medicationStreak })}</Text>
+                                            <Text style={styles.bannerSub}>{t('home.streak_sub', { defaultValue: 'Keep logging to unlock better insights' })}</Text>
                                         </View>
                                     </View>
                                     <Pressable onPress={() => setShowStreakBanner(false)} hitSlop={12}>
@@ -465,8 +448,8 @@ export default function PatientHomeScreen({ navigation }) {
                                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
                                         <Text style={{ fontSize: 22 }}>✅</Text>
                                         <View>
-                                            <Text style={[styles.bannerTitle, { color: '#166534' }]}>All meds taken today!</Text>
-                                            <Text style={[styles.bannerSub, { color: '#15803D' }]}>Great job staying on track</Text>
+                                            <Text style={[styles.bannerTitle, { color: '#166534' }]}>{t('home.all_meds_taken', { defaultValue: 'All meds taken today!' })}</Text>
+                                            <Text style={[styles.bannerSub, { color: '#15803D' }]}>{t('home.great_job', { defaultValue: 'Great job staying on track' })}</Text>
                                         </View>
                                     </View>
                                 </LinearGradient>
@@ -493,17 +476,17 @@ export default function PatientHomeScreen({ navigation }) {
                                                     </View>
                                                     <View>
                                                         <Text style={styles.medSummaryCount}>
-                                                            {totalMeds} Medication{totalMeds !== 1 ? 's' : ''}
+                                                            {totalMeds} {t('home.medication_count', { defaultValue: 'Medication', count: totalMeds })}{totalMeds !== 1 ? 's' : ''}
                                                         </Text>
                                                         {nextDose
-                                                            ? <Text style={styles.medSummaryNext}>Next: {nextDose.slot}{nextDose.time ? ` (${nextDose.time})` : ''}</Text>
-                                                            : <Text style={[styles.medSummaryNext, { color: colors.success }]}>All done for today! 🎉</Text>
+                                                            ? <Text style={styles.medSummaryNext}>{t('home.next_dose', { defaultValue: 'Next: {{slot}}', slot: nextDose.slot })}{nextDose.time ? ` (${nextDose.time})` : ''}</Text>
+                                                            : <Text style={[styles.medSummaryNext, { color: colors.success }]}>{t('home.all_done_today', { defaultValue: 'All done for today! 🎉' })}</Text>
                                                         }
                                                     </View>
                                                 </View>
                                                 <View style={{ alignItems: 'center' }}>
                                                     <Text style={[styles.adherencePct, { color: adherenceColor }]}>{adherencePct}%</Text>
-                                                    <Text style={styles.adherencePctLabel}>Adherence</Text>
+                                                    <Text style={styles.adherencePctLabel}>{t('home.adherence', { defaultValue: 'Adherence' })}</Text>
                                                 </View>
                                             </View>
                                             {/* Progress bar */}
@@ -515,7 +498,7 @@ export default function PatientHomeScreen({ navigation }) {
                                                 />
                                             </View>
                                             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                                                <Text style={styles.medFooterText}>{takenCount} of {totalMeds} taken  ·  {medsExpanded ? 'Hide' : 'View details'}</Text>
+                                                <Text style={styles.medFooterText}>{takenCount} {t('home.of', { defaultValue: 'of' })} {totalMeds} {t('home.taken', { defaultValue: 'taken' })}  ·  {medsExpanded ? t('home.hide', { defaultValue: 'Hide' }) : t('home.view_details', { defaultValue: 'View details' })}</Text>
                                                 <ChevronRight size={14} color="#94A3B8" style={{ transform: [{ rotate: medsExpanded ? '90deg' : '0deg' }] }} />
                                             </View>
                                         </View>
@@ -540,7 +523,7 @@ export default function PatientHomeScreen({ navigation }) {
                                 <View style={styles.sectionTitleRow}>
                                     <Text style={styles.sectionTitle}>{t('home.vitals', { defaultValue: 'MY VITALS' })}</Text>
                                     <Pressable style={styles.viewAllBtn} onPress={() => navigation.navigate('VitalsHistory')}>
-                                        <Text style={styles.viewAllText}>History</Text>
+                                        <Text style={styles.viewAllText}>{t('home.history', { defaultValue: 'History' })}</Text>
                                         <ChevronRight size={13} color="#6366F1" />
                                     </Pressable>
                                 </View>
@@ -560,19 +543,19 @@ export default function PatientHomeScreen({ navigation }) {
                                         <View style={{ flex: 1 }}>
                                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 }}>
                                                 <Text style={styles.syncTitle}>
-                                                    {syncStatus.connected ? 'Wearable Connected' : 'Connect Wearable'}
+                                                    {syncStatus.connected ? t('home.wearable_connected', { defaultValue: 'Wearable Connected' }) : t('home.connect_wearable', { defaultValue: 'Connect Wearable' })}
                                                 </Text>
                                                 {syncStatus.syncing && (
                                                     <View style={styles.syncingBadge}>
                                                         <Zap size={9} color="#D97706" />
-                                                        <Text style={styles.syncingText}>Syncing</Text>
+                                                        <Text style={styles.syncingText}>{t('home.syncing', { defaultValue: 'Syncing' })}</Text>
                                                     </View>
                                                 )}
                                             </View>
                                             <Text style={styles.syncSub}>
                                                 {syncStatus.connected
-                                                    ? `${syncStatus.readingsToday} readings today${syncStatus.lastSync ? ' · Last: ' + new Date(syncStatus.lastSync).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}`
-                                                    : 'Auto-track vitals from your smartwatch'}
+                                                    ? `${syncStatus.readingsToday} ${t('home.readings_today', { defaultValue: 'readings today' })}${syncStatus.lastSync ? ` · ${t('home.last', { defaultValue: 'Last' })}: ` + new Date(syncStatus.lastSync).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}`
+                                                    : t('home.auto_track', { defaultValue: 'Auto-track vitals from your smartwatch' })}
                                             </Text>
                                         </View>
                                     </View>
@@ -581,10 +564,10 @@ export default function PatientHomeScreen({ navigation }) {
 
                                 {/* Vitals cards row */}
                                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingRight: 4, marginBottom: 16 }}>
-                                    <VitalsCard label="Heart Rate" value={vitals?.heart_rate || '—'} unit="bpm" icon={Heart} color="#EF4444" status={vitals?.heart_rate ? 'Recorded' : 'Not Logged'} />
-                                    <VitalsCard label="Blood Pressure" value={vitals?.blood_pressure?.systolic ? `${vitals.blood_pressure.systolic}/${vitals.blood_pressure.diastolic}` : '—'} unit="mmHg" icon={Activity} color="#6366F1" status={vitals?.blood_pressure?.systolic ? 'Recorded' : 'Not Logged'} />
-                                    <VitalsCard label="Oxygen" value={vitals?.oxygen_saturation != null ? vitals.oxygen_saturation : '—'} unit="%" icon={Wind} color="#0EA5E9" status={vitals?.oxygen_saturation != null ? 'Recorded' : 'Not Logged'} />
-                                    <VitalsCard label="Hydration" value={vitals?.hydration != null ? vitals.hydration : '—'} unit="%" icon={Droplets} color="#06B6D4" status={vitals?.hydration != null ? 'Recorded' : 'Not Logged'} />
+                                    <VitalsCard label={t('home.heart_rate', { defaultValue: 'Heart Rate' })} value={vitals?.heart_rate || '—'} unit="bpm" icon={Heart} color="#EF4444" status={vitals?.heart_rate ? 'Recorded' : 'Not Logged'} />
+                                    <VitalsCard label={t('home.blood_pressure', { defaultValue: 'Blood Pressure' })} value={vitals?.blood_pressure?.systolic ? `${vitals.blood_pressure.systolic}/${vitals.blood_pressure.diastolic}` : '—'} unit="mmHg" icon={Activity} color="#6366F1" status={vitals?.blood_pressure?.systolic ? 'Recorded' : 'Not Logged'} />
+                                    <VitalsCard label={t('home.oxygen', { defaultValue: 'Oxygen' })} value={vitals?.oxygen_saturation != null ? vitals.oxygen_saturation : '—'} unit="%" icon={Wind} color="#0EA5E9" status={vitals?.oxygen_saturation != null ? 'Recorded' : 'Not Logged'} />
+                                    <VitalsCard label={t('home.hydration', { defaultValue: 'Hydration' })} value={vitals?.hydration != null ? vitals.hydration : '—'} unit="%" icon={Droplets} color="#06B6D4" status={vitals?.hydration != null ? 'Recorded' : 'Not Logged'} />
                                 </ScrollView>
 
                                 {/* AI Outlook */}
@@ -615,7 +598,7 @@ export default function PatientHomeScreen({ navigation }) {
                                                 </View>
                                             )}
                                         </View>
-                                        <Text style={styles.aiDesc}>Our AI analyzes your vitals history to forecast trends and flag potential concerns.</Text>
+                                        <Text style={styles.aiDesc}>{t('home.ai_desc', { defaultValue: 'Our AI analyzes your vitals history to forecast trends and flag potential concerns.' })}</Text>
                                         {vitalsHistory.length > 0 && (
                                             <AIPredictionChart
                                                 metricName="Heart Rate"
@@ -642,7 +625,7 @@ export default function PatientHomeScreen({ navigation }) {
                                         <Text style={styles.cardTitle}>{t('common.log_today_s_vitals', { defaultValue: "Log Today's Vitals" })}</Text>
                                         <View style={[styles.toggleBadge, isLogging && styles.toggleBadgeCancel]}>
                                             <Text style={[styles.toggleBadgeText, isLogging && { color: '#EF4444' }]}>
-                                                {isLogging ? 'Cancel' : '+ Add Entry'}
+                                                {isLogging ? t('common.cancel', { defaultValue: 'Cancel' }) : t('home.add_entry', { defaultValue: '+ Add Entry' })}
                                             </Text>
                                         </View>
                                     </Pressable>
@@ -656,32 +639,32 @@ export default function PatientHomeScreen({ navigation }) {
                                             )}
                                             <View style={styles.formRow}>
                                                 <View style={{ flex: 1 }}>
-                                                    <SmartInput label="Heart Rate (bpm)" keyboardType="numeric" placeholder="72"
+                                                    <SmartInput label={t('home.heart_rate_label', { defaultValue: 'Heart Rate (bpm)' })} keyboardType="numeric" placeholder="72"
                                                         value={formValues.heart_rate} onChangeText={(t) => setFormValues(p => ({ ...p, heart_rate: t }))} />
                                                 </View>
                                                 <View style={{ flex: 1 }}>
-                                                    <SmartInput label="O₂ Saturation (%)" keyboardType="numeric" placeholder="98"
+                                                    <SmartInput label={t('home.o2_label', { defaultValue: 'O₂ Saturation (%)' })} keyboardType="numeric" placeholder="98"
                                                         value={formValues.oxygen_saturation} onChangeText={(t) => setFormValues(p => ({ ...p, oxygen_saturation: t }))} />
                                                 </View>
                                             </View>
-                                            <Text style={styles.formLabel}>Blood Pressure (mmHg)</Text>
+                                            <Text style={styles.formLabel}>{t('home.bp_label', { defaultValue: 'Blood Pressure (mmHg)' })}</Text>
                                             <View style={styles.formRow}>
                                                 <View style={{ flex: 1 }}>
-                                                    <SmartInput keyboardType="numeric" placeholder="Systolic (120)"
+                                                    <SmartInput keyboardType="numeric" placeholder={t('home.systolic', { defaultValue: 'Systolic (120)' })}
                                                         value={formValues.systolic} onChangeText={(t) => setFormValues(p => ({ ...p, systolic: t }))} />
                                                 </View>
                                                 <View style={{ flex: 1 }}>
-                                                    <SmartInput keyboardType="numeric" placeholder="Diastolic (80)"
+                                                    <SmartInput keyboardType="numeric" placeholder={t('home.diastolic', { defaultValue: 'Diastolic (80)' })}
                                                         value={formValues.diastolic} onChangeText={(t) => setFormValues(p => ({ ...p, diastolic: t }))} />
                                                 </View>
                                             </View>
-                                            <SmartInput label="Hydration (%)" keyboardType="numeric" placeholder="65"
+                                            <SmartInput label={t('home.hydration_label', { defaultValue: 'Hydration (%)' })} keyboardType="numeric" placeholder="65"
                                                 value={formValues.hydration} onChangeText={(t) => setFormValues(p => ({ ...p, hydration: t }))} />
                                             <Pressable style={styles.submitBtn} onPress={handleLogVitals} disabled={submitLoading}>
                                                 <LinearGradient colors={['#818CF8', '#4F46E5']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} />
                                                 {submitLoading
                                                     ? <ActivityIndicator color="#FFF" />
-                                                    : <Text style={styles.submitBtnText}>Save Record</Text>
+                                                    : <Text style={styles.submitBtnText}>{t('home.save_record', { defaultValue: 'Save Record' })}</Text>
                                                 }
                                             </Pressable>
                                         </View>
@@ -698,9 +681,9 @@ export default function PatientHomeScreen({ navigation }) {
                                         <LinearGradient colors={['#818CF8', '#6366F1']} style={styles.tipIconBox}>
                                             <Sparkles size={14} color="#FFF" />
                                         </LinearGradient>
-                                        <Text style={styles.tipLabel}>DAILY HEALTH TIP</Text>
+                                        <Text style={styles.tipLabel}>{t('home.daily_health_tip', { defaultValue: 'DAILY HEALTH TIP' })}</Text>
                                     </View>
-                                    <Text style={styles.tipText}>{getDailyTip()}</Text>
+                                    <Text style={styles.tipText}>{t('tips.tip_' + getDailyTipIndex(), { defaultValue: '💧 Stay hydrated! Drinking 8 glasses of water daily helps manage blood pressure.' })}</Text>
                                 </LinearGradient>
                             </View>
                         </Animated.View>
