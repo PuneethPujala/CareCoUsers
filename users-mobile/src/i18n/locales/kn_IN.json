@@ -1,0 +1,33 @@
+{
+  "tabs": {
+    "home": "ಮುಖಪುಟ",
+    "meds": "ಔಷಧಿಗಳು",
+    "vitals": "ವೈಟಲ್ಸ್",
+    "profile": "ಪ್ರೊಫೈಲ್"
+  },
+  "home": {
+    "good_morning": "ಶುಭೋದಯ",
+    "good_afternoon": "ಶುಭ ಮಧ್ಯಾಹ್ನ",
+    "good_evening": "ಶುಭ ಸಂಜೆ",
+    "care_record": "ನಿಮ್ಮ ಆರೈಕೆ ದಾಖಲೆ",
+    "todays_plan": "ಇಂದಿನ ಯೋಜನೆ",
+    "vitals": "ವೈಟಲ್ಸ್"
+  },
+  "time_slots": {
+    "morning": "ಬೆಳಿಗ್ಗೆ",
+    "afternoon": "ಮಧ್ಯಾಹ್ನ",
+    "evening": "ಸಂಜೆ",
+    "night": "ರಾತ್ರಿ",
+    "as_needed": "ಅಗತ್ಯವಿದ್ದಾಗ"
+  },
+  "profile": {
+    "personal_info": "ವೈಯಕ್ತಿಕ ಮಾಹಿತಿ",
+    "saved_addresses": "ಉಳಿಸಿದ ವಿಳಾಸಗಳು",
+    "care_records": "ಆರೈಕೆ ಮತ್ತು ದಾಖಲೆಗಳು",
+    "health_info": "ಆರೋಗ್ಯ ಮಾಹಿತಿ",
+    "notifications": "ಅಧಿಸೂಚನೆಗಳು ಮತ್ತು ಆದ್ಯತೆಗಳು",
+    "account_security": "ಖಾತೆ ಮತ್ತು ಭದ್ರತೆ",
+    "sign_out": "ಸೈನ್ ಔಟ್",
+    "deactivate": "ಖಾತೆಯನ್ನು ನಿಷ್ಕ್ರಿಯಗೊಳಿಸಿ"
+  }
+}

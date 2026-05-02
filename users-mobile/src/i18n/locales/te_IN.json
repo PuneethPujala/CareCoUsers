@@ -1,0 +1,33 @@
+{
+  "tabs": {
+    "home": "హోమ్",
+    "meds": "మందులు",
+    "vitals": "వైటల్స్",
+    "profile": "ప్రొఫైల్"
+  },
+  "home": {
+    "good_morning": "శుభోదయం",
+    "good_afternoon": "శుభ మధ్యాహ్నం",
+    "good_evening": "శుభ సాయంత్రం",
+    "care_record": "మీ సంరక్షణ రికార్డు",
+    "todays_plan": "నేటి ప్రణాళిక",
+    "vitals": "వైటల్స్"
+  },
+  "time_slots": {
+    "morning": "ఉదయం",
+    "afternoon": "మధ్యాహ్నం",
+    "evening": "సాయంత్రం",
+    "night": "రాత్రి",
+    "as_needed": "అవసరమైనప్పుడు"
+  },
+  "profile": {
+    "personal_info": "వ్యక్తిగత సమాచారం",
+    "saved_addresses": "సేవ్ చేసిన చిరునామాలు",
+    "care_records": "సంరక్షణ మరియు రికార్డులు",
+    "health_info": "ఆరోగ్య సమాచారం",
+    "notifications": "నోటిఫికేషన్‌లు మరియు ప్రాధాన్యతలు",
+    "account_security": "ఖాతా మరియు భద్రత",
+    "sign_out": "ఖాతా నుండి సైన్ అవుట్ చేయండి",
+    "deactivate": "ఖాతాను క్రియారహితం చేయండి"
+  }
+}

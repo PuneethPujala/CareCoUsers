@@ -7,7 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { LineChart } from 'react-native-chart-kit';
 import {
     X, TrendingUp, TrendingDown, Minus, Award, Target, Calendar as CalIcon,
-    CheckCircle2, Zap, ChevronLeft, Sparkles, Heart, Star, Share2, Flame, Lock,
+    CheckCircle2, Zap, ChevronLeft, ChevronRight, Sparkles, Heart, Star, Share2, Flame, Lock,
 } from 'lucide-react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import usePatientStore from '../../store/usePatientStore';
@@ -15,7 +15,7 @@ import RecapStoryModal from '../../components/adherence/RecapStoryModal';
 import { layout } from '../../theme';
 import {
     startOfMonth, endOfMonth, eachDayOfInterval, format, isToday,
-    startOfWeek, endOfWeek, isSameMonth, parseISO,
+    startOfWeek, endOfWeek, isSameMonth, parseISO, addMonths, subMonths,
 } from 'date-fns';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -290,6 +290,7 @@ export default function AdherenceScreen({ navigation }) {
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [selectedDay, setSelectedDay] = useState(null);
+    const [currentMonth, setCurrentMonth] = useState(new Date());
     const [activeRecapTab, setActiveRecapTab] = useState('weekly');
     const [showStoryModal, setShowStoryModal] = useState(false);
 
@@ -365,9 +366,8 @@ export default function AdherenceScreen({ navigation }) {
 
     // Calendar
     const calendarDays = useMemo(() => {
-        const now = new Date();
-        return eachDayOfInterval({ start: startOfWeek(startOfMonth(now)), end: endOfWeek(endOfMonth(now)) });
-    }, []);
+        return eachDayOfInterval({ start: startOfWeek(startOfMonth(currentMonth)), end: endOfWeek(endOfMonth(currentMonth)) });
+    }, [currentMonth]);
 
     const dailyLogMap = useMemo(() => {
         const map = {};
@@ -704,7 +704,14 @@ export default function AdherenceScreen({ navigation }) {
                                 <View style={[styles.cardIconBox, { backgroundColor: C.primarySoft }]}>
                                     <CalIcon size={15} color={C.primary} />
                                 </View>
-                                <Text style={styles.cardTitle}>{format(new Date(), 'MMMM yyyy').toUpperCase()}</Text>
+                                <Text style={styles.cardTitle}>{format(currentMonth, 'MMMM yyyy').toUpperCase()}</Text>
+                                <View style={{ flex: 1 }} />
+                                <Pressable onPress={() => setCurrentMonth(prev => subMonths(prev, 1))} style={{ padding: 4 }}>
+                                    <ChevronLeft size={20} color={C.primary} />
+                                </Pressable>
+                                <Pressable onPress={() => setCurrentMonth(prev => addMonths(prev, 1))} style={{ padding: 4 }}>
+                                    <ChevronRight size={20} color={C.primary} />
+                                </Pressable>
                             </View>
 
                             <View style={styles.weekDaysRow}>
@@ -722,7 +729,7 @@ export default function AdherenceScreen({ navigation }) {
                                             key={idx}
                                             date={date}
                                             status={entry?.status}
-                                            isCurrentMonth={isSameMonth(date, new Date())}
+                                            isCurrentMonth={isSameMonth(date, currentMonth)}
                                             onPress={() => setSelectedDay(entry || {
                                                 date: dateStr, status: 'none', rate: 0, medicines: [], vitals: null,
                                             })}

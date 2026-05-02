@@ -1,0 +1,33 @@
+{
+  "tabs": {
+    "home": "முகப்பு",
+    "meds": "மருந்துகள்",
+    "vitals": "வைட்டல்கள்",
+    "profile": "சுயவிவரம்"
+  },
+  "home": {
+    "good_morning": "காலை வணக்கம்",
+    "good_afternoon": "மதிய வணக்கம்",
+    "good_evening": "மாலை வணக்கம்",
+    "care_record": "உங்கள் பராமரிப்பு பதிவு",
+    "todays_plan": "இன்றைய திட்டம்",
+    "vitals": "வைட்டல்கள்"
+  },
+  "time_slots": {
+    "morning": "காலை",
+    "afternoon": "மதியம்",
+    "evening": "மாலை",
+    "night": "இரவு",
+    "as_needed": "தேவைப்படும் போது"
+  },
+  "profile": {
+    "personal_info": "தனிப்பட்ட தகவல்",
+    "saved_addresses": "சேமிக்கப்பட்ட முகவரிகள்",
+    "care_records": "பராமரிப்பு மற்றும் பதிவுகள்",
+    "health_info": "சுகாதார தகவல்",
+    "notifications": "அறிவிப்புகள் மற்றும் விருப்பங்கள்",
+    "account_security": "கணக்கு மற்றும் பாதுகாப்பு",
+    "sign_out": "வெளியேறு",
+    "deactivate": "கணக்கை முடக்கு"
+  }
+}

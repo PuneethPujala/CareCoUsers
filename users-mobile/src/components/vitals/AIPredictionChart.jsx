@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, Dimensions } from 'react-native';
 import { LineChart } from 'react-native-chart-kit';
 
 const screenWidth = Dimensions.get('window').width;
 
 export default function AIPredictionChart({ vitalsHistory, predictionData, metricName, unit }) {
+  const [chartWidth, setChartWidth] = useState(screenWidth - 100);
   const safeHistory = vitalsHistory || [];
   
   // ── Client-side fallback prediction (simple linear regression) ──
@@ -157,11 +158,11 @@ export default function AIPredictionChart({ vitalsHistory, predictionData, metri
         </View>
       </View>
 
-      <View style={styles.chartWrapper}>
+      <View style={styles.chartWrapper} onLayout={(e) => setChartWidth(e.nativeEvent.layout.width - 16)}>
         <LineChart
           data={data}
-          width={screenWidth - 80}
-          height={220}
+          width={chartWidth}
+          height={200}
           chartConfig={chartConfig}
           bezier={false} 
           style={styles.chart}
@@ -177,15 +178,7 @@ export default function AIPredictionChart({ vitalsHistory, predictionData, metri
 
 const styles = StyleSheet.create({
   container: {
-    marginVertical: 10,
-    backgroundColor: '#fff',
-    borderRadius: 24,
-    padding: 20,
-    shadowColor: '#0F172A',
-    shadowOpacity: 0.04,
-    shadowRadius: 16,
-    shadowOffset: { y: 8, x: 0 },
-    elevation: 4,
+    marginTop: 4,
   },
   title: {
     fontSize: 16,
@@ -226,6 +219,7 @@ const styles = StyleSheet.create({
     marginVertical: 4,
     overflow: 'hidden',
     width: '100%',
+    borderRadius: 12,
   },
   chart: {
     borderRadius: 16,

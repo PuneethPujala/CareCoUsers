@@ -21,6 +21,7 @@ import { apiService } from '../lib/api';
 import { getCache, setCache, CACHE_KEYS } from '../lib/CacheService';
 import OfflineSyncService from '../lib/OfflineSyncService';
 import WidgetBridge from '../lib/WidgetBridge';
+import i18n from '../i18n';
 
 const TIME_LABELS = { morning: 'Morning', afternoon: 'Afternoon', evening: 'Evening', night: 'Night', as_needed: 'As Needed' };
 const ACCENT_MAP = { morning: '#22C55E', afternoon: '#F59E0B', evening: '#7C3AED', night: '#8B5CF6', as_needed: '#6366F1' };
@@ -85,6 +86,9 @@ const usePatientStore = create((set, get) => ({
             const { data } = await apiService.patients.getMe();
             const patient = data.patient;
             const prefs = patient?.medication_call_preferences || { morning: '09:00', afternoon: '14:00', night: '20:00' };
+            if (patient?.language && i18n.language !== patient.language) {
+                i18n.changeLanguage(patient.language);
+            }
             set({ patient, callPreferences: prefs });
             return patient;
         } catch (err) {
@@ -137,6 +141,10 @@ const usePatientStore = create((set, get) => ({
             const freshVitals = todayVitals?.length > 0 ? todayVitals[todayVitals.length - 1] : null;
             const prefs = freshPatient?.medication_call_preferences || { morning: '09:00', afternoon: '14:00', night: '20:00' };
 
+            if (freshPatient?.language && i18n.language !== freshPatient.language) {
+                i18n.changeLanguage(freshPatient.language);
+            }
+
             const optRef = { ...get()._optimisticMeds };
             const freshMeds = (medsRes.data.log?.medicines || []).map(m => {
                 const id = `${m.medicine_name}_${m.scheduled_time}`;
@@ -152,7 +160,7 @@ const usePatientStore = create((set, get) => ({
                     name: m.medicine_name,
                     dosage: m.dosage || 'As prescribed',
                     instructions: m.instructions || '',
-                    time: TIME_LABELS[m.scheduled_time] || m.scheduled_time,
+                    time: i18n.t(`time_slots.${m.scheduled_time}`, { defaultValue: TIME_LABELS[m.scheduled_time] || m.scheduled_time }),
                     type: m.scheduled_time,
                     taken: isTaken,
                     accent: ACCENT_MAP[m.scheduled_time] || '#6366F1',

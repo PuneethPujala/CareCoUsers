@@ -21,6 +21,7 @@ import { syncAllSchedules } from '../../utils/notifications';
 import usePatientStore from '../../store/usePatientStore';
 import SmartInput from '../../components/ui/SmartInput';
 import AlertManager from '../../utils/AlertManager';
+import { useTranslation } from 'react-i18next';
 
 const { width: SW } = Dimensions.get('window');
 
@@ -139,6 +140,7 @@ const MedicationCard = ({ med, onPress }) => {
 // ══ MAIN SCREEN ══════════════════════════════════════════════════════════════
 // ══════════════════════════════════════════════════════════════════════════════
 export default function PatientHomeScreen({ navigation }) {
+    const { t } = useTranslation();
     const { displayName, profile } = useAuth();
 
     const patient = usePatientStore((s) => s.patient);
@@ -274,9 +276,9 @@ export default function PatientHomeScreen({ navigation }) {
 
     const getGreeting = () => {
         const h = new Date().getHours();
-        if (h < 12) return 'Good Morning';
-        if (h < 17) return 'Good Afternoon';
-        return 'Good Evening';
+        if (h < 12) return t('home.good_morning', { defaultValue: 'Good Morning' });
+        if (h < 17) return t('home.good_afternoon', { defaultValue: 'Good Afternoon' });
+        return t('home.good_evening', { defaultValue: 'Good Evening' });
     };
 
     const getNextDose = () => {
@@ -474,7 +476,7 @@ export default function PatientHomeScreen({ navigation }) {
                         {/* ── TODAY'S MEDICATIONS ── */}
                         <Animated.View style={anim(3)}>
                             <View style={styles.section}>
-                                <Text style={styles.sectionTitle}>TODAY'S MEDICATIONS</Text>
+                                <Text style={styles.sectionTitle}>{t('home.todays_plan', { defaultValue: "TODAY'S MEDICATIONS" })}</Text>
 
                                 {totalMeds > 0 ? (
                                     <Pressable style={styles.medSummaryCard} onPress={() => setMedsExpanded(!medsExpanded)}>
@@ -536,7 +538,7 @@ export default function PatientHomeScreen({ navigation }) {
                         <Animated.View style={anim(4)}>
                             <View style={styles.section}>
                                 <View style={styles.sectionTitleRow}>
-                                    <Text style={styles.sectionTitle}>MY VITALS</Text>
+                                    <Text style={styles.sectionTitle}>{t('home.vitals', { defaultValue: 'MY VITALS' })}</Text>
                                     <Pressable style={styles.viewAllBtn} onPress={() => navigation.navigate('VitalsHistory')}>
                                         <Text style={styles.viewAllText}>History</Text>
                                         <ChevronRight size={13} color="#6366F1" />

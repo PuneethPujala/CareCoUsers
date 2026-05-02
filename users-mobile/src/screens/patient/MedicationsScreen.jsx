@@ -535,6 +535,18 @@ export default function MedicationsScreen({ navigation }) {
 
     const handleSnooze = async (med) => {
         try {
+            const { status: existingStatus } = await Notifications.getPermissionsAsync();
+            let finalStatus = existingStatus;
+            if (existingStatus !== 'granted') {
+                const { status } = await Notifications.requestPermissionsAsync();
+                finalStatus = status;
+            }
+            
+            if (finalStatus !== 'granted') {
+                AlertManager.alert('Permission Required', 'Please enable notifications to snooze medications.', [{ text: 'OK' }]);
+                return;
+            }
+
             await Notifications.scheduleNotificationAsync({
                 content: {
                     title: `⏳ Reminder: ${med.name}`,
