@@ -37,6 +37,9 @@ const BLOOD_OPTIONS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'unknow
 import { COUNTRY_CODES, parsePhoneWithCode, validatePhone } from '../../utils/phoneUtils';
 
 import AlertManager from '../../utils/AlertManager';
+import { useTranslation } from 'react-i18next';
+import i18n from '../../i18n';
+
 // ── Skeleton Loader ──────────────────────────────────────────
 const SkeletonItem = ({ width, height, borderRadius = 8, style }) => {
     const anim = useRef(new Animated.Value(0.3)).current;
@@ -52,6 +55,7 @@ const SkeletonItem = ({ width, height, borderRadius = 8, style }) => {
 };
 
 export default function PatientProfileScreen({ navigation }) {
+    const { t } = useTranslation();
     const { signOut, displayName, userEmail } = useAuth();
     const [patient, setPatient] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -385,6 +389,7 @@ export default function PatientProfileScreen({ navigation }) {
     const handleSelectLanguage = async (langCode) => {
         setSelectedLang(langCode);
         setLanguageModalVisible(false);
+        i18n.changeLanguage(langCode);
         try {
             await apiService.patients.updateMe({ language: langCode });
             const langName = LANGUAGES.find(l => l.code === langCode)?.label || langCode;
@@ -593,7 +598,7 @@ export default function PatientProfileScreen({ navigation }) {
 
                 {/* ── Personal Information ── */}
                 <Animated.View style={anim(3)}>
-                    <Text style={s.sectionTitle}>PERSONAL INFORMATION</Text>
+                    <Text style={s.sectionTitle}>{t('profile.personal_info', { defaultValue: 'PERSONAL INFORMATION' })}</Text>
                     <View style={s.card}>
                         <InfoRow icon={User2} iconBg="#EFF6FF" iconColor="#3B82F6" label="Full Name" value={patient?.name || displayName} placeholder="Add Name" onPress={() => { setEditName(patient?.name || ''); setEditAccountModalVisible(true); }} />
                         <InfoRow icon={Phone} iconBg="#F0FDF4" iconColor="#22C55E" label="Phone Number" value={patient?.phone} placeholder="Add Phone" onPress={() => { const p = parsePhoneWithCode(patient?.phone || ''); setEditPhoneCode(p.code); setEditPhone(p.number); setPhoneModalVisible(true); }}
@@ -609,7 +614,7 @@ export default function PatientProfileScreen({ navigation }) {
 
                 {/* ── Saved Addresses ── */}
                 <Animated.View style={anim(4)}>
-                    <Text style={s.sectionTitle}>SAVED ADDRESSES</Text>
+                    <Text style={s.sectionTitle}>{t('profile.saved_addresses', { defaultValue: 'SAVED ADDRESSES' })}</Text>
                     <View style={s.card}>
                         <InfoRow icon={MapPin} iconBg="#EFF6FF" iconColor="#3B82F6" label="Manage Addresses" value={savedAddresses.length ? `${savedAddresses.length} saved` : null} placeholder="Add your addresses" onPress={() => setAddressModalVisible(true)} isLast />
                     </View>
@@ -617,7 +622,7 @@ export default function PatientProfileScreen({ navigation }) {
 
                 {/* ── Care & Records ── */}
                 <Animated.View style={anim(5)}>
-                    <Text style={s.sectionTitle}>CARE & RECORDS</Text>
+                    <Text style={s.sectionTitle}>{t('profile.care_records', { defaultValue: 'CARE & RECORDS' })}</Text>
                     <View style={s.card}>
                         <InfoRow icon={ClipboardList} iconBg="#EFF6FF" iconColor="#3B82F6" label="Care Logs" value="Track your care interactions" placeholder="" onPress={() => navigation.navigate('MyCaller')} />
                         <InfoRow icon={TrendingUp} iconBg="#F0FDF4" iconColor="#16A34A" label="Medication Adherence" value="View consistency" placeholder="" onPress={() => navigation.navigate('AdherenceDetails')} />
@@ -628,7 +633,7 @@ export default function PatientProfileScreen({ navigation }) {
 
                 {/* ── Health Information ── */}
                 <Animated.View style={anim(6)}>
-                    <Text style={s.sectionTitle}>HEALTH INFORMATION</Text>
+                    <Text style={s.sectionTitle}>{t('profile.health_info', { defaultValue: 'HEALTH INFORMATION' })}</Text>
                     <View style={s.card}>
                         <InfoRow icon={Heart} iconBg="#FFF1F2" iconColor="#EF4444" label="My Medical Records" value="Allergies, chronic diseases, etc." placeholder="" onPress={() => navigation.navigate('HealthProfile')} />
                         <InfoRow icon={Users} iconBg="#EEF2FF" iconColor="#6366F1" label="Family Profiles" value="Manage health records of your family" placeholder="" onPress={() => setFamilyModalVisible(true)} isLast />
@@ -637,7 +642,7 @@ export default function PatientProfileScreen({ navigation }) {
 
                 {/* ── Notifications & Preferences ── */}
                 <Animated.View style={anim(7)}>
-                    <Text style={s.sectionTitle}>NOTIFICATIONS & PREFERENCES</Text>
+                    <Text style={s.sectionTitle}>{t('profile.notifications', { defaultValue: 'NOTIFICATIONS & PREFERENCES' })}</Text>
                     <View style={s.card}>
                         <View style={[s.infoRow]}>
                             <View style={[s.iconBox, { backgroundColor: '#F5F3FF' }]}>
@@ -676,7 +681,7 @@ export default function PatientProfileScreen({ navigation }) {
 
                 {/* ── Account & Security ── */}
                 <Animated.View style={anim(8)}>
-                    <Text style={s.sectionTitle}>ACCOUNT & SECURITY</Text>
+                    <Text style={s.sectionTitle}>{t('profile.account_security', { defaultValue: 'ACCOUNT & SECURITY' })}</Text>
                     <View style={s.card}>
                         <InfoRow icon={UserRound} iconBg="#EFF6FF" iconColor="#3B82F6" label="Account Details" value={null} placeholder="View details" onPress={() => setAccountModalVisible(true)} />
                         {patient?.hasPassword ? (
@@ -762,10 +767,11 @@ export default function PatientProfileScreen({ navigation }) {
                     </View>
                 </Animated.View>
 
-                {/* ── Sign Out, Deactivate & Delete ── */}
+                {/* ── Account Actions ── */}
                 <Animated.View style={anim(9)}>
-                    <View style={{ marginBottom: 24, paddingHorizontal: 24, gap: 12 }}>
-                        <Pressable style={s.logoutBtn} onPress={() => AlertManager.alert(
+                    <Text style={s.sectionTitle}>ACCOUNT ACTIONS</Text>
+                    <View style={s.card}>
+                        <Pressable style={[s.infoRow]} onPress={() => AlertManager.alert(
                             'Sign Out',
                             'Are you sure you want to sign out of your account?',
                             [
@@ -773,11 +779,17 @@ export default function PatientProfileScreen({ navigation }) {
                                 { text: 'Sign Out', style: 'destructive', onPress: () => signOut() }
                             ]
                         )}>
-                            <LogOut size={20} color="#E11D48" strokeWidth={2.5} />
-                            <Text style={s.logoutTxt}>Sign Out Account</Text>
+                            <View style={[s.iconBox, { backgroundColor: '#FFF1F2' }]}>
+                                <LogOut size={20} color="#E11D48" strokeWidth={2} />
+                            </View>
+                            <View style={s.infoTextCol}>
+                                <Text style={s.infoLabel}>{t('profile.sign_out', { defaultValue: 'Sign Out' })}</Text>
+                                <Text style={[s.infoValue, { color: C.muted }]}>Log out of your account</Text>
+                            </View>
+                            <ChevronRight size={18} color={C.light} />
                         </Pressable>
                         <Pressable
-                            style={[s.logoutBtn, { backgroundColor: '#FFFBEB', borderColor: '#FDE68A' }, accountActionLoading && { opacity: 0.6 }]}
+                            style={[s.infoRow, accountActionLoading && { opacity: 0.6 }]}
                             disabled={accountActionLoading}
                             onPress={() => AlertManager.alert(
                                 'Deactivate Account',
@@ -805,11 +817,17 @@ export default function PatientProfileScreen({ navigation }) {
                                 ]
                             )}
                         >
-                            <Shield size={20} color="#D97706" strokeWidth={2.5} />
-                            <Text style={[s.logoutTxt, { color: '#D97706' }]}>Deactivate Account</Text>
+                            <View style={[s.iconBox, { backgroundColor: '#FFFBEB' }]}>
+                                <Shield size={20} color="#D97706" strokeWidth={2} />
+                            </View>
+                            <View style={s.infoTextCol}>
+                                <Text style={s.infoLabel}>{t('profile.deactivate', { defaultValue: 'Deactivate Account' })}</Text>
+                                <Text style={[s.infoValue, { color: C.muted }]}>Pause your account temporarily</Text>
+                            </View>
+                            <ChevronRight size={18} color={C.light} />
                         </Pressable>
                         <Pressable
-                            style={[s.logoutBtn, { backgroundColor: '#FEF2F2', borderColor: '#FECACA' }, accountActionLoading && { opacity: 0.6 }]}
+                            style={[s.infoRow, { borderBottomWidth: 0 }, accountActionLoading && { opacity: 0.6 }]}
                             disabled={accountActionLoading}
                             onPress={() => AlertManager.alert(
                                 'Permanently Delete Account?',
@@ -821,17 +839,13 @@ export default function PatientProfileScreen({ navigation }) {
                                             setAccountActionLoading(true);
                                             try {
                                                 await apiService.auth.deleteAccount();
-                                                // After successful hard-delete, sign out immediately
                                                 await signOut();
                                             } catch (e) {
                                                 const status = e?.response?.status;
-                                                const errorMsg = e?.response?.data?.error || 'Failed to delete account.';
-                                                
                                                 if (status === 401 || status === 403 || status === 404) {
-                                                    // Account likely already gone or session expired
                                                     await signOut();
                                                 } else {
-                                                    AlertManager.alert('Error', errorMsg, undefined, { type: 'error' });
+                                                    AlertManager.alert('Error', e?.response?.data?.error || 'Failed to delete account.', undefined, { type: 'error' });
                                                     setAccountActionLoading(false);
                                                 }
                                             }
@@ -840,8 +854,14 @@ export default function PatientProfileScreen({ navigation }) {
                                 ]
                             )}
                         >
-                            <Trash2 size={20} color="#DC2626" strokeWidth={2.5} />
-                            <Text style={[s.logoutTxt, { color: '#DC2626' }]}>Delete Account Permanently</Text>
+                            <View style={[s.iconBox, { backgroundColor: '#FEF2F2' }]}>
+                                <Trash2 size={20} color="#DC2626" strokeWidth={2} />
+                            </View>
+                            <View style={s.infoTextCol}>
+                                <Text style={[s.infoLabel, { color: '#DC2626' }]}>Delete Account Permanently</Text>
+                                <Text style={[s.infoValue, { color: C.muted }]}>Erase all data forever</Text>
+                            </View>
+                            <ChevronRight size={18} color={C.light} />
                         </Pressable>
                     </View>
                     <Text style={s.versionTxt}>v1.0.4 • Made with ♥ by CareMyMed</Text>
