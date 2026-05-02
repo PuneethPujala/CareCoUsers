@@ -107,6 +107,8 @@ async function deleteMe(req, res) {
         AIVitalPrediction.deleteMany({ patient_id: userId }),
         Medication.deleteMany({ patientId: userId }),
         Alert.deleteMany({ patient_id: userId }),
+        // Remove patient from any caller's assigned patient_ids list
+        Caller.updateMany({ patient_ids: userId }, { $pull: { patient_ids: userId } }),
       ]);
 
       // Delete the patient record itself — frees email & phone for re-registration
@@ -114,7 +116,7 @@ async function deleteMe(req, res) {
 
       await logEvent(subject, 'account_hard_deleted', 'patient', userId, req, {
         permanent: true,
-        purgedCollections: ['CallLog', 'MedicineLog', 'VitalLog', 'Notification', 'RefreshToken', 'AIVitalPrediction', 'Medication', 'Alert', 'Patient'],
+        purgedCollections: ['CallLog', 'MedicineLog', 'VitalLog', 'Notification', 'RefreshToken', 'AIVitalPrediction', 'Medication', 'Alert', 'Caller', 'Patient'],
       });
     } else {
       // For Staff/Admin profiles

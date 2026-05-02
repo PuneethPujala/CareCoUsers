@@ -11,6 +11,8 @@ import {
     Inter_700Bold, Inter_800ExtraBold, Inter_900Black,
 } from '@expo-google-fonts/inter';
 import * as SplashScreen from 'expo-splash-screen';
+import './src/i18n'; // Initialize i18n
+
 
 // Sentry — must init before anything else
 let Sentry = null;

@@ -310,7 +310,13 @@ router.put('/me', authenticateSession, async (req, res) => {
         if (date_of_birth !== undefined) updates.date_of_birth = date_of_birth;
         if (phone !== undefined) updates.phone = phone;
         if (gender !== undefined) updates.gender = gender;
-        if (blood_type !== undefined) updates.blood_type = blood_type;
+        if (blood_type !== undefined) {
+            const validBloodTypes = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'unknown'];
+            if (!validBloodTypes.includes(blood_type)) {
+                return res.status(400).json({ error: 'Invalid blood type provided' });
+            }
+            updates.blood_type = blood_type;
+        }
         if (language !== undefined) updates.language = language;
         if (push_notifications_enabled !== undefined) updates.push_notifications_enabled = push_notifications_enabled;
         if (medication_reminders_enabled !== undefined) updates.medication_reminders_enabled = medication_reminders_enabled;
