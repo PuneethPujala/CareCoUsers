@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useFocusEffect } from '@react-navigation/native';
 import {
     View, Text, StyleSheet, ScrollView, Platform, Pressable, Animated,
@@ -427,6 +428,7 @@ const TimePickerModal = ({ visible, onClose, onSave, initialTime }) => {
 // ══ MAIN SCREEN ══════════════════════════════════════════════════════════════
 // ══════════════════════════════════════════════════════════════════════════════
 export default function MedicationsScreen({ navigation }) {
+    const { t } = useTranslation();
     const patient = usePatientStore(s => s.patient);
     const schedule = usePatientStore(s => s.medicationSchedule);
     const adherence = usePatientStore(s => s.weeklyAdherence);
@@ -654,7 +656,7 @@ export default function MedicationsScreen({ navigation }) {
                     <View style={styles.headerRow}>
                         <View>
                             <Text style={styles.headerEyebrow}>CARE PLAN</Text>
-                            <Text style={styles.headerTitle}>Medications</Text>
+                            <Text style={styles.headerTitle}>{t('common.medications', { defaultValue: 'Medications' })}</Text>
                         </View>
                     </View>
                 </View>
@@ -681,7 +683,7 @@ export default function MedicationsScreen({ navigation }) {
                 <View style={styles.headerRow}>
                     <View style={{ flex: 1 }}>
                         <Text style={styles.headerEyebrow}>CARE PLAN</Text>
-                        <Text style={styles.headerTitle}>Medications</Text>
+                        <Text style={styles.headerTitle}>{t('common.medications', { defaultValue: 'Medications' })}</Text>
                     </View>
                     <Pressable style={styles.headerBtn} onPress={() => navigation.navigate('Notifications')}>
                         <Bell size={20} color="#0F172A" strokeWidth={2.5} />
@@ -740,7 +742,7 @@ export default function MedicationsScreen({ navigation }) {
                         <LinearGradient colors={['#EEF2FF', '#E0E7FF']} style={styles.emptyIconWrap}>
                             <Calendar size={44} color="#6366F1" strokeWidth={1.5} />
                         </LinearGradient>
-                        <Text style={styles.emptyTitle}>All Clear!</Text>
+                        <Text style={styles.emptyTitle}>{t('common.all_clear', { defaultValue: 'All Clear!' })}</Text>
                         <Text style={styles.emptyBody}>
                             No medications scheduled yet. Your caregiver will add them, or request a review below.
                         </Text>
@@ -792,7 +794,7 @@ export default function MedicationsScreen({ navigation }) {
                             <View style={styles.chartCard}>
                                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
                                     <View>
-                                        <Text style={styles.cardTitle}>Weekly Adherence</Text>
+                                        <Text style={styles.cardTitle}>{t('common.weekly_adherence', { defaultValue: 'Weekly Adherence' })}</Text>
                                         <Text style={{ fontSize: 12, color: '#94A3B8', marginTop: 2, fontWeight: '600' }}>
                                             Last 7 days
                                         </Text>

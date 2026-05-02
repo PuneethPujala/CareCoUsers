@@ -82,6 +82,7 @@ const ChipSelector = ({ options, selected, onSelect, vertical = false }) => (
 );
 
 export default function HealthProfileScreen({ navigation }) {
+    const { t } = useTranslation();
     const [profile, setProfile] = useState(null);
     const [loading, setLoading] = useState(true);
     const [isSyncing, setIsSyncing] = useState(false);
@@ -542,9 +543,9 @@ export default function HealthProfileScreen({ navigation }) {
             <View style={s.header}>
                 <View style={s.headerRow}>
                     <View style={{ flex: 1 }}>
-                        <Text style={s.headerEyebrow}>HEALTH VAULT</Text>
-                        <Text style={s.headerTitle}>My Records</Text>
-                        <Text style={{ fontSize: 13, color: '#64748B', marginTop: 4, ...FONT.medium }}>Overview of your health and medical information</Text>
+                        <Text style={s.headerEyebrow}>{t('health_profile.health_vault', { defaultValue: 'HEALTH VAULT' })}</Text>
+                        <Text style={s.headerTitle}>{t('health_profile.my_records', { defaultValue: 'My Records' })}</Text>
+                        <Text style={{ fontSize: 13, color: '#64748B', marginTop: 4, ...FONT.medium }}>{t('health_profile.overview_sub', { defaultValue: 'Overview of your health and medical information' })}</Text>
                     </View>
                     <Pressable style={s.headerBtn} onPress={() => navigation.navigate('Notifications')}>
                         <BellRing size={20} color="#0F172A" strokeWidth={2.5} />
@@ -559,7 +560,7 @@ export default function HealthProfileScreen({ navigation }) {
                     <View style={s.dashboardCard}>
                         <View style={s.dashLeft}>
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-                                <Text style={s.dashEyebrow}>HEALTH SCORE</Text>
+                                <Text style={s.dashEyebrow}>{t('health_profile.health_score', { defaultValue: 'HEALTH SCORE' })}</Text>
                                 <Info size={12} color="#94A3B8" />
                             </View>
                             <View style={s.dashScoreRow}>
@@ -568,11 +569,11 @@ export default function HealthProfileScreen({ navigation }) {
                             </View>
                             <View style={s.dashStatusRow}>
                                 <ShieldCheck size={14} color="#10B981" />
-                                <Text style={s.dashStatusTxt}>Stable</Text>
+                                <Text style={s.dashStatusTxt}>{t('health_profile.status_stable', { defaultValue: 'Stable' })}</Text>
                             </View>
                             <View style={s.dashSyncRow}>
                                 <RefreshCw size={10} color="#94A3B8" />
-                                <Text style={s.dashSyncTxt}>Last sync: 2h ago</Text>
+                                <Text style={s.dashSyncTxt}>{t('health_profile.last_sync', { defaultValue: 'Last sync: 2h ago' })}</Text>
                             </View>
                         </View>
                         <View style={s.dashCenter}>
@@ -588,21 +589,21 @@ export default function HealthProfileScreen({ navigation }) {
                             <View style={s.dashMiniMetric}>
                                 <View style={[s.dashMiniIcon, { backgroundColor: '#EEF2FF' }]}><TrendingUp size={10} color="#4F46E5" /></View>
                                 <View>
-                                    <Text style={s.dashMiniLbl}>Good Habits</Text>
+                                    <Text style={s.dashMiniLbl}>{t('health_profile.good_habits', { defaultValue: 'Good Habits' })}</Text>
                                     <Text style={[s.dashMiniVal, { color: '#10B981' }]}>{habitScore}%</Text>
                                 </View>
                             </View>
                             <View style={s.dashMiniMetric}>
                                 <View style={[s.dashMiniIcon, { backgroundColor: '#FFF7ED' }]}><Users size={10} color="#F97316" /></View>
                                 <View>
-                                    <Text style={s.dashMiniLbl}>BMI</Text>
+                                    <Text style={s.dashMiniLbl}>{t('health_profile.bmi', { defaultValue: 'BMI' })}</Text>
                                     <Text style={[s.dashMiniVal, { color: '#F97316' }]}>{bmi || '—'}</Text>
                                 </View>
                             </View>
                             <View style={s.dashMiniMetric}>
                                 <View style={[s.dashMiniIcon, { backgroundColor: '#ECFDF5' }]}><ShieldCheck size={10} color="#10B981" /></View>
                                 <View>
-                                    <Text style={s.dashMiniLbl}>Conditions</Text>
+                                    <Text style={s.dashMiniLbl}>{t('health_profile.conditions', { defaultValue: 'Conditions' })}</Text>
                                     <Text style={[s.dashMiniVal, { color: '#10B981' }]}>{trendLabel}</Text>
                                 </View>
                             </View>
@@ -610,14 +611,16 @@ export default function HealthProfileScreen({ navigation }) {
                     </View>
                 </Animated.View>
 
-                {/* ── HEALTH ALERTS ── */}
+                {/* ── ALERTS CARD ── */}
                 <Animated.View style={anim(1)}>
                     <Pressable style={s.alertsCard}>
                         <View style={s.alertHeader}>
                             <View style={s.alertIconBox}><TriangleAlert size={18} color="#EF4444" /></View>
                             <View style={{ flex: 1 }}>
-                                <Text style={s.alertTitle}>Health Alerts</Text>
-                                <Text style={s.alertSub}>{conditions.filter(c => c.status === 'active').length + allergies.filter(a => a.severity === 'severe').length} active alerts need your attention</Text>
+                                <Text style={s.alertTitle}>{t('health_profile.health_alerts', { defaultValue: 'Health Alerts' })}</Text>
+                                <Text style={s.alertSub}>
+                                    {conditions.filter(c => c.status === 'active').length + allergies.filter(a => a.severity === 'severe').length} {t('health_profile.active_alerts_sub', { defaultValue: 'active alerts need your attention' })}
+                                </Text>
                             </View>
                             <ChevronRight size={16} color="#94A3B8" />
                         </View>
@@ -626,201 +629,190 @@ export default function HealthProfileScreen({ navigation }) {
                                 <View key={'c'+i} style={s.alertChip}><View style={s.alertDot} /><Text style={s.alertChipTxt}>{c.name}</Text></View>
                             ))}
                             {allergies.filter(a => a.severity === 'severe').map((a, i) => (
-                                <View key={'a'+i} style={s.alertChip}><View style={s.alertDot} /><Text style={s.alertChipTxt}>{a.name} Allergy</Text></View>
+                                <View key={'a'+i} style={s.alertChip}><View style={s.alertDot} /><Text style={s.alertChipTxt}>{a.name} {t('health_profile.allergy', { defaultValue: 'Allergy' })}</Text></View>
                             ))}
                         </View>
                     </Pressable>
                 </Animated.View>
 
-                {/* ── 2-COLUMN MASONRY GRID ── */}
-                <View style={s.masonryGrid}>
+                {/* ── STACKED CARDS ── */}
+                <View style={{ gap: 16 }}>
                     
-                    {/* LEFT COLUMN */}
-                    <View style={s.masonryCol}>
-                        
-                        {/* Current Conditions */}
-                        <Animated.View style={anim(2)}>
-                            <Pressable style={s.gridCard} onPress={() => openModal('condition')}>
-                                <View style={s.gridHeader}>
-                                    <View style={[s.gridIconWrap, { backgroundColor: '#FEE2E2' }]}><HeartPulse size={16} color="#EF4444" /></View>
-                                    <Text style={s.gridTitle}>Current Conditions</Text>
-                                    <ChevronRight size={16} color="#CBD5E1" />
-                                </View>
-                                <View style={s.gridBody}>
-                                    {conditions.map((c, i) => {
-                                        const statStyle = CONDITION_STATUS[c.status] || CONDITION_STATUS.active;
-                                        return (
-                                            <View key={i} style={s.gridRow}>
-                                                <View style={[s.gridDot, { backgroundColor: statStyle.text }]} />
-                                                <Text style={s.gridRowTxt} numberOfLines={1}>{c.name}</Text>
-                                                <View style={[s.miniPill, { backgroundColor: statStyle.bg }]}><Text style={[s.miniPillTxt, { color: statStyle.text }]}>{c.status}</Text></View>
-                                            </View>
-                                        );
-                                    })}
-                                    {conditions.length === 0 && <Text style={s.emptyGridTxt}>No conditions</Text>}
-                                </View>
-                                <View style={s.gridFooter}>
-                                    <Text style={s.gridFooterTxt}>{conditions.length} condition{conditions.length !== 1 ? 's' : ''}</Text>
-                                </View>
-                            </Pressable>
-                        </Animated.View>
-
-                        {/* Allergies */}
-                        <Animated.View style={anim(3)}>
-                            <Pressable style={s.gridCard} onPress={() => openModal('allergy')}>
-                                <View style={s.gridHeader}>
-                                    <View style={[s.gridIconWrap, { backgroundColor: '#FEF3C7' }]}><TriangleAlert size={16} color="#F59E0B" /></View>
-                                    <Text style={s.gridTitle}>Allergies</Text>
-                                    <ChevronRight size={16} color="#CBD5E1" />
-                                </View>
-                                <View style={[s.gridBody, { flexDirection: 'row', flexWrap: 'wrap', gap: 6 }]}>
-                                    {allergies.map((a, i) => (
-                                        <Pressable key={i} style={s.gridChip} onPress={() => openModal('allergy', a)}>
-                                            <TriangleAlert size={10} color="#F59E0B" style={{marginRight: 4}} />
-                                            <Text style={s.gridChipTxt}>{a.name}</Text>
+                    {/* Current Conditions */}
+                    <Animated.View style={anim(2)}>
+                        <View style={s.gridCard}>
+                            <View style={s.gridHeader}>
+                                <View style={[s.gridIconWrap, { backgroundColor: '#FEE2E2' }]}><HeartPulse size={16} color="#EF4444" /></View>
+                                <Text style={s.gridTitle}>{t('health_profile.current_conditions', { defaultValue: 'Current Conditions' })}</Text>
+                                <Pressable style={s.gridAddBtn} onPress={() => openModal('condition')} hitSlop={10}>
+                                    <Plus size={16} color="#EF4444" />
+                                </Pressable>
+                            </View>
+                            <View style={s.gridBody}>
+                                {conditions.map((c, i) => {
+                                    const statStyle = CONDITION_STATUS[c.status] || CONDITION_STATUS.active;
+                                    return (
+                                        <Pressable key={i} style={s.gridRow} onPress={() => openModal('condition', c)}>
+                                            <View style={[s.gridDot, { backgroundColor: statStyle.text }]} />
+                                            <Text style={s.gridRowTxt} numberOfLines={1}>{c.name}</Text>
+                                            <View style={[s.miniPill, { backgroundColor: statStyle.bg }]}><Text style={[s.miniPillTxt, { color: statStyle.text }]}>{t(`health_profile.status_${c.status}`, { defaultValue: c.status })}</Text></View>
+                                            <ChevronRight size={14} color="#CBD5E1" style={{ marginLeft: 8 }} />
                                         </Pressable>
-                                    ))}
-                                    {allergies.length === 0 && <Text style={s.emptyGridTxt}>No allergies</Text>}
-                                </View>
-                                <View style={s.gridFooter}>
-                                    <Text style={s.gridFooterTxt}>{allergies.length} allerg{allergies.length !== 1 ? 'ies' : 'y'}</Text>
-                                </View>
-                            </Pressable>
-                        </Animated.View>
+                                    );
+                                })}
+                                {conditions.length === 0 && <Text style={s.emptyGridTxt}>{t('health_profile.no_conditions', { defaultValue: 'No conditions' })}</Text>}
+                            </View>
+                        </View>
+                    </Animated.View>
 
-                        {/* Wellness */}
-                        <Animated.View style={anim(4)}>
-                            <Pressable style={s.gridCard} onPress={() => openModal('vitals')}>
-                                <View style={s.gridHeader}>
-                                    <View style={[s.gridIconWrap, { backgroundColor: '#D1FAE5' }]}><Activity size={16} color="#10B981" /></View>
-                                    <Text style={s.gridTitle}>Wellness</Text>
-                                    <ChevronRight size={16} color="#CBD5E1" />
-                                </View>
-                                <View style={[s.gridBody, { flexDirection: 'row', gap: 6, paddingBottom: 6 }]}>
-                                    <View style={[s.wellBox, { borderColor: '#FEF3C7' }]}>
-                                        <Text style={[s.wellVal, { color: '#F59E0B' }]} adjustsFontSizeToFit numberOfLines={1}>{bmi || '—'}</Text>
-                                        <Text style={s.wellLbl}>BMI</Text>
-                                        <Text style={[s.wellSub, { color: '#F59E0B' }]}>{bmiTheme.label}</Text>
-                                    </View>
-                                    <View style={[s.wellBox, { borderColor: '#D1FAE5' }]}>
-                                        <Text style={[s.wellVal, { color: '#10B981' }]} adjustsFontSizeToFit numberOfLines={1}>{habitScore}%</Text>
-                                        <Text style={s.wellLbl}>Habits</Text>
-                                        <Text style={[s.wellSub, { color: '#10B981' }]}>{habitLabel}</Text>
-                                    </View>
-                                    <View style={[s.wellBox, { borderColor: '#D1FAE5' }]}>
-                                        <Text style={[s.wellVal, { color: '#10B981' }]} numberOfLines={1} adjustsFontSizeToFit>{trendLabel}</Text>
-                                        <Text style={s.wellLbl} numberOfLines={1} adjustsFontSizeToFit>Conditions</Text>
-                                        <Text style={[s.wellSub, { color: '#10B981' }]} numberOfLines={1} adjustsFontSizeToFit>{trendSub}</Text>
-                                    </View>
-                                </View>
-                                <View style={s.gridFooter}>
-                                    <Text style={[s.gridFooterTxt, { color: '#3B82F6', fontWeight: '700' }]}>View full wellness</Text>
-                                </View>
-                            </Pressable>
-                        </Animated.View>
+                    {/* Allergies */}
+                    <Animated.View style={anim(3)}>
+                        <View style={s.gridCard}>
+                            <View style={s.gridHeader}>
+                                <View style={[s.gridIconWrap, { backgroundColor: '#FEF3C7' }]}><TriangleAlert size={16} color="#F59E0B" /></View>
+                                <Text style={s.gridTitle}>{t('health_profile.allergies', { defaultValue: 'Allergies' })}</Text>
+                                <Pressable style={s.gridAddBtn} onPress={() => openModal('allergy')} hitSlop={10}>
+                                    <Plus size={16} color="#F59E0B" />
+                                </Pressable>
+                            </View>
+                            <View style={[s.gridBody, { flexDirection: 'row', flexWrap: 'wrap', gap: 6 }]}>
+                                {allergies.map((a, i) => (
+                                    <Pressable key={i} style={s.gridChip} onPress={() => openModal('allergy', a)}>
+                                        <TriangleAlert size={10} color="#F59E0B" style={{marginRight: 4}} />
+                                        <Text style={s.gridChipTxt}>{a.name}</Text>
+                                    </Pressable>
+                                ))}
+                                {allergies.length === 0 && <Text style={s.emptyGridTxt}>{t('health_profile.no_allergies', { defaultValue: 'No allergies' })}</Text>}
+                            </View>
+                        </View>
+                    </Animated.View>
 
-                    </View>
+                    {/* Wellness */}
+                    <Animated.View style={anim(4)}>
+                        <View style={s.gridCard}>
+                            <View style={s.gridHeader}>
+                                <View style={[s.gridIconWrap, { backgroundColor: '#D1FAE5' }]}><Activity size={16} color="#10B981" /></View>
+                                <Text style={s.gridTitle}>{t('health_profile.wellness', { defaultValue: 'Wellness' })}</Text>
+                                <Pressable style={s.gridAddBtn} onPress={() => openModal('vitals')} hitSlop={10}>
+                                    <Plus size={16} color="#10B981" />
+                                </Pressable>
+                            </View>
+                            <View style={[s.gridBody, { flexDirection: 'row', gap: 10, paddingBottom: 6 }]}>
+                                <Pressable style={[s.wellBox, { borderColor: '#FEF3C7' }]} onPress={() => openModal('vitals')}>
+                                    <Text style={[s.wellVal, { color: '#F59E0B' }]} adjustsFontSizeToFit numberOfLines={1}>{bmi || '—'}</Text>
+                                    <Text style={s.wellLbl}>{t('health_profile.bmi', { defaultValue: 'BMI' })}</Text>
+                                    <Text style={[s.wellSub, { color: '#F59E0B' }]}>{bmiTheme.label}</Text>
+                                </Pressable>
+                                <Pressable style={[s.wellBox, { borderColor: '#D1FAE5' }]} onPress={() => openModal('habits')}>
+                                    <Text style={[s.wellVal, { color: '#10B981' }]} adjustsFontSizeToFit numberOfLines={1}>{habitScore}%</Text>
+                                    <Text style={s.wellLbl}>{t('health_profile.habits', { defaultValue: 'Habits' })}</Text>
+                                    <Text style={[s.wellSub, { color: '#10B981' }]}>{habitLabel}</Text>
+                                </Pressable>
+                                <Pressable style={[s.wellBox, { borderColor: '#D1FAE5' }]} onPress={() => openModal('activity')}>
+                                    <Text style={[s.wellVal, { color: '#10B981' }]} numberOfLines={1} adjustsFontSizeToFit>{trendLabel}</Text>
+                                    <Text style={s.wellLbl} numberOfLines={1} adjustsFontSizeToFit>{t('health_profile.conditions', { defaultValue: 'Conditions' })}</Text>
+                                    <Text style={[s.wellSub, { color: '#10B981' }]} numberOfLines={1} adjustsFontSizeToFit>{trendSub}</Text>
+                                </Pressable>
+                            </View>
+                        </View>
+                    </Animated.View>
 
-                    {/* RIGHT COLUMN */}
-                    <View style={s.masonryCol}>
-                        
-                        {/* Medications */}
-                        <Animated.View style={anim(5)}>
-                            <Pressable style={s.gridCard} onPress={() => openModal('medication')}>
-                                <View style={s.gridHeader}>
-                                    <View style={[s.gridIconWrap, { backgroundColor: '#E0F2FE' }]}><Pill size={16} color="#3B82F6" /></View>
-                                    <Text style={s.gridTitle}>Medications</Text>
-                                    <ChevronRight size={16} color="#CBD5E1" />
-                                </View>
-                                <View style={s.gridBody}>
-                                    {['morning', 'evening', 'night'].map(time => {
-                                        const meds = activeMeds.filter(m => m.times?.includes(time));
-                                        if (meds.length === 0) return null;
-                                        return (
-                                            <View key={time} style={{ marginBottom: 12 }}>
-                                                <Text style={s.gridTimeLbl}>{time.charAt(0).toUpperCase() + time.slice(1)}</Text>
-                                                {meds.map((m, idx) => (
-                                                    <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
-                                                        <View style={s.tinyDot} />
-                                                        <Text style={s.gridMedTxt} numberOfLines={1} adjustsFontSizeToFit>{m.name} <Text style={{ color: '#94A3B8' }}>{m.dosage}</Text></Text>
-                                                    </View>
-                                                ))}
-                                            </View>
-                                        );
-                                    })}
-                                    {activeMeds.length === 0 && <Text style={s.emptyGridTxt}>No active meds</Text>}
-                                </View>
-                                <View style={s.gridFooter}>
-                                    <Text style={s.gridFooterTxt}>{activeMeds.length} active medication{activeMeds.length !== 1 ? 's' : ''}</Text>
-                                </View>
-                            </Pressable>
-                        </Animated.View>
+                    {/* Medications */}
+                    <Animated.View style={anim(5)}>
+                        <View style={s.gridCard}>
+                            <View style={s.gridHeader}>
+                                <View style={[s.gridIconWrap, { backgroundColor: '#E0F2FE' }]}><Pill size={16} color="#3B82F6" /></View>
+                                <Text style={s.gridTitle}>{t('health_profile.medications', { defaultValue: 'Medications' })}</Text>
+                                <Pressable style={s.gridAddBtn} onPress={() => openModal('medication')} hitSlop={10}>
+                                    <Plus size={16} color="#3B82F6" />
+                                </Pressable>
+                            </View>
+                            <View style={s.gridBody}>
+                                {['morning', 'afternoon', 'evening', 'night'].map(time => {
+                                    const meds = activeMeds.filter(m => m.times?.includes(time));
+                                    if (meds.length === 0) return null;
+                                    return (
+                                        <View key={time} style={{ marginBottom: 12 }}>
+                                            <Text style={s.gridTimeLbl}>{t(`health_profile.time_${time}`, { defaultValue: time.charAt(0).toUpperCase() + time.slice(1) })}</Text>
+                                            {meds.map((m, idx) => (
+                                                <Pressable key={idx} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }} onPress={() => openModal('medication', m)}>
+                                                    <View style={s.tinyDot} />
+                                                    <Text style={s.gridMedTxt} numberOfLines={1}>{m.name} <Text style={{ color: '#94A3B8', fontWeight: '500' }}>{m.dosage}</Text></Text>
+                                                    <ChevronRight size={14} color="#CBD5E1" />
+                                                </Pressable>
+                                            ))}
+                                        </View>
+                                    );
+                                })}
+                                {activeMeds.length === 0 && <Text style={s.emptyGridTxt}>{t('health_profile.no_meds', { defaultValue: 'No active meds' })}</Text>}
+                            </View>
+                        </View>
+                    </Animated.View>
 
-                        {/* Medical History */}
-                        <Animated.View style={anim(6)}>
-                            <Pressable style={s.gridCard} onPress={() => openModal('history')}>
-                                <View style={s.gridHeader}>
-                                    <View style={[s.gridIconWrap, { backgroundColor: '#F3E8FF' }]}><FileText size={16} color="#A855F7" /></View>
-                                    <Text style={s.gridTitle}>Medical History</Text>
-                                    <ChevronRight size={16} color="#CBD5E1" />
-                                </View>
-                                <View style={s.gridBody}>
-                                    {medical_history.slice(0, 2).map((h, i) => (
-                                        <View key={i} style={{ marginBottom: 10 }}>
+                    {/* Medical History */}
+                    <Animated.View style={anim(6)}>
+                        <View style={s.gridCard}>
+                            <View style={s.gridHeader}>
+                                <View style={[s.gridIconWrap, { backgroundColor: '#F3E8FF' }]}><FileText size={16} color="#A855F7" /></View>
+                                <Text style={s.gridTitle}>{t('health_profile.medical_history', { defaultValue: 'Medical History' })}</Text>
+                                <Pressable style={s.gridAddBtn} onPress={() => openModal('history')} hitSlop={10}>
+                                    <Plus size={16} color="#A855F7" />
+                                </Pressable>
+                            </View>
+                            <View style={s.gridBody}>
+                                {medical_history.slice(0, 3).map((h, i) => (
+                                    <Pressable key={i} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }} onPress={() => openModal('history', h)}>
+                                        <View style={{ flex: 1 }}>
                                             <Text style={s.gridHistoryTxt}>{h.event}</Text>
-                                            <Text style={s.gridHistorySub}>{h.date ? new Date(h.date).toLocaleDateString() : 'Unknown'}</Text>
+                                            <Text style={s.gridHistorySub}>{h.date ? new Date(h.date).toLocaleDateString() : t('health_profile.unknown_date', { defaultValue: 'Unknown' })}</Text>
                                         </View>
-                                    ))}
-                                    {medical_history.length === 0 && <Text style={s.emptyGridTxt}>No records</Text>}
-                                </View>
-                                <View style={s.gridFooter}>
-                                    <Text style={s.gridFooterTxt}>{medical_history.length} record{medical_history.length !== 1 ? 's' : ''}</Text>
-                                </View>
-                            </Pressable>
-                        </Animated.View>
+                                        <ChevronRight size={14} color="#CBD5E1" />
+                                    </Pressable>
+                                ))}
+                                {medical_history.length === 0 && <Text style={s.emptyGridTxt}>{t('health_profile.no_history', { defaultValue: 'No records' })}</Text>}
+                            </View>
+                        </View>
+                    </Animated.View>
 
-                        {/* Care Network */}
-                        <Animated.View style={anim(7)}>
-                            <Pressable style={s.gridCard} onPress={() => openModal('gp')}>
-                                <View style={s.gridHeader}>
-                                    <View style={[s.gridIconWrap, { backgroundColor: '#E0F2FE' }]}><Users size={16} color="#3B82F6" /></View>
-                                    <Text style={s.gridTitle}>Care Network</Text>
-                                    <ChevronRight size={16} color="#CBD5E1" />
-                                </View>
-                                <View style={s.gridBody}>
-                                    {gp.name && (
-                                        <View style={s.netRow}>
-                                            <View style={{ flex: 1, paddingRight: 6 }}>
-                                                <Text style={s.netName} numberOfLines={1}>{gp.name}</Text>
-                                                <Text style={s.netRole}>Primary Doctor</Text>
-                                            </View>
-                                            <Pressable style={[s.netBtn, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]} onPress={() => gp.phone && Linking.openURL(`tel:${gp.phone}`)}>
-                                                <Phone size={12} color="#3B82F6" style={{ marginRight: 4 }} />
-                                                <Text style={[s.netBtnTxt, { color: '#3B82F6' }]}>Call</Text>
-                                            </Pressable>
+                    {/* Care Network */}
+                    <Animated.View style={anim(7)}>
+                        <View style={s.gridCard}>
+                            <View style={s.gridHeader}>
+                                <View style={[s.gridIconWrap, { backgroundColor: '#E0F2FE' }]}><Users size={16} color="#3B82F6" /></View>
+                                <Text style={s.gridTitle}>{t('health_profile.care_network', { defaultValue: 'Care Network' })}</Text>
+                                <Pressable style={s.gridAddBtn} onPress={() => openModal('gp')} hitSlop={10}>
+                                    <Plus size={16} color="#3B82F6" />
+                                </Pressable>
+                            </View>
+                            <View style={s.gridBody}>
+                                {gp.name && (
+                                    <View style={s.netRow}>
+                                        <Pressable style={{ flex: 1, paddingRight: 6 }} onPress={() => openModal('gp')}>
+                                            <Text style={s.netName} numberOfLines={1}>{gp.name}</Text>
+                                            <Text style={s.netRole}>{t('health_profile.primary_doctor', { defaultValue: 'Primary Doctor' })}</Text>
+                                        </Pressable>
+                                        <Pressable style={[s.netBtn, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]} onPress={() => gp.phone && Linking.openURL(`tel:${gp.phone}`)}>
+                                            <Phone size={12} color="#3B82F6" style={{ marginRight: 4 }} />
+                                            <Text style={[s.netBtnTxt, { color: '#3B82F6' }]}>{t('health_profile.call', { defaultValue: 'Call' })}</Text>
+                                        </Pressable>
+                                    </View>
+                                )}
+                                {profile?.trusted_contacts?.filter(c => c.is_emergency).map((c, i) => (
+                                    <View key={'c'+i} style={[s.netRow, { marginTop: 10 }]}>
+                                        <View style={{ flex: 1, paddingRight: 6 }}>
+                                            <Text style={s.netName} numberOfLines={1}>{c.name}</Text>
+                                            <Text style={s.netRole}>{t('health_profile.emergency_contact', { defaultValue: 'Emergency Contact' })}</Text>
                                         </View>
-                                    )}
-                                    {profile?.trusted_contacts?.filter(c => c.is_emergency).map((c, i) => (
-                                        <View key={'c'+i} style={[s.netRow, { marginTop: 10 }]}>
-                                            <View style={{ flex: 1, paddingRight: 6 }}>
-                                                <Text style={s.netName} numberOfLines={1}>{c.name}</Text>
-                                                <Text style={s.netRole}>Emergency Contact</Text>
-                                            </View>
-                                            <Pressable style={[s.netBtn, { backgroundColor: '#FEF2F2', borderColor: '#FECACA' }]} onPress={() => Linking.openURL(`tel:${c.phone}`)}>
-                                                <Siren size={12} color="#EF4444" style={{ marginRight: 4 }} />
-                                                <Text style={[s.netBtnTxt, { color: '#EF4444' }]}>SOS</Text>
-                                            </Pressable>
-                                        </View>
-                                    ))}
-                                    {(!gp.name && !profile?.trusted_contacts?.length) && <Text style={s.emptyGridTxt}>No contacts</Text>}
-                                </View>
-                                <View style={s.gridFooter}>
-                                    <Text style={s.gridFooterTxt}>{(gp.name ? 1 : 0) + (profile?.trusted_contacts?.length || 0)} contact{((gp.name ? 1 : 0) + (profile?.trusted_contacts?.length || 0)) !== 1 ? 's' : ''}</Text>
-                                </View>
-                            </Pressable>
-                        </Animated.View>
-
-                    </View>
+                                        <Pressable style={[s.netBtn, { backgroundColor: '#FEF2F2', borderColor: '#FECACA' }]} onPress={() => Linking.openURL(`tel:${c.phone}`)}>
+                                            <Siren size={12} color="#EF4444" style={{ marginRight: 4 }} />
+                                            <Text style={[s.netBtnTxt, { color: '#EF4444' }]}>{t('health_profile.sos', { defaultValue: 'SOS' })}</Text>
+                                        </Pressable>
+                                    </View>
+                                ))}
+                                {(!gp.name && !profile?.trusted_contacts?.length) && <Text style={s.emptyGridTxt}>{t('health_profile.no_contacts', { defaultValue: 'No contacts' })}</Text>}
+                            </View>
+                        </View>
+                    </Animated.View>
 
                 </View>
 
@@ -1399,16 +1391,15 @@ const s = StyleSheet.create({
     alertDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#EF4444' },
     alertChipTxt: { fontSize: 12, ...FONT.bold, color: '#EF4444' },
 
-    masonryGrid: { flexDirection: 'row', gap: 12 },
-    masonryCol: { flex: 1, gap: 12 },
+    masonryGrid: { flexDirection: 'column', gap: 16 }, // Kept name to avoid breaking external refs, but it's now stacked
+    masonryCol: { flex: 1, gap: 16 },
     gridCard: { backgroundColor: '#FFF', borderRadius: 20, padding: 16, shadowColor: '#64748B', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.04, shadowRadius: 12, elevation: 3 },
     gridHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
     gridIconWrap: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginRight: 10 },
-    gridTitle: { flex: 1, fontSize: 14, ...FONT.bold, color: '#0F172A' },
-    gridBody: { paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: '#F8FAFC' },
-    gridFooter: { paddingTop: 12 },
-    gridFooterTxt: { fontSize: 11, ...FONT.medium, color: '#94A3B8' },
-    emptyGridTxt: { fontSize: 12, ...FONT.medium, color: '#94A3B8', fontStyle: 'italic' },
+    gridTitle: { flex: 1, fontSize: 15, ...FONT.bold, color: '#0F172A' },
+    gridAddBtn: { width: 32, height: 32, borderRadius: 10, backgroundColor: '#F8FAFC', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#F1F5F9' },
+    gridBody: { paddingBottom: 4 },
+    emptyGridTxt: { fontSize: 13, ...FONT.medium, color: '#94A3B8', fontStyle: 'italic', marginBottom: 10 },
 
     gridRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
     gridDot: { width: 6, height: 6, borderRadius: 3 },

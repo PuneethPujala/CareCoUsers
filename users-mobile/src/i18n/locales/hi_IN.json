@@ -29,5 +29,10 @@
     "account_security": "खाता और सुरक्षा",
     "sign_out": "खाते से बाहर निकलें",
     "deactivate": "खाता निष्क्रिय करें"
+  },
+  "common": {
+    "my_vitals": "मेरे वाइटल्स",
+    "ai_health_outlook": "AI स्वास्थ्य दृष्टिकोण",
+    "no_medications_yet": "अभी तक कोई दवा नहीं"
   }
 }
