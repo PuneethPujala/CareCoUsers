@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useMemo, useCallback, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     View, Text, StyleSheet, Animated, Pressable, ScrollView, SafeAreaView,
     Platform, Dimensions, Easing, RefreshControl, Modal, Alert,
@@ -282,6 +283,7 @@ const RECAP_TABS = ['weekly', 'monthly', 'yearly'];
 const RECAP_LABELS = { weekly: 'Weekly', monthly: 'Monthly', yearly: 'Yearly' };
 
 export default function AdherenceScreen({ navigation }) {
+    const { t } = useTranslation();
     const adherenceDetails = usePatientStore((s) => s.adherenceDetails);
     const adherenceRecap = usePatientStore((s) => s.adherenceRecap);
     const fetchAdherenceDetails = usePatientStore((s) => s.fetchAdherenceDetails);
@@ -407,7 +409,7 @@ export default function AdherenceScreen({ navigation }) {
                         <ChevronLeft size={22} color={C.dark} />
                     </Pressable>
                     <View style={{ flex: 1, marginLeft: 12 }}>
-                        <Text style={styles.headerTitle}>Adherence</Text>
+                        <Text style={styles.headerTitle}>{t('common.adherence', { defaultValue: 'Adherence' })}</Text>
                         <Text style={styles.headerSub}>Track your medication journey</Text>
                     </View>
                     <Pressable
@@ -626,7 +628,7 @@ export default function AdherenceScreen({ navigation }) {
                     {/* ── [4] 7-Day Trend ── */}
                     <Animated.View style={anim(4)}>
                         <View style={styles.card}>
-                            <Text style={styles.cardTitle}>7-DAY ADHERENCE TREND</Text>
+                            <Text style={styles.cardTitle}>{t('common.7_day_adherence_trend', { defaultValue: '7-DAY ADHERENCE TREND' })}</Text>
 
                             <View style={{ alignItems: 'center', marginHorizontal: -8, marginTop: 4, marginBottom: 16 }}>
                                 <LineChart
@@ -761,7 +763,7 @@ export default function AdherenceScreen({ navigation }) {
                                 <LinearGradient colors={['#7C3AED', '#4361EE']} style={styles.cardIconBox} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
                                     <Award size={15} color="#FFF" />
                                 </LinearGradient>
-                                <Text style={styles.cardTitle}>ACHIEVEMENTS</Text>
+                                <Text style={styles.cardTitle}>{t('common.achievements', { defaultValue: 'ACHIEVEMENTS' })}</Text>
                                 <View style={{ marginLeft: 'auto', backgroundColor: C.purpleBg, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10 }}>
                                     <Text style={{ fontSize: 11, fontWeight: '700', color: C.purple }}>
                                         {achievements.filter(a => a.unlocked).length}/{achievements.length}
