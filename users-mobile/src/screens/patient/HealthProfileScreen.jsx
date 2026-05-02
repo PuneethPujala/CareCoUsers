@@ -4,8 +4,9 @@ import SmartInput from '../../components/ui/SmartInput';
 import PremiumFormModal from '../../components/ui/PremiumFormModal';
 import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { TriangleAlert, ShieldCheck, HeartPulse, Activity, Droplet, Phone, Plus, Edit2, X, Trash2, CheckCircle2, RefreshCw, ChevronDown, Upload, Siren, ChevronRight, TrendingUp, BellRing, FileText, Pill, Syringe, Link2, Users, Calendar } from 'lucide-react-native';
+import { TriangleAlert, ShieldCheck, HeartPulse, Activity, Droplet, Phone, Plus, Edit2, X, Trash2, CheckCircle2, RefreshCw, ChevronDown, Upload, Siren, ChevronRight, TrendingUp, BellRing, FileText, Pill, Syringe, Link2, Users, Calendar, Info } from 'lucide-react-native';
 import { StatusBar } from 'react-native';
+import Svg, { Circle as SvgCircle } from 'react-native-svg';
 import { apiService } from '../../lib/api';
 import { initializeHealthPlatform, requestHealthPermissions, fetchDailyVitalsSummary, isHealthSupported } from '../../lib/healthIntegration';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -275,6 +276,12 @@ export default function HealthProfileScreen({ navigation }) {
         if (['condition', 'allergy', 'medication', 'vaccination', 'contact'].includes(editingType) && !formState.name?.trim()) {
             return Platform.OS === 'web' ? window.alert('Please provide a valid name.') : AlertManager.alert('Missing Field', 'Please provide a valid name.');
         }
+        if (editingType === 'identity' && formState.blood_type) {
+            const validTypes = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'unknown'];
+            if (!validTypes.includes(formState.blood_type)) {
+                return AlertManager.alert('Invalid Blood Type', 'Please select a valid blood type.');
+            }
+        }
         if (['contact'].includes(editingType) && !formState.phone?.trim()) {
             return Platform.OS === 'web' ? window.alert('Please provide a phone number.') : AlertManager.alert('Missing Field', 'Please provide a phone number.');
         }
@@ -537,6 +544,7 @@ export default function HealthProfileScreen({ navigation }) {
                     <View style={{ flex: 1 }}>
                         <Text style={s.headerEyebrow}>HEALTH VAULT</Text>
                         <Text style={s.headerTitle}>My Records</Text>
+                        <Text style={{ fontSize: 13, color: '#64748B', marginTop: 4, ...FONT.medium }}>Overview of your health and medical information</Text>
                     </View>
                     <Pressable style={s.headerBtn} onPress={() => navigation.navigate('Notifications')}>
                         <BellRing size={20} color="#0F172A" strokeWidth={2.5} />
@@ -546,305 +554,277 @@ export default function HealthProfileScreen({ navigation }) {
 
             <ScrollView contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
 
-                    {/* Completion Banner */}
-                    {completionPct < 100 && (
-                        <Animated.View style={anim(1)}>
-                            <Pressable style={s.completionBanner} onPress={handleCompletionClick}>
-                                <View style={[s.completionAccent, { backgroundColor: '#0284C7' }]} />
-                                <View style={s.completionInner}>
-                                    <View style={s.completionTitleRow}>
-                                        <Text style={s.completionTitle}>Profile Completion</Text>
-                                        <Text style={s.completionPctTxt}>{completionPct}%</Text>
-                                    </View>
-                                    <View style={s.progressBarBg}>
-                                        <View style={[s.progressBarFill, { width: `${completionPct}%` }]} />
-                                    </View>
-                                    <Text style={s.completionSub}>{completionPct >= 70 ? "You're doing great! Tap to see what's left." : 'Fill in more details for better care'}</Text>
+                {/* ── TOP DASHBOARD / HEALTH SCORE ── */}
+                <Animated.View style={anim(0)}>
+                    <View style={s.dashboardCard}>
+                        <View style={s.dashLeft}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                                <Text style={s.dashEyebrow}>HEALTH SCORE</Text>
+                                <Info size={12} color="#94A3B8" />
+                            </View>
+                            <View style={s.dashScoreRow}>
+                                <Text style={s.dashScoreMain}>{completionPct}</Text>
+                                <Text style={s.dashScoreSub}>/ 100</Text>
+                            </View>
+                            <View style={s.dashStatusRow}>
+                                <ShieldCheck size={14} color="#10B981" />
+                                <Text style={s.dashStatusTxt}>Stable</Text>
+                            </View>
+                            <View style={s.dashSyncRow}>
+                                <RefreshCw size={10} color="#94A3B8" />
+                                <Text style={s.dashSyncTxt}>Last sync: 2h ago</Text>
+                            </View>
+                        </View>
+                        <View style={s.dashCenter}>
+                            <View style={s.ringWrap}>
+                                <Svg width={80} height={80} viewBox="0 0 80 80">
+                                    <SvgCircle cx="40" cy="40" r="34" stroke="#EEF2FF" strokeWidth="8" fill="transparent" />
+                                    <SvgCircle cx="40" cy="40" r="34" stroke="#4F46E5" strokeWidth="8" fill="transparent" strokeDasharray={`${2 * Math.PI * 34}`} strokeDashoffset={`${2 * Math.PI * 34 * (1 - completionPct / 100)}`} strokeLinecap="round" transform="rotate(-90 40 40)" />
+                                </Svg>
+                                <HeartPulse size={24} color="#94A3B8" style={{ position: 'absolute' }} />
+                            </View>
+                        </View>
+                        <View style={s.dashRight}>
+                            <View style={s.dashMiniMetric}>
+                                <View style={[s.dashMiniIcon, { backgroundColor: '#EEF2FF' }]}><TrendingUp size={10} color="#4F46E5" /></View>
+                                <View>
+                                    <Text style={s.dashMiniLbl}>Good Habits</Text>
+                                    <Text style={[s.dashMiniVal, { color: '#10B981' }]}>{habitScore}%</Text>
                                 </View>
-                                <ChevronRight size={16} color={C.primary} style={{ marginRight: 14 }} />
+                            </View>
+                            <View style={s.dashMiniMetric}>
+                                <View style={[s.dashMiniIcon, { backgroundColor: '#FFF7ED' }]}><Users size={10} color="#F97316" /></View>
+                                <View>
+                                    <Text style={s.dashMiniLbl}>BMI</Text>
+                                    <Text style={[s.dashMiniVal, { color: '#F97316' }]}>{bmi || '—'}</Text>
+                                </View>
+                            </View>
+                            <View style={s.dashMiniMetric}>
+                                <View style={[s.dashMiniIcon, { backgroundColor: '#ECFDF5' }]}><ShieldCheck size={10} color="#10B981" /></View>
+                                <View>
+                                    <Text style={s.dashMiniLbl}>Conditions</Text>
+                                    <Text style={[s.dashMiniVal, { color: '#10B981' }]}>{trendLabel}</Text>
+                                </View>
+                            </View>
+                        </View>
+                    </View>
+                </Animated.View>
+
+                {/* ── HEALTH ALERTS ── */}
+                <Animated.View style={anim(1)}>
+                    <Pressable style={s.alertsCard}>
+                        <View style={s.alertHeader}>
+                            <View style={s.alertIconBox}><TriangleAlert size={18} color="#EF4444" /></View>
+                            <View style={{ flex: 1 }}>
+                                <Text style={s.alertTitle}>Health Alerts</Text>
+                                <Text style={s.alertSub}>{conditions.filter(c => c.status === 'active').length + allergies.filter(a => a.severity === 'severe').length} active alerts need your attention</Text>
+                            </View>
+                            <ChevronRight size={16} color="#94A3B8" />
+                        </View>
+                        <View style={s.alertChips}>
+                            {conditions.filter(c => c.status === 'active').map((c, i) => (
+                                <View key={'c'+i} style={s.alertChip}><View style={s.alertDot} /><Text style={s.alertChipTxt}>{c.name}</Text></View>
+                            ))}
+                            {allergies.filter(a => a.severity === 'severe').map((a, i) => (
+                                <View key={'a'+i} style={s.alertChip}><View style={s.alertDot} /><Text style={s.alertChipTxt}>{a.name} Allergy</Text></View>
+                            ))}
+                        </View>
+                    </Pressable>
+                </Animated.View>
+
+                {/* ── 2-COLUMN MASONRY GRID ── */}
+                <View style={s.masonryGrid}>
+                    
+                    {/* LEFT COLUMN */}
+                    <View style={s.masonryCol}>
+                        
+                        {/* Current Conditions */}
+                        <Animated.View style={anim(2)}>
+                            <Pressable style={s.gridCard} onPress={() => openModal('condition')}>
+                                <View style={s.gridHeader}>
+                                    <View style={[s.gridIconWrap, { backgroundColor: '#FEE2E2' }]}><HeartPulse size={16} color="#EF4444" /></View>
+                                    <Text style={s.gridTitle}>Current Conditions</Text>
+                                    <ChevronRight size={16} color="#CBD5E1" />
+                                </View>
+                                <View style={s.gridBody}>
+                                    {conditions.map((c, i) => {
+                                        const statStyle = CONDITION_STATUS[c.status] || CONDITION_STATUS.active;
+                                        return (
+                                            <View key={i} style={s.gridRow}>
+                                                <View style={[s.gridDot, { backgroundColor: statStyle.text }]} />
+                                                <Text style={s.gridRowTxt} numberOfLines={1}>{c.name}</Text>
+                                                <View style={[s.miniPill, { backgroundColor: statStyle.bg }]}><Text style={[s.miniPillTxt, { color: statStyle.text }]}>{c.status}</Text></View>
+                                            </View>
+                                        );
+                                    })}
+                                    {conditions.length === 0 && <Text style={s.emptyGridTxt}>No conditions</Text>}
+                                </View>
+                                <View style={s.gridFooter}>
+                                    <Text style={s.gridFooterTxt}>{conditions.length} condition{conditions.length !== 1 ? 's' : ''}</Text>
+                                </View>
                             </Pressable>
                         </Animated.View>
-                    )}
-
-                    {/* ── IDENTITY & SAFETY ── */}
-                    <Animated.View style={anim(1)}>
-                        <Text style={s.groupLabelTxt}>IDENTITY & SAFETY</Text>
-                        <View style={s.bentoGrid}>
-                            <Pressable style={s.bentoCard} onPress={() => openModal('identity')}>
-                                <View style={[s.bentoCircle, { backgroundColor: '#FEE2E2' }]}><Droplet size={18} color="#EF4444" /></View>
-                                <Text style={s.bentoVal}>{profile?.blood_type !== 'unknown' ? profile?.blood_type : '—'}</Text>
-                                <Text style={s.bentoLbl}>BLOOD TYPE</Text>
-                            </Pressable>
-                            <Pressable style={s.bentoCard} onPress={() => openModal('identity')}>
-                                <View style={[s.bentoCircle, { backgroundColor: '#D1FAE5' }]}><ShieldCheck size={18} color="#10B981" /></View>
-                                <Text style={s.bentoVal} numberOfLines={1}>{profile?.lifestyle?.dietary_restrictions?.length ? profile.lifestyle.dietary_restrictions[0] : 'None'}</Text>
-                                <Text style={s.bentoLbl}>DIET</Text>
-                            </Pressable>
-                            <Pressable style={s.bentoCard} onPress={() => openModal('contact')}>
-                                <View style={[s.bentoCircle, { backgroundColor: '#FEF3C7' }]}><BellRing size={18} color="#F59E0B" /></View>
-                                <Text style={s.bentoVal} numberOfLines={1}>
-                                    {profile?.trusted_contacts?.find(c => c.is_emergency)?.name || 'Not Set'}
-                                </Text>
-                                <Text style={s.bentoLbl}>
-                                    {profile?.trusted_contacts?.filter(c => c.is_emergency)?.length > 1 
-                                        ? `EMERGENCY (+${profile?.trusted_contacts?.filter(c => c.is_emergency)?.length - 1})` 
-                                        : 'EMERGENCY'}
-                                </Text>
-                            </Pressable>
-                        </View>
-                    </Animated.View>
-
-                    {/* ── MEDICAL RECORDS ── */}
-                    <Animated.View style={anim(2)}>
-                        <View style={s.groupHeaderRow}>
-                            <View style={[s.groupIconWrap, { backgroundColor: '#FEE2E2' }]}><HeartPulse size={14} color="#EF4444" /></View>
-                            <Text style={[s.groupLabelTxt, { marginBottom: 0, color: '#EF4444' }]}>MEDICAL RECORDS</Text>
-                        </View>
-
-                        {/* Conditions */}
-                        <View style={[s.docCard, { marginBottom: 12 }]}>
-                            <View style={[s.docAccentBar, { backgroundColor: '#EF4444' }]} />
-                            {renderHeader('Current Conditions', 'condition')}
-                            {conditions.map((c, i) => {
-                                const statStyle = CONDITION_STATUS[c.status] || CONDITION_STATUS.active;
-                                return (
-                                    <Pressable key={i} style={[s.rowItem, i === conditions.length - 1 && { borderBottomWidth: 0 }]} onPress={() => openModal('condition', c)}>
-                                        <View style={[s.iconBg, { backgroundColor: '#FEE2E2' }]}><HeartPulse size={18} color="#EF4444" /></View>
-                                        <View style={s.rowInfo}>
-                                            <Text style={s.rowTitle}>{c.name}</Text>
-                                            <Text style={s.rowSub}>{c.diagnosed_on ? new Date(c.diagnosed_on).getFullYear() : 'Unknown'} • <Text style={{ textTransform: 'capitalize' }}>{c.severity && c.severity !== 'unknown' ? c.severity : 'Unspecified'}</Text></Text>
-                                        </View>
-                                        <View style={[s.pill, { backgroundColor: statStyle.bg }]}><Text style={[s.pillTxt, { color: statStyle.text, textTransform: 'capitalize' }]}>{c.status}</Text></View>
-                                    </Pressable>
-                                );
-                            })}
-                            {conditions.length === 0 && <Text style={s.emptyRowTxt}>No active conditions</Text>}
-                        </View>
 
                         {/* Allergies */}
-                        <View style={[s.docCard, { marginBottom: 12 }]}>
-                            <View style={[s.docAccentBar, { backgroundColor: '#F59E0B' }]} />
-                            {renderHeader('Allergies', 'allergy')}
-                            <View style={s.chipWrap}>
-                                {allergies.map((a, i) => {
-                                    const sev = ALLERGY_SEVERITY[a.severity] || ALLERGY_SEVERITY.mild;
-                                    return (
-                                        <Pressable key={i} style={[s.allergyChip, { backgroundColor: sev.bg, borderColor: sev.border }]} onPress={() => openModal('allergy', a)}>
-                                            <TriangleAlert size={13} color={sev.text} style={{ marginRight: 6 }} />
-                                            <Text style={[s.allergyChipTxt, { color: sev.text }]}>{a.name}</Text>
+                        <Animated.View style={anim(3)}>
+                            <Pressable style={s.gridCard} onPress={() => openModal('allergy')}>
+                                <View style={s.gridHeader}>
+                                    <View style={[s.gridIconWrap, { backgroundColor: '#FEF3C7' }]}><TriangleAlert size={16} color="#F59E0B" /></View>
+                                    <Text style={s.gridTitle}>Allergies</Text>
+                                    <ChevronRight size={16} color="#CBD5E1" />
+                                </View>
+                                <View style={[s.gridBody, { flexDirection: 'row', flexWrap: 'wrap', gap: 6 }]}>
+                                    {allergies.map((a, i) => (
+                                        <Pressable key={i} style={s.gridChip} onPress={() => openModal('allergy', a)}>
+                                            <TriangleAlert size={10} color="#F59E0B" style={{marginRight: 4}} />
+                                            <Text style={s.gridChipTxt}>{a.name}</Text>
                                         </Pressable>
-                                    );
-                                })}
-                                {allergies.length === 0 && <Text style={[s.emptyRowTxt, { paddingTop: 0, paddingHorizontal: 0, width: '100%' }]}>No known allergies</Text>}
-                            </View>
-                        </View>
+                                    ))}
+                                    {allergies.length === 0 && <Text style={s.emptyGridTxt}>No allergies</Text>}
+                                </View>
+                                <View style={s.gridFooter}>
+                                    <Text style={s.gridFooterTxt}>{allergies.length} allerg{allergies.length !== 1 ? 'ies' : 'y'}</Text>
+                                </View>
+                            </Pressable>
+                        </Animated.View>
+
+                        {/* Wellness */}
+                        <Animated.View style={anim(4)}>
+                            <Pressable style={s.gridCard} onPress={() => openModal('vitals')}>
+                                <View style={s.gridHeader}>
+                                    <View style={[s.gridIconWrap, { backgroundColor: '#D1FAE5' }]}><Activity size={16} color="#10B981" /></View>
+                                    <Text style={s.gridTitle}>Wellness</Text>
+                                    <ChevronRight size={16} color="#CBD5E1" />
+                                </View>
+                                <View style={[s.gridBody, { flexDirection: 'row', gap: 6, paddingBottom: 6 }]}>
+                                    <View style={[s.wellBox, { borderColor: '#FEF3C7' }]}>
+                                        <Text style={[s.wellVal, { color: '#F59E0B' }]} adjustsFontSizeToFit numberOfLines={1}>{bmi || '—'}</Text>
+                                        <Text style={s.wellLbl}>BMI</Text>
+                                        <Text style={[s.wellSub, { color: '#F59E0B' }]}>{bmiTheme.label}</Text>
+                                    </View>
+                                    <View style={[s.wellBox, { borderColor: '#D1FAE5' }]}>
+                                        <Text style={[s.wellVal, { color: '#10B981' }]} adjustsFontSizeToFit numberOfLines={1}>{habitScore}%</Text>
+                                        <Text style={s.wellLbl}>Habits</Text>
+                                        <Text style={[s.wellSub, { color: '#10B981' }]}>{habitLabel}</Text>
+                                    </View>
+                                    <View style={[s.wellBox, { borderColor: '#D1FAE5' }]}>
+                                        <Text style={[s.wellVal, { color: '#10B981' }]} numberOfLines={1} adjustsFontSizeToFit>{trendLabel}</Text>
+                                        <Text style={s.wellLbl} numberOfLines={1} adjustsFontSizeToFit>Conditions</Text>
+                                        <Text style={[s.wellSub, { color: '#10B981' }]} numberOfLines={1} adjustsFontSizeToFit>{trendSub}</Text>
+                                    </View>
+                                </View>
+                                <View style={s.gridFooter}>
+                                    <Text style={[s.gridFooterTxt, { color: '#3B82F6', fontWeight: '700' }]}>View full wellness</Text>
+                                </View>
+                            </Pressable>
+                        </Animated.View>
+
+                    </View>
+
+                    {/* RIGHT COLUMN */}
+                    <View style={s.masonryCol}>
+                        
+                        {/* Medications */}
+                        <Animated.View style={anim(5)}>
+                            <Pressable style={s.gridCard} onPress={() => openModal('medication')}>
+                                <View style={s.gridHeader}>
+                                    <View style={[s.gridIconWrap, { backgroundColor: '#E0F2FE' }]}><Pill size={16} color="#3B82F6" /></View>
+                                    <Text style={s.gridTitle}>Medications</Text>
+                                    <ChevronRight size={16} color="#CBD5E1" />
+                                </View>
+                                <View style={s.gridBody}>
+                                    {['morning', 'evening', 'night'].map(time => {
+                                        const meds = activeMeds.filter(m => m.times?.includes(time));
+                                        if (meds.length === 0) return null;
+                                        return (
+                                            <View key={time} style={{ marginBottom: 12 }}>
+                                                <Text style={s.gridTimeLbl}>{time.charAt(0).toUpperCase() + time.slice(1)}</Text>
+                                                {meds.map((m, idx) => (
+                                                    <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                                                        <View style={s.tinyDot} />
+                                                        <Text style={s.gridMedTxt} numberOfLines={1} adjustsFontSizeToFit>{m.name} <Text style={{ color: '#94A3B8' }}>{m.dosage}</Text></Text>
+                                                    </View>
+                                                ))}
+                                            </View>
+                                        );
+                                    })}
+                                    {activeMeds.length === 0 && <Text style={s.emptyGridTxt}>No active meds</Text>}
+                                </View>
+                                <View style={s.gridFooter}>
+                                    <Text style={s.gridFooterTxt}>{activeMeds.length} active medication{activeMeds.length !== 1 ? 's' : ''}</Text>
+                                </View>
+                            </Pressable>
+                        </Animated.View>
 
                         {/* Medical History */}
-                        <View style={[s.docCard, { marginBottom: 20 }]}>
-                            <View style={[s.docAccentBar, { backgroundColor: '#3B82F6' }]} />
-                            {renderHeader('Medical History', 'history')}
-                            {medical_history.map((h, i) => (
-                                <Pressable key={i} style={[s.rowItem, i === medical_history.length - 1 && { borderBottomWidth: 0 }]} onPress={() => openModal('history', h)}>
-                                    <View style={[s.iconBg, { backgroundColor: '#DBEAFE' }]}><FileText size={18} color="#3B82F6" /></View>
-                                    <View style={s.rowInfo}>
-                                        <Text style={s.rowTitle}>{h.event}</Text>
-                                        <Text style={s.rowSub}>{h.date ? new Date(h.date).toLocaleDateString('en-IN') : 'Unknown'}{h.notes ? ` • ${h.notes}` : ''}</Text>
-                                    </View>
+                        <Animated.View style={anim(6)}>
+                            <Pressable style={s.gridCard} onPress={() => openModal('history')}>
+                                <View style={s.gridHeader}>
+                                    <View style={[s.gridIconWrap, { backgroundColor: '#F3E8FF' }]}><FileText size={16} color="#A855F7" /></View>
+                                    <Text style={s.gridTitle}>Medical History</Text>
                                     <ChevronRight size={16} color="#CBD5E1" />
-                                </Pressable>
-                            ))}
-                            {medical_history.length === 0 && <Text style={s.emptyRowTxt}>No medical history recorded</Text>}
-                        </View>
-                    </Animated.View>
-
-                    {/* ── TREATMENT PLAN ── */}
-                    <Animated.View style={anim(3)}>
-                        <View style={s.groupHeaderRow}>
-                            <View style={[s.groupIconWrap, { backgroundColor: '#E0F2FE' }]}><Pill size={14} color="#0284C7" /></View>
-                            <Text style={[s.groupLabelTxt, { marginBottom: 0, color: '#0284C7' }]}>TREATMENT PLAN</Text>
-                        </View>
-
-                        {/* Active Medications */}
-                        <View style={[s.docCard, { marginBottom: 12 }]}>
-                            <View style={[s.docAccentBar, { backgroundColor: '#0284C7' }]} />
-                            {renderHeader('Current Medications', 'medication', true)}
-                            {activeMeds.map((m, i) => (
-                                <View key={i} style={[s.rowItem, i === activeMeds.length - 1 && { borderBottomWidth: 0 }]}>
-                                    <View style={[s.iconBg, { backgroundColor: '#E0F2FE' }]}><Pill size={18} color="#0284C7" /></View>
-                                    <View style={s.rowInfo}>
-                                        <Text style={s.rowTitle}>{m.name}</Text>
-                                        <Text style={s.rowSub}>{m.dosage} • {m.frequency}</Text>
-                                    </View>
-                                    <View style={[s.pill, { backgroundColor: '#E0F2FE' }]}><Text style={[s.pillTxt, { color: '#0284C7' }]}>Active</Text></View>
                                 </View>
-                            ))}
-                            {activeMeds.length === 0 && <Text style={s.emptyRowTxt}>No active medications</Text>}
-                        </View>
-
-                        {/* Inactive Medications */}
-                        {inactiveMeds.length > 0 && (
-                            <View style={[s.docCard, { marginBottom: 12, opacity: 0.7 }]}>
-                                {renderHeader('Previous Medications', 'medication', true)}
-                                {inactiveMeds.map((m, i) => (
-                                    <View key={i} style={[s.rowItem, i === inactiveMeds.length - 1 && { borderBottomWidth: 0 }]}>
-                                        <View style={[s.iconBg, { backgroundColor: '#F1F5F9' }]}><Pill size={18} color="#94A3B8" /></View>
-                                        <View style={s.rowInfo}>
-                                            <Text style={[s.rowTitle, { color: '#64748B' }]}>{m.name}</Text>
-                                            <Text style={s.rowSub}>{m.dosage} • {m.frequency}</Text>
+                                <View style={s.gridBody}>
+                                    {medical_history.slice(0, 2).map((h, i) => (
+                                        <View key={i} style={{ marginBottom: 10 }}>
+                                            <Text style={s.gridHistoryTxt}>{h.event}</Text>
+                                            <Text style={s.gridHistorySub}>{h.date ? new Date(h.date).toLocaleDateString() : 'Unknown'}</Text>
                                         </View>
-                                        <View style={[s.pill, { backgroundColor: '#F1F5F9' }]}><Text style={[s.pillTxt, { color: '#64748B' }]}>Inactive</Text></View>
-                                    </View>
-                                ))}
-                            </View>
-                        )}
+                                    ))}
+                                    {medical_history.length === 0 && <Text style={s.emptyGridTxt}>No records</Text>}
+                                </View>
+                                <View style={s.gridFooter}>
+                                    <Text style={s.gridFooterTxt}>{medical_history.length} record{medical_history.length !== 1 ? 's' : ''}</Text>
+                                </View>
+                            </Pressable>
+                        </Animated.View>
 
-                        {/* Vaccinations */}
-                        <View style={[s.docCard, { marginBottom: 20 }]}>
-                            <View style={[s.docAccentBar, { backgroundColor: '#10B981' }]} />
-                            {renderHeader('Vaccinations', 'vaccination')}
-                            {vaccinations.map((vac, i) => (
-                                <Pressable key={i} style={[s.rowItem, i === vaccinations.length - 1 && { borderBottomWidth: 0 }]} onPress={() => openModal('vaccination', vac)}>
-                                    <View style={[s.iconBg, { backgroundColor: '#D1FAE5' }]}><Syringe size={18} color="#10B981" /></View>
-                                    <View style={s.rowInfo}>
-                                        <Text style={s.rowTitle}>{vac.name}</Text>
-                                        <Text style={s.rowSub}>Given: {vac.date_given ? new Date(vac.date_given).toLocaleDateString() : 'Unknown'}</Text>
-                                    </View>
-                                    <CheckCircle2 size={18} color="#10B981" />
-                                </Pressable>
-                            ))}
-                            {vaccinations.length === 0 && <Text style={s.emptyRowTxt}>No vaccinations recorded</Text>}
-                        </View>
-                    </Animated.View>
-
-                    {/* ── SCHEDULE ── */}
-                    <Animated.View style={anim(4)}>
-                        <View style={s.groupHeaderRow}>
-                            <View style={[s.groupIconWrap, { backgroundColor: '#CFFAFE' }]}><Calendar size={14} color="#06B6D4" /></View>
-                            <Text style={[s.groupLabelTxt, { marginBottom: 0, color: '#06B6D4' }]}>SCHEDULE</Text>
-                        </View>
-                        <View style={[s.docCard, { marginBottom: 20 }]}>
-                            <View style={[s.docAccentBar, { backgroundColor: '#06B6D4' }]} />
-                            {renderHeader('Upcoming Appointments', 'appointment')}
-                            {appointments.map((app, i) => (
-                                <Pressable key={i} style={[s.rowItem, i === appointments.length - 1 && { borderBottomWidth: 0 }]} onPress={() => openModal('appointment', app)}>
-                                    <View style={[s.iconBg, { backgroundColor: '#CFFAFE' }]}><Calendar size={18} color="#06B6D4" /></View>
-                                    <View style={s.rowInfo}>
-                                        <Text style={s.rowTitle}>{app.title}</Text>
-                                        <Text style={s.rowSub}>{app.doctor_name} • {new Date(app.date).toLocaleDateString()}</Text>
-                                    </View>
+                        {/* Care Network */}
+                        <Animated.View style={anim(7)}>
+                            <Pressable style={s.gridCard} onPress={() => openModal('gp')}>
+                                <View style={s.gridHeader}>
+                                    <View style={[s.gridIconWrap, { backgroundColor: '#E0F2FE' }]}><Users size={16} color="#3B82F6" /></View>
+                                    <Text style={s.gridTitle}>Care Network</Text>
                                     <ChevronRight size={16} color="#CBD5E1" />
-                                </Pressable>
-                            ))}
-                            {appointments.length === 0 && <Text style={s.emptyRowTxt}>No upcoming appointments</Text>}
-                        </View>
-                    </Animated.View>
-
-                    {/* ── WELLNESS ── */}
-                    <Animated.View style={anim(5)}>
-                        <View style={s.groupHeaderRow}>
-                            <View style={[s.groupIconWrap, { backgroundColor: '#D1FAE5' }]}><Activity size={14} color="#10B981" /></View>
-                            <Text style={[s.groupLabelTxt, { marginBottom: 0, color: '#10B981' }]}>WELLNESS</Text>
-                        </View>
-                        <View style={[s.monitoringRow, { marginBottom: 20 }]}>
-                            <Pressable style={[s.metricCard, { backgroundColor: '#FFFBEB' }]} onPress={() => openModal('vitals')}>
-                                <Droplet size={20} color="#D97706" />
-                                <Text style={[s.metricVal, { color: '#D97706' }]}>{bmi || '—'}</Text>
-                                <Text style={s.metricLbl}>BMI</Text>
-                                <Text style={[s.metricSub, { color: bmi ? (parseFloat(bmi) < 25 ? '#10B981' : '#F59E0B') : '#94A3B8' }]}>{bmiTheme.label}</Text>
-                            </Pressable>
-                            <Pressable style={[s.metricCard, { backgroundColor: '#FFF1F2' }]} onPress={() => openModal('habits')}>
-                                <Activity size={20} color="#F43F5E" />
-                                <Text style={[s.metricVal, { color: '#F43F5E' }]}>{habitScore}%</Text>
-                                <Text style={s.metricLbl}>HABITS</Text>
-                                <Text style={[s.metricSub, { color: habitColor }]}>{habitLabel}</Text>
-                            </Pressable>
-                            <Pressable style={[s.metricCard, { backgroundColor: '#F0FDF4' }]} onPress={() => openModal('condition')}>
-                                <TrendingUp size={20} color="#10B981" />
-                                <Text style={[s.metricVal, { color: '#10B981' }]} numberOfLines={1} adjustsFontSizeToFit>{trendLabel}</Text>
-                                <Text style={s.metricLbl} numberOfLines={1} adjustsFontSizeToFit>CONDITIONS</Text>
-                                <Text style={[s.metricSub, { color: trendColor }]} numberOfLines={1} adjustsFontSizeToFit>{trendSub}</Text>
-                            </Pressable>
-                        </View>
-                    </Animated.View>
-
-                    {/* ── CARE NETWORK ── */}
-                    <Animated.View style={anim(6)}>
-                        <View style={s.groupHeaderRow}>
-                            <View style={[s.groupIconWrap, { backgroundColor: '#E0F2FE' }]}><Users size={14} color="#0284C7" /></View>
-                            <Text style={[s.groupLabelTxt, { marginBottom: 0, color: '#0284C7' }]}>CARE NETWORK</Text>
-                        </View>
-
-                        {/* Wearable Sync */}
-                        {isHealthSupported() && (
-                            <View style={[s.docCard, { marginBottom: 12 }]}>
-                                <View style={[s.rowItem, { borderBottomWidth: 0 }]}>
-                                    <View style={[s.iconBg, { backgroundColor: '#E0F2FE' }]}><Link2 size={20} color="#0284C7" /></View>
-                                    <View style={s.rowInfo}>
-                                        <Text style={s.rowTitle}>Health Connect</Text>
-                                        <Text style={s.rowSub}>Sync smartwatch vitals</Text>
-                                    </View>
-                                    <Pressable style={s.syncBtn} onPress={handleWearableSync} disabled={isSyncing}>
-                                        {isSyncing ? <ActivityIndicator size="small" color="#FFF" /> : <RefreshCw size={15} color="#FFF" />}
-                                        {!isSyncing && <Text style={s.syncBtnTxt}>Sync</Text>}
-                                    </Pressable>
                                 </View>
-                            </View>
-                        )}
-
-                        {/* Care Team */}
-                        <View style={[s.docCard, { marginBottom: 12 }]}>
-                            <View style={[s.docAccentBar, { backgroundColor: '#0284C7' }]} />
-                            {renderHeader('Care Team & Contacts', 'contact')}
-                            {profile?.trusted_contacts?.map((c, i) => (
-                                <Pressable key={i} style={[s.rowItem, i === profile.trusted_contacts.length - 1 && { borderBottomWidth: 0 }]} onPress={() => openModal('contact', c)}>
-                                    <View style={[s.iconBg, { backgroundColor: c.is_emergency ? '#FEE2E2' : '#DBEAFE' }]}>
-                                        {c.is_emergency ? <Siren size={20} color="#EF4444" /> : <Users size={20} color="#3B82F6" />}
-                                    </View>
-                                    <View style={s.rowInfo}>
-                                        <Text style={s.rowTitle}>{c.name}</Text>
-                                        <Text style={s.rowSub}>{c.relation} • {c.phone}</Text>
-                                    </View>
-                                    {c.is_emergency
-                                        ? <View style={[s.pill, { backgroundColor: '#FEE2E2' }]}><Text style={[s.pillTxt, { color: '#DC2626' }]}>SOS</Text></View>
-                                        : <ChevronRight size={16} color="#CBD5E1" />
-                                    }
-                                </Pressable>
-                            ))}
-                            {(!profile?.trusted_contacts || profile.trusted_contacts.length === 0) && <Text style={s.emptyRowTxt}>No care team members added</Text>}
-                        </View>
-
-                        {/* Primary Doctor */}
-                        <View style={[s.docCard, { marginBottom: 20 }]}>
-                            <View style={[s.docAccentBar, { backgroundColor: '#F43F5E' }]} />
-                            <View style={s.sectionHeaderRow}>
-                                <Text style={s.sectionHeaderBase}>Primary Doctor</Text>
-                                <Pressable style={({ pressed }) => [s.addBtn, pressed && { opacity: 0.7 }]} onPress={() => openModal('gp')}>
-                                    <Edit2 size={14} color="#FFF" strokeWidth={3} />
-                                </Pressable>
-                            </View>
-                            {gp.name ? (
-                                <>
-                                    <View style={s.gpRow}>
-                                        <View style={s.gpAvatar}>
-                                            <Text style={s.gpAvatarTxt}>{gp.name.charAt(0).toUpperCase()}</Text>
+                                <View style={s.gridBody}>
+                                    {gp.name && (
+                                        <View style={s.netRow}>
+                                            <View style={{ flex: 1, paddingRight: 6 }}>
+                                                <Text style={s.netName} numberOfLines={1}>{gp.name}</Text>
+                                                <Text style={s.netRole}>Primary Doctor</Text>
+                                            </View>
+                                            <Pressable style={[s.netBtn, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]} onPress={() => gp.phone && Linking.openURL(`tel:${gp.phone}`)}>
+                                                <Phone size={12} color="#3B82F6" style={{ marginRight: 4 }} />
+                                                <Text style={[s.netBtnTxt, { color: '#3B82F6' }]}>Call</Text>
+                                            </Pressable>
                                         </View>
-                                        <View style={s.gpInfo}>
-                                            <Text style={s.gpName}>{gp.name}</Text>
-                                            <Text style={s.gpDetail}>{gp.phone || gp.email || 'No contact info'}</Text>
-                                        </View>
-                                    </View>
-                                    {gp.phone && (
-                                        <Pressable style={s.callBtn} onPress={() => Linking.openURL(`tel:${gp.phone}`)}>
-                                            <Phone size={16} color="#FFF" />
-                                            <Text style={s.callBtnTxt}>Call Doctor</Text>
-                                        </Pressable>
                                     )}
-                                </>
-                            ) : <Text style={s.emptyRowTxt}>No Primary Doctor assigned</Text>}
-                        </View>
-                    </Animated.View>
+                                    {profile?.trusted_contacts?.filter(c => c.is_emergency).map((c, i) => (
+                                        <View key={'c'+i} style={[s.netRow, { marginTop: 10 }]}>
+                                            <View style={{ flex: 1, paddingRight: 6 }}>
+                                                <Text style={s.netName} numberOfLines={1}>{c.name}</Text>
+                                                <Text style={s.netRole}>Emergency Contact</Text>
+                                            </View>
+                                            <Pressable style={[s.netBtn, { backgroundColor: '#FEF2F2', borderColor: '#FECACA' }]} onPress={() => Linking.openURL(`tel:${c.phone}`)}>
+                                                <Siren size={12} color="#EF4444" style={{ marginRight: 4 }} />
+                                                <Text style={[s.netBtnTxt, { color: '#EF4444' }]}>SOS</Text>
+                                            </Pressable>
+                                        </View>
+                                    ))}
+                                    {(!gp.name && !profile?.trusted_contacts?.length) && <Text style={s.emptyGridTxt}>No contacts</Text>}
+                                </View>
+                                <View style={s.gridFooter}>
+                                    <Text style={s.gridFooterTxt}>{(gp.name ? 1 : 0) + (profile?.trusted_contacts?.length || 0)} contact{((gp.name ? 1 : 0) + (profile?.trusted_contacts?.length || 0)) !== 1 ? 's' : ''}</Text>
+                                </View>
+                            </Pressable>
+                        </Animated.View>
 
-                </ScrollView>
+                    </View>
+
+                </View>
+
+            </ScrollView>
 
             {/* ── Dynamic Form Modal ── */}
             <PremiumFormModal
@@ -1389,4 +1369,71 @@ const s = StyleSheet.create({
     countryFlag: { fontSize: 24, marginRight: 12 },
     countryName: { flex: 1, fontSize: 16, color: '#0F172A', ...FONT.medium },
     countryCodeText: { fontSize: 16, color: C.primary, ...FONT.bold },
+
+    // ── NEW LAYOUT STYLES ──
+    dashboardCard: { backgroundColor: '#FFF', borderRadius: 24, padding: 20, flexDirection: 'row', alignItems: 'center', shadowColor: '#4F46E5', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.08, shadowRadius: 24, elevation: 6, marginBottom: 20 },
+    dashLeft: { flex: 1, paddingRight: 12 },
+    dashEyebrow: { fontSize: 11, ...FONT.heavy, color: '#94A3B8', letterSpacing: 1 },
+    dashScoreRow: { flexDirection: 'row', alignItems: 'baseline', marginBottom: 12 },
+    dashScoreMain: { fontSize: 48, ...FONT.heavy, color: '#3B82F6', letterSpacing: -2 },
+    dashScoreSub: { fontSize: 16, ...FONT.bold, color: '#94A3B8', marginLeft: 4 },
+    dashStatusRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
+    dashStatusTxt: { fontSize: 13, ...FONT.bold, color: '#10B981' },
+    dashSyncRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+    dashSyncTxt: { fontSize: 11, ...FONT.medium, color: '#94A3B8' },
+    dashCenter: { paddingHorizontal: 12, alignItems: 'center', justifyContent: 'center' },
+    ringWrap: { width: 80, height: 80, alignItems: 'center', justifyContent: 'center' },
+    dashRight: { gap: 12, paddingLeft: 12, borderLeftWidth: 1, borderLeftColor: '#F1F5F9' },
+    dashMiniMetric: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    dashMiniIcon: { width: 24, height: 24, borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
+    dashMiniLbl: { fontSize: 10, ...FONT.bold, color: '#64748B' },
+    dashMiniVal: { fontSize: 13, ...FONT.heavy },
+
+    alertsCard: { backgroundColor: '#FFF', borderRadius: 20, padding: 16, marginBottom: 20, shadowColor: '#EF4444', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.06, shadowRadius: 16, elevation: 4 },
+    alertHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16 },
+    alertIconBox: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#FEF2F2', alignItems: 'center', justifyContent: 'center' },
+    alertTitle: { fontSize: 15, ...FONT.bold, color: '#0F172A', marginBottom: 2 },
+    alertSub: { fontSize: 12, ...FONT.medium, color: '#64748B' },
+    alertChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    alertChip: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#FEF2F2', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20 },
+    alertDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#EF4444' },
+    alertChipTxt: { fontSize: 12, ...FONT.bold, color: '#EF4444' },
+
+    masonryGrid: { flexDirection: 'row', gap: 12 },
+    masonryCol: { flex: 1, gap: 12 },
+    gridCard: { backgroundColor: '#FFF', borderRadius: 20, padding: 16, shadowColor: '#64748B', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.04, shadowRadius: 12, elevation: 3 },
+    gridHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
+    gridIconWrap: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginRight: 10 },
+    gridTitle: { flex: 1, fontSize: 14, ...FONT.bold, color: '#0F172A' },
+    gridBody: { paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: '#F8FAFC' },
+    gridFooter: { paddingTop: 12 },
+    gridFooterTxt: { fontSize: 11, ...FONT.medium, color: '#94A3B8' },
+    emptyGridTxt: { fontSize: 12, ...FONT.medium, color: '#94A3B8', fontStyle: 'italic' },
+
+    gridRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
+    gridDot: { width: 6, height: 6, borderRadius: 3 },
+    gridRowTxt: { flex: 1, fontSize: 13, ...FONT.bold, color: '#334155' },
+    miniPill: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
+    miniPillTxt: { fontSize: 9, ...FONT.heavy, textTransform: 'uppercase' },
+
+    gridChip: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20, backgroundColor: '#FFFBEB', borderWidth: 1, borderColor: '#FEF3C7', flexDirection: 'row', alignItems: 'center' },
+    gridChipTxt: { fontSize: 11, ...FONT.bold, color: '#D97706' },
+
+    wellBox: { flex: 1, backgroundColor: '#FFF', borderWidth: 1, borderRadius: 12, padding: 8, alignItems: 'center' },
+    wellVal: { fontSize: 15, ...FONT.heavy, marginBottom: 2 },
+    wellLbl: { fontSize: 10, ...FONT.bold, color: '#64748B', marginBottom: 2 },
+    wellSub: { fontSize: 9, ...FONT.heavy },
+
+    gridTimeLbl: { fontSize: 12, ...FONT.bold, color: '#3B82F6', marginBottom: 6 },
+    tinyDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: '#0F172A', marginRight: 8 },
+    gridMedTxt: { fontSize: 12, ...FONT.bold, color: '#0F172A', flex: 1 },
+
+    gridHistoryTxt: { fontSize: 13, ...FONT.bold, color: '#0F172A', marginBottom: 2 },
+    gridHistorySub: { fontSize: 11, ...FONT.medium, color: '#94A3B8' },
+
+    netRow: { flexDirection: 'row', alignItems: 'center' },
+    netName: { fontSize: 13, ...FONT.bold, color: '#0F172A', marginBottom: 2 },
+    netRole: { fontSize: 11, ...FONT.medium, color: '#94A3B8' },
+    netBtn: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 12, borderWidth: 1 },
+    netBtnTxt: { fontSize: 11, ...FONT.bold },
 });

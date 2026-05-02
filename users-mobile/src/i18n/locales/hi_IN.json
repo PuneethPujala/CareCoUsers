@@ -1,0 +1,33 @@
+{
+  "tabs": {
+    "home": "होम",
+    "meds": "दवाइयाँ",
+    "vitals": "स्वास्थ्य डेटा",
+    "profile": "प्रोफ़ाइल"
+  },
+  "home": {
+    "good_morning": "सुप्रभात",
+    "good_afternoon": "शुभ दोपहर",
+    "good_evening": "शुभ संध्या",
+    "care_record": "आपका केयर रिकॉर्ड",
+    "todays_plan": "आज की योजना",
+    "vitals": "स्वास्थ्य डेटा"
+  },
+  "time_slots": {
+    "morning": "सुबह",
+    "afternoon": "दोपहर",
+    "evening": "शाम",
+    "night": "रात",
+    "as_needed": "जरूरत अनुसार"
+  },
+  "profile": {
+    "personal_info": "व्यक्तिगत जानकारी",
+    "saved_addresses": "सेव किए गए पते",
+    "care_records": "देखभाल और रिकॉर्ड",
+    "health_info": "स्वास्थ्य जानकारी",
+    "notifications": "सूचनाएं और प्राथमिकताएं",
+    "account_security": "खाता और सुरक्षा",
+    "sign_out": "खाते से बाहर निकलें",
+    "deactivate": "खाता निष्क्रिय करें"
+  }
+}
