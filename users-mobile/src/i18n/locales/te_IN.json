@@ -29,5 +29,10 @@
     "account_security": "ఖాతా మరియు భద్రత",
     "sign_out": "ఖాతా నుండి సైన్ అవుట్ చేయండి",
     "deactivate": "ఖాతాను క్రియారహితం చేయండి"
+  },
+  "common": {
+    "my_vitals": "నా వైటల్స్",
+    "ai_health_outlook": "AI ఆరోగ్య దృక్పథం",
+    "no_medications_yet": "ఇంకా మందులు లేవు"
   }
 }
