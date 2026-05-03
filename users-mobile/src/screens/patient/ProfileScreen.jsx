@@ -215,20 +215,20 @@ export default function PatientProfileScreen({ navigation }) {
             setPatient(prev => ({ ...prev, emergency_contact: {} }));
             setEcName(''); setEcPhone(''); setEcPhoneCode('+91'); setEcRelation('');
             setEcModalVisible(false);
-            AlertManager.alert('Success', 'Emergency contact removed.');
-        } catch { AlertManager.alert('Error', 'Failed to remove emergency contact.'); }
+            AlertManager.alert(t('common.success', { defaultValue: 'Success' }), t('profile.ec_removed', { defaultValue: 'Emergency contact removed.' }));
+        } catch { AlertManager.alert(t('common.error', { defaultValue: 'Error' }), t('profile.ec_remove_error', { defaultValue: 'Failed to remove emergency contact.' })); }
         finally { setSaving(false); }
     };
 
     const handleSaveEC = async () => {
         const nameRegex = /^[a-zA-Z\s'-]+$/;
         if (ecName && !nameRegex.test(ecName)) {
-            AlertManager.alert('Invalid Name', 'Contact names can only contain letters, spaces, hyphens, and apostrophes.');
+            AlertManager.alert(t('profile.invalid_name', { defaultValue: 'Invalid Name' }), t('profile.name_regex_error', { defaultValue: 'Contact names can only contain letters, spaces, hyphens, and apostrophes.' }));
             return;
         }
         if (ecPhone) {
             const phoneErr = validatePhone(ecPhone, ecPhoneCode);
-            if (phoneErr) { AlertManager.alert('Invalid Phone', phoneErr); return; }
+            if (phoneErr) { AlertManager.alert(t('profile.invalid_phone', { defaultValue: 'Invalid Phone' }), phoneErr); return; }
         }
         setSaving(true);
         const fullEcPhone = ecPhone ? `${ecPhoneCode}${ecPhone.replace(/[^0-9]/g, '')}` : '';
@@ -236,19 +236,19 @@ export default function PatientProfileScreen({ navigation }) {
             await apiService.patients.updateEmergencyContact({ name: ecName, phone: fullEcPhone, relation: ecRelation });
             setPatient(prev => ({ ...prev, emergency_contact: { name: ecName, phone: fullEcPhone, relation: ecRelation } }));
             setEcModalVisible(false);
-            AlertManager.alert('Success', 'Emergency contact updated.');
-        } catch { AlertManager.alert('Error', 'Failed to update emergency contact.'); }
+            AlertManager.alert(t('common.success', { defaultValue: 'Success' }), t('profile.ec_updated', { defaultValue: 'Emergency contact updated.' }));
+        } catch { AlertManager.alert(t('common.error', { defaultValue: 'Error' }), t('profile.ec_update_error', { defaultValue: 'Failed to update emergency contact.' })); }
         finally { setSaving(false); }
     };
 
     const handleSaveAccount = async () => {
         const nameRegex = /^[a-zA-Z\s'-]+$/;
         if (editName && !nameRegex.test(editName)) {
-            AlertManager.alert('Invalid Name', 'Names can only contain letters, spaces, hyphens, and apostrophes.');
+            AlertManager.alert(t('profile.invalid_name', { defaultValue: 'Invalid Name' }), t('profile.name_regex_error_account', { defaultValue: 'Names can only contain letters, spaces, hyphens, and apostrophes.' }));
             return;
         }
         if (editName && editName.trim().length < 2) {
-            AlertManager.alert('Too Short', 'Name must be at least 2 characters.');
+            AlertManager.alert(t('profile.too_short', { defaultValue: 'Too Short' }), t('profile.name_too_short', { defaultValue: 'Name must be at least 2 characters.' }));
             return;
         }
         setSavingAccount(true);
@@ -263,9 +263,9 @@ export default function PatientProfileScreen({ navigation }) {
             setEditAccountModalVisible(false);
         } catch (err) {
             if (err?.name === 'AbortError' || err?.code === 'ECONNABORTED') {
-                AlertManager.alert('Slow Connection', 'The server is waking up. Your changes were saved locally — please try again in a few seconds.');
+                AlertManager.alert(t('profile.slow_connection', { defaultValue: 'Slow Connection' }), t('profile.slow_connection_desc', { defaultValue: 'The server is waking up. Your changes were saved locally — please try again in a few seconds.' }));
             } else {
-                AlertManager.alert('Error', 'Failed to update profile.');
+                AlertManager.alert(t('common.error', { defaultValue: 'Error' }), t('profile.profile_update_error', { defaultValue: 'Failed to update profile.' }));
             }
         } finally {
             setSavingAccount(false);
@@ -302,11 +302,11 @@ export default function PatientProfileScreen({ navigation }) {
                         setPushEnabled(false);
                         await apiService.patients.updateMe({ push_notifications_enabled: false });
                         AlertManager.alert(
-                            'Notifications Blocked',
-                            'You previously denied notification permissions. Please enable them in your device Settings to receive health reminders.',
+                            t('profile.notifications_blocked', { defaultValue: 'Notifications Blocked' }),
+                            t('profile.notifications_blocked_desc', { defaultValue: 'You previously denied notification permissions. Please enable them in your device Settings to receive health reminders.' }),
                             [
-                                { text: 'Cancel', style: 'cancel' },
-                                { text: 'Open Settings', onPress: () => Linking.openSettings() },
+                                { text: t('common.cancel', { defaultValue: 'Cancel' }), style: 'cancel' },
+                                { text: t('profile.open_settings', { defaultValue: 'Open Settings' }), onPress: () => Linking.openSettings() },
                             ]
                         );
                     } else {
@@ -335,15 +335,15 @@ export default function PatientProfileScreen({ navigation }) {
 
     const handleSavePhone = async () => {
         const phoneErr = validatePhone(editPhone, editPhoneCode);
-        if (phoneErr) { AlertManager.alert('Invalid Phone', phoneErr); return; }
+        if (phoneErr) { AlertManager.alert(t('profile.invalid_phone', { defaultValue: 'Invalid Phone' }), phoneErr); return; }
         const fullPhone = `${editPhoneCode}${editPhone.replace(/[^0-9]/g, '')}`;
         setSaving(true);
         try {
             await apiService.patients.updateMe({ phone: fullPhone });
             setPatient(prev => ({ ...prev, phone: fullPhone }));
             setPhoneModalVisible(false);
-            AlertManager.alert('Success', 'Phone number updated.');
-        } catch { AlertManager.alert('Error', 'Failed to update phone number.'); }
+            AlertManager.alert(t('common.success', { defaultValue: 'Success' }), t('profile.phone_updated', { defaultValue: 'Phone number updated.' }));
+        } catch { AlertManager.alert(t('common.error', { defaultValue: 'Error' }), t('profile.phone_update_error', { defaultValue: 'Failed to update phone number.' })); }
         finally { setSaving(false); }
     };
 
@@ -363,7 +363,7 @@ export default function PatientProfileScreen({ navigation }) {
             await apiService.patients.updateMe({ gender: g });
             setPatient(prev => ({ ...prev, gender: g }));
             setGenderModalVisible(false);
-        } catch { AlertManager.alert('Error', 'Failed to update gender.'); }
+        } catch { AlertManager.alert(t('common.error', { defaultValue: 'Error' }), t('profile.gender_update_error', { defaultValue: 'Failed to update gender.' })); }
     };
 
     const handleSelectBlood = async (b) => {
@@ -371,7 +371,7 @@ export default function PatientProfileScreen({ navigation }) {
             await apiService.patients.updateMe({ blood_type: b });
             setPatient(prev => ({ ...prev, blood_type: b }));
             setBloodModalVisible(false);
-        } catch { AlertManager.alert('Error', 'Failed to update blood group.'); }
+        } catch { AlertManager.alert(t('common.error', { defaultValue: 'Error' }), t('profile.blood_update_error', { defaultValue: 'Failed to update blood group.' })); }
     };
 
     const handleSaveDob = async () => {
@@ -381,8 +381,8 @@ export default function PatientProfileScreen({ navigation }) {
             await apiService.patients.updateMe({ date_of_birth: dateStr });
             setPatient(prev => ({ ...prev, date_of_birth: dateStr }));
             setDobModalVisible(false);
-            AlertManager.alert('Success', 'Date of birth updated.');
-        } catch { AlertManager.alert('Error', 'Failed to update date of birth.'); }
+            AlertManager.alert(t('common.success', { defaultValue: 'Success' }), t('profile.dob_updated', { defaultValue: 'Date of birth updated.' }));
+        } catch { AlertManager.alert(t('common.error', { defaultValue: 'Error' }), t('profile.dob_update_error', { defaultValue: 'Failed to update date of birth.' })); }
         finally { setSaving(false); }
     };
 
@@ -393,12 +393,12 @@ export default function PatientProfileScreen({ navigation }) {
         try {
             await apiService.patients.updateMe({ language: langCode });
             const langName = LANGUAGES.find(l => l.code === langCode)?.label || langCode;
-            AlertManager.alert('Language Updated', `App language set to ${langName}.`);
-        } catch { AlertManager.alert('Error', 'Failed to save language preference.'); }
+            AlertManager.alert(t('profile.language_updated', { defaultValue: 'Language Updated' }), t('profile.language_set_to', { defaultValue: 'App language set to {{langName}}.', langName }));
+        } catch { AlertManager.alert(t('common.error', { defaultValue: 'Error' }), t('profile.language_update_error', { defaultValue: 'Failed to save language preference.' })); }
     };
 
     const handleAddAddress = async () => {
-        if (!addrLine.trim()) { AlertManager.alert('Error', 'Please enter an address.'); return; }
+        if (!addrLine.trim()) { AlertManager.alert(t('common.error', { defaultValue: 'Error' }), t('profile.enter_address_error', { defaultValue: 'Please enter an address.' })); return; }
         setSaving(true);
         try {
             const { data } = await apiService.patients.addSavedAddress({
@@ -407,8 +407,8 @@ export default function PatientProfileScreen({ navigation }) {
             setSavedAddresses(data.saved_addresses || []);
             setAddAddressModalVisible(false);
             setAddrLine(''); setAddrCity(''); setAddrState(''); setAddrPostcode('');
-            AlertManager.alert('Success', 'Address saved.');
-        } catch { AlertManager.alert('Error', 'Failed to save address.'); }
+            AlertManager.alert(t('common.success', { defaultValue: 'Success' }), t('profile.address_saved', { defaultValue: 'Address saved.' }));
+        } catch { AlertManager.alert(t('common.error', { defaultValue: 'Error' }), t('profile.address_save_error', { defaultValue: 'Failed to save address.' })); }
         finally { setSaving(false); }
     };
 
@@ -416,40 +416,40 @@ export default function PatientProfileScreen({ navigation }) {
         try {
             const { data } = await apiService.patients.deleteSavedAddress(id);
             setSavedAddresses(data.saved_addresses || []);
-        } catch { AlertManager.alert('Error', 'Failed to delete address.'); }
+        } catch { AlertManager.alert(t('common.error', { defaultValue: 'Error' }), t('profile.address_delete_error', { defaultValue: 'Failed to delete address.' })); }
     };
 
     const handleChangePassword = async () => {
-        if (!currentPassword || !newPassword || !confirmPassword) { AlertManager.alert('Error', 'Please fill all fields.'); return; }
-        if (newPassword !== confirmPassword) { AlertManager.alert('Error', 'Passwords do not match.'); return; }
+        if (!currentPassword || !newPassword || !confirmPassword) { AlertManager.alert(t('common.error', { defaultValue: 'Error' }), t('profile.fill_all_fields', { defaultValue: 'Please fill all fields.' })); return; }
+        if (newPassword !== confirmPassword) { AlertManager.alert(t('common.error', { defaultValue: 'Error' }), t('profile.passwords_do_not_match', { defaultValue: 'Passwords do not match.' })); return; }
         setSavingCp(true);
         try {
             await apiService.auth.changePassword({ currentPassword, newPassword });
             setCpModalVisible(false);
             setCurrentPassword(''); setNewPassword(''); setConfirmPassword('');
-            AlertManager.alert('Success', 'Password changed. Please log back in.');
+            AlertManager.alert(t('common.success', { defaultValue: 'Success' }), t('profile.password_changed', { defaultValue: 'Password changed. Please log back in.' }));
             signOut();
-        } catch (err) { AlertManager.alert('Error', err?.message || 'Failed to change password.'); }
+        } catch (err) { AlertManager.alert(t('common.error', { defaultValue: 'Error' }), err?.message || t('profile.password_change_error', { defaultValue: 'Failed to change password.' })); }
         finally { setSavingCp(false); }
     };
 
     const handleSetPassword = async () => {
-        if (!setPassNew || !setPassConfirm) { AlertManager.alert('Error', 'Please fill all fields.'); return; }
-        if (setPassNew.length < 8) { AlertManager.alert('Error', 'Password must be at least 8 characters.'); return; }
-        if (!/[A-Z]/.test(setPassNew)) { AlertManager.alert('Error', 'Password must contain an uppercase letter.'); return; }
-        if (!/[0-9]/.test(setPassNew)) { AlertManager.alert('Error', 'Password must contain a number.'); return; }
-        if (setPassNew !== setPassConfirm) { AlertManager.alert('Error', 'Passwords do not match.'); return; }
+        if (!setPassNew || !setPassConfirm) { AlertManager.alert(t('common.error', { defaultValue: 'Error' }), t('profile.fill_all_fields', { defaultValue: 'Please fill all fields.' })); return; }
+        if (setPassNew.length < 8) { AlertManager.alert(t('common.error', { defaultValue: 'Error' }), t('profile.password_min_length', { defaultValue: 'Password must be at least 8 characters.' })); return; }
+        if (!/[A-Z]/.test(setPassNew)) { AlertManager.alert(t('common.error', { defaultValue: 'Error' }), t('profile.password_uppercase', { defaultValue: 'Password must contain an uppercase letter.' })); return; }
+        if (!/[0-9]/.test(setPassNew)) { AlertManager.alert(t('common.error', { defaultValue: 'Error' }), t('profile.password_number', { defaultValue: 'Password must contain a number.' })); return; }
+        if (setPassNew !== setPassConfirm) { AlertManager.alert(t('common.error', { defaultValue: 'Error' }), t('profile.passwords_do_not_match', { defaultValue: 'Passwords do not match.' })); return; }
         setSavingSetPass(true);
         try {
             await apiService.auth.setPassword(setPassNew);
             setSetPassModalVisible(false);
             setSetPassNew(''); setSetPassConfirm('');
-            AlertManager.alert('Success', 'Password set! Please log in again with your new password.', [
-                { text: 'OK', onPress: () => signOut() }
+            AlertManager.alert(t('common.success', { defaultValue: 'Success' }), t('profile.password_set_success', { defaultValue: 'Password set! Please log in again with your new password.' }), [
+                { text: t('common.ok', { defaultValue: 'OK' }), onPress: () => signOut() }
             ]);
         } catch (err) {
-            const msg = err?.response?.data?.error || err?.message || 'Failed to set password.';
-            AlertManager.alert('Error', msg);
+            const msg = err?.response?.data?.error || err?.message || t('profile.password_set_error', { defaultValue: 'Failed to set password.' });
+            AlertManager.alert(t('common.error', { defaultValue: 'Error' }), msg);
         } finally {
             setSavingSetPass(false);
         }
@@ -486,13 +486,13 @@ export default function PatientProfileScreen({ navigation }) {
             setScreenshotOTP('');
             setScreenshotOTPModalVisible(true);
         } catch (err) {
-            AlertManager.alert('Error', err.response?.data?.error || 'Failed to request OTP. Please try again later.');
+            AlertManager.alert(t('common.error', { defaultValue: 'Error' }), err.response?.data?.error || t('profile.request_otp_error', { defaultValue: 'Failed to request OTP. Please try again later.' }));
         }
     };
 
     const handleVerifyScreenshotOTP = async () => {
         if (!screenshotOTP || screenshotOTP.length !== 6) {
-            AlertManager.alert('Invalid', 'Please enter a valid 6-digit OTP.');
+            AlertManager.alert(t('common.invalid', { defaultValue: 'Invalid' }), t('profile.invalid_otp', { defaultValue: 'Please enter a valid 6-digit OTP.' }));
             return;
         }
         setVerifyingScreenshotOTP(true);
@@ -501,9 +501,9 @@ export default function PatientProfileScreen({ navigation }) {
             usePatientStore.getState().setPatient(res.data.patient);
             setPatient(res.data.patient);
             setScreenshotOTPModalVisible(false);
-            AlertManager.alert('Security Updated', res.data.message);
+            AlertManager.alert(t('profile.security_updated', { defaultValue: 'Security Updated' }), res.data.message);
         } catch (err) {
-            AlertManager.alert('Verification Failed', err.response?.data?.error || 'Invalid or expired OTP.');
+            AlertManager.alert(t('profile.verification_failed', { defaultValue: 'Verification Failed' }), err.response?.data?.error || t('profile.invalid_expired_otp', { defaultValue: 'Invalid or expired OTP.' }));
         } finally {
             setVerifyingScreenshotOTP(false);
         }
@@ -600,15 +600,15 @@ export default function PatientProfileScreen({ navigation }) {
                 <Animated.View style={anim(3)}>
                     <Text style={s.sectionTitle}>{t('profile.personal_info', { defaultValue: 'PERSONAL INFORMATION' })}</Text>
                     <View style={s.card}>
-                        <InfoRow icon={User2} iconBg="#EFF6FF" iconColor="#3B82F6" label="Full Name" value={patient?.name || displayName} placeholder="Add Name" onPress={() => { setEditName(patient?.name || ''); setEditAccountModalVisible(true); }} />
-                        <InfoRow icon={Phone} iconBg="#F0FDF4" iconColor="#22C55E" label="Phone Number" value={patient?.phone} placeholder="Add Phone" onPress={() => { const p = parsePhoneWithCode(patient?.phone || ''); setEditPhoneCode(p.code); setEditPhone(p.number); setPhoneModalVisible(true); }}
+                        <InfoRow icon={User2} iconBg="#EFF6FF" iconColor="#3B82F6" label={t('profile.full_name', { defaultValue: 'Full Name' })} value={patient?.name || displayName} placeholder={t('profile.add_name', { defaultValue: 'Add Name' })} onPress={() => { setEditName(patient?.name || ''); setEditAccountModalVisible(true); }} />
+                        <InfoRow icon={Phone} iconBg="#F0FDF4" iconColor="#22C55E" label={t('profile.phone_number', { defaultValue: 'Phone Number' })} value={patient?.phone} placeholder={t('profile.add_phone', { defaultValue: 'Add Phone' })} onPress={() => { const p = parsePhoneWithCode(patient?.phone || ''); setEditPhoneCode(p.code); setEditPhone(p.number); setPhoneModalVisible(true); }}
                             rightElement={patient?.phone ? <View style={s.verifiedBadge}><ShieldCheck size={16} color={C.success} /></View> : <ChevronRight size={18} color={C.light} />}
                         />
-                        <InfoRow icon={Mail} iconBg="#EFF6FF" iconColor="#6366F1" label="Email Address" value={userEmail} placeholder="Add Email" onPress={() => AlertManager.alert('Email Locked', 'Your email is linked to your login credentials and cannot be changed. Contact support if you need assistance.')} rightElement={<View style={s.verifiedBadge}><LockIcon size={14} color={C.muted} /></View>} />
-                        <InfoRow icon={Calendar} iconBg="#EFF6FF" iconColor="#3B82F6" label="Date of Birth" value={dobStr} placeholder="Add DOB" onPress={() => setDobModalVisible(true)} />
-                        <InfoRow icon={Users} iconBg="#EEF2FF" iconColor="#6366F1" label="Gender" value={genderStr} placeholder="Not specified" onPress={() => setGenderModalVisible(true)} />
-                        <InfoRow icon={Droplets} iconBg="#FFF1F2" iconColor="#EF4444" label="Blood Group" value={bloodStr} placeholder="Add Blood Group" onPress={() => setBloodModalVisible(true)} />
-                        <InfoRow icon={Heart} iconBg="#F5F3FF" iconColor="#8B5CF6" label="Emergency Contact" value={ecStr} placeholder="Add Emergency Contact" onPress={() => setEcModalVisible(true)} isLast />
+                        <InfoRow icon={Mail} iconBg="#EFF6FF" iconColor="#6366F1" label={t('profile.email_address', { defaultValue: 'Email Address' })} value={userEmail} placeholder={t('profile.add_email', { defaultValue: 'Add Email' })} onPress={() => AlertManager.alert(t('profile.email_locked_title', { defaultValue: 'Email Locked' }), t('profile.email_locked_desc', { defaultValue: 'Your email is linked to your login credentials and cannot be changed. Contact support if you need assistance.' }))} rightElement={<View style={s.verifiedBadge}><LockIcon size={14} color={C.muted} /></View>} />
+                        <InfoRow icon={Calendar} iconBg="#EFF6FF" iconColor="#3B82F6" label={t('profile.dob', { defaultValue: 'Date of Birth' })} value={dobStr} placeholder={t('profile.add_dob', { defaultValue: 'Add DOB' })} onPress={() => setDobModalVisible(true)} />
+                        <InfoRow icon={Users} iconBg="#EEF2FF" iconColor="#6366F1" label={t('profile.gender', { defaultValue: 'Gender' })} value={genderStr} placeholder={t('profile.not_specified', { defaultValue: 'Not specified' })} onPress={() => setGenderModalVisible(true)} />
+                        <InfoRow icon={Droplets} iconBg="#FFF1F2" iconColor="#EF4444" label={t('profile.blood_group', { defaultValue: 'Blood Group' })} value={bloodStr} placeholder={t('profile.add_blood_group', { defaultValue: 'Add Blood Group' })} onPress={() => setBloodModalVisible(true)} />
+                        <InfoRow icon={Heart} iconBg="#F5F3FF" iconColor="#8B5CF6" label={t('profile.emergency_contact', { defaultValue: 'Emergency Contact' })} value={ecStr} placeholder={t('profile.add_emergency_contact', { defaultValue: 'Add Emergency Contact' })} onPress={() => setEcModalVisible(true)} isLast />
                     </View>
                 </Animated.View>
 
@@ -616,7 +616,7 @@ export default function PatientProfileScreen({ navigation }) {
                 <Animated.View style={anim(4)}>
                     <Text style={s.sectionTitle}>{t('profile.saved_addresses', { defaultValue: 'SAVED ADDRESSES' })}</Text>
                     <View style={s.card}>
-                        <InfoRow icon={MapPin} iconBg="#EFF6FF" iconColor="#3B82F6" label="Manage Addresses" value={savedAddresses.length ? `${savedAddresses.length} saved` : null} placeholder="Add your addresses" onPress={() => setAddressModalVisible(true)} isLast />
+                        <InfoRow icon={MapPin} iconBg="#EFF6FF" iconColor="#3B82F6" label={t('profile.manage_addresses', { defaultValue: 'Manage Addresses' })} value={savedAddresses.length ? `${savedAddresses.length} ${t('profile.saved', { defaultValue: 'saved' })}` : null} placeholder={t('profile.add_addresses', { defaultValue: 'Add your addresses' })} onPress={() => setAddressModalVisible(true)} isLast />
                     </View>
                 </Animated.View>
 
@@ -624,10 +624,10 @@ export default function PatientProfileScreen({ navigation }) {
                 <Animated.View style={anim(5)}>
                     <Text style={s.sectionTitle}>{t('profile.care_records', { defaultValue: 'CARE & RECORDS' })}</Text>
                     <View style={s.card}>
-                        <InfoRow icon={ClipboardList} iconBg="#EFF6FF" iconColor="#3B82F6" label="Care Logs" value="Track your care interactions" placeholder="" onPress={() => navigation.navigate('MyCaller')} />
-                        <InfoRow icon={TrendingUp} iconBg="#F0FDF4" iconColor="#16A34A" label="Medication Adherence" value="View consistency" placeholder="" onPress={() => navigation.navigate('AdherenceDetails')} />
-                        <InfoRow icon={FileText} iconBg="#F0FDF4" iconColor="#22C55E" label="My Medications" value="View active prescriptions" placeholder="" onPress={() => navigation.navigate('Medications')} />
-                        <InfoRow icon={FlaskConical} iconBg="#FFF7ED" iconColor="#F97316" label="Vitals & Lab Reports" value="Digital storage for test results" placeholder="" onPress={() => navigation.navigate('HealthProfile')} isLast />
+                        <InfoRow icon={ClipboardList} iconBg="#EFF6FF" iconColor="#3B82F6" label={t('profile.care_logs', { defaultValue: 'Care Logs' })} value={t('profile.track_care', { defaultValue: 'Track your care interactions' })} placeholder="" onPress={() => navigation.navigate('MyCaller')} />
+                        <InfoRow icon={TrendingUp} iconBg="#F0FDF4" iconColor="#16A34A" label={t('profile.medication_adherence', { defaultValue: 'Medication Adherence' })} value={t('profile.view_consistency', { defaultValue: 'View consistency' })} placeholder="" onPress={() => navigation.navigate('AdherenceDetails')} />
+                        <InfoRow icon={FileText} iconBg="#F0FDF4" iconColor="#22C55E" label={t('profile.my_medications', { defaultValue: 'My Medications' })} value={t('profile.view_active_prescriptions', { defaultValue: 'View active prescriptions' })} placeholder="" onPress={() => navigation.navigate('Medications')} />
+                        <InfoRow icon={FlaskConical} iconBg="#FFF7ED" iconColor="#F97316" label={t('profile.vitals_lab_reports', { defaultValue: 'Vitals & Lab Reports' })} value={t('profile.digital_storage', { defaultValue: 'Digital storage for test results' })} placeholder="" onPress={() => navigation.navigate('HealthProfile')} isLast />
                     </View>
                 </Animated.View>
 
@@ -635,8 +635,8 @@ export default function PatientProfileScreen({ navigation }) {
                 <Animated.View style={anim(6)}>
                     <Text style={s.sectionTitle}>{t('profile.health_info', { defaultValue: 'HEALTH INFORMATION' })}</Text>
                     <View style={s.card}>
-                        <InfoRow icon={Heart} iconBg="#FFF1F2" iconColor="#EF4444" label="My Medical Records" value="Allergies, chronic diseases, etc." placeholder="" onPress={() => navigation.navigate('HealthProfile')} />
-                        <InfoRow icon={Users} iconBg="#EEF2FF" iconColor="#6366F1" label="Family Profiles" value="Manage health records of your family" placeholder="" onPress={() => setFamilyModalVisible(true)} isLast />
+                        <InfoRow icon={Heart} iconBg="#FFF1F2" iconColor="#EF4444" label={t('profile.my_medical_records', { defaultValue: 'My Medical Records' })} value={t('profile.allergies_chronic', { defaultValue: 'Allergies, chronic diseases, etc.' })} placeholder="" onPress={() => navigation.navigate('HealthProfile')} />
+                        <InfoRow icon={Users} iconBg="#EEF2FF" iconColor="#6366F1" label={t('profile.family_profiles', { defaultValue: 'Family Profiles' })} value={t('profile.manage_health_records', { defaultValue: 'Manage health records of your family' })} placeholder="" onPress={() => setFamilyModalVisible(true)} isLast />
                     </View>
                 </Animated.View>
 
@@ -649,8 +649,8 @@ export default function PatientProfileScreen({ navigation }) {
                                 <BellRing size={20} color="#8B5CF6" strokeWidth={2} />
                             </View>
                             <View style={s.infoTextCol}>
-                                <Text style={s.infoLabel}>Push Notifications</Text>
-                                <Text style={[s.infoValue, { color: C.muted }]}>{pushEnabled ? 'Enabled' : 'Disabled'}</Text>
+                                <Text style={s.infoLabel}>{t('profile.push_notifications', { defaultValue: 'Push Notifications' })}</Text>
+                                <Text style={[s.infoValue, { color: C.muted }]}>{pushEnabled ? t('profile.enabled', { defaultValue: 'Enabled' }) : t('profile.disabled', { defaultValue: 'Disabled' })}</Text>
                             </View>
                             <Switch
                                 trackColor={{ false: '#E2E8F0', true: '#818CF8' }}
@@ -664,8 +664,8 @@ export default function PatientProfileScreen({ navigation }) {
                                 <Clock size={20} color="#F97316" strokeWidth={2} />
                             </View>
                             <View style={s.infoTextCol}>
-                                <Text style={s.infoLabel}>Medicine Reminders</Text>
-                                <Text style={[s.infoValue, { color: C.muted }]}>{medReminders ? 'On' : 'Off'}</Text>
+                                <Text style={s.infoLabel}>{t('profile.medicine_reminders', { defaultValue: 'Medicine Reminders' })}</Text>
+                                <Text style={[s.infoValue, { color: C.muted }]}>{medReminders ? t('common.on', { defaultValue: 'On' }) : t('common.off', { defaultValue: 'Off' })}</Text>
                             </View>
                             <Switch
                                 trackColor={{ false: '#E2E8F0', true: '#818CF8' }}
@@ -674,8 +674,8 @@ export default function PatientProfileScreen({ navigation }) {
                                 value={medReminders}
                             />
                         </View>
-                        <InfoRow icon={Globe} iconBg="#EFF6FF" iconColor="#3B82F6" label="Language" value={LANGUAGES.find(l => l.code === selectedLang)?.label || 'English (India)'} placeholder="" onPress={() => setLanguageModalVisible(true)} />
-                        <InfoRow icon={Shield} iconBg="#F0FDF4" iconColor="#16A34A" label="Privacy Policy" value={null} placeholder="Read our policy" onPress={() => WebBrowser.openBrowserAsync('https://CareMyMed.com/privacy-policy')} isLast />
+                        <InfoRow icon={Globe} iconBg="#EFF6FF" iconColor="#3B82F6" label={t('profile.language', { defaultValue: 'Language' })} value={LANGUAGES.find(l => l.code === selectedLang)?.label || 'English (India)'} placeholder="" onPress={() => setLanguageModalVisible(true)} />
+                        <InfoRow icon={Shield} iconBg="#F0FDF4" iconColor="#16A34A" label={t('profile.privacy_policy', { defaultValue: 'Privacy Policy' })} value={null} placeholder={t('profile.read_policy', { defaultValue: 'Read our policy' })} onPress={() => WebBrowser.openBrowserAsync('https://CareMyMed.com/privacy-policy')} isLast />
                     </View>
                 </Animated.View>
 
@@ -683,11 +683,11 @@ export default function PatientProfileScreen({ navigation }) {
                 <Animated.View style={anim(8)}>
                     <Text style={s.sectionTitle}>{t('profile.account_security', { defaultValue: 'ACCOUNT & SECURITY' })}</Text>
                     <View style={s.card}>
-                        <InfoRow icon={UserRound} iconBg="#EFF6FF" iconColor="#3B82F6" label="Account Details" value={null} placeholder="View details" onPress={() => setAccountModalVisible(true)} />
+                        <InfoRow icon={UserRound} iconBg="#EFF6FF" iconColor="#3B82F6" label={t('profile.account_details', { defaultValue: 'Account Details' })} value={null} placeholder={t('profile.view_details', { defaultValue: 'View details' })} onPress={() => setAccountModalVisible(true)} />
                         {patient?.hasPassword ? (
-                            <InfoRow icon={Shield} iconBg="#F5F3FF" iconColor="#8B5CF6" label="Change Password" value={null} placeholder="Update credentials" onPress={() => setCpModalVisible(true)} />
+                            <InfoRow icon={Shield} iconBg="#F5F3FF" iconColor="#8B5CF6" label={t('profile.change_password', { defaultValue: 'Change Password' })} value={null} placeholder={t('profile.update_credentials', { defaultValue: 'Update credentials' })} onPress={() => setCpModalVisible(true)} />
                         ) : (
-                            <InfoRow icon={LockIcon} iconBg="#FEF3C7" iconColor="#F59E0B" label="Set Password" value={null} placeholder="For multi-device login" onPress={() => setSetPassModalVisible(true)} />
+                            <InfoRow icon={LockIcon} iconBg="#FEF3C7" iconColor="#F59E0B" label={t('profile.set_password', { defaultValue: 'Set Password' })} value={null} placeholder={t('profile.multi_device_login', { defaultValue: 'For multi-device login' })} onPress={() => setSetPassModalVisible(true)} />
                         )}
 
                         {/* §SEC: Allow Screenshots Setting */}
@@ -696,8 +696,8 @@ export default function PatientProfileScreen({ navigation }) {
                                 <Smartphone size={20} color="#475569" strokeWidth={2} />
                             </View>
                             <View style={s.infoTextCol}>
-                                <Text style={s.infoLabel}>Allow Screenshots</Text>
-                                <Text style={[s.infoValue, { color: C.muted }]}>{patient?.allow_screenshots !== false ? 'Allowed' : 'Blocked (Secure)'}</Text>
+                                <Text style={s.infoLabel}>{t('profile.allow_screenshots', { defaultValue: 'Allow Screenshots' })}</Text>
+                                <Text style={[s.infoValue, { color: C.muted }]}>{patient?.allow_screenshots !== false ? t('profile.allowed', { defaultValue: 'Allowed' }) : t('profile.blocked_secure', { defaultValue: 'Blocked (Secure)' })}</Text>
                             </View>
                             <Switch
                                 trackColor={{ false: '#E2E8F0', true: '#818CF8' }}
@@ -712,8 +712,8 @@ export default function PatientProfileScreen({ navigation }) {
                             icon={Smartphone}
                             iconBg="#EEF2FF"
                             iconColor="#6366F1"
-                            label="Two-Factor Authentication"
-                            value={mfaEnabled ? 'Enabled' : 'Disabled'}
+                            label={t('profile.mfa', { defaultValue: 'Two-Factor Authentication' })}
+                            value={mfaEnabled ? t('profile.enabled', { defaultValue: 'Enabled' }) : t('profile.disabled', { defaultValue: 'Disabled' })}
                             placeholder=""
                             onPress={() => {
                                 if (mfaEnabled) {
@@ -756,12 +756,12 @@ export default function PatientProfileScreen({ navigation }) {
                             }
                         />
 
-                        <InfoRow icon={FileText} iconBg="#F0FDF4" iconColor="#16A34A" label="Download My Data" value={null} placeholder="Export your records" onPress={async () => {
+                        <InfoRow icon={FileText} iconBg="#F0FDF4" iconColor="#16A34A" label={t('profile.download_my_data', { defaultValue: 'Download My Data' })} value={null} placeholder={t('profile.export_records', { defaultValue: 'Export your records' })} onPress={async () => {
                             try {
                                 const { data } = await apiService.auth.exportMyData();
-                                AlertManager.alert('Data Export', 'Your data export has been prepared. In production, this will download as a file.');
+                                AlertManager.alert(t('profile.data_export_title', { defaultValue: 'Data Export' }), t('profile.data_export_desc', { defaultValue: 'Your data export has been prepared. In production, this will download as a file.' }));
                             } catch (e) {
-                                AlertManager.alert('Error', 'Failed to export data.');
+                                AlertManager.alert(t('common.error', { defaultValue: 'Error' }), t('profile.data_export_error', { defaultValue: 'Failed to export data.' }));
                             }
                         }} isLast />
                     </View>
@@ -772,11 +772,11 @@ export default function PatientProfileScreen({ navigation }) {
                     <Text style={s.sectionTitle}>{t('profile.account_actions', { defaultValue: 'ACCOUNT ACTIONS' })}</Text>
                     <View style={s.card}>
                         <Pressable style={[s.infoRow]} onPress={() => AlertManager.alert(
-                            'Sign Out',
-                            'Are you sure you want to sign out of your account?',
+                            t('profile.sign_out', { defaultValue: 'Sign Out' }),
+                            t('profile.sign_out_confirm', { defaultValue: 'Are you sure you want to sign out of your account?' }),
                             [
-                                { text: 'Cancel', style: 'cancel' },
-                                { text: 'Sign Out', style: 'destructive', onPress: () => signOut() }
+                                { text: t('common.cancel', { defaultValue: 'Cancel' }), style: 'cancel' },
+                                { text: t('profile.sign_out', { defaultValue: 'Sign Out' }), style: 'destructive', onPress: () => signOut() }
                             ]
                         )}>
                             <View style={[s.iconBox, { backgroundColor: '#FFF1F2' }]}>
@@ -792,23 +792,23 @@ export default function PatientProfileScreen({ navigation }) {
                             style={[s.infoRow, accountActionLoading && { opacity: 0.6 }]}
                             disabled={accountActionLoading}
                             onPress={() => AlertManager.alert(
-                                'Deactivate Account',
-                                'Your account will be paused and you will be signed out.\n\n• All your health data will be safely preserved\n• You can reactivate anytime by logging in again\n• Your callers and care team won\'t be able to reach you',
+                                t('profile.deactivate', { defaultValue: 'Deactivate Account' }),
+                                t('profile.deactivate_desc', { defaultValue: 'Your account will be paused and you will be signed out.\n\n• All your health data will be safely preserved\n• You can reactivate anytime by logging in again\n• Your callers and care team won\'t be able to reach you' }),
                                 [
-                                    { text: 'Cancel', style: 'cancel' },
+                                    { text: t('common.cancel', { defaultValue: 'Cancel' }), style: 'cancel' },
                                     {
-                                        text: 'Deactivate', style: 'default', onPress: async () => {
+                                        text: t('profile.deactivate_btn', { defaultValue: 'Deactivate' }), style: 'default', onPress: async () => {
                                             setAccountActionLoading(true);
                                             try {
                                                 await apiService.auth.deactivateAccount();
                                                 AlertManager.alert(
-                                                    'Account Deactivated',
-                                                    'Your account has been paused. Log in anytime with your credentials to reactivate.',
-                                                    [{ text: 'OK', onPress: () => signOut() }],
+                                                    t('profile.deactivated_title', { defaultValue: 'Account Deactivated' }),
+                                                    t('profile.deactivated_desc', { defaultValue: 'Your account has been paused. Log in anytime with your credentials to reactivate.' }),
+                                                    [{ text: t('common.ok', { defaultValue: 'OK' }), onPress: () => signOut() }],
                                                     { type: 'success' }
                                                 );
                                             } catch (e) {
-                                                AlertManager.alert('Error', e?.response?.data?.error || 'Failed to deactivate account. Please try again.', undefined, { type: 'error' });
+                                                AlertManager.alert(t('common.error', { defaultValue: 'Error' }), e?.response?.data?.error || t('profile.deactivate_error', { defaultValue: 'Failed to deactivate account. Please try again.' }), undefined, { type: 'error' });
                                             } finally {
                                                 setAccountActionLoading(false);
                                             }
@@ -822,7 +822,7 @@ export default function PatientProfileScreen({ navigation }) {
                             </View>
                             <View style={s.infoTextCol}>
                                 <Text style={s.infoLabel}>{t('profile.deactivate', { defaultValue: 'Deactivate Account' })}</Text>
-                                <Text style={[s.infoValue, { color: C.muted }]}>Pause your account temporarily</Text>
+                                <Text style={[s.infoValue, { color: C.muted }]}>{t('profile.deactivate_sub', { defaultValue: 'Pause your account temporarily' })}</Text>
                             </View>
                             <ChevronRight size={18} color={C.light} />
                         </Pressable>
@@ -830,12 +830,12 @@ export default function PatientProfileScreen({ navigation }) {
                             style={[s.infoRow, { borderBottomWidth: 0 }, accountActionLoading && { opacity: 0.6 }]}
                             disabled={accountActionLoading}
                             onPress={() => AlertManager.alert(
-                                'Permanently Delete Account?',
-                                '⚠️ IRREVERSIBLE ACTION\n\nAll health records, medications, and profile data will be permanently erased. You will be signed out immediately.\n\nAre you absolutely sure you want to proceed?',
+                                t('profile.delete_account_confirm_title', { defaultValue: 'Permanently Delete Account?' }),
+                                t('profile.delete_account_confirm_desc', { defaultValue: '⚠️ IRREVERSIBLE ACTION\n\nAll health records, medications, and profile data will be permanently erased. You will be signed out immediately.\n\nAre you absolutely sure you want to proceed?' }),
                                 [
-                                    { text: 'Cancel', style: 'cancel' },
+                                    { text: t('common.cancel', { defaultValue: 'Cancel' }), style: 'cancel' },
                                     {
-                                        text: 'Yes, Delete Permanently', style: 'destructive', onPress: async () => {
+                                        text: t('profile.delete_permanently', { defaultValue: 'Yes, Delete Permanently' }), style: 'destructive', onPress: async () => {
                                             setAccountActionLoading(true);
                                             try {
                                                 await apiService.auth.deleteAccount();
@@ -845,7 +845,7 @@ export default function PatientProfileScreen({ navigation }) {
                                                 if (status === 401 || status === 403 || status === 404) {
                                                     await signOut();
                                                 } else {
-                                                    AlertManager.alert('Error', e?.response?.data?.error || 'Failed to delete account.', undefined, { type: 'error' });
+                                                    AlertManager.alert(t('common.error', { defaultValue: 'Error' }), e?.response?.data?.error || t('profile.delete_error', { defaultValue: 'Failed to delete account.' }), undefined, { type: 'error' });
                                                     setAccountActionLoading(false);
                                                 }
                                             }
@@ -875,7 +875,7 @@ export default function PatientProfileScreen({ navigation }) {
                 <View style={s.modalOverlay}>
                     <View style={s.modalContent}>
                         <View style={s.modalHeader}>
-                            <Text style={s.modalTitle}>Select Gender</Text>
+                            <Text style={s.modalTitle}>{t('profile.select_gender', { defaultValue: 'Select Gender' })}</Text>
                             <Pressable onPress={() => setGenderModalVisible(false)} hitSlop={10}><X size={24} color="#64748B" /></Pressable>
                         </View>
                         {GENDER_OPTIONS.map(g => (
@@ -893,7 +893,7 @@ export default function PatientProfileScreen({ navigation }) {
                 <View style={s.modalOverlay}>
                     <View style={s.modalContent}>
                         <View style={s.modalHeader}>
-                            <Text style={s.modalTitle}>Select Blood Group</Text>
+                            <Text style={s.modalTitle}>{t('profile.select_blood_group', { defaultValue: 'Select Blood Group' })}</Text>
                             <Pressable onPress={() => setBloodModalVisible(false)} hitSlop={10}><X size={24} color="#64748B" /></Pressable>
                         </View>
                         <View style={s.bloodGrid}>
@@ -910,13 +910,13 @@ export default function PatientProfileScreen({ navigation }) {
             {/* ── Phone Edit ── */}
             <PremiumFormModal
                 visible={phoneModalVisible}
-                title="Phone Number"
+                title={t('profile.phone_number', { defaultValue: 'Phone Number' })}
                 onClose={() => setPhoneModalVisible(false)}
                 onSave={handleSavePhone}
-                saveText={saving ? 'Saving...' : 'Save Phone'}
+                saveText={saving ? t('common.saving', { defaultValue: 'Saving...' }) : t('profile.save_phone', { defaultValue: 'Save Phone' })}
                 saving={saving}
             >
-                <Text style={s.inputLabel}>Phone</Text>
+                <Text style={s.inputLabel}>{t('common.phone', { defaultValue: 'Phone' })}</Text>
                 <View style={s.phoneInputRow}>
                     <Pressable style={s.countryCodeBtn} onPress={() => openCountryCodePicker('personal')}>
                         <Text style={s.countryCodeFlag}>{COUNTRY_CODES.find(c => c.code === editPhoneCode)?.flag || '🌍'}</Text>
@@ -930,27 +930,27 @@ export default function PatientProfileScreen({ navigation }) {
             {/* ── Emergency Contact ── */}
             <PremiumFormModal
                 visible={ecModalVisible}
-                title="Emergency Contact"
+                title={t('profile.emergency_contact', { defaultValue: 'Emergency Contact' })}
                 onClose={() => setEcModalVisible(false)}
                 onSave={handleSaveEC}
-                saveText={saving ? 'Saving...' : 'Save Contact'}
+                saveText={saving ? t('common.saving', { defaultValue: 'Saving...' }) : t('caller.save_contact', { defaultValue: 'Save Contact' })}
                 saving={saving}
             >
-                <SmartInput label="Name" value={ecName} onChangeText={setEcName} placeholder="Contact name" />
-                <Text style={s.inputLabel}>Phone</Text>
+                <SmartInput label={t('common.name', { defaultValue: 'Name' })} value={ecName} onChangeText={setEcName} placeholder={t('caller.name_placeholder', { defaultValue: 'Contact name' })} />
+                <Text style={s.inputLabel}>{t('common.phone', { defaultValue: 'Phone' })}</Text>
                 <View style={s.phoneInputRow}>
                     <Pressable style={s.countryCodeBtn} onPress={() => openCountryCodePicker('ec')}>
                         <Text style={s.countryCodeFlag}>{COUNTRY_CODES.find(c => c.code === ecPhoneCode)?.flag || '🌍'}</Text>
                         <Text style={s.countryCodeTxt}>{ecPhoneCode}</Text>
                         <ChevronDown size={14} color={C.muted} />
                     </Pressable>
-                    <SmartInput value={ecPhone} onChangeText={(t) => setEcPhone(t.replace(/[^0-9]/g, ''))} placeholder="Phone number" keyboardType="phone-pad" maxLength={COUNTRY_CODES.find(c => c.code === ecPhoneCode)?.maxDigits || 12} style={{ flex: 1 }} />
+                    <SmartInput value={ecPhone} onChangeText={(t) => setEcPhone(t.replace(/[^0-9]/g, ''))} placeholder={t('caller.phone_placeholder', { defaultValue: 'Phone number' })} keyboardType="phone-pad" maxLength={COUNTRY_CODES.find(c => c.code === ecPhoneCode)?.maxDigits || 12} style={{ flex: 1 }} />
                 </View>
-                <SmartInput label="Relation" value={ecRelation} onChangeText={setEcRelation} placeholder="e.g. Son, Daughter, Spouse" />
+                <SmartInput label={t('caller.relation', { defaultValue: 'Relation' })} value={ecRelation} onChangeText={setEcRelation} placeholder={t('health_profile.relationship_placeholder', { defaultValue: 'e.g. Son, Daughter, Spouse' })} />
                 {patient?.emergency_contact?.name && (
                     <Pressable style={[s.saveBtn, { backgroundColor: '#FEE2E2', marginTop: 12 }]} onPress={handleRemoveEC} disabled={saving}>
                         <Trash2 size={18} color="#EF4444" />
-                        <Text style={[s.saveBtnTxt, { color: '#B91C1C' }]}>{saving ? 'Removing...' : 'Remove Contact'}</Text>
+                        <Text style={[s.saveBtnTxt, { color: '#B91C1C' }]}>{saving ? t('profile.removing', { defaultValue: 'Removing...' }) : t('profile.remove_contact', { defaultValue: 'Remove Contact' })}</Text>
                     </Pressable>
                 )}
             </PremiumFormModal>
@@ -960,20 +960,20 @@ export default function PatientProfileScreen({ navigation }) {
                 <View style={s.modalOverlay}>
                     <View style={s.modalContent}>
                         <View style={s.modalHeader}>
-                            <Text style={s.modalTitle}>Account Details</Text>
+                            <Text style={s.modalTitle}>{t('profile.account_details', { defaultValue: 'Account Details' })}</Text>
                             <Pressable onPress={() => setAccountModalVisible(false)} hitSlop={10}><X size={24} color="#64748B" /></Pressable>
                         </View>
-                        <View style={s.detailRow}><Text style={s.detailLabel}>Full Name</Text><Text style={s.detailValue}>{patient?.name || displayName}</Text></View>
+                        <View style={s.detailRow}><Text style={s.detailLabel}>{t('profile.full_name', { defaultValue: 'Full Name' })}</Text><Text style={s.detailValue}>{patient?.name || displayName}</Text></View>
                         <View style={s.line} />
-                        <View style={s.detailRow}><Text style={s.detailLabel}>Email</Text><Text style={s.detailValue}>{userEmail}</Text></View>
+                        <View style={s.detailRow}><Text style={s.detailLabel}>{t('common.email', { defaultValue: 'Email' })}</Text><Text style={s.detailValue}>{userEmail}</Text></View>
                         <View style={s.line} />
-                        <View style={s.detailRow}><Text style={s.detailLabel}>City</Text><Text style={s.detailValue}>{patient?.city || 'Not Provided'}</Text></View>
+                        <View style={s.detailRow}><Text style={s.detailLabel}>{t('common.city', { defaultValue: 'City' })}</Text><Text style={s.detailValue}>{patient?.city || t('common.not_provided', { defaultValue: 'Not Provided' })}</Text></View>
                         <View style={s.line} />
-                        <View style={s.detailRow}><Text style={s.detailLabel}>Plan</Text><Text style={[s.detailValue, { color: planColor }]}>{planLabel}</Text></View>
+                        <View style={s.detailRow}><Text style={s.detailLabel}>{t('profile.plan', { defaultValue: 'Plan' })}</Text><Text style={[s.detailValue, { color: planColor }]}>{planLabel}</Text></View>
                         <View style={s.line} />
-                        <View style={s.detailRow}><Text style={s.detailLabel}>Member Since</Text><Text style={s.detailValue}>{patient?.created_at ? new Date(patient.created_at).toLocaleDateString() : 'N/A'}</Text></View>
+                        <View style={s.detailRow}><Text style={s.detailLabel}>{t('profile.member_since', { defaultValue: 'Member Since' })}</Text><Text style={s.detailValue}>{patient?.created_at ? new Date(patient.created_at).toLocaleDateString(t('common.locale_date', { defaultValue: 'en-US' })) : 'N/A'}</Text></View>
                         <Pressable style={[s.saveBtn, { backgroundColor: '#F1F5F9', marginTop: 24 }]} onPress={() => { setAccountModalVisible(false); setEditAccountModalVisible(true); }}>
-                            <Text style={[s.saveBtnTxt, { color: '#475569' }]}>Edit Information</Text>
+                            <Text style={[s.saveBtnTxt, { color: '#475569' }]}>{t('profile.edit_information', { defaultValue: 'Edit Information' })}</Text>
                         </Pressable>
                     </View>
                 </View>
@@ -982,14 +982,14 @@ export default function PatientProfileScreen({ navigation }) {
             {/* ── Edit Account ── */}
             <PremiumFormModal
                 visible={editAccountModalVisible}
-                title="Edit Profile"
+                title={t('profile.edit_profile', { defaultValue: 'Edit Profile' })}
                 onClose={() => setEditAccountModalVisible(false)}
                 onSave={handleSaveAccount}
-                saveText={savingAccount ? 'Saving...' : 'Save Profile'}
+                saveText={savingAccount ? t('common.saving', { defaultValue: 'Saving...' }) : t('profile.save_profile', { defaultValue: 'Save Profile' })}
                 saving={savingAccount}
             >
-                <SmartInput label="Full Name" value={editName} onChangeText={setEditName} placeholder="Your name" />
-                <SmartInput label="City" value={editCity} onChangeText={setEditCity} placeholder="e.g. Hyderabad" />
+                <SmartInput label={t('profile.full_name', { defaultValue: 'Full Name' })} value={editName} onChangeText={setEditName} placeholder={t('profile.your_name_placeholder', { defaultValue: 'Your name' })} />
+                <SmartInput label={t('common.city', { defaultValue: 'City' })} value={editCity} onChangeText={setEditCity} placeholder={t('profile.city_placeholder', { defaultValue: 'e.g. Hyderabad' })} />
             </PremiumFormModal>
 
             {/* ── Change Password ── */}
@@ -998,38 +998,38 @@ export default function PatientProfileScreen({ navigation }) {
                 title="Change Password"
                 onClose={() => setCpModalVisible(false)}
                 onSave={handleChangePassword}
-                saveText={savingCp ? 'Changing...' : 'Change Password'}
+                saveText={savingCp ? t('common.changing', { defaultValue: 'Changing...' }) : t('profile.change_password', { defaultValue: 'Change Password' })}
                 saving={savingCp}
             >
-                <SmartInput label="Current Password" value={currentPassword} onChangeText={setCurrentPassword} placeholder="Enter current password" secureTextEntry />
-                <SmartInput label="New Password" value={newPassword} onChangeText={setNewPassword} placeholder="Enter new password" secureTextEntry />
-                <SmartInput label="Confirm Password" value={confirmPassword} onChangeText={setConfirmPassword} placeholder="Confirm new password" secureTextEntry />
+                <SmartInput label={t('profile.current_password', { defaultValue: 'Current Password' })} value={currentPassword} onChangeText={setCurrentPassword} placeholder={t('profile.enter_current_password', { defaultValue: 'Enter current password' })} secureTextEntry />
+                <SmartInput label={t('profile.new_password', { defaultValue: 'New Password' })} value={newPassword} onChangeText={setNewPassword} placeholder={t('profile.enter_new_password', { defaultValue: 'Enter new password' })} secureTextEntry />
+                <SmartInput label={t('profile.confirm_password', { defaultValue: 'Confirm Password' })} value={confirmPassword} onChangeText={setConfirmPassword} placeholder={t('profile.confirm_new_password', { defaultValue: 'Confirm new password' })} secureTextEntry />
             </PremiumFormModal>
 
             {/* ── Set Password (Google Users) ── */}
             <PremiumFormModal
                 visible={setPassModalVisible}
-                title="Set Password"
+                title={t('profile.set_password', { defaultValue: 'Set Password' })}
                 onClose={() => setSetPassModalVisible(false)}
                 onSave={handleSetPassword}
-                saveText={savingSetPass ? 'Saving...' : 'Set Password'}
+                saveText={savingSetPass ? t('common.saving', { defaultValue: 'Saving...' }) : t('profile.set_password', { defaultValue: 'Set Password' })}
                 saving={savingSetPass}
             >
-                <SmartInput label="New Password" value={setPassNew} onChangeText={setSetPassNew} placeholder="Enter password (min 6 chars)" secureTextEntry />
-                <SmartInput label="Confirm Password" value={setPassConfirm} onChangeText={setSetPassConfirm} placeholder="Confirm new password" secureTextEntry />
+                <SmartInput label={t('profile.new_password', { defaultValue: 'New Password' })} value={setPassNew} onChangeText={setSetPassNew} placeholder={t('profile.enter_password_min_6', { defaultValue: 'Enter password (min 6 chars)' })} secureTextEntry />
+                <SmartInput label={t('profile.confirm_password', { defaultValue: 'Confirm Password' })} value={setPassConfirm} onChangeText={setSetPassConfirm} placeholder={t('profile.confirm_new_password', { defaultValue: 'Confirm new password' })} secureTextEntry />
             </PremiumFormModal>
 
             {/* ── Screenshots OTP Modal ── */}
             <PremiumFormModal
                 visible={screenshotOTPModalVisible}
-                title="Security Verification"
+                title={t('profile.security_verification', { defaultValue: 'Security Verification' })}
                 onClose={() => setScreenshotOTPModalVisible(false)}
                 onSave={handleVerifyScreenshotOTP}
-                saveText={verifyingScreenshotOTP ? 'Verifying...' : 'Verify & Setup'}
+                saveText={verifyingScreenshotOTP ? t('common.verifying', { defaultValue: 'Verifying...' }) : t('profile.verify_setup', { defaultValue: 'Verify & Setup' })}
                 saving={verifyingScreenshotOTP}
             >
                 <Text style={[s.inputLabel, { marginTop: 4, textTransform: 'none' }]}>
-                    Enter the 6-digit code sent to your email to {pendingScreenshotSetting ? 'allow' : 'block'} screenshots.
+                    {pendingScreenshotSetting ? t('profile.screenshot_otp_allow', { defaultValue: 'Enter the 6-digit code sent to your email to allow screenshots.' }) : t('profile.screenshot_otp_block', { defaultValue: 'Enter the 6-digit code sent to your email to block screenshots.' })}
                 </Text>
 
                 <SmartInput
@@ -1046,17 +1046,17 @@ export default function PatientProfileScreen({ navigation }) {
             {/* ── DOB Picker (Scroll Wheels) ── */}
             <PremiumFormModal
                 visible={dobModalVisible}
-                title="Date of Birth"
+                title={t('profile.dob', { defaultValue: 'Date of Birth' })}
                 onClose={() => setDobModalVisible(false)}
                 onSave={handleSaveDob}
-                saveText={saving ? 'Saving...' : 'Save Date of Birth'}
+                saveText={saving ? t('common.saving', { defaultValue: 'Saving...' }) : t('profile.save_dob', { defaultValue: 'Save Date of Birth' })}
                 saving={saving}
             >
-                <Text style={s.modalSubTxt}>Scroll to select your date of birth.</Text>
+                <Text style={s.modalSubTxt}>{t('profile.scroll_dob', { defaultValue: 'Scroll to select your date of birth.' })}</Text>
                 <View style={s.pickerRow}>
                     {/* Day */}
                     <View style={s.pickerCol}>
-                        <Text style={s.pickerLabel}>Day</Text>
+                        <Text style={s.pickerLabel}>{t('profile.day', { defaultValue: 'Day' })}</Text>
                         <ScrollView style={s.pickerScroll} showsVerticalScrollIndicator={false} nestedScrollEnabled>
                             {DAYS.map(d => (
                                 <Pressable key={d} style={[s.pickerItem, dobDay === d && s.pickerItemActive]} onPress={() => setDobDay(d)}>
@@ -1067,7 +1067,7 @@ export default function PatientProfileScreen({ navigation }) {
                     </View>
                     {/* Month */}
                     <View style={[s.pickerCol, { flex: 1.2 }]}>
-                        <Text style={s.pickerLabel}>Month</Text>
+                        <Text style={s.pickerLabel}>{t('profile.month', { defaultValue: 'Month' })}</Text>
                         <ScrollView style={s.pickerScroll} showsVerticalScrollIndicator={false} nestedScrollEnabled>
                             {MONTHS.map((m, i) => (
                                 <Pressable key={m} style={[s.pickerItem, dobMonth === i + 1 && s.pickerItemActive]} onPress={() => setDobMonth(i + 1)}>
@@ -1078,7 +1078,7 @@ export default function PatientProfileScreen({ navigation }) {
                     </View>
                     {/* Year */}
                     <View style={s.pickerCol}>
-                        <Text style={s.pickerLabel}>Year</Text>
+                        <Text style={s.pickerLabel}>{t('profile.year', { defaultValue: 'Year' })}</Text>
                         <ScrollView style={s.pickerScroll} showsVerticalScrollIndicator={false} nestedScrollEnabled>
                             {YEARS.map(y => (
                                 <Pressable key={y} style={[s.pickerItem, dobYear === y && s.pickerItemActive]} onPress={() => setDobYear(y)}>
@@ -1098,10 +1098,10 @@ export default function PatientProfileScreen({ navigation }) {
                 <View style={s.modalOverlay}>
                     <View style={s.modalContent}>
                         <View style={s.modalHeader}>
-                            <Text style={s.modalTitle}>Select Language</Text>
+                            <Text style={s.modalTitle}>{t('profile.select_language', { defaultValue: 'Select Language' })}</Text>
                             <Pressable onPress={() => setLanguageModalVisible(false)} hitSlop={10}><X size={24} color="#64748B" /></Pressable>
                         </View>
-                        <Text style={s.modalSubTxt}>Choose your preferred language. This will be saved to your profile.</Text>
+                        <Text style={s.modalSubTxt}>{t('profile.language_sub', { defaultValue: 'Choose your preferred language. This will be saved to your profile.' })}</Text>
                         {LANGUAGES.map(lang => (
                             <Pressable key={lang.code} style={[s.optionRow, selectedLang === lang.code && s.optionRowActive]} onPress={() => handleSelectLanguage(lang.code)}>
                                 <Text style={[s.optionTxt, selectedLang === lang.code && s.optionTxtActive]}>{lang.label}</Text>
@@ -1117,14 +1117,14 @@ export default function PatientProfileScreen({ navigation }) {
                 <View style={s.modalOverlay}>
                     <View style={[s.modalContent, { maxHeight: '90%' }]}>
                         <View style={s.modalHeader}>
-                            <Text style={s.modalTitle}>Saved Addresses</Text>
+                            <Text style={s.modalTitle}>{t('profile.saved_addresses', { defaultValue: 'Saved Addresses' })}</Text>
                             <Pressable onPress={() => setAddressModalVisible(false)} hitSlop={10}><X size={24} color="#64748B" /></Pressable>
                         </View>
                         {savedAddresses.length === 0 ? (
                             <View style={s.emptyState}>
                                 <MapPin size={40} color={C.light} />
                                 <Text style={s.emptyTitle}>{t('common.no_addresses_saved', { defaultValue: 'No addresses saved' })}</Text>
-                                <Text style={s.emptyDesc}>Add your home, office, or family addresses for quick access.</Text>
+                                <Text style={s.emptyDesc}>{t('profile.no_addresses_desc', { defaultValue: 'Add your home, office, or family addresses for quick access.' })}</Text>
                             </View>
                         ) : (
                             <ScrollView style={{ maxHeight: 300 }} showsVerticalScrollIndicator={false}>
@@ -1133,11 +1133,11 @@ export default function PatientProfileScreen({ navigation }) {
                                         <View style={s.addrCardLeft}>
                                             <View style={[s.iconBox, { backgroundColor: '#EFF6FF' }]}><MapPin size={18} color="#3B82F6" /></View>
                                             <View style={{ flex: 1 }}>
-                                                <Text style={s.addrLabel}>{addr.label || 'Address'}</Text>
-                                                <Text style={s.addrLine} numberOfLines={2}>{addr.address_line || [addr.street, addr.city, addr.state].filter(Boolean).join(', ') || 'No details'}</Text>
+                                                <Text style={s.addrLabel}>{addr.label || t('profile.address', { defaultValue: 'Address' })}</Text>
+                                                <Text style={s.addrLine} numberOfLines={2}>{addr.address_line || [addr.street, addr.city, addr.state].filter(Boolean).join(', ') || t('profile.no_details', { defaultValue: 'No details' })}</Text>
                                             </View>
                                         </View>
-                                        <Pressable onPress={() => AlertManager.alert('Delete Address?', 'This cannot be undone.', [{ text: 'Cancel' }, { text: 'Delete', style: 'destructive', onPress: () => handleDeleteAddress(addr._id) }])} hitSlop={8}>
+                                        <Pressable onPress={() => AlertManager.alert(t('profile.delete_address_title', { defaultValue: 'Delete Address?' }), t('common.cannot_be_undone', { defaultValue: 'This cannot be undone.' }), [{ text: t('common.cancel', { defaultValue: 'Cancel' }) }, { text: t('common.delete', { defaultValue: 'Delete' }), style: 'destructive', onPress: () => handleDeleteAddress(addr._id) }])} hitSlop={8}>
                                             <X size={18} color={C.danger} />
                                         </Pressable>
                                     </View>
@@ -1146,7 +1146,7 @@ export default function PatientProfileScreen({ navigation }) {
                         )}
                         <Pressable style={s.saveBtn} onPress={() => { setAddressModalVisible(false); setAddAddressModalVisible(true); }}>
                             <MapPin size={18} color="#FFFFFF" />
-                            <Text style={s.saveBtnTxt}>Add New Address</Text>
+                            <Text style={s.saveBtnTxt}>{t('profile.add_new_address', { defaultValue: 'Add New Address' })}</Text>
                         </Pressable>
                     </View>
                 </View>
@@ -1159,30 +1159,33 @@ export default function PatientProfileScreen({ navigation }) {
                         <View style={[s.modalContent, { padding: 0 }]}>
                             <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 24, paddingBottom: 100 }}>
                                 <View style={s.modalHeader}>
-                                    <Text style={s.modalTitle}>Add Address</Text>
+                                    <Text style={s.modalTitle}>{t('profile.add_address', { defaultValue: 'Add Address' })}</Text>
                                     <Pressable onPress={() => setAddAddressModalVisible(false)} hitSlop={10}><X size={24} color="#64748B" /></Pressable>
                                 </View>
-                                <Text style={s.inputLabel}>Label</Text>
+                                <Text style={s.inputLabel}>{t('profile.label', { defaultValue: 'Label' })}</Text>
                                 <View style={s.labelRow}>
-                                    {['Home', 'Office', 'Family', 'Other'].map(l => (
-                                        <Pressable key={l} style={[s.labelChip, addrLabel === l && s.labelChipActive]} onPress={() => setAddrLabel(l)}>
-                                            <Text style={[s.labelChipTxt, addrLabel === l && s.labelChipTxtActive]}>{l}</Text>
+                                    {[t('profile.home', { defaultValue: 'Home' }), t('profile.office', { defaultValue: 'Office' }), t('profile.family', { defaultValue: 'Family' }), t('profile.other', { defaultValue: 'Other' })].map((l, i) => {
+                                        const actualLabels = ['Home', 'Office', 'Family', 'Other'];
+                                        const key = actualLabels[i];
+                                        return (
+                                        <Pressable key={key} style={[s.labelChip, addrLabel === key && s.labelChipActive]} onPress={() => setAddrLabel(key)}>
+                                            <Text style={[s.labelChipTxt, addrLabel === key && s.labelChipTxtActive]}>{l}</Text>
                                         </Pressable>
-                                    ))}
+                                    )})}
                                 </View>
-                                <SmartInput label="Full Address" value={addrLine} onChangeText={setAddrLine} placeholder="e.g. 12-4-82, Flat 301, Banjara Hills" />
+                                <SmartInput label={t('profile.full_address', { defaultValue: 'Full Address' })} value={addrLine} onChangeText={setAddrLine} placeholder={t('profile.full_address_placeholder', { defaultValue: 'e.g. 12-4-82, Flat 301, Banjara Hills' })} />
                                 <View style={s.dobRow}>
                                     <View style={s.dobCol}>
-                                        <SmartInput label="City" value={addrCity} onChangeText={setAddrCity} placeholder="City" />
+                                        <SmartInput label={t('common.city', { defaultValue: 'City' })} value={addrCity} onChangeText={setAddrCity} placeholder={t('common.city', { defaultValue: 'City' })} />
                                     </View>
                                     <View style={s.dobCol}>
-                                        <SmartInput label="State" value={addrState} onChangeText={setAddrState} placeholder="State" />
+                                        <SmartInput label={t('common.state', { defaultValue: 'State' })} value={addrState} onChangeText={setAddrState} placeholder={t('common.state', { defaultValue: 'State' })} />
                                     </View>
                                 </View>
-                                <SmartInput label="Postcode" value={addrPostcode} onChangeText={setAddrPostcode} placeholder="500034" keyboardType="number-pad" />
+                                <SmartInput label={t('common.postcode', { defaultValue: 'Postcode' })} value={addrPostcode} onChangeText={setAddrPostcode} placeholder="500034" keyboardType="number-pad" />
                                 <Pressable style={s.saveBtn} onPress={handleAddAddress} disabled={saving}>
                                     <Save size={18} color="#FFFFFF" />
-                                    <Text style={s.saveBtnTxt}>{saving ? 'Saving...' : 'Save Address'}</Text>
+                                    <Text style={s.saveBtnTxt}>{saving ? t('common.saving', { defaultValue: 'Saving...' }) : t('profile.save_address', { defaultValue: 'Save Address' })}</Text>
                                 </Pressable>
                             </ScrollView>
                         </View>
@@ -1195,22 +1198,22 @@ export default function PatientProfileScreen({ navigation }) {
                 <View style={s.modalOverlay}>
                     <View style={s.modalContent}>
                         <View style={s.modalHeader}>
-                            <Text style={s.modalTitle}>Family Profiles</Text>
+                            <Text style={s.modalTitle}>{t('profile.family_profiles', { defaultValue: 'Family Profiles' })}</Text>
                             <Pressable onPress={() => setFamilyModalVisible(false)} hitSlop={10}><X size={24} color="#64748B" /></Pressable>
                         </View>
                         <View style={s.emptyState}>
                             <Users size={40} color={C.light} />
                             <Text style={s.emptyTitle}>{t('common.no_family_profiles_yet', { defaultValue: 'No family profiles yet' })}</Text>
-                            <Text style={s.emptyDesc}>Add your family members to share health records and manage their care from one place.</Text>
+                            <Text style={s.emptyDesc}>{t('profile.family_empty_desc', { defaultValue: 'Add your family members to share health records and manage their care from one place.' })}</Text>
                         </View>
                         <View style={s.familyFeatures}>
-                            <View style={s.featureRow}><ShieldCheck size={16} color={C.success} /><Text style={s.featureTxt}>Share health records with trusted contacts</Text></View>
-                            <View style={s.featureRow}><ShieldCheck size={16} color={C.success} /><Text style={s.featureTxt}>Track medications for family members</Text></View>
-                            <View style={s.featureRow}><ShieldCheck size={16} color={C.success} /><Text style={s.featureTxt}>Manage appointments in one dashboard</Text></View>
+                            <View style={s.featureRow}><ShieldCheck size={16} color={C.success} /><Text style={s.featureTxt}>{t('profile.family_feature_1', { defaultValue: 'Share health records with trusted contacts' })}</Text></View>
+                            <View style={s.featureRow}><ShieldCheck size={16} color={C.success} /><Text style={s.featureTxt}>{t('profile.family_feature_2', { defaultValue: 'Track medications for family members' })}</Text></View>
+                            <View style={s.featureRow}><ShieldCheck size={16} color={C.success} /><Text style={s.featureTxt}>{t('profile.family_feature_3', { defaultValue: 'Manage appointments in one dashboard' })}</Text></View>
                         </View>
-                        <Pressable style={[s.saveBtn, { backgroundColor: C.primarySoft }]} onPress={() => { AlertManager.alert('Coming Soon', 'This feature will be available in a future update!'); setFamilyModalVisible(false); }}>
+                        <Pressable style={[s.saveBtn, { backgroundColor: C.primarySoft }]} onPress={() => { AlertManager.alert(t('common.coming_soon', { defaultValue: 'Coming Soon' }), t('profile.feature_future_update', { defaultValue: 'This feature will be available in a future update!' })); setFamilyModalVisible(false); }}>
                             <Users size={18} color={C.primary} />
-                            <Text style={[s.saveBtnTxt, { color: C.primary }]}>Add Family Member</Text>
+                            <Text style={[s.saveBtnTxt, { color: C.primary }]}>{t('profile.add_family_member', { defaultValue: 'Add Family Member' })}</Text>
                         </Pressable>
                     </View>
                 </View>
@@ -1221,7 +1224,7 @@ export default function PatientProfileScreen({ navigation }) {
                 <Pressable style={s.modalOverlay} onPress={() => setCountryCodeModalVisible(false)}>
                     <Pressable style={[s.modalContent, { maxHeight: '70%', paddingBottom: 0 }]} onPress={(e) => e.stopPropagation()}>
                         <View style={[s.modalHeader, { paddingBottom: 12, marginBottom: 0 }]}>
-                            <Text style={s.modalTitle}>Select Country</Text>
+                            <Text style={s.modalTitle}>{t('profile.select_country', { defaultValue: 'Select Country' })}</Text>
                             <Pressable onPress={() => setCountryCodeModalVisible(false)} hitSlop={10}><X size={24} color="#64748B" /></Pressable>
                         </View>
                         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40, paddingTop: 12 }}>
@@ -1249,28 +1252,28 @@ export default function PatientProfileScreen({ navigation }) {
             <View style={s.modalOverlay}>
                 <View style={s.modalContent}>
                     <View style={s.modalHeader}>
-                        <Text style={s.modalTitle}>Basic Plan Features</Text>
+                        <Text style={s.modalTitle}>{t('profile.basic_plan_features', { defaultValue: 'Basic Plan Features' })}</Text>
                         <Pressable onPress={() => setBasicPlanModalVisible(false)} style={s.closeBtn}>
                             <X size={20} color={C.mid} />
                         </Pressable>
                     </View>
-                    <Text style={{ fontSize: 16, color: C.mid, marginBottom: 16 }}>Your Basic Plan provides essential care tracking, including:</Text>
+                    <Text style={{ fontSize: 16, color: C.mid, marginBottom: 16 }}>{t('profile.basic_plan_desc', { defaultValue: 'Your Basic Plan provides essential care tracking, including:' })}</Text>
                     <View style={{ gap: 12 }}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                             <ShieldCheck size={20} color={C.success} />
-                            <Text style={{ fontSize: 15, color: C.dark, fontWeight: '500' }}>Medication & Vitals Logging</Text>
+                            <Text style={{ fontSize: 15, color: C.dark, fontWeight: '500' }}>{t('profile.plan_feature_1', { defaultValue: 'Medication & Vitals Logging' })}</Text>
                         </View>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                             <ShieldCheck size={20} color={C.success} />
-                            <Text style={{ fontSize: 15, color: C.dark, fontWeight: '500' }}>Care Team Alerts & Notifications</Text>
+                            <Text style={{ fontSize: 15, color: C.dark, fontWeight: '500' }}>{t('profile.plan_feature_2', { defaultValue: 'Care Team Alerts & Notifications' })}</Text>
                         </View>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                             <ShieldCheck size={20} color={C.success} />
-                            <Text style={{ fontSize: 15, color: C.dark, fontWeight: '500' }}>Basic Health Profile Sharing</Text>
+                            <Text style={{ fontSize: 15, color: C.dark, fontWeight: '500' }}>{t('profile.plan_feature_3', { defaultValue: 'Basic Health Profile Sharing' })}</Text>
                         </View>
                     </View>
                     <Pressable style={[s.saveBtn, { marginTop: 24 }]} onPress={() => setBasicPlanModalVisible(false)}>
-                        <Text style={s.saveBtnTxt}>Got it</Text>
+                        <Text style={s.saveBtnTxt}>{t('common.got_it', { defaultValue: 'Got it' })}</Text>
                     </Pressable>
                 </View>
             </View>

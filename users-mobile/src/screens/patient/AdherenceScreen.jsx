@@ -149,14 +149,14 @@ const AnimatedNumber = ({ value, style, suffix = '%' }) => {
 };
 
 // ── Feedback Message ────────────────────────────────────────────
-const getFeedbackMessage = (score, momentum) => {
-    if (score >= 95) return { text: "Outstanding! You're at peak consistency 🌟", color: C.success };
-    if (score >= 90) return { text: "Excellent work! You're building great habits 💙", color: C.success };
-    if (score >= 80) return { text: "Wonderful consistency! Keep this rhythm going ✨", color: C.primary };
-    if (score >= 70) return { text: "Good progress! Every dose counts toward better health 🌿", color: C.primary };
-    if (score >= 50) return { text: "You're improving! Small steps lead to big changes 🌱", color: C.warning };
-    if (momentum === 'rising') return { text: "Your recent trend is looking up! 📈", color: C.primary };
-    return { text: "Every new day is a fresh start. You've got this 💪", color: C.muted };
+const getFeedbackMessage = (score, momentum, t) => {
+    if (score >= 95) return { text: t('adherence.feedback_outstanding', { defaultValue: "Outstanding! You're at peak consistency 🌟" }), color: C.success };
+    if (score >= 90) return { text: t('adherence.feedback_excellent', { defaultValue: "Excellent work! You're building great habits 💙" }), color: C.success };
+    if (score >= 80) return { text: t('adherence.feedback_wonderful', { defaultValue: "Wonderful consistency! Keep this rhythm going ✨" }), color: C.primary };
+    if (score >= 70) return { text: t('adherence.feedback_good', { defaultValue: "Good progress! Every dose counts toward better health 🌿" }), color: C.primary };
+    if (score >= 50) return { text: t('adherence.feedback_improving', { defaultValue: "You're improving! Small steps lead to big changes 🌱" }), color: C.warning };
+    if (momentum === 'rising') return { text: t('adherence.feedback_rising', { defaultValue: "Your recent trend is looking up! 📈" }), color: C.primary };
+    return { text: t('adherence.feedback_start', { defaultValue: "Every new day is a fresh start. You've got this 💪" }), color: C.muted };
 };
 
 // ── Calendar Day Cell ───────────────────────────────────────────
@@ -213,6 +213,7 @@ const BADGE_CONFIGS = {
 };
 
 const AchievementBadge = ({ achievement, index }) => {
+    const { t } = useTranslation();
     const scaleAnim = useRef(new Animated.Value(0)).current;
 
     useEffect(() => {
@@ -255,7 +256,7 @@ const AchievementBadge = ({ achievement, index }) => {
             <View style={[styles.achievementStatus, { backgroundColor: unlocked ? C.successBg : '#F1F5F9' }]}>
                 {unlocked && <CheckCircle2 size={10} color={C.success} />}
                 <Text style={[styles.achievementStatusText, { color: unlocked ? C.success : C.light }]}>
-                    {unlocked ? 'Unlocked' : 'Locked'}
+                    {unlocked ? t('common.unlocked', { defaultValue: 'Unlocked' }) : t('common.locked', { defaultValue: 'Locked' })}
                 </Text>
             </View>
         </Animated.View>
@@ -280,7 +281,7 @@ const Skeleton = ({ width, height, borderRadius = 10, style }) => {
 // ══ MAIN SCREEN ═══════════════════════════════════════════════
 // ══════════════════════════════════════════════════════════════
 const RECAP_TABS = ['weekly', 'monthly', 'yearly'];
-const RECAP_LABELS = { weekly: 'Weekly', monthly: 'Monthly', yearly: 'Yearly' };
+const getRecapLabels = (t) => ({ weekly: t('adherence.weekly', { defaultValue: 'Weekly' }), monthly: t('adherence.monthly', { defaultValue: 'Monthly' }), yearly: t('adherence.yearly', { defaultValue: 'Yearly' }) });
 
 export default function AdherenceScreen({ navigation }) {
     const { t } = useTranslation();
@@ -357,12 +358,12 @@ export default function AdherenceScreen({ navigation }) {
     const streak = data.streak || 0;
     const weeklyTrend = data.weekly_trend || [];
 
-    const feedback = getFeedbackMessage(score.monthly, momentum);
+    const feedback = getFeedbackMessage(score.monthly, momentum, t);
     const levelColor = LEVEL_COLORS[level.key] || C.light;
 
     const MomentumIcon = momentum === 'rising' ? TrendingUp : momentum === 'falling' ? TrendingDown : Minus;
     const momentumColor = momentum === 'rising' ? C.success : momentum === 'falling' ? C.danger : C.warning;
-    const momentumLabel = momentum === 'rising' ? 'Rising' : momentum === 'falling' ? 'Falling' : 'Steady';
+    const momentumLabel = momentum === 'rising' ? t('adherence.rising', { defaultValue: 'Rising' }) : momentum === 'falling' ? t('adherence.falling', { defaultValue: 'Falling' }) : t('adherence.steady', { defaultValue: 'Steady' });
 
     const ringColor = score.monthly >= 90 ? C.ring90 : score.monthly >= 70 ? C.ring70 : C.ringLow;
 
@@ -410,14 +411,14 @@ export default function AdherenceScreen({ navigation }) {
                     </Pressable>
                     <View style={{ flex: 1, marginLeft: 12 }}>
                         <Text style={styles.headerTitle}>{t('common.adherence', { defaultValue: 'Adherence' })}</Text>
-                        <Text style={styles.headerSub}>Track your medication journey</Text>
+                        <Text style={styles.headerSub}>{t('adherence.header_sub', { defaultValue: 'Track your medication journey' })}</Text>
                     </View>
                     <Pressable
                         style={styles.shareBtn}
                         onPress={() => setShowStoryModal(true)}
                     >
                         <Share2 size={15} color="#FFF" />
-                        <Text style={styles.shareBtnText}>Share</Text>
+                        <Text style={styles.shareBtnText}>{t('adherence.share', { defaultValue: 'Share' })}</Text>
                     </Pressable>
                 </View>
 
@@ -430,7 +431,7 @@ export default function AdherenceScreen({ navigation }) {
                         {RECAP_TABS.map((tab) => (
                             <Pressable key={tab} style={[styles.tab, { width: tabWidth }]} onPress={() => switchRecapTab(tab)}>
                                 <Text style={[styles.tabText, activeRecapTab === tab && styles.tabTextActive]}>
-                                    {RECAP_LABELS[tab]}
+                                    {getRecapLabels(t)[tab]}
                                 </Text>
                             </Pressable>
                         ))}
@@ -459,19 +460,19 @@ export default function AdherenceScreen({ navigation }) {
                                     <CircularProgress progress={score.monthly} size={148} strokeWidth={13} color={ringColor} />
                                     <View style={styles.heroRingCenter}>
                                         <AnimatedNumber value={score.monthly} style={styles.heroRingPercent} />
-                                        <Text style={styles.heroRingLabel}>Monthly</Text>
+                                        <Text style={styles.heroRingLabel}>{t('adherence.monthly', { defaultValue: 'Monthly' })}</Text>
                                     </View>
                                 </View>
 
                                 {/* Right stats */}
                                 <View style={styles.heroRightCol}>
                                     <View style={styles.heroStatBox}>
-                                        <Text style={styles.heroStatLabel}>This Week</Text>
+                                        <Text style={styles.heroStatLabel}>{t('adherence.this_week', { defaultValue: 'This Week' })}</Text>
                                         <AnimatedNumber value={score.weekly} style={styles.heroStatValue} />
                                     </View>
                                     <View style={styles.heroStatDivider} />
                                     <View style={styles.heroStatBox}>
-                                        <Text style={styles.heroStatLabel}>Momentum</Text>
+                                        <Text style={styles.heroStatLabel}>{t('adherence.momentum', { defaultValue: 'Momentum' })}</Text>
                                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}>
                                             <View style={{ backgroundColor: momentumColor + '30', borderRadius: 8, padding: 3 }}>
                                                 <MomentumIcon size={14} color={momentumColor} />
@@ -481,7 +482,7 @@ export default function AdherenceScreen({ navigation }) {
                                     </View>
                                     <View style={styles.heroStatDivider} />
                                     <View style={styles.heroStatBox}>
-                                        <Text style={styles.heroStatLabel}>Level</Text>
+                                        <Text style={styles.heroStatLabel}>{t('adherence.level', { defaultValue: 'Level' })}</Text>
                                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 4 }}>
                                             <Text style={{ fontSize: 16 }}>{level.emoji}</Text>
                                             <Text style={[styles.heroStatValue, { color: levelColor, fontSize: 13 }]}>{level.label}</Text>
@@ -494,14 +495,14 @@ export default function AdherenceScreen({ navigation }) {
                             <View style={styles.heroProgressSection}>
                                 <View style={styles.heroProgressHeader}>
                                     <Target size={13} color="rgba(255,255,255,0.7)" />
-                                    <Text style={styles.heroProgressTitle}>Today's Goal</Text>
+                                    <Text style={styles.heroProgressTitle}>{t('adherence.todays_goal', { defaultValue: "Today's Goal" })}</Text>
                                     <Text style={styles.heroProgressCount}>
-                                        {today.taken}<Text style={{ fontSize: 13, opacity: 0.6 }}>/{today.total || '—'} doses</Text>
+                                        {today.taken}<Text style={{ fontSize: 13, opacity: 0.6 }}>/{today.total || '—'} {t('adherence.doses', { defaultValue: 'doses' })}</Text>
                                     </Text>
                                     {today.completed && (
                                         <View style={styles.heroCompletedPill}>
                                             <Sparkles size={10} color="#10B981" />
-                                            <Text style={styles.heroCompletedText}>Done!</Text>
+                                            <Text style={styles.heroCompletedText}>{t('adherence.done', { defaultValue: 'Done!' })}</Text>
                                         </View>
                                     )}
                                 </View>
@@ -528,19 +529,19 @@ export default function AdherenceScreen({ navigation }) {
                             <View style={styles.streakLeft}>
                                 <Flame size={36} color="#FFF" fill={streak > 0 ? '#FFF' : 'transparent'} />
                                 <View>
-                                    <Text style={styles.streakNum}>{streak} Day Streak</Text>
+                                    <Text style={styles.streakNum}>{t('adherence.streak_days', { defaultValue: '{{streak}} Day Streak', streak })}</Text>
                                     <Text style={styles.streakSub}>
-                                        {streak >= 7 ? "You're on fire! Keep it up 🔥" :
-                                            streak >= 3 ? 'Building momentum! 💪' :
-                                                streak > 0 ? 'Great start! Keep going 🌱' :
-                                                    'Take your meds to start your streak'}
+                                        {streak >= 7 ? t('adherence.streak_fire', { defaultValue: "You're on fire! Keep it up 🔥" }) :
+                                            streak >= 3 ? t('adherence.streak_momentum', { defaultValue: 'Building momentum! 💪' }) :
+                                                streak > 0 ? t('adherence.streak_great_start', { defaultValue: 'Great start! Keep going 🌱' }) :
+                                                    t('adherence.streak_take_meds', { defaultValue: 'Take your meds to start your streak' })}
                                     </Text>
                                 </View>
                             </View>
                             {streak > 0 && (
                                 <View style={styles.streakBadge}>
                                     <Text style={styles.streakBadgeNum}>{streak}</Text>
-                                    <Text style={styles.streakBadgeLabel}>DAYS</Text>
+                                    <Text style={styles.streakBadgeLabel}>{t('adherence.days', { defaultValue: 'DAYS' })}</Text>
                                 </View>
                             )}
                         </LinearGradient>
@@ -553,23 +554,23 @@ export default function AdherenceScreen({ navigation }) {
                                 <View style={styles.cardHeaderRow}>
                                     <Text style={styles.cardTitle}>
                                         {activeRecapTab === 'yearly' && adherenceRecap.is_all_time_fallback
-                                            ? 'ALL TIME RECAP'
-                                            : `${RECAP_LABELS[activeRecapTab].toUpperCase()} RECAP`}
+                                            ? t('adherence.all_time_recap', { defaultValue: 'ALL TIME RECAP' })
+                                            : t('adherence.recap_title', { defaultValue: '{{tab}} RECAP', tab: getRecapLabels(t)[activeRecapTab].toUpperCase() })}
                                     </Text>
                                     <View style={[styles.levelPill, { backgroundColor: (adherenceRecap.level?.key === 'optimal' ? C.success : adherenceRecap.level?.key === 'consistent' ? C.primary : C.warning) + '18' }]}>
                                         <Text style={{ fontSize: 12 }}>{adherenceRecap.level?.emoji || '🌱'}</Text>
                                         <Text style={[styles.levelPillText, {
                                             color: adherenceRecap.level?.key === 'optimal' ? C.success :
                                                 adherenceRecap.level?.key === 'consistent' ? C.primary : C.warning
-                                        }]}>{adherenceRecap.level?.label || 'Beginner'}</Text>
+                                        }]}>{adherenceRecap.level?.label ? t(`adherence.level_${adherenceRecap.level.key}`, { defaultValue: adherenceRecap.level.label }) : t('adherence.level_beginner', { defaultValue: 'Beginner' })}</Text>
                                     </View>
                                 </View>
 
                                 <View style={styles.recapStatsRow}>
                                     {[
-                                        { label: 'Adherence', value: `${adherenceRecap.adherence_rate || 0}%`, color: C.primary, grad: ['#4361EE', '#818CF8'] },
-                                        { label: 'Perfect Days', value: adherenceRecap.perfect_days || 0, color: C.success, grad: ['#10B981', '#34D399'] },
-                                        { label: 'Doses Taken', value: adherenceRecap.total_doses_taken || 0, color: C.purple, grad: ['#7C3AED', '#A78BFA'] },
+                                        { label: t('common.adherence', { defaultValue: 'Adherence' }), value: `${adherenceRecap.adherence_rate || 0}%`, color: C.primary, grad: ['#4361EE', '#818CF8'] },
+                                        { label: t('adherence.perfect_days', { defaultValue: 'Perfect Days' }), value: adherenceRecap.perfect_days || 0, color: C.success, grad: ['#10B981', '#34D399'] },
+                                        { label: t('adherence.doses_taken', { defaultValue: 'Doses Taken' }), value: adherenceRecap.total_doses_taken || 0, color: C.purple, grad: ['#7C3AED', '#A78BFA'] },
                                     ].map((item, i) => (
                                         <View key={i} style={styles.recapStatItem}>
                                             <LinearGradient colors={item.grad} style={styles.recapStatIconBg} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
@@ -586,7 +587,7 @@ export default function AdherenceScreen({ navigation }) {
                                             ? <TrendingUp size={13} color={C.success} />
                                             : <TrendingDown size={13} color={C.danger} />}
                                         <Text style={[styles.improvementText, { color: adherenceRecap.improvement_vs_previous > 0 ? C.success : C.danger }]}>
-                                            {adherenceRecap.improvement_vs_previous > 0 ? '+' : ''}{adherenceRecap.improvement_vs_previous}% vs previous {activeRecapTab === 'yearly' ? 'year' : activeRecapTab === 'monthly' ? 'month' : 'week'}
+                                            {adherenceRecap.improvement_vs_previous > 0 ? '+' : ''}{adherenceRecap.improvement_vs_previous}% {t('adherence.vs_previous', { defaultValue: 'vs previous {{period}}', period: activeRecapTab === 'yearly' ? t('adherence.year', { defaultValue: 'year' }) : activeRecapTab === 'monthly' ? t('adherence.month', { defaultValue: 'month' }) : t('adherence.week', { defaultValue: 'week' }) })}
                                         </Text>
                                     </View>
                                 )}
@@ -614,9 +615,9 @@ export default function AdherenceScreen({ navigation }) {
                                         {insight.includes('afternoon') && (
                                             <Pressable
                                                 style={styles.reminderBtn}
-                                                onPress={() => Alert.alert('Set Reminder', 'Afternoon medication reminder will be added to your notifications.', [{ text: 'OK' }])}
+                                                onPress={() => Alert.alert(t('adherence.set_reminder', { defaultValue: 'Set Reminder' }), t('adherence.reminder_desc', { defaultValue: 'Afternoon medication reminder will be added to your notifications.' }), [{ text: t('common.ok', { defaultValue: 'OK' }) }])}
                                             >
-                                                <Text style={styles.reminderBtnText}>Set Reminder</Text>
+                                                <Text style={styles.reminderBtnText}>{t('adherence.set_reminder', { defaultValue: 'Set Reminder' })}</Text>
                                             </Pressable>
                                         )}
                                     </View>
@@ -633,7 +634,7 @@ export default function AdherenceScreen({ navigation }) {
                             <View style={{ alignItems: 'center', marginHorizontal: -8, marginTop: 4, marginBottom: 16 }}>
                                 <LineChart
                                     data={{
-                                        labels: weeklyTrend.length > 0 ? weeklyTrend.map(d => d.day) : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                                        labels: weeklyTrend.length > 0 ? weeklyTrend.map(d => d.day) : [t('adherence.mon', { defaultValue: 'Mon' }), t('adherence.tue', { defaultValue: 'Tue' }), t('adherence.wed', { defaultValue: 'Wed' }), t('adherence.thu', { defaultValue: 'Thu' }), t('adherence.fri', { defaultValue: 'Fri' }), t('adherence.sat', { defaultValue: 'Sat' }), t('adherence.sun', { defaultValue: 'Sun' })],
                                         datasets: [{ data: weeklyTrend.length > 0 ? weeklyTrend.map(d => Math.max(d.rate, 1)) : [1, 1, 1, 1, 1, 1, 1] }],
                                     }}
                                     width={SCREEN_WIDTH - 48}
@@ -662,13 +663,13 @@ export default function AdherenceScreen({ navigation }) {
                                 <View style={styles.trendStatItem}>
                                     <View style={[styles.trendDot, { backgroundColor: C.success }]} />
                                     <Text style={styles.trendStatNum}>{weeklySummary.taken}</Text>
-                                    <Text style={styles.trendStatLabel}>Taken</Text>
+                                    <Text style={styles.trendStatLabel}>{t('common.taken', { defaultValue: 'Taken' })}</Text>
                                 </View>
                                 <View style={styles.trendDivider} />
                                 <View style={styles.trendStatItem}>
                                     <View style={[styles.trendDot, { backgroundColor: C.danger }]} />
                                     <Text style={styles.trendStatNum}>{weeklySummary.missed}</Text>
-                                    <Text style={styles.trendStatLabel}>Missed</Text>
+                                    <Text style={styles.trendStatLabel}>{t('adherence.missed', { defaultValue: 'Missed' })}</Text>
                                 </View>
                                 <View style={styles.trendDivider} />
                                 <View style={styles.trendStatItem}>
@@ -676,7 +677,7 @@ export default function AdherenceScreen({ navigation }) {
                                     <Text style={[styles.trendStatNum, { color: weeklySummary.improvement >= 0 ? C.success : C.danger }]}>
                                         {weeklySummary.improvement >= 0 ? '+' : ''}{weeklySummary.improvement}%
                                     </Text>
-                                    <Text style={styles.trendStatLabel}>vs Last</Text>
+                                    <Text style={styles.trendStatLabel}>{t('adherence.vs_last', { defaultValue: 'vs Last' })}</Text>
                                 </View>
                             </View>
 
@@ -684,7 +685,7 @@ export default function AdherenceScreen({ navigation }) {
                             <View style={styles.vitalsRow}>
                                 <View style={styles.vitalsHeader}>
                                     <Heart size={14} color={C.danger} />
-                                    <Text style={styles.vitalsLabel}>Vitals Logging</Text>
+                                    <Text style={styles.vitalsLabel}>{t('adherence.vitals_logging', { defaultValue: 'Vitals Logging' })}</Text>
                                     <Text style={[styles.vitalsValue, { color: vitalsAdherence >= 70 ? C.success : vitalsAdherence >= 40 ? C.warning : C.danger }]}>
                                         {vitalsAdherence}%
                                     </Text>
@@ -718,7 +719,7 @@ export default function AdherenceScreen({ navigation }) {
 
                             <View style={styles.weekDaysRow}>
                                 {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d, i) => (
-                                    <Text key={i} style={styles.weekDayLabel}>{d.charAt(0)}</Text>
+                                    <Text key={i} style={styles.weekDayLabel}>{t(`adherence.short_day_${i}`, { defaultValue: d.charAt(0) })}</Text>
                                 ))}
                             </View>
 
@@ -742,10 +743,10 @@ export default function AdherenceScreen({ navigation }) {
 
                             <View style={styles.legendRow}>
                                 {[
-                                    { label: 'Complete', color: C.success },
-                                    { label: 'Partial', color: C.warning },
-                                    { label: 'Missed', color: C.danger },
-                                    { label: 'No Data', color: '#CBD5E1' },
+                                    { label: t('adherence.complete', { defaultValue: 'Complete' }), color: C.success },
+                                    { label: t('adherence.partial', { defaultValue: 'Partial' }), color: C.warning },
+                                    { label: t('adherence.missed', { defaultValue: 'Missed' }), color: C.danger },
+                                    { label: t('adherence.no_data', { defaultValue: 'No Data' }), color: '#CBD5E1' },
                                 ].map((item) => (
                                     <View key={item.label} style={styles.legendItem}>
                                         <View style={[styles.legendDot, { backgroundColor: item.color }]} />
@@ -817,7 +818,7 @@ export default function AdherenceScreen({ navigation }) {
 
                                 {selectedDay.medicines && selectedDay.medicines.length > 0 ? (
                                     <View style={{ marginBottom: 16 }}>
-                                        <Text style={styles.sheetSectionLabel}>MEDICATIONS</Text>
+                                        <Text style={styles.sheetSectionLabel}>{t('adherence.medications_label', { defaultValue: 'MEDICATIONS' })}</Text>
                                         {selectedDay.medicines.map((med, idx) => (
                                             <View key={idx} style={styles.sheetMedRow}>
                                                 <View style={[styles.sheetMedIcon, { backgroundColor: med.taken ? C.successBg : C.dangerBg }]}>
@@ -835,12 +836,12 @@ export default function AdherenceScreen({ navigation }) {
                                         ))}
                                     </View>
                                 ) : (
-                                    <Text style={styles.sheetEmpty}>No medications scheduled for this day.</Text>
+                                    <Text style={styles.sheetEmpty}>{t('adherence.no_meds_scheduled_day', { defaultValue: 'No medications scheduled for this day.' })}</Text>
                                 )}
 
                                 {selectedDay.vitals && (
                                     <View style={styles.sheetVitals}>
-                                        <Text style={styles.sheetSectionLabel}>VITALS LOGGED</Text>
+                                        <Text style={styles.sheetSectionLabel}>{t('adherence.vitals_logged_label', { defaultValue: 'VITALS LOGGED' })}</Text>
                                         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 8 }}>
                                             {selectedDay.vitals.heart_rate && (
                                                 <View style={styles.sheetVitalChip}><Text style={styles.sheetVitalText}>💓 {selectedDay.vitals.heart_rate} bpm</Text></View>

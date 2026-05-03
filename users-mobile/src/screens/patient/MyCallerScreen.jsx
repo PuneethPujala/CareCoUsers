@@ -134,9 +134,9 @@ export default function MyCallerScreen({ navigation }) {
       });
       setFlagIssueModalVisible(false);
       setFlagDescription('');
-      AlertManager.alert('Issue Flagged', 'Your issue has been reported to the care team.');
+      AlertManager.alert(t('caller.issue_flagged', { defaultValue: 'Issue Flagged' }), t('caller.issue_reported', { defaultValue: 'Your issue has been reported to the care team.' }));
     } catch (err) {
-      AlertManager.alert('Error', 'Failed to flag issue. Please try again.');
+      AlertManager.alert(t('common.error', { defaultValue: 'Error' }), t('caller.flag_failed', { defaultValue: 'Failed to flag issue. Please try again.' }));
       console.warn('Flag issue error:', err.message);
     } finally {
       setFlagging(false);
@@ -208,18 +208,18 @@ export default function MyCallerScreen({ navigation }) {
 
   const saveContact = async () => {
     if (!contactForm.name?.trim()) {
-      AlertManager.alert('Required', 'Please enter the contact\'s name.');
+      AlertManager.alert(t('common.required', { defaultValue: 'Required' }), t('caller.enter_contact_name', { defaultValue: "Please enter the contact's name." }));
       return;
     }
 
     const phoneErr = validatePhone(contactForm.phone, contactForm.phoneCode);
     if (phoneErr) {
-      AlertManager.alert('Invalid Phone', phoneErr);
+      AlertManager.alert(t('common.invalid_phone', { defaultValue: 'Invalid Phone' }), phoneErr);
       return;
     }
 
     if (contactForm.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactForm.email.trim())) {
-      AlertManager.alert('Invalid Email', 'Please enter a valid email address.');
+      AlertManager.alert(t('common.invalid_email', { defaultValue: 'Invalid Email' }), t('caller.enter_valid_email', { defaultValue: 'Please enter a valid email address.' }));
       return;
     }
 
@@ -229,7 +229,7 @@ export default function MyCallerScreen({ navigation }) {
     if (!editingContact) {
       const isDup = contacts.some(c => c.phone.replace(/[^0-9]/g, '') === fullPhone.replace(/[^0-9]/g, ''));
       if (isDup) {
-        AlertManager.alert('Duplicate', 'A contact with this phone number already exists.');
+        AlertManager.alert(t('common.duplicate', { defaultValue: 'Duplicate' }), t('caller.duplicate_phone', { defaultValue: 'A contact with this phone number already exists.' }));
         return;
       }
     }
@@ -256,7 +256,7 @@ export default function MyCallerScreen({ navigation }) {
       closeContactModal();
     } catch (err) {
       console.warn('Save contact error:', err.message);
-      AlertManager.alert('Error', 'Failed to save contact.');
+      AlertManager.alert(t('common.error', { defaultValue: 'Error' }), t('caller.failed_save_contact', { defaultValue: 'Failed to save contact.' }));
     } finally {
       setIsSavingContact(false);
     }
@@ -264,7 +264,7 @@ export default function MyCallerScreen({ navigation }) {
 
   const confirmRemoveContact = (id) => {
     const contact = contacts.find(c => c._id === id);
-    setDeleteConfirm({ visible: true, id, name: contact?.name || 'this contact' });
+    setDeleteConfirm({ visible: true, id, name: contact?.name || t('caller.this_contact', { defaultValue: 'this contact' }) });
   };
 
   const executeRemoveContact = async () => {
@@ -277,7 +277,7 @@ export default function MyCallerScreen({ navigation }) {
       if (contactModal) closeContactModal();
     } catch (err) {
       console.warn('Remove contact error:', err.message);
-      AlertManager.alert('Error', 'Failed to remove contact.');
+      AlertManager.alert(t('common.error', { defaultValue: 'Error' }), t('caller.failed_remove_contact', { defaultValue: 'Failed to remove contact.' }));
     } finally {
       setIsDeleting(false);
     }
@@ -289,8 +289,8 @@ export default function MyCallerScreen({ navigation }) {
     const isToday = d.toDateString() === now.toDateString();
     const isYesterday = d.toDateString() === new Date(now - 86400000).toDateString();
     const time = d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
-    if (isToday) return `Today, ${time}`;
-    if (isYesterday) return `Yesterday, ${time}`;
+    if (isToday) return `${t('common.today', { defaultValue: 'Today' })}, ${time}`;
+    if (isYesterday) return `${t('common.yesterday', { defaultValue: 'Yesterday' })}, ${time}`;
     return d.toLocaleDateString('en-IN', { weekday: 'short', month: 'short', day: 'numeric' });
   };
 
@@ -323,10 +323,9 @@ export default function MyCallerScreen({ navigation }) {
         <View style={s.upgradeIconWrap}>
           <ShieldCheck size={32} color="#6366F1" />
         </View>
-        <Text style={s.upgradeTitle}>Premium Feature</Text>
+        <Text style={s.upgradeTitle}>{t('common.premium_feature', { defaultValue: 'Premium Feature' })}</Text>
         <Text style={s.upgradeBody}>
-          A dedicated care team caller is included in the Basic Plan. Upgrade on the Home screen to
-          get matched with a caller from your city.
+          {t('caller.premium_desc', { defaultValue: 'A dedicated care team caller is included in the Basic Plan. Upgrade on the Home screen to get matched with a caller from your city.' })}
         </Text>
       </View>
     );
@@ -408,14 +407,14 @@ export default function MyCallerScreen({ navigation }) {
                     }}
                   >
                     <Phone size={16} color="#FFF" strokeWidth={2.5} />
-                    <Text style={s.btnCallText}>Call Now</Text>
+                    <Text style={s.btnCallText}>{t('common.call_now', { defaultValue: 'Call Now' })}</Text>
                   </Pressable>
                   <Pressable
                     style={({ pressed }) => [s.btnFlag, pressed && s.btnFlagPressed]}
                     onPress={(e) => { e.stopPropagation?.(); setFlagIssueModalVisible(true); }}
                   >
                     <Flag size={16} color={C.danger} strokeWidth={2.2} />
-                    <Text style={s.btnFlagText}>Flag Issue</Text>
+                    <Text style={s.btnFlagText}>{t('caller.flag_issue', { defaultValue: 'Flag Issue' })}</Text>
                   </Pressable>
                 </View>
               </Pressable>
@@ -427,9 +426,9 @@ export default function MyCallerScreen({ navigation }) {
                   <PhoneIncoming size={28} color={C.primary} strokeWidth={1.5} />
                 </LinearGradient>
               </View>
-              <Text style={s.pendingTitle}>Caregiver Being Assigned</Text>
+              <Text style={s.pendingTitle}>{t('caller.caregiver_being_assigned', { defaultValue: 'Caregiver Being Assigned' })}</Text>
               <Text style={s.pendingBody}>
-                Your care manager has been notified and is assigning a dedicated caregiver for you. You'll receive a notification once they're ready!
+                {t('caller.pending_assignment_desc', { defaultValue: "Your care manager has been notified and is assigning a dedicated caregiver for you. You'll receive a notification once they're ready!" })}
               </Text>
               {manager && (
                 <Pressable
@@ -437,7 +436,7 @@ export default function MyCallerScreen({ navigation }) {
                   onPress={() => manager.phone && Linking.openURL(`tel:${manager.phone}`)}
                 >
                   <Phone size={16} color="#FFF" strokeWidth={2.5} />
-                  <Text style={s.pendingContactBtnText}>Contact Your Manager</Text>
+                  <Text style={s.pendingContactBtnText}>{t('caller.contact_your_manager', { defaultValue: 'Contact Your Manager' })}</Text>
                 </Pressable>
               )}
             </View>
@@ -459,13 +458,13 @@ export default function MyCallerScreen({ navigation }) {
                     </LinearGradient>
                   </View>
                   <View style={s.profileInfo}>
-                    <Text style={s.callerName} numberOfLines={1}>{manager.fullName || 'Manager'}</Text>
+                    <Text style={s.callerName} numberOfLines={1}>{manager.fullName || t('caller.manager_default', { defaultValue: 'Manager' })}</Text>
                     <View style={s.metaRow}>
-                      <Text style={s.idChipText}>Manager</Text>
+                      <Text style={s.idChipText}>{t('caller.manager_default', { defaultValue: 'Manager' })}</Text>
                       <View style={s.dotDivider} />
                       <View style={s.onlinePill}>
                         <View style={s.onlinePillDot} />
-                        <Text style={s.onlinePillText}>Available</Text>
+                        <Text style={s.onlinePillText}>{t('caller.available', { defaultValue: 'Available' })}</Text>
                       </View>
                     </View>
                   </View>
@@ -476,7 +475,7 @@ export default function MyCallerScreen({ navigation }) {
                     onPress={() => manager.phone && Linking.openURL(`tel:${manager.phone}`)}
                   >
                     <Phone size={16} color="#FFF" strokeWidth={2.5} />
-                    <Text style={s.btnCallText}>Contact Manager</Text>
+                    <Text style={s.btnCallText}>{t('caller.contact_manager', { defaultValue: 'Contact Manager' })}</Text>
                   </Pressable>
                 </View>
               </Pressable>
@@ -485,8 +484,8 @@ export default function MyCallerScreen({ navigation }) {
                 <View style={s.emptyIconWrapPremium}>
                   <ShieldCheck size={32} color={C.primary} strokeWidth={1.5} />
                 </View>
-                <Text style={s.emptyTitle}>No Manager Assigned</Text>
-                <Text style={s.emptyBody}>A manager will be assigned if additional support is required.</Text>
+                <Text style={s.emptyTitle}>{t('caller.no_manager_assigned', { defaultValue: 'No Manager Assigned' })}</Text>
+                <Text style={s.emptyBody}>{t('caller.no_manager_desc', { defaultValue: 'A manager will be assigned if additional support is required.' })}</Text>
               </LinearGradient>
             )}
           </View>
@@ -507,8 +506,8 @@ export default function MyCallerScreen({ navigation }) {
                 <View style={s.emptyIconWrapPremium}>
                   <Users size={32} color={C.primary} strokeWidth={1.5} />
                 </View>
-                <Text style={s.emptyTitle}>No Contacts Added</Text>
-                <Text style={s.emptyBody}>Add trusted family members or friends for emergencies.</Text>
+                <Text style={s.emptyTitle}>{t('caller.no_contacts_added', { defaultValue: 'No Contacts Added' })}</Text>
+                <Text style={s.emptyBody}>{t('caller.add_trusted_desc', { defaultValue: 'Add trusted family members or friends for emergencies.' })}</Text>
               </LinearGradient>
             ) : (
               contacts.map((contact, idx) => {
@@ -525,7 +524,7 @@ export default function MyCallerScreen({ navigation }) {
                         <Text style={s.contactName} numberOfLines={1}>{contact.name}</Text>
                         {contact.is_emergency && <View style={s.miniEmergencyPill}><Text style={s.miniEmergencyTxt}>S.O.S</Text></View>}
                       </View>
-                      <Text style={s.contactSub} numberOfLines={1}>{contact.relation || 'Contact'} • {contact.phone}</Text>
+                      <Text style={s.contactSub} numberOfLines={1}>{t(`caller.relation_${contact.relation?.toLowerCase() || 'contact'}`, { defaultValue: contact.relation || 'Contact' })} • {contact.phone}</Text>
                     </View>
                     <View style={s.contactActions}>
                       <Pressable style={s.iconActionBtn} onPress={() => openContactModal(contact)}>
@@ -552,8 +551,8 @@ export default function MyCallerScreen({ navigation }) {
       >
         {(() => {
           const isManager = selectedProfile?.isManager;
-          const profileName = isManager ? (selectedProfile.fullName || 'Manager') : (selectedProfile?.name || 'Care Team');
-          const profileIdText = isManager ? 'Role: Care Manager' : `Support ID: ${selectedProfile?.employee_id || 'N/A'}`;
+          const profileName = isManager ? (selectedProfile.fullName || t('caller.manager_default', { defaultValue: 'Manager' })) : (selectedProfile?.name || t('caller.care_team', { defaultValue: 'Care Team' }));
+          const profileIdText = isManager ? t('caller.role_manager', { defaultValue: 'Role: Care Manager' }) : `${t('caller.support_id', { defaultValue: 'Support ID:' })} ${selectedProfile?.employee_id || 'N/A'}`;
           const profileGradient = isManager ? ['#64748B', '#334155'] : ['#4338CA', '#312E81'];
           const profileExp = selectedProfile?.experience_years || 0;
           const profileLang = (selectedProfile?.languages_spoken?.length || 0) > 0 ? selectedProfile.languages_spoken[0] : 'English';
@@ -616,7 +615,7 @@ export default function MyCallerScreen({ navigation }) {
                         onPress={() => profilePhone && Linking.openURL(`tel:${profilePhone}`)}
                       >
                         <Phone size={18} color="#FFF" strokeWidth={2.5} />
-                        <Text style={s.btnCallTextLg}>Call Now</Text>
+                        <Text style={s.btnCallTextLg}>{t('common.call_now', { defaultValue: 'Call Now' })}</Text>
                       </Pressable>
                       <Pressable
                         style={({ pressed }) => [s.iconBtn, pressed && s.iconBtnPressed]}
@@ -632,24 +631,24 @@ export default function MyCallerScreen({ navigation }) {
                         <View style={[s.bentoIcon, { backgroundColor: '#F1F5F9' }]}>
                           <Clock size={16} color="#475569" strokeWidth={2.5} />
                         </View>
-                        <Text style={s.bentoVal}>{profileExp} yrs</Text>
-                        <Text style={s.bentoLbl}>Experience</Text>
+                        <Text style={s.bentoVal}>{profileExp} {t('common.yrs', { defaultValue: 'yrs' })}</Text>
+                        <Text style={s.bentoLbl}>{t('caller.experience', { defaultValue: 'Experience' })}</Text>
                       </View>
                       <View style={[s.bentoBox, { backgroundColor: '#F8FAFC' }]}>
                         <View style={[s.bentoIcon, { backgroundColor: '#F1F5F9' }]}>
                           <Globe size={16} color="#475569" strokeWidth={2.5} />
                         </View>
                         <Text style={s.bentoVal} numberOfLines={1}>
-                          {profileLang}
+                          {t(`common.language_${profileLang.toLowerCase()}`, { defaultValue: profileLang })}
                         </Text>
-                        <Text style={s.bentoLbl}>Primary Lang</Text>
+                        <Text style={s.bentoLbl}>{t('caller.primary_lang', { defaultValue: 'Primary Lang' })}</Text>
                       </View>
                       <View style={[s.bentoBox, { backgroundColor: '#F8FAFC' }]}>
                         <View style={[s.bentoIcon, { backgroundColor: '#F1F5F9' }]}>
                           <ShieldCheck size={16} color="#475569" strokeWidth={2.5} />
                         </View>
-                        <Text style={s.bentoVal}>Certified</Text>
-                        <Text style={s.bentoLbl}>Status</Text>
+                        <Text style={s.bentoVal}>{t('caller.certified', { defaultValue: 'Certified' })}</Text>
+                        <Text style={s.bentoLbl}>{t('common.status', { defaultValue: 'Status' })}</Text>
                       </View>
                     </View>
 
@@ -657,13 +656,13 @@ export default function MyCallerScreen({ navigation }) {
                     {!isManager && (
                       <>
                         <View style={s.sectionHead}>
-                          <Text style={s.sectionTitle}>Recent Calls</Text>
-                          <Pressable style={s.seeAllWrap}><Text style={s.seeAllText}>See all</Text></Pressable>
+                          <Text style={s.sectionTitle}>{t('caller.recent_calls', { defaultValue: 'Recent Calls' })}</Text>
+                          <Pressable style={s.seeAllWrap}><Text style={s.seeAllText}>{t('common.see_all', { defaultValue: 'See all' })}</Text></Pressable>
                         </View>
 
                         {calls.length === 0 ? (
                           <View style={s.emptyHistoryWrap}>
-                            <Text style={s.emptyBody}>No calls recorded yet.</Text>
+                            <Text style={s.emptyBody}>{t('caller.no_calls_recorded', { defaultValue: 'No calls recorded yet.' })}</Text>
                           </View>
                         ) : (
                           calls.map((call) => {
@@ -679,7 +678,7 @@ export default function MyCallerScreen({ navigation }) {
                                   <Text style={s.historyDate}>
                                     {new Date(call.call_date || call.created_at).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
                                   </Text>
-                                  <Text style={s.historyNote} numberOfLines={1}>{call.ai_summary || 'Routine check-in'}</Text>
+                                  <Text style={s.historyNote} numberOfLines={1}>{call.ai_summary || t('caller.routine_checkin', { defaultValue: 'Routine check-in' })}</Text>
                                 </View>
                                 <View style={[s.badgeBox, { backgroundColor: cfg.bg }]}>
                                   <Text style={[s.badgeText, { color: cfg.color }]}>{duration}</Text>
@@ -701,10 +700,10 @@ export default function MyCallerScreen({ navigation }) {
       {/* ── Contact Form Modal ── */}
       <PremiumFormModal
         visible={contactModal}
-        title={editingContact ? 'Edit Contact' : 'New Contact'}
+        title={editingContact ? t('caller.edit_contact', { defaultValue: 'Edit Contact' }) : t('caller.new_contact', { defaultValue: 'New Contact' })}
         onClose={closeContactModal}
         onSave={saveContact}
-        saveText={editingContact ? 'Update Contact' : 'Add Contact'}
+        saveText={editingContact ? t('caller.update_contact', { defaultValue: 'Update Contact' }) : t('caller.add_contact', { defaultValue: 'Add Contact' })}
         saving={isSavingContact}
         headerRight={
           editingContact && (
@@ -717,8 +716,8 @@ export default function MyCallerScreen({ navigation }) {
         {/* Name */}
         <View style={s.formGroup}>
           <SmartInput
-            label="Full Name *"
-            placeholder="e.g. Ramesh Kumar"
+            label={t('caller.full_name', { defaultValue: 'Full Name *' })}
+            placeholder={t('caller.name_placeholder', { defaultValue: 'e.g. Ramesh Kumar' })}
             value={contactForm.name}
             onChangeText={(t) => setContactForm({ ...contactForm, name: t })}
             returnKeyType="next"
@@ -727,7 +726,7 @@ export default function MyCallerScreen({ navigation }) {
 
         {/* Phone */}
         <View style={s.formGroup}>
-          <Text style={s.formLabel}>Phone Number *</Text>
+          <Text style={s.formLabel}>{t('caller.phone_number', { defaultValue: 'Phone Number *' })}</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <Pressable
               style={{
@@ -754,7 +753,7 @@ export default function MyCallerScreen({ navigation }) {
 
         {/* Relationship — Chip Selector */}
         <View style={s.formGroup}>
-          <Text style={s.formLabel}>Relationship</Text>
+          <Text style={s.formLabel}>{t('caller.relationship', { defaultValue: 'Relationship' })}</Text>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
             {['Son', 'Daughter', 'Spouse', 'Sibling', 'Friend', 'Neighbour', 'Other'].map(opt => {
               const isActive = contactForm.relation === opt;
@@ -778,8 +777,8 @@ export default function MyCallerScreen({ navigation }) {
         {/* Email */}
         <View style={s.formGroup}>
           <SmartInput
-            label="Email (Optional)"
-            placeholder="email@example.com"
+            label={t('caller.email_optional', { defaultValue: 'Email (Optional)' })}
+            placeholder={t('caller.email_placeholder', { defaultValue: 'email@example.com' })}
             keyboardType="email-address"
             autoCapitalize="none"
             value={contactForm.email}
@@ -791,8 +790,8 @@ export default function MyCallerScreen({ navigation }) {
         <View style={s.formGroup}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#F8FAFC', padding: 16, borderRadius: 16, borderWidth: 1, borderColor: '#E2E8F0' }}>
             <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 16, fontWeight: '700', color: C.dark }}>Emergency Contact</Text>
-              <Text style={{ fontSize: 13, color: C.muted }}>Primary person for emergencies</Text>
+              <Text style={{ fontSize: 16, fontWeight: '700', color: C.dark }}>{t('caller.emergency_contact', { defaultValue: 'Emergency Contact' })}</Text>
+              <Text style={{ fontSize: 13, color: C.muted }}>{t('caller.emergency_desc', { defaultValue: 'Primary person for emergencies' })}</Text>
             </View>
             <Switch
               value={contactForm.is_emergency}
@@ -806,24 +805,24 @@ export default function MyCallerScreen({ navigation }) {
       {/* Flag Issue Modal */}
       <PremiumFormModal
         visible={flagIssueModalVisible}
-        title="Flag an Issue"
+        title={t('caller.flag_issue_title', { defaultValue: 'Flag an Issue' })}
         onClose={() => setFlagIssueModalVisible(false)}
         onSave={submitFlagIssue}
-        saveText="Submit Report"
+        saveText={t('caller.submit_report', { defaultValue: 'Submit Report' })}
         saving={flagging}
       >
         <View style={s.formGroup}>
           <SmartInput
-            label="What went wrong?"
+            label={t('caller.what_went_wrong', { defaultValue: 'What went wrong?' })}
             variant="multiline"
             multiline
-            placeholder="Please describe the issue with your caller..."
+            placeholder={t('caller.describe_issue', { defaultValue: 'Please describe the issue with your caller...' })}
             value={flagDescription}
             onChangeText={setFlagDescription}
           />
         </View>
         <Text style={{ fontSize: 13, color: '#94A3B8', marginTop: 12, lineHeight: 20 }}>
-          Your care manager will review this report and take appropriate action. All reports are strictly confidential.
+          {t('caller.issue_disclaimer', { defaultValue: 'Your care manager will review this report and take appropriate action. All reports are strictly confidential.' })}
         </Text>
       </PremiumFormModal>
 
@@ -833,7 +832,7 @@ export default function MyCallerScreen({ navigation }) {
           <View style={s.modalWrapper}>
             <Pressable style={s.contactFormSheet} onPress={(e) => e.stopPropagation()}>
               <View style={[s.modalHeaderRow, { padding: 24, paddingBottom: 12 }]}>
-                <Text style={s.sectionTitle}>Select Country Code</Text>
+                <Text style={s.sectionTitle}>{t('caller.select_country_code', { defaultValue: 'Select Country Code' })}</Text>
                 <Pressable onPress={() => setCountryCodeModal(false)} style={s.modalCloseBtn}>
                   <X size={20} color={C.mid} />
                 </Pressable>
@@ -868,9 +867,9 @@ export default function MyCallerScreen({ navigation }) {
             <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: C.dangerBg, alignItems: 'center', justifyContent: 'center', alignSelf: 'center', marginBottom: 16 }}>
               <Trash2 size={24} color={C.danger} />
             </View>
-            <Text style={{ fontSize: 20, fontWeight: '800', color: C.dark, textAlign: 'center', marginBottom: 8 }}>Remove Contact</Text>
+            <Text style={{ fontSize: 20, fontWeight: '800', color: C.dark, textAlign: 'center', marginBottom: 8 }}>{t('caller.remove_contact', { defaultValue: 'Remove Contact' })}</Text>
             <Text style={{ fontSize: 15, color: '#64748B', textAlign: 'center', lineHeight: 22, marginBottom: 24 }}>
-              Are you sure you want to remove <Text style={{ fontWeight: '700', color: C.dark }}>{deleteConfirm.name}</Text> from your trusted contacts?
+              {t('caller.remove_confirm_1', { defaultValue: 'Are you sure you want to remove ' })}<Text style={{ fontWeight: '700', color: C.dark }}>{deleteConfirm.name}</Text>{t('caller.remove_confirm_2', { defaultValue: ' from your trusted contacts?' })}
             </Text>
             <View style={{ flexDirection: 'row', gap: 12 }}>
               <Pressable
@@ -878,7 +877,7 @@ export default function MyCallerScreen({ navigation }) {
                 disabled={isDeleting}
                 style={{ flex: 1, paddingVertical: 14, borderRadius: 14, alignItems: 'center', backgroundColor: '#F1F5F9' }}
               >
-                <Text style={{ fontSize: 15, fontWeight: '700', color: '#64748B' }}>Cancel</Text>
+                <Text style={{ fontSize: 15, fontWeight: '700', color: '#64748B' }}>{t('common.cancel', { defaultValue: 'Cancel' })}</Text>
               </Pressable>
               <Pressable
                 onPress={executeRemoveContact}
@@ -888,7 +887,7 @@ export default function MyCallerScreen({ navigation }) {
                 {isDeleting ? (
                   <ActivityIndicator size="small" color="#FFF" />
                 ) : (
-                  <Text style={{ fontSize: 15, fontWeight: '700', color: '#FFF' }}>Remove</Text>
+                  <Text style={{ fontSize: 15, fontWeight: '700', color: '#FFF' }}>{t('common.remove', { defaultValue: 'Remove' })}</Text>
                 )}
               </Pressable>
             </View>
