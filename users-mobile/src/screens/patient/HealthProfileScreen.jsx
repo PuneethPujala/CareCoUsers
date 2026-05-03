@@ -97,14 +97,14 @@ export default function HealthProfileScreen({ navigation }) {
 
     const handleWearableSync = async () => {
         if (!healthSdkReady) {
-            AlertManager.alert('Unsupported', 'Health integration is not available on this device.');
+            AlertManager.alert(t('common.unsupported', { defaultValue: 'Unsupported' }), t('health.integration_unavailable', { defaultValue: 'Health integration is not available on this device.' }));
             return;
         }
         setIsSyncing(true);
         try {
             const hasPermissions = await requestHealthPermissions();
             if (!hasPermissions) {
-                AlertManager.alert('Permission Denied', 'Please enable health permissions in your system settings to seamlessly sync vitals.');
+                AlertManager.alert(t('common.permission_denied', { defaultValue: 'Permission Denied' }), t('health.enable_permissions', { defaultValue: 'Please enable health permissions in your system settings to seamlessly sync vitals.' }));
                 setIsSyncing(false);
                 return;
             }
@@ -117,13 +117,13 @@ export default function HealthProfileScreen({ navigation }) {
                     hydration: 50,
                     source: Platform.OS === 'android' ? 'health_connect' : 'healthkit'
                 });
-                AlertManager.alert('Sync Complete', 'Successfully securely pulled your latest smartwatch data into CareMyMed.');
+                AlertManager.alert(t('common.sync_complete', { defaultValue: 'Sync Complete' }), t('health.sync_success_desc', { defaultValue: 'Successfully securely pulled your latest smartwatch data into CareMyMed.' }));
             } else {
-                AlertManager.alert('No Data Found', "We couldn't find any recent vitals recorded by your watch today.");
+                AlertManager.alert(t('common.no_data_found', { defaultValue: 'No Data Found' }), t('health.no_recent_vitals', { defaultValue: "We couldn't find any recent vitals recorded by your watch today." }));
             }
         } catch (e) {
             console.error(e);
-            AlertManager.alert('Sync Error', 'An error occurred while connecting to your health data.');
+            AlertManager.alert(t('common.sync_error', { defaultValue: 'Sync Error' }), t('health.sync_error_desc', { defaultValue: 'An error occurred while connecting to your health data.' }));
         } finally {
             setIsSyncing(false);
         }
@@ -242,8 +242,8 @@ export default function HealthProfileScreen({ navigation }) {
             await loadProfile();
             closeModal();
         } catch (e) {
-            if (Platform.OS === 'web') window.alert("Could not delete item");
-            else AlertManager.alert("Error", "Could not delete item");
+            if (Platform.OS === 'web') window.alert(t('health.could_not_delete', { defaultValue: "Could not delete item" }));
+            else AlertManager.alert(t('common.error', { defaultValue: "Error" }), t('health.could_not_delete', { defaultValue: "Could not delete item" }));
         } finally {
             setIsSaving(false);
         }
@@ -251,13 +251,13 @@ export default function HealthProfileScreen({ navigation }) {
 
     const handleDelete = (collection, id) => {
         if (Platform.OS === 'web') {
-            if (window.confirm("Are you sure you want to permanently delete this item?")) {
+            if (window.confirm(t('health.confirm_delete_msg', { defaultValue: "Are you sure you want to permanently delete this item?" }))) {
                 executeDelete(collection, id);
             }
         } else {
-            AlertManager.alert("Confirm Delete", "Are you sure you want to permanently delete this item?", [
-                { text: "Cancel", style: "cancel" },
-                { text: "Delete", style: "destructive", onPress: () => executeDelete(collection, id) }
+            AlertManager.alert(t('common.confirm_delete', { defaultValue: "Confirm Delete" }), t('health.confirm_delete_msg', { defaultValue: "Are you sure you want to permanently delete this item?" }), [
+                { text: t('common.cancel', { defaultValue: "Cancel" }), style: "cancel" },
+                { text: t('common.delete', { defaultValue: "Delete" }), style: "destructive", onPress: () => executeDelete(collection, id) }
             ]);
         }
     };
@@ -266,66 +266,66 @@ export default function HealthProfileScreen({ navigation }) {
         const nameRegex = /^[a-zA-Z\s'-]+$/;
 
         if (editingType === 'contact' && formState.name && !nameRegex.test(formState.name)) {
-            return AlertManager.alert('Invalid Name', 'Contact names can only contain letters, spaces, hyphens, and apostrophes.');
+            return AlertManager.alert(t('common.invalid_name', { defaultValue: 'Invalid Name' }), t('health.invalid_contact_name', { defaultValue: 'Contact names can only contain letters, spaces, hyphens, and apostrophes.' }));
         }
         if (editingType === 'gp' && formState.gp_name && !nameRegex.test(formState.gp_name)) {
-            return AlertManager.alert('Invalid Name', 'Doctor names can only contain letters, spaces, hyphens, and apostrophes.');
+            return AlertManager.alert(t('common.invalid_name', { defaultValue: 'Invalid Name' }), t('health.invalid_doc_name', { defaultValue: 'Doctor names can only contain letters, spaces, hyphens, and apostrophes.' }));
         }
         if (editingType === 'appointment' && formState.doctor_name && !nameRegex.test(formState.doctor_name)) {
-            return AlertManager.alert('Invalid Name', 'Doctor names can only contain letters, spaces, hyphens, and apostrophes.');
+            return AlertManager.alert(t('common.invalid_name', { defaultValue: 'Invalid Name' }), t('health.invalid_doc_name', { defaultValue: 'Doctor names can only contain letters, spaces, hyphens, and apostrophes.' }));
         }
 
         if (['condition', 'allergy', 'medication', 'vaccination', 'contact'].includes(editingType) && !formState.name?.trim()) {
-            return Platform.OS === 'web' ? window.alert('Please provide a valid name.') : AlertManager.alert('Missing Field', 'Please provide a valid name.');
+            return Platform.OS === 'web' ? window.alert(t('health.missing_name', { defaultValue: 'Please provide a valid name.' })) : AlertManager.alert(t('common.missing_field', { defaultValue: 'Missing Field' }), t('health.missing_name', { defaultValue: 'Please provide a valid name.' }));
         }
         if (editingType === 'identity' && formState.blood_type) {
             const validTypes = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'unknown'];
             if (!validTypes.includes(formState.blood_type)) {
-                return AlertManager.alert('Invalid Blood Type', 'Please select a valid blood type.');
+                return AlertManager.alert(t('health.invalid_blood_type', { defaultValue: 'Invalid Blood Type' }), t('health.select_valid_blood', { defaultValue: 'Please select a valid blood type.' }));
             }
         }
         if (['contact'].includes(editingType) && !formState.phone?.trim()) {
-            return Platform.OS === 'web' ? window.alert('Please provide a phone number.') : AlertManager.alert('Missing Field', 'Please provide a phone number.');
+            return Platform.OS === 'web' ? window.alert(t('health.missing_phone', { defaultValue: 'Please provide a phone number.' })) : AlertManager.alert(t('common.missing_field', { defaultValue: 'Missing Field' }), t('health.missing_phone', { defaultValue: 'Please provide a phone number.' }));
         }
         if (editingType === 'history' && !formState.event?.trim()) {
-            return Platform.OS === 'web' ? window.alert('Please provide an event name.') : AlertManager.alert('Missing Field', 'Please provide an event name.');
+            return Platform.OS === 'web' ? window.alert(t('health.missing_event', { defaultValue: 'Please provide an event name.' })) : AlertManager.alert(t('common.missing_field', { defaultValue: 'Missing Field' }), t('health.missing_event', { defaultValue: 'Please provide an event name.' }));
         }
         if (editingType === 'appointment' && (!formState.title?.trim() || !formState.doctor_name?.trim())) {
-            return Platform.OS === 'web' ? window.alert('Please provide appointment details.') : AlertManager.alert('Missing Field', 'Please provide appointment details.');
+            return Platform.OS === 'web' ? window.alert(t('health.missing_appt_details', { defaultValue: 'Please provide appointment details.' })) : AlertManager.alert(t('common.missing_field', { defaultValue: 'Missing Field' }), t('health.missing_appt_details', { defaultValue: 'Please provide appointment details.' }));
         }
 
         if (['condition', 'allergy', 'medication', 'history'].includes(editingType)) {
             const val = formState.name || formState.event;
             if (val && val.trim().length < 2) {
-                return AlertManager.alert('Too Short', 'Please enter a more descriptive name (at least 2 characters).');
+                return AlertManager.alert(t('common.too_short', { defaultValue: 'Too Short' }), t('health.name_too_short', { defaultValue: 'Please enter a more descriptive name (at least 2 characters).' }));
             }
         }
 
         if (['history', 'condition', 'allergy'].includes(editingType) && formState.date) {
             if (new Date(formState.date) > new Date()) {
-                return AlertManager.alert('Invalid Date', 'Date cannot be in the future.');
+                return AlertManager.alert(t('common.invalid_date', { defaultValue: 'Invalid Date' }), t('health.date_future_error', { defaultValue: 'Date cannot be in the future.' }));
             }
         }
         if (editingType === 'vaccination' && formState.date_given) {
             if (new Date(formState.date_given) > new Date()) {
-                return AlertManager.alert('Invalid Date', 'Vaccination date cannot be in the future.');
+                return AlertManager.alert(t('common.invalid_date', { defaultValue: 'Invalid Date' }), t('health.vaccine_future_error', { defaultValue: 'Vaccination date cannot be in the future.' }));
             }
         }
         if (editingType === 'appointment' && formState.date) {
             const today = new Date();
             today.setHours(0, 0, 0, 0);
             if (new Date(formState.date) < today && formState.status === 'upcoming') {
-                return AlertManager.alert('Invalid Date', 'Upcoming appointment date cannot be in the past.');
+                return AlertManager.alert(t('common.invalid_date', { defaultValue: 'Invalid Date' }), t('health.appt_past_error', { defaultValue: 'Upcoming appointment date cannot be in the past.' }));
             }
         }
 
         if (editingType === 'gp' && formState.gp_phone) {
             const phoneErr = validatePhone(formState.gp_phone, formState.gp_phoneCode);
-            if (phoneErr) return AlertManager.alert('Invalid Phone', phoneErr);
+            if (phoneErr) return AlertManager.alert(t('common.invalid_phone', { defaultValue: 'Invalid Phone' }), phoneErr);
         }
         if (editingType === 'contact' && formState.phone) {
             if (formState.phone.replace(/[^0-9]/g, '').length < 10) {
-                return AlertManager.alert('Invalid Phone', 'Please enter a valid 10-digit phone number.');
+                return AlertManager.alert(t('common.invalid_phone', { defaultValue: 'Invalid Phone' }), t('health.enter_10_digits', { defaultValue: 'Please enter a valid 10-digit phone number.' }));
             }
         }
 
@@ -333,15 +333,15 @@ export default function HealthProfileScreen({ navigation }) {
             const h = Number(formState.height_cm);
             const w = Number(formState.weight_kg);
             if (formState.height_cm && (h < 50 || h > 300)) {
-                return Platform.OS === 'web' ? window.alert('Height must be between 50–300 cm.') : AlertManager.alert('Invalid Height', 'Height must be between 50 and 300 cm.');
+                return Platform.OS === 'web' ? window.alert(t('health.height_range', { defaultValue: 'Height must be between 50–300 cm.' })) : AlertManager.alert(t('common.invalid_height', { defaultValue: 'Invalid Height' }), t('health.height_range', { defaultValue: 'Height must be between 50 and 300 cm.' }));
             }
             if (formState.weight_kg && (w < 10 || w > 500)) {
-                return Platform.OS === 'web' ? window.alert('Weight must be between 10–500 kg.') : AlertManager.alert('Invalid Weight', 'Weight must be between 10 and 500 kg.');
+                return Platform.OS === 'web' ? window.alert(t('health.weight_range', { defaultValue: 'Weight must be between 10–500 kg.' })) : AlertManager.alert(t('common.invalid_weight', { defaultValue: 'Invalid Weight' }), t('health.weight_range', { defaultValue: 'Weight must be between 10 and 500 kg.' }));
             }
             if (h && w) {
                 const bmi = w / Math.pow(h / 100, 2);
                 if (bmi < 10 || bmi > 60) {
-                    return AlertManager.alert('Invalid Vitals', `The calculated BMI of ${bmi.toFixed(1)} seems highly unlikely. Please verify your height and weight inputs.`);
+                    return AlertManager.alert(t('health.invalid_vitals', { defaultValue: 'Invalid Vitals' }), t('health.invalid_bmi_desc', { defaultValue: `The calculated BMI of ${bmi.toFixed(1)} seems highly unlikely. Please verify your height and weight inputs.`, bmi: bmi.toFixed(1) }));
                 }
             }
         }
@@ -349,19 +349,19 @@ export default function HealthProfileScreen({ navigation }) {
         if (!formState._id) {
             const checkDuplicate = (list, key) => list.some(item => item[key]?.toLowerCase().trim() === formState[key]?.toLowerCase().trim());
             if (editingType === 'condition' && checkDuplicate(conditions, 'name')) {
-                return Platform.OS === 'web' ? window.alert('This condition already exists.') : AlertManager.alert('Duplicate', 'This condition already exists in your health profile.');
+                return Platform.OS === 'web' ? window.alert(t('health.condition_exists', { defaultValue: 'This condition already exists.' })) : AlertManager.alert(t('common.duplicate', { defaultValue: 'Duplicate' }), t('health.condition_exists_desc', { defaultValue: 'This condition already exists in your health profile.' }));
             }
             if (editingType === 'allergy' && checkDuplicate(allergies, 'name')) {
-                return Platform.OS === 'web' ? window.alert('This allergy already exists.') : AlertManager.alert('Duplicate', 'This allergy already exists in your health profile.');
+                return Platform.OS === 'web' ? window.alert(t('health.allergy_exists', { defaultValue: 'This allergy already exists.' })) : AlertManager.alert(t('common.duplicate', { defaultValue: 'Duplicate' }), t('health.allergy_exists_desc', { defaultValue: 'This allergy already exists in your health profile.' }));
             }
             if (editingType === 'medication' && checkDuplicate(medications, 'name')) {
-                return Platform.OS === 'web' ? window.alert('This medication already exists.') : AlertManager.alert('Duplicate', 'This medication already exists in your health profile.');
+                return Platform.OS === 'web' ? window.alert(t('health.med_exists', { defaultValue: 'This medication already exists.' })) : AlertManager.alert(t('common.duplicate', { defaultValue: 'Duplicate' }), t('health.med_exists_desc', { defaultValue: 'This medication already exists in your health profile.' }));
             }
             if (editingType === 'vaccination' && checkDuplicate(vaccinations, 'name')) {
-                return Platform.OS === 'web' ? window.alert('This vaccination already exists.') : AlertManager.alert('Duplicate', 'This vaccination already exists in your health profile.');
+                return Platform.OS === 'web' ? window.alert(t('health.vax_exists', { defaultValue: 'This vaccination already exists.' })) : AlertManager.alert(t('common.duplicate', { defaultValue: 'Duplicate' }), t('health.vax_exists_desc', { defaultValue: 'This vaccination already exists in your health profile.' }));
             }
             if (editingType === 'history' && medical_history.some(item => item.event?.toLowerCase().trim() === formState.event?.toLowerCase().trim())) {
-                return Platform.OS === 'web' ? window.alert('This medical history entry already exists.') : AlertManager.alert('Duplicate', 'This entry already exists in your medical history.');
+                return Platform.OS === 'web' ? window.alert(t('health.history_exists', { defaultValue: 'This medical history entry already exists.' })) : AlertManager.alert(t('common.duplicate', { defaultValue: 'Duplicate' }), t('health.history_exists_desc', { defaultValue: 'This entry already exists in your medical history.' }));
             }
         }
 
@@ -431,8 +431,8 @@ export default function HealthProfileScreen({ navigation }) {
     if (profile?.freePlan) return (
         <View style={[s.container, { justifyContent: 'center', alignItems: 'center', padding: 32 }]}>
             <View style={s.upgradeIconWrap}><ShieldCheck size={32} color={C.primary} /></View>
-            <Text style={s.upgradeTitle}>Premium Feature</Text>
-            <Text style={s.upgradeBody}>Your centralized health profile is included in the Basic Plan. Upgrade on the Home screen to build your health profile.</Text>
+            <Text style={s.upgradeTitle}>{t('common.premium_feature', { defaultValue: 'Premium Feature' })}</Text>
+            <Text style={s.upgradeBody}>{t('health_profile.premium_desc', { defaultValue: 'Your centralized health profile is included in the Basic Plan. Upgrade on the Home screen to build your health profile.' })}</Text>
         </View>
     );
 
@@ -443,10 +443,10 @@ export default function HealthProfileScreen({ navigation }) {
     const getBmiStyle = (val) => {
         if (!val) return { label: 'BMI' };
         const v = parseFloat(val);
-        if (v < 18.5) return { label: 'Underweight' };
-        if (v < 25) return { label: 'Normal' };
-        if (v < 30) return { label: 'Overweight' };
-        return { label: 'Obese' };
+        if (v < 18.5) return { label: t('health.underweight', { defaultValue: 'Underweight' }) };
+        if (v < 25) return { label: t('common.normal', { defaultValue: 'Normal' }) };
+        if (v < 30) return { label: t('health.overweight', { defaultValue: 'Overweight' }) };
+        return { label: t('health.obese', { defaultValue: 'Obese' }) };
     };
     const bmiTheme = getBmiStyle(bmi);
 
@@ -468,20 +468,20 @@ export default function HealthProfileScreen({ navigation }) {
 
     const handleCompletionClick = () => {
         const missing = [];
-        if (!profile?.blood_type || profile.blood_type === 'unknown') missing.push('Blood Type');
-        if (conditions.length === 0) missing.push('Current Conditions');
-        if (allergies.length === 0) missing.push('Allergies');
-        if (medical_history.length === 0) missing.push('Medical History');
-        if (medications.length === 0) missing.push('Medications');
-        if (vaccinations.length === 0) missing.push('Vaccinations');
-        if (!lifestyle.height_cm || !lifestyle.weight_kg) missing.push('Height & Weight');
-        if (!profile?.trusted_contacts?.length) missing.push('Emergency Contact');
-        if (!gp.name) missing.push('Primary GP');
-        if (!lifestyle.smoking_status || lifestyle.smoking_status === 'unknown') missing.push('Smoking Status');
+        if (!profile?.blood_type || profile.blood_type === 'unknown') missing.push(t('health_profile.blood_type', { defaultValue: 'Blood Type' }));
+        if (conditions.length === 0) missing.push(t('health_profile.current_conditions', { defaultValue: 'Current Conditions' }));
+        if (allergies.length === 0) missing.push(t('health_profile.allergies', { defaultValue: 'Allergies' }));
+        if (medical_history.length === 0) missing.push(t('health_profile.medical_history', { defaultValue: 'Medical History' }));
+        if (medications.length === 0) missing.push(t('health_profile.medications', { defaultValue: 'Medications' }));
+        if (vaccinations.length === 0) missing.push(t('health_profile.vaccinations', { defaultValue: 'Vaccinations' }));
+        if (!lifestyle.height_cm || !lifestyle.weight_kg) missing.push(t('health_profile.height_weight', { defaultValue: 'Height & Weight' }));
+        if (!profile?.trusted_contacts?.length) missing.push(t('caller.emergency_contact', { defaultValue: 'Emergency Contact' }));
+        if (!gp.name) missing.push(t('health_profile.primary_gp', { defaultValue: 'Primary GP' }));
+        if (!lifestyle.smoking_status || lifestyle.smoking_status === 'unknown') missing.push(t('health_profile.smoking_status', { defaultValue: 'Smoking Status' }));
         if (missing.length === 0) {
-            AlertManager.alert('Profile Complete', 'You have completed 100% of your health profile. Great job!');
+            AlertManager.alert(t('health_profile.profile_complete', { defaultValue: 'Profile Complete' }), t('health_profile.profile_complete_desc', { defaultValue: 'You have completed 100% of your health profile. Great job!' }));
         } else {
-            AlertManager.alert('Incomplete Profile', 'Please add the following information to complete your profile:\n\n• ' + missing.join('\n• '));
+            AlertManager.alert(t('health_profile.incomplete_profile', { defaultValue: 'Incomplete Profile' }), t('health_profile.incomplete_profile_desc', { defaultValue: 'Please add the following information to complete your profile:\n\n• ' }) + missing.join('\n• '));
         }
     };
 
@@ -493,13 +493,13 @@ export default function HealthProfileScreen({ navigation }) {
         return Math.max(0, Math.min(100, score));
     };
     const habitScore = calcHabitScore();
-    const habitLabel = habitScore >= 70 ? 'Good' : habitScore >= 40 ? 'Fair' : 'Needs Work';
+    const habitLabel = habitScore >= 70 ? t('common.good', { defaultValue: 'Good' }) : habitScore >= 40 ? t('common.fair', { defaultValue: 'Fair' }) : t('health.needs_work', { defaultValue: 'Needs Work' });
     const habitColor = habitScore >= 70 ? '#10B981' : habitScore >= 40 ? '#F59E0B' : '#EF4444';
 
     const managedCount = conditions.filter(c => c.status === 'managed' || c.status === 'resolved').length;
-    const trendLabel = conditions.length === 0 ? 'Good' : managedCount >= conditions.length * 0.5 ? 'Good' : 'Monitor';
-    const trendSub = conditions.length === 0 ? 'No issues' : managedCount >= conditions.length * 0.5 ? 'Stable' : 'Attention';
-    const trendColor = trendLabel === 'Good' ? '#10B981' : '#F59E0B';
+    const trendLabel = conditions.length === 0 ? t('common.good', { defaultValue: 'Good' }) : managedCount >= conditions.length * 0.5 ? t('common.good', { defaultValue: 'Good' }) : t('health.monitor', { defaultValue: 'Monitor' });
+    const trendSub = conditions.length === 0 ? t('health.no_issues', { defaultValue: 'No issues' }) : managedCount >= conditions.length * 0.5 ? t('health.stable', { defaultValue: 'Stable' }) : t('health.attention', { defaultValue: 'Attention' });
+    const trendColor = trendLabel === t('common.good', { defaultValue: 'Good' }) ? '#10B981' : '#F59E0B';
 
     const renderHeader = (title, typeToAdd, hideAdd = false) => (
         <View style={s.sectionHeaderRow}>
@@ -512,14 +512,14 @@ export default function HealthProfileScreen({ navigation }) {
         </View>
     );
 
-    const severityOptions = [{ label: 'Mild', value: 'mild' }, { label: 'Moderate', value: 'moderate' }, { label: 'Severe', value: 'severe' }];
-    const statusOptions = [{ label: 'Active', value: 'active' }, { label: 'Managed', value: 'managed' }, { label: 'Resolved/Cured', value: 'resolved' }];
-    const smokeOptions = [{ label: 'Non-Smoker', value: 'never' }, { label: 'Smoker', value: 'current' }, { label: 'Former', value: 'former' }];
-    const alcoholOptions = [{ label: 'Non-Drinker', value: 'none' }, { label: 'Occasional', value: 'occasional' }, { label: 'Frequent', value: 'heavy' }];
-    const exerciseOptions = [{ label: 'No Activity', value: 'none' }, { label: 'Light (Walks, Stretching)', value: 'light' }, { label: 'Moderate (Gym, Jogging)', value: 'moderate' }, { label: 'Highly Active (Heavy Cardio)', value: 'active' }];
-    const mobilityOptions = [{ label: 'Full', value: 'full' }, { label: 'Limited', value: 'limited' }, { label: 'Wheelchair', value: 'wheelchair' }, { label: 'Bedridden', value: 'bedridden' }];
-    const frequencyOptions = [{ label: 'Daily', value: 'daily' }, { label: 'Weekly', value: 'weekly' }, { label: 'As Needed', value: 'as_needed' }];
-    const timeOptions = [{ label: 'Morning', value: 'morning' }, { label: 'Afternoon', value: 'afternoon' }, { label: 'Evening', value: 'evening' }, { label: 'Night', value: 'night' }];
+    const severityOptions = [{ label: t('health.mild', { defaultValue: 'Mild' }), value: 'mild' }, { label: t('health.moderate', { defaultValue: 'Moderate' }), value: 'moderate' }, { label: t('health.severe', { defaultValue: 'Severe' }), value: 'severe' }];
+    const statusOptions = [{ label: t('health.active', { defaultValue: 'Active' }), value: 'active' }, { label: t('health.managed', { defaultValue: 'Managed' }), value: 'managed' }, { label: t('health.resolved_cured', { defaultValue: 'Resolved/Cured' }), value: 'resolved' }];
+    const smokeOptions = [{ label: t('health.non_smoker', { defaultValue: 'Non-Smoker' }), value: 'never' }, { label: t('health.smoker', { defaultValue: 'Smoker' }), value: 'current' }, { label: t('health.former', { defaultValue: 'Former' }), value: 'former' }];
+    const alcoholOptions = [{ label: t('health.non_drinker', { defaultValue: 'Non-Drinker' }), value: 'none' }, { label: t('health.occasional', { defaultValue: 'Occasional' }), value: 'occasional' }, { label: t('health.frequent', { defaultValue: 'Frequent' }), value: 'heavy' }];
+    const exerciseOptions = [{ label: t('health.no_activity', { defaultValue: 'No Activity' }), value: 'none' }, { label: t('health.light_activity', { defaultValue: 'Light (Walks, Stretching)' }), value: 'light' }, { label: t('health.moderate_activity', { defaultValue: 'Moderate (Gym, Jogging)' }), value: 'moderate' }, { label: t('health.highly_active', { defaultValue: 'Highly Active (Heavy Cardio)' }), value: 'active' }];
+    const mobilityOptions = [{ label: t('health.full', { defaultValue: 'Full' }), value: 'full' }, { label: t('health.limited', { defaultValue: 'Limited' }), value: 'limited' }, { label: t('health.wheelchair', { defaultValue: 'Wheelchair' }), value: 'wheelchair' }, { label: t('health.bedridden', { defaultValue: 'Bedridden' }), value: 'bedridden' }];
+    const frequencyOptions = [{ label: t('health.daily', { defaultValue: 'Daily' }), value: 'daily' }, { label: t('health.weekly', { defaultValue: 'Weekly' }), value: 'weekly' }, { label: t('health.as_needed', { defaultValue: 'As Needed' }), value: 'as_needed' }];
+    const timeOptions = [{ label: t('time_slots.morning', { defaultValue: 'Morning' }), value: 'morning' }, { label: t('time_slots.afternoon', { defaultValue: 'Afternoon' }), value: 'afternoon' }, { label: t('time_slots.evening', { defaultValue: 'Evening' }), value: 'evening' }, { label: t('time_slots.night', { defaultValue: 'Night' }), value: 'night' }];
 
     const toggleTime = (t) => {
         let times = formState.times || [];
@@ -826,10 +826,10 @@ export default function HealthProfileScreen({ navigation }) {
             {/* ── Dynamic Form Modal ── */}
             <PremiumFormModal
                 visible={modalVisible}
-                title={`${formState._id ? 'Edit' : 'Update'} ${['vitals', 'habits', 'activity'].includes(editingType) ? 'Lifestyle' : editingType}`}
+                title={`${formState._id ? t('common.edit', { defaultValue: 'Edit' }) : t('common.update', { defaultValue: 'Update' })} ${['vitals', 'habits', 'activity'].includes(editingType) ? t('health_profile.lifestyle', { defaultValue: 'Lifestyle' }) : t(`health_profile.${editingType}`, { defaultValue: editingType })}`}
                 onClose={closeModal}
                 onSave={handleSave}
-                saveText="Save Profile Data"
+                saveText={t('health_profile.save_profile_data', { defaultValue: 'Save Profile Data' })}
                 saving={isSaving}
                 headerRight={
                     formState._id && ['condition', 'allergy', 'medication', 'vaccination', 'history', 'appointment'].includes(editingType) ? (
@@ -841,42 +841,42 @@ export default function HealthProfileScreen({ navigation }) {
             >
                 {editingType === 'condition' && (
                     <>
-                        <View style={s.formGroup}><SmartInput label="Condition Name *" value={formState.name} onChangeText={(t) => setFormState({ ...formState, name: t })} placeholder="e.g. Type 2 Diabetes" /></View>
+                        <View style={s.formGroup}><SmartInput label={t('health_profile.condition_name', { defaultValue: 'Condition Name *' })} value={formState.name} onChangeText={(t) => setFormState({ ...formState, name: t })} placeholder={t('health_profile.condition_placeholder', { defaultValue: 'e.g. Type 2 Diabetes' })} /></View>
                         <View style={s.formGroup}>
-                            <Text style={s.formLabel}>Status</Text>
+                            <Text style={s.formLabel}>{t('common.status', { defaultValue: 'Status' })}</Text>
                             <ChipSelector options={statusOptions} selected={formState.status} onSelect={v => setFormState({ ...formState, status: v })} />
                         </View>
                         <View style={s.formGroup}>
-                            <Text style={s.formLabel}>Severity</Text>
+                            <Text style={s.formLabel}>{t('health_profile.severity', { defaultValue: 'Severity' })}</Text>
                             <ChipSelector options={severityOptions} selected={formState.severity} onSelect={v => setFormState({ ...formState, severity: v })} />
                         </View>
-                        <View style={s.formGroup}><SmartInput label="Notes" variant="multiline" multiline value={formState.notes} onChangeText={(t) => setFormState({ ...formState, notes: t })} placeholder="Write any personal notes here..." /></View>
+                        <View style={s.formGroup}><SmartInput label={t('health_profile.notes', { defaultValue: 'Notes' })} variant="multiline" multiline value={formState.notes} onChangeText={(t) => setFormState({ ...formState, notes: t })} placeholder={t('health_profile.notes_placeholder', { defaultValue: 'Write any personal notes here...' })} /></View>
                     </>
                 )}
                 {editingType === 'allergy' && (
                     <>
-                        <View style={s.formGroup}><SmartInput label="Allergy Name *" value={formState.name} onChangeText={(t) => setFormState({ ...formState, name: t })} placeholder="e.g. Peanuts, Penicillin" /></View>
+                        <View style={s.formGroup}><SmartInput label={t('health_profile.allergy_name', { defaultValue: 'Allergy Name *' })} value={formState.name} onChangeText={(t) => setFormState({ ...formState, name: t })} placeholder={t('health_profile.allergy_placeholder', { defaultValue: 'e.g. Peanuts, Penicillin' })} /></View>
                         <View style={s.formGroup}>
-                            <Text style={s.formLabel}>Severity</Text>
+                            <Text style={s.formLabel}>{t('health_profile.severity', { defaultValue: 'Severity' })}</Text>
                             <ChipSelector options={severityOptions} selected={formState.severity} onSelect={v => setFormState({ ...formState, severity: v })} />
                         </View>
-                        <View style={s.formGroup}><SmartInput label="Reaction Details" variant="multiline" multiline value={formState.reaction} onChangeText={(t) => setFormState({ ...formState, reaction: t })} placeholder="Describe the physical reaction (e.g., Hives, Anaphylaxis)" /></View>
+                        <View style={s.formGroup}><SmartInput label={t('health_profile.reaction_details', { defaultValue: 'Reaction Details' })} variant="multiline" multiline value={formState.reaction} onChangeText={(t) => setFormState({ ...formState, reaction: t })} placeholder={t('health_profile.reaction_placeholder', { defaultValue: 'Describe the physical reaction (e.g., Hives, Anaphylaxis)' })} /></View>
                     </>
                 )}
                 {editingType === 'vitals' && (
                     <>
-                        <View style={s.formGroup}><SmartInput label="Height (cm)" keyboardType="numeric" maxLength={3} value={String(formState.height_cm || '')} onChangeText={(t) => { const v = t.replace(/[^0-9]/g, ''); setFormState({ ...formState, height_cm: v ? Number(v) : '' }); }} placeholder="e.g. 170" /></View>
-                        <View style={s.formGroup}><SmartInput label="Weight (kg)" keyboardType="numeric" maxLength={3} value={String(formState.weight_kg || '')} onChangeText={(t) => { const v = t.replace(/[^0-9.]/g, ''); setFormState({ ...formState, weight_kg: v ? Number(v) : '' }); }} placeholder="e.g. 70" /></View>
+                        <View style={s.formGroup}><SmartInput label={t('health_profile.height_cm', { defaultValue: 'Height (cm)' })} keyboardType="numeric" maxLength={3} value={String(formState.height_cm || '')} onChangeText={(t) => { const v = t.replace(/[^0-9]/g, ''); setFormState({ ...formState, height_cm: v ? Number(v) : '' }); }} placeholder="e.g. 170" /></View>
+                        <View style={s.formGroup}><SmartInput label={t('health_profile.weight_kg', { defaultValue: 'Weight (kg)' })} keyboardType="numeric" maxLength={3} value={String(formState.weight_kg || '')} onChangeText={(t) => { const v = t.replace(/[^0-9.]/g, ''); setFormState({ ...formState, weight_kg: v ? Number(v) : '' }); }} placeholder="e.g. 70" /></View>
                     </>
                 )}
                 {editingType === 'habits' && (
                     <>
                         <View style={s.formGroup}>
-                            <Text style={s.formLabel}>Smoking Habits</Text>
+                            <Text style={s.formLabel}>{t('health_profile.smoking_habits', { defaultValue: 'Smoking Habits' })}</Text>
                             <ChipSelector options={smokeOptions} selected={formState.smoking_status} onSelect={v => setFormState({ ...formState, smoking_status: v })} />
                         </View>
                         <View style={s.formGroup}>
-                            <Text style={s.formLabel}>Drinking Habits</Text>
+                            <Text style={s.formLabel}>{t('health_profile.drinking_habits', { defaultValue: 'Drinking Habits' })}</Text>
                             <ChipSelector options={alcoholOptions} selected={formState.alcohol_use} onSelect={v => setFormState({ ...formState, alcohol_use: v })} />
                         </View>
                     </>
@@ -884,14 +884,14 @@ export default function HealthProfileScreen({ navigation }) {
                 {editingType === 'activity' && (
                     <>
                         <View style={s.formGroup}>
-                            <Text style={s.formLabel}>Mobility Level</Text>
+                            <Text style={s.formLabel}>{t('health_profile.mobility_level', { defaultValue: 'Mobility Level' })}</Text>
                             <ChipSelector options={mobilityOptions} selected={formState.mobility_level} onSelect={v => setFormState({ ...formState, mobility_level: v })} />
                         </View>
                         <View style={s.formGroup}>
-                            <SmartInput label="Mobility Aids" value={formState.mobility_aids} onChangeText={(t) => setFormState({ ...formState, mobility_aids: t })} placeholder="e.g. Cane, Walker (comma separated)" />
+                            <SmartInput label={t('health_profile.mobility_aids', { defaultValue: 'Mobility Aids' })} value={formState.mobility_aids} onChangeText={(t) => setFormState({ ...formState, mobility_aids: t })} placeholder={t('health_profile.mobility_aids_placeholder', { defaultValue: 'e.g. Cane, Walker (comma separated)' })} />
                         </View>
                         <View style={s.formGroup}>
-                            <Text style={s.formLabel}>Activity Intensity & Duration</Text>
+                            <Text style={s.formLabel}>{t('health_profile.activity_intensity', { defaultValue: 'Activity Intensity & Duration' })}</Text>
                             <ChipSelector vertical options={exerciseOptions} selected={formState.exercise_frequency} onSelect={v => setFormState({ ...formState, exercise_frequency: v })} />
                         </View>
                     </>
@@ -899,31 +899,31 @@ export default function HealthProfileScreen({ navigation }) {
                 {editingType === 'identity' && (
                     <>
                         <View style={s.formGroup}>
-                            <Text style={s.formLabel}>Blood Type</Text>
-                            <SmartInput label="Blood Type" value={formState.blood_type} onChangeText={(t) => setFormState({ ...formState, blood_type: t.toUpperCase() })} placeholder="e.g. A+, O-" />
+                            <Text style={s.formLabel}>{t('health_profile.blood_type', { defaultValue: 'Blood Type' })}</Text>
+                            <SmartInput label={t('health_profile.blood_type', { defaultValue: 'Blood Type' })} value={formState.blood_type} onChangeText={(t) => setFormState({ ...formState, blood_type: t.toUpperCase() })} placeholder="e.g. A+, O-" />
                         </View>
                         <View style={s.formGroup}>
-                            <Text style={s.formLabel}>Dietary Restrictions</Text>
-                            <SmartInput label="Dietary Restrictions" variant="multiline" multiline value={formState.dietary_restrictions} onChangeText={(t) => setFormState({ ...formState, dietary_restrictions: t })} placeholder="e.g. Low Sodium, Diabetic, Gluten-Free" />
+                            <Text style={s.formLabel}>{t('health_profile.dietary_restrictions', { defaultValue: 'Dietary Restrictions' })}</Text>
+                            <SmartInput label={t('health_profile.dietary_restrictions', { defaultValue: 'Dietary Restrictions' })} variant="multiline" multiline value={formState.dietary_restrictions} onChangeText={(t) => setFormState({ ...formState, dietary_restrictions: t })} placeholder={t('health_profile.dietary_placeholder', { defaultValue: 'e.g. Low Sodium, Diabetic, Gluten-Free' })} />
                         </View>
                     </>
                 )}
                 {editingType === 'contact' && (
                     <>
                         <View style={s.formGroup}>
-                            <SmartInput label="Contact Name *" value={formState.name} onChangeText={(t) => setFormState({ ...formState, name: t })} placeholder="e.g. Jane Doe" />
+                            <SmartInput label={t('health_profile.contact_name', { defaultValue: 'Contact Name *' })} value={formState.name} onChangeText={(t) => setFormState({ ...formState, name: t })} placeholder={t('caller.name_placeholder', { defaultValue: 'e.g. Jane Doe' })} />
                         </View>
                         <View style={s.formGroup}>
-                            <SmartInput label="Relationship" value={formState.relation} onChangeText={(t) => setFormState({ ...formState, relation: t })} placeholder="e.g. Daughter, Spouse" />
+                            <SmartInput label={t('caller.relationship', { defaultValue: 'Relationship' })} value={formState.relation} onChangeText={(t) => setFormState({ ...formState, relation: t })} placeholder={t('health_profile.relationship_placeholder', { defaultValue: 'e.g. Daughter, Spouse' })} />
                         </View>
                         <View style={s.formGroup}>
-                            <SmartInput label="Phone Number *" keyboardType="phone-pad" value={formState.phone} onChangeText={(t) => setFormState({ ...formState, phone: t })} placeholder="e.g. 9876543210" />
+                            <SmartInput label={t('caller.phone_number', { defaultValue: 'Phone Number *' })} keyboardType="phone-pad" value={formState.phone} onChangeText={(t) => setFormState({ ...formState, phone: t })} placeholder="e.g. 9876543210" />
                         </View>
                         <View style={s.formGroup}>
                             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#F8FAFC', padding: 16, borderRadius: 16, borderWidth: 1, borderColor: '#E2E8F0' }}>
                                 <View style={{ flex: 1 }}>
-                                    <Text style={{ fontSize: 16, ...FONT.bold, color: C.dark }}>Emergency Contact</Text>
-                                    <Text style={{ fontSize: 13, color: C.muted }}>Primary person to call in case of emergency</Text>
+                                    <Text style={{ fontSize: 16, ...FONT.bold, color: C.dark }}>{t('caller.emergency_contact', { defaultValue: 'Emergency Contact' })}</Text>
+                                    <Text style={{ fontSize: 13, color: C.muted }}>{t('caller.emergency_desc', { defaultValue: 'Primary person to call in case of emergency' })}</Text>
                                 </View>
                                 <Switch
                                     value={formState.is_emergency}
@@ -937,9 +937,9 @@ export default function HealthProfileScreen({ navigation }) {
                 )}
                 {editingType === 'gp' && (
                     <>
-                        <View style={s.formGroup}><SmartInput label="Doctor's Name" value={formState.gp_name} onChangeText={(t) => setFormState({ ...formState, gp_name: t })} placeholder="Dr. John Doe" /></View>
+                        <View style={s.formGroup}><SmartInput label={t('health_profile.doctor_name_lbl', { defaultValue: "Doctor's Name" })} value={formState.gp_name} onChangeText={(t) => setFormState({ ...formState, gp_name: t })} placeholder={t('health_profile.doctor_placeholder', { defaultValue: 'Dr. John Doe' })} /></View>
                         <View style={s.formGroup}>
-                            <Text style={s.formLabel}>Contact Number</Text>
+                            <Text style={s.formLabel}>{t('health_profile.contact_number', { defaultValue: 'Contact Number' })}</Text>
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                                 <Pressable
                                     style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, paddingVertical: 14, backgroundColor: '#F8FAFC', borderRadius: 12, borderWidth: 1, borderColor: '#E2E8F0', height: 48 }}
@@ -959,19 +959,19 @@ export default function HealthProfileScreen({ navigation }) {
                                 />
                             </View>
                         </View>
-                        <View style={s.formGroup}><SmartInput label="Email" keyboardType="email-address" autoCapitalize="none" value={formState.gp_email} onChangeText={(t) => setFormState({ ...formState, gp_email: t })} placeholder="doctor@clinic.com" /></View>
+                        <View style={s.formGroup}><SmartInput label={t('common.email', { defaultValue: 'Email' })} keyboardType="email-address" autoCapitalize="none" value={formState.gp_email} onChangeText={(t) => setFormState({ ...formState, gp_email: t })} placeholder="doctor@clinic.com" /></View>
                     </>
                 )}
                 {editingType === 'medication' && (
                     <>
-                        <View style={s.formGroup}><SmartInput label="Medication Name *" value={formState.name} onChangeText={(t) => setFormState({ ...formState, name: t })} placeholder="e.g. Paracetamol" /></View>
-                        <View style={s.formGroup}><SmartInput label="Dosage" value={formState.dosage} onChangeText={(t) => setFormState({ ...formState, dosage: t })} placeholder="e.g. 500mg" /></View>
+                        <View style={s.formGroup}><SmartInput label={t('health_profile.medication_name', { defaultValue: 'Medication Name *' })} value={formState.name} onChangeText={(t) => setFormState({ ...formState, name: t })} placeholder={t('health_profile.med_placeholder', { defaultValue: 'e.g. Paracetamol' })} /></View>
+                        <View style={s.formGroup}><SmartInput label={t('health_profile.dosage', { defaultValue: 'Dosage' })} value={formState.dosage} onChangeText={(t) => setFormState({ ...formState, dosage: t })} placeholder="e.g. 500mg" /></View>
                         <View style={s.formGroup}>
-                            <Text style={s.formLabel}>Frequency</Text>
+                            <Text style={s.formLabel}>{t('health_profile.frequency', { defaultValue: 'Frequency' })}</Text>
                             <ChipSelector options={frequencyOptions} selected={formState.frequency} onSelect={v => setFormState({ ...formState, frequency: v })} />
                         </View>
                         <View style={s.formGroup}>
-                            <Text style={s.formLabel}>Times of Day (Select Multiple)</Text>
+                            <Text style={s.formLabel}>{t('health_profile.times_of_day', { defaultValue: 'Times of Day (Select Multiple)' })}</Text>
                             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
                                 {timeOptions.map(opt => {
                                     const isSelected = (formState.times || []).includes(opt.value);
@@ -983,9 +983,9 @@ export default function HealthProfileScreen({ navigation }) {
                                 })}
                             </View>
                         </View>
-                        <View style={s.formGroup}><SmartInput label="Prescribed By" value={formState.prescribed_by} onChangeText={(t) => setFormState({ ...formState, prescribed_by: t })} placeholder="Doctor's Name" /></View>
+                        <View style={s.formGroup}><SmartInput label={t('health_profile.prescribed_by', { defaultValue: 'Prescribed By' })} value={formState.prescribed_by} onChangeText={(t) => setFormState({ ...formState, prescribed_by: t })} placeholder={t('health_profile.doctor_placeholder', { defaultValue: "Doctor's Name" })} /></View>
                         <View style={[s.formGroup, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 }]}>
-                            <Text style={s.formLabel}>Currently Active</Text>
+                            <Text style={s.formLabel}>{t('health_profile.currently_active', { defaultValue: 'Currently Active' })}</Text>
                             <Switch
                                 trackColor={{ false: '#E2E8F0', true: '#38BDF8' }}
                                 thumbColor={formState.is_active ? '#0284C7' : '#F8FAFC'}
@@ -994,39 +994,39 @@ export default function HealthProfileScreen({ navigation }) {
                             />
                         </View>
                         <View style={s.formGroup}>
-                            <Text style={s.formLabel}>Prescription Details</Text>
-                            <Pressable style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#F8FAFC', padding: 14, borderRadius: 12, borderWidth: 1, borderColor: '#E2E8F0', borderStyle: 'dashed' }} onPress={() => AlertManager.alert('Coming Soon', 'Upload functionality will be added in a future update.')}>
+                            <Text style={s.formLabel}>{t('health_profile.prescription_details', { defaultValue: 'Prescription Details' })}</Text>
+                            <Pressable style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#F8FAFC', padding: 14, borderRadius: 12, borderWidth: 1, borderColor: '#E2E8F0', borderStyle: 'dashed' }} onPress={() => AlertManager.alert(t('common.coming_soon', { defaultValue: 'Coming Soon' }), t('health_profile.upload_coming_soon', { defaultValue: 'Upload functionality will be added in a future update.' }))}>
                                 <Upload size={18} color={C.primary} />
-                                <Text style={{ color: C.primary, fontSize: 15, fontWeight: '600' }}>Upload Prescription</Text>
+                                <Text style={{ color: C.primary, fontSize: 15, fontWeight: '600' }}>{t('health_profile.upload_prescription', { defaultValue: 'Upload Prescription' })}</Text>
                             </Pressable>
                         </View>
                     </>
                 )}
                 {editingType === 'history' && (
                     <>
-                        <View style={s.formGroup}><SmartInput label="Event / Surgery / Diagnosis *" value={formState.event} onChangeText={(t) => setFormState({ ...formState, event: t })} placeholder="e.g. Knee Replacement" /></View>
-                        <View style={s.formGroup}><Text style={s.formLabel}>Date *</Text><Pressable style={s.input} onPress={() => { setDatePickerField('date'); setShowDatePicker(true); }}><Text style={{ color: formState.date ? C.dark : C.muted, fontSize: 15 }}>{formState.date ? new Date(formState.date).toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' }) : 'Select date'}</Text></Pressable></View>
-                        <View style={s.formGroup}><SmartInput label="Detailed Notes" variant="multiline" multiline value={formState.notes} onChangeText={(t) => setFormState({ ...formState, notes: t })} placeholder="How did the procedure go? Who was the doctor?" /></View>
+                        <View style={s.formGroup}><SmartInput label={t('health_profile.event_surgery_lbl', { defaultValue: 'Event / Surgery / Diagnosis *' })} value={formState.event} onChangeText={(t) => setFormState({ ...formState, event: t })} placeholder={t('health_profile.event_placeholder', { defaultValue: 'e.g. Knee Replacement' })} /></View>
+                        <View style={s.formGroup}><Text style={s.formLabel}>{t('common.date', { defaultValue: 'Date *' })}</Text><Pressable style={s.input} onPress={() => { setDatePickerField('date'); setShowDatePicker(true); }}><Text style={{ color: formState.date ? C.dark : C.muted, fontSize: 15 }}>{formState.date ? new Date(formState.date).toLocaleDateString(t('common.locale_date', { defaultValue: 'en-US' }), { year: 'numeric', month: 'short', day: 'numeric' }) : t('common.select_date', { defaultValue: 'Select date' })}</Text></Pressable></View>
+                        <View style={s.formGroup}><SmartInput label={t('health_profile.detailed_notes', { defaultValue: 'Detailed Notes' })} variant="multiline" multiline value={formState.notes} onChangeText={(t) => setFormState({ ...formState, notes: t })} placeholder={t('health_profile.surgery_notes_placeholder', { defaultValue: 'How did the procedure go? Who was the doctor?' })} /></View>
                     </>
                 )}
                 {editingType === 'vaccination' && (
                     <>
-                        <View style={s.formGroup}><SmartInput label="Vaccine Name *" value={formState.name} onChangeText={(t) => setFormState({ ...formState, name: t })} placeholder="e.g. Influenza, COVID-19" /></View>
-                        <View style={s.formGroup}><Text style={s.formLabel}>Date Given *</Text><Pressable style={s.input} onPress={() => { setDatePickerField('date_given'); setShowDatePicker(true); }}><Text style={{ color: formState.date_given ? C.dark : C.muted, fontSize: 15 }}>{formState.date_given ? new Date(formState.date_given).toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' }) : 'Select date'}</Text></Pressable></View>
+                        <View style={s.formGroup}><SmartInput label={t('health_profile.vaccine_name', { defaultValue: 'Vaccine Name *' })} value={formState.name} onChangeText={(t) => setFormState({ ...formState, name: t })} placeholder={t('health_profile.vaccine_placeholder', { defaultValue: 'e.g. Influenza, COVID-19' })} /></View>
+                        <View style={s.formGroup}><Text style={s.formLabel}>{t('health_profile.date_given', { defaultValue: 'Date Given *' })}</Text><Pressable style={s.input} onPress={() => { setDatePickerField('date_given'); setShowDatePicker(true); }}><Text style={{ color: formState.date_given ? C.dark : C.muted, fontSize: 15 }}>{formState.date_given ? new Date(formState.date_given).toLocaleDateString(t('common.locale_date', { defaultValue: 'en-US' }), { year: 'numeric', month: 'short', day: 'numeric' }) : t('common.select_date', { defaultValue: 'Select date' })}</Text></Pressable></View>
                     </>
                 )}
                 {editingType === 'appointment' && (
                     <>
-                        <View style={s.formGroup}><Text style={s.formLabel}>Reason / Title *</Text><TextInput style={s.input} placeholderTextColor={C.muted} value={formState.title} onChangeText={(t) => setFormState({ ...formState, title: t })} placeholder="General Checkup" /></View>
-                        <View style={s.formGroup}><Text style={s.formLabel}>Doctor / Specialist Name *</Text><TextInput style={s.input} placeholderTextColor={C.muted} value={formState.doctor_name} onChangeText={(t) => setFormState({ ...formState, doctor_name: t })} placeholder="Dr. Smith" /></View>
+                        <View style={s.formGroup}><Text style={s.formLabel}>{t('health_profile.reason_title', { defaultValue: 'Reason / Title *' })}</Text><TextInput style={s.input} placeholderTextColor={C.muted} value={formState.title} onChangeText={(t) => setFormState({ ...formState, title: t })} placeholder={t('health_profile.appt_placeholder', { defaultValue: 'General Checkup' })} /></View>
+                        <View style={s.formGroup}><Text style={s.formLabel}>{t('health_profile.doctor_specialist', { defaultValue: 'Doctor / Specialist Name *' })}</Text><TextInput style={s.input} placeholderTextColor={C.muted} value={formState.doctor_name} onChangeText={(t) => setFormState({ ...formState, doctor_name: t })} placeholder="Dr. Smith" /></View>
                         <View style={s.formGroup}>
-                            <Text style={s.formLabel}>Date & Time *</Text>
+                            <Text style={s.formLabel}>{t('health_profile.date_time', { defaultValue: 'Date & Time *' })}</Text>
                             <View style={{ flexDirection: 'row', gap: 10 }}>
                                 <Pressable style={[s.input, { flex: 1, justifyContent: 'center' }]} onPress={() => { setDatePickerField('date'); setShowDatePicker(true); }}>
-                                    <Text style={{ color: formState.date ? C.dark : C.muted }}>{formState.date ? new Date(formState.date).toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' }) : 'Select Date'}</Text>
+                                    <Text style={{ color: formState.date ? C.dark : C.muted }}>{formState.date ? new Date(formState.date).toLocaleDateString(t('common.locale_date', { defaultValue: 'en-US' }), { year: 'numeric', month: 'short', day: 'numeric' }) : t('common.select_date', { defaultValue: 'Select Date' })}</Text>
                                 </Pressable>
                                 <Pressable style={[s.input, { flex: 1, justifyContent: 'center' }]} onPress={() => { setDatePickerField('date'); setShowTimePicker(true); }}>
-                                    <Text style={{ color: formState.date ? C.dark : C.muted }}>{formState.date ? new Date(formState.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Select Time'}</Text>
+                                    <Text style={{ color: formState.date ? C.dark : C.muted }}>{formState.date ? new Date(formState.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : t('common.select_time', { defaultValue: 'Select Time' })}</Text>
                                 </Pressable>
                             </View>
                         </View>
@@ -1036,10 +1036,10 @@ export default function HealthProfileScreen({ navigation }) {
                     <View style={s.pickerContainer}>
                         <View style={s.pickerHeader}>
                             <Text style={s.pickerPreview}>
-                                {new Date(formState.year, formState.month, formState.day).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}
+                                {new Date(formState.year, formState.month, formState.day).toLocaleDateString(t('common.locale_date', { defaultValue: 'en-US' }), { day: 'numeric', month: 'long', year: 'numeric' })}
                             </Text>
                         </View>
-                        <Text style={s.pickerLabel}>Birth Year</Text>
+                        <Text style={s.pickerLabel}>{t('common.birth_year', { defaultValue: 'Birth Year' })}</Text>
                         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.yearScroll}>
                             {Array.from({ length: 101 }, (_, i) => new Date().getFullYear() - i).map(y => (
                                 <Pressable key={y} onPress={() => {
@@ -1050,9 +1050,9 @@ export default function HealthProfileScreen({ navigation }) {
                                 </Pressable>
                             ))}
                         </ScrollView>
-                        <Text style={[s.pickerLabel, { marginTop: 20 }]}>Month</Text>
+                        <Text style={[s.pickerLabel, { marginTop: 20 }]}>{t('common.month', { defaultValue: 'Month' })}</Text>
                         <View style={s.monthGrid}>
-                            {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((m, i) => (
+                            {[t('months.jan', { defaultValue: 'Jan' }), t('months.feb', { defaultValue: 'Feb' }), t('months.mar', { defaultValue: 'Mar' }), t('months.apr', { defaultValue: 'Apr' }), t('months.may', { defaultValue: 'May' }), t('months.jun', { defaultValue: 'Jun' }), t('months.jul', { defaultValue: 'Jul' }), t('months.aug', { defaultValue: 'Aug' }), t('months.sep', { defaultValue: 'Sep' }), t('months.oct', { defaultValue: 'Oct' }), t('months.nov', { defaultValue: 'Nov' }), t('months.dec', { defaultValue: 'Dec' })].map((m, i) => (
                                 <Pressable key={m} onPress={() => {
                                     const maxDays = new Date(formState.year, i + 1, 0).getDate();
                                     setFormState({ ...formState, month: i, day: Math.min(formState.day || 1, maxDays) });
@@ -1061,7 +1061,7 @@ export default function HealthProfileScreen({ navigation }) {
                                 </Pressable>
                             ))}
                         </View>
-                        <Text style={[s.pickerLabel, { marginTop: 20 }]}>Day</Text>
+                        <Text style={[s.pickerLabel, { marginTop: 20 }]}>{t('common.day', { defaultValue: 'Day' })}</Text>
                         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.dayScroll}>
                             {Array.from({ length: new Date(formState.year, formState.month + 1, 0).getDate() }, (_, i) => i + 1).map(d => (
                                 <Pressable key={d} onPress={() => setFormState({ ...formState, day: d })} style={[s.dayChip, formState.day === d && s.dayChipActive]}>
@@ -1077,7 +1077,7 @@ export default function HealthProfileScreen({ navigation }) {
             <Modal visible={countryCodeModal} transparent animationType="slide">
                 <View style={s.countryModalWrap}>
                     <View style={s.countryModalHeader}>
-                        <Text style={s.countryModalTitle}>Select Country Code</Text>
+                        <Text style={s.countryModalTitle}>{t('caller.select_country_code', { defaultValue: 'Select Country Code' })}</Text>
                         <Pressable onPress={() => setCountryCodeModal(false)} style={s.closeIconBtn}>
                             <X size={20} color={C.mid} />
                         </Pressable>
