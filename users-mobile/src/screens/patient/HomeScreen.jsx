@@ -92,6 +92,7 @@ const VitalsCard = ({ label, value, unit, icon: Icon, color, status = 'Stable' }
 
 // ── Mini medication card ───────────────────────────────────────────────────
 const MedicationCard = ({ med, onPress }) => {
+    const { t } = useTranslation();
     const accentColor = ACCENT_MAP[med.type] || '#6366F1';
     return (
         <Pressable onPress={() => onPress && onPress()} style={[styles.medCard, med.taken && styles.medCardTaken]}>
