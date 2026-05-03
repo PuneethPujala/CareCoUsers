@@ -326,7 +326,7 @@ router.put('/me', authenticateSession, async (req, res) => {
         const patient = await getOrCreatePatient(req, name);
         await Patient.updateOne({ _id: patient._id }, { $set: updates });
         req.patient = await Patient.findById(patient._id);
-        logger.info('Profile updated', { patientId: patient._id });
+        logger.info('Profile updated', { patientId: patient._id, body: req.body });
 
         if (expo_push_token && patient.expo_push_token !== expo_push_token) {
             const PushNotificationService = require('../../utils/pushNotifications');

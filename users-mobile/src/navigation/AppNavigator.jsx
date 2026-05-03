@@ -253,10 +253,11 @@ export default function AppNavigator() {
                 const { token, granted, isNewGrant } = await registerForPushNotificationsAsync();
 
                 if (token) {
-                    await apiService.patients.updateMe({
-                        push_notifications_enabled: true,
-                        expo_push_token: token,
-                    });
+                    const updates = { expo_push_token: token };
+                    if (isNewGrant) {
+                        updates.push_notifications_enabled = true;
+                    }
+                    await apiService.patients.updateMe(updates);
                 }
 
                 if (isNewGrant) {
