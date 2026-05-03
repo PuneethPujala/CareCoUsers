@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import {
     View, Text, StyleSheet, ScrollView, Platform, Pressable, Modal,
-    TextInput, Switch, Animated, StatusBar, FlatList, KeyboardAvoidingView,
+    TextInput, Switch, Animated, StatusBar, FlatList, KeyboardAvoidingView, Alert
 } from 'react-native';
 import SmartInput from '../../components/ui/SmartInput';
 import PremiumFormModal from '../../components/ui/PremiumFormModal';
@@ -10,7 +10,7 @@ import {
     Bell, Settings, LogOut, ChevronRight, ChevronDown, UserRound, Phone, X, Save,
     ShieldCheck, Star, MapPin, ClipboardList, FileText, FlaskConical,
     Wallet, CreditCard, Receipt, Heart, Users, BellRing, Clock, Globe,
-    Shield, Droplets, Calendar, User2, Trash2, ShieldCheck as ShieldCheckIcon, Smartphone,
+    Shield, Droplets, Calendar, User, Trash2, ShieldCheck as ShieldCheckIcon, Smartphone,
     Mail, TrendingUp
 } from 'lucide-react-native';
 import { colors, layout } from '../../theme';
@@ -600,7 +600,7 @@ export default function PatientProfileScreen({ navigation }) {
                 <Animated.View style={anim(3)}>
                     <Text style={s.sectionTitle}>{t('profile.personal_info', { defaultValue: 'PERSONAL INFORMATION' })}</Text>
                     <View style={s.card}>
-                        <InfoRow icon={User2} iconBg="#EFF6FF" iconColor="#3B82F6" label={t('profile.full_name', { defaultValue: 'Full Name' })} value={patient?.name || displayName} placeholder={t('profile.add_name', { defaultValue: 'Add Name' })} onPress={() => { setEditName(patient?.name || ''); setEditAccountModalVisible(true); }} />
+                        <InfoRow icon={User} iconBg="#EFF6FF" iconColor="#3B82F6" label={t('profile.full_name', { defaultValue: 'Full Name' })} value={patient?.name || displayName} placeholder={t('profile.add_name', { defaultValue: 'Add Name' })} onPress={() => { setEditName(patient?.name || ''); setEditAccountModalVisible(true); }} />
                         <InfoRow icon={Phone} iconBg="#F0FDF4" iconColor="#22C55E" label={t('profile.phone_number', { defaultValue: 'Phone Number' })} value={patient?.phone} placeholder={t('profile.add_phone', { defaultValue: 'Add Phone' })} onPress={() => { const p = parsePhoneWithCode(patient?.phone || ''); setEditPhoneCode(p.code); setEditPhone(p.number); setPhoneModalVisible(true); }}
                             rightElement={patient?.phone ? <View style={s.verifiedBadge}><ShieldCheck size={16} color={C.success} /></View> : <ChevronRight size={18} color={C.light} />}
                         />
@@ -1411,4 +1411,7 @@ const s = StyleSheet.create({
     familyFeatures: { marginTop: 8, gap: 12 },
     featureRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
     featureTxt: { fontSize: 14, color: C.mid, fontWeight: '500' },
+    dobRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 },
+    dobCol: { flex: 1, marginHorizontal: 4 },
+    closeBtn: { backgroundColor: '#F1F5F9', paddingVertical: 12, borderRadius: 12, alignItems: 'center', marginTop: 16 }
 });
