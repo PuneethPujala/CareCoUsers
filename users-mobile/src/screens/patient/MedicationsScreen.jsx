@@ -77,6 +77,7 @@ const Skeleton = ({ width, height, radius = 10, style }) => {
 
 // ── Progress Ring (for header) ────────────────────────────────────────────────
 const ProgressRing = ({ progress = 0, size = 96, strokeWidth = 9 }) => {
+    const { t } = useTranslation();
     const radius = (size - strokeWidth) / 2;
     const circ = radius * 2 * Math.PI;
     const anim = useRef(new Animated.Value(0)).current;
@@ -109,7 +110,7 @@ const ProgressRing = ({ progress = 0, size = 96, strokeWidth = 9 }) => {
             </Svg>
             <View style={[StyleSheet.absoluteFillObject, { alignItems: 'center', justifyContent: 'center' }]}>
                 <Text style={{ fontSize: 20, fontWeight: '900', color: '#0F172A', letterSpacing: -0.8 }}>{disp}%</Text>
-                <Text style={{ fontSize: 9, fontWeight: '800', color: '#94A3B8', letterSpacing: 1.2, textTransform: 'uppercase' }}>Done</Text>
+                <Text style={{ fontSize: 9, fontWeight: '800', color: '#94A3B8', letterSpacing: 1.2, textTransform: 'uppercase' }}>{t('common.done', { defaultValue: 'Done' })}</Text>
             </View>
         </View>
     );
@@ -147,6 +148,7 @@ const ChartBar = ({ percentage, isToday, day }) => {
 
 // ── Slot Section Header ───────────────────────────────────────────────────────
 const SlotHeader = ({ slot, callTime }) => {
+    const { t } = useTranslation();
     const cfg = SLOT_CONFIG[slot];
     if (!cfg) return null;
     const { label, Icon, color, light, border } = cfg;
@@ -156,7 +158,7 @@ const SlotHeader = ({ slot, callTime }) => {
                 <View style={{ width: 34, height: 34, borderRadius: 11, backgroundColor: light, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: border }}>
                     <Icon size={17} color={color} strokeWidth={2.5} />
                 </View>
-                <Text style={{ fontSize: 15, fontWeight: '800', color: '#1E293B', letterSpacing: -0.1 }}>{label}</Text>
+                <Text style={{ fontSize: 15, fontWeight: '800', color: '#1E293B', letterSpacing: -0.1 }}>{t(`time_slots.${slot}`, { defaultValue: label })}</Text>
             </View>
             {callTime ? (
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: light, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10, borderWidth: 1, borderColor: border }}>
@@ -170,6 +172,7 @@ const SlotHeader = ({ slot, callTime }) => {
 
 // ── Medication Card ───────────────────────────────────────────────────────────
 const MedCard = ({ med, onToggle, onSnooze }) => {
+    const { t } = useTranslation();
     const [expanded, setExpanded] = useState(false);
     const swRef = useRef(null);
     const checkScale = useRef(new Animated.Value(med.taken ? 1 : 0)).current;
@@ -190,7 +193,7 @@ const MedCard = ({ med, onToggle, onSnooze }) => {
             >
                 <Animated.View style={{ transform: [{ translateX: trans }], alignItems: 'center', gap: 4 }}>
                     <CheckCircle2 size={26} color="#FFF" strokeWidth={2} />
-                    <Text style={{ color: '#FFF', fontSize: 11, fontWeight: '800', letterSpacing: 0.5 }}>TAKE</Text>
+                    <Text style={{ color: '#FFF', fontSize: 11, fontWeight: '800', letterSpacing: 0.5 }}>{t('medications.take', { defaultValue: 'TAKE' })}</Text>
                 </Animated.View>
             </Pressable>
         );
@@ -205,7 +208,7 @@ const MedCard = ({ med, onToggle, onSnooze }) => {
             >
                 <Animated.View style={{ transform: [{ translateX: trans }], alignItems: 'center', gap: 4 }}>
                     <Clock size={26} color="#FFF" strokeWidth={2} />
-                    <Text style={{ color: '#FFF', fontSize: 11, fontWeight: '800', letterSpacing: 0.5 }}>SNOOZE</Text>
+                    <Text style={{ color: '#FFF', fontSize: 11, fontWeight: '800', letterSpacing: 0.5 }}>{t('medications.snooze', { defaultValue: 'SNOOZE' })}</Text>
                 </Animated.View>
             </Pressable>
         );
@@ -249,14 +252,14 @@ const MedCard = ({ med, onToggle, onSnooze }) => {
                                 <View style={styles.takenBadge}>
                                     <CheckCircle2 size={10} color="#10B981" />
                                     <Text style={styles.takenBadgeTxt}>
-                                        {med.marked_by === 'caller' ? 'By Caregiver' : 'Taken'}
+                                        {med.marked_by === 'caller' ? t('medications.by_caregiver', { defaultValue: 'By Caregiver' }) : t('medications.taken', { defaultValue: 'Taken' })}
                                     </Text>
                                 </View>
                             )}
                             {med.verifiedByCaller && (
                                 <View style={styles.verifiedBadge}>
                                     <Shield size={9} color="#059669" />
-                                    <Text style={styles.verifiedTxt}>Verified</Text>
+                                    <Text style={styles.verifiedTxt}>{t('medications.verified', { defaultValue: 'Verified' })}</Text>
                                 </View>
                             )}
                         </View>
@@ -279,7 +282,7 @@ const MedCard = ({ med, onToggle, onSnooze }) => {
                         <View style={[styles.instructionBox, { backgroundColor: cfg.light, borderColor: cfg.border }]}>
                             <Info size={15} color={cfg.color} style={{ marginTop: 1, flexShrink: 0 }} />
                             <Text style={[styles.instructionTxt, { color: cfg.color }]}>
-                                {med.instructions || 'No special instructions provided.'}
+                                {med.instructions || t('medications.no_instructions', { defaultValue: 'No special instructions provided.' })}
                             </Text>
                         </View>
                     </View>
@@ -352,6 +355,7 @@ const WheelCol = ({ data, selectedValue, onValueChange, colWidth = 72 }) => {
 };
 
 const TimePickerModal = ({ visible, onClose, onSave, initialTime }) => {
+    const { t } = useTranslation();
     const [h, setH] = useState('12');
     const [m, setM] = useState('00');
     const [ap, setAp] = useState('AM');
@@ -391,8 +395,8 @@ const TimePickerModal = ({ visible, onClose, onSave, initialTime }) => {
                     onPress={e => e.stopPropagation()}
                     style={{ backgroundColor: '#FFF', borderRadius: 32, padding: 28, width: Math.min(SW - 40, 340), shadowColor: '#000', shadowOffset: { width: 0, height: 20 }, shadowOpacity: 0.15, shadowRadius: 40, elevation: 14 }}
                 >
-                    <Text style={{ fontSize: 20, fontWeight: '900', color: '#0F172A', textAlign: 'center', marginBottom: 4 }}>Set Time</Text>
-                    <Text style={{ fontSize: 13, color: '#94A3B8', textAlign: 'center', marginBottom: 24, fontWeight: '500' }}>Scroll to choose your preferred time</Text>
+                    <Text style={{ fontSize: 20, fontWeight: '900', color: '#0F172A', textAlign: 'center', marginBottom: 4 }}>{t('medications.set_time', { defaultValue: 'Set Time' })}</Text>
+                    <Text style={{ fontSize: 13, color: '#94A3B8', textAlign: 'center', marginBottom: 24, fontWeight: '500' }}>{t('medications.scroll_time', { defaultValue: 'Scroll to choose your preferred time' })}</Text>
 
                     <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', height: ITEM_H * VISIBLE_ROWS, position: 'relative' }}>
                         <View pointerEvents="none" style={{
@@ -411,11 +415,11 @@ const TimePickerModal = ({ visible, onClose, onSave, initialTime }) => {
 
                     <View style={{ flexDirection: 'row', gap: 10, marginTop: 28 }}>
                         <Pressable onPress={onClose} style={{ flex: 1, paddingVertical: 15, borderRadius: 16, alignItems: 'center', backgroundColor: '#F8FAFC' }}>
-                            <Text style={{ fontSize: 15, fontWeight: '700', color: '#64748B' }}>Cancel</Text>
+                            <Text style={{ fontSize: 15, fontWeight: '700', color: '#64748B' }}>{t('common.cancel', { defaultValue: 'Cancel' })}</Text>
                         </Pressable>
                         <Pressable onPress={save} style={{ flex: 2, paddingVertical: 15, borderRadius: 16, alignItems: 'center', overflow: 'hidden' }}>
                             <LinearGradient colors={['#6366F1', '#4F46E5']} style={StyleSheet.absoluteFill} />
-                            <Text style={{ fontSize: 15, fontWeight: '700', color: '#FFF' }}>Confirm</Text>
+                            <Text style={{ fontSize: 15, fontWeight: '700', color: '#FFF' }}>{t('common.confirm', { defaultValue: 'Confirm' })}</Text>
                         </Pressable>
                     </View>
                 </Pressable>
@@ -508,13 +512,13 @@ export default function MedicationsScreen({ navigation }) {
         const slotStart = SLOT_START_HOURS[med.type];
         if (slotStart !== undefined && hour < slotStart) {
             const msgs = {
-                morning: { title: 'Easy there, early bird! 🐦', body: "Morning meds aren't due yet. Come back after 5 AM!" },
-                afternoon: { title: 'Not yet! ☀️', body: 'Afternoon meds unlock from 11 AM. Patience!' },
-                evening: { title: 'Hold on! 🌅', body: 'Evening meds are available after 4 PM.' },
-                night: { title: "It's not night yet! 🌙", body: 'Night meds start from 7 PM. Enjoy your day first!' },
+                morning: { title: t('medications.early_bird_title', { defaultValue: 'Easy there, early bird! 🐦' }), body: t('medications.early_bird_body', { defaultValue: "Morning meds aren't due yet. Come back after 5 AM!" }) },
+                afternoon: { title: t('medications.not_yet_title', { defaultValue: 'Not yet! ☀️' }), body: t('medications.not_yet_afternoon', { defaultValue: 'Afternoon meds unlock from 11 AM. Patience!' }) },
+                evening: { title: t('medications.hold_on_title', { defaultValue: 'Hold on! 🌅' }), body: t('medications.not_yet_evening', { defaultValue: 'Evening meds are available after 4 PM.' }) },
+                night: { title: t('medications.not_night_yet_title', { defaultValue: "It's not night yet! 🌙" }), body: t('medications.not_yet_night', { defaultValue: 'Night meds start from 7 PM. Enjoy your day first!' }) },
             };
-            const msg = msgs[med.type] || { title: 'Not yet! ⏰', body: "This medication isn't due yet." };
-            AlertManager.alert(msg.title, msg.body, [{ text: 'Got it! 😊', style: 'default' }]);
+            const msg = msgs[med.type] || { title: t('medications.not_yet_generic_title', { defaultValue: 'Not yet! ⏰' }), body: t('medications.not_yet_generic', { defaultValue: "This medication isn't due yet." }) };
+            AlertManager.alert(msg.title, msg.body, [{ text: t('common.got_it', { defaultValue: 'Got it! 😊' }), style: 'default' }]);
             return;
         }
 
@@ -531,7 +535,7 @@ export default function MedicationsScreen({ navigation }) {
             await storeOptimisticToggle(med, true);
         } catch (err) {
             console.warn('[Toggle] Failed:', err.message);
-            showToast('Sync Failed', 'Check your connection and try again.');
+            showToast(t('common.sync_failed', { defaultValue: 'Sync Failed' }), t('common.check_connection', { defaultValue: 'Check your connection and try again.' }));
         }
     };
 
@@ -545,20 +549,20 @@ export default function MedicationsScreen({ navigation }) {
             }
             
             if (finalStatus !== 'granted') {
-                AlertManager.alert('Permission Required', 'Please enable notifications to snooze medications.', [{ text: 'OK' }]);
+                AlertManager.alert(t('common.permission_required', { defaultValue: 'Permission Required' }), t('medications.enable_notifications', { defaultValue: 'Please enable notifications to snooze medications.' }), [{ text: t('common.ok', { defaultValue: 'OK' }) }]);
                 return;
             }
 
             await Notifications.scheduleNotificationAsync({
                 content: {
-                    title: `⏳ Reminder: ${med.name}`,
-                    body: `Time to take your ${med.name}!`,
+                    title: `⏳ ${t('medications.reminder', { defaultValue: 'Reminder' })}: ${med.name}`,
+                    body: `${t('medications.time_to_take', { defaultValue: 'Time to take your' })} ${med.name}!`,
                     data: { screen: 'Medications', type: 'medication_reminder' },
                     sound: 'default',
                 },
                 trigger: { seconds: 30 * 60 },
             });
-            showToast('Snoozed 30 min', `We'll remind you about ${med.name}.`);
+            showToast(t('medications.snoozed', { defaultValue: 'Snoozed 30 min' }), `${t('medications.remind_you_about', { defaultValue: "We'll remind you about" })} ${med.name}.`);
         } catch (err) {
             console.warn('Snooze failed:', err.message);
         }
@@ -570,7 +574,7 @@ export default function MedicationsScreen({ navigation }) {
             await storeSavePrefs(tempPrefs);
             setShowPrefModal(false);
         } catch {
-            showToast('Error', 'Failed to save preferences.');
+            showToast(t('common.error', { defaultValue: 'Error' }), t('medications.save_prefs_failed', { defaultValue: 'Failed to save preferences.' }));
         } finally {
             setSavingPrefs(false);
         }
@@ -579,7 +583,7 @@ export default function MedicationsScreen({ navigation }) {
     const handleUploadPrescription = async () => {
         try {
             const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-            if (status !== 'granted') { showToast('Permission needed', 'Camera roll access required.'); return; }
+            if (status !== 'granted') { showToast(t('common.permission_needed', { defaultValue: 'Permission needed' }), t('medications.camera_roll_req', { defaultValue: 'Camera roll access required.' })); return; }
             const result = await ImagePicker.launchImageLibraryAsync({
                 mediaTypes: ImagePicker.MediaTypeOptions.Images,
                 allowsEditing: true, quality: 0.8, base64: true,
@@ -591,13 +595,13 @@ export default function MedicationsScreen({ navigation }) {
                     [{ resize: { width: 800 } }],
                     { compress: 0.5, format: ImageManipulator.SaveFormat.JPEG, base64: true }
                 );
-                if (!manipResult.base64) throw new Error('Failed to process image.');
+                if (!manipResult.base64) throw new Error(t('medications.process_img_failed', { defaultValue: 'Failed to process image.' }));
                 await apiService.patients.uploadPrescription({ file_base64: manipResult.base64, content_type: 'image/jpeg' });
-                showToast('Uploaded! ✓', 'Prescription sent for caregiver review.');
+                showToast(t('medications.uploaded', { defaultValue: 'Uploaded! ✓' }), t('medications.prescription_sent', { defaultValue: 'Prescription sent for caregiver review.' }));
                 load(true);
             }
         } catch (error) {
-            showToast('Upload Failed', error.response?.data?.error || error.message || 'Try again.');
+            showToast(t('common.upload_failed', { defaultValue: 'Upload Failed' }), error.response?.data?.error || error.message || t('common.try_again', { defaultValue: 'Try again.' }));
         } finally {
             setUploadingImage(false);
         }
@@ -664,9 +668,9 @@ export default function MedicationsScreen({ navigation }) {
                     <View style={{ width: 88, height: 88, borderRadius: 44, backgroundColor: '#EEF2FF', alignItems: 'center', justifyContent: 'center', marginBottom: 20 }}>
                         <Pill size={36} color="#6366F1" strokeWidth={1.5} />
                     </View>
-                    <Text style={{ fontSize: 24, fontWeight: '900', color: '#0F172A', marginBottom: 10 }}>Premium Feature</Text>
+                    <Text style={{ fontSize: 24, fontWeight: '900', color: '#0F172A', marginBottom: 10 }}>{t('common.premium_feature', { defaultValue: 'Premium Feature' })}</Text>
                     <Text style={{ fontSize: 15, color: '#64748B', textAlign: 'center', lineHeight: 24 }}>
-                        Medication tracking and adherence insights are included in the Premium Plan. Upgrade to manage your daily schedule.
+                        {t('medications.premium_desc', { defaultValue: 'Medication tracking and adherence insights are included in the Premium Plan. Upgrade to manage your daily schedule.' })}
                     </Text>
                 </View>
             </View>
@@ -702,10 +706,10 @@ export default function MedicationsScreen({ navigation }) {
                 {totalCount > 0 && (
                     <Animated.View style={[anim(0), styles.progressCard]}>
                         <View style={{ flex: 1 }}>
-                            <Text style={styles.progressLabel}>{t('meds.todays_progress', { defaultValue: "Today's Progress" })}</Text>
+                            <Text style={styles.progressLabel}>{t('medications.todays_progress', { defaultValue: "Today's Progress" })}</Text>
                             <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4, marginVertical: 6 }}>
                                 <Text style={styles.progressCount}>{takenCount}</Text>
-                                <Text style={styles.progressTotal}>/ {totalCount} taken</Text>
+                                <Text style={styles.progressTotal}>/ {totalCount} {t('common.taken', { defaultValue: 'taken' })}</Text>
                             </View>
                             <View style={styles.progressBarBg}>
                                 <LinearGradient
@@ -717,17 +721,17 @@ export default function MedicationsScreen({ navigation }) {
                             <View style={{ flexDirection: 'row', gap: 16, marginTop: 10 }}>
                                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
                                     <TrendingUp size={12} color="#6366F1" />
-                                    <Text style={{ fontSize: 11, fontWeight: '700', color: '#6366F1' }}>{Math.round(adherencePct)}% avg</Text>
+                                    <Text style={{ fontSize: 11, fontWeight: '700', color: '#6366F1' }}>{Math.round(adherencePct)}% {t('common.avg', { defaultValue: 'avg' })}</Text>
                                 </View>
                                 {nextCfg ? (
                                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
                                         <nextCfg.Icon size={12} color={nextCfg.color} />
-                                        <Text style={{ fontSize: 11, fontWeight: '700', color: nextCfg.color }}>Next: {nextCfg.label}</Text>
+                                        <Text style={{ fontSize: 11, fontWeight: '700', color: nextCfg.color }}>{t('medications.next', { defaultValue: 'Next' })}: {t(`time_slots.${nextSlot}`, { defaultValue: nextCfg.label })}</Text>
                                     </View>
                                 ) : (
                                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
                                         <CheckCircle2 size={12} color="#10B981" />
-                                        <Text style={{ fontSize: 11, fontWeight: '700', color: '#10B981' }}>All done!</Text>
+                                        <Text style={{ fontSize: 11, fontWeight: '700', color: '#10B981' }}>{t('common.all_done', { defaultValue: 'All done!' })}</Text>
                                     </View>
                                 )}
                             </View>
@@ -744,12 +748,12 @@ export default function MedicationsScreen({ navigation }) {
                         </LinearGradient>
                         <Text style={styles.emptyTitle}>{t('common.all_clear', { defaultValue: 'All Clear!' })}</Text>
                         <Text style={styles.emptyBody}>
-                            No medications scheduled yet. Your caregiver will add them, or request a review below.
+                            {t('medications.no_meds_scheduled', { defaultValue: 'No medications scheduled yet. Your caregiver will add them, or request a review below.' })}
                         </Text>
                         <Pressable style={styles.emptyPrefBtn} onPress={() => { setShowPrefModal(true); setTempPrefs(preferences); }}>
                             <LinearGradient colors={['#6366F1', '#4F46E5']} style={StyleSheet.absoluteFill} />
                             <Clock size={17} color="#FFF" />
-                            <Text style={styles.emptyPrefTxt}>Set Call Preferences</Text>
+                            <Text style={styles.emptyPrefTxt}>{t('medications.set_call_prefs', { defaultValue: 'Set Call Preferences' })}</Text>
                         </Pressable>
 
                         <View style={styles.actionGroup}>
@@ -761,26 +765,26 @@ export default function MedicationsScreen({ navigation }) {
                                     try {
                                         await apiService.patients.requestMedicationModification({ description: 'Patient requests caller to add/review medications.' });
                                         setModRequested(true);
-                                        showToast('Request Sent ✓', 'Your caregiver will discuss meds on your next call.');
-                                    } catch { showToast('Error', 'Could not send. Try again.'); }
+                                        showToast(t('medications.request_sent_toast', { defaultValue: 'Request Sent ✓' }), t('medications.caregiver_discuss', { defaultValue: 'Your caregiver will discuss meds on your next call.' }));
+                                    } catch { showToast(t('common.error', { defaultValue: 'Error' }), t('common.could_not_send', { defaultValue: 'Could not send. Try again.' })); }
                                     finally { setRequestingMod(false); }
                                 }}
                             >
                                 {requestingMod ? <ActivityIndicator size="small" color="#6366F1" /> :
-                                    modRequested ? <><CheckCircle2 size={18} color="#16A34A" /><Text style={[styles.outlineBtnTxt, { color: '#16A34A' }]}>Request Sent!</Text></> :
-                                        <><MessageCircle size={18} color="#6366F1" /><Text style={styles.outlineBtnTxt}>Request Caregiver Review</Text></>
+                                    modRequested ? <><CheckCircle2 size={18} color="#16A34A" /><Text style={[styles.outlineBtnTxt, { color: '#16A34A' }]}>{t('medications.request_sent', { defaultValue: 'Request Sent!' })}</Text></> :
+                                        <><MessageCircle size={18} color="#6366F1" /><Text style={styles.outlineBtnTxt}>{t('medications.request_caregiver_review', { defaultValue: 'Request Caregiver Review' })}</Text></>
                                 }
                             </Pressable>
                             <Pressable style={[styles.outlineBtn, { borderColor: '#D1FAE5' }]} disabled={uploadingImage} onPress={handleUploadPrescription}>
                                 {uploadingImage ? <ActivityIndicator size="small" color="#10B981" /> :
-                                    <><Upload size={18} color="#10B981" /><Text style={[styles.outlineBtnTxt, { color: '#10B981' }]}>Upload Prescription</Text></>
+                                    <><Upload size={18} color="#10B981" /><Text style={[styles.outlineBtnTxt, { color: '#10B981' }]}>{t('medications.upload_prescription', { defaultValue: 'Upload Prescription' })}</Text></>
                                 }
                             </Pressable>
                         </View>
 
                         {patient?.uploaded_prescriptions?.length > 0 && (
                             <View style={{ width: '100%', marginTop: 20 }}>
-                                <Text style={styles.sectionLabel}>RECENT UPLOADS</Text>
+                                <Text style={styles.sectionLabel}>{t('medications.recent_uploads', { defaultValue: 'RECENT UPLOADS' })}</Text>
                                 {patient.uploaded_prescriptions.map((up, idx) => (
                                     <UploadRow key={idx} upload={up} />
                                 ))}
@@ -796,12 +800,12 @@ export default function MedicationsScreen({ navigation }) {
                                     <View>
                                         <Text style={styles.cardTitle}>{t('common.weekly_adherence', { defaultValue: 'Weekly Adherence' })}</Text>
                                         <Text style={{ fontSize: 12, color: '#94A3B8', marginTop: 2, fontWeight: '600' }}>
-                                            Last 7 days
+                                            {t('common.last_7_days', { defaultValue: 'Last 7 days' })}
                                         </Text>
                                     </View>
                                     <View style={styles.adherenceBadge}>
                                         <TrendingUp size={13} color="#6366F1" />
-                                        <Text style={styles.adherenceBadgeTxt}>{adherencePct}% avg</Text>
+                                        <Text style={styles.adherenceBadgeTxt}>{adherencePct}% {t('common.avg', { defaultValue: 'avg' })}</Text>
                                     </View>
                                 </View>
                                 <View style={{ flexDirection: 'row', gap: 2 }}>
@@ -849,25 +853,25 @@ export default function MedicationsScreen({ navigation }) {
                                     try {
                                         await apiService.patients.requestMedicationModification({ description: 'Patient requests medication review/modification.' });
                                         setModRequested(true);
-                                        showToast('Request Sent ✓', 'Your caregiver will review your meds on the next call.');
-                                    } catch { showToast('Error', 'Could not send. Try again.'); }
+                                        showToast(t('medications.request_sent_toast', { defaultValue: 'Request Sent ✓' }), t('medications.caregiver_review_next_call', { defaultValue: 'Your caregiver will review your meds on the next call.' }));
+                                    } catch { showToast(t('common.error', { defaultValue: 'Error' }), t('common.could_not_send', { defaultValue: 'Could not send. Try again.' })); }
                                     finally { setRequestingMod(false); }
                                 }}
                             >
                                 {requestingMod ? <ActivityIndicator size="small" color="#6366F1" /> :
-                                    modRequested ? <><CheckCircle2 size={18} color="#16A34A" /><Text style={[styles.outlineBtnTxt, { color: '#16A34A' }]}>Request Sent!</Text></> :
-                                        <><Pencil size={18} color="#6366F1" /><Text style={styles.outlineBtnTxt}>Request Medication Review</Text></>
+                                    modRequested ? <><CheckCircle2 size={18} color="#16A34A" /><Text style={[styles.outlineBtnTxt, { color: '#16A34A' }]}>{t('medications.request_sent', { defaultValue: 'Request Sent!' })}</Text></> :
+                                        <><Pencil size={18} color="#6366F1" /><Text style={styles.outlineBtnTxt}>{t('medications.request_med_review', { defaultValue: 'Request Medication Review' })}</Text></>
                                 }
                             </Pressable>
                             <Pressable style={[styles.outlineBtn, { borderColor: '#D1FAE5' }]} disabled={uploadingImage} onPress={handleUploadPrescription}>
                                 {uploadingImage ? <ActivityIndicator size="small" color="#10B981" /> :
-                                    <><Upload size={18} color="#10B981" /><Text style={[styles.outlineBtnTxt, { color: '#10B981' }]}>Upload New Prescription</Text></>
+                                    <><Upload size={18} color="#10B981" /><Text style={[styles.outlineBtnTxt, { color: '#10B981' }]}>{t('medications.upload_new_prescription', { defaultValue: 'Upload New Prescription' })}</Text></>
                                 }
                             </Pressable>
 
                             {patient?.uploaded_prescriptions?.length > 0 && (
                                 <View style={{ marginTop: 8 }}>
-                                    <Text style={[styles.sectionLabel, { marginBottom: 12 }]}>UPLOADED PRESCRIPTIONS</Text>
+                                    <Text style={[styles.sectionLabel, { marginBottom: 12 }]}>{t('medications.uploaded_prescriptions', { defaultValue: 'UPLOADED PRESCRIPTIONS' })}</Text>
                                     {patient.uploaded_prescriptions.map((up, idx) => (
                                         <View key={idx} style={[styles.uploadCard, { marginBottom: 8 }]}>
                                             <View style={[styles.uploadStatusBox, {
@@ -878,12 +882,12 @@ export default function MedicationsScreen({ navigation }) {
                                                         <Clock size={18} color="#D97706" />}
                                             </View>
                                             <View style={{ flex: 1 }}>
-                                                <Text style={styles.uploadName}>Doctor's Slip</Text>
+                                                <Text style={styles.uploadName}>{t('medications.doctors_slip', { defaultValue: "Doctor's Slip" })}</Text>
                                                 <Text style={styles.uploadDate}>{new Date(up.uploaded_at).toLocaleDateString()}</Text>
                                             </View>
                                             <Text style={[styles.uploadStatus, {
                                                 color: up.status === 'reviewed' ? '#16A34A' : up.status === 'rejected' ? '#DC2626' : '#D97706',
-                                            }]}>{up.status}</Text>
+                                            }]}>{t(`medications.status_${up.status}`, { defaultValue: up.status })}</Text>
                                         </View>
                                     ))}
                                 </View>
@@ -908,14 +912,14 @@ export default function MedicationsScreen({ navigation }) {
             {/* ── PREFERENCES MODAL ── */}
             <PremiumFormModal
                 visible={showPrefModal}
-                title="Call Preferences"
+                title={t('medications.call_preferences', { defaultValue: 'Call Preferences' })}
                 onClose={() => setShowPrefModal(false)}
                 onSave={handleSavePreferences}
-                saveText={savingPrefs ? 'Saving...' : 'Save Preferences'}
+                saveText={savingPrefs ? t('common.saving', { defaultValue: 'Saving...' }) : t('medications.save_prefs', { defaultValue: 'Save Preferences' })}
                 saving={savingPrefs}
             >
                 <Text style={styles.modalDesc}>
-                    Set when your care team should call to check on your medications. We call within 30 min of this time.
+                    {t('medications.call_prefs_desc', { defaultValue: 'Set when your care team should call to check on your medications. We call within 30 min of this time.' })}
                 </Text>
                 {['morning', 'afternoon', 'night'].map(slot => {
                     const cfg = SLOT_CONFIG[slot];
@@ -925,7 +929,7 @@ export default function MedicationsScreen({ navigation }) {
                                 <View style={[styles.prefIconBox, { backgroundColor: cfg.light, borderColor: cfg.border }]}>
                                     <cfg.Icon size={17} color={cfg.color} strokeWidth={2.5} />
                                 </View>
-                                <Text style={styles.prefLabel}>{cfg.label}</Text>
+                                <Text style={styles.prefLabel}>{t(`time_slots.${slot}`, { defaultValue: cfg.label })}</Text>
                             </View>
                             <Pressable style={[styles.timeBtn, { borderColor: cfg.border }]} onPress={() => setActivePicker(slot)}>
                                 <Clock size={14} color={cfg.color} />
@@ -959,9 +963,9 @@ export default function MedicationsScreen({ navigation }) {
                             >
                                 <Pill size={36} color="#6366F1" strokeWidth={1.8} />
                             </LinearGradient>
-                            <Text style={styles.confirmTitle}>Confirm Intake</Text>
+                            <Text style={styles.confirmTitle}>{t('medications.confirm_intake', { defaultValue: 'Confirm Intake' })}</Text>
                             <Text style={styles.confirmSub}>
-                                {'Have you taken\n'}
+                                {t('medications.have_you_taken', { defaultValue: 'Have you taken\n' })}
                                 <Text style={{ fontWeight: '900', color: '#1E293B' }}>"{confirmingMed?.name}"</Text>
                                 {'?'}
                             </Text>
@@ -979,10 +983,10 @@ export default function MedicationsScreen({ navigation }) {
                                 style={[StyleSheet.absoluteFill, { borderRadius: 18 }]}
                             />
                             <CheckCircle2 size={22} color="#FFF" />
-                            <Text style={styles.confirmYesTxt}>Yes, I took it!</Text>
+                            <Text style={styles.confirmYesTxt}>{t('medications.yes_i_took_it', { defaultValue: 'Yes, I took it!' })}</Text>
                         </Pressable>
                         <Pressable style={styles.confirmNoBtn} onPress={() => { setIsConfirmVisible(false); setConfirmingMed(null); }}>
-                            <Text style={styles.confirmNoTxt}>Not yet</Text>
+                            <Text style={styles.confirmNoTxt}>{t('common.not_yet', { defaultValue: 'Not yet' })}</Text>
                         </Pressable>
                     </View>
                 </View>
@@ -1011,6 +1015,7 @@ export default function MedicationsScreen({ navigation }) {
 
 // ── Upload row helper ─────────────────────────────────────────────────────────
 function UploadRow({ upload }) {
+    const { t } = useTranslation();
     return (
         <View style={[styles.uploadCard, { marginBottom: 8 }]}>
             <View style={[styles.uploadStatusBox, {
@@ -1021,12 +1026,12 @@ function UploadRow({ upload }) {
                         <Clock size={16} color="#D97706" />}
             </View>
             <View style={{ flex: 1 }}>
-                <Text style={styles.uploadName}>Prescription Slip</Text>
+                <Text style={styles.uploadName}>{t('medications.prescription_slip', { defaultValue: 'Prescription Slip' })}</Text>
                 <Text style={styles.uploadDate}>{new Date(upload.uploaded_at).toLocaleDateString()}</Text>
             </View>
             <Text style={[styles.uploadStatus, {
                 color: upload.status === 'reviewed' ? '#16A34A' : upload.status === 'rejected' ? '#DC2626' : '#D97706',
-            }]}>{upload.status}</Text>
+            }]}>{t(`medications.status_${upload.status}`, { defaultValue: upload.status })}</Text>
         </View>
     );
 }
