@@ -9,31 +9,32 @@ import PremiumFormModal from '../../components/ui/PremiumFormModal';
 import {
   Phone, PhoneIncoming, AlertTriangle, ShieldCheck,
   Flag, Clock, Globe, Calendar, ChevronRight, ChevronDown, X, Users, Heart,
-  Plus, Edit2, Bell, Trash2
+  Plus, Edit2, Bell, Trash2, Star, Activity, MessageCircle, UserCheck,
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors, layout } from '../../theme';
 import { apiService } from '../../lib/api';
 import { COUNTRY_CODES, parsePhoneWithCode, validatePhone } from '../../utils/phoneUtils';
-
 import { useTranslation } from 'react-i18next';
 import AlertManager from '../../utils/AlertManager';
-// ── Skeleton Loader ──────────────────────────────────────────
+
+// ── Skeleton ────────────────────────────────────────────────────────────────
 const SkeletonItem = ({ width, height, borderRadius = 8, style }) => {
-    const anim = useRef(new Animated.Value(0.3)).current;
-    useEffect(() => {
-        Animated.loop(
-            Animated.sequence([
-                Animated.timing(anim, { toValue: 1, duration: 800, useNativeDriver: true }),
-                Animated.timing(anim, { toValue: 0.3, duration: 800, useNativeDriver: true })
-            ])
-        ).start();
-    }, [anim]);
-    return <Animated.View style={[{ width, height, borderRadius, backgroundColor: '#E2E8F0', opacity: anim }, style]} />;
+  const anim = useRef(new Animated.Value(0.3)).current;
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(anim, { toValue: 1, duration: 800, useNativeDriver: true }),
+        Animated.timing(anim, { toValue: 0.3, duration: 800, useNativeDriver: true }),
+      ])
+    ).start();
+  }, [anim]);
+  return <Animated.View style={[{ width, height, borderRadius, backgroundColor: '#E2E8F0', opacity: anim }, style]} />;
 };
 
+// ── Theme ───────────────────────────────────────────────────────────────────
 const C = {
-  primary: '#6366F1',     // Indigo
+  primary: '#6366F1',
   primaryDark: '#4338CA',
   primarySoft: '#EEF2FF',
   cardBg: '#FFFFFF',
@@ -46,65 +47,61 @@ const C = {
   borderMid: '#E2E8F0',
   success: '#10B981',
   successBg: '#D1FAE5',
-  danger: '#F43F5E',      // Rose
+  danger: '#F43F5E',
   dangerBg: '#FFE4E6',
   warning: '#F59E0B',
   warningBg: '#FEF3C7',
-  accent: '#06B6D4',      // Cyan
+  accent: '#06B6D4',
 };
 
-const STATUS_CONFIG = {
-  completed: { color: C.success, bg: C.successBg, Icon: PhoneIncoming, label: 'Completed' },
-  missed: { color: C.danger, bg: C.dangerBg, Icon: AlertTriangle, label: 'Missed' },
-  attempted: { color: C.warning, bg: C.warningBg, Icon: Clock, label: 'Attempted' },
-  refused: { color: C.danger, bg: C.dangerBg, Icon: AlertTriangle, label: 'Refused' },
-  rescheduled: { color: C.warning, bg: C.warningBg, Icon: Calendar, label: 'Rescheduled' },
-};
-
-const AVATAR_COLORS = [
-  { bg: '#EEF2FF', text: '#4338CA' }, // Indigo
-  { bg: '#FFE4E6', text: '#E11D48' }, // Rose
-  { bg: '#ECFCCB', text: '#4D7C0F' }, // Lime
-  { bg: '#FEF3C7', text: '#B45309' }, // Amber
-  { bg: '#E0F2FE', text: '#0369A1' }, // Sky
+const CONTACT_PALETTE = [
+  '#6366F1', '#10B981', '#F59E0B', '#06B6D4', '#8B5CF6', '#EC4899',
 ];
 
+const STATUS_CONFIG = {
+  completed:   { color: C.success, bg: C.successBg,  Icon: PhoneIncoming, label: 'Completed' },
+  missed:      { color: C.danger,  bg: C.dangerBg,   Icon: AlertTriangle, label: 'Missed' },
+  attempted:   { color: C.warning, bg: C.warningBg,  Icon: Clock,         label: 'Attempted' },
+  refused:     { color: C.danger,  bg: C.dangerBg,   Icon: AlertTriangle, label: 'Refused' },
+  rescheduled: { color: C.warning, bg: C.warningBg,  Icon: Calendar,      label: 'Rescheduled' },
+};
+
+// ── Main Component ──────────────────────────────────────────────────────────
 export default function MyCallerScreen({ navigation }) {
   const { t } = useTranslation();
-  const [patient, setPatient] = useState(null);
-  const [caller, setCaller] = useState(null);
-  const [calls, setCalls] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [modalVisible, setModal] = useState(false);
-  const [selectedProfile, setSelectedProfile] = useState(null);
-  const [flagging, setFlagging] = useState(false);
+  const [patient,  setPatient]  = useState(null);
+  const [caller,   setCaller]   = useState(null);
+  const [calls,    setCalls]    = useState([]);
+  const [loading,  setLoading]  = useState(true);
+  const [modalVisible,       setModal]                = useState(false);
+  const [selectedProfile,    setSelectedProfile]      = useState(null);
+  const [flagging,           setFlagging]             = useState(false);
   const [flagIssueModalVisible, setFlagIssueModalVisible] = useState(false);
-  const [flagDescription, setFlagDescription] = useState('');
+  const [flagDescription,    setFlagDescription]      = useState('');
+  const [contacts,           setContacts]             = useState([]);
+  const [contactModal,       setContactModal]         = useState(false);
+  const [editingContact,     setEditingContact]       = useState(null);
+  const [contactForm,        setContactForm]          = useState({ name: '', phone: '', phoneCode: '+91', relation: '', email: '' });
+  const [isSavingContact,    setIsSavingContact]      = useState(false);
+  const [deleteConfirm,      setDeleteConfirm]        = useState({ visible: false, id: null, name: '' });
+  const [isDeleting,         setIsDeleting]           = useState(false);
+  const [countryCodeModal,   setCountryCodeModal]     = useState(false);
+  const [manager,            setManager]              = useState(null);
+  const [refreshing,         setRefreshing]           = useState(false);
 
-  const [contacts, setContacts] = useState([]);
-  const [contactModal, setContactModal] = useState(false);
-  const [editingContact, setEditingContact] = useState(null);
-  const [contactForm, setContactForm] = useState({ name: '', phone: '', phoneCode: '+91', relation: '', email: '' });
-  const [isSavingContact, setIsSavingContact] = useState(false);
-  const [deleteConfirm, setDeleteConfirm] = useState({ visible: false, id: null, name: '' });
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [countryCodeModal, setCountryCodeModal] = useState(false);
   const contactModalAnim = useRef(new Animated.Value(0)).current;
-
-  const staggerAnims = useRef([...Array(20)].map(() => new Animated.Value(0))).current;
-  const modalAnim = useRef(new Animated.Value(0)).current;
-  const backdropAnim = useRef(new Animated.Value(0)).current;
-  const cardAnim = useRef(new Animated.Value(0)).current;
+  const staggerAnims     = useRef([...Array(20)].map(() => new Animated.Value(0))).current;
+  const modalAnim        = useRef(new Animated.Value(0)).current;
+  const backdropAnim     = useRef(new Animated.Value(0)).current;
+  const cardAnim         = useRef(new Animated.Value(0)).current;
 
   const runAnimations = useCallback(() => {
     staggerAnims.forEach(a => a.setValue(0));
     Animated.parallel([
-      Animated.spring(cardAnim, { toValue: 1, friction: 7, tension: 40, useNativeDriver: true }),
-      Animated.stagger(55,
-        staggerAnims.map(a =>
-          Animated.spring(a, { toValue: 1, friction: 8, tension: 42, useNativeDriver: true }),
-        ),
-      ),
+      Animated.spring(cardAnim,  { toValue: 1, friction: 7,  tension: 40, useNativeDriver: true }),
+      Animated.stagger(55, staggerAnims.map(a =>
+        Animated.spring(a, { toValue: 1, friction: 8, tension: 42, useNativeDriver: true })
+      )),
     ]).start();
   }, [staggerAnims, cardAnim]);
 
@@ -112,14 +109,14 @@ export default function MyCallerScreen({ navigation }) {
     setSelectedProfile(profile);
     setModal(true);
     Animated.parallel([
-      Animated.spring(modalAnim, { toValue: 1, friction: 8, tension: 50, useNativeDriver: true }),
+      Animated.spring(modalAnim,  { toValue: 1, friction: 8, tension: 50, useNativeDriver: true }),
       Animated.timing(backdropAnim, { toValue: 1, duration: 200, useNativeDriver: true }),
     ]).start();
   };
 
   const closeModal = () => {
     Animated.parallel([
-      Animated.timing(modalAnim, { toValue: 0, duration: 220, useNativeDriver: true }),
+      Animated.timing(modalAnim,    { toValue: 0, duration: 220, useNativeDriver: true }),
       Animated.timing(backdropAnim, { toValue: 0, duration: 200, useNativeDriver: true }),
     ]).start(() => setModal(false));
   };
@@ -134,17 +131,19 @@ export default function MyCallerScreen({ navigation }) {
       });
       setFlagIssueModalVisible(false);
       setFlagDescription('');
-      AlertManager.alert(t('caller.issue_flagged', { defaultValue: 'Issue Flagged' }), t('caller.issue_reported', { defaultValue: 'Your issue has been reported to the care team.' }));
+      AlertManager.alert(
+        t('caller.issue_flagged', { defaultValue: 'Issue Flagged' }),
+        t('caller.issue_reported', { defaultValue: 'Your issue has been reported to the care team.' })
+      );
     } catch (err) {
-      AlertManager.alert(t('common.error', { defaultValue: 'Error' }), t('caller.flag_failed', { defaultValue: 'Failed to flag issue. Please try again.' }));
-      console.warn('Flag issue error:', err.message);
+      AlertManager.alert(
+        t('common.error',   { defaultValue: 'Error' }),
+        t('caller.flag_failed', { defaultValue: 'Failed to flag issue. Please try again.' })
+      );
     } finally {
       setFlagging(false);
     }
   };
-
-  const [manager, setManager] = useState(null);
-  const [refreshing, setRefreshing] = useState(false);
 
   const loadData = useCallback(async () => {
     try {
@@ -168,10 +167,7 @@ export default function MyCallerScreen({ navigation }) {
   }, [runAnimations]);
 
   useEffect(() => {
-    (async () => {
-      await loadData();
-      setLoading(false);
-    })();
+    (async () => { await loadData(); setLoading(false); })();
   }, [loadData]);
 
   const handleRefresh = useCallback(async () => {
@@ -199,11 +195,8 @@ export default function MyCallerScreen({ navigation }) {
   const closeContactModal = () => {
     Animated.parallel([
       Animated.timing(contactModalAnim, { toValue: 0, duration: 220, useNativeDriver: true }),
-      Animated.timing(backdropAnim, { toValue: 0, duration: 200, useNativeDriver: true }),
-    ]).start(() => {
-      setContactModal(false);
-      setEditingContact(null);
-    });
+      Animated.timing(backdropAnim,     { toValue: 0, duration: 200, useNativeDriver: true }),
+    ]).start(() => { setContactModal(false); setEditingContact(null); });
   };
 
   const saveContact = async () => {
@@ -211,51 +204,31 @@ export default function MyCallerScreen({ navigation }) {
       AlertManager.alert(t('common.required', { defaultValue: 'Required' }), t('caller.enter_contact_name', { defaultValue: "Please enter the contact's name." }));
       return;
     }
-
     const phoneErr = validatePhone(contactForm.phone, contactForm.phoneCode);
-    if (phoneErr) {
-      AlertManager.alert(t('common.invalid_phone', { defaultValue: 'Invalid Phone' }), phoneErr);
-      return;
-    }
-
+    if (phoneErr) { AlertManager.alert(t('common.invalid_phone', { defaultValue: 'Invalid Phone' }), phoneErr); return; }
     if (contactForm.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactForm.email.trim())) {
       AlertManager.alert(t('common.invalid_email', { defaultValue: 'Invalid Email' }), t('caller.enter_valid_email', { defaultValue: 'Please enter a valid email address.' }));
       return;
     }
-
     const fullPhone = `${contactForm.phoneCode}${contactForm.phone.replace(/[^0-9]/g, '')}`;
-
-    // Duplicate check
     if (!editingContact) {
       const isDup = contacts.some(c => c.phone.replace(/[^0-9]/g, '') === fullPhone.replace(/[^0-9]/g, ''));
-      if (isDup) {
-        AlertManager.alert(t('common.duplicate', { defaultValue: 'Duplicate' }), t('caller.duplicate_phone', { defaultValue: 'A contact with this phone number already exists.' }));
-        return;
-      }
+      if (isDup) { AlertManager.alert(t('common.duplicate', { defaultValue: 'Duplicate' }), t('caller.duplicate_phone', { defaultValue: 'A contact with this phone number already exists.' })); return; }
     }
-
     setIsSavingContact(true);
     try {
       const payload = {
-        name: contactForm.name.trim(),
-        phone: fullPhone,
-        relation: contactForm.relation?.trim() || '',
-        email: contactForm.email?.trim() || '',
-        is_emergency: !!contactForm.is_emergency,
-        is_primary: !!contactForm.is_emergency,
-        can_view_data: !!contactForm.can_view_data,
-        permissions: [],
+        name: contactForm.name.trim(), phone: fullPhone,
+        relation: contactForm.relation?.trim() || '', email: contactForm.email?.trim() || '',
+        is_emergency: !!contactForm.is_emergency, is_primary: !!contactForm.is_emergency,
+        can_view_data: !!contactForm.can_view_data, permissions: [],
       };
-      let res;
-      if (editingContact) {
-        res = await apiService.patients.updateTrustedContact(editingContact._id, payload);
-      } else {
-        res = await apiService.patients.addTrustedContact(payload);
-      }
+      const res = editingContact
+        ? await apiService.patients.updateTrustedContact(editingContact._id, payload)
+        : await apiService.patients.addTrustedContact(payload);
       setContacts(res.data.trusted_contacts);
       closeContactModal();
     } catch (err) {
-      console.warn('Save contact error:', err.message);
       AlertManager.alert(t('common.error', { defaultValue: 'Error' }), t('caller.failed_save_contact', { defaultValue: 'Failed to save contact.' }));
     } finally {
       setIsSavingContact(false);
@@ -273,10 +246,8 @@ export default function MyCallerScreen({ navigation }) {
       const res = await apiService.patients.deleteTrustedContact(deleteConfirm.id);
       setContacts(res.data.trusted_contacts);
       setDeleteConfirm({ visible: false, id: null, name: '' });
-      // Close the edit modal too if it was open
       if (contactModal) closeContactModal();
     } catch (err) {
-      console.warn('Remove contact error:', err.message);
       AlertManager.alert(t('common.error', { defaultValue: 'Error' }), t('caller.failed_remove_contact', { defaultValue: 'Failed to remove contact.' }));
     } finally {
       setIsDeleting(false);
@@ -284,404 +255,473 @@ export default function MyCallerScreen({ navigation }) {
   };
 
   const formatDate = (dateStr) => {
-    const d = new Date(dateStr);
+    const d   = new Date(dateStr);
     const now = new Date();
-    const isToday = d.toDateString() === now.toDateString();
+    const isToday     = d.toDateString() === now.toDateString();
     const isYesterday = d.toDateString() === new Date(now - 86400000).toDateString();
     const time = d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
-    if (isToday) return `${t('common.today', { defaultValue: 'Today' })}, ${time}`;
+    if (isToday)     return `${t('common.today',     { defaultValue: 'Today' })}, ${time}`;
     if (isYesterday) return `${t('common.yesterday', { defaultValue: 'Yesterday' })}, ${time}`;
     return d.toLocaleDateString('en-IN', { weekday: 'short', month: 'short', day: 'numeric' });
   };
 
   const formatDuration = (seconds) => {
     if (!seconds || seconds === 0) return null;
-    return `${Math.floor(seconds / 60)} min`;
+    return `${Math.floor(seconds / 60)}m`;
   };
 
+  const anim = (i) => ({
+    opacity: staggerAnims[i],
+    transform: [{ translateY: staggerAnims[i].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }],
+  });
+
+  // ── Loading skeleton ─────────────────────────────────────────────────────
   if (loading) {
     return (
-      <View style={[s.container, { padding: 20, paddingTop: Platform.OS === 'android' ? 60 : 40 }]}>
-        {/* Header Skeleton */}
-        <SkeletonItem width={150} height={28} borderRadius={12} style={{ marginBottom: 24 }} />
-        
-        {/* Manager/Caller Card Skeleton */}
-        <SkeletonItem width={100} height={16} borderRadius={8} style={{ marginBottom: 12 }} />
-        <SkeletonItem width="100%" height={120} borderRadius={24} style={{ marginBottom: 32 }} />
-
-        {/* Contacts Section Skeleton */}
-        <SkeletonItem width={140} height={16} borderRadius={8} style={{ marginBottom: 16 }} />
-        <SkeletonItem width="100%" height={80} borderRadius={20} style={{ marginBottom: 12 }} />
-        <SkeletonItem width="100%" height={80} borderRadius={20} style={{ marginBottom: 12 }} />
+      <View style={[s.container, { padding: 20, paddingTop: Platform.OS === 'android' ? 60 : 44 }]}>
+        <SkeletonItem width={140} height={28} borderRadius={12} style={{ marginBottom: 24 }} />
+        <SkeletonItem width="100%" height={200} borderRadius={28} style={{ marginBottom: 20 }} />
+        <SkeletonItem width={120} height={14} borderRadius={7} style={{ marginBottom: 14 }} />
+        <SkeletonItem width="100%" height={76} borderRadius={20} style={{ marginBottom: 10 }} />
+        <SkeletonItem width="100%" height={76} borderRadius={20} />
       </View>
     );
   }
 
+  // ── Free plan gate ───────────────────────────────────────────────────────
   if (patient?.subscription?.plan === 'free') {
     return (
-      <View style={[s.container, { justifyContent: 'center', alignItems: 'center', padding: 32 }]}>
-        <View style={s.upgradeIconWrap}>
-          <ShieldCheck size={32} color="#6366F1" />
+      <View style={s.container}>
+        <View style={s.header}>
+          <View>
+            <Text style={s.headerLabel}>{t('caller.support', { defaultValue: 'SUPPORT' })}</Text>
+            <Text style={s.headerTitle}>{t('caller.care_team', { defaultValue: 'Care Team' })}</Text>
+          </View>
         </View>
-        <Text style={s.upgradeTitle}>{t('common.premium_feature', { defaultValue: 'Premium Feature' })}</Text>
-        <Text style={s.upgradeBody}>
-          {t('caller.premium_desc', { defaultValue: 'A dedicated care team caller is included in the Basic Plan. Upgrade on the Home screen to get matched with a caller from your city.' })}
-        </Text>
+        <View style={s.gatewrap}>
+          <LinearGradient colors={['#EEF2FF', '#E0E7FF']} style={s.gateIcon}>
+            <ShieldCheck size={36} color={C.primary} strokeWidth={1.5} />
+          </LinearGradient>
+          <Text style={s.gateTitle}>{t('common.premium_feature', { defaultValue: 'Premium Feature' })}</Text>
+          <Text style={s.gateBody}>{t('caller.premium_desc', { defaultValue: 'A dedicated care team caller is included in the Basic Plan. Upgrade on the Home screen to get matched with a caller from your city.' })}</Text>
+        </View>
       </View>
     );
   }
 
+  // ── Derived ──────────────────────────────────────────────────────────────
+  const callerExp  = caller?.experience_years || 0;
+  const callerLang = caller?.languages_spoken?.[0] || 'English';
 
+  // ── RENDER ───────────────────────────────────────────────────────────────
   return (
-    <LinearGradient colors={['#F8FAFC', '#EEF2FF']} style={s.container}>
-      {/* ── Premium Gradient Header ── */}
-      <View style={[s.headerWrap, { zIndex: 10, elevation: 10 }]}>
-        <Animated.View style={[s.minimalHeader, { opacity: staggerAnims[0], transform: [{ translateY: staggerAnims[0].interpolate({ inputRange: [0, 1], outputRange: [-20, 0] }) }] }]}>
-          <View style={s.mainHeaderRow}>
-            <View style={s.headerLeft}>
-              <Text style={s.headerLabel}>{t('caller.support', { defaultValue: 'SUPPORT' })}</Text>
-              <Text style={s.headerTitle}>{t('caller.care_team', { defaultValue: 'Care Team' })}</Text>
-            </View>
-            <View style={s.headerRight}>
-              <TouchableOpacity
-                style={s.headerRightBtn}
-                onPress={() => navigation.navigate('Notifications')}
-              >
-                <Bell size={20} color={C.primary} strokeWidth={2.5} />
-              </TouchableOpacity>
-            </View>
-          </View>
-        </Animated.View>
-      </View>
+    <View style={s.container}>
+      {/* ── Header ─────────────────────────────────────────────────────── */}
+      <Animated.View style={[s.header, anim(0)]}>
+        <View>
+          <Text style={s.headerLabel}>{t('caller.support', { defaultValue: 'SUPPORT' })}</Text>
+          <Text style={s.headerTitle}>{t('caller.care_team', { defaultValue: 'Care Team' })}</Text>
+        </View>
+        <Pressable style={s.bellBtn} onPress={() => navigation.navigate('Notifications')}>
+          <Bell size={20} color={C.primary} strokeWidth={2.5} />
+        </Pressable>
+      </Animated.View>
 
       <ScrollView
-        style={s.body}
-        contentContainerStyle={s.bodyContent}
+        style={s.scroll}
+        contentContainerStyle={s.scrollContent}
         showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={handleRefresh}
-            tintColor={C.primary}
-            colors={[C.primary]}
-          />
-        }
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={C.primary} colors={[C.primary]} />}
       >
-        {/* CALLERS SECTION */}
-        <View style={[s.section, { marginTop: -40 }]}>
-          <Text style={s.sectionHeader}>{t('caller.your_caller', { defaultValue: 'YOUR CALLER' })}</Text>
+
+        {/* ── YOUR CALLER HERO CARD ──────────────────────────────────── */}
+        <Animated.View style={anim(1)}>
+          <Text style={s.sectionLabel}>{t('caller.your_caller', { defaultValue: 'YOUR CALLER' })}</Text>
+
           {caller ? (
-            <Animated.View style={{ opacity: staggerAnims[0], transform: [{ translateY: staggerAnims[0].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>
-              <Pressable onPress={() => openModal(caller)} style={({ pressed }) => [s.callerCard, pressed && s.callerCardPressed]}>
-                {/* Avatar + name row */}
-                <View style={s.profileRow}>
-                  <View style={s.avatarWrap}>
-                    <LinearGradient colors={['#4338CA', '#312E81']} style={s.avatar}>
-                      <Text style={s.avatarLetter}>{caller.name?.charAt(0)}</Text>
-                    </LinearGradient>
-                    <View style={s.onlineDot} />
+            <Pressable onPress={() => openModal(caller)} style={({ pressed }) => [{ opacity: pressed ? 0.96 : 1 }]}>
+              <LinearGradient colors={['#3730A3', '#4F46E5', '#6366F1']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.heroCard}>
+                {/* Top strip */}
+                <View style={s.heroTopRow}>
+                  <View style={s.verifiedBadge}>
+                    <ShieldCheck size={11} color="#A5B4FC" strokeWidth={2.5} />
+                    <Text style={s.verifiedBadgeText}>Verified Caller</Text>
                   </View>
-                  <View style={s.profileInfo}>
-                    <Text style={s.callerName} numberOfLines={1}>{caller.name}</Text>
-                    <View style={s.metaRow}>
-                      <Text style={s.idChipText}>ID: {caller.employee_id}</Text>
-                      <View style={s.dotDivider} />
-                      <View style={s.onlinePill}>
-                        <View style={s.onlinePillDot} />
-                        <Text style={s.onlinePillText}>Online</Text>
+                  <Pressable
+                    style={s.flagChip}
+                    onPress={(e) => { e.stopPropagation?.(); setFlagIssueModalVisible(true); }}
+                    hitSlop={10}
+                  >
+                    <Flag size={13} color="rgba(255,255,255,0.7)" strokeWidth={2.2} />
+                    <Text style={s.flagChipText}>{t('caller.flag_issue', { defaultValue: 'Flag Issue' })}</Text>
+                  </Pressable>
+                </View>
+
+                {/* Profile row */}
+                <View style={s.heroBody}>
+                  {/* Avatar */}
+                  <View style={s.heroAvatarWrap}>
+                    <View style={s.heroAvatarRing}>
+                      <LinearGradient colors={['#818CF8', '#C7D2FE']} style={s.heroAvatar}>
+                        <Text style={s.heroAvatarLetter}>{caller.name?.charAt(0)}</Text>
+                      </LinearGradient>
+                    </View>
+                    <View style={s.heroOnlineDot} />
+                  </View>
+
+                  {/* Info */}
+                  <View style={s.heroInfo}>
+                    <Text style={s.heroName} numberOfLines={1}>{caller.name}</Text>
+                    <Text style={s.heroId}>ID: {caller.employee_id}</Text>
+
+                    {/* Mini stats chips */}
+                    <View style={s.heroChips}>
+                      <View style={s.heroChip}>
+                        <Clock size={10} color="#A5B4FC" strokeWidth={2.5} />
+                        <Text style={s.heroChipText}>{callerExp}y exp</Text>
+                      </View>
+                      <View style={s.heroChipDot} />
+                      <View style={s.heroChip}>
+                        <Globe size={10} color="#A5B4FC" strokeWidth={2.5} />
+                        <Text style={s.heroChipText}>{callerLang}</Text>
+                      </View>
+                      <View style={s.heroChipDot} />
+                      <View style={s.heroChip}>
+                        <Star size={10} color="#FCD34D" strokeWidth={2.5} fill="#FCD34D" />
+                        <Text style={s.heroChipText}>Certified</Text>
                       </View>
                     </View>
                   </View>
-                  <View style={s.chevronWrap}>
-                    <ChevronRight size={20} color={C.light} strokeWidth={2.5} />
+                </View>
+
+                {/* Divider */}
+                <View style={s.heroDivider} />
+
+                {/* Stats row */}
+                <View style={s.heroStatsRow}>
+                  <View style={s.heroStat}>
+                    <Text style={s.heroStatVal}>{calls.length}</Text>
+                    <Text style={s.heroStatLabel}>Total Calls</Text>
+                  </View>
+                  <View style={s.heroStatSep} />
+                  <View style={s.heroStat}>
+                    <Text style={s.heroStatVal}>
+                      {calls.length > 0 ? `${Math.round(calls.reduce((a, c) => a + (c.call_duration_seconds || 0), 0) / calls.length / 60)}m` : '—'}
+                    </Text>
+                    <Text style={s.heroStatLabel}>Avg Duration</Text>
+                  </View>
+                  <View style={s.heroStatSep} />
+                  <View style={s.heroStat}>
+                    <Text style={s.heroStatVal}>
+                      {calls.length > 0 ? `${Math.round((calls.filter(c => c.status === 'completed').length / calls.length) * 100)}%` : '—'}
+                    </Text>
+                    <Text style={s.heroStatLabel}>Answered</Text>
                   </View>
                 </View>
 
-                {/* Action buttons */}
-                <View style={s.actionRow}>
-                  <Pressable
-                    style={({ pressed }) => [s.btnCall, pressed && s.btnCallPressed]}
-                    onPress={(e) => {
-                      e.stopPropagation?.();
-                      caller?.phone && Linking.openURL(`tel:${caller.phone}`);
-                    }}
-                  >
-                    <Phone size={16} color="#FFF" strokeWidth={2.5} />
-                    <Text style={s.btnCallText}>{t('common.call_now', { defaultValue: 'Call Now' })}</Text>
-                  </Pressable>
-                  <Pressable
-                    style={({ pressed }) => [s.btnFlag, pressed && s.btnFlagPressed]}
-                    onPress={(e) => { e.stopPropagation?.(); setFlagIssueModalVisible(true); }}
-                  >
-                    <Flag size={16} color={C.danger} strokeWidth={2.2} />
-                    <Text style={s.btnFlagText}>{t('caller.flag_issue', { defaultValue: 'Flag Issue' })}</Text>
-                  </Pressable>
-                </View>
-              </Pressable>
-            </Animated.View>
-          ) : (
-            <View style={s.pendingCard}>
-              <View style={s.pendingIconWrap}>
-                <LinearGradient colors={['#EEF2FF', '#E0E7FF']} style={s.pendingIconCircle}>
-                  <PhoneIncoming size={28} color={C.primary} strokeWidth={1.5} />
-                </LinearGradient>
-              </View>
-              <Text style={s.pendingTitle}>{t('caller.caregiver_being_assigned', { defaultValue: 'Caregiver Being Assigned' })}</Text>
-              <Text style={s.pendingBody}>
-                {t('caller.pending_assignment_desc', { defaultValue: "Your care manager has been notified and is assigning a dedicated caregiver for you. You'll receive a notification once they're ready!" })}
-              </Text>
-              {manager && (
+                {/* Call button */}
                 <Pressable
-                  style={({ pressed }) => [s.pendingContactBtn, pressed && { opacity: 0.8 }]}
-                  onPress={() => manager.phone && Linking.openURL(`tel:${manager.phone}`)}
+                  style={({ pressed }) => [s.heroCallBtn, pressed && { opacity: 0.9 }]}
+                  onPress={(e) => { e.stopPropagation?.(); caller?.phone && Linking.openURL(`tel:${caller.phone}`); }}
                 >
-                  <Phone size={16} color="#FFF" strokeWidth={2.5} />
-                  <Text style={s.pendingContactBtnText}>{t('caller.contact_your_manager', { defaultValue: 'Contact Your Manager' })}</Text>
+                  <Phone size={17} color={C.primaryDark} strokeWidth={2.5} />
+                  <Text style={s.heroCallBtnText}>{t('common.call_now', { defaultValue: 'Call Now' })}</Text>
+                </Pressable>
+              </LinearGradient>
+            </Pressable>
+          ) : (
+            /* Pending state */
+            <View style={s.pendingCard}>
+              <LinearGradient colors={['#EEF2FF', '#E0E7FF']} style={s.pendingIconCircle}>
+                <PhoneIncoming size={30} color={C.primary} strokeWidth={1.5} />
+              </LinearGradient>
+              <Text style={s.pendingTitle}>{t('caller.caregiver_being_assigned', { defaultValue: 'Caregiver Being Assigned' })}</Text>
+              <Text style={s.pendingBody}>{t('caller.pending_assignment_desc', { defaultValue: "Your care manager has been notified and is assigning a dedicated caregiver for you. You'll receive a notification once they're ready!" })}</Text>
+              {manager && (
+                <Pressable style={s.pendingCallBtn} onPress={() => manager.phone && Linking.openURL(`tel:${manager.phone}`)}>
+                  <Phone size={15} color="#FFF" strokeWidth={2.5} />
+                  <Text style={s.pendingCallBtnText}>{t('caller.contact_your_manager', { defaultValue: 'Contact Your Manager' })}</Text>
                 </Pressable>
               )}
             </View>
           )}
-        </View>
+        </Animated.View>
 
-        {/* MANAGER SECTION */}
-        <Animated.View style={{ opacity: staggerAnims[1], transform: [{ translateY: staggerAnims[1].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>
-          <View style={s.section}>
-            <View style={s.sectionHeaderRow}>
-              <Text style={s.sectionHeaderBase}>{t('caller.manager', { defaultValue: 'MANAGER' })}</Text>
-            </View>
-            {manager ? (
-              <Pressable onPress={() => openModal({ ...manager, isManager: true })} style={({ pressed }) => [s.callerCard, pressed && s.callerCardPressed]}>
-                <View style={s.profileRow}>
-                  <View style={s.avatarWrap}>
-                    <LinearGradient colors={['#64748B', '#334155']} style={s.avatar}>
-                      <Text style={s.avatarLetter}>{manager.fullName?.charAt(0) || 'M'}</Text>
-                    </LinearGradient>
-                  </View>
-                  <View style={s.profileInfo}>
-                    <Text style={s.callerName} numberOfLines={1}>{manager.fullName || t('caller.manager_default', { defaultValue: 'Manager' })}</Text>
-                    <View style={s.metaRow}>
-                      <Text style={s.idChipText}>{t('caller.manager_default', { defaultValue: 'Manager' })}</Text>
-                      <View style={s.dotDivider} />
-                      <View style={s.onlinePill}>
-                        <View style={s.onlinePillDot} />
-                        <Text style={s.onlinePillText}>{t('caller.available', { defaultValue: 'Available' })}</Text>
-                      </View>
+        {/* ── CARE MANAGER ──────────────────────────────────────────────── */}
+        <Animated.View style={anim(2)}>
+          <View style={s.sectionHeaderRow}>
+            <Text style={s.sectionLabel}>{t('caller.manager', { defaultValue: 'CARE MANAGER' })}</Text>
+          </View>
+
+          {manager ? (
+            <Pressable onPress={() => openModal({ ...manager, isManager: true })} style={({ pressed }) => [s.managerCard, pressed && { opacity: 0.97 }]}>
+              <View style={s.managerLeft}>
+                <LinearGradient colors={['#475569', '#334155']} style={s.managerAvatar}>
+                  <Text style={s.managerAvatarText}>{manager.fullName?.charAt(0) || 'M'}</Text>
+                </LinearGradient>
+                <View style={s.managerInfo}>
+                  <Text style={s.managerName}>{manager.fullName || t('caller.manager_default', { defaultValue: 'Manager' })}</Text>
+                  <View style={s.managerRoleRow}>
+                    <ShieldCheck size={11} color={C.success} strokeWidth={2.5} />
+                    <Text style={s.managerRoleText}>{t('caller.role_manager', { defaultValue: 'Care Manager' })}</Text>
+                    <View style={s.dotSep} />
+                    <View style={s.availablePill}>
+                      <View style={s.availableDot} />
+                      <Text style={s.availableText}>{t('caller.available', { defaultValue: 'Available' })}</Text>
                     </View>
                   </View>
                 </View>
-                <View style={s.actionRow}>
-                  <Pressable
-                    style={({ pressed }) => [s.btnCall, { backgroundColor: '#334155' }, pressed && s.btnCallPressed]}
-                    onPress={() => manager.phone && Linking.openURL(`tel:${manager.phone}`)}
-                  >
-                    <Phone size={16} color="#FFF" strokeWidth={2.5} />
-                    <Text style={s.btnCallText}>{t('caller.contact_manager', { defaultValue: 'Contact Manager' })}</Text>
-                  </Pressable>
-                </View>
+              </View>
+              <Pressable
+                style={s.managerCallBtn}
+                onPress={(e) => { e.stopPropagation?.(); manager.phone && Linking.openURL(`tel:${manager.phone}`); }}
+              >
+                <Phone size={16} color={C.primary} strokeWidth={2.5} />
               </Pressable>
-            ) : (
-              <LinearGradient colors={['#F8FAFC', '#F1F5F9']} style={s.emptyCardPremium}>
-                <View style={s.emptyIconWrapPremium}>
-                  <ShieldCheck size={32} color={C.primary} strokeWidth={1.5} />
-                </View>
+            </Pressable>
+          ) : (
+            <View style={s.emptyCard}>
+              <View style={s.emptyIconBox}>
+                <Users size={24} color={C.muted} strokeWidth={1.5} />
+              </View>
+              <View style={s.emptyTextBlock}>
                 <Text style={s.emptyTitle}>{t('caller.no_manager_assigned', { defaultValue: 'No Manager Assigned' })}</Text>
                 <Text style={s.emptyBody}>{t('caller.no_manager_desc', { defaultValue: 'A manager will be assigned if additional support is required.' })}</Text>
-              </LinearGradient>
-            )}
-          </View>
+              </View>
+            </View>
+          )}
         </Animated.View>
 
-        {/* CARE TEAM & TRUSTED CONTACTS SECTION */}
-        <Animated.View style={{ opacity: staggerAnims[2], transform: [{ translateY: staggerAnims[2].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>
-          <View style={s.section}>
-            <View style={s.sectionHeaderRow}>
-              <Text style={s.sectionHeaderBase}>{t('caller.care_team_contacts', { defaultValue: 'CARE TEAM & CONTACTS' })}</Text>
-              <Pressable style={s.addBtn} onPress={() => openContactModal()}>
-                <Plus size={14} color="#FFF" strokeWidth={2.5} />
-              </Pressable>
-            </View>
+        {/* ── TRUSTED CONTACTS ───────────────────────────────────────── */}
+        <Animated.View style={anim(3)}>
+          <View style={s.sectionHeaderRow}>
+            <Text style={s.sectionLabel}>{t('caller.care_team_contacts', { defaultValue: 'TRUSTED CONTACTS' })}</Text>
+            <Pressable style={s.addBtn} onPress={() => openContactModal()}>
+              <Plus size={15} color="#FFF" strokeWidth={2.5} />
+            </Pressable>
+          </View>
 
-            {contacts.length === 0 ? (
-              <LinearGradient colors={['#F8FAFC', '#F1F5F9']} style={s.emptyCardPremium}>
-                <View style={s.emptyIconWrapPremium}>
-                  <Users size={32} color={C.primary} strokeWidth={1.5} />
-                </View>
+          {contacts.length === 0 ? (
+            <View style={s.emptyCard}>
+              <View style={s.emptyIconBox}>
+                <Heart size={24} color={C.muted} strokeWidth={1.5} />
+              </View>
+              <View style={s.emptyTextBlock}>
                 <Text style={s.emptyTitle}>{t('caller.no_contacts_added', { defaultValue: 'No Contacts Added' })}</Text>
                 <Text style={s.emptyBody}>{t('caller.add_trusted_desc', { defaultValue: 'Add trusted family members or friends for emergencies.' })}</Text>
-              </LinearGradient>
-            ) : (
-              contacts.map((contact, idx) => {
-                const colorTheme = AVATAR_COLORS[idx % AVATAR_COLORS.length];
+              </View>
+            </View>
+          ) : (
+            contacts.map((contact, idx) => {
+              const accentColor = contact.is_emergency ? C.danger : CONTACT_PALETTE[idx % CONTACT_PALETTE.length];
+              const avatarBg    = contact.is_emergency ? C.dangerBg : `${accentColor}18`;
+              return (
+                <View key={contact._id} style={s.contactCard}>
+                  <View style={[s.contactAccent, { backgroundColor: accentColor }]} />
+                  <View style={[s.contactAvatar, { backgroundColor: avatarBg }]}>
+                    <Text style={[s.contactAvatarTxt, { color: accentColor }]}>{contact.name.charAt(0)}</Text>
+                  </View>
+                  <View style={s.contactInfo}>
+                    <View style={s.contactNameRow}>
+                      <Text style={s.contactName} numberOfLines={1}>{contact.name}</Text>
+                      {contact.is_emergency && (
+                        <View style={s.sosPill}>
+                          <Text style={s.sosTxt}>SOS</Text>
+                        </View>
+                      )}
+                    </View>
+                    <Text style={s.contactSub} numberOfLines={1}>
+                      {contact.relation || 'Contact'} · {contact.phone}
+                    </Text>
+                  </View>
+                  <View style={s.contactActions}>
+                    <Pressable
+                      style={s.contactActionBtn}
+                      onPress={() => contact.phone && Linking.openURL(`tel:${contact.phone}`)}
+                    >
+                      <Phone size={15} color={C.primary} strokeWidth={2.5} />
+                    </Pressable>
+                    <Pressable style={s.contactActionBtn} onPress={() => openContactModal(contact)}>
+                      <Edit2 size={15} color={C.mid} strokeWidth={2} />
+                    </Pressable>
+                  </View>
+                </View>
+              );
+            })
+          )}
+        </Animated.View>
+
+        {/* ── RECENT CALLS (on main screen) ──────────────────────────── */}
+        {calls.length > 0 && (
+          <Animated.View style={anim(4)}>
+            <View style={s.sectionHeaderRow}>
+              <Text style={s.sectionLabel}>{t('caller.recent_calls', { defaultValue: 'RECENT CALLS' })}</Text>
+              {caller && (
+                <Pressable onPress={() => openModal(caller)}>
+                  <Text style={s.seeAllText}>{t('common.see_all', { defaultValue: 'See all' })}</Text>
+                </Pressable>
+              )}
+            </View>
+            <View style={s.callsCard}>
+              {calls.slice(0, 4).map((call, idx) => {
+                const cfg      = STATUS_CONFIG[call.status] || STATUS_CONFIG.completed;
+                const Icon     = cfg.Icon;
+                const duration = formatDuration(call.call_duration_seconds);
+                const isLast   = idx === Math.min(calls.length, 4) - 1;
                 return (
-                  <View key={contact._id} style={s.contactCard}>
-                    <View style={[s.contactAvatar, { backgroundColor: contact.is_emergency ? C.dangerBg : colorTheme.bg }]}>
-                      <Text style={[s.contactAvatarTxt, { color: contact.is_emergency ? C.danger : colorTheme.text }]}>
-                        {contact.name.charAt(0)}
-                      </Text>
+                  <View key={call._id} style={[s.callRow, !isLast && s.callRowDivider]}>
+                    <View style={[s.callIconBox, { backgroundColor: cfg.bg }]}>
+                      <Icon size={16} color={cfg.color} strokeWidth={2} />
                     </View>
-                    <View style={s.contactInfo}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                        <Text style={s.contactName} numberOfLines={1}>{contact.name}</Text>
-                        {contact.is_emergency && <View style={s.miniEmergencyPill}><Text style={s.miniEmergencyTxt}>S.O.S</Text></View>}
+                    <View style={s.callBody}>
+                      <Text style={s.callDate}>{formatDate(call.call_date || call.created_at)}</Text>
+                      <Text style={s.callNote} numberOfLines={1}>{call.ai_summary || t('caller.routine_checkin', { defaultValue: 'Routine check-in' })}</Text>
+                    </View>
+                    <View style={{ alignItems: 'flex-end', gap: 4 }}>
+                      <View style={[s.statusPill, { backgroundColor: cfg.bg }]}>
+                        <Text style={[s.statusPillText, { color: cfg.color }]}>{cfg.label}</Text>
                       </View>
-                      <Text style={s.contactSub} numberOfLines={1}>{t(`caller.relation_${contact.relation?.toLowerCase() || 'contact'}`, { defaultValue: contact.relation || 'Contact' })} • {contact.phone}</Text>
-                    </View>
-                    <View style={s.contactActions}>
-                      <Pressable style={s.iconActionBtn} onPress={() => openContactModal(contact)}>
-                        <Edit2 size={16} color={C.mid} />
-                      </Pressable>
-                      <Pressable style={s.iconActionBtn} onPress={() => confirmRemoveContact(contact._id)}>
-                        <Trash2 size={18} color={C.danger} />
-                      </Pressable>
+                      {duration && <Text style={s.callDuration}>{duration}</Text>}
                     </View>
                   </View>
-                )
-              })
-            )}
-          </View>
-        </Animated.View>
+                );
+              })}
+            </View>
+          </Animated.View>
+        )}
+
       </ScrollView>
 
-      {/* ── Modal ── */}
-      <Modal
-        visible={modalVisible}
-        transparent
-        animationType="none"
-        onRequestClose={closeModal}
-      >
+      {/* ════════════════  CALLER / MANAGER DETAIL MODAL  ════════════════ */}
+      <Modal visible={modalVisible} transparent animationType="none" onRequestClose={closeModal}>
         {(() => {
-          const isManager = selectedProfile?.isManager;
-          const profileName = isManager ? (selectedProfile.fullName || t('caller.manager_default', { defaultValue: 'Manager' })) : (selectedProfile?.name || t('caller.care_team', { defaultValue: 'Care Team' }));
-          const profileIdText = isManager ? t('caller.role_manager', { defaultValue: 'Role: Care Manager' }) : `${t('caller.support_id', { defaultValue: 'Support ID:' })} ${selectedProfile?.employee_id || 'N/A'}`;
-          const profileGradient = isManager ? ['#64748B', '#334155'] : ['#4338CA', '#312E81'];
-          const profileExp = selectedProfile?.experience_years || 0;
-          const profileLang = (selectedProfile?.languages_spoken?.length || 0) > 0 ? selectedProfile.languages_spoken[0] : 'English';
-          const profilePhone = selectedProfile?.phone;
+          const isManager    = selectedProfile?.isManager;
+          const profileName  = isManager
+            ? (selectedProfile.fullName || t('caller.manager_default', { defaultValue: 'Manager' }))
+            : (selectedProfile?.name   || t('caller.care_team',       { defaultValue: 'Care Team' }));
+          const profileIdText  = isManager
+            ? t('caller.role_manager', { defaultValue: 'Role: Care Manager' })
+            : `${t('caller.support_id', { defaultValue: 'Support ID:' })} ${selectedProfile?.employee_id || 'N/A'}`;
+          const gradientColors = isManager ? ['#374151', '#1F2937'] : ['#3730A3', '#4F46E5'];
+          const profileExp     = selectedProfile?.experience_years || 0;
+          const profileLang    = selectedProfile?.languages_spoken?.[0] || 'English';
+          const profilePhone   = selectedProfile?.phone;
 
           return (
             <>
               <TouchableWithoutFeedback onPress={closeModal}>
-                <Animated.View style={[s.backdrop, { opacity: backdropAnim }]} />
+                <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(15,23,42,0.55)', opacity: backdropAnim }]} />
               </TouchableWithoutFeedback>
 
-              <View style={s.modalWrapper}>
-                {/* Floating Close Button */}
-                <Animated.View style={[
-                  s.floatingCloseWrap,
-                  {
-                    opacity: modalAnim,
-                    transform: [{
-                      translateY: modalAnim.interpolate({ inputRange: [0, 1], outputRange: [400, 0] }),
-                    }],
-                  }
-                ]}>
+              <View style={s.sheetWrapper}>
+                {/* Floating close */}
+                <Animated.View style={[s.floatingClose, { opacity: modalAnim, transform: [{ translateY: modalAnim.interpolate({ inputRange: [0, 1], outputRange: [400, 0] }) }] }]}>
                   <TouchableOpacity onPress={closeModal} style={s.floatingCloseBtn}>
-                    <X size={20} color="#0F172A" strokeWidth={3} />
+                    <X size={20} color={C.dark} strokeWidth={3} />
                   </TouchableOpacity>
                 </Animated.View>
 
-                <Animated.View style={[
-                  s.modalSheet,
-                  {
-                    transform: [{
-                      translateY: modalAnim.interpolate({ inputRange: [0, 1], outputRange: [800, 0] }),
-                    }],
-                  },
-                ]}>
-                  {/* Modal handle */}
-                  <View style={s.modalHandleWrap}>
-                    <View style={s.modalHandle} />
-                  </View>
+                <Animated.View style={[s.sheet, { transform: [{ translateY: modalAnim.interpolate({ inputRange: [0, 1], outputRange: [900, 0] }) }] }]}>
+                  {/* Handle */}
+                  <View style={s.sheetHandle}><View style={s.sheetHandleBar} /></View>
 
-                  <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.modalBody}>
-                    {/* Profile Header */}
-                    <View style={s.modalHeaderRow}>
-                      <View style={s.modalProfileInfo}>
-                        <Text style={s.modalCallerName} numberOfLines={1}>{profileName}</Text>
-                        <Text style={s.modalIdText}>{profileIdText}</Text>
+                  <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.sheetBody}>
+
+                    {/* Hero gradient header */}
+                    <LinearGradient colors={gradientColors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.sheetHero}>
+                      <View style={s.sheetHeroInner}>
+                        <View style={s.sheetAvatarWrap}>
+                          <LinearGradient colors={isManager ? ['#6B7280', '#9CA3AF'] : ['#818CF8', '#C7D2FE']} style={s.sheetAvatar}>
+                            <Text style={s.sheetAvatarLetter}>{profileName.charAt(0)}</Text>
+                          </LinearGradient>
+                          <View style={s.sheetOnlineDot} />
+                        </View>
+                        <View style={s.sheetHeroInfo}>
+                          <Text style={s.sheetName} numberOfLines={1}>{profileName}</Text>
+                          <Text style={s.sheetIdText}>{profileIdText}</Text>
+                          <View style={s.sheetBadge}>
+                            <Star size={10} color="#FCD34D" fill="#FCD34D" strokeWidth={2} />
+                            <Text style={s.sheetBadgeText}>Certified Professional</Text>
+                          </View>
+                        </View>
                       </View>
-                      <View style={s.avatarWrapLg}>
-                        <LinearGradient colors={profileGradient} style={s.avatarLg}>
-                          <Text style={s.avatarLetterLg}>{profileName.charAt(0)}</Text>
-                        </LinearGradient>
-                        <View style={s.onlineDotLg} />
+                    </LinearGradient>
+
+                    {/* Quick stats bar */}
+                    <View style={s.sheetStatsBar}>
+                      <View style={s.sheetStat}>
+                        <Clock size={14} color={C.primary} strokeWidth={2.5} />
+                        <Text style={s.sheetStatVal}>{profileExp}y</Text>
+                        <Text style={s.sheetStatLabel}>{t('caller.experience', { defaultValue: 'Experience' })}</Text>
+                      </View>
+                      <View style={s.sheetStatSep} />
+                      <View style={s.sheetStat}>
+                        <Globe size={14} color={C.primary} strokeWidth={2.5} />
+                        <Text style={s.sheetStatVal} numberOfLines={1}>{profileLang}</Text>
+                        <Text style={s.sheetStatLabel}>{t('caller.primary_lang', { defaultValue: 'Language' })}</Text>
+                      </View>
+                      <View style={s.sheetStatSep} />
+                      <View style={s.sheetStat}>
+                        <ShieldCheck size={14} color={C.success} strokeWidth={2.5} />
+                        <Text style={s.sheetStatVal}>{t('caller.certified', { defaultValue: 'Active' })}</Text>
+                        <Text style={s.sheetStatLabel}>{t('common.status', { defaultValue: 'Status' })}</Text>
                       </View>
                     </View>
 
-                    {/* Action buttons (Modal) */}
-                    <View style={s.modalActionRow}>
+                    {/* Actions */}
+                    <View style={s.sheetActions}>
                       <Pressable
-                        style={({ pressed }) => [s.btnCallLg, { backgroundColor: isManager ? '#334155' : '#4338CA' }, pressed && s.btnCallPressedLg]}
+                        style={({ pressed }) => [s.sheetCallBtn, { backgroundColor: isManager ? '#1F2937' : C.primaryDark }, pressed && { opacity: 0.88 }]}
                         onPress={() => profilePhone && Linking.openURL(`tel:${profilePhone}`)}
                       >
                         <Phone size={18} color="#FFF" strokeWidth={2.5} />
-                        <Text style={s.btnCallTextLg}>{t('common.call_now', { defaultValue: 'Call Now' })}</Text>
+                        <Text style={s.sheetCallBtnText}>{t('common.call_now', { defaultValue: 'Call Now' })}</Text>
                       </Pressable>
-                      <Pressable
-                        style={({ pressed }) => [s.iconBtn, pressed && s.iconBtnPressed]}
-                        onPress={() => setFlagIssueModalVisible(true)}
-                      >
-                        <Flag size={20} color={C.danger} strokeWidth={2.5} />
-                      </Pressable>
+                      {!isManager && (
+                        <Pressable
+                          style={({ pressed }) => [s.sheetFlagBtn, pressed && { backgroundColor: C.dangerBg }]}
+                          onPress={() => { closeModal(); setTimeout(() => setFlagIssueModalVisible(true), 300); }}
+                        >
+                          <Flag size={18} color={C.danger} strokeWidth={2.2} />
+                          <Text style={s.sheetFlagBtnText}>{t('caller.flag_issue', { defaultValue: 'Flag Issue' })}</Text>
+                        </Pressable>
+                      )}
                     </View>
 
-                    {/* Bento Box Stats */}
-                    <View style={s.bentoGrid}>
-                      <View style={[s.bentoBox, { backgroundColor: '#F8FAFC' }]}>
-                        <View style={[s.bentoIcon, { backgroundColor: '#F1F5F9' }]}>
-                          <Clock size={16} color="#475569" strokeWidth={2.5} />
-                        </View>
-                        <Text style={s.bentoVal}>{profileExp} {t('common.yrs', { defaultValue: 'yrs' })}</Text>
-                        <Text style={s.bentoLbl}>{t('caller.experience', { defaultValue: 'Experience' })}</Text>
-                      </View>
-                      <View style={[s.bentoBox, { backgroundColor: '#F8FAFC' }]}>
-                        <View style={[s.bentoIcon, { backgroundColor: '#F1F5F9' }]}>
-                          <Globe size={16} color="#475569" strokeWidth={2.5} />
-                        </View>
-                        <Text style={s.bentoVal} numberOfLines={1}>
-                          {t(`common.language_${profileLang.toLowerCase()}`, { defaultValue: profileLang })}
-                        </Text>
-                        <Text style={s.bentoLbl}>{t('caller.primary_lang', { defaultValue: 'Primary Lang' })}</Text>
-                      </View>
-                      <View style={[s.bentoBox, { backgroundColor: '#F8FAFC' }]}>
-                        <View style={[s.bentoIcon, { backgroundColor: '#F1F5F9' }]}>
-                          <ShieldCheck size={16} color="#475569" strokeWidth={2.5} />
-                        </View>
-                        <Text style={s.bentoVal}>{t('caller.certified', { defaultValue: 'Certified' })}</Text>
-                        <Text style={s.bentoLbl}>{t('common.status', { defaultValue: 'Status' })}</Text>
-                      </View>
-                    </View>
-
-                    {/* Call History (Only for Caller) */}
+                    {/* Call history */}
                     {!isManager && (
                       <>
-                        <View style={s.sectionHead}>
-                          <Text style={s.sectionTitle}>{t('caller.recent_calls', { defaultValue: 'Recent Calls' })}</Text>
-                          <Pressable style={s.seeAllWrap}><Text style={s.seeAllText}>{t('common.see_all', { defaultValue: 'See all' })}</Text></Pressable>
+                        <View style={s.sheetSectionRow}>
+                          <Text style={s.sheetSectionTitle}>{t('caller.recent_calls', { defaultValue: 'Recent Calls' })}</Text>
+                          <Text style={s.sheetCallCount}>{calls.length} total</Text>
                         </View>
 
                         {calls.length === 0 ? (
-                          <View style={s.emptyHistoryWrap}>
-                            <Text style={s.emptyBody}>{t('caller.no_calls_recorded', { defaultValue: 'No calls recorded yet.' })}</Text>
+                          <View style={s.sheetEmptyCard}>
+                            <PhoneIncoming size={28} color={C.light} strokeWidth={1.5} />
+                            <Text style={s.sheetEmptyText}>{t('caller.no_calls_recorded', { defaultValue: 'No calls recorded yet.' })}</Text>
                           </View>
                         ) : (
-                          calls.map((call) => {
-                            const cfg = STATUS_CONFIG[call.status] || STATUS_CONFIG.completed;
-                            const Icon = cfg.Icon;
+                          calls.map((call, idx) => {
+                            const cfg      = STATUS_CONFIG[call.status] || STATUS_CONFIG.completed;
+                            const Icon     = cfg.Icon;
                             const duration = formatDuration(call.call_duration_seconds);
                             return (
-                              <View key={call._id} style={s.historyBentoCard}>
-                                <View style={[s.historyIconBg, { backgroundColor: cfg.bg }]}>
-                                  <Icon size={20} color={cfg.color} strokeWidth={2} />
+                              <View key={call._id} style={[s.sheetCallRow, idx === calls.length - 1 && { borderBottomWidth: 0 }]}>
+                                <View style={[s.sheetCallIcon, { backgroundColor: cfg.bg }]}>
+                                  <Icon size={16} color={cfg.color} strokeWidth={2} />
                                 </View>
-                                <View style={s.historyBody}>
-                                  <Text style={s.historyDate}>
-                                    {new Date(call.call_date || call.created_at).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                                <View style={s.sheetCallBody}>
+                                  <Text style={s.sheetCallDate}>
+                                    {new Date(call.call_date || call.created_at).toLocaleDateString('en-IN', { weekday: 'short', month: 'short', day: 'numeric' })}
                                   </Text>
-                                  <Text style={s.historyNote} numberOfLines={1}>{call.ai_summary || t('caller.routine_checkin', { defaultValue: 'Routine check-in' })}</Text>
+                                  <Text style={s.sheetCallNote} numberOfLines={1}>{call.ai_summary || t('caller.routine_checkin', { defaultValue: 'Routine check-in' })}</Text>
                                 </View>
-                                <View style={[s.badgeBox, { backgroundColor: cfg.bg }]}>
-                                  <Text style={[s.badgeText, { color: cfg.color }]}>{duration}</Text>
+                                <View style={s.sheetCallRight}>
+                                  <View style={[s.sheetCallBadge, { backgroundColor: cfg.bg }]}>
+                                    <Text style={[s.sheetCallBadgeText, { color: cfg.color }]}>{cfg.label}</Text>
+                                  </View>
+                                  {duration && <Text style={s.sheetCallDuration}>{duration}</Text>}
                                 </View>
                               </View>
                             );
@@ -697,7 +737,7 @@ export default function MyCallerScreen({ navigation }) {
         })()}
       </Modal>
 
-      {/* ── Contact Form Modal ── */}
+      {/* ── Contact Form Modal ─────────────────────────────────────────── */}
       <PremiumFormModal
         visible={contactModal}
         title={editingContact ? t('caller.edit_contact', { defaultValue: 'Edit Contact' }) : t('caller.new_contact', { defaultValue: 'New Contact' })}
@@ -713,96 +753,71 @@ export default function MyCallerScreen({ navigation }) {
           )
         }
       >
-        {/* Name */}
-        <View style={s.formGroup}>
+        <SmartInput
+          label={t('caller.full_name', { defaultValue: 'Full Name *' })}
+          placeholder={t('caller.name_placeholder', { defaultValue: 'e.g. Ramesh Kumar' })}
+          value={contactForm.name}
+          onChangeText={(v) => setContactForm({ ...contactForm, name: v })}
+          returnKeyType="next"
+        />
+
+        <Text style={s.formLabel}>{t('caller.phone_number', { defaultValue: 'Phone Number *' })}</Text>
+        <View style={s.phoneRow}>
+          <Pressable style={s.codeBtn} onPress={() => setCountryCodeModal(true)}>
+            <Text style={s.codeBtnFlag}>{COUNTRY_CODES.find(c => c.code === contactForm.phoneCode)?.flag}</Text>
+            <Text style={s.codeBtnText}>{contactForm.phoneCode}</Text>
+            <ChevronDown size={13} color={C.muted} />
+          </Pressable>
           <SmartInput
-            label={t('caller.full_name', { defaultValue: 'Full Name *' })}
-            placeholder={t('caller.name_placeholder', { defaultValue: 'e.g. Ramesh Kumar' })}
-            value={contactForm.name}
-            onChangeText={(t) => setContactForm({ ...contactForm, name: t })}
-            returnKeyType="next"
+            keyboardType="phone-pad"
+            placeholder="98765 43210"
+            value={contactForm.phone}
+            onChangeText={(v) => setContactForm({ ...contactForm, phone: v.replace(/[^0-9]/g, '') })}
+            maxLength={COUNTRY_CODES.find(c => c.code === contactForm.phoneCode)?.maxDigits || 12}
+            style={{ flex: 1 }}
           />
         </View>
 
-        {/* Phone */}
-        <View style={s.formGroup}>
-          <Text style={s.formLabel}>{t('caller.phone_number', { defaultValue: 'Phone Number *' })}</Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <Pressable
-              style={{
-                flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, paddingVertical: 14,
-                backgroundColor: '#F8FAFC', borderRadius: 12, borderWidth: 1, borderColor: '#E2E8F0', height: 48,
-              }}
-              onPress={() => setCountryCodeModal(true)}
-            >
-              <Text style={{ fontSize: 16 }}>{COUNTRY_CODES.find(c => c.code === contactForm.phoneCode)?.flag}</Text>
-              <Text style={{ fontSize: 15, color: '#334155', fontWeight: '500' }}>{contactForm.phoneCode}</Text>
-              <ChevronDown size={14} color="#94A3B8" />
-            </Pressable>
-            <SmartInput
-              keyboardType="phone-pad"
-              placeholder="98765 43210"
-              value={contactForm.phone}
-              onChangeText={(t) => setContactForm({ ...contactForm, phone: t.replace(/[^0-9]/g, '') })}
-              maxLength={COUNTRY_CODES.find(c => c.code === contactForm.phoneCode)?.maxDigits || 12}
-              returnKeyType="next"
-              style={{ flex: 1 }}
-            />
-          </View>
+        <Text style={s.formLabel}>{t('caller.relationship', { defaultValue: 'Relationship' })}</Text>
+        <View style={s.chipRow}>
+          {['Son', 'Daughter', 'Spouse', 'Sibling', 'Friend', 'Neighbour', 'Other'].map(opt => {
+            const active = contactForm.relation === opt;
+            return (
+              <Pressable
+                key={opt}
+                onPress={() => setContactForm({ ...contactForm, relation: opt })}
+                style={[s.chip, active && s.chipActive]}
+              >
+                <Text style={[s.chipText, active && s.chipTextActive]}>{opt}</Text>
+              </Pressable>
+            );
+          })}
         </View>
 
-        {/* Relationship — Chip Selector */}
-        <View style={s.formGroup}>
-          <Text style={s.formLabel}>{t('caller.relationship', { defaultValue: 'Relationship' })}</Text>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-            {['Son', 'Daughter', 'Spouse', 'Sibling', 'Friend', 'Neighbour', 'Other'].map(opt => {
-              const isActive = contactForm.relation === opt;
-              return (
-                <Pressable
-                  key={opt}
-                  onPress={() => setContactForm({ ...contactForm, relation: opt })}
-                  style={{
-                    paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20,
-                    backgroundColor: isActive ? C.primary : '#F1F5F9',
-                    borderWidth: 1, borderColor: isActive ? C.primary : '#E2E8F0',
-                  }}
-                >
-                  <Text style={{ fontSize: 13, fontWeight: '600', color: isActive ? '#FFF' : C.mid }}>{opt}</Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        </View>
+        <SmartInput
+          label={t('caller.email_optional', { defaultValue: 'Email (Optional)' })}
+          placeholder={t('caller.email_placeholder', { defaultValue: 'email@example.com' })}
+          keyboardType="email-address"
+          autoCapitalize="none"
+          value={contactForm.email}
+          onChangeText={(v) => setContactForm({ ...contactForm, email: v })}
+        />
 
-        {/* Email */}
-        <View style={s.formGroup}>
-          <SmartInput
-            label={t('caller.email_optional', { defaultValue: 'Email (Optional)' })}
-            placeholder={t('caller.email_placeholder', { defaultValue: 'email@example.com' })}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            value={contactForm.email}
-            onChangeText={(t) => setContactForm({ ...contactForm, email: t })}
-            returnKeyType="done"
+        <View style={s.emergencyToggleRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={s.emergencyToggleTitle}>{t('caller.emergency_contact', { defaultValue: 'Emergency Contact' })}</Text>
+            <Text style={s.emergencyToggleSub}>{t('caller.emergency_desc', { defaultValue: 'Primary person for emergencies' })}</Text>
+          </View>
+          <Switch
+            value={contactForm.is_emergency}
+            onValueChange={(v) => setContactForm({ ...contactForm, is_emergency: v })}
+            trackColor={{ false: C.borderMid, true: C.danger }}
+            thumbColor="#FFF"
           />
-        </View>
-
-        <View style={s.formGroup}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#F8FAFC', padding: 16, borderRadius: 16, borderWidth: 1, borderColor: '#E2E8F0' }}>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 16, fontWeight: '700', color: C.dark }}>{t('caller.emergency_contact', { defaultValue: 'Emergency Contact' })}</Text>
-              <Text style={{ fontSize: 13, color: C.muted }}>{t('caller.emergency_desc', { defaultValue: 'Primary person for emergencies' })}</Text>
-            </View>
-            <Switch
-              value={contactForm.is_emergency}
-              onValueChange={(v) => setContactForm({ ...contactForm, is_emergency: v })}
-              trackColor={{ false: '#CBD5E1', true: C.danger }}
-            />
-          </View>
         </View>
       </PremiumFormModal>
 
-      {/* Flag Issue Modal */}
+      {/* ── Flag Issue Modal ───────────────────────────────────────────── */}
       <PremiumFormModal
         visible={flagIssueModalVisible}
         title={t('caller.flag_issue_title', { defaultValue: 'Flag an Issue' })}
@@ -811,367 +826,401 @@ export default function MyCallerScreen({ navigation }) {
         saveText={t('caller.submit_report', { defaultValue: 'Submit Report' })}
         saving={flagging}
       >
-        <View style={s.formGroup}>
-          <SmartInput
-            label={t('caller.what_went_wrong', { defaultValue: 'What went wrong?' })}
-            variant="multiline"
-            multiline
-            placeholder={t('caller.describe_issue', { defaultValue: 'Please describe the issue with your caller...' })}
-            value={flagDescription}
-            onChangeText={setFlagDescription}
-          />
-        </View>
-        <Text style={{ fontSize: 13, color: '#94A3B8', marginTop: 12, lineHeight: 20 }}>
-          {t('caller.issue_disclaimer', { defaultValue: 'Your care manager will review this report and take appropriate action. All reports are strictly confidential.' })}
-        </Text>
+        <SmartInput
+          label={t('caller.what_went_wrong', { defaultValue: 'What went wrong?' })}
+          variant="multiline"
+          multiline
+          placeholder={t('caller.describe_issue', { defaultValue: 'Please describe the issue with your caller...' })}
+          value={flagDescription}
+          onChangeText={setFlagDescription}
+        />
+        <Text style={s.disclaimer}>{t('caller.issue_disclaimer', { defaultValue: 'Your care manager will review this report and take appropriate action. All reports are strictly confidential.' })}</Text>
       </PremiumFormModal>
 
-      {/* Country Code Picker Modal */}
+      {/* ── Country Code Picker ────────────────────────────────────────── */}
       <Modal visible={countryCodeModal} transparent animationType="slide" onRequestClose={() => setCountryCodeModal(false)}>
-        <Pressable style={s.backdrop} onPress={() => setCountryCodeModal(false)}>
-          <View style={s.modalWrapper}>
-            <Pressable style={s.contactFormSheet} onPress={(e) => e.stopPropagation()}>
-              <View style={[s.modalHeaderRow, { padding: 24, paddingBottom: 12 }]}>
-                <Text style={s.sectionTitle}>{t('caller.select_country_code', { defaultValue: 'Select Country Code' })}</Text>
-                <Pressable onPress={() => setCountryCodeModal(false)} style={s.modalCloseBtn}>
-                  <X size={20} color={C.mid} />
+        <Pressable style={s.ccOverlay} onPress={() => setCountryCodeModal(false)}>
+          <Pressable style={s.ccSheet} onPress={(e) => e.stopPropagation()}>
+            <View style={s.ccHeader}>
+              <Text style={s.ccTitle}>{t('caller.select_country_code', { defaultValue: 'Select Country Code' })}</Text>
+              <Pressable onPress={() => setCountryCodeModal(false)} style={s.ccClose}>
+                <X size={20} color={C.mid} />
+              </Pressable>
+            </View>
+            <FlatList
+              data={COUNTRY_CODES}
+              keyExtractor={item => item.code}
+              contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 40 }}
+              renderItem={({ item }) => (
+                <Pressable
+                  style={s.ccRow}
+                  onPress={() => { setContactForm({ ...contactForm, phoneCode: item.code }); setCountryCodeModal(false); }}
+                >
+                  <Text style={s.ccFlag}>{item.flag}</Text>
+                  <Text style={s.ccName}>{item.name}</Text>
+                  <Text style={s.ccCode}>{item.code}</Text>
                 </Pressable>
-              </View>
-              <FlatList
-                data={COUNTRY_CODES}
-                keyExtractor={item => item.code}
-                contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
-                renderItem={({ item }) => (
-                  <Pressable
-                    style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' }}
-                    onPress={() => {
-                      setContactForm({ ...contactForm, phoneCode: item.code });
-                      setCountryCodeModal(false);
-                    }}
-                  >
-                    <Text style={{ fontSize: 24, marginRight: 12 }}>{item.flag}</Text>
-                    <Text style={{ flex: 1, fontSize: 16, fontWeight: '600', color: '#0F172A' }}>{item.name}</Text>
-                    <Text style={{ fontSize: 16, fontWeight: '700', color: '#64748B' }}>{item.code}</Text>
-                  </Pressable>
-                )}
-              />
-            </Pressable>
-          </View>
+              )}
+            />
+          </Pressable>
         </Pressable>
       </Modal>
 
-      {/* Delete Confirmation Modal */}
+      {/* ── Delete Confirmation ────────────────────────────────────────── */}
       <Modal visible={deleteConfirm.visible} transparent animationType="fade" onRequestClose={() => setDeleteConfirm({ visible: false, id: null, name: '' })}>
-        <Pressable style={{ flex: 1, backgroundColor: 'rgba(15,23,42,0.5)', justifyContent: 'center', alignItems: 'center' }} onPress={() => !isDeleting && setDeleteConfirm({ visible: false, id: null, name: '' })}>
-          <Pressable onPress={e => e.stopPropagation()} style={{ backgroundColor: '#FFF', borderRadius: 24, padding: 28, width: 320, shadowColor: '#000', shadowOffset: { width: 0, height: 16 }, shadowOpacity: 0.15, shadowRadius: 32, elevation: 12 }}>
-            <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: C.dangerBg, alignItems: 'center', justifyContent: 'center', alignSelf: 'center', marginBottom: 16 }}>
-              <Trash2 size={24} color={C.danger} />
+        <Pressable
+          style={s.delOverlay}
+          onPress={() => !isDeleting && setDeleteConfirm({ visible: false, id: null, name: '' })}
+        >
+          <Pressable style={s.delCard} onPress={e => e.stopPropagation()}>
+            <View style={s.delIconBox}>
+              <Trash2 size={26} color={C.danger} />
             </View>
-            <Text style={{ fontSize: 20, fontWeight: '800', color: C.dark, textAlign: 'center', marginBottom: 8 }}>{t('caller.remove_contact', { defaultValue: 'Remove Contact' })}</Text>
-            <Text style={{ fontSize: 15, color: '#64748B', textAlign: 'center', lineHeight: 22, marginBottom: 24 }}>
-              {t('caller.remove_confirm_1', { defaultValue: 'Are you sure you want to remove ' })}<Text style={{ fontWeight: '700', color: C.dark }}>{deleteConfirm.name}</Text>{t('caller.remove_confirm_2', { defaultValue: ' from your trusted contacts?' })}
+            <Text style={s.delTitle}>{t('caller.remove_contact', { defaultValue: 'Remove Contact' })}</Text>
+            <Text style={s.delBody}>
+              {t('caller.remove_confirm_1', { defaultValue: 'Are you sure you want to remove ' })}
+              <Text style={{ fontWeight: '700', color: C.dark }}>{deleteConfirm.name}</Text>
+              {t('caller.remove_confirm_2', { defaultValue: ' from your trusted contacts?' })}
             </Text>
-            <View style={{ flexDirection: 'row', gap: 12 }}>
+            <View style={s.delBtnRow}>
               <Pressable
+                style={s.delCancelBtn}
                 onPress={() => setDeleteConfirm({ visible: false, id: null, name: '' })}
                 disabled={isDeleting}
-                style={{ flex: 1, paddingVertical: 14, borderRadius: 14, alignItems: 'center', backgroundColor: '#F1F5F9' }}
               >
-                <Text style={{ fontSize: 15, fontWeight: '700', color: '#64748B' }}>{t('common.cancel', { defaultValue: 'Cancel' })}</Text>
+                <Text style={s.delCancelText}>{t('common.cancel', { defaultValue: 'Cancel' })}</Text>
               </Pressable>
-              <Pressable
-                onPress={executeRemoveContact}
-                disabled={isDeleting}
-                style={{ flex: 1, paddingVertical: 14, borderRadius: 14, alignItems: 'center', backgroundColor: C.danger, opacity: isDeleting ? 0.7 : 1 }}
-              >
-                {isDeleting ? (
-                  <ActivityIndicator size="small" color="#FFF" />
-                ) : (
-                  <Text style={{ fontSize: 15, fontWeight: '700', color: '#FFF' }}>{t('common.remove', { defaultValue: 'Remove' })}</Text>
-                )}
+              <Pressable style={[s.delConfirmBtn, isDeleting && { opacity: 0.7 }]} onPress={executeRemoveContact} disabled={isDeleting}>
+                {isDeleting
+                  ? <ActivityIndicator size="small" color="#FFF" />
+                  : <Text style={s.delConfirmText}>{t('common.remove', { defaultValue: 'Remove' })}</Text>
+                }
               </Pressable>
             </View>
           </Pressable>
         </Pressable>
       </Modal>
-    </LinearGradient>
+    </View>
   );
 }
 
-const FONT = {
-  regular: { fontFamily: 'Inter_400Regular' },
-  medium: { fontFamily: 'Inter_500Medium' },
-  semibold: { fontFamily: 'Inter_600SemiBold' },
-  bold: { fontFamily: 'Inter_700Bold' },
-  heavy: { fontFamily: 'Inter_800ExtraBold' },
-  black: { fontFamily: 'Inter_900Black' },
-};
-
+// ── Styles ──────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F9FAFB' }, // New light page bg for premium look
+  container: { flex: 1, backgroundColor: C.pageBg },
 
-  // ── Header (Premium Gradient Design) ──
-  headerWrap: { zIndex: 10 },
-  minimalHeader: { paddingTop: Platform.OS === 'ios' ? 70 : 50, paddingHorizontal: 24, paddingBottom: 16, backgroundColor: 'transparent' },
-  mainHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  headerLeft: { flex: 1 },
+  // Header
+  header: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingTop: Platform.OS === 'ios' ? 70 : 50, paddingHorizontal: 24, paddingBottom: 16,
+    backgroundColor: C.pageBg,
+  },
   headerLabel: { fontSize: 13, fontWeight: '800', color: C.primary, letterSpacing: 1.5, marginBottom: 4 },
   headerTitle: { fontSize: 32, fontWeight: '800', color: C.dark, letterSpacing: -1 },
-  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  headerRightBtn: {
+  bellBtn: {
     width: 44, height: 44, borderRadius: 22, backgroundColor: '#FFF',
     alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1, borderColor: '#E2E8F0',
+    shadowColor: '#4361EE', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 12, elevation: 3,
   },
 
-  // ── Body ──
-  body: { flex: 1 },
-  section: { marginBottom: 24, width: '100%' },
-  sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, paddingHorizontal: 4 },
-  sectionHeader: { fontSize: 13, ...FONT.bold, color: '#94A3B8', letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 16, marginLeft: 4 },
-  sectionHeaderBase: { fontSize: 13, ...FONT.bold, color: '#64748B', letterSpacing: 1.5, textTransform: 'uppercase' },
-  addBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: C.primary, alignItems: 'center', justifyContent: 'center', shadowColor: C.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 },
-  miniEmergencyPill: { backgroundColor: C.dangerBg, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
-  miniEmergencyTxt: { fontSize: 10, ...FONT.bold, color: C.danger },
-  bodyContent: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: layout.TAB_BAR_CLEARANCE },
+  // Scroll
+  scroll: { flex: 1 },
+  scrollContent: { paddingHorizontal: 20, paddingTop: 4, paddingBottom: layout.TAB_BAR_CLEARANCE },
 
-  // ── Contact Card ──
-  contactCard: {
-    backgroundColor: C.cardBg, borderRadius: 20, padding: 16, marginBottom: 12,
-    flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: C.border,
-    shadowColor: C.primary, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.04, shadowRadius: 16, elevation: 4,
+  // Section labels
+  sectionLabel: {
+    fontSize: 12, fontWeight: '800', color: C.muted, letterSpacing: 1.5,
+    marginBottom: 12, marginTop: 8, marginLeft: 2,
   },
-  contactAvatar: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', marginRight: 14 },
-  contactAvatarTxt: { fontSize: 18, fontWeight: '700', color: '#FFF' },
-  contactInfo: { flex: 1 },
-  contactName: { fontSize: 16, fontWeight: '600', color: C.dark, marginBottom: 4 },
-  contactSub: { fontSize: 13, fontWeight: '500', color: C.muted },
-  contactActions: { flexDirection: 'row', gap: 6 },
-  iconActionBtn: { padding: 12, backgroundColor: '#F8FAFC', borderRadius: 12 },
+  sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, marginTop: 8 },
+  seeAllText: { fontSize: 13, fontWeight: '700', color: C.primary },
 
-  // ── Caller Card ──
-  callerCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    marginBottom: 16,
-    padding: 20,
-    shadowColor: '#4338CA',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.05, shadowRadius: 16, elevation: 5,
+  addBtn: {
+    width: 30, height: 30, borderRadius: 15, backgroundColor: C.primary,
+    alignItems: 'center', justifyContent: 'center',
+    shadowColor: C.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4,
   },
-  callerCardPressed: { opacity: 0.96, transform: [{ scale: 0.98 }] },
 
-  profileRow: {
-    flexDirection: 'row', alignItems: 'center',
-    marginBottom: 16,
+  // ── Hero card (caller) ──────────────────────────────────────────────────
+  heroCard: { borderRadius: 28, overflow: 'hidden', marginBottom: 24, padding: 22 },
+
+  heroTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 },
+  verifiedBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: 'rgba(255,255,255,0.12)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20,
   },
-  avatarWrap: { position: 'relative', marginRight: 18 },
-  avatar: { width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center' },
-  avatarLetter: { fontSize: 24, fontWeight: '800', color: '#FFFFFF' },
-  onlineDot: {
+  verifiedBadgeText: { fontSize: 11, fontWeight: '700', color: 'rgba(255,255,255,0.85)' },
+  flagChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: 'rgba(255,255,255,0.1)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20,
+  },
+  flagChipText: { fontSize: 11, fontWeight: '600', color: 'rgba(255,255,255,0.7)' },
+
+  heroBody: { flexDirection: 'row', alignItems: 'center', marginBottom: 20, gap: 16 },
+  heroAvatarWrap: { position: 'relative' },
+  heroAvatarRing: {
+    width: 76, height: 76, borderRadius: 38,
+    borderWidth: 2.5, borderColor: 'rgba(255,255,255,0.25)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  heroAvatar: { width: 66, height: 66, borderRadius: 33, alignItems: 'center', justifyContent: 'center' },
+  heroAvatarLetter: { fontSize: 28, fontWeight: '800', color: C.primaryDark },
+  heroOnlineDot: {
     position: 'absolute', bottom: 2, right: 2,
     width: 16, height: 16, borderRadius: 8,
-    backgroundColor: '#10B981', borderWidth: 3, borderColor: '#FFFFFF',
-  },
-  profileInfo: { flex: 1 },
-  callerName: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#0F172A',
-    marginBottom: 4,
-    letterSpacing: -0.5,
-  },
-  metaRow: { flexDirection: 'row', alignItems: 'center' },
-  idChipText: { fontSize: 13, fontWeight: '600', color: '#64748B' },
-  dotDivider: { width: 4, height: 4, borderRadius: 2, backgroundColor: '#CBD5E1', marginHorizontal: 8 },
-  onlinePill: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  onlinePillDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#10B981' },
-  onlinePillText: { fontSize: 13, fontWeight: '600', color: '#10B981' },
-  chevronWrap: {
-    width: 32, height: 32, borderRadius: 16, backgroundColor: '#F1F5F9',
-    alignItems: 'center', justifyContent: 'center', marginLeft: 10,
+    backgroundColor: '#10B981', borderWidth: 3, borderColor: '#4F46E5',
   },
 
-  // ── Action buttons ──
-  actionRow: {
-    flexDirection: 'row', gap: 12,
-  },
-  btnCall: {
-    flex: 1.5, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    borderRadius: 16,
-    height: 48, backgroundColor: '#4338CA',
-  },
-  btnCallPressed: { opacity: 0.85, transform: [{ scale: 0.98 }] },
-  btnCallText: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
+  heroInfo: { flex: 1 },
+  heroName: { fontSize: 22, fontWeight: '800', color: '#FFF', letterSpacing: -0.5, marginBottom: 4 },
+  heroId:   { fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.55)', marginBottom: 10 },
+  heroChips: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 4 },
+  heroChip: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  heroChipText: { fontSize: 11, fontWeight: '600', color: 'rgba(255,255,255,0.7)' },
+  heroChipDot: { width: 3, height: 3, borderRadius: 1.5, backgroundColor: 'rgba(255,255,255,0.3)' },
 
-  btnFlag: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    borderRadius: 16, height: 48, backgroundColor: '#F8FAFC',
-    borderWidth: 1, borderColor: '#F1F5F9',
-  },
-  btnFlagPressed: { backgroundColor: '#F1F5F9' },
-  btnFlagText: { fontSize: 13, fontWeight: '600', color: '#475569' },
+  heroDivider: { height: 1, backgroundColor: 'rgba(255,255,255,0.12)', marginBottom: 16 },
 
-  // ── Empty / Upgrade state ──
-  emptyWrap: { alignItems: 'center', paddingVertical: 60, paddingHorizontal: 20 },
-  emptyCard: { backgroundColor: C.cardBg, borderRadius: 24, padding: 32, alignItems: 'center', borderWidth: 1, borderColor: C.border, shadowColor: C.primary, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.04, shadowRadius: 16, elevation: 4 },
-  emptyCardPremium: { backgroundColor: C.cardBg, borderRadius: 24, padding: 32, alignItems: 'center', borderWidth: 1, borderColor: '#E2E8F0', shadowColor: C.primary, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.08, shadowRadius: 16, elevation: 4 },
-  emptyIconWrap: { width: 80, height: 80, borderRadius: 40, backgroundColor: C.pageBg, alignItems: 'center', justifyContent: 'center', marginBottom: 20 },
-  emptyIconWrapPremium: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', marginBottom: 20, shadowColor: C.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 },
-  emptyTitle: { fontSize: 18, fontWeight: '700', color: C.dark, marginBottom: 8 },
-  emptyBody: { fontSize: 14, fontWeight: '500', color: C.muted, textAlign: 'center', lineHeight: 22 },
+  heroStatsRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
+  heroStat: { flex: 1, alignItems: 'center' },
+  heroStatVal: { fontSize: 18, fontWeight: '800', color: '#FFF', marginBottom: 2 },
+  heroStatLabel: { fontSize: 11, fontWeight: '600', color: 'rgba(255,255,255,0.55)' },
+  heroStatSep: { width: 1, height: 32, backgroundColor: 'rgba(255,255,255,0.15)' },
 
-  // Pending caller assignment card
-  pendingCard: { backgroundColor: '#FFFFFF', borderRadius: 24, padding: 32, alignItems: 'center', borderWidth: 1, borderColor: '#E0E7FF', shadowColor: '#6366F1', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.08, shadowRadius: 16, elevation: 4 },
-  pendingIconWrap: { marginBottom: 20 },
-  pendingIconCircle: { width: 80, height: 80, borderRadius: 40, alignItems: 'center', justifyContent: 'center' },
-  pendingTitle: { fontSize: 20, fontWeight: '800', color: C.dark, marginBottom: 8, textAlign: 'center' },
-  pendingBody: { fontSize: 14, fontWeight: '500', color: C.muted, textAlign: 'center', lineHeight: 22, marginBottom: 20 },
-  pendingContactBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#6366F1', paddingHorizontal: 24, paddingVertical: 14, borderRadius: 16, shadowColor: '#6366F1', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 },
-  pendingContactBtnText: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
+  heroCallBtn: {
+    backgroundColor: '#FFF', borderRadius: 100, height: 50,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 12, elevation: 6,
+  },
+  heroCallBtnText: { fontSize: 16, fontWeight: '800', color: C.primaryDark },
 
-  upgradeIconWrap: {
-    width: 80, height: 80, borderRadius: 40, backgroundColor: C.primarySoft,
-    alignItems: 'center', justifyContent: 'center', marginBottom: 24,
+  // ── Pending state ───────────────────────────────────────────────────────
+  pendingCard: {
+    backgroundColor: '#FFF', borderRadius: 24, padding: 28, alignItems: 'center',
+    marginBottom: 24, borderWidth: 1.5, borderColor: '#E0E7FF',
+    shadowColor: C.primary, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.07, shadowRadius: 16, elevation: 4,
   },
-  upgradeTitle: { fontSize: 20, fontWeight: '700', color: C.dark, marginBottom: 12 },
-  upgradeBody: { fontSize: 15, fontWeight: '500', color: C.muted, textAlign: 'center', lineHeight: 24 },
+  pendingIconCircle: { width: 76, height: 76, borderRadius: 38, alignItems: 'center', justifyContent: 'center', marginBottom: 18 },
+  pendingTitle: { fontSize: 18, fontWeight: '800', color: C.dark, textAlign: 'center', marginBottom: 8 },
+  pendingBody:  { fontSize: 14, fontWeight: '500', color: C.muted, textAlign: 'center', lineHeight: 22, marginBottom: 20 },
+  pendingCallBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: C.primary, paddingHorizontal: 22, paddingVertical: 13, borderRadius: 100,
+    shadowColor: C.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 10, elevation: 5,
+  },
+  pendingCallBtnText: { fontSize: 14, fontWeight: '700', color: '#FFF' },
 
-  // ── Modal ──
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(15,23,42,0.4)',
+  // ── Manager card ────────────────────────────────────────────────────────
+  managerCard: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: '#FFF', borderRadius: 20, padding: 16, marginBottom: 24,
+    shadowColor: '#475569', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 3,
   },
-  modalWrapper: {
-    position: 'absolute', top: 0, bottom: 0, left: 0, right: 0,
-    justifyContent: 'flex-end',
+  managerLeft:   { flexDirection: 'row', alignItems: 'center', gap: 14, flex: 1 },
+  managerAvatar: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
+  managerAvatarText: { fontSize: 20, fontWeight: '800', color: '#FFF' },
+  managerInfo: { flex: 1 },
+  managerName: { fontSize: 16, fontWeight: '700', color: C.dark, marginBottom: 4 },
+  managerRoleRow: { flexDirection: 'row', alignItems: 'center', gap: 5, flexWrap: 'wrap' },
+  managerRoleText: { fontSize: 12, fontWeight: '600', color: C.muted },
+  dotSep: { width: 3, height: 3, borderRadius: 1.5, backgroundColor: C.light },
+  availablePill: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  availableDot:  { width: 6, height: 6, borderRadius: 3, backgroundColor: C.success },
+  availableText: { fontSize: 12, fontWeight: '600', color: C.success },
+  managerCallBtn: {
+    width: 42, height: 42, borderRadius: 21,
+    backgroundColor: C.primarySoft, alignItems: 'center', justifyContent: 'center',
   },
 
-  // Floating Close Button
-  floatingCloseWrap: {
-    alignItems: 'flex-end',
-    paddingRight: 24,
-    marginBottom: 16,
+  // ── Empty state card ────────────────────────────────────────────────────
+  emptyCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 14,
+    backgroundColor: '#FFF', borderRadius: 20, padding: 18, marginBottom: 24,
+    borderWidth: 1, borderColor: C.border,
   },
+  emptyIconBox: {
+    width: 44, height: 44, borderRadius: 14, backgroundColor: C.pageBg,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  emptyTextBlock: { flex: 1 },
+  emptyTitle: { fontSize: 15, fontWeight: '700', color: C.dark, marginBottom: 3 },
+  emptyBody:  { fontSize: 13, fontWeight: '500', color: C.muted, lineHeight: 19 },
+
+  // ── Contact cards ───────────────────────────────────────────────────────
+  contactCard: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: '#FFF', borderRadius: 18, marginBottom: 10,
+    padding: 14, overflow: 'hidden',
+    shadowColor: '#4361EE', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.04, shadowRadius: 10, elevation: 2,
+  },
+  contactAccent: { width: 4, height: '100%', position: 'absolute', left: 0, top: 0, borderTopLeftRadius: 18, borderBottomLeftRadius: 18 },
+  contactAvatar: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', marginLeft: 10, marginRight: 12 },
+  contactAvatarTxt: { fontSize: 18, fontWeight: '800' },
+  contactInfo: { flex: 1 },
+  contactNameRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 3 },
+  contactName: { fontSize: 15, fontWeight: '700', color: C.dark },
+  contactSub:  { fontSize: 12, fontWeight: '500', color: C.muted },
+  sosPill:     { backgroundColor: C.dangerBg, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
+  sosTxt:      { fontSize: 9, fontWeight: '800', color: C.danger, letterSpacing: 0.5 },
+  contactActions: { flexDirection: 'row', gap: 6 },
+  contactActionBtn: {
+    width: 36, height: 36, borderRadius: 12, backgroundColor: C.pageBg,
+    alignItems: 'center', justifyContent: 'center',
+  },
+
+  // ── Recent calls section ────────────────────────────────────────────────
+  callsCard: {
+    backgroundColor: '#FFF', borderRadius: 20, marginBottom: 24,
+    shadowColor: '#4361EE', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 12, elevation: 3,
+    overflow: 'hidden',
+  },
+  callRow: { flexDirection: 'row', alignItems: 'center', padding: 16, gap: 12 },
+  callRowDivider: { borderBottomWidth: 1, borderBottomColor: C.border },
+  callIconBox: { width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  callBody: { flex: 1 },
+  callDate:     { fontSize: 14, fontWeight: '700', color: C.dark, marginBottom: 2 },
+  callNote:     { fontSize: 12, fontWeight: '500', color: C.muted },
+  statusPill:   { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
+  statusPillText: { fontSize: 11, fontWeight: '700' },
+  callDuration: { fontSize: 11, fontWeight: '600', color: C.muted, textAlign: 'right' },
+
+  // ── Free plan gate ──────────────────────────────────────────────────────
+  gatewrap: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
+  gateIcon:  { width: 80, height: 80, borderRadius: 40, alignItems: 'center', justifyContent: 'center', marginBottom: 24 },
+  gateTitle: { fontSize: 20, fontWeight: '800', color: C.dark, marginBottom: 12, textAlign: 'center' },
+  gateBody:  { fontSize: 15, fontWeight: '500', color: C.muted, textAlign: 'center', lineHeight: 24 },
+
+  // ── Caller/Manager detail sheet ─────────────────────────────────────────
+  sheetWrapper: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, justifyContent: 'flex-end' },
+
+  floatingClose: { alignItems: 'flex-end', paddingRight: 24, marginBottom: 14 },
   floatingCloseBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#FFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 10, elevation: 4,
+    width: 44, height: 44, borderRadius: 22, backgroundColor: '#FFF',
+    alignItems: 'center', justifyContent: 'center',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 10, elevation: 6,
   },
 
-  modalSheet: {
-    backgroundColor: '#F9FAFB',
-    borderTopLeftRadius: 40,
-    borderTopRightRadius: 40,
+  sheet: {
+    backgroundColor: C.pageBg, borderTopLeftRadius: 40, borderTopRightRadius: 40,
     height: '90%',
-    shadowColor: '#000', shadowOffset: { width: 0, height: -10 }, shadowOpacity: 0.1, shadowRadius: 30, elevation: 20,
+    shadowColor: '#000', shadowOffset: { width: 0, height: -10 }, shadowOpacity: 0.1, shadowRadius: 30, elevation: 24,
   },
-  contactFormSheet: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
-    maxHeight: '92%',
-    marginTop: 60,
+  sheetHandle:    { width: '100%', alignItems: 'center', paddingVertical: 14 },
+  sheetHandleBar: { width: 44, height: 5, borderRadius: 3, backgroundColor: C.borderMid },
+  sheetBody:      { paddingBottom: 60 },
+
+  sheetHero: { marginHorizontal: 20, borderRadius: 24, padding: 20, marginBottom: 4 },
+  sheetHeroInner: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  sheetAvatarWrap: { position: 'relative' },
+  sheetAvatar: { width: 68, height: 68, borderRadius: 34, alignItems: 'center', justifyContent: 'center' },
+  sheetAvatarLetter: { fontSize: 28, fontWeight: '800', color: C.primaryDark },
+  sheetOnlineDot: {
+    position: 'absolute', bottom: 2, right: 2,
+    width: 14, height: 14, borderRadius: 7,
+    backgroundColor: C.success, borderWidth: 2.5, borderColor: '#4F46E5',
+  },
+  sheetHeroInfo: { flex: 1 },
+  sheetName:    { fontSize: 22, fontWeight: '800', color: '#FFF', letterSpacing: -0.5, marginBottom: 4 },
+  sheetIdText:  { fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.6)', marginBottom: 8 },
+  sheetBadge:   { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(255,255,255,0.12)', alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 },
+  sheetBadgeText: { fontSize: 11, fontWeight: '700', color: 'rgba(255,255,255,0.85)' },
+
+  sheetStatsBar: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: '#FFF', marginHorizontal: 20, marginVertical: 16,
+    borderRadius: 18, paddingVertical: 16,
+    shadowColor: '#4361EE', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 3,
+  },
+  sheetStat:      { flex: 1, alignItems: 'center', gap: 4 },
+  sheetStatVal:   { fontSize: 16, fontWeight: '800', color: C.dark },
+  sheetStatLabel: { fontSize: 11, fontWeight: '600', color: C.muted },
+  sheetStatSep:   { width: 1, height: 36, backgroundColor: C.border },
+
+  sheetActions: { flexDirection: 'row', gap: 12, marginHorizontal: 20, marginBottom: 24 },
+  sheetCallBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    borderRadius: 100, height: 54,
+    shadowColor: '#4338CA', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.2, shadowRadius: 14, elevation: 6,
+  },
+  sheetCallBtnText: { fontSize: 16, fontWeight: '800', color: '#FFF' },
+  sheetFlagBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    paddingHorizontal: 20, height: 54, borderRadius: 100,
+    backgroundColor: C.dangerBg, borderWidth: 1.5, borderColor: '#FECDD3',
+  },
+  sheetFlagBtnText: { fontSize: 14, fontWeight: '700', color: C.danger },
+
+  sheetSectionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, marginBottom: 12 },
+  sheetSectionTitle: { fontSize: 18, fontWeight: '800', color: C.dark },
+  sheetCallCount:    { fontSize: 13, fontWeight: '600', color: C.muted },
+
+  sheetCallRow: {
+    flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14,
+    borderBottomWidth: 1, borderBottomColor: C.border, gap: 12,
+  },
+  sheetCallIcon: { width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  sheetCallBody: { flex: 1 },
+  sheetCallDate:  { fontSize: 14, fontWeight: '700', color: C.dark, marginBottom: 2 },
+  sheetCallNote:  { fontSize: 12, fontWeight: '500', color: C.muted },
+  sheetCallRight: { alignItems: 'flex-end', gap: 4 },
+  sheetCallBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
+  sheetCallBadgeText: { fontSize: 11, fontWeight: '700' },
+  sheetCallDuration:  { fontSize: 11, fontWeight: '600', color: C.muted },
+
+  sheetEmptyCard: { alignItems: 'center', paddingVertical: 32, gap: 10, marginHorizontal: 20, backgroundColor: '#FFF', borderRadius: 20 },
+  sheetEmptyText: { fontSize: 14, fontWeight: '500', color: C.muted },
+
+  // ── Contact form ────────────────────────────────────────────────────────
+  formLabel: { fontSize: 12, fontWeight: '700', color: C.mid, marginBottom: 8, marginTop: 16, letterSpacing: 0.3 },
+  phoneRow:  { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  codeBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: '#F8FAFC', borderWidth: 1.5, borderColor: C.borderMid,
+    borderRadius: 16, paddingHorizontal: 12, paddingVertical: 13,
+  },
+  codeBtnFlag: { fontSize: 18 },
+  codeBtnText: { fontSize: 14, fontWeight: '700', color: C.dark },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  chip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: '#F1F5F9', borderWidth: 1, borderColor: C.borderMid },
+  chipActive: { backgroundColor: C.primary, borderColor: C.primary },
+  chipText: { fontSize: 13, fontWeight: '600', color: C.mid },
+  chipTextActive: { color: '#FFF' },
+  emergencyToggleRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: '#F8FAFC', padding: 16, borderRadius: 16, borderWidth: 1, borderColor: C.borderMid,
+    marginTop: 8,
+  },
+  emergencyToggleTitle: { fontSize: 15, fontWeight: '700', color: C.dark, marginBottom: 2 },
+  emergencyToggleSub:   { fontSize: 12, fontWeight: '500', color: C.muted },
+  disclaimer: { fontSize: 12, color: C.muted, marginTop: 12, lineHeight: 19 },
+
+  // ── Country code picker ─────────────────────────────────────────────────
+  ccOverlay: { flex: 1, backgroundColor: 'rgba(15,23,42,0.45)', justifyContent: 'flex-end' },
+  ccSheet: {
+    backgroundColor: '#FFF', borderTopLeftRadius: 32, borderTopRightRadius: 32,
+    maxHeight: '72%', paddingBottom: 20,
     shadowColor: '#000', shadowOffset: { width: 0, height: -8 }, shadowOpacity: 0.08, shadowRadius: 24, elevation: 16,
   },
-  modalHandleWrap: { width: '100%', alignItems: 'center', paddingVertical: 14 },
-  modalHandle: { width: 48, height: 5, borderRadius: 3, backgroundColor: '#CBD5E1' },
+  ccHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 24, paddingBottom: 14 },
+  ccTitle:  { fontSize: 18, fontWeight: '800', color: C.dark },
+  ccClose:  { width: 40, height: 40, borderRadius: 20, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center' },
+  ccRow:    { flexDirection: 'row', alignItems: 'center', paddingVertical: 13, paddingHorizontal: 4, borderBottomWidth: 1, borderBottomColor: C.border },
+  ccFlag:   { fontSize: 22, marginRight: 12 },
+  ccName:   { flex: 1, fontSize: 15, fontWeight: '600', color: C.dark },
+  ccCode:   { fontSize: 14, fontWeight: '700', color: C.mid },
 
-  modalBody: { paddingHorizontal: 24, paddingTop: 10, paddingBottom: 60 },
-
-  // ── Modal Profile Area ──
-  modalHeaderRow: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    marginBottom: 24,
+  // ── Delete confirmation ─────────────────────────────────────────────────
+  delOverlay: { flex: 1, backgroundColor: 'rgba(15,23,42,0.5)', justifyContent: 'center', alignItems: 'center', padding: 24 },
+  delCard: {
+    backgroundColor: '#FFF', borderRadius: 28, padding: 28, width: '100%', maxWidth: 360,
+    alignItems: 'center',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 16 }, shadowOpacity: 0.15, shadowRadius: 32, elevation: 16,
   },
-  modalProfileInfo: { flex: 1, paddingRight: 16 },
-  modalCallerName: { fontSize: 28, ...FONT.heavy, color: '#0F172A', marginBottom: 6, letterSpacing: -0.5 },
-  modalIdText: { fontSize: 14, ...FONT.medium, color: '#64748B' },
-
-  avatarWrapLg: { position: 'relative' },
-  avatarLg: { width: 80, height: 80, borderRadius: 40, alignItems: 'center', justifyContent: 'center' },
-  avatarLetterLg: { fontSize: 32, ...FONT.bold, color: '#FFF' },
-  onlineDotLg: {
-    position: 'absolute', bottom: 4, right: 4,
-    width: 16, height: 16, borderRadius: 8,
-    backgroundColor: '#10B981', borderWidth: 3, borderColor: '#F9FAFB',
-  },
-
-  // ── Modal Actions ──
-  modalActionRow: { flexDirection: 'row', gap: 12, marginBottom: 32 },
-  btnCallLg: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
-    borderRadius: 100, height: 64, backgroundColor: '#4338CA',
-    shadowColor: '#4338CA', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.2, shadowRadius: 16, elevation: 8,
-  },
-  btnCallPressedLg: { opacity: 0.85, transform: [{ scale: 0.98 }] },
-  btnCallTextLg: { fontSize: 17, ...FONT.bold, color: '#FFF' },
-  iconBtn: {
-    width: 64, height: 64, borderRadius: 32, backgroundColor: '#F8FAFC',
-    alignItems: 'center', justifyContent: 'center',
-    borderWidth: 2, borderColor: '#F1F5F9',
-  },
-  iconBtnPressed: { backgroundColor: '#FEF2F2', transform: [{ scale: 0.95 }] },
-
-  // ── Bento Box Stats ──
-  bentoGrid: { flexDirection: 'row', gap: 12, marginBottom: 32 },
-  bentoBox: {
-    flex: 1, borderRadius: 28, padding: 20, alignItems: 'center',
-    backgroundColor: '#FFF',
-    shadowColor: '#6366F1', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.04, shadowRadius: 16, elevation: 4,
-  },
-  bentoIcon: {
-    width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center',
-    marginBottom: 16,
-  },
-  bentoVal: { fontSize: 18, ...FONT.heavy, color: '#0F172A', marginBottom: 6 },
-  bentoLbl: { fontSize: 12, ...FONT.semibold, color: '#64748B' },
-
-  // ── Section Header ──
-  sectionHead: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  sectionTitle: { fontSize: 18, ...FONT.heavy, color: '#0F172A', letterSpacing: -0.3 },
-  seeAllWrap: { padding: 4 },
-  seeAllText: { fontSize: 14, ...FONT.semibold, color: '#3B82F6' },
-
-  // ── Call History Bento ──
-  historyBentoCard: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#FFF', borderRadius: 24,
-    padding: 16, marginBottom: 12,
-    shadowColor: '#1A202C', shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.03, shadowRadius: 12, elevation: 2,
-  },
-  historyIconBg: {
-    width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center',
-    marginRight: 14,
-  },
-  historyBody: { flex: 1, paddingRight: 10 },
-  historyDate: { fontSize: 14, ...FONT.bold, color: '#0F172A', marginBottom: 4 },
-  historyNote: { fontSize: 13, ...FONT.medium, color: '#64748B' },
-
-  badgeBox: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 12 },
-  badgeText: { fontSize: 12, ...FONT.bold },
-
-  emptyHistoryWrap: {
-    backgroundColor: '#FFF', borderRadius: 24, padding: 32, alignItems: 'center',
-  },
-
-  modalCloseBtn: {
-    width: 44, height: 44, borderRadius: 22,
-    backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center'
-  },
-  formGroup: { marginBottom: 16 },
-  formLabel: { fontSize: 13, ...FONT.bold, color: '#475569', marginBottom: 6 },
-  formInput: {
-    backgroundColor: '#FAFBFF', borderWidth: 1.5, borderColor: '#E2E8F0', borderRadius: 20,
-    paddingHorizontal: 16, paddingVertical: 12, fontSize: 15, color: '#0F172A', ...FONT.medium,
-    height: 48,
-  },
+  delIconBox: { width: 60, height: 60, borderRadius: 30, backgroundColor: C.dangerBg, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+  delTitle: { fontSize: 20, fontWeight: '800', color: C.dark, textAlign: 'center', marginBottom: 10 },
+  delBody:  { fontSize: 15, color: C.mid,  textAlign: 'center', lineHeight: 22, marginBottom: 24 },
+  delBtnRow: { flexDirection: 'row', gap: 12, width: '100%' },
+  delCancelBtn:  { flex: 1, paddingVertical: 14, borderRadius: 16, alignItems: 'center', backgroundColor: '#F1F5F9' },
+  delCancelText: { fontSize: 15, fontWeight: '700', color: C.mid },
+  delConfirmBtn: { flex: 1, paddingVertical: 14, borderRadius: 16, alignItems: 'center', backgroundColor: C.danger },
+  delConfirmText: { fontSize: 15, fontWeight: '700', color: '#FFF' },
 });
