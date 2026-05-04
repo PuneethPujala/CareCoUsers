@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Health Dashboard — SMALL (2×1): AI badge bar -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_bg_adaptive"
+    android:orientation="horizontal"
+    android:padding="12dp"
+    android:gravity="center_vertical">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="♥"
+        android:textColor="@color/widget_vital_heart"
+        android:textSize="20sp"
+        android:layout_marginEnd="8dp" />
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Health Status"
+            android:textColor="@color/widget_text_primary"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/widget_ai_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="No data"
+            android:textColor="@color/widget_text_secondary"
+            android:textSize="11sp" />
+    </LinearLayout>
+
+    <!-- AI badge -->
+    <TextView
+        android:id="@+id/widget_ai_badge"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:background="@drawable/widget_pill_bg"
+        android:paddingHorizontal="10dp"
+        android:paddingVertical="4dp"
+        android:text="—"
+        android:textColor="@color/widget_text_secondary"
+        android:textSize="11sp"
+        android:textStyle="bold" />
+</LinearLayout>

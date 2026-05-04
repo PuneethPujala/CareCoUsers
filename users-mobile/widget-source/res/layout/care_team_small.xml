@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Care Team — SMALL (2×1): Caller name + call icon -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_bg_adaptive"
+    android:orientation="horizontal"
+    android:padding="12dp"
+    android:gravity="center_vertical">
+
+    <!-- Avatar initial -->
+    <FrameLayout
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:layout_marginEnd="10dp">
+        <TextView
+            android:id="@+id/widget_caller_avatar"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:background="@drawable/widget_pill_bg"
+            android:gravity="center"
+            android:text="?"
+            android:textColor="@color/widget_accent_color"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+    </FrameLayout>
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/widget_caller_name"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="No caller assigned"
+            android:textColor="@color/widget_text_primary"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:maxLines="1"
+            android:ellipsize="end" />
+
+        <TextView
+            android:id="@+id/widget_caller_role"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Your Care Caller"
+            android:textColor="@color/widget_text_secondary"
+            android:textSize="10sp" />
+    </LinearLayout>
+
+    <!-- Call icon -->
+    <ImageView
+        android:id="@+id/widget_call_btn"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:src="@drawable/ic_health_shield"
+        android:tint="@color/widget_accent_color"
+        android:padding="4dp" />
+</LinearLayout>

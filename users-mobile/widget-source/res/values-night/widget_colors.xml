@@ -1,8 +1,48 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Base -->
     <color name="widget_bg_color">#1E1E1E</color>
     <color name="widget_text_primary">#F9FAFB</color>
     <color name="widget_text_secondary">#9CA3AF</color>
+    <color name="widget_text_muted">#6B7280</color>
     <color name="widget_accent_color">#8C7DFF</color>
     <color name="widget_progress_bg">#3B3654</color>
+    <color name="widget_divider">#374151</color>
+    <color name="widget_card_bg">#2D2D2D</color>
+
+    <!-- Vitals -->
+    <color name="widget_vital_heart">#F87171</color>
+    <color name="widget_vital_heart_bg">#3B1C1C</color>
+    <color name="widget_vital_bp">#818CF8</color>
+    <color name="widget_vital_bp_bg">#2E2B5E</color>
+    <color name="widget_vital_oxygen">#38BDF8</color>
+    <color name="widget_vital_oxygen_bg">#1A3A4A</color>
+    <color name="widget_vital_hydration">#22D3EE</color>
+    <color name="widget_vital_hydration_bg">#1A3A40</color>
+
+    <!-- AI Status -->
+    <color name="widget_ai_healthy">#34D399</color>
+    <color name="widget_ai_healthy_bg">#1A3A2A</color>
+    <color name="widget_ai_warning">#FBBF24</color>
+    <color name="widget_ai_warning_bg">#3A321A</color>
+    <color name="widget_ai_critical">#F87171</color>
+    <color name="widget_ai_critical_bg">#3B1C1C</color>
+
+    <!-- Streak / Motivation -->
+    <color name="widget_streak_orange">#FB923C</color>
+    <color name="widget_streak_orange_bg">#3A2A1A</color>
+    <color name="widget_success">#34D399</color>
+    <color name="widget_success_bg">#1A3A2A</color>
+    <color name="widget_premium_purple">#C084FC</color>
+    <color name="widget_premium_purple_bg">#2E1A4A</color>
+
+    <!-- Care Team -->
+    <color name="widget_care_team_gradient_start">#6366F1</color>
+    <color name="widget_care_team_gradient_end">#818CF8</color>
+
+    <!-- Slot accents -->
+    <color name="widget_slot_morning">#FB923C</color>
+    <color name="widget_slot_afternoon">#38BDF8</color>
+    <color name="widget_slot_evening">#C084FC</color>
+    <color name="widget_slot_night">#818CF8</color>
 </resources>

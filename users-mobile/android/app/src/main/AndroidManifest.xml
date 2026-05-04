@@ -44,6 +44,30 @@
       </intent-filter>
       <meta-data android:name="android.appwidget.provider" android:resource="@xml/medicine_widget_info"/>
     </receiver>
+    <receiver android:name=".HealthDashboardWidgetProvider" android:exported="true" android:label="@string/widget_health_label">
+      <intent-filter>
+        <action android:name="android.appwidget.action.APPWIDGET_UPDATE"/>
+      </intent-filter>
+      <meta-data android:name="android.appwidget.provider" android:resource="@xml/health_dashboard_widget_info"/>
+    </receiver>
+    <receiver android:name=".MotivationWidgetProvider" android:exported="true" android:label="@string/widget_motivation_label">
+      <intent-filter>
+        <action android:name="android.appwidget.action.APPWIDGET_UPDATE"/>
+      </intent-filter>
+      <meta-data android:name="android.appwidget.provider" android:resource="@xml/motivation_widget_info"/>
+    </receiver>
+    <receiver android:name=".CareTeamWidgetProvider" android:exported="true" android:label="@string/widget_care_team_label">
+      <intent-filter>
+        <action android:name="android.appwidget.action.APPWIDGET_UPDATE"/>
+      </intent-filter>
+      <meta-data android:name="android.appwidget.provider" android:resource="@xml/care_team_widget_info"/>
+    </receiver>
+    <receiver android:name=".QuickGlanceWidgetProvider" android:exported="true" android:label="@string/widget_quick_glance_label">
+      <intent-filter>
+        <action android:name="android.appwidget.action.APPWIDGET_UPDATE"/>
+      </intent-filter>
+      <meta-data android:name="android.appwidget.provider" android:resource="@xml/quick_glance_widget_info"/>
+    </receiver>
     <activity-alias android:name="ViewPermissionUsageActivity" android:exported="true" android:targetActivity=".MainActivity" android:permission="android.permission.START_VIEW_PERMISSION_USAGE">
       <intent-filter>
         <action android:name="android.intent.action.VIEW_PERMISSION_USAGE"/>
