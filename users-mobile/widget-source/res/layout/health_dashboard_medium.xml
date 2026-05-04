@@ -1,0 +1,197 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Health Dashboard — MEDIUM (2×2): 4-cell vitals grid -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_bg_adaptive"
+    android:orientation="vertical"
+    android:padding="14dp">
+
+    <!-- Title row -->
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="10dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentStart="true"
+            android:layout_centerVertical="true"
+            android:text="My Vitals"
+            android:textColor="@color/widget_text_primary"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/widget_ai_badge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentEnd="true"
+            android:layout_centerVertical="true"
+            android:background="@drawable/widget_pill_bg"
+            android:paddingHorizontal="8dp"
+            android:paddingVertical="3dp"
+            android:text="—"
+            android:textColor="@color/widget_ai_healthy"
+            android:textSize="10sp"
+            android:textStyle="bold" />
+    </RelativeLayout>
+
+    <!-- 2×2 Vitals grid -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <!-- Row 1: Heart Rate + BP -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:orientation="horizontal">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:layout_marginEnd="4dp"
+                android:layout_marginBottom="4dp"
+                android:background="@drawable/widget_vitals_cell_bg"
+                android:orientation="vertical"
+                android:padding="8dp"
+                android:gravity="center_vertical">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Heart Rate"
+                    android:textColor="@color/widget_vital_heart"
+                    android:textSize="10sp"
+                    android:textStyle="bold" />
+                <TextView
+                    android:id="@+id/vital_heart_rate"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="—"
+                    android:textColor="@color/widget_text_primary"
+                    android:textSize="18sp"
+                    android:textStyle="bold" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="bpm"
+                    android:textColor="@color/widget_text_muted"
+                    android:textSize="9sp" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:layout_marginStart="4dp"
+                android:layout_marginBottom="4dp"
+                android:background="@drawable/widget_vitals_cell_bg"
+                android:orientation="vertical"
+                android:padding="8dp"
+                android:gravity="center_vertical">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Blood Pressure"
+                    android:textColor="@color/widget_vital_bp"
+                    android:textSize="10sp"
+                    android:textStyle="bold" />
+                <TextView
+                    android:id="@+id/vital_bp"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="—"
+                    android:textColor="@color/widget_text_primary"
+                    android:textSize="18sp"
+                    android:textStyle="bold" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="mmHg"
+                    android:textColor="@color/widget_text_muted"
+                    android:textSize="9sp" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Row 2: O2 + Hydration -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:orientation="horizontal">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:layout_marginEnd="4dp"
+                android:layout_marginTop="4dp"
+                android:background="@drawable/widget_vitals_cell_bg"
+                android:orientation="vertical"
+                android:padding="8dp"
+                android:gravity="center_vertical">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Oxygen"
+                    android:textColor="@color/widget_vital_oxygen"
+                    android:textSize="10sp"
+                    android:textStyle="bold" />
+                <TextView
+                    android:id="@+id/vital_oxygen"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="—"
+                    android:textColor="@color/widget_text_primary"
+                    android:textSize="18sp"
+                    android:textStyle="bold" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="%"
+                    android:textColor="@color/widget_text_muted"
+                    android:textSize="9sp" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:layout_marginStart="4dp"
+                android:layout_marginTop="4dp"
+                android:background="@drawable/widget_vitals_cell_bg"
+                android:orientation="vertical"
+                android:padding="8dp"
+                android:gravity="center_vertical">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Hydration"
+                    android:textColor="@color/widget_vital_hydration"
+                    android:textSize="10sp"
+                    android:textStyle="bold" />
+                <TextView
+                    android:id="@+id/vital_hydration"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="—"
+                    android:textColor="@color/widget_text_primary"
+                    android:textSize="18sp"
+                    android:textStyle="bold" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="%"
+                    android:textColor="@color/widget_text_muted"
+                    android:textSize="9sp" />
+            </LinearLayout>
+        </LinearLayout>
+    </LinearLayout>
+</LinearLayout>
