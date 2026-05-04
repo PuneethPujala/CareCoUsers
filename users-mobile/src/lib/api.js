@@ -247,6 +247,8 @@ export const apiService = {
 
         requestScreenshotOTP: () => api.post('/users/patients/me/security/screenshots/request-otp'),
         verifyScreenshotOTP: (data) => api.post('/users/patients/me/security/screenshots/verify', data),
+        requestEcOTP: () => api.post('/users/patients/me/security/emergency-contact/request-otp'),
+        verifyEcOTP: (data) => api.post('/users/patients/me/security/emergency-contact/verify', data),
     },
 
     callers: {

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import {
     View, Text, StyleSheet, ScrollView, Platform, Pressable, Modal,
-    TextInput, Switch, Animated, StatusBar, FlatList, KeyboardAvoidingView,
+    TextInput, Switch, Animated, StatusBar, FlatList, KeyboardAvoidingView, Alert,
 } from 'react-native';
 import SmartInput from '../../components/ui/SmartInput';
 import PremiumFormModal from '../../components/ui/PremiumFormModal';
@@ -102,7 +102,11 @@ export default function PatientProfileScreen({ navigation }) {
     const [dobDay, setDobDay] = useState(1);
     const [dobMonth, setDobMonth] = useState(1);
     const [dobYear, setDobYear] = useState(2000);
-    const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const MONTHS = [
+        t('months.jan'), t('months.feb'), t('months.mar'), t('months.apr'),
+        t('months.may'), t('months.jun'), t('months.jul'), t('months.aug'),
+        t('months.sep'), t('months.oct'), t('months.nov'), t('months.dec'),
+    ];
     const DAYS = Array.from({ length: 31 }, (_, i) => i + 1);
     const YEARS = Array.from({ length: new Date().getFullYear() - 1919 }, (_, i) => new Date().getFullYear() - i);
 
@@ -142,6 +146,12 @@ export default function PatientProfileScreen({ navigation }) {
     const [screenshotOTP, setScreenshotOTP] = useState('');
     const [verifyingScreenshotOTP, setVerifyingScreenshotOTP] = useState(false);
     const [pendingScreenshotSetting, setPendingScreenshotSetting] = useState(false);
+
+    // Emergency Contact OTP
+    const [ecOTPModalVisible, setEcOTPModalVisible] = useState(false);
+    const [ecOTP, setEcOTP] = useState('');
+    const [verifyingEcOTP, setVerifyingEcOTP] = useState(false);
+    const [requestingEcOTP, setRequestingEcOTP] = useState(false);
 
     const staggerAnims = React.useRef([...Array(12)].map(() => new Animated.Value(0))).current;
 
@@ -230,15 +240,38 @@ export default function PatientProfileScreen({ navigation }) {
             const phoneErr = validatePhone(ecPhone, ecPhoneCode);
             if (phoneErr) { AlertManager.alert(t('profile.invalid_phone', { defaultValue: 'Invalid Phone' }), phoneErr); return; }
         }
-        setSaving(true);
+        setRequestingEcOTP(true);
+        try {
+            await apiService.patients.requestEcOTP();
+            setEcOTP('');
+            setEcModalVisible(false);
+            setEcOTPModalVisible(true);
+        } catch (err) {
+            AlertManager.alert(t('common.error', { defaultValue: 'Error' }), err?.response?.data?.error || t('profile.request_otp_error', { defaultValue: 'Failed to request OTP. Please try again later.' }));
+        } finally {
+            setRequestingEcOTP(false);
+        }
+    };
+
+    const handleVerifyEcOTP = async () => {
+        if (!ecOTP || ecOTP.length !== 6) {
+            AlertManager.alert(t('common.invalid', { defaultValue: 'Invalid' }), t('profile.invalid_otp', { defaultValue: 'Please enter a valid 6-digit OTP.' }));
+            return;
+        }
+        setVerifyingEcOTP(true);
         const fullEcPhone = ecPhone ? `${ecPhoneCode}${ecPhone.replace(/[^0-9]/g, '')}` : '';
         try {
-            await apiService.patients.updateEmergencyContact({ name: ecName, phone: fullEcPhone, relation: ecRelation });
-            setPatient(prev => ({ ...prev, emergency_contact: { name: ecName, phone: fullEcPhone, relation: ecRelation } }));
-            setEcModalVisible(false);
+            const res = await apiService.patients.verifyEcOTP({ otp: ecOTP, name: ecName, phone: fullEcPhone, relation: ecRelation });
+            setPatient(res.data.patient);
+            const ec = res.data.patient?.emergency_contact;
+            if (ec) { setEcName(ec.name || ''); setEcPhone(ec.phone || ''); setEcRelation(ec.relation || ''); }
+            setEcOTPModalVisible(false);
             AlertManager.alert(t('common.success', { defaultValue: 'Success' }), t('profile.ec_updated', { defaultValue: 'Emergency contact updated.' }));
-        } catch { AlertManager.alert(t('common.error', { defaultValue: 'Error' }), t('profile.ec_update_error', { defaultValue: 'Failed to update emergency contact.' })); }
-        finally { setSaving(false); }
+        } catch (err) {
+            AlertManager.alert(t('profile.verification_failed', { defaultValue: 'Verification Failed' }), err?.response?.data?.error || t('profile.invalid_expired_otp', { defaultValue: 'Invalid or expired OTP.' }));
+        } finally {
+            setVerifyingEcOTP(false);
+        }
     };
 
     const handleSaveAccount = async () => {
@@ -758,7 +791,7 @@ export default function PatientProfileScreen({ navigation }) {
 
                         <InfoRow icon={FileText} iconBg="#F0FDF4" iconColor="#16A34A" label={t('profile.download_my_data', { defaultValue: 'Download My Data' })} value={null} placeholder={t('profile.export_records', { defaultValue: 'Export your records' })} onPress={async () => {
                             try {
-                                const { data } = await apiService.auth.exportMyData();
+                                await apiService.auth.exportMyData();
                                 AlertManager.alert(t('profile.data_export_title', { defaultValue: 'Data Export' }), t('profile.data_export_desc', { defaultValue: 'Your data export has been prepared. In production, this will download as a file.' }));
                             } catch (e) {
                                 AlertManager.alert(t('common.error', { defaultValue: 'Error' }), t('profile.data_export_error', { defaultValue: 'Failed to export data.' }));
@@ -871,9 +904,9 @@ export default function PatientProfileScreen({ navigation }) {
             {/* ════════════════════  MODALS  ════════════════════ */}
 
             {/* ── Gender Picker ── */}
-            <Modal visible={genderModalVisible} animationType="slide" transparent onRequestClose={() => setGenderModalVisible(false)}>
-                <View style={s.modalOverlay}>
-                    <View style={s.modalContent}>
+            <Modal visible={genderModalVisible} animationType="fade" transparent onRequestClose={() => setGenderModalVisible(false)}>
+                <Pressable style={s.centeredOverlay} onPress={() => setGenderModalVisible(false)}>
+                    <Pressable style={s.centeredContent} onPress={(e) => e.stopPropagation()}>
                         <View style={s.modalHeader}>
                             <Text style={s.modalTitle}>{t('profile.select_gender', { defaultValue: 'Select Gender' })}</Text>
                             <Pressable onPress={() => setGenderModalVisible(false)} hitSlop={10}><X size={24} color="#64748B" /></Pressable>
@@ -884,14 +917,14 @@ export default function PatientProfileScreen({ navigation }) {
                                 {patient?.gender === g && <ShieldCheck size={18} color={C.primary} />}
                             </Pressable>
                         ))}
-                    </View>
-                </View>
+                    </Pressable>
+                </Pressable>
             </Modal>
 
             {/* ── Blood Group Picker ── */}
-            <Modal visible={bloodModalVisible} animationType="slide" transparent onRequestClose={() => setBloodModalVisible(false)}>
-                <View style={s.modalOverlay}>
-                    <View style={s.modalContent}>
+            <Modal visible={bloodModalVisible} animationType="fade" transparent onRequestClose={() => setBloodModalVisible(false)}>
+                <Pressable style={s.centeredOverlay} onPress={() => setBloodModalVisible(false)}>
+                    <Pressable style={s.centeredContent} onPress={(e) => e.stopPropagation()}>
                         <View style={s.modalHeader}>
                             <Text style={s.modalTitle}>{t('profile.select_blood_group', { defaultValue: 'Select Blood Group' })}</Text>
                             <Pressable onPress={() => setBloodModalVisible(false)} hitSlop={10}><X size={24} color="#64748B" /></Pressable>
@@ -903,8 +936,8 @@ export default function PatientProfileScreen({ navigation }) {
                                 </Pressable>
                             ))}
                         </View>
-                    </View>
-                </View>
+                    </Pressable>
+                </Pressable>
             </Modal>
 
             {/* ── Phone Edit ── */}
@@ -933,8 +966,8 @@ export default function PatientProfileScreen({ navigation }) {
                 title={t('profile.emergency_contact', { defaultValue: 'Emergency Contact' })}
                 onClose={() => setEcModalVisible(false)}
                 onSave={handleSaveEC}
-                saveText={saving ? t('common.saving', { defaultValue: 'Saving...' }) : t('caller.save_contact', { defaultValue: 'Save Contact' })}
-                saving={saving}
+                saveText={requestingEcOTP ? t('common.saving', { defaultValue: 'Saving...' }) : t('caller.save_contact', { defaultValue: 'Save Contact' })}
+                saving={requestingEcOTP}
             >
                 <SmartInput label={t('common.name', { defaultValue: 'Name' })} value={ecName} onChangeText={setEcName} placeholder={t('caller.name_placeholder', { defaultValue: 'Contact name' })} />
                 <Text style={s.inputLabel}>{t('common.phone', { defaultValue: 'Phone' })}</Text>
@@ -1041,7 +1074,26 @@ export default function PatientProfileScreen({ navigation }) {
                 />
             </PremiumFormModal>
 
-
+            {/* ── Emergency Contact OTP ── */}
+            <PremiumFormModal
+                visible={ecOTPModalVisible}
+                title={t('profile.security_verification', { defaultValue: 'Security Verification' })}
+                onClose={() => setEcOTPModalVisible(false)}
+                onSave={handleVerifyEcOTP}
+                saveText={verifyingEcOTP ? t('common.verifying', { defaultValue: 'Verifying...' }) : t('profile.verify_setup', { defaultValue: 'Verify & Setup' })}
+                saving={verifyingEcOTP}
+            >
+                <Text style={[s.inputLabel, { marginTop: 4, textTransform: 'none' }]}>
+                    Enter the 6-digit code sent to your email to verify the emergency contact change.
+                </Text>
+                <SmartInput
+                    value={ecOTP}
+                    onChangeText={(v) => setEcOTP(v.replace(/[^0-9]/g, ''))}
+                    placeholder="••••••"
+                    keyboardType="number-pad"
+                    maxLength={6}
+                />
+            </PremiumFormModal>
 
             {/* ── DOB Picker (Scroll Wheels) ── */}
             <PremiumFormModal
@@ -1346,6 +1398,8 @@ const s = StyleSheet.create({
     /* Modals */
     modalOverlay: { flex: 1, backgroundColor: 'rgba(15,23,42,0.6)', justifyContent: 'flex-end' },
     modalContent: { backgroundColor: C.white, borderTopLeftRadius: 36, borderTopRightRadius: 36, padding: 24, paddingBottom: 40, maxHeight: '85%' },
+    centeredOverlay: { flex: 1, backgroundColor: 'rgba(15,23,42,0.6)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
+    centeredContent: { backgroundColor: C.white, borderRadius: 28, padding: 24, width: '100%', maxWidth: 420 },
     modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
     modalTitle: { fontSize: 22, fontWeight: '800', color: C.dark },
     modalSubTxt: { fontSize: 14, color: C.muted, marginBottom: 20 },
