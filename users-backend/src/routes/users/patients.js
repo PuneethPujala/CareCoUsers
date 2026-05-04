@@ -968,4 +968,62 @@ router.post('/me/security/screenshots/verify', authenticateSession, async (req, 
     }
 });
 
+// ─── Emergency Contact OTP ────────────────────────────────────────────────────
+
+router.post('/me/security/emergency-contact/request-otp', authenticateSession, async (req, res) => {
+    try {
+        const patient = await getOrCreatePatient(req);
+        const otpService = require('../../services/otpService');
+        const emailService = require('../../services/emailService');
+        const otp = await otpService.createOTP(patient.email);
+        await emailService.sendSecurityOTPEmail(patient.email, otp);
+        res.json({ message: 'OTP sent successfully to your registered email' });
+    } catch (err) {
+        logger.error('Request EC OTP error', { error: err.message, patientId: req.user?.id });
+        res.status(500).json({ error: 'Server Error' });
+    }
+});
+
+router.post('/me/security/emergency-contact/verify', authenticateSession, async (req, res) => {
+    try {
+        const { otp, name, phone, relation } = req.body;
+        if (!otp) return res.status(400).json({ error: 'OTP is required' });
+        const patient = await getOrCreatePatient(req);
+        const otpService = require('../../services/otpService');
+        const verification = await otpService.verifyOTP(patient.email, otp);
+        if (!verification.valid) return res.status(400).json({ error: verification.reason });
+
+        if (!name && !phone) {
+            await Patient.updateOne({ _id: patient._id }, { $pull: { trusted_contacts: { is_emergency: true } } });
+        } else {
+            const existingEmergencyContact = patient.trusted_contacts.find(c => c.is_emergency);
+            if (existingEmergencyContact) {
+                await Patient.updateOne(
+                    { _id: patient._id, 'trusted_contacts._id': existingEmergencyContact._id },
+                    {
+                        $set: {
+                            'trusted_contacts.$.name': name,
+                            'trusted_contacts.$.phone': phone,
+                            'trusted_contacts.$.relation': relation,
+                            'trusted_contacts.$.is_emergency': true,
+                        },
+                    }
+                );
+            } else {
+                await Patient.updateOne(
+                    { _id: patient._id },
+                    { $push: { trusted_contacts: { name, phone, relation, is_emergency: true, is_primary: true } } }
+                );
+            }
+        }
+
+        const updated = await Patient.findById(patient._id);
+        logger.info('Emergency contact updated via OTP', { patientId: patient._id });
+        res.json({ patient: updated, message: 'Emergency contact updated successfully' });
+    } catch (err) {
+        logger.error('Verify EC OTP error', { error: err.message, patientId: req.user?.id });
+        res.status(500).json({ error: 'Server Error' });
+    }
+});
+
 module.exports = router;
