@@ -187,7 +187,14 @@ const usePatientStore = create((set, get) => ({
                 meds: freshMeds,
             }, 60);
 
-            WidgetBridge.updateMedicineWidget(freshMeds);
+            WidgetBridge.updateAllWidgets({
+                meds: freshMeds,
+                vitals: freshVitals,
+                aiPrediction: aiRes.data.prediction,
+                adherenceDetails: adhRes.data,
+                patient: freshPatient,
+                vitalsHistory: vHistRes.data.vitals || [],
+            });
 
             return { patient: freshPatient, vitals: freshVitals, meds: freshMeds };
         } catch (err) {
@@ -261,7 +268,7 @@ const usePatientStore = create((set, get) => ({
                 _optimisticMeds: optRef,
             });
 
-            WidgetBridge.updateMedicineWidget(mergedMeds);
+            WidgetBridge.updateAllWidgets({ meds: mergedMeds, patient: freshPatient });
         } catch (err) {
             console.warn('[Store] fetchMedications error:', err.message);
             set({ loading: false });
@@ -301,7 +308,7 @@ const usePatientStore = create((set, get) => ({
             return { medicationSchedule: schedule };
         });
 
-        WidgetBridge.updateMedicineWidget(get().dashboardMeds);
+        WidgetBridge.updateAllWidgets({ meds: get().dashboardMeds, patient: get().patient, vitals: get().vitals });
 
         try {
             await apiService.medicines.markMedicine({
