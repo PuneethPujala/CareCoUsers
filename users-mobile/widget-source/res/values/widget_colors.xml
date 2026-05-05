@@ -47,8 +47,7 @@
     <color name="widget_slot_night">#6366F1</color>
 
     <!-- Strings (widget labels/descriptions) -->
-    <string name="widget_label">CareMyMed Medications</string>
-    <string name="widget_description">Track your daily medications</string>
+
     <string name="widget_health_label">Health Dashboard</string>
     <string name="widget_health_description">View your vitals at a glance</string>
     <string name="widget_motivation_label">Streak &amp; Motivation</string>
