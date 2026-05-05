@@ -1,8 +1,60 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Base -->
     <color name="widget_bg_color">#FFFFFF</color>
     <color name="widget_text_primary">#000000</color>
     <color name="widget_text_secondary">#757575</color>
+    <color name="widget_text_muted">#94A3B8</color>
     <color name="widget_accent_color">#6B4EFF</color>
     <color name="widget_progress_bg">#E8E2FF</color>
+    <color name="widget_divider">#F1F5F9</color>
+    <color name="widget_card_bg">#F8FAFC</color>
+
+    <!-- Vitals -->
+    <color name="widget_vital_heart">#EF4444</color>
+    <color name="widget_vital_heart_bg">#FEE2E2</color>
+    <color name="widget_vital_bp">#6366F1</color>
+    <color name="widget_vital_bp_bg">#EEF2FF</color>
+    <color name="widget_vital_oxygen">#0EA5E9</color>
+    <color name="widget_vital_oxygen_bg">#E0F2FE</color>
+    <color name="widget_vital_hydration">#06B6D4</color>
+    <color name="widget_vital_hydration_bg">#CFFAFE</color>
+
+    <!-- AI Status -->
+    <color name="widget_ai_healthy">#10B981</color>
+    <color name="widget_ai_healthy_bg">#D1FAE5</color>
+    <color name="widget_ai_warning">#F59E0B</color>
+    <color name="widget_ai_warning_bg">#FEF3C7</color>
+    <color name="widget_ai_critical">#EF4444</color>
+    <color name="widget_ai_critical_bg">#FEE2E2</color>
+
+    <!-- Streak / Motivation -->
+    <color name="widget_streak_orange">#F97316</color>
+    <color name="widget_streak_orange_bg">#FFF7ED</color>
+    <color name="widget_success">#10B981</color>
+    <color name="widget_success_bg">#ECFDF5</color>
+    <color name="widget_premium_purple">#A855F7</color>
+    <color name="widget_premium_purple_bg">#FAF5FF</color>
+
+    <!-- Care Team -->
+    <color name="widget_care_team_gradient_start">#4F46E5</color>
+    <color name="widget_care_team_gradient_end">#6366F1</color>
+
+    <!-- Slot accents -->
+    <color name="widget_slot_morning">#F97316</color>
+    <color name="widget_slot_afternoon">#0EA5E9</color>
+    <color name="widget_slot_evening">#A855F7</color>
+    <color name="widget_slot_night">#6366F1</color>
+
+    <!-- Strings (widget labels/descriptions) -->
+    <string name="widget_label">CareMyMed Medications</string>
+    <string name="widget_description">Track your daily medications</string>
+    <string name="widget_health_label">Health Dashboard</string>
+    <string name="widget_health_description">View your vitals at a glance</string>
+    <string name="widget_motivation_label">Streak &amp; Motivation</string>
+    <string name="widget_motivation_description">Track your medication streak</string>
+    <string name="widget_care_team_label">Care Team</string>
+    <string name="widget_care_team_description">Quick access to your care team</string>
+    <string name="widget_quick_glance_label">Quick Glance</string>
+    <string name="widget_quick_glance_description">Overview of your health</string>
 </resources>
