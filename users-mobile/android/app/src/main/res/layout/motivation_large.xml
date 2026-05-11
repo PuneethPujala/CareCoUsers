@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Motivation — LARGE (4×2): Streak + adherence + premium + daily tip -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_bg_adaptive"
+    android:orientation="horizontal"
+    android:padding="14dp">
+
+    <!-- Left: Streak + Adherence + Premium -->
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:layout_marginEnd="10dp">
+
+        <!-- Streak -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="10dp">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="●" android:textSize="18sp" android:textColor="@color/widget_streak_orange" android:layout_marginEnd="6dp" />
+            <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:orientation="vertical">
+                <TextView android:id="@+id/widget_streak" android:layout_width="wrap_content"
+                    android:layout_height="wrap_content" android:text="0-day streak"
+                    android:textColor="@color/widget_streak_orange" android:textSize="15sp"
+                    android:textStyle="bold" />
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:text="Keep it going!" android:textColor="@color/widget_text_secondary"
+                    android:textSize="10sp" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Adherence bar -->
+        <RelativeLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginBottom="4dp">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:layout_alignParentStart="true" android:text="Adherence"
+                android:textColor="@color/widget_text_muted" android:textSize="10sp" />
+            <TextView android:id="@+id/widget_adherence_pct" android:layout_width="wrap_content"
+                android:layout_height="wrap_content" android:layout_alignParentEnd="true"
+                android:text="0%" android:textColor="@color/widget_accent_color"
+                android:textSize="10sp" android:textStyle="bold" />
+        </RelativeLayout>
+        <ProgressBar android:id="@+id/widget_adherence_bar"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent" android:layout_height="8dp"
+            android:progressDrawable="@drawable/widget_progress_bar"
+            android:max="100" android:progress="0" android:layout_marginBottom="10dp" />
+
+        <!-- Premium -->
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:background="@drawable/widget_vitals_cell_bg" android:orientation="horizontal"
+            android:gravity="center_vertical" android:padding="8dp">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="★" android:textSize="14sp" android:textColor="@color/widget_premium_purple" android:layout_marginEnd="6dp" />
+            <TextView android:id="@+id/widget_premium_text" android:layout_width="0dp"
+                android:layout_height="wrap_content" android:layout_weight="1"
+                android:text="Premium: — days" android:textColor="@color/widget_premium_purple"
+                android:textSize="11sp" android:textStyle="bold" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Right: Daily Health Tip -->
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:background="@drawable/widget_vitals_cell_bg"
+        android:orientation="vertical"
+        android:padding="10dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="6dp">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="TIP" android:textSize="10sp" android:textColor="@color/widget_accent_color" android:textStyle="bold" android:layout_marginEnd="5dp" />
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="DAILY TIP" android:textColor="@color/widget_accent_color"
+                android:textSize="10sp" android:textStyle="bold" android:letterSpacing="0.1" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/widget_tip_text"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:text="Open CareMyMed to get health tips!"
+            android:textColor="@color/widget_text_primary"
+            android:textSize="12sp"
+            android:lineSpacingMultiplier="1.2"
+            android:maxLines="5"
+            android:ellipsize="end" />
+    </LinearLayout>
+</LinearLayout>

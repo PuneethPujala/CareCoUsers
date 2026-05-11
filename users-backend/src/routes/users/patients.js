@@ -12,8 +12,41 @@ const logger = require('../../utils/logger');
 const { getOrCreatePatient, createBasicPatient, findOrCreatePatientRecord } = require('../../utils/patientHelpers');
 const { authenticateSession } = require('../../middleware/authenticate');
 const { validateObjectId } = require('../../middleware/validateObjectId');
+const { computeHealthScore } = require('../../services/healthScoreService');
 
 const router = express.Router();
+
+/**
+ * Refresh the healthScoreCache on the patient document.
+ * Called fire-and-forget from any mutating endpoint so admin queries stay fresh.
+ * Does NOT block the response.
+ */
+async function refreshHealthScoreCache(patientId) {
+    try {
+        const patient = await Patient.findById(patientId);
+        if (!patient) return;
+
+        // 7-day adherence rate
+        const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+        const logs = await MedicineLog.find({ patient_id: patientId, date: { $gte: weekAgo } });
+        let adherenceRate = null;
+        if (logs.length > 0) {
+            const taken = logs.filter(l => l.status === 'taken').length;
+            adherenceRate = (taken / logs.length) * 100;
+        }
+
+        // Latest vitals
+        const latestVital = await VitalLog.findOne({ patient_id: patientId }).sort({ recorded_at: -1 }).lean();
+
+        const result = computeHealthScore(patient.toObject(), adherenceRate, latestVital);
+        await Patient.updateOne(
+            { _id: patientId },
+            { $set: { healthScoreCache: result.score, healthScoreUpdatedAt: new Date() } }
+        );
+    } catch (err) {
+        logger.warn('Failed to refresh health score cache', { error: err.message, patientId });
+    }
+}
 
 // ─── Subscription & Onboarding ────────────────────────────────────────────────
 
@@ -352,9 +385,6 @@ router.get('/me/profile', authenticateSession, async (req, res) => {
         const patientObj = patient.toObject();
 
         // Merge top-level legacy fields with the actual lifestyle subdocument.
-        // The PUT /me/lifestyle handler writes to patient.lifestyle.*, so we must
-        // read from there. Legacy top-level fields (height_cm, weight_kg, etc.)
-        // are kept as fallbacks for patients who haven't used the new lifestyle form yet.
         const savedLifestyle = patientObj.lifestyle || {};
         patientObj.lifestyle = {
             height_cm: savedLifestyle.height_cm ?? patientObj.height_cm,
@@ -368,6 +398,31 @@ router.get('/me/profile', authenticateSession, async (req, res) => {
             device_sync_status: savedLifestyle.device_sync_status || null,
         };
         patientObj.gp = { name: patientObj.gp_name, phone: patientObj.gp_phone, email: patientObj.gp_email };
+
+        // ── Compute live health score ──────────────────────────────────────────
+        // 7-day adherence rate from MedicineLog
+        const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+        const [logs, latestVital] = await Promise.all([
+            MedicineLog.find({ patient_id: patient._id, date: { $gte: weekAgo } }).lean(),
+            VitalLog.findOne({ patient_id: patient._id }).sort({ recorded_at: -1 }).lean(),
+        ]);
+
+        let adherenceRate = null;
+        if (logs.length > 0) {
+            const taken = logs.filter(l => l.status === 'taken').length;
+            adherenceRate = (taken / logs.length) * 100;
+        }
+
+        const healthScore = computeHealthScore(patientObj, adherenceRate, latestVital);
+        patientObj.health_score = healthScore;
+
+        // Write to cache asynchronously — don't block the response
+        Patient.updateOne(
+            { _id: patient._id },
+            { $set: { healthScoreCache: healthScore.score, healthScoreUpdatedAt: new Date() } }
+        ).catch(e => logger.warn('Health score cache write failed', { error: e.message }));
+        // ─────────────────────────────────────────────────────────────────────
+
         res.json(patientObj);
     } catch (err) {
         logger.error('Profile fetch error', { error: err.message, patientId: req.user?.id });
@@ -389,6 +444,8 @@ const updateProfileArray = (field) => async (req, res) => {
         }
         req.patient = await Patient.findById(patient._id);
         logger.info(`${field} updated`, { patientId: patient._id });
+        // Refresh health score cache in background
+        refreshHealthScoreCache(patient._id).catch(() => {});
         res.json({ message: `${field} updated`, patient: req.patient });
     } catch (err) {
         logger.error(`Update ${field} error`, { error: err.message, patientId: req.user?.id });
@@ -456,6 +513,8 @@ router.put('/me/lifestyle', authenticateSession, async (req, res) => {
         
         patient.markModified('lifestyle');
         await patient.save();
+        // Refresh health score cache in background
+        refreshHealthScoreCache(patient._id).catch(() => {});
         res.json({ message: 'Lifestyle updated', patient });
     } catch (err) {
         logger.error('Update lifestyle error', { error: err.message, patientId: req.user?.id });
@@ -759,6 +818,8 @@ router.put('/me/medications', authenticateSession, async (req, res) => {
 
         req.patient = await Patient.findById(patient._id);
         logger.info('Medications updated', { patientId: patient._id });
+        // Refresh health score cache in background
+        refreshHealthScoreCache(patient._id).catch(() => {});
         res.json({ medications: req.patient.medications });
     } catch (error) {
         logger.error('Update medications error', { error: error.message, patientId: req.user?.id });
