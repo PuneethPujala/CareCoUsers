@@ -424,6 +424,19 @@ const PatientSchema = new mongoose.Schema(
             type: Date,
             default: () => new Date(Date.now() + 24 * 60 * 60 * 1000),
         },
+
+        // ── Health Score Cache ────────────────────────
+        // Computed live on /me/profile; persisted here for admin queries.
+        // Refreshed on every data-mutating write (conditions, lifestyle, meds, vitals).
+        healthScoreCache: {
+            type: Number,
+            min: 0,
+            max: 100,
+            index: true, // enables admin sorting/filtering by score
+        },
+        healthScoreUpdatedAt: {
+            type: Date,
+        },
     },
     {
         timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' },

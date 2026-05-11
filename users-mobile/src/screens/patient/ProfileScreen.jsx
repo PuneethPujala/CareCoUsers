@@ -117,6 +117,7 @@ export default function PatientProfileScreen({ navigation }) {
     const [addrState, setAddrState] = useState('');
     const [addrPostcode, setAddrPostcode] = useState('');
     const [savedAddresses, setSavedAddresses] = useState([]);
+    const [addrErrors, setAddrErrors] = useState({});
 
     // Language
     const [selectedLang, setSelectedLang] = useState('en_IN');
@@ -431,15 +432,22 @@ export default function PatientProfileScreen({ navigation }) {
     };
 
     const handleAddAddress = async () => {
-        if (!addrLine.trim()) { AlertManager.alert(t('common.error', { defaultValue: 'Error' }), t('profile.enter_address_error', { defaultValue: 'Please enter an address.' })); return; }
+        const errs = {};
+        if (!addrLine.trim()) errs.addrLine = t('profile.addr_line_required', { defaultValue: 'Address is required.' });
+        else if (addrLine.trim().length < 6) errs.addrLine = t('profile.addr_line_too_short', { defaultValue: 'Enter a more complete address (min 6 chars).' });
+        if (!addrCity.trim()) errs.addrCity = t('profile.addr_city_required', { defaultValue: 'City is required.' });
+        if (addrPostcode.trim() && !/^\d{5,6}$/.test(addrPostcode.trim()))
+            errs.addrPostcode = t('profile.addr_postcode_invalid', { defaultValue: 'Postcode must be 5 or 6 digits.' });
+        setAddrErrors(errs);
+        if (Object.keys(errs).length > 0) return;
         setSaving(true);
         try {
             const { data } = await apiService.patients.addSavedAddress({
-                label: addrLabel, address_line: addrLine, city: addrCity, state: addrState, postcode: addrPostcode,
+                label: addrLabel, address_line: addrLine.trim(), city: addrCity.trim(), state: addrState.trim(), postcode: addrPostcode.trim(),
             });
             setSavedAddresses(data.saved_addresses || []);
             setAddAddressModalVisible(false);
-            setAddrLine(''); setAddrCity(''); setAddrState(''); setAddrPostcode('');
+            setAddrLine(''); setAddrCity(''); setAddrState(''); setAddrPostcode(''); setAddrErrors({});
             AlertManager.alert(t('common.success', { defaultValue: 'Success' }), t('profile.address_saved', { defaultValue: 'Address saved.' }));
         } catch { AlertManager.alert(t('common.error', { defaultValue: 'Error' }), t('profile.address_save_error', { defaultValue: 'Failed to save address.' })); }
         finally { setSaving(false); }
@@ -1205,37 +1213,74 @@ export default function PatientProfileScreen({ navigation }) {
             </Modal>
 
             {/* ── Add Address ── */}
-            <Modal visible={addAddressModalVisible} animationType="slide" transparent onRequestClose={() => setAddAddressModalVisible(false)}>
+            <Modal visible={addAddressModalVisible} animationType="slide" transparent onRequestClose={() => { setAddAddressModalVisible(false); setAddrErrors({}); }}>
                 <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
                     <View style={s.modalOverlay}>
                         <View style={[s.modalContent, { padding: 0 }]}>
-                            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 24, paddingBottom: 100 }}>
+                            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: 24, paddingBottom: 60 }}>
                                 <View style={s.modalHeader}>
                                     <Text style={s.modalTitle}>{t('profile.add_address', { defaultValue: 'Add Address' })}</Text>
-                                    <Pressable onPress={() => setAddAddressModalVisible(false)} hitSlop={10}><X size={24} color="#64748B" /></Pressable>
+                                    <Pressable onPress={() => { setAddAddressModalVisible(false); setAddrErrors({}); }} hitSlop={10}><X size={24} color="#64748B" /></Pressable>
                                 </View>
+
+                                {/* Label chips */}
                                 <Text style={s.inputLabel}>{t('profile.label', { defaultValue: 'Label' })}</Text>
                                 <View style={s.labelRow}>
                                     {[t('profile.home', { defaultValue: 'Home' }), t('profile.office', { defaultValue: 'Office' }), t('profile.family', { defaultValue: 'Family' }), t('profile.other', { defaultValue: 'Other' })].map((l, i) => {
                                         const actualLabels = ['Home', 'Office', 'Family', 'Other'];
                                         const key = actualLabels[i];
                                         return (
-                                        <Pressable key={key} style={[s.labelChip, addrLabel === key && s.labelChipActive]} onPress={() => setAddrLabel(key)}>
-                                            <Text style={[s.labelChipTxt, addrLabel === key && s.labelChipTxtActive]}>{l}</Text>
-                                        </Pressable>
-                                    )})}
+                                            <Pressable key={key} style={[s.labelChip, addrLabel === key && s.labelChipActive]} onPress={() => setAddrLabel(key)}>
+                                                <Text style={[s.labelChipTxt, addrLabel === key && s.labelChipTxtActive]}>{l}</Text>
+                                            </Pressable>
+                                        );
+                                    })}
                                 </View>
-                                <SmartInput label={t('profile.full_address', { defaultValue: 'Full Address' })} value={addrLine} onChangeText={setAddrLine} placeholder={t('profile.full_address_placeholder', { defaultValue: 'e.g. 12-4-82, Flat 301, Banjara Hills' })} />
-                                <View style={s.dobRow}>
-                                    <View style={s.dobCol}>
-                                        <SmartInput label={t('common.city', { defaultValue: 'City' })} value={addrCity} onChangeText={setAddrCity} placeholder={t('common.city', { defaultValue: 'City' })} />
+
+                                {/* Full address */}
+                                <SmartInput
+                                    label={t('profile.full_address', { defaultValue: 'Full Address *' })}
+                                    value={addrLine}
+                                    onChangeText={(v) => { setAddrLine(v); if (addrErrors.addrLine) setAddrErrors(e => ({ ...e, addrLine: null })); }}
+                                    placeholder={t('profile.full_address_placeholder', { defaultValue: 'e.g. 12-4-82, Flat 301, Banjara Hills' })}
+                                    error={addrErrors.addrLine}
+                                />
+                                {addrErrors.addrLine ? <Text style={s.fieldError}>{addrErrors.addrLine}</Text> : null}
+
+                                {/* City + State side by side */}
+                                <View style={s.addrRow}>
+                                    <View style={s.addrCol}>
+                                        <SmartInput
+                                            label={t('common.city', { defaultValue: 'City *' })}
+                                            value={addrCity}
+                                            onChangeText={(v) => { setAddrCity(v); if (addrErrors.addrCity) setAddrErrors(e => ({ ...e, addrCity: null })); }}
+                                            placeholder="Hyderabad"
+                                            error={addrErrors.addrCity}
+                                        />
+                                        {addrErrors.addrCity ? <Text style={s.fieldError}>{addrErrors.addrCity}</Text> : null}
                                     </View>
-                                    <View style={s.dobCol}>
-                                        <SmartInput label={t('common.state', { defaultValue: 'State' })} value={addrState} onChangeText={setAddrState} placeholder={t('common.state', { defaultValue: 'State' })} />
+                                    <View style={s.addrCol}>
+                                        <SmartInput
+                                            label={t('common.state', { defaultValue: 'State' })}
+                                            value={addrState}
+                                            onChangeText={setAddrState}
+                                            placeholder="Telangana"
+                                        />
                                     </View>
                                 </View>
-                                <SmartInput label={t('common.postcode', { defaultValue: 'Postcode' })} value={addrPostcode} onChangeText={setAddrPostcode} placeholder="500034" keyboardType="number-pad" />
-                                <Pressable style={s.saveBtn} onPress={handleAddAddress} disabled={saving}>
+
+                                {/* Postcode */}
+                                <SmartInput
+                                    label={t('common.postcode', { defaultValue: 'Postcode' })}
+                                    value={addrPostcode}
+                                    onChangeText={(v) => { setAddrPostcode(v.replace(/[^0-9]/g, '')); if (addrErrors.addrPostcode) setAddrErrors(e => ({ ...e, addrPostcode: null })); }}
+                                    placeholder="500034"
+                                    keyboardType="number-pad"
+                                    maxLength={6}
+                                />
+                                {addrErrors.addrPostcode ? <Text style={s.fieldError}>{addrErrors.addrPostcode}</Text> : null}
+
+                                <Pressable style={[s.saveBtn, { marginTop: 20 }]} onPress={handleAddAddress} disabled={saving}>
                                     <Save size={18} color="#FFFFFF" />
                                     <Text style={s.saveBtnTxt}>{saving ? t('common.saving', { defaultValue: 'Saving...' }) : t('profile.save_address', { defaultValue: 'Save Address' })}</Text>
                                 </Pressable>
@@ -1450,7 +1495,7 @@ const s = StyleSheet.create({
     addrCardLeft: { flexDirection: 'row', alignItems: 'center', flex: 1, gap: 10 },
     addrLabel: { fontSize: 14, fontWeight: '700', color: C.dark },
     addrLine: { fontSize: 12, color: C.muted, marginTop: 2, fontWeight: '500' },
-    labelRow: { flexDirection: 'row', gap: 8, marginTop: 4 },
+    labelRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
     labelChip: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 14, backgroundColor: C.pageBg },
     labelChipActive: { backgroundColor: C.primarySoft, borderWidth: 1.5, borderColor: C.primary },
     labelChipTxt: { fontSize: 14, fontWeight: '600', color: C.mid },
@@ -1467,5 +1512,8 @@ const s = StyleSheet.create({
     featureTxt: { fontSize: 14, color: C.mid, fontWeight: '500' },
     dobRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 },
     dobCol: { flex: 1, marginHorizontal: 4 },
+    addrRow: { flexDirection: 'row', gap: 10, marginTop: 0 },
+    addrCol: { flex: 1 },
+    fieldError: { fontSize: 12, color: C.danger, fontWeight: '600', marginTop: -6, marginBottom: 4, marginLeft: 2 },
     closeBtn: { backgroundColor: '#F1F5F9', paddingVertical: 12, borderRadius: 12, alignItems: 'center', marginTop: 16 }
 });
