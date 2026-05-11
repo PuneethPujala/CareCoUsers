@@ -139,6 +139,7 @@ export default function HealthProfileScreen({ navigation }) {
     const [showTimePicker, setShowTimePicker] = useState(false);
     const [datePickerField, setDatePickerField] = useState(null);
     const [countryCodeModal, setCountryCodeModal] = useState(false);
+    const [tipsModalVisible, setTipsModalVisible] = useState(false);
 
     const backdropAnim = useRef(new Animated.Value(0)).current;
     const modalAnim = useRef(new Animated.Value(0)).current;
@@ -485,6 +486,35 @@ export default function HealthProfileScreen({ navigation }) {
         }
     };
 
+    // ── Intelligent Health Score (from backend) ───────────────────────────────
+    const hs = profile?.health_score || null;
+    const hsScore    = hs?.score ?? null;
+    const hsLabel    = hs?.label ?? t('health_profile.status_stable', { defaultValue: 'Stable' });
+    const hsColor    = hs?.color ?? '#0EA5E9';
+    const hsGrade    = hs?.grade ?? '—';
+    const hsBracket  = hs?.bracket ?? null;
+    const hsBreakdown = hs?.breakdown ?? null;
+
+    const bracketLabel = {
+        young_adult: t('health_profile.bracket_young', { defaultValue: 'Young Adult' }),
+        middle_aged: t('health_profile.bracket_middle', { defaultValue: 'Middle Aged' }),
+        senior:      t('health_profile.bracket_senior', { defaultValue: 'Senior' }),
+        elderly:     t('health_profile.bracket_elderly', { defaultValue: 'Elderly' }),
+    }[hsBracket] || '';
+
+    const formatLastComputed = (iso) => {
+        if (!iso) return t('health_profile.last_sync_unknown', { defaultValue: 'Not yet computed' });
+        const d = new Date(iso);
+        const diffMin = Math.floor((Date.now() - d.getTime()) / 60000);
+        if (diffMin < 1) return t('health_profile.just_now', { defaultValue: 'Updated just now' });
+        if (diffMin < 60) return t('health_profile.mins_ago', { defaultValue: '{{n}}m ago', n: diffMin }).replace('{{n}}', diffMin);
+        const diffH = Math.floor(diffMin / 60);
+        if (diffH < 24) return t('health_profile.hours_ago', { defaultValue: '{{n}}h ago', n: diffH }).replace('{{n}}', diffH);
+        return d.toLocaleDateString();
+    };
+    const lastSyncText = formatLastComputed(hs?.last_computed);
+    // ──────────────────────────────────────────────────────────────────
+
     const calcHabitScore = () => {
         let score = 50;
         if (lifestyle.smoking_status === 'never') score += 20; else if (lifestyle.smoking_status === 'former') score += 10; else if (lifestyle.smoking_status === 'current') score -= 10;
@@ -556,46 +586,118 @@ export default function HealthProfileScreen({ navigation }) {
 
             <ScrollView contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
 
-                {/* ── TOP DASHBOARD / HEALTH SCORE ── */}
+                {/* ── PROFILE COMPLETENESS BANNER (above health score) ── */}
                 <Animated.View style={anim(0)}>
-                    <View style={s.dashboardCard}>
+                    <Pressable style={s.completeBanner} onPress={handleCompletionClick}>
+                        <View style={{ flex: 1 }}>
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+                                <Text style={s.completeBannerTitle}>{t('health_profile.profile_completeness', { defaultValue: 'Profile Completeness' })}</Text>
+                                <Text style={[s.completeBannerPct, { color: completionPct === 100 ? '#10B981' : '#0EA5E9' }]}>{completionPct}%</Text>
+                            </View>
+                            <View style={s.completeBarOuter}>
+                                <View style={[s.completeBarInner, { width: `${completionPct}%`, backgroundColor: completionPct === 100 ? '#10B981' : '#0EA5E9' }]} />
+                            </View>
+                            {completionPct < 100 && (
+                                <Text style={s.completeBannerSub}>{t('health_profile.tap_to_complete', { defaultValue: 'Tap to see what’s missing →' })}</Text>
+                            )}
+                        </View>
+                    </Pressable>
+                </Animated.View>
+
+                {/* ── INTELLIGENT HEALTH SCORE CARD ── */}
+                <Animated.View style={[anim(0), { marginTop: 0 }]}>
+                    <Pressable style={s.dashboardCard} onPress={() => setTipsModalVisible(true)} activeOpacity={0.92}>
+                        {/* Tap hint */}
+                        <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginBottom: -4 }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#F0FDF4', borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3 }}>
+                                <TrendingUp size={10} color="#10B981" />
+                                <Text style={{ fontSize: 10, ...FONT.bold, color: '#10B981' }}>View tips to improve</Text>
+                            </View>
+                        </View>
                         {/* Top row: Score + Ring */}
                         <View style={s.dashTopRow}>
                             <View style={s.dashLeft}>
-                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
                                     <Text style={s.dashEyebrow}>{t('health_profile.health_score', { defaultValue: 'HEALTH SCORE' })}</Text>
                                     <Info size={12} color="#94A3B8" />
                                 </View>
                                 <View style={s.dashScoreRow}>
-                                    <Text style={s.dashScoreMain}>{completionPct}</Text>
+                                    <Text style={[s.dashScoreMain, { color: hsScore !== null ? hsColor : C.muted }]}>
+                                        {hsScore !== null ? hsScore : '—'}
+                                    </Text>
                                     <Text style={s.dashScoreSub}>/ 100</Text>
+                                    {hsGrade !== '—' && (
+                                        <View style={[s.gradeChip, { backgroundColor: hsColor + '20', borderColor: hsColor }]}>
+                                            <Text style={[s.gradeChipTxt, { color: hsColor }]}>{hsGrade}</Text>
+                                        </View>
+                                    )}
                                 </View>
                                 <View style={s.dashStatusRow}>
-                                    <ShieldCheck size={14} color="#10B981" />
-                                    <Text style={s.dashStatusTxt}>{t('health_profile.status_stable', { defaultValue: 'Stable' })}</Text>
+                                    <ShieldCheck size={14} color={hsColor} />
+                                    <Text style={[s.dashStatusTxt, { color: hsColor }]}>{hsLabel}</Text>
                                 </View>
+                                {hsBracket && (
+                                    <View style={s.bracketTag}>
+                                        <Text style={s.bracketTagTxt}>{t('health_profile.adjusted_for', { defaultValue: 'Adjusted for age • {{bracket}}', bracket: bracketLabel }).replace('{{bracket}}', bracketLabel)}</Text>
+                                    </View>
+                                )}
                                 <View style={s.dashSyncRow}>
                                     <RefreshCw size={10} color="#94A3B8" />
-                                    <Text style={s.dashSyncTxt}>{t('health_profile.last_sync', { defaultValue: 'Last sync: 2h ago' })}</Text>
+                                    <Text style={s.dashSyncTxt}>{lastSyncText}</Text>
                                 </View>
                             </View>
                             <View style={s.dashCenter}>
                                 <View style={s.ringWrap}>
                                     <Svg width={88} height={88} viewBox="0 0 88 88">
                                         <SvgCircle cx="44" cy="44" r="38" stroke="#EEF2FF" strokeWidth="8" fill="transparent" />
-                                        <SvgCircle cx="44" cy="44" r="38" stroke="#4F46E5" strokeWidth="8" fill="transparent" strokeDasharray={`${2 * Math.PI * 38}`} strokeDashoffset={`${2 * Math.PI * 38 * (1 - completionPct / 100)}`} strokeLinecap="round" transform="rotate(-90 44 44)" />
+                                        <SvgCircle
+                                            cx="44" cy="44" r="38"
+                                            stroke={hsScore !== null ? hsColor : '#CBD5E1'}
+                                            strokeWidth="8"
+                                            fill="transparent"
+                                            strokeDasharray={`${2 * Math.PI * 38}`}
+                                            strokeDashoffset={`${2 * Math.PI * 38 * (1 - (hsScore ?? 0) / 100)}`}
+                                            strokeLinecap="round"
+                                            transform="rotate(-90 44 44)"
+                                        />
                                     </Svg>
-                                    <HeartPulse size={24} color="#94A3B8" style={{ position: 'absolute' }} />
+                                    <HeartPulse size={24} color={hsScore !== null ? hsColor : '#94A3B8'} style={{ position: 'absolute' }} />
                                 </View>
                             </View>
                         </View>
+
+                        {/* Dimension breakdown chips */}
+                        {hsBreakdown && (
+                            <View style={s.breakdownRow}>
+                                {[
+                                    { key: 'adherence', label: t('health_profile.dim_adherence', { defaultValue: 'Adherence' }), icon: '💊' },
+                                    { key: 'lifestyle',  label: t('health_profile.dim_lifestyle',  { defaultValue: 'Lifestyle' }),  icon: '🏃' },
+                                    { key: 'vitals',     label: t('health_profile.dim_vitals',     { defaultValue: 'Vitals' }),     icon: '🫺' },
+                                    { key: 'mobility',   label: t('health_profile.dim_mobility',   { defaultValue: 'Mobility' }),   icon: '🚶' },
+                                    { key: 'preventive', label: t('health_profile.dim_preventive', { defaultValue: 'Preventive' }), icon: '🛡️' },
+                                ].map(({ key, label, icon }) => {
+                                    const dim = hsBreakdown[key];
+                                    if (!dim) return null;
+                                    const pct = Math.round((dim.pts / dim.max) * 100);
+                                    const dimColor = pct >= 70 ? '#10B981' : pct >= 40 ? '#F59E0B' : '#EF4444';
+                                    return (
+                                        <View key={key} style={s.breakdownChip}>
+                                            <Text style={s.breakdownChipIcon}>{icon}</Text>
+                                            <Text style={s.breakdownChipLbl}>{label}</Text>
+                                            <Text style={[s.breakdownChipVal, { color: dimColor }]}>{pct}%</Text>
+                                        </View>
+                                    );
+                                })}
+                            </View>
+                        )}
+
                         {/* Bottom row: Mini metrics */}
                         <View style={s.dashMetricsRow}>
                             <View style={s.dashMiniMetric}>
                                 <View style={[s.dashMiniIcon, { backgroundColor: '#EEF2FF' }]}><TrendingUp size={12} color="#4F46E5" /></View>
                                 <View>
-                                    <Text style={s.dashMiniLbl}>{t('health_profile.good_habits', { defaultValue: 'Good Habits' })}</Text>
-                                    <Text style={[s.dashMiniVal, { color: '#10B981' }]}>{habitScore}%</Text>
+                                    <Text style={s.dashMiniLbl}>{t('health_profile.good_habits', { defaultValue: 'Habits' })}</Text>
+                                    <Text style={[s.dashMiniVal, { color: habitColor }]}>{habitScore}%</Text>
                                 </View>
                             </View>
                             <View style={s.dashMiniMetric}>
@@ -609,11 +711,11 @@ export default function HealthProfileScreen({ navigation }) {
                                 <View style={[s.dashMiniIcon, { backgroundColor: '#ECFDF5' }]}><ShieldCheck size={12} color="#10B981" /></View>
                                 <View>
                                     <Text style={s.dashMiniLbl}>{t('health_profile.conditions', { defaultValue: 'Conditions' })}</Text>
-                                    <Text style={[s.dashMiniVal, { color: '#10B981' }]}>{trendLabel}</Text>
+                                    <Text style={[s.dashMiniVal, { color: trendColor }]}>{trendLabel}</Text>
                                 </View>
                             </View>
                         </View>
-                    </View>
+                    </Pressable>
                 </Animated.View>
 
                 {/* ── ALERTS CARD ── */}
@@ -1157,6 +1259,101 @@ export default function HealthProfileScreen({ navigation }) {
                     />
                 </View>
             )}
+            {/* ── HEALTH TIPS MODAL ── */}
+            <Modal
+                visible={tipsModalVisible}
+                transparent
+                animationType="slide"
+                onRequestClose={() => setTipsModalVisible(false)}
+            >
+                <View style={s.tipsBackdrop}>
+                    <View style={s.tipsSheet}>
+                        {/* Handle */}
+                        <View style={s.tipsHandle} />
+
+                        {/* Header */}
+                        <View style={s.tipsHeader}>
+                            <View style={{ flex: 1 }}>
+                                <Text style={s.tipsHeaderEyebrow}>PERSONALISED FOR YOU</Text>
+                                <Text style={s.tipsHeaderTitle}>Ways to Improve</Text>
+                                <Text style={s.tipsHeaderSub}>
+                                    {hsScore !== null
+                                        ? `Your current score is ${hsScore}/100 • ${hsLabel}`
+                                        : 'Based on your health profile'}
+                                </Text>
+                            </View>
+                            {/* Mini score ring */}
+                            <View style={s.tipsMiniRingWrap}>
+                                <Svg width={60} height={60} viewBox="0 0 60 60">
+                                    <SvgCircle cx="30" cy="30" r="25" stroke="#F1F5F9" strokeWidth="6" fill="transparent" />
+                                    <SvgCircle
+                                        cx="30" cy="30" r="25"
+                                        stroke={hsScore !== null ? hsColor : '#CBD5E1'}
+                                        strokeWidth="6"
+                                        fill="transparent"
+                                        strokeDasharray={`${2 * Math.PI * 25}`}
+                                        strokeDashoffset={`${2 * Math.PI * 25 * (1 - (hsScore ?? 0) / 100)}`}
+                                        strokeLinecap="round"
+                                        transform="rotate(-90 30 30)"
+                                    />
+                                </Svg>
+                                <Text style={[s.tipsMiniScore, { color: hsScore !== null ? hsColor : '#94A3B8' }]}>
+                                    {hsScore ?? '—'}
+                                </Text>
+                            </View>
+                        </View>
+
+                        {/* Tips list */}
+                        <ScrollView
+                            showsVerticalScrollIndicator={false}
+                            contentContainerStyle={s.tipsScrollContent}
+                        >
+                            {(hs?.tips || []).length === 0 ? (
+                                <View style={s.tipsEmptyState}>
+                                    <Text style={{ fontSize: 32, marginBottom: 12 }}>⭐</Text>
+                                    <Text style={s.tipsEmptyTitle}>You're in great shape!</Text>
+                                    <Text style={s.tipsEmptySub}>No specific improvements needed right now. Keep up your current habits.</Text>
+                                </View>
+                            ) : (
+                                (hs?.tips || []).map((tip, idx) => {
+                                    const impactConfig = {
+                                        high:   { bg: '#FEF2F2', border: '#FCA5A5', text: '#DC2626', badge: '#FEF2F2', badgeText: '#DC2626', label: 'High Impact' },
+                                        medium: { bg: '#FFFBEB', border: '#FDE68A', text: '#D97706', badge: '#FFFBEB', badgeText: '#D97706', label: 'Medium Impact' },
+                                        low:    { bg: '#F0FDF4', border: '#BBF7D0', text: '#16A34A', badge: '#F0FDF4', badgeText: '#16A34A', label: 'Good to have' },
+                                    }[tip.impact] || { bg: '#F8FAFC', border: '#E2E8F0', text: '#0EA5E9', badge: '#F0F9FF', badgeText: '#0369A1', label: 'Tip' };
+
+                                    return (
+                                        <View key={idx} style={[s.tipCard, { borderLeftColor: impactConfig.text, backgroundColor: impactConfig.bg, borderColor: impactConfig.border }]}>
+                                            <View style={s.tipCardTop}>
+                                                <Text style={s.tipIcon}>{tip.icon}</Text>
+                                                <View style={{ flex: 1 }}>
+                                                    <Text style={[s.tipTitle, { color: '#0F172A' }]}>{tip.title}</Text>
+                                                </View>
+                                                <View style={[s.tipImpactBadge, { backgroundColor: impactConfig.badge, borderColor: impactConfig.border }]}>
+                                                    <Text style={[s.tipImpactTxt, { color: impactConfig.badgeText }]}>{impactConfig.label}</Text>
+                                                </View>
+                                            </View>
+                                            <Text style={s.tipBody}>{tip.body}</Text>
+                                        </View>
+                                    );
+                                })
+                            )}
+
+                            {/* Footer note */}
+                            <View style={s.tipsFooter}>
+                                <ShieldCheck size={14} color="#94A3B8" />
+                                <Text style={s.tipsFooterTxt}>Tips are personalised based on your age group, lifestyle, and health data.</Text>
+                            </View>
+                        </ScrollView>
+
+                        {/* Close button */}
+                        <Pressable style={s.tipsCloseBtn} onPress={() => setTipsModalVisible(false)}>
+                            <Text style={s.tipsCloseTxt}>Got it, thanks!</Text>
+                        </Pressable>
+                    </View>
+                </View>
+            </Modal>
+
         </View>
     );
 }
@@ -1387,6 +1584,27 @@ const s = StyleSheet.create({
     dashMiniLbl: { fontSize: 10, ...FONT.bold, color: '#64748B' },
     dashMiniVal: { fontSize: 14, ...FONT.heavy },
 
+    // Profile completeness banner
+    completeBanner: { backgroundColor: '#F0F9FF', borderRadius: 20, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: '#BAE6FD' },
+    completeBannerTitle: { fontSize: 13, ...FONT.bold, color: '#0369A1' },
+    completeBannerPct: { fontSize: 13, ...FONT.heavy },
+    completeBannerSub: { fontSize: 11, ...FONT.medium, color: '#0EA5E9', marginTop: 6 },
+    completeBarOuter: { height: 5, backgroundColor: '#E0F2FE', borderRadius: 10, overflow: 'hidden' },
+    completeBarInner: { height: 5, borderRadius: 10 },
+
+    // Health score card — grade chip + bracket tag
+    gradeChip: { marginLeft: 8, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, borderWidth: 1.5 },
+    gradeChipTxt: { fontSize: 13, ...FONT.heavy },
+    bracketTag: { backgroundColor: '#F8FAFC', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3, marginBottom: 8, alignSelf: 'flex-start' },
+    bracketTagTxt: { fontSize: 10, ...FONT.bold, color: '#64748B', letterSpacing: 0.3 },
+
+    // Dimension breakdown chips
+    breakdownRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingVertical: 14, borderTopWidth: 1, borderTopColor: '#F1F5F9' },
+    breakdownChip: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#F8FAFC', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 5, borderWidth: 1, borderColor: '#E2E8F0' },
+    breakdownChipIcon: { fontSize: 11 },
+    breakdownChipLbl: { fontSize: 11, ...FONT.bold, color: '#64748B' },
+    breakdownChipVal: { fontSize: 11, ...FONT.heavy },
+
     alertsCard: { backgroundColor: '#FFF', borderRadius: 20, padding: 16, marginBottom: 20, shadowColor: '#EF4444', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.06, shadowRadius: 16, elevation: 4 },
     alertHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16 },
     alertIconBox: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#FEF2F2', alignItems: 'center', justifyContent: 'center' },
@@ -1433,4 +1651,168 @@ const s = StyleSheet.create({
     netRole: { fontSize: 11, ...FONT.medium, color: '#94A3B8' },
     netBtn: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 12, borderWidth: 1 },
     netBtnTxt: { fontSize: 11, ...FONT.bold },
+
+    // ── Health Tips Modal ────────────────────────────────────────────────────
+    tipsBackdrop: {
+        flex: 1,
+        backgroundColor: 'rgba(15,23,42,0.55)',
+        justifyContent: 'flex-end',
+    },
+    tipsSheet: {
+        backgroundColor: '#FFFFFF',
+        borderTopLeftRadius: 32,
+        borderTopRightRadius: 32,
+        maxHeight: '90%',
+        paddingBottom: Platform.OS === 'ios' ? 36 : 24,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: -12 },
+        shadowOpacity: 0.12,
+        shadowRadius: 24,
+        elevation: 20,
+    },
+    tipsHandle: {
+        width: 40,
+        height: 4,
+        borderRadius: 2,
+        backgroundColor: '#E2E8F0',
+        alignSelf: 'center',
+        marginTop: 12,
+        marginBottom: 4,
+    },
+    tipsHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 24,
+        paddingVertical: 20,
+        borderBottomWidth: 1,
+        borderBottomColor: '#F1F5F9',
+        gap: 16,
+    },
+    tipsHeaderEyebrow: {
+        fontSize: 10,
+        ...FONT.heavy,
+        color: '#94A3B8',
+        letterSpacing: 1.2,
+        marginBottom: 4,
+    },
+    tipsHeaderTitle: {
+        fontSize: 22,
+        ...FONT.heavy,
+        color: '#0F172A',
+        letterSpacing: -0.5,
+        marginBottom: 4,
+    },
+    tipsHeaderSub: {
+        fontSize: 13,
+        ...FONT.medium,
+        color: '#64748B',
+    },
+    tipsMiniRingWrap: {
+        width: 60,
+        height: 60,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    tipsMiniScore: {
+        position: 'absolute',
+        fontSize: 15,
+        ...FONT.heavy,
+    },
+    tipsScrollContent: {
+        paddingHorizontal: 20,
+        paddingTop: 16,
+        paddingBottom: 12,
+        gap: 12,
+    },
+    tipCard: {
+        borderRadius: 16,
+        borderWidth: 1,
+        borderLeftWidth: 4,
+        padding: 14,
+        marginBottom: 4,
+    },
+    tipCardTop: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        gap: 10,
+        marginBottom: 8,
+    },
+    tipIcon: {
+        fontSize: 22,
+        lineHeight: 26,
+    },
+    tipTitle: {
+        fontSize: 15,
+        ...FONT.bold,
+        color: '#0F172A',
+        flexShrink: 1,
+        lineHeight: 21,
+    },
+    tipImpactBadge: {
+        borderWidth: 1,
+        borderRadius: 20,
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        alignSelf: 'flex-start',
+        marginTop: 2,
+    },
+    tipImpactTxt: {
+        fontSize: 10,
+        ...FONT.heavy,
+        letterSpacing: 0.2,
+    },
+    tipBody: {
+        fontSize: 13,
+        ...FONT.regular,
+        color: '#475569',
+        lineHeight: 20,
+    },
+    tipsEmptyState: {
+        alignItems: 'center',
+        paddingVertical: 40,
+    },
+    tipsEmptyTitle: {
+        fontSize: 18,
+        ...FONT.bold,
+        color: '#0F172A',
+        marginBottom: 8,
+    },
+    tipsEmptySub: {
+        fontSize: 13,
+        ...FONT.medium,
+        color: '#64748B',
+        textAlign: 'center',
+        lineHeight: 20,
+        paddingHorizontal: 20,
+    },
+    tipsFooter: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        marginTop: 8,
+        paddingTop: 16,
+        borderTopWidth: 1,
+        borderTopColor: '#F1F5F9',
+    },
+    tipsFooterTxt: {
+        fontSize: 11,
+        ...FONT.medium,
+        color: '#94A3B8',
+        flex: 1,
+        lineHeight: 16,
+    },
+    tipsCloseBtn: {
+        marginHorizontal: 20,
+        marginTop: 12,
+        backgroundColor: '#0F172A',
+        borderRadius: 16,
+        paddingVertical: 16,
+        alignItems: 'center',
+    },
+    tipsCloseTxt: {
+        fontSize: 16,
+        ...FONT.bold,
+        color: '#FFFFFF',
+        letterSpacing: 0.2,
+    },
 });
