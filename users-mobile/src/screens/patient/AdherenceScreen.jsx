@@ -365,7 +365,8 @@ export default function AdherenceScreen({ navigation }) {
     const momentumColor = momentum === 'rising' ? C.success : momentum === 'falling' ? C.danger : C.warning;
     const momentumLabel = momentum === 'rising' ? t('adherence.rising', { defaultValue: 'Rising' }) : momentum === 'falling' ? t('adherence.falling', { defaultValue: 'Falling' }) : t('adherence.steady', { defaultValue: 'Steady' });
 
-    const ringColor = score.monthly >= 90 ? C.ring90 : score.monthly >= 70 ? C.ring70 : C.ringLow;
+    const heroScore = activeRecapTab === 'weekly' ? score.weekly : activeRecapTab === 'yearly' ? (adherenceRecap?.adherence_rate ?? score.monthly) : score.monthly;
+    const ringColor = heroScore >= 90 ? C.ring90 : heroScore >= 70 ? C.ring70 : C.ringLow;
 
     // Calendar
     const calendarDays = useMemo(() => {
@@ -457,18 +458,18 @@ export default function AdherenceScreen({ navigation }) {
                             <View style={styles.heroTopRow}>
                                 {/* Ring */}
                                 <View style={styles.heroRingWrap}>
-                                    <CircularProgress progress={score.monthly} size={148} strokeWidth={13} color={ringColor} />
+                                    <CircularProgress progress={heroScore} size={148} strokeWidth={13} color={ringColor} />
                                     <View style={styles.heroRingCenter}>
-                                        <AnimatedNumber value={score.monthly} style={styles.heroRingPercent} />
-                                        <Text style={styles.heroRingLabel}>{t('adherence.monthly', { defaultValue: 'Monthly' })}</Text>
+                                        <AnimatedNumber value={heroScore} style={styles.heroRingPercent} />
+                                        <Text style={styles.heroRingLabel}>{getRecapLabels(t)[activeRecapTab]}</Text>
                                     </View>
                                 </View>
 
                                 {/* Right stats */}
                                 <View style={styles.heroRightCol}>
                                     <View style={styles.heroStatBox}>
-                                        <Text style={styles.heroStatLabel}>{t('adherence.this_week', { defaultValue: 'This Week' })}</Text>
-                                        <AnimatedNumber value={score.weekly} style={styles.heroStatValue} />
+                                        <Text style={styles.heroStatLabel}>{t('adherence.score', { defaultValue: 'Score' })}</Text>
+                                        <AnimatedNumber value={adherenceRecap?.adherence_rate ?? score.weekly} style={styles.heroStatValue} />
                                     </View>
                                     <View style={styles.heroStatDivider} />
                                     <View style={styles.heroStatBox}>
@@ -733,9 +734,18 @@ export default function AdherenceScreen({ navigation }) {
                                             date={date}
                                             status={entry?.status}
                                             isCurrentMonth={isSameMonth(date, currentMonth)}
-                                            onPress={() => setSelectedDay(entry || {
-                                                date: dateStr, status: 'none', rate: 0, medicines: [], vitals: null,
-                                            })}
+                                            onPress={() => {
+                                            const isPast = new Date(dateStr) < new Date();
+                                            setSelectedDay(entry || {
+                                                date: dateStr,
+                                                status: isPast ? 'missed' : 'none',
+                                                rate: 0,
+                                                medicines: [],
+                                                vitals: null,
+                                                _noEntry: true,
+                                                _isPast: isPast,
+                                            });
+                                        }}
                                         />
                                     );
                                 })}
@@ -836,7 +846,23 @@ export default function AdherenceScreen({ navigation }) {
                                         ))}
                                     </View>
                                 ) : (
-                                    <Text style={styles.sheetEmpty}>{t('adherence.no_meds_scheduled_day', { defaultValue: 'No medications scheduled for this day.' })}</Text>
+                                    <View style={styles.sheetEmptyBox}>
+                                        <Text style={styles.sheetEmptyIcon}>
+                                            {selectedDay._noEntry && selectedDay._isPast ? '😴' : selectedDay._noEntry ? '📅' : '💊'}
+                                        </Text>
+                                        <Text style={styles.sheetEmptyTitle}>
+                                            {selectedDay._noEntry && selectedDay._isPast
+                                                ? t('adherence.no_log_past', { defaultValue: 'No records for this day' })
+                                                : selectedDay._noEntry
+                                                    ? t('adherence.no_log_future', { defaultValue: 'No medications scheduled' })
+                                                    : t('adherence.no_meds_scheduled_day', { defaultValue: 'No medications scheduled for this day.' })}
+                                        </Text>
+                                        <Text style={styles.sheetEmptyDesc}>
+                                            {selectedDay._noEntry && selectedDay._isPast
+                                                ? t('adherence.no_log_past_desc', { defaultValue: 'Medication data wasn\'t recorded for this day.' })
+                                                : t('adherence.no_log_future_desc', { defaultValue: 'This day has no scheduled medications.' })}
+                                        </Text>
+                                    </View>
                                 )}
 
                                 {selectedDay.vitals && (
@@ -1124,6 +1150,14 @@ const styles = StyleSheet.create({
     sheetMedName: { fontSize: 14, fontWeight: '700', color: C.dark },
     sheetMedTime: { fontSize: 11, color: C.muted, fontWeight: '500', marginTop: 1 },
     sheetEmpty: { fontSize: 13, color: C.muted, fontStyle: 'italic', marginBottom: 16 },
+    sheetEmptyBox: {
+        alignItems: 'center', paddingVertical: 24, marginBottom: 12,
+        backgroundColor: '#F8FAFC', borderRadius: 18,
+        borderWidth: 1, borderColor: C.border, borderStyle: 'dashed',
+    },
+    sheetEmptyIcon: { fontSize: 36, marginBottom: 10 },
+    sheetEmptyTitle: { fontSize: 14, fontWeight: '700', color: C.mid, textAlign: 'center' },
+    sheetEmptyDesc: { fontSize: 12, color: C.muted, textAlign: 'center', marginTop: 4, paddingHorizontal: 16, lineHeight: 18 },
     sheetVitals: { marginTop: 4 },
     sheetVitalChip: {
         backgroundColor: '#F8FAFC', paddingHorizontal: 12, paddingVertical: 7,
