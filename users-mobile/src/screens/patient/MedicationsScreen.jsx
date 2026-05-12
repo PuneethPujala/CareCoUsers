@@ -617,9 +617,16 @@ export default function MedicationsScreen({ navigation }) {
         : 0;
 
     const hour = new Date().getHours();
+    // End hours: slot is still "active" until this hour
+    const SLOT_END_HOURS = { morning: 11, afternoon: 16, evening: 19, night: 24 };
     const nextSlot = SLOT_ORDER.find(slot => {
         const start = SLOT_START_HOURS[slot];
-        return start !== undefined && hour < start && (schedule[slot] || []).some(m => !m.taken);
+        const end = SLOT_END_HOURS[slot];
+        if (start === undefined) return false;
+        const hasUntaken = (schedule[slot] || []).some(m => !m.taken);
+        if (!hasUntaken) return false;
+        // Slot is relevant if we're currently IN it (start <= hour < end) or it's upcoming (hour < start)
+        return hour < end;
     });
     const nextCfg = nextSlot ? SLOT_CONFIG[nextSlot] : null;
 
