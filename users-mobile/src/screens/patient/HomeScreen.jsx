@@ -270,10 +270,12 @@ export default function PatientHomeScreen({ navigation }) {
         const pending = meds.filter(m => !m.taken);
         if (pending.length === 0) return null;
         const slots = ['morning', 'afternoon', 'evening', 'night'];
-        const slotHours = { morning: 5, afternoon: 11, evening: 16, night: 19 };
+        // End hours: slot is still "active" until this hour
+        const slotEndHours = { morning: 11, afternoon: 16, evening: 19, night: 24 };
         const timeLabels = { morning: t('time_slots.morning', { defaultValue: 'Morning' }), afternoon: t('time_slots.afternoon', { defaultValue: 'Afternoon' }), evening: t('time_slots.evening', { defaultValue: 'Evening' }), night: t('time_slots.night', { defaultValue: 'Night' }) };
         for (const s of slots) {
-            if (hour < (slotHours[s] || 24)) {
+            // Slot is relevant if we're currently IN it or it's upcoming
+            if (hour < (slotEndHours[s] || 24)) {
                 const slotPending = pending.filter(m => m.type === s);
                 if (slotPending.length > 0)
                     return { slot: timeLabels[s] || s, time: prefs[s] || '', count: slotPending.length };
