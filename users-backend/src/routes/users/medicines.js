@@ -511,6 +511,8 @@ router.get('/adherence/details', authenticateSession, async (req, res) => {
         const improvement = weeklyScore - calcScore(prev7);
         const weeklySummary = { taken: weekTaken, missed: weekMissed, improvement };
 
+        // ── Persistent Achievements (Duolingo-style: once earned, never lost) ──
+        const previouslyUnlocked = new Set(patient.unlockedAchievements || []);
         const achievements = [];
         const perfectDays = dailyLog.filter(d => d.rate === 100);
         const has3Consecutive = (() => {
@@ -534,12 +536,43 @@ router.get('/adherence/details', authenticateSession, async (req, res) => {
                 .every(m => m.taken)
         );
 
-        achievements.push({ key: 'first_perfect_day', label: 'First 100% Day', description: 'Complete all doses in a single day', emoji: '🟢', unlocked: perfectDays.length >= 1 });
-        achievements.push({ key: '3_day_consistent', label: '3 Days Consistent', description: 'Score 80%+ for 3 consecutive days', emoji: '🟡', unlocked: has3Consecutive });
-        achievements.push({ key: 'never_missed_morning', label: 'Morning Champion', description: 'Never miss a morning dose', emoji: '🔵', unlocked: logsWithMorningMeds.length >= 3 && morningLogs });
-        achievements.push({ key: 'weekly_90', label: 'Weekly 90%+', description: 'Achieve 90%+ in a week', emoji: '🟣', unlocked: weeklyScore >= 90 });
-        achievements.push({ key: '7_perfect_days', label: 'Perfect Week', description: '7 days with 100% adherence', emoji: '💎', unlocked: perfectDays.length >= 7 });
-        achievements.push({ key: 'monthly_consistent', label: 'Monthly Warrior', description: 'Maintain 80%+ for 30 days', emoji: '🏅', unlocked: monthlyScore >= 80 && last30.length >= 25 });
+        // Check current eligibility for each badge
+        const currentEligibility = {
+            first_perfect_day: perfectDays.length >= 1,
+            '3_day_consistent': has3Consecutive,
+            never_missed_morning: logsWithMorningMeds.length >= 3 && morningLogs,
+            weekly_90: weeklyScore >= 90,
+            '7_perfect_days': perfectDays.length >= 7,
+            monthly_consistent: monthlyScore >= 80 && last30.length >= 25,
+        };
+
+        // Merge: badge is unlocked if it was EVER earned OR is currently earned
+        const newlyUnlocked = [];
+        const badgeDefs = [
+            { key: 'first_perfect_day', label: 'First 100% Day', description: 'Complete all doses in a single day', emoji: '🟢' },
+            { key: '3_day_consistent', label: '3 Days Consistent', description: 'Score 80%+ for 3 consecutive days', emoji: '🟡' },
+            { key: 'never_missed_morning', label: 'Morning Champion', description: 'Never miss a morning dose', emoji: '🔵' },
+            { key: 'weekly_90', label: 'Weekly 90%+', description: 'Achieve 90%+ in a week', emoji: '🟣' },
+            { key: '7_perfect_days', label: 'Perfect Week', description: '7 days with 100% adherence', emoji: '💎' },
+            { key: 'monthly_consistent', label: 'Monthly Warrior', description: 'Maintain 80%+ for 30 days', emoji: '🏅' },
+        ];
+
+        for (const badge of badgeDefs) {
+            const wasUnlocked = previouslyUnlocked.has(badge.key);
+            const isNowEligible = currentEligibility[badge.key] || false;
+            const unlocked = wasUnlocked || isNowEligible;
+            if (unlocked && !wasUnlocked) newlyUnlocked.push(badge.key);
+            achievements.push({ ...badge, unlocked });
+        }
+
+        // Persist any newly earned badges (fire-and-forget)
+        if (newlyUnlocked.length > 0) {
+            const Patient = require('../../models/Patient');
+            Patient.updateOne(
+                { _id: patient._id },
+                { $addToSet: { unlockedAchievements: { $each: newlyUnlocked } } }
+            ).catch(e => logger.warn('Achievement persist failed', { error: e.message }));
+        }
 
         const insights = [];
         if (monthlyScore >= 90) {

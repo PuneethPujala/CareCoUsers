@@ -437,6 +437,14 @@ const PatientSchema = new mongoose.Schema(
         healthScoreUpdatedAt: {
             type: Date,
         },
+
+        // ── Persistent Achievement Badges ────────────
+        // Once a badge is unlocked, it stays forever (Duolingo-style).
+        // Stores achievement keys like 'first_perfect_day', 'weekly_90', etc.
+        unlockedAchievements: {
+            type: [String],
+            default: [],
+        },
     },
     {
         timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' },
