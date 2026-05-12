@@ -515,6 +515,7 @@ router.get('/adherence/details', authenticateSession, async (req, res) => {
         const previouslyUnlocked = new Set(patient.unlockedAchievements || []);
         const achievements = [];
         const perfectDays = dailyLog.filter(d => d.rate === 100);
+        const totalTakenAllTime = dailyLog.reduce((s, d) => s + d.taken, 0);
         const has3Consecutive = (() => {
             let count = 0;
             for (const d of dailyLog) {
@@ -523,10 +524,16 @@ router.get('/adherence/details', authenticateSession, async (req, res) => {
             }
             return false;
         })();
+        const has14Consecutive = (() => {
+            let count = 0;
+            for (const d of dailyLog) {
+                if (d.rate >= 80) { count++; if (count >= 14) return true; }
+                else count = 0;
+            }
+            return false;
+        })();
 
-        // BUG 7 FIX: original used logs.every() across all 30 days — a day where the
-        // patient had no morning medication (discontinued med) would fail the check.
-        // Now only considers logs that actually have at least one active morning entry.
+        // BUG 7 FIX: only considers logs that actually have morning entries
         const logsWithMorningMeds = logs.filter(log =>
             log.medicines.some(m => m.scheduled_time === 'morning' && m.is_active !== false)
         );
@@ -535,34 +542,62 @@ router.get('/adherence/details', authenticateSession, async (req, res) => {
                 .filter(m => m.scheduled_time === 'morning' && m.is_active !== false)
                 .every(m => m.taken)
         );
+        const logsWithNightMeds = logs.filter(log =>
+            log.medicines.some(m => m.scheduled_time === 'night' && m.is_active !== false)
+        );
+        const nightLogs = logsWithNightMeds.length >= 1 && logsWithNightMeds.every(log =>
+            log.medicines
+                .filter(m => m.scheduled_time === 'night' && m.is_active !== false)
+                .every(m => m.taken)
+        );
+        const vitalsLoggedDays = dailyLog.filter(d => d.vitals).length;
 
-        // Check current eligibility for each badge
-        const currentEligibility = {
-            first_perfect_day: perfectDays.length >= 1,
-            '3_day_consistent': has3Consecutive,
-            never_missed_morning: logsWithMorningMeds.length >= 3 && morningLogs,
-            weekly_90: weeklyScore >= 90,
-            '7_perfect_days': perfectDays.length >= 7,
-            monthly_consistent: monthlyScore >= 80 && last30.length >= 25,
-        };
+        // Current eligibility + progress for each badge
+        const badgeDefs = [
+            // ── BRONZE TIER (Starter) ──
+            { key: 'first_dose', label: 'First Dose', description: 'Take your very first medication', emoji: '💊', tier: 'bronze',
+              unlockCheck: totalTakenAllTime >= 1, progress: Math.min(totalTakenAllTime / 1, 1), progressLabel: `${Math.min(totalTakenAllTime, 1)}/1 dose` },
+            { key: 'first_perfect_day', label: 'Perfect Day', description: 'Complete all doses in a single day', emoji: '🌟', tier: 'bronze',
+              unlockCheck: perfectDays.length >= 1, progress: Math.min(perfectDays.length / 1, 1), progressLabel: `${Math.min(perfectDays.length, 1)}/1 day` },
+            { key: '3_day_consistent', label: 'Hat Trick', description: '3 consecutive days at 80%+', emoji: '⚡', tier: 'bronze',
+              unlockCheck: has3Consecutive, progress: has3Consecutive ? 1 : Math.min((() => { let max = 0, c = 0; dailyLog.forEach(d => { if (d.rate >= 80) { c++; max = Math.max(max, c); } else c = 0; }); return max; })() / 3, 0.99), progressLabel: has3Consecutive ? '3/3 days' : `${(() => { let max = 0, c = 0; dailyLog.forEach(d => { if (d.rate >= 80) { c++; max = Math.max(max, c); } else c = 0; }); return max; })()}/3 days` },
+            { key: 'never_missed_morning', label: 'Early Bird', description: 'Never miss a morning dose (3+ days)', emoji: '🌅', tier: 'bronze',
+              unlockCheck: logsWithMorningMeds.length >= 3 && morningLogs, progress: (logsWithMorningMeds.length >= 3 && morningLogs) ? 1 : Math.min(logsWithMorningMeds.length / 3, 0.99), progressLabel: `${logsWithMorningMeds.length}/3 mornings` },
+
+            // ── SILVER TIER (Intermediate) ──
+            { key: 'weekly_90', label: 'Weekly Star', description: 'Hit 90%+ adherence in a week', emoji: '🎯', tier: 'silver',
+              unlockCheck: weeklyScore >= 90, progress: Math.min(weeklyScore / 90, 1), progressLabel: `${weeklyScore}/90%` },
+            { key: '7_perfect_days', label: 'Perfect Week', description: '7 days with 100% adherence', emoji: '💎', tier: 'silver',
+              unlockCheck: perfectDays.length >= 7, progress: Math.min(perfectDays.length / 7, 1), progressLabel: `${Math.min(perfectDays.length, 7)}/7 days` },
+            { key: 'night_owl', label: 'Night Owl', description: 'Never miss a night dose (5+ days)', emoji: '🦉', tier: 'silver',
+              unlockCheck: logsWithNightMeds.length >= 5 && nightLogs, progress: (logsWithNightMeds.length >= 5 && nightLogs) ? 1 : Math.min(logsWithNightMeds.length / 5, 0.99), progressLabel: `${logsWithNightMeds.length}/5 nights` },
+            { key: 'vitals_tracker', label: 'Vitals Pro', description: 'Log vitals on 10+ days', emoji: '❤️‍🔥', tier: 'silver',
+              unlockCheck: vitalsLoggedDays >= 10, progress: Math.min(vitalsLoggedDays / 10, 1), progressLabel: `${Math.min(vitalsLoggedDays, 10)}/10 days` },
+
+            // ── GOLD TIER (Elite) ──
+            { key: 'streak_14', label: 'Two-Week Warrior', description: '14 consecutive days at 80%+', emoji: '🔥', tier: 'gold',
+              unlockCheck: has14Consecutive, progress: has14Consecutive ? 1 : Math.min((() => { let max = 0, c = 0; dailyLog.forEach(d => { if (d.rate >= 80) { c++; max = Math.max(max, c); } else c = 0; }); return max; })() / 14, 0.99), progressLabel: `${(() => { let max = 0, c = 0; dailyLog.forEach(d => { if (d.rate >= 80) { c++; max = Math.max(max, c); } else c = 0; }); return max; })()}/14 days` },
+            { key: 'monthly_consistent', label: 'Monthly Legend', description: 'Maintain 80%+ for a full month', emoji: '🏆', tier: 'gold',
+              unlockCheck: monthlyScore >= 80 && last30.length >= 25, progress: Math.min(monthlyScore / 80, 1), progressLabel: `${monthlyScore}/80%` },
+            { key: '100_doses', label: 'Century Club', description: 'Take 100 total doses', emoji: '💯', tier: 'gold',
+              unlockCheck: totalTakenAllTime >= 100, progress: Math.min(totalTakenAllTime / 100, 1), progressLabel: `${Math.min(totalTakenAllTime, 100)}/100 doses` },
+            { key: '30_perfect_days', label: 'Unstoppable', description: '30 days with 100% adherence', emoji: '👑', tier: 'gold',
+              unlockCheck: perfectDays.length >= 30, progress: Math.min(perfectDays.length / 30, 1), progressLabel: `${Math.min(perfectDays.length, 30)}/30 days` },
+        ];
 
         // Merge: badge is unlocked if it was EVER earned OR is currently earned
         const newlyUnlocked = [];
-        const badgeDefs = [
-            { key: 'first_perfect_day', label: 'First 100% Day', description: 'Complete all doses in a single day', emoji: '🟢' },
-            { key: '3_day_consistent', label: '3 Days Consistent', description: 'Score 80%+ for 3 consecutive days', emoji: '🟡' },
-            { key: 'never_missed_morning', label: 'Morning Champion', description: 'Never miss a morning dose', emoji: '🔵' },
-            { key: 'weekly_90', label: 'Weekly 90%+', description: 'Achieve 90%+ in a week', emoji: '🟣' },
-            { key: '7_perfect_days', label: 'Perfect Week', description: '7 days with 100% adherence', emoji: '💎' },
-            { key: 'monthly_consistent', label: 'Monthly Warrior', description: 'Maintain 80%+ for 30 days', emoji: '🏅' },
-        ];
-
         for (const badge of badgeDefs) {
             const wasUnlocked = previouslyUnlocked.has(badge.key);
-            const isNowEligible = currentEligibility[badge.key] || false;
+            const isNowEligible = badge.unlockCheck;
             const unlocked = wasUnlocked || isNowEligible;
             if (unlocked && !wasUnlocked) newlyUnlocked.push(badge.key);
-            achievements.push({ ...badge, unlocked });
+            achievements.push({
+                key: badge.key, label: badge.label, description: badge.description,
+                emoji: badge.emoji, tier: badge.tier, unlocked,
+                progress: unlocked ? 1 : badge.progress,
+                progressLabel: badge.progressLabel,
+            });
         }
 
         // Persist any newly earned badges (fire-and-forget)

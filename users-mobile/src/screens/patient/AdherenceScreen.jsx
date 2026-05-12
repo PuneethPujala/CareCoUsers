@@ -203,13 +203,25 @@ const CalendarDay = ({ date, status, isCurrentMonth, onPress }) => {
 };
 
 // ── Achievement Badge ───────────────────────────────────────────
+const TIER_COLORS = {
+    bronze: { bg: '#FFF7ED', border: '#FDBA74', ribbon: ['#F97316', '#EA580C'] },
+    silver: { bg: '#F8FAFC', border: '#94A3B8', ribbon: ['#64748B', '#475569'] },
+    gold:   { bg: '#FFFBEB', border: '#FDE68A', ribbon: ['#F59E0B', '#D97706'] },
+};
+
 const BADGE_CONFIGS = {
-    first_perfect_day: { Icon: CheckCircle2, grad: ['#10B981', '#059669'] },
-    '3_day_consistent': { Icon: Zap, grad: ['#F59E0B', '#D97706'] },
-    never_missed_morning: { Icon: Star, grad: ['#4361EE', '#2563EB'] },
-    weekly_90: { Icon: Target, grad: ['#7C3AED', '#6D28D9'] },
-    '7_perfect_days': { Icon: Sparkles, grad: ['#06B6D4', '#0891B2'] },
-    monthly_consistent: { Icon: Award, grad: ['#F43F5E', '#E11D48'] },
+    first_dose:            { Icon: Zap,         grad: ['#10B981', '#059669'] },
+    first_perfect_day:     { Icon: CheckCircle2, grad: ['#10B981', '#059669'] },
+    '3_day_consistent':    { Icon: Zap,         grad: ['#F59E0B', '#D97706'] },
+    never_missed_morning:  { Icon: Star,        grad: ['#4361EE', '#2563EB'] },
+    weekly_90:             { Icon: Target,       grad: ['#7C3AED', '#6D28D9'] },
+    '7_perfect_days':      { Icon: Sparkles,    grad: ['#06B6D4', '#0891B2'] },
+    night_owl:             { Icon: Star,        grad: ['#6366F1', '#4F46E5'] },
+    vitals_tracker:        { Icon: Heart,       grad: ['#F43F5E', '#E11D48'] },
+    streak_14:             { Icon: Flame,       grad: ['#EF4444', '#DC2626'] },
+    monthly_consistent:    { Icon: Award,       grad: ['#F43F5E', '#E11D48'] },
+    '100_doses':           { Icon: Target,      grad: ['#8B5CF6', '#7C3AED'] },
+    '30_perfect_days':     { Icon: Award,       grad: ['#F59E0B', '#D97706'] },
 };
 
 const AchievementBadge = ({ achievement, index }) => {
@@ -219,7 +231,7 @@ const AchievementBadge = ({ achievement, index }) => {
     useEffect(() => {
         Animated.spring(scaleAnim, {
             toValue: 1,
-            delay: index * 70,
+            delay: index * 50,
             friction: 6,
             tension: 55,
             useNativeDriver: true,
@@ -227,6 +239,9 @@ const AchievementBadge = ({ achievement, index }) => {
     }, []);
 
     const unlocked = achievement.unlocked;
+    const progress = achievement.progress ?? 0;
+    const tier = achievement.tier || 'bronze';
+    const tierStyle = TIER_COLORS[tier] || TIER_COLORS.bronze;
     const cfg = BADGE_CONFIGS[achievement.key] || { Icon: Award, grad: ['#94A3B8', '#64748B'] };
     const { Icon: BadgeIcon, grad } = cfg;
     const cardWidth = (SCREEN_WIDTH - 40 - 12) / 2;
@@ -234,9 +249,14 @@ const AchievementBadge = ({ achievement, index }) => {
     return (
         <Animated.View style={[
             styles.achievementCard,
-            { width: cardWidth, transform: [{ scale: scaleAnim }] },
+            { width: cardWidth, transform: [{ scale: scaleAnim }], borderColor: unlocked ? tierStyle.border : C.border },
             !unlocked && styles.achievementLocked,
         ]}>
+            {/* Tier ribbon */}
+            <View style={[styles.achieveTierRibbon, { backgroundColor: unlocked ? tierStyle.ribbon[0] : '#CBD5E1' }]}>
+                <Text style={styles.achieveTierTxt}>{tier.toUpperCase()}</Text>
+            </View>
+
             <LinearGradient
                 colors={unlocked ? grad : ['#E2E8F0', '#CBD5E1']}
                 style={styles.achievementIconCircle}
@@ -253,6 +273,17 @@ const AchievementBadge = ({ achievement, index }) => {
             <Text style={[styles.achievementDesc, !unlocked && { color: '#CBD5E1' }]} numberOfLines={2}>
                 {achievement.description}
             </Text>
+
+            {/* Progress bar */}
+            {!unlocked && (
+                <View style={styles.achieveProgressWrap}>
+                    <View style={styles.achieveProgressBg}>
+                        <View style={[styles.achieveProgressFill, { width: `${Math.round(progress * 100)}%`, backgroundColor: grad[0] }]} />
+                    </View>
+                    <Text style={styles.achieveProgressTxt}>{achievement.progressLabel || `${Math.round(progress * 100)}%`}</Text>
+                </View>
+            )}
+
             <View style={[styles.achievementStatus, { backgroundColor: unlocked ? C.successBg : '#F1F5F9' }]}>
                 {unlocked && <CheckCircle2 size={10} color={C.success} />}
                 <Text style={[styles.achievementStatusText, { color: unlocked ? C.success : C.light }]}>
@@ -1122,6 +1153,21 @@ const styles = StyleSheet.create({
         paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10, marginTop: 10,
     },
     achievementStatusText: { fontSize: 10, fontWeight: '700' },
+
+    // ── Achievement Tier & Progress ──
+    achieveTierRibbon: {
+        position: 'absolute', top: 8, right: -1,
+        paddingHorizontal: 8, paddingVertical: 2,
+        borderTopLeftRadius: 6, borderBottomLeftRadius: 6,
+    },
+    achieveTierTxt: { fontSize: 8, fontWeight: '900', color: '#FFF', letterSpacing: 1 },
+    achieveProgressWrap: { width: '100%', marginTop: 8, alignItems: 'center' },
+    achieveProgressBg: {
+        width: '100%', height: 6, borderRadius: 3,
+        backgroundColor: '#E2E8F0', overflow: 'hidden',
+    },
+    achieveProgressFill: { height: '100%', borderRadius: 3 },
+    achieveProgressTxt: { fontSize: 9, fontWeight: '700', color: C.muted, marginTop: 3 },
 
     // ── Modal / Bottom Sheet ──
     modalOverlay: { flex: 1, justifyContent: 'flex-end' },
