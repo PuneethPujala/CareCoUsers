@@ -400,17 +400,25 @@ router.get('/me/profile', authenticateSession, async (req, res) => {
         patientObj.gp = { name: patientObj.gp_name, phone: patientObj.gp_phone, email: patientObj.gp_email };
 
         // ── Compute live health score ──────────────────────────────────────────
-        // 7-day adherence rate from MedicineLog
-        const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+        // 30-day adherence rate from MedicineLog (uses medicines[].taken boolean)
+        const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
         const [logs, latestVital] = await Promise.all([
-            MedicineLog.find({ patient_id: patient._id, date: { $gte: weekAgo } }).lean(),
+            MedicineLog.find({ patient_id: patient._id, date: { $gte: thirtyDaysAgo } }).lean(),
             VitalLog.findOne({ patient_id: patient._id }).sort({ recorded_at: -1 }).lean(),
         ]);
 
         let adherenceRate = null;
         if (logs.length > 0) {
-            const taken = logs.filter(l => l.status === 'taken').length;
-            adherenceRate = (taken / logs.length) * 100;
+            let totalMeds = 0;
+            let takenMeds = 0;
+            for (const log of logs) {
+                const active = (log.medicines || []).filter(m => m.is_active !== false);
+                totalMeds += active.length;
+                takenMeds += active.filter(m => m.taken).length;
+            }
+            if (totalMeds > 0) {
+                adherenceRate = (takenMeds / totalMeds) * 100;
+            }
         }
 
         const healthScore = computeHealthScore(patientObj, adherenceRate, latestVital);
