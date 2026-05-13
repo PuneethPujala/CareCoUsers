@@ -129,26 +129,30 @@ export function AuthProvider({ children }) {
 
     const signOut = useCallback(async () => {
         try {
-            try { await auth.signOut(); } catch { }
-            try { await GoogleSignin.signOut(); } catch { }
-        } finally {
-            await clearCachedProfile();
-            await clearUserCache();
-            await clearApiTokens();
-            try { await AsyncStorage.removeItem(ONBOARDING_STORAGE_KEY); } catch { }
-
-            setCacheUserId(null);
+            // Clear React state FIRST (atomically) so the navigator
+            // immediately shows AuthStack — prevents the race where
+            // profile/patient are null but user is still set, which
+            // briefly flashes the onboarding/signup screen.
             setUser(null);
             setSession(null);
             setProfile(null);
             setPatient(null);
             usePatientStore.getState().setPatient(null);
-            WidgetBridge.clearWidget();
-            setRecoverySessionAt(null);
             profileRef.current = null;
+            setRecoverySessionAt(null);
             skipNextSignedInRef.current = false;
+
+            // Then clean up storage/auth providers in background
+            try { await auth.signOut(); } catch { }
+            try { await GoogleSignin.signOut(); } catch { }
+            await clearCachedProfile();
+            await clearUserCache();
+            await clearApiTokens();
+            try { await AsyncStorage.removeItem(ONBOARDING_STORAGE_KEY); } catch { }
+            setCacheUserId(null);
+            WidgetBridge.clearWidget();
             analytics.reset();
-        }
+        } catch { }
     }, []);
 
     // ── Initialization ────────────────────────────────────────────────────────
@@ -275,12 +279,14 @@ export function AuthProvider({ children }) {
                 // the user logged in via the dual-auth architecture.
                 const apiTok = await getApiTokens();
                 if (!apiTok) {
+                    // Clear ALL state atomically to prevent the race condition
+                    // where profile=null + user=truthy → onboarding screen flash
                     setUser(null);
                     setSession(null);
                     setProfile(null);
                     setPatient(null);
-                    usePatientStore.getState().setPatient(null);
                     profileRef.current = null;
+                    usePatientStore.getState().setPatient(null);
                 }
                 return;
             }
