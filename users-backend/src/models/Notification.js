@@ -52,6 +52,10 @@ const NotificationSchema = new mongoose.Schema(
     }
 );
 
+// Compound indexes for common query patterns
+NotificationSchema.index({ patient_id: 1, created_at: -1 }); // list notifications sorted by date
+NotificationSchema.index({ patient_id: 1, is_read: 1, created_at: -1 }); // unread count + filtered lists
+
 // Auto-delete backend notifications after 30 days to save space
 NotificationSchema.index({ created_at: 1 }, { expireAfterSeconds: 30 * 24 * 60 * 60 });
 

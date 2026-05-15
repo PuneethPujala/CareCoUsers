@@ -206,6 +206,7 @@ export const apiService = {
         updateSavedAddress: (id, data) => api.put(`/users/patients/me/addresses/${id}`, data),
         deleteSavedAddress: (id) => api.delete(`/users/patients/me/addresses/${id}`),
         getMe: () => api.get('/users/patients/me'),
+        getDashboard: () => api.get('/users/patients/me/dashboard'),
         getProfile: () => api.get('/users/patients/me/profile'),
         updateConditions: (data) => api.put('/users/patients/me/conditions', data),
         updateAllergies: (data) => api.put('/users/patients/me/allergies', data),

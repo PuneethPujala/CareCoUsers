@@ -45,6 +45,8 @@ import LocationSearchScreen from "../screens/patient/LocationSearchScreen";
 import AddAddressScreen from "../screens/patient/AddAddressScreen";
 import HealthConnectSetupScreen from "../screens/patient/HealthConnectSetupScreen";
 import AdherenceScreen from "../screens/patient/AdherenceScreen";
+import ChatbotScreen from "../screens/patient/ChatbotScreen";
+import ChatFAB from "../components/ui/ChatFAB";
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -141,6 +143,7 @@ const MainAppStack = () => (
         <Stack.Screen name="AddAddress" component={AddAddressScreen} options={{ presentation: "modal" }} />
         <Stack.Screen name="HealthConnectSetup" component={HealthConnectSetupScreen} options={{ presentation: "modal", animation: "slide_from_bottom" }} />
         <Stack.Screen name="AdherenceDetails" component={AdherenceScreen} options={{ presentation: "modal", animation: "slide_from_bottom", headerShown: false }} />
+        <Stack.Screen name="Chatbot" component={ChatbotScreen} options={{ presentation: "modal", animation: "slide_from_bottom", headerShown: false }} />
         <Stack.Screen name="Payment" component={PaymentScreen} />
         <Stack.Screen name="WaitingRoom" component={WaitingScreen} />
         <Stack.Screen name="MFASetup" component={MFASetupScreen} options={{ presentation: "modal", animation: "slide_from_bottom" }} />
@@ -315,6 +318,7 @@ export default function AppNavigator() {
     return (
         <View style={{ flex: 1 }}>
             <MainAppStack />
+            <ChatFAB onPress={() => navigate('Chatbot')} />
             <CustomAlert ref={alertRef} />
         </View>
     );

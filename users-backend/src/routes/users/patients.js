@@ -1095,4 +1095,145 @@ router.post('/me/security/emergency-contact/verify', authenticateSession, async 
     }
 });
 
+// ─── Aggregate Dashboard ──────────────────────────────────────────────────────
+
+/**
+ * GET /api/users/patients/me/dashboard
+ *
+ * Single endpoint that returns everything the mobile HomeScreen needs.
+ * Replaces 6 parallel client-side API calls with 1 round-trip:
+ *   getMe + getVitals(today) + getVitals(7d) + getToday + getAIPrediction + getAdherenceDetails
+ *
+ * All DB queries run in parallel within the same server process — no HTTP
+ * overhead, shared connection pool, single auth check.
+ */
+router.get('/me/dashboard', authenticateSession, async (req, res) => {
+    try {
+        const patient = await getOrCreatePatient(req);
+        const patientObj = patient.toObject();
+        const withHash = await Patient.findById(patient._id).select('+passwordHash').lean();
+        patientObj.hasPassword = !!withHash?.passwordHash;
+
+        const timezone = patient.timezone || 'Asia/Kolkata';
+        const todayStr = moment().tz(timezone).format('YYYY-MM-DD');
+        const todayUtc = new Date(`${todayStr}T00:00:00.000Z`);
+        const todayEndUtc = new Date(`${todayStr}T23:59:59.999Z`);
+        const sevenDaysAgo = new Date(`${moment().tz(timezone).subtract(7, 'days').format('YYYY-MM-DD')}T00:00:00.000Z`);
+
+        // ── Fire all queries in parallel ────────────────────────────────────
+        const [
+            todayVitals,
+            vitalsHistory,
+            todayMedLog,
+            aiPrediction,
+            adherenceLogs,
+        ] = await Promise.all([
+            // 1. Today's vitals
+            VitalLog.find({
+                patient_id: patient._id,
+                date: { $gte: todayUtc, $lte: todayEndUtc },
+            }).sort({ date: -1 }).lean(),
+
+            // 2. 7-day vitals history
+            VitalLog.find({
+                patient_id: patient._id,
+                date: { $gte: sevenDaysAgo },
+            }).sort({ date: 1 }).lean(),
+
+            // 3. Today's medication log (re-uses existing /today logic inline)
+            (async () => {
+                const { buildMergedMeds } = require('./medicines');
+                let log = await MedicineLog.findOne({ patient_id: patient._id, date: todayUtc });
+                const allMedsRaw = await buildMergedMeds(patient);
+
+                if (!log && allMedsRaw.length > 0) {
+                    const medicines = [];
+                    for (const med of allMedsRaw) {
+                        if (med.is_active !== false) {
+                            for (const time of med.times) {
+                                medicines.push({ medicine_name: med.name, scheduled_time: time, taken: false });
+                            }
+                        }
+                    }
+                    if (medicines.length > 0) {
+                        log = new MedicineLog({ patient_id: patient._id, date: todayUtc, medicines });
+                        await log.save();
+                    }
+                } else if (log) {
+                    let isModified = false;
+                    const activeMedNames = allMedsRaw.filter(m => m.is_active !== false).map(m => m.name);
+                    const originalCount = log.medicines.length;
+                    log.medicines = log.medicines.filter(m => activeMedNames.includes(m.medicine_name));
+                    if (log.medicines.length !== originalCount) isModified = true;
+                    for (const med of allMedsRaw) {
+                        if (med.is_active !== false) {
+                            for (const time of med.times) {
+                                const exists = log.medicines.some(m => m.medicine_name === med.name && m.scheduled_time === time);
+                                if (!exists) { log.medicines.push({ medicine_name: med.name, scheduled_time: time, taken: false }); isModified = true; }
+                            }
+                        }
+                    }
+                    if (isModified) await log.save();
+                }
+
+                const logObj = log ? log.toObject() : { medicines: [], date: todayUtc };
+                const preferences = patient.medication_call_preferences || { morning: '09:00', afternoon: '14:00', night: '20:00' };
+                if (logObj.medicines) {
+                    logObj.medicines = logObj.medicines.filter(m => m.is_active !== false).map(m => {
+                        const patMed = allMedsRaw.find(p => p.name === m.medicine_name);
+                        return { ...m, dosage: patMed?.dosage || '', instructions: patMed?.instructions || '', preferred_time: preferences[m.scheduled_time] || '' };
+                    });
+                }
+                return { log: logObj, preferences };
+            })(),
+
+            // 4. AI prediction
+            AIVitalPrediction.findOne({ patient_id: patient._id }).lean().catch(() => null),
+
+            // 5. Adherence details (streak + score — lightweight version)
+            MedicineLog.find({
+                patient_id: patient._id,
+                date: { $gte: sevenDaysAgo },
+            }).sort({ date: 1 }).lean(),
+        ]);
+
+        // ── Compute adherence summary ───────────────────────────────────────
+        let streak = 0;
+        let weeklyTaken = 0;
+        let weeklyTotal = 0;
+        for (const log of adherenceLogs) {
+            const active = (log.medicines || []).filter(m => m.is_active !== false);
+            const taken = active.filter(m => m.taken).length;
+            weeklyTaken += taken;
+            weeklyTotal += active.length;
+        }
+        // Simple streak: count consecutive days (from today backward) with >50% adherence
+        const dayLogs = [...adherenceLogs].reverse();
+        for (const log of dayLogs) {
+            const active = (log.medicines || []).filter(m => m.is_active !== false);
+            if (active.length === 0) continue;
+            const rate = active.filter(m => m.taken).length / active.length;
+            if (rate > 0.5) streak++;
+            else break;
+        }
+
+        const vitals = todayVitals.length > 0 ? todayVitals[0] : null;
+
+        res.json({
+            patient: patientObj,
+            vitals,
+            vitalsHistory,
+            meds: todayMedLog,
+            aiPrediction: aiPrediction || null,
+            adherence: {
+                streak,
+                weeklyRate: weeklyTotal > 0 ? Math.round((weeklyTaken / weeklyTotal) * 100) : 0,
+            },
+        });
+    } catch (error) {
+        logger.error('Dashboard aggregate error', { error: error.message, patientId: req.user?.id });
+        res.status(500).json({ error: 'Failed to load dashboard' });
+    }
+});
+
 module.exports = router;
