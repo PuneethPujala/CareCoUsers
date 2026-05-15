@@ -816,18 +816,14 @@ export default function MedicationsScreen({ navigation }) {
                                     </View>
                                 </View>
                                 <View style={{ flexDirection: 'row', gap: 2 }}>
-                                    {adherence.map((d, i) => {
-                                        const todayRaw = new Date().getDay();
-                                        const todayIdx = todayRaw === 0 ? 6 : todayRaw - 1;
-                                        return (
-                                            <ChartBar
-                                                key={i}
-                                                percentage={d.p}
-                                                isToday={i === todayIdx}
-                                                day={(d.day || '').substring(0, 2)}
-                                            />
-                                        );
-                                    })}
+                                    {adherence.map((d, i) => (
+                                        <ChartBar
+                                            key={i}
+                                            percentage={d.p}
+                                            isToday={d.isToday}
+                                            day={(d.day || '').substring(0, 2)}
+                                        />
+                                    ))}
                                 </View>
                             </View>
                         </Animated.View>
