@@ -37,8 +37,34 @@ app.get("/debug-sentry", function mainHandler(req, res) {
 // Connect to MongoDB (skip in test environment to avoid open handles or missing mocks)
 if (process.env.NODE_ENV !== 'test') {
   connectDB();
-  require('./jobs/notificationJob').startNotificationCron();
-  require('./jobs/medicationReminderJob'); // Starts the 1-minute medication cron
+
+  // ── Job scheduling ────────────────────────────────────────────────
+  // Register repeatable BullMQ jobs (processed by worker.js).
+  // Falls back to in-process node-cron if Redis is unavailable.
+  (async () => {
+    try {
+      const { medicationReminderQueue, aiNotificationQueue } = require('./jobs/jobQueues');
+
+      // Upsert repeatable schedules — idempotent, safe to call on every restart
+      await medicationReminderQueue.upsertJobScheduler(
+        'med-reminder-every-minute',
+        { pattern: '* * * * *' },    // every minute
+        { name: 'medication-scan' }
+      );
+
+      await aiNotificationQueue.upsertJobScheduler(
+        'ai-notif-every-hour',
+        { pattern: '0 * * * *' },    // top of every hour
+        { name: 'ai-notification-scan' }
+      );
+
+      console.log('📋 BullMQ repeatable jobs registered (processed by worker.js)');
+    } catch (err) {
+      console.warn('⚠️  BullMQ scheduling failed, falling back to in-process cron:', err.message);
+      require('./jobs/notificationJob').startNotificationCron();
+      require('./jobs/medicationReminderJob'); // Starts the 1-minute medication cron
+    }
+  })();
 }
 
 // Security middleware

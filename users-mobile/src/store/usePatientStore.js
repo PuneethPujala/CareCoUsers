@@ -112,9 +112,81 @@ const usePatientStore = create((set, get) => ({
                 }
             }
 
-            // BUG 13 FIX: derive today's date boundaries in the patient's timezone.
-            // Previously used new Date() + setHours which is server/device local time.
-            // An IST patient fetching at 1am IST would get UTC date = yesterday.
+            // ── Try aggregate endpoint first (1 call instead of 6) ──────
+            let dashData = null;
+            try {
+                const { data } = await apiService.patients.getDashboard();
+                dashData = data;
+            } catch (aggErr) {
+                // Fallback: if server doesn't have /dashboard yet (404), use legacy 6-call pattern
+                if (aggErr.response?.status !== 404) throw aggErr;
+            }
+
+            if (dashData) {
+                // ── Fast path: aggregate response ───────────────────────
+                const freshPatient = dashData.patient;
+                const freshVitals = dashData.vitals;
+                const prefs = freshPatient?.medication_call_preferences || { morning: '09:00', afternoon: '14:00', night: '20:00' };
+
+                if (freshPatient?.language && i18n.language !== freshPatient.language) {
+                    i18n.changeLanguage(freshPatient.language);
+                }
+
+                const optRef = { ...get()._optimisticMeds };
+                const freshMeds = (dashData.meds?.log?.medicines || []).map(m => {
+                    const id = `${m.medicine_name}_${m.scheduled_time}`;
+                    const optTs = optRef[id];
+                    let isTaken = m.taken;
+                    if (optTs) {
+                        if (isTaken) delete optRef[id];
+                        else if (Date.now() - optTs < 60000) isTaken = true;
+                        else delete optRef[id];
+                    }
+                    return {
+                        id,
+                        name: m.medicine_name,
+                        dosage: m.dosage || 'As prescribed',
+                        instructions: m.instructions || '',
+                        time: i18n.t(`time_slots.${m.scheduled_time}`, { defaultValue: TIME_LABELS[m.scheduled_time] || m.scheduled_time }),
+                        type: m.scheduled_time,
+                        taken: isTaken,
+                        accent: ACCENT_MAP[m.scheduled_time] || '#6366F1',
+                    };
+                });
+
+                set({
+                    patient: freshPatient,
+                    vitals: freshVitals,
+                    vitalsHistory: dashData.vitalsHistory || [],
+                    aiPrediction: dashData.aiPrediction,
+                    dashboardMeds: freshMeds,
+                    callPreferences: prefs,
+                    adherenceDetails: dashData.adherence || { streak: 0 },
+                    isCached: false,
+                    loading: false,
+                    lastFetchTs: Date.now(),
+                    _optimisticMeds: optRef,
+                });
+
+                await setCache(CACHE_KEYS.HOME_DASHBOARD, {
+                    patient: freshPatient,
+                    vitals: freshVitals,
+                    meds: freshMeds,
+                }, 60);
+
+                WidgetBridge.updateAllWidgets({
+                    meds: freshMeds,
+                    vitals: freshVitals,
+                    aiPrediction: dashData.aiPrediction,
+                    adherenceDetails: dashData.adherence,
+                    patient: freshPatient,
+                    vitalsHistory: dashData.vitalsHistory || [],
+                });
+
+                return { patient: freshPatient, vitals: freshVitals, meds: freshMeds };
+            }
+
+            // ── Legacy fallback: 6 parallel calls ───────────────────────
             const currentPatient = get().patient;
             const timezone = currentPatient?.timezone || 'Asia/Kolkata';
             const todayStr = getTodayStringInTz(timezone);
@@ -251,12 +323,33 @@ const usePatientStore = create((set, get) => ({
             const grouped = { morning: [], afternoon: [], evening: [], night: [], as_needed: [] };
             mergedMeds.forEach(m => { if (grouped[m.type]) grouped[m.type].push(m); });
 
-            const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-            const weeklyData = (weeklyRes.data.adherence || []).map(d => ({
-                day: days[new Date(d.date).getDay()],
-                p: d.rate,
-                isToday: new Date(d.date).toDateString() === new Date().toDateString(),
-            }));
+            // Build a full 7-day array (today + 6 days back) with gap-filling.
+            // API adherence entries may have gaps for days with no log.
+            const tz = freshPatient?.timezone || 'Asia/Kolkata';
+            const todayDateStr = getTodayStringInTz(tz); // YYYY-MM-DD
+            const dayNames = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+
+            // Index API data by YYYY-MM-DD for fast lookup
+            const adherenceByDate = {};
+            for (const d of (weeklyRes.data.adherence || [])) {
+                // d.date is a UTC midnight ISO string — extract the date part
+                const dStr = typeof d.date === 'string'
+                    ? d.date.slice(0, 10)
+                    : new Date(d.date).toISOString().slice(0, 10);
+                adherenceByDate[dStr] = d.rate;
+            }
+
+            const weeklyData = [];
+            for (let i = 6; i >= 0; i--) {
+                const dt = new Date(todayDateStr + 'T12:00:00Z'); // noon UTC avoids DST issues
+                dt.setUTCDate(dt.getUTCDate() - i);
+                const dateStr = dt.toISOString().slice(0, 10);
+                weeklyData.push({
+                    day: dayNames[dt.getUTCDay()],
+                    p: adherenceByDate[dateStr] ?? 0,
+                    isToday: dateStr === todayDateStr,
+                });
+            }
 
             set({
                 patient: freshPatient,
