@@ -412,6 +412,7 @@ const usePatientStore = create((set, get) => ({
 
             // Re-fetch medications + weekly adherence so chart/avg update immediately
             get().fetchMedications();
+            get().fetchDashboard(true);
         } catch (err) {
             if (err.request || err.code === 'ECONNABORTED' || err.message === 'Network Error') {
                 console.warn('[Store] Network error, enqueueing mutation offline:', err.message);
