@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import {
     View, Text, StyleSheet, FlatList, TextInput, Pressable, KeyboardAvoidingView,
-    Platform, Animated, ActivityIndicator, StatusBar,
+    Platform, Animated, ActivityIndicator, StatusBar, Image, Alert
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -9,6 +9,9 @@ import { ArrowLeft, Send, Sparkles, Bot, User, Mic, Paperclip } from 'lucide-rea
 import { colors } from '../../theme';
 import { useAuth } from '../../context/AuthContext';
 import { useTranslation } from 'react-i18next';
+import { Audio } from 'expo-av';
+import * as ImagePicker from 'expo-image-picker';
+import usePatientStore from '../../store/usePatientStore';
 
 const INITIAL_SUGGESTIONS = [
     '💊 What medications am I taking?',
@@ -31,12 +34,27 @@ function ChatBubble({ message, isUser }) {
                     <Bot size={16} color="#6366F1" strokeWidth={2.5} />
                 </LinearGradient>
             )}
-            <View style={[styles.bubble, isUser ? styles.bubbleUser : styles.bubbleBot]}>
-                {isUser ? (
+            <View style={[styles.bubble, isUser ? styles.bubbleUser : styles.bubbleBot, message.image && styles.bubbleImageContainer, message.audio && styles.bubbleAudioContainer]}>
+                {isUser && !message.image && !message.audio ? (
                     <LinearGradient colors={['#6366F1', '#4F46E5']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
                 ) : null}
-                <Text style={[styles.bubbleText, isUser && styles.bubbleTextUser]}>{message.text}</Text>
-                <Text style={[styles.bubbleTime, isUser && styles.bubbleTimeUser]}>
+                
+                {message.image ? (
+                    <Image source={{ uri: message.image }} style={styles.chatImage} resizeMode="cover" />
+                ) : null}
+
+                {message.audio ? (
+                    <View style={styles.audioBubble}>
+                        <Mic size={16} color="#6366F1" />
+                        <Text style={styles.audioBubbleText}>Voice Message • 0:02</Text>
+                    </View>
+                ) : null}
+
+                {message.text ? (
+                    <Text style={[styles.bubbleText, isUser && !message.image && !message.audio && styles.bubbleTextUser]}>{message.text}</Text>
+                ) : null}
+                
+                <Text style={[styles.bubbleTime, isUser && !message.image && !message.audio && styles.bubbleTimeUser]}>
                     {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </Text>
             </View>
@@ -50,7 +68,7 @@ function ChatBubble({ message, isUser }) {
 }
 
 // ── Typing indicator ────────────────────────────────────────────────────────
-function TypingIndicator() {
+function TypingIndicator({ stage }) {
     const dots = [useRef(new Animated.Value(0)).current, useRef(new Animated.Value(0)).current, useRef(new Animated.Value(0)).current];
     useEffect(() => {
         const anims = dots.map((dot, i) =>
@@ -69,7 +87,8 @@ function TypingIndicator() {
             <LinearGradient colors={['#EEF2FF', '#E0E7FF']} style={styles.avatarCircle}>
                 <Bot size={16} color="#6366F1" strokeWidth={2.5} />
             </LinearGradient>
-            <View style={[styles.bubble, styles.bubbleBot, styles.typingBubble]}>
+            <View style={[styles.bubble, styles.bubbleBot, styles.typingBubble, { flexDirection: 'row', alignItems: 'center' }]}>
+                {stage && <Text style={{ color: '#6B7280', marginRight: 8, fontSize: 13, fontWeight: '500' }}>{stage}</Text>}
                 {dots.map((dot, i) => (
                     <Animated.View key={i} style={[styles.typingDot, { opacity: dot.interpolate({ inputRange: [0, 1], outputRange: [0.3, 1] }), transform: [{ scale: dot.interpolate({ inputRange: [0, 1], outputRange: [0.8, 1.2] }) }] }]} />
                 ))}
@@ -83,11 +102,20 @@ function TypingIndicator() {
 // ══════════════════════════════════════════════════════════════════════════════
 export default function ChatbotScreen({ navigation }) {
     const { t } = useTranslation();
-    const { displayName } = useAuth();
+    const { displayName, currentUser } = useAuth();
+    const patient = usePatientStore(state => state.patient);
     const insets = useSafeAreaInsets();
     const flatListRef = useRef(null);
     const [inputText, setInputText] = useState('');
+    
+    // UI Loading States
     const [isTyping, setIsTyping] = useState(false);
+    const [typingStage, setTypingStage] = useState(''); // 'Listening...', 'Transcribing...', 'Thinking...'
+    
+    // Audio recording state
+    const [recording, setRecording] = useState(null);
+    const [isRecording, setIsRecording] = useState(false);
+
     const firstName = displayName?.split(' ')[0] || 'there';
 
     const [messages, setMessages] = useState([
@@ -105,43 +133,185 @@ export default function ChatbotScreen({ navigation }) {
 
     useEffect(() => { scrollToBottom(); }, [messages, isTyping]);
 
-    // ── Placeholder response (replace with real model later) ────────────
-    const getPlaceholderResponse = (userMsg) => {
-        const lower = userMsg.toLowerCase();
-        if (lower.includes('medication') || lower.includes('med') || lower.includes('drug'))
-            return "I can see your medication schedule! Once our AI model is connected, I'll give you detailed info about dosages, interactions, and reminders. For now, check the Medications tab for your full list. 💊";
-        if (lower.includes('vital') || lower.includes('heart') || lower.includes('blood pressure'))
-            return "Your vitals tracking is looking good! When our AI is fully integrated, I'll be able to analyze trends and predict health patterns. Check your dashboard for today's readings. 📊";
-        if (lower.includes('tip') || lower.includes('health') || lower.includes('advice'))
-            return "Here's a quick health tip: Stay hydrated and try to take short walks every hour! Once our AI model is fine-tuned, I'll provide personalized health recommendations based on your profile. 🩺";
-        if (lower.includes('dose') || lower.includes('next') || lower.includes('schedule'))
-            return "Your medication schedule is managed in the Medications tab. Soon, I'll be able to proactively remind you and suggest optimal timing based on your routine! ⏰";
-        if (lower.includes('hello') || lower.includes('hi') || lower.includes('hey'))
-            return `Hello ${firstName}! 😊 I'm here to help. Ask me anything about your medications, vitals, or health!`;
-        return "Thanks for your message! I'm currently being fine-tuned to give you the best health assistance. In the meantime, feel free to explore the app's features — Medications, Vitals, and Health Profile are all at your fingertips! 🚀";
+    // Cleanup audio on unmount
+    useEffect(() => {
+        return () => {
+            if (recording) {
+                recording.stopAndUnloadAsync();
+            }
+        };
+    }, [recording]);
+
+    // ── Real API Integration ────────────
+    const submitToBackend = async (userMsg, isAudio = false, recordingUri = null) => {
+        try {
+            const token = await currentUser.getIdToken();
+            const patientId = currentUser.uid;
+            const targetLanguage = patient?.preferredLanguage ?? 'en';
+
+            const formData = new FormData();
+            formData.append('patientId', patientId);
+            formData.append('targetLanguage', targetLanguage);
+
+            if (isAudio && recordingUri) {
+                setTypingStage('Transcribing...');
+                const extension = Platform.OS === 'ios' ? 'm4a' : 'm4a';
+                formData.append('audio', {
+                    uri: recordingUri,
+                    type: `audio/${extension}`,
+                    name: `voice_note.${extension}`
+                });
+            } else {
+                setTypingStage('Thinking...');
+                formData.append('query', userMsg);
+            }
+
+            const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.5:3001'}/api/chatbot/chat`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                },
+                body: formData
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || 'API Request Failed');
+            }
+
+            return {
+                text: data.message,
+                transcribedText: data.transcribedText
+            };
+
+        } catch (error) {
+            console.error('API Error:', error);
+            throw error;
+        }
     };
 
-    const handleSend = useCallback((text) => {
+    const handleSend = useCallback(async (text, imageUri = null, audioUri = null) => {
         const msg = (text || inputText).trim();
-        if (!msg) return;
+        if (!msg && !imageUri && !audioUri && !recording) return;
 
-        const userMessage = { id: Date.now().toString(), text: msg, isUser: true, timestamp: Date.now() };
+        const isAudioMsg = !!recording || !!audioUri;
+        const currentRecordingUri = isAudioMsg ? (audioUri || recording?.getURI()) : null;
+
+        if (recording) {
+            await recording.stopAndUnloadAsync();
+            setRecording(null);
+            setIsRecording(false);
+        }
+
+        const userMessage = { 
+            id: Date.now().toString(), 
+            text: isAudioMsg ? '' : msg, 
+            image: imageUri,
+            audio: currentRecordingUri,
+            isUser: true, 
+            timestamp: Date.now() 
+        };
+        
         setMessages(prev => [...prev, userMessage]);
         setInputText('');
         setIsTyping(true);
+        setTypingStage('Listening...');
 
-        // Simulate AI response delay
-        setTimeout(() => {
+        try {
+            const responseData = await submitToBackend(msg, isAudioMsg, currentRecordingUri);
+            
             const botReply = {
                 id: (Date.now() + 1).toString(),
-                text: getPlaceholderResponse(msg),
+                text: responseData.text,
                 isUser: false,
                 timestamp: Date.now(),
             };
             setMessages(prev => [...prev, botReply]);
+
+            if (isAudioMsg && responseData.transcribedText) {
+                console.log(`[STT Preview] Heard: ${responseData.transcribedText}`);
+                // Optional: Show preview message for debugging
+                // const debugMsg = { id: Date.now().toString(), text: `📝 Heard: "${responseData.transcribedText}"`, isUser: false, timestamp: Date.now() };
+                // setMessages(prev => [...prev, debugMsg]);
+            }
+        } catch (error) {
+            const botReply = {
+                id: (Date.now() + 1).toString(),
+                text: `Sorry, I ran into an issue: ${error.message}. Please try again.`,
+                isUser: false,
+                timestamp: Date.now(),
+            };
+            setMessages(prev => [...prev, botReply]);
+        } finally {
             setIsTyping(false);
-        }, 1200 + Math.random() * 800);
-    }, [inputText, firstName]);
+            setTypingStage('');
+        }
+    }, [inputText, recording, currentUser, patient]);
+
+    const handlePickImage = async () => {
+        try {
+            const result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsEditing: true,
+                quality: 0.8,
+            });
+
+            if (!result.canceled && result.assets && result.assets[0]) {
+                handleSend('', result.assets[0].uri);
+            }
+        } catch (error) {
+            console.warn('Image picker error:', error);
+            Alert.alert('Error', 'Could not open image gallery.');
+        }
+    };
+
+    const startRecording = async () => {
+        try {
+            const permission = await Audio.requestPermissionsAsync();
+            if (permission.status === 'granted') {
+                await Audio.setAudioModeAsync({
+                    allowsRecordingIOS: true,
+                    playsInSilentModeIOS: true,
+                });
+                setIsRecording(true);
+                const { recording } = await Audio.Recording.createAsync(
+                    Audio.RecordingOptionsPresets.HIGH_QUALITY
+                );
+                setRecording(recording);
+            } else {
+                Alert.alert('Permission needed', 'Please grant microphone access to send voice messages.');
+            }
+        } catch (err) {
+            console.error('Failed to start recording', err);
+            setIsRecording(false);
+        }
+    };
+
+    const stopRecording = async () => {
+        if (!recording) return;
+        setIsRecording(false);
+        try {
+            await recording.stopAndUnloadAsync();
+            const uri = recording.getURI();
+            setRecording(null);
+            
+            if (uri) {
+                handleSend('', null, uri);
+            }
+        } catch (err) {
+            console.error('Failed to stop recording', err);
+            setRecording(null);
+        }
+    };
+
+    const toggleRecording = () => {
+        if (isRecording) {
+            stopRecording();
+        } else {
+            startRecording();
+        }
+    };
 
     const renderMessage = useCallback(({ item }) => (
         <ChatBubble message={item} isUser={item.isUser} />
@@ -195,7 +365,7 @@ export default function ChatbotScreen({ navigation }) {
                             </LinearGradient>
                         </View>
                     }
-                    ListFooterComponent={isTyping ? <TypingIndicator /> : null}
+                    ListFooterComponent={isTyping ? <TypingIndicator stage={typingStage} /> : null}
                 />
 
                 {/* ── Suggestion chips (shown when few messages) ── */}
@@ -211,7 +381,7 @@ export default function ChatbotScreen({ navigation }) {
 
                 {/* ── Input bar ── */}
                 <View style={[styles.inputBar, { paddingBottom: Math.max(insets.bottom, 12) }]}>
-                    <Pressable style={styles.inputAction} onPress={() => {}}>
+                    <Pressable style={styles.inputAction} onPress={handlePickImage}>
                         <Paperclip size={20} color="#94A3B8" strokeWidth={2} />
                     </Pressable>
                     <View style={styles.inputWrapper}>
@@ -228,8 +398,10 @@ export default function ChatbotScreen({ navigation }) {
                             blurOnSubmit={false}
                         />
                     </View>
-                    <Pressable style={styles.inputAction} onPress={() => {}}>
-                        <Mic size={20} color="#94A3B8" strokeWidth={2} />
+                    <Pressable style={styles.inputAction} onPress={toggleRecording}>
+                        <View style={isRecording ? styles.recordingDotActive : null}>
+                            <Mic size={20} color={isRecording ? '#EF4444' : '#94A3B8'} strokeWidth={2} />
+                        </View>
                     </Pressable>
                     <Pressable
                         style={[styles.sendBtn, !inputText.trim() && styles.sendBtnDisabled]}
@@ -282,12 +454,19 @@ const styles = StyleSheet.create({
     avatarCircle: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', marginBottom: 2 },
     avatarCircleUser: { width: 30, height: 30, borderRadius: 15, backgroundColor: '#6366F1', alignItems: 'center', justifyContent: 'center', marginBottom: 2 },
     bubble: { maxWidth: '75%', borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10, overflow: 'hidden' },
+    bubbleImageContainer: { paddingHorizontal: 4, paddingVertical: 4, backgroundColor: 'transparent' },
+    bubbleAudioContainer: { paddingHorizontal: 10, paddingVertical: 10, backgroundColor: '#FFFFFF' },
+    chatImage: { width: 200, height: 200, borderRadius: 16 },
+    audioBubble: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    audioBubbleText: { fontSize: 14, color: '#6366F1', fontWeight: '600' },
     bubbleBot: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0', borderBottomLeftRadius: 6 },
     bubbleUser: { borderBottomRightRadius: 6 },
     bubbleText: { fontSize: 14, color: '#1E293B', lineHeight: 20, fontWeight: '500' },
     bubbleTextUser: { color: '#FFFFFF' },
     bubbleTime: { fontSize: 10, color: '#94A3B8', marginTop: 4, textAlign: 'right', fontWeight: '600' },
     bubbleTimeUser: { color: 'rgba(255,255,255,0.7)' },
+    
+    recordingDotActive: { backgroundColor: '#FEE2E2', padding: 4, borderRadius: 12 },
 
     // ── Typing indicator ──
     typingBubble: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingVertical: 14, paddingHorizontal: 18 },

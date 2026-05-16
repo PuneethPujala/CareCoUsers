@@ -856,8 +856,36 @@ export default function HealthProfileScreen({ navigation }) {
                         </View>
                     </Animated.View>
 
-                    {/* Medical History */}
+                    {/* Vaccinations */}
                     <Animated.View style={anim(6)}>
+                        <View style={s.gridCard}>
+                            <View style={s.gridHeader}>
+                                <View style={[s.gridIconWrap, { backgroundColor: '#FCE7F3' }]}><Syringe size={16} color="#EC4899" /></View>
+                                <Text style={s.gridTitle}>{t('health_profile.vaccinations', { defaultValue: 'Vaccinations' })}</Text>
+                                <Pressable style={s.gridAddBtn} onPress={() => openModal('vaccination')} hitSlop={10}>
+                                    <Plus size={16} color="#EC4899" />
+                                </Pressable>
+                            </View>
+                            <View style={s.gridBody}>
+                                {vaccinations.map((v, i) => (
+                                    <Pressable key={i} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }} onPress={() => openModal('vaccination', v)}>
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={s.gridHistoryTxt}>{v.name}</Text>
+                                            <Text style={s.gridHistorySub}>
+                                                {v.date_given ? new Date(v.date_given).toLocaleDateString(t('common.locale_date', { defaultValue: 'en-US' }), { year: 'numeric', month: 'short', day: 'numeric' }) : t('health_profile.unknown_date', { defaultValue: 'Unknown Date' })}
+                                                {v.administered_by ? ` • ${v.administered_by}` : ''}
+                                            </Text>
+                                        </View>
+                                        <ChevronRight size={14} color="#CBD5E1" />
+                                    </Pressable>
+                                ))}
+                                {vaccinations.length === 0 && <Text style={s.emptyGridTxt}>{t('health_profile.no_vaccinations', { defaultValue: 'No vaccinations logged' })}</Text>}
+                            </View>
+                        </View>
+                    </Animated.View>
+
+                    {/* Medical History */}
+                    <Animated.View style={anim(7)}>
                         <View style={s.gridCard}>
                             <View style={s.gridHeader}>
                                 <View style={[s.gridIconWrap, { backgroundColor: '#F3E8FF' }]}><FileText size={16} color="#A855F7" /></View>
@@ -882,7 +910,7 @@ export default function HealthProfileScreen({ navigation }) {
                     </Animated.View>
 
                     {/* Care Network */}
-                    <Animated.View style={anim(7)}>
+                    <Animated.View style={anim(8)}>
                         <View style={s.gridCard}>
                             <View style={s.gridHeader}>
                                 <View style={[s.gridIconWrap, { backgroundColor: '#E0F2FE' }]}><Users size={16} color="#3B82F6" /></View>
