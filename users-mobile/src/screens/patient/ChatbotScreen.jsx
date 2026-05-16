@@ -171,7 +171,7 @@ export default function ChatbotScreen({ navigation }) {
                 formData.append('query', userMsg);
             }
 
-            const baseUrl = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.5:3001/api';
+            const baseUrl = process.env.EXPO_PUBLIC_CHATBOT_URL || process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.5:3001/api';
             const response = await fetch(`${baseUrl}/chatbot/chat`, {
                 method: 'POST',
                 headers: {
