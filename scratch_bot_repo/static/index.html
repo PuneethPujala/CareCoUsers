@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CareCall - Audio Analysis</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --bg-color: #0f172a;
+            --card-bg: rgba(30, 41, 59, 0.7);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+            color: var(--text-main);
+            min-height: 100vh;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px 20px;
+            box-sizing: border-box;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 800px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin: 0 0 10px 0;
+            background: linear-gradient(to right, #818cf8, #c084fc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        p.subtitle {
+            color: var(--text-muted);
+            font-size: 1.1rem;
+            margin: 0;
+        }
+
+        .card {
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 30px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
+            margin-bottom: 30px;
+            transition: all 0.3s ease;
+        }
+
+        .upload-section {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            border: 2px dashed var(--border-color);
+            border-radius: 12px;
+            padding: 40px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .file-input-wrapper:hover {
+            border-color: var(--primary);
+            background: rgba(79, 70, 229, 0.05);
+        }
+
+        .file-input-wrapper input[type="file"] {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .file-label {
+            font-size: 1.1rem;
+            color: var(--text-muted);
+        }
+
+        .file-name {
+            display: block;
+            margin-top: 10px;
+            color: var(--text-main);
+            font-weight: 500;
+        }
+
+        button {
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 14px 24px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s ease;
+            width: 100%;
+        }
+
+        button:hover:not(:disabled) {
+            background: var(--primary-hover);
+        }
+
+        button:disabled {
+            background: var(--border-color);
+            color: var(--text-muted);
+            cursor: not-allowed;
+        }
+
+        .status-section {
+            display: none;
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .spinner {
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            border-top: 3px solid var(--primary);
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .status-text {
+            color: #818cf8;
+            font-weight: 500;
+        }
+
+        .results-section {
+            display: none;
+        }
+
+        .result-group {
+            margin-bottom: 25px;
+        }
+
+        .result-group:last-child {
+            margin-bottom: 0;
+        }
+
+        .result-label {
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .result-content {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            line-height: 1.6;
+            white-space: pre-wrap;
+        }
+
+        .badge {
+            display: inline-block;
+            background: rgba(79, 70, 229, 0.2);
+            color: #818cf8;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            margin-right: 8px;
+            margin-bottom: 8px;
+            border: 1px solid rgba(79, 70, 229, 0.3);
+        }
+
+        .error-message {
+            color: #ef4444;
+            background: rgba(239, 68, 68, 0.1);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            display: none;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="header">
+            <h1>CareCall Analysis</h1>
+            <p class="subtitle">Upload a medical call audio to generate a structured summary.</p>
+        </div>
+
+        <div class="card">
+            <div class="upload-section">
+                <div class="file-input-wrapper">
+                    <input type="file" id="audioFile" accept="audio/*,video/mp4" onchange="updateFileName(this)">
+                    <div class="file-label" id="fileLabel">
+                        Drag & Drop or Click to select audio file<br>
+                        <small>(.mp3, .wav, .m4a, .mp4)</small>
+                    </div>
+                    <span class="file-name" id="fileNameDisplay"></span>
+                </div>
+                <button id="analyzeBtn" onclick="analyzeCall()" disabled>Analyze Call</button>
+            </div>
+
+            <div class="status-section" id="statusSection">
+                <div class="spinner"></div>
+                <div class="status-text" id="statusText">Uploading file...</div>
+            </div>
+
+            <div class="error-message" id="errorMessage"></div>
+        </div>
+
+        <div class="card results-section" id="resultsSection">
+            <div class="result-group">
+                <div class="result-label">Quick Summary</div>
+                <div class="result-content" id="resQuickSummary" style="font-size: 1.1rem; color: #fff;"></div>
+            </div>
+
+            <div class="result-group">
+                <div class="result-label">Call Overview</div>
+                <div class="result-content" id="resOverview"></div>
+            </div>
+
+            <div class="result-group">
+                <div class="result-label">Key Points</div>
+                <div class="result-content" id="resKeyPoints"></div>
+            </div>
+
+            <div class="result-group" style="display: flex; gap: 20px;">
+                <div style="flex: 1;">
+                    <div class="result-label">Action Items</div>
+                    <div class="result-content" id="resActions"></div>
+                </div>
+                <div style="flex: 1;">
+                    <div class="result-label">Patient Health Notes</div>
+                    <div class="result-content" id="resHealthNotes"></div>
+                </div>
+            </div>
+
+            <div class="result-group">
+                <div class="result-label">Medicines Detected</div>
+                <div id="resMedicines" style="margin-top: 10px;"></div>
+            </div>
+            
+            <div class="result-group">
+                <div class="result-label">Follow Up</div>
+                <div class="result-content">
+                    <span id="resFollowUpBadge"></span>
+                    <span id="resFollowUpReason"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentJobId = null;
+        let pollInterval = null;
+
+        function updateFileName(input) {
+            const display = document.getElementById('fileNameDisplay');
+            const btn = document.getElementById('analyzeBtn');
+            const label = document.getElementById('fileLabel');
+
+            if (input.files && input.files[0]) {
+                display.textContent = input.files[0].name;
+                label.style.display = 'none';
+                btn.disabled = false;
+            } else {
+                display.textContent = '';
+                label.style.display = 'block';
+                btn.disabled = true;
+            }
+        }
+
+        async function analyzeCall() {
+            const fileInput = document.getElementById('audioFile');
+            if (!fileInput.files || !fileInput.files[0]) return;
+
+            const file = fileInput.files[0];
+            const formData = new FormData();
+            formData.append('audio_file', file);
+
+            // UI Updates
+            document.getElementById('analyzeBtn').disabled = true;
+            document.getElementById('statusSection').style.display = 'block';
+            document.getElementById('resultsSection').style.display = 'none';
+            document.getElementById('errorMessage').style.display = 'none';
+            document.getElementById('statusText').textContent = 'Uploading and starting analysis...';
+
+            try {
+                const response = await fetch('/analyze-call', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Upload failed: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                currentJobId = data.job_id;
+                
+                // Start polling
+                document.getElementById('statusText').textContent = 'Processing... This may take a few minutes (Audio Cleaning -> Whisper Transcription -> AI Summary)';
+                pollInterval = setInterval(pollStatus, 5000); // poll every 5 seconds
+
+            } catch (error) {
+                showError(error.message);
+            }
+        }
+
+        async function pollStatus() {
+            if (!currentJobId) return;
+
+            try {
+                const response = await fetch(`/result/${currentJobId}`);
+                const data = await response.json();
+
+                if (data.status === 'completed') {
+                    clearInterval(pollInterval);
+                    document.getElementById('statusSection').style.display = 'none';
+                    document.getElementById('analyzeBtn').disabled = false;
+                    displayResults(data.result);
+                } else if (data.status === 'failed') {
+                    clearInterval(pollInterval);
+                    showError(`Processing failed: ${data.error}`);
+                }
+            } catch (error) {
+                clearInterval(pollInterval);
+                showError(`Error polling status: ${error.message}`);
+            }
+        }
+
+        function displayResults(result) {
+            document.getElementById('resultsSection').style.display = 'block';
+            
+            // Populate fields
+            document.getElementById('resQuickSummary').textContent = result.quick_summary || 'N/A';
+            
+            const summary = result.summary || {};
+            document.getElementById('resOverview').textContent = summary.call_overview || 'N/A';
+            document.getElementById('resKeyPoints').textContent = summary.key_points || 'N/A';
+            document.getElementById('resActions').textContent = summary.action_items || 'N/A';
+            document.getElementById('resHealthNotes').textContent = summary.patient_health_notes || 'N/A';
+            
+            // Follow up
+            const reqBadge = document.getElementById('resFollowUpBadge');
+            if (summary.follow_up_required) {
+                reqBadge.innerHTML = '<span class="badge" style="background: rgba(239, 68, 68, 0.2); color: #fca5a5; border-color: rgba(239, 68, 68, 0.4);">Required</span>';
+            } else {
+                reqBadge.innerHTML = '<span class="badge" style="background: rgba(34, 197, 94, 0.2); color: #86efac; border-color: rgba(34, 197, 94, 0.4);">Not Required</span>';
+            }
+            document.getElementById('resFollowUpReason').textContent = summary.follow_up_reason || '';
+
+            // Medicines
+            const medsContainer = document.getElementById('resMedicines');
+            medsContainer.innerHTML = '';
+            
+            const meds = result.medicines_detected || [];
+            if (meds.length === 0) {
+                medsContainer.innerHTML = '<span class="badge" style="color: var(--text-muted); background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.1)">None detected</span>';
+            } else {
+                meds.forEach(med => {
+                    let text = typeof med === 'string' ? med : (med.generic_name || med.medicine_name || JSON.stringify(med));
+                    medsContainer.innerHTML += `<span class="badge">${text}</span>`;
+                });
+            }
+        }
+
+        function showError(msg) {
+            document.getElementById('statusSection').style.display = 'none';
+            document.getElementById('analyzeBtn').disabled = false;
+            const errDiv = document.getElementById('errorMessage');
+            errDiv.textContent = msg;
+            errDiv.style.display = 'block';
+        }
+    </script>
+</body>
+</html>

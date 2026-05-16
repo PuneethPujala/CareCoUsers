@@ -139,6 +139,10 @@ app.use('/api/users/medicines', usersMedicineRoutes);
 app.use('/api/vitals', vitalsRoutes);
 app.use('/api/vitals', vitalsSyncRoutes);
 
+// ─── Chatbot API ───────────────────────────────
+const chatbotRoutes = require('./routes/chatbotRoutes');
+app.use('/api/chatbot', chatbotRoutes);
+
 // 404 handler
 app.use('*', (req, res) => {
   res.status(404).json({ error: 'Route not found' });

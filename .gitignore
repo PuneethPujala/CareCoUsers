@@ -91,3 +91,6 @@ GoogleService-Info.plist
 # ── Build bundles (these are ~10MB each and should never be committed) ──
 bundle_*.js
 
+
+# AI Vector DB
+users-backend/chroma_db/
