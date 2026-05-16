@@ -24,7 +24,7 @@ async function ingest() {
     console.log("📚 STARTING CORPUS INGESTION TO CHROMADB");
     console.log("==========================================\n");
 
-    const client = new ChromaClient({ path: "http://localhost:8000" });
+    const client = new ChromaClient({ path: process.env.CHROMA_URL || "http://localhost:8001" });
     
     // Create or get the collection
     const collection = await client.getOrCreateCollection({

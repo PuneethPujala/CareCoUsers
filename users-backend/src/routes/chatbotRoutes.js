@@ -4,7 +4,7 @@ const multer = require('multer');
 const FormData = require('form-data');
 const axios = require('axios');
 const { generatePoCResponse } = require('../services/aiChatbotPoC');
-const { protect } = require('../middleware/auth'); 
+const { authenticate } = require('../middleware/authenticate'); 
 
 const PYTHON_API = process.env.PYTHON_API || 'http://localhost:8000';
 
@@ -37,7 +37,7 @@ function buildErrorResponse(stage, errorMsg) {
  * - If `audio` is provided, proxies it to Python for transcription, then runs RAG.
  * - If `query` text is provided, runs RAG directly.
  */
-router.post('/chat', protect, upload.single('audio'), async (req, res) => {
+router.post('/chat', authenticate, upload.single('audio'), async (req, res) => {
     try {
         const { patientId, targetLanguage, query } = req.body;
         
