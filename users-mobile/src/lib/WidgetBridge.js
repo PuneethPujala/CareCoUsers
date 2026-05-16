@@ -121,11 +121,14 @@ const WidgetBridge = {
     const adherence = total > 0 ? Math.round((taken / total) * 100) : 0;
     const allDone = taken === total && total > 0;
 
-    // Next pending med
+    // Next pending med — sorted by time-of-day so "afternoon" shows before "night"
     let nextMed = '';
     let nextTime = '';
     if (!allDone && meds.length > 0) {
-      const pending = meds.filter(m => !m.taken);
+      const SLOT_ORDER = { morning: 0, afternoon: 1, evening: 2, night: 3, as_needed: 4 };
+      const pending = meds
+        .filter(m => !m.taken)
+        .sort((a, b) => (SLOT_ORDER[a.type] ?? 99) - (SLOT_ORDER[b.type] ?? 99));
       if (pending.length > 0) {
         const next = pending[0];
         nextMed = next.name + (next.dosage ? ' ' + next.dosage : '');
