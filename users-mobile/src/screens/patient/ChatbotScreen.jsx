@@ -12,6 +12,7 @@ import { useTranslation } from 'react-i18next';
 import { Audio } from 'expo-av';
 import * as ImagePicker from 'expo-image-picker';
 import usePatientStore from '../../store/usePatientStore';
+import { getApiTokens } from '../../lib/tokenStorage';
 
 const INITIAL_SUGGESTIONS = [
     '💊 What medications am I taking?',
@@ -102,7 +103,7 @@ function TypingIndicator({ stage }) {
 // ══════════════════════════════════════════════════════════════════════════════
 export default function ChatbotScreen({ navigation }) {
     const { t } = useTranslation();
-    const { displayName, currentUser } = useAuth();
+    const { displayName, user } = useAuth();
     const patient = usePatientStore(state => state.patient);
     const insets = useSafeAreaInsets();
     const flatListRef = useRef(null);
@@ -145,16 +146,20 @@ export default function ChatbotScreen({ navigation }) {
     // ── Real API Integration ────────────
     const submitToBackend = async (userMsg, isAudio = false, recordingUri = null) => {
         try {
-            const token = await currentUser.getIdToken();
-            const patientId = currentUser.uid;
-            const targetLanguage = patient?.preferredLanguage ?? 'en';
+            const tokens = await getApiTokens();
+            if (!tokens?.access_token) {
+                throw new Error('Not authenticated. Please log in again.');
+            }
+            const token = tokens.access_token;
+            const patientId = user?.id;
+            const targetLanguage = patient?.preferredLanguage ?? patient?.language ?? 'en';
 
             const formData = new FormData();
             formData.append('patientId', patientId);
             formData.append('targetLanguage', targetLanguage);
 
             if (isAudio && recordingUri) {
-                setTypingStage('Transcribing...');
+                setTypingStage('📝 Transcribing...');
                 const extension = Platform.OS === 'ios' ? 'm4a' : 'm4a';
                 formData.append('audio', {
                     uri: recordingUri,
@@ -162,7 +167,7 @@ export default function ChatbotScreen({ navigation }) {
                     name: `voice_note.${extension}`
                 });
             } else {
-                setTypingStage('Thinking...');
+                setTypingStage('🧠 Thinking...');
                 formData.append('query', userMsg);
             }
 
@@ -248,7 +253,7 @@ export default function ChatbotScreen({ navigation }) {
             setIsTyping(false);
             setTypingStage('');
         }
-    }, [inputText, recording, currentUser, patient]);
+    }, [inputText, recording, user, patient]);
 
     const handlePickImage = async () => {
         try {
