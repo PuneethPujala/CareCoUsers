@@ -44,7 +44,7 @@ async function generatePoCResponse(patientId, userQuery, targetLanguage) {
 
         console.log(`[PoC] Searching ChromaDB for guidelines...`);
         // 2. Semantic Search in ChromaDB
-        const chroma = new ChromaClient({ path: "http://localhost:8000" });
+        const chroma = new ChromaClient({ path: process.env.CHROMA_URL || "http://localhost:8001" });
         const collection = await chroma.getCollection({ name: "medical_guidelines" });
         const queryEmbedding = await getQueryEmbedding(userQuery);
 
@@ -109,8 +109,9 @@ ${JSON.stringify(patientContext, null, 2)}
 
         let reply = response.data.message?.content || 'No response generated.';
         
-        // 8. Translation Layer
-        if (targetLanguage) {
+        // 8. Translation Layer (skip if English or not set)
+        const skipTranslation = !targetLanguage || targetLanguage === 'en' || targetLanguage.toLowerCase() === 'english';
+        if (!skipTranslation) {
             console.log(`[PoC] Translating response to ${targetLanguage} using Ollama...`);
             
             const translationPrompt = [
@@ -122,7 +123,7 @@ ${JSON.stringify(patientContext, null, 2)}
                 model: OLLAMA_MODEL,
                 messages: translationPrompt,
                 stream: false
-            });
+            }, { timeout: 45000 }); // 45s timeout for translation too
 
             reply = translationResponse.data.message?.content || reply;
         }
