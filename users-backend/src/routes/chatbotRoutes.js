@@ -39,10 +39,13 @@ function buildErrorResponse(stage, errorMsg) {
  */
 router.post('/chat', authenticate, upload.single('audio'), async (req, res) => {
     try {
-        const { patientId, targetLanguage, query } = req.body;
+        const { targetLanguage, query } = req.body;
+        
+        // Use securely resolved MongoDB ID from the authentication token
+        const patientId = req.auth?.userId;
         
         if (!patientId) {
-            return res.status(400).json(buildErrorResponse('validation', 'patientId is required.'));
+            return res.status(401).json(buildErrorResponse('validation', 'User is not fully authenticated or profile is missing.'));
         }
 
         let extractedQuery = query;
