@@ -297,6 +297,9 @@ export const apiService = {
     getAll: (params) => api.get('/notifications', { params }),
     markRead: (id) => api.patch(`/notifications/${id}/read`),
     markAllRead: () => api.patch('/notifications/read-all'),
+    registerPushToken: (token, platform) => api.post('/notifications/push-token', { token, platform }),
+    unregisterPushToken: (token) => api.delete('/notifications/push-token', { data: { token } }),
+    testPush: () => api.post('/notifications/test-push'),
   },
 };
 

@@ -232,6 +232,7 @@ router.get('/:id',
       // The frontend reads med.takenLogs[].date to decide green checkmarks.
       // MedicineLog is the true source of truth for daily adherence.
       // Merge today's MedicineLog entries into each medication's takenLogs.
+      // CRITICAL: Must be SHIFT-AWARE — each shift-dose is a separate taken entry.
       try {
           const MedicineLog = require('../models/MedicineLog');
           const _now = new Date();
@@ -250,16 +251,30 @@ router.get('/:id',
                   const mName = mObj.name || mObj.genericName || mObj.medicine_name;
                   if (!mName) return mObj;
 
-                  // Find ANY taken entry for this med name in the MedicineLog
-                  const takenEntry = todayLog.medicines.find(l => l.medicine_name === mName && l.taken);
+                  // Find ALL taken entries for this med name (one per shift)
+                  const takenEntries = todayLog.medicines.filter(l =>
+                      l.medicine_name && mName &&
+                      l.medicine_name.toLowerCase() === mName.toLowerCase() &&
+                      l.taken
+                  );
 
-                  if (takenEntry) {
+                  if (takenEntries.length > 0) {
                       const logArray = Array.isArray(mObj.takenLogs) ? [...mObj.takenLogs] : [];
-                      if (!logArray.some(l => l.date === todayStr)) {
-                          logArray.push({
-                              date: todayStr,
-                              timestamp: takenEntry.taken_at || new Date().toISOString()
-                          });
+
+                      for (const takenEntry of takenEntries) {
+                          const shiftBucket = takenEntry.scheduled_time || 'morning';
+                          // Only add if this specific date+shift combo doesn't already exist
+                          const alreadyLogged = logArray.some(l =>
+                              l.date === todayStr && l.shift === shiftBucket
+                          );
+                          if (!alreadyLogged) {
+                              logArray.push({
+                                  date: todayStr,
+                                  timestamp: takenEntry.taken_at || new Date().toISOString(),
+                                  shift: shiftBucket,
+                                  marked_by: takenEntry.marked_by || 'patient'
+                              });
+                          }
                       }
                       mObj.takenLogs = logArray;
 
