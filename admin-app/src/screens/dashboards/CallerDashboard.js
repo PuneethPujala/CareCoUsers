@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, RefreshControl, Alert, StatusBar, Animated } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, RefreshControl, Alert, StatusBar, Animated, Modal, Dimensions } from 'react-native';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import Svg, { Circle } from 'react-native-svg';
 import { Theme } from '../../theme/theme';
 import { Shadows } from '../../theme/colors';
 import { useAuth } from '../../context/AuthContext';
@@ -17,6 +18,9 @@ export default function CallerDashboard({ navigation }) {
     const [stats, setStats] = useState(null);
     const [nextCall, setNextCall] = useState(null);
     const [callQueue, setCallQueue] = useState([]);
+    const [confirmModal, setConfirmModal] = useState({ visible: false, callId: null, patientId: null, patientName: '', scheduledTime: null, attempts: 0 });
+    const modalScaleAnim = useRef(new Animated.Value(0)).current;
+    const modalOpacityAnim = useRef(new Animated.Value(0)).current;
 
     // Animations
     const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -87,6 +91,31 @@ export default function CallerDashboard({ navigation }) {
         setRefreshing(true);
         fetchDashboardData(true);
     }, [fetchDashboardData]);
+
+    const openConfirmModal = (callId, patientId, patientName, scheduledTime, attempts = 0) => {
+        setConfirmModal({ visible: true, callId, patientId, patientName, scheduledTime, attempts });
+        modalScaleAnim.setValue(0.85);
+        modalOpacityAnim.setValue(0);
+        Animated.parallel([
+            Animated.spring(modalScaleAnim, { toValue: 1, friction: 6, tension: 80, useNativeDriver: true }),
+            Animated.timing(modalOpacityAnim, { toValue: 1, duration: 200, useNativeDriver: true }),
+        ]).start();
+    };
+
+    const closeConfirmModal = () => {
+        Animated.parallel([
+            Animated.timing(modalScaleAnim, { toValue: 0.85, duration: 150, useNativeDriver: true }),
+            Animated.timing(modalOpacityAnim, { toValue: 0, duration: 150, useNativeDriver: true }),
+        ]).start(() => {
+            setConfirmModal({ visible: false, callId: null, patientId: null, patientName: '', scheduledTime: null, attempts: 0 });
+        });
+    };
+
+    const confirmAndNavigate = () => {
+        const { callId, patientId, patientName, scheduledTime } = confirmModal;
+        setConfirmModal({ visible: false, callId: null, patientId: null, patientName: '', scheduledTime: null, attempts: 0 });
+        navigation.navigate('ActiveCall', { callId, patientId, patientName, scheduledTime });
+    };
 
     const handleEmergencySOS = () => {
         Alert.alert(
@@ -225,7 +254,7 @@ export default function CallerDashboard({ navigation }) {
                                 <TouchableOpacity 
                                     style={s.focusCardWrapper} 
                                     activeOpacity={0.9}
-                                    onPress={() => navigation.navigate('ActiveCall', { callId: nextCall.id, patientId: nextCall.patientId, patientName: nextCall.patient, scheduledTime: nextCall.scheduledTime })}
+                                    onPress={() => openConfirmModal(nextCall.id, nextCall.patientId, nextCall.patient, nextCall.scheduledTime, nextCall.failedAttempts || 0)}
                                 >
                                     <LinearGradient colors={['#0F172A', '#1E293B']} style={s.focusCardInner}>
                                         <Ionicons name="call" size={100} color="#1E293B" style={s.focusBgIcon} />
@@ -289,12 +318,7 @@ export default function CallerDashboard({ navigation }) {
                                                 activeOpacity={0.7}
                                                 onPress={() => {
                                                     if (call.status === 'pending' || call.status === 'missed') {
-                                                        navigation.navigate('ActiveCall', { 
-                                                            callId: call.id, 
-                                                            patientId: call.patientId, 
-                                                            patientName: call.name, 
-                                                            scheduledTime: call.rawScheduledTime 
-                                                        });
+                                                        openConfirmModal(call.id, call.patientId, call.name, call.rawScheduledTime, call.failedAttempts || 0);
                                                     } else {
                                                         navigation.navigate('PatientDetail', { patientId: call.patientId });
                                                     }
@@ -359,6 +383,163 @@ export default function CallerDashboard({ navigation }) {
                     </Animated.View>
                 )}
             </ScrollView>
+
+            {/* ── Call Confirmation Modal ── */}
+            <Modal
+                visible={confirmModal.visible}
+                transparent={true}
+                animationType="none"
+                statusBarTranslucent={true}
+                onRequestClose={closeConfirmModal}
+            >
+                <View style={s.cmOverlay}>
+                    <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={closeConfirmModal} />
+                    <Animated.View style={[s.cmSheet, { opacity: modalOpacityAnim, transform: [{ scale: modalScaleAnim }] }]}>
+                        
+                        {/* ── Hero Icon with Glow Rings ── */}
+                        <View style={s.cmHeroSection}>
+                            <View style={s.cmIconOuterRing}>
+                                <View style={s.cmIconMiddleRing}>
+                                    <View style={s.cmIconCircle}>
+                                        <LinearGradient colors={['#4F46E5', '#6366F1']} style={StyleSheet.absoluteFill} />
+                                        <Ionicons name="call" size={26} color="#FFFFFF" />
+                                    </View>
+                                </View>
+                            </View>
+                            <Text style={s.cmTitle}>Confirm Call</Text>
+                            <Text style={s.cmSubtitle}>You're about to connect with a patient</Text>
+                        </View>
+
+                        {/* ── Divider ── */}
+                        <View style={s.cmDivider} />
+
+                        {/* ── Patient Row ── */}
+                        <View style={s.cmPatientRow}>
+                            <View style={s.cmAvatar}>
+                                <LinearGradient colors={['#6366F1', '#818CF8']} style={StyleSheet.absoluteFill} />
+                                <Text style={s.cmAvatarLetter}>{confirmModal.patientName?.charAt(0) || 'P'}</Text>
+                            </View>
+                            <View style={s.cmPatientInfo}>
+                                <Text style={s.cmPatientName} numberOfLines={1}>{confirmModal.patientName}</Text>
+                                <View style={s.cmMetaRow}>
+                                    {confirmModal.scheduledTime && (
+                                        <>
+                                            <Feather name="clock" size={11} color="#94A3B8" />
+                                            <Text style={s.cmMetaText}>
+                                                {new Date(confirmModal.scheduledTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                            </Text>
+                                        </>
+                                    )}
+                                </View>
+                            </View>
+                            <View style={s.cmStatusChip}>
+                                <View style={s.cmStatusDot} />
+                                <Text style={s.cmStatusText}>Ready</Text>
+                            </View>
+                        </View>
+
+                        {/* ── Attempt Donut ── */}
+                        {(() => {
+                            const used = confirmModal.attempts || 0;
+                            const total = 3;
+                            const left = Math.max(total - used - 1, 0);
+                            
+                            // SVG donut params
+                            const size = 100;
+                            const strokeWidth = 10;
+                            const radius = (size - strokeWidth) / 2;
+                            const circumference = 2 * Math.PI * radius;
+                            const gap = 8; // gap in px between segments
+                            const segmentLength = (circumference - gap * total) / total;
+                            
+                            const getSegmentProps = (index) => {
+                                const offset = index * (segmentLength + gap);
+                                return {
+                                    strokeDasharray: `${segmentLength} ${circumference - segmentLength}`,
+                                    strokeDashoffset: -offset,
+                                };
+                            };
+                            
+                            const getColor = (index) => {
+                                if (index < used) return '#EF4444';
+                                if (index === used) return '#F59E0B';
+                                return '#E8ECF1';
+                            };
+
+                            return (
+                                <View style={s.cmDonutSection}>
+                                    <View style={s.cmDonutRow}>
+                                        <View style={s.cmDonutWrap}>
+                                            <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+                                                {[0, 1, 2].map(i => (
+                                                    <Circle
+                                                        key={i}
+                                                        cx={size / 2}
+                                                        cy={size / 2}
+                                                        r={radius}
+                                                        fill="none"
+                                                        stroke={getColor(i)}
+                                                        strokeWidth={strokeWidth}
+                                                        strokeLinecap="round"
+                                                        transform={`rotate(-90 ${size / 2} ${size / 2})`}
+                                                        {...getSegmentProps(i)}
+                                                    />
+                                                ))}
+                                            </Svg>
+                                            <View style={s.cmDonutCenter}>
+                                                <Text style={s.cmDonutNum}>{used + 1}</Text>
+                                                <Text style={s.cmDonutOf}>of {total}</Text>
+                                            </View>
+                                        </View>
+
+                                        <View style={s.cmDonutLegend}>
+                                            <Text style={s.cmDonutLegendTitle}>SHIFT ATTEMPTS</Text>
+                                            {used > 0 && (
+                                                <View style={s.cmLegendItem}>
+                                                    <View style={[s.cmLegendDot, { backgroundColor: '#EF4444' }]} />
+                                                    <Text style={s.cmLegendLabel}>{used} Used</Text>
+                                                </View>
+                                            )}
+                                            <View style={s.cmLegendItem}>
+                                                <View style={[s.cmLegendDot, { backgroundColor: '#F59E0B' }]} />
+                                                <Text style={[s.cmLegendLabel, { color: '#0F172A', fontWeight: '700' }]}>This Call</Text>
+                                            </View>
+                                            {left > 0 && (
+                                                <View style={s.cmLegendItem}>
+                                                    <View style={[s.cmLegendDot, { backgroundColor: '#E8ECF1' }]} />
+                                                    <Text style={s.cmLegendLabel}>{left} Remaining</Text>
+                                                </View>
+                                            )}
+                                        </View>
+                                    </View>
+
+                                    <View style={s.cmShiftNote}>
+                                        <Feather name="alert-circle" size={13} color={used >= 2 ? '#EF4444' : '#94A3B8'} />
+                                        <Text style={[s.cmShiftNoteText, used >= 2 && { color: '#EF4444', fontWeight: '600' }]}>
+                                            {used >= 2
+                                                ? 'Final attempt this shift — no retries if unanswered.'
+                                                : 'Unnecessary calls waste limited shift attempts.'}
+                                        </Text>
+                                    </View>
+                                </View>
+                            );
+                        })()}
+
+                        {/* ── Buttons ── */}
+                        <View style={s.cmBtnRow}>
+                            <TouchableOpacity style={s.cmBtnCancel} activeOpacity={0.7} onPress={closeConfirmModal}>
+                                <Text style={s.cmBtnCancelText}>Not Now</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={s.cmBtnConfirm} activeOpacity={0.85} onPress={confirmAndNavigate}>
+                                <LinearGradient colors={['#4F46E5', '#4338CA']} start={{x:0,y:0}} end={{x:1,y:0}} style={StyleSheet.absoluteFill} />
+                                <Ionicons name="call" size={17} color="#FFFFFF" />
+                                <Text style={s.cmBtnConfirmText}>Start Call</Text>
+                            </TouchableOpacity>
+                        </View>
+
+                    </Animated.View>
+                </View>
+            </Modal>
         </View>
     );
 }
@@ -470,4 +651,76 @@ const s = StyleSheet.create({
     // Emergency
     emergencySOSBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: '#EF4444', borderRadius: 20, paddingVertical: 20, ...Shadows.lg, shadowColor: '#EF4444', shadowOpacity: 0.3 },
     emergencySOSTxt: { fontSize: 15, fontWeight: '800', color: '#FFFFFF', textTransform: 'uppercase', letterSpacing: 1 },
+
+    // ═══ Confirmation Modal ═══
+    cmOverlay: { flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.55)', justifyContent: 'center', alignItems: 'center', padding: 24 },
+    cmSheet: {
+        width: '100%', maxWidth: 360, backgroundColor: '#FFFFFF', borderRadius: 28,
+        ...Shadows.lg, shadowColor: '#1E293B', shadowOpacity: 0.15, shadowRadius: 30, shadowOffset: { width: 0, height: 12 },
+        elevation: 20,
+    },
+
+    // Hero
+    cmHeroSection: { alignItems: 'center', paddingTop: 36, paddingBottom: 24, paddingHorizontal: 32 },
+    cmIconOuterRing: {
+        width: 88, height: 88, borderRadius: 44,
+        backgroundColor: '#EEF2FF',
+        justifyContent: 'center', alignItems: 'center',
+    },
+    cmIconMiddleRing: {
+        width: 72, height: 72, borderRadius: 36,
+        backgroundColor: '#E0E7FF',
+        justifyContent: 'center', alignItems: 'center',
+    },
+    cmIconCircle: {
+        width: 56, height: 56, borderRadius: 28,
+        justifyContent: 'center', alignItems: 'center', overflow: 'hidden',
+    },
+    cmTitle: { fontSize: 21, fontWeight: '800', color: '#0F172A', marginTop: 20, letterSpacing: -0.3 },
+    cmSubtitle: { fontSize: 13.5, fontWeight: '500', color: '#94A3B8', marginTop: 6, textAlign: 'center', lineHeight: 19 },
+
+    // Divider
+    cmDivider: { height: 1, backgroundColor: '#F1F5F9', marginHorizontal: 28 },
+
+    // Patient
+    cmPatientRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 28, paddingVertical: 20 },
+    cmAvatar: { width: 44, height: 44, borderRadius: 14, justifyContent: 'center', alignItems: 'center', overflow: 'hidden', marginRight: 14 },
+    cmAvatarLetter: { fontSize: 17, fontWeight: '800', color: '#FFFFFF' },
+    cmPatientInfo: { flex: 1 },
+    cmPatientName: { fontSize: 16, fontWeight: '700', color: '#0F172A', marginBottom: 3 },
+    cmMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+    cmMetaText: { fontSize: 12.5, fontWeight: '500', color: '#94A3B8' },
+    cmStatusChip: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: '#F0FDF4', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10, borderWidth: 1, borderColor: '#D1FAE5' },
+    cmStatusDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#10B981' },
+    cmStatusText: { fontSize: 11, fontWeight: '700', color: '#059669', textTransform: 'uppercase', letterSpacing: 0.3 },
+
+    // Donut Chart
+    cmDonutSection: { paddingHorizontal: 28, paddingBottom: 18 },
+    cmDonutRow: { flexDirection: 'row', alignItems: 'center', gap: 24 },
+    cmDonutWrap: { width: 100, height: 100, justifyContent: 'center', alignItems: 'center' },
+    cmDonutCenter: {
+        position: 'absolute', width: 60, height: 60, borderRadius: 30,
+        backgroundColor: '#FFFFFF', justifyContent: 'center', alignItems: 'center',
+        ...Shadows.sm, shadowColor: '#64748B', shadowOpacity: 0.06,
+    },
+    cmDonutNum: { fontSize: 22, fontWeight: '900', color: '#0F172A', letterSpacing: -1 },
+    cmDonutOf: { fontSize: 11, fontWeight: '600', color: '#94A3B8', marginTop: -2 },
+    
+    // Legend
+    cmDonutLegend: { flex: 1, gap: 10 },
+    cmDonutLegendTitle: { fontSize: 10, fontWeight: '900', color: '#CBD5E1', letterSpacing: 1.5, marginBottom: 2 },
+    cmLegendItem: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    cmLegendDot: { width: 8, height: 8, borderRadius: 4 },
+    cmLegendLabel: { fontSize: 13, fontWeight: '500', color: '#64748B' },
+    
+    // Shift Note
+    cmShiftNote: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 16, paddingHorizontal: 2 },
+    cmShiftNoteText: { fontSize: 12, fontWeight: '500', color: '#94A3B8', flex: 1 },
+
+    // Buttons
+    cmBtnRow: { flexDirection: 'row', gap: 10, padding: 28, paddingTop: 20 },
+    cmBtnCancel: { flex: 1, paddingVertical: 16, borderRadius: 16, backgroundColor: '#F8FAFC', justifyContent: 'center', alignItems: 'center', borderWidth: 1.5, borderColor: '#E2E8F0' },
+    cmBtnCancelText: { fontSize: 15, fontWeight: '700', color: '#64748B' },
+    cmBtnConfirm: { flex: 1.5, flexDirection: 'row', gap: 8, paddingVertical: 16, borderRadius: 16, justifyContent: 'center', alignItems: 'center', overflow: 'hidden', ...Shadows.md, shadowColor: '#4F46E5', shadowOpacity: 0.25 },
+    cmBtnConfirmText: { fontSize: 15, fontWeight: '800', color: '#FFFFFF' },
 });

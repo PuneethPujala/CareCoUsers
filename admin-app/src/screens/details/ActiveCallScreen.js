@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, TextInput, StyleSheet, Alert, ActivityIndicator, StatusBar } from 'react-native';
-import { Feather } from '@expo/vector-icons';
+import { View, Text, ScrollView, TouchableOpacity, TextInput, StyleSheet, Alert, ActivityIndicator, StatusBar, Animated, BackHandler } from 'react-native';
+import Svg, { Circle } from 'react-native-svg';
+import { Feather, Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Theme } from '../../theme/theme';
 import { apiService } from '../../lib/api';
 
@@ -13,9 +15,15 @@ function getCurrentShift() {
 }
 
 function getShiftLabel(shift) {
-    if (shift === 'morning') return 'Morning (Before 12 PM)';
-    if (shift === 'afternoon') return 'Afternoon (12 PM – 5 PM)';
-    return 'Night (After 5 PM)';
+    if (shift === 'morning') return 'Morning';
+    if (shift === 'afternoon') return 'Afternoon';
+    return 'Night';
+}
+
+function getShiftIcon(shift) {
+    if (shift === 'morning') return 'sunny';
+    if (shift === 'afternoon') return 'partly-sunny';
+    return 'moon';
 }
 
 function filterMedsByShift(medications, shift) {
@@ -66,18 +74,30 @@ export default function ActiveCallScreen({ navigation, route }) {
     const [seconds, setSeconds] = useState(0);
     const [allMedications, setAllMedications] = useState([]);
     const [medications, setMedications] = useState([]);
+    const [prevShiftMeds, setPrevShiftMeds] = useState([]); // { ...med, _shift: 'morning' }
     
     // Track medication confirmations: { medId: boolean }
     const [checkedMeds, setCheckedMeds] = useState({});
+    const [checkedPrevMeds, setCheckedPrevMeds] = useState({});
     
     // Notes and mood
     const [notes, setNotes] = useState('');
-    const [mood, setMood] = useState('neutral'); // good, neutral, bad
-    const [outcome, setOutcome] = useState('completed'); // completed, missed, no_answer
+    const [mood, setMood] = useState('neutral');
+    const [outcome, setOutcome] = useState('completed');
     
     const timerRef = useRef(null);
     const startedAtRef = useRef(new Date().toISOString());
     const currentShift = getCurrentShift();
+
+    const getMedKey = (med) => med._id || med.name || JSON.stringify(med);
+    const getPrevMedKey = (med) => `${med._shift}_${getMedKey(med)}`;
+
+    // Previous shifts for the current shift
+    const getPrevShifts = () => {
+        if (currentShift === 'afternoon') return ['morning'];
+        if (currentShift === 'night') return ['morning', 'afternoon'];
+        return [];
+    };
 
     useEffect(() => {
         if (!patientId || patientId === 'mock') {
@@ -86,23 +106,71 @@ export default function ActiveCallScreen({ navigation, route }) {
 
         const fetchMeds = async () => {
             try {
+                // Fetch current shift meds
                 const res = await apiService.caretaker.getPatientMeds(patientId, { shift: currentShift });
                 const allMeds = res.data?.medications || [];
                 setAllMedications(allMeds);
-                // Filter to current shift only
                 const shiftMeds = filterMedsByShift(allMeds, currentShift);
                 setMedications(shiftMeds);
 
                 const initialChecked = {};
                 shiftMeds.forEach(m => {
-                    // Was it natively marked by Patient or Caller for THIS specific shift today?
-                    // (Backend explicitly bounds these flags by the current shift)
-                    const confirmedToday = m.lastConfirmed && m.lastConfirmedAt && new Date(m.lastConfirmedAt).toDateString() === new Date().toDateString();
-                    if (m.patientMarked || m.callerMarked || confirmedToday) {
-                        initialChecked[m._id] = true;
+                    const key = getMedKey(m);
+                    let isConfirmedThisShift = false;
+                    if (m.takenLogs && m.takenLogs.length > 0) {
+                        const todayStr = new Date().toLocaleDateString('en-CA');
+                        isConfirmedThisShift = m.takenLogs.some(l => {
+                            if (l.date !== todayStr) return false;
+                            if (l.shift) {
+                                let logShift = l.shift.toLowerCase().trim();
+                                if (logShift === 'evening') logShift = 'night';
+                                return logShift === currentShift;
+                            }
+                            return false;
+                        });
                     }
+                    if (m.callerMarked) isConfirmedThisShift = true;
+                    if (isConfirmedThisShift) initialChecked[key] = true;
                 });
                 setCheckedMeds(initialChecked);
+
+                // Fetch previous shift meds (unconfirmed only)
+                const prevShifts = getPrevShifts();
+                const missedMeds = [];
+                for (const shift of prevShifts) {
+                    try {
+                        const prevRes = await apiService.caretaker.getPatientMeds(patientId, { shift });
+                        const prevMeds = prevRes.data?.medications || [];
+                        const prevFiltered = filterMedsByShift(prevMeds, shift);
+                        const todayStr = new Date().toLocaleDateString('en-CA');
+                        
+                        prevFiltered.forEach(m => {
+                            // Check if this med is already confirmed for that shift
+                            let isConfirmed = false;
+                            if (m.lastConfirmed === true) isConfirmed = true;
+                            if (m.callerMarked) isConfirmed = true;
+                            if (m.patientMarked) isConfirmed = true;
+                            if (m.takenLogs && m.takenLogs.length > 0) {
+                                isConfirmed = m.takenLogs.some(l => {
+                                    if (l.date !== todayStr) return false;
+                                    if (l.shift) {
+                                        let ls = l.shift.toLowerCase().trim();
+                                        if (ls === 'evening') ls = 'night';
+                                        return ls === shift;
+                                    }
+                                    return false;
+                                });
+                            }
+                            // Only add if NOT confirmed
+                            if (!isConfirmed) {
+                                missedMeds.push({ ...m, _shift: shift });
+                            }
+                        });
+                    } catch (e) {
+                        console.warn(`[ActiveCall] Failed to fetch ${shift} meds:`, e.message);
+                    }
+                }
+                setPrevShiftMeds(missedMeds);
             } catch (err) {
                 console.error('[ActiveCall] Meds error:', err);
                 Alert.alert('Warning', 'Could not load live medication list.');
@@ -116,17 +184,37 @@ export default function ActiveCallScreen({ navigation, route }) {
         return () => clearInterval(timerRef.current);
     }, [patientId]);
 
+    // Block Android back button — must use Log & End Call
+    useEffect(() => {
+        const handler = BackHandler.addEventListener('hardwareBackPress', () => true);
+        return () => handler.remove();
+    }, []);
+
     const formatTime = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
-    const toggleMed = (id) => {
-        // Only allow toggling meds if call outcome is 'completed'
+    const toggleMed = (med) => {
         if (outcome !== 'completed') {
             Alert.alert('Cannot Mark Medications', 'You can only confirm medications when the call outcome is "Completed (Contact Made)".');
             return;
         }
-        setCheckedMeds(prev => ({ ...prev, [id]: !prev[id] }));
+        const key = getMedKey(med);
+        setCheckedMeds(prev => ({ ...prev, [key]: !prev[key] }));
+    };
+
+    const togglePrevMed = (med) => {
+        if (outcome !== 'completed') {
+            Alert.alert('Cannot Mark Medications', 'You can only confirm medications when the call outcome is "Completed (Contact Made)".');
+            return;
+        }
+        const key = getPrevMedKey(med);
+        setCheckedPrevMeds(prev => ({ ...prev, [key]: !prev[key] }));
     };
 
     const handleEndCall = async () => {
+        if (!outcome) {
+            Alert.alert('Select Outcome', 'Please select a call outcome before ending the call.');
+            return;
+        }
+
         if (!patientId || patientId === 'mock') {
             clearInterval(timerRef.current);
             Alert.alert('Call Finished', 'Mock call completed.');
@@ -134,14 +222,13 @@ export default function ActiveCallScreen({ navigation, route }) {
             return;
         }
 
-        // Validation: if completed but not all meds checked, warn user
         if (outcome === 'completed' && medications.length > 0) {
-            const allChecked = medications.every(m => checkedMeds[m._id]);
+            const allChecked = medications.every(m => checkedMeds[getMedKey(m)]);
             if (!allChecked) {
-                const checkedCount = medications.filter(m => checkedMeds[m._id]).length;
+                const cc = medications.filter(m => checkedMeds[getMedKey(m)]).length;
                 Alert.alert(
                     'Incomplete Medication Review',
-                    `Only ${checkedCount} of ${medications.length} medications are confirmed. The patient will remain PENDING in your queue until all medications are verified.\n\nDo you want to proceed?`,
+                    `Only ${cc} of ${medications.length} medications are confirmed. The patient will remain PENDING in your queue until all medications are verified.\n\nDo you want to proceed?`,
                     [
                         { text: 'Go Back', style: 'cancel' },
                         { text: 'Submit Anyway', style: 'destructive', onPress: () => submitCall() },
@@ -158,15 +245,32 @@ export default function ActiveCallScreen({ navigation, route }) {
         setSaving(true);
         clearInterval(timerRef.current);
 
-        // For no_answer/missed: do NOT send medication confirmations at all
         const isCallMade = outcome === 'completed';
+        
+        // Current shift med confirmations
         const medConfirmations = isCallMade ? medications.map(med => ({
-            medicationId: med._id,
+            medicationId: med._id || null,
             medicationName: med.name,
-            confirmed: !!checkedMeds[med._id],
+            confirmed: !!checkedMeds[getMedKey(med)],
             reason: '',
             notes: ''
-        })) : []; // Empty for missed/no_answer calls
+        })) : [];
+
+        // Previous shift med confirmations (only confirmed ones, with scheduledShift)
+        if (isCallMade) {
+            prevShiftMeds.forEach(med => {
+                if (checkedPrevMeds[getPrevMedKey(med)]) {
+                    medConfirmations.push({
+                        medicationId: med._id || null,
+                        medicationName: med.name,
+                        confirmed: true,
+                        scheduledShift: med._shift,
+                        reason: '',
+                        notes: `Confirmed during ${currentShift} shift call`
+                    });
+                }
+            });
+        }
 
         const payload = {
             callLogId: callId,
@@ -195,153 +299,228 @@ export default function ActiveCallScreen({ navigation, route }) {
         }
     };
 
+    const checkedCount = medications.filter(m => checkedMeds[getMedKey(m)]).length;
+    const ringSize = 150;
+    const ringStroke = 6;
+    const ringRadius = (ringSize - ringStroke) / 2;
+    const ringCircum = 2 * Math.PI * ringRadius;
+    const ringProgress = ringCircum - (ringCircum * (seconds % 60)) / 60;
+
     return (
-        <View style={s.root}>
-            <StatusBar barStyle="light-content" />
+        <View style={st.root}>
+            <StatusBar barStyle="dark-content" />
             
-            {/* ── Active Header ── */}
-            <View style={s.header}>
-                <View style={s.headerRow}>
-                    <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn} disabled={saving}>
-                        <Feather name="arrow-left" size={20} color="#FFFFFF" />
-                    </TouchableOpacity>
-                    <View style={s.liveBadge}>
-                        <View style={s.liveDot} />
-                        <Text style={[s.liveBadgeTxt, Theme.typography.common]}>LIVE CALL</Text>
+            {/* ═══ Premium Light Header ═══ */}
+            <LinearGradient colors={['#EEF2FF', '#F5F3FF', '#F8FAFC']} style={st.header}>
+                {/* Top badges — centered */}
+                <View style={st.headerTopRow}>
+                    <View style={st.livePill}>
+                        <View style={st.liveDot} />
+                        <Text style={st.liveTxt}>LIVE CALL</Text>
+                    </View>
+                    <View style={st.shiftPill}>
+                        <Ionicons name={getShiftIcon(currentShift)} size={13} color="#D97706" />
+                        <Text style={st.shiftTxt}>{getShiftLabel(currentShift)} Shift</Text>
                     </View>
                 </View>
-                
-                <View style={s.timerArea}>
-                    <Text style={[s.timerText, Theme.typography.common]}>{formatTime(seconds)}</Text>
-                    <Text style={[s.patientName, Theme.typography.common]}>{patientName || 'Patient'}</Text>
-                </View>
 
-                {/* ── Shift Indicator ── */}
-                <View style={s.shiftBadge}>
-                    <Feather name="sun" size={12} color="#F59E0B" />
-                    <Text style={s.shiftBadgeText}>{getShiftLabel(currentShift)}</Text>
+                {/* SVG Progress Ring + Timer */}
+                <View style={st.timerBlock}>
+                    <View style={st.timerRingWrap}>
+                        <Svg width={ringSize} height={ringSize} style={{ position: 'absolute' }}>
+                            <Circle cx={ringSize/2} cy={ringSize/2} r={ringRadius} fill="none" stroke="#E2E8F0" strokeWidth={ringStroke} />
+                            <Circle cx={ringSize/2} cy={ringSize/2} r={ringRadius} fill="none" stroke="#6366F1" strokeWidth={ringStroke} strokeLinecap="round" strokeDasharray={ringCircum} strokeDashoffset={ringProgress} transform={`rotate(-90 ${ringSize/2} ${ringSize/2})`} />
+                        </Svg>
+                        <View style={st.timerInner}>
+                            <Text style={st.timerText}>{formatTime(seconds)}</Text>
+                            <Text style={st.timerSec}>elapsed</Text>
+                        </View>
+                    </View>
+                    <Text style={st.patientNameText} numberOfLines={1}>{patientName || 'Patient'}</Text>
                 </View>
-            </View>
+            </LinearGradient>
 
-            <ScrollView style={s.scroll} contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
+            <ScrollView style={st.scroll} contentContainerStyle={st.scrollContent} showsVerticalScrollIndicator={false}>
                 {loading ? (
-                    <View style={s.loader}>
-                        <ActivityIndicator size="large" color="#2563EB" />
+                    <View style={st.loader}>
+                        <ActivityIndicator size="large" color="#4F46E5" />
                     </View>
                 ) : (
                     <>
-                        {/* ── Medications (Shift-Filtered) ── */}
-                        <Text style={[s.secTitle, Theme.typography.common]}>
-                            {currentShift.charAt(0).toUpperCase() + currentShift.slice(1)} Medication Review ({medications.length})
-                        </Text>
-                        <View style={s.card}>
+                        {/* ═══ Medication Review ═══ */}
+                        <View style={st.sectionHeader}>
+                            <Ionicons name="medical" size={16} color="#4F46E5" />
+                            <Text style={st.sectionTitle}>{getShiftLabel(currentShift)} Medications</Text>
+                            {medications.length > 0 && (
+                                <View style={st.medCountPill}>
+                                    <Text style={st.medCountTxt}>{checkedCount}/{medications.length}</Text>
+                                </View>
+                            )}
+                        </View>
+                        <View style={st.card}>
                             {medications.length === 0 ? (
-                                <View style={s.emptyArea}>
-                                    <Feather name="check-circle" size={24} color="#10B981" />
-                                    <Text style={[s.emptyText, Theme.typography.common]}>No medications scheduled for this shift.</Text>
+                                <View style={st.emptyState}>
+                                    <View style={st.emptyIconWrap}>
+                                        <Ionicons name="checkmark-circle" size={28} color="#10B981" />
+                                    </View>
+                                    <Text style={st.emptyTitle}>All Clear</Text>
+                                    <Text style={st.emptySub}>No medications for this shift</Text>
                                 </View>
                             ) : (
-                                medications.map((m, i) => (
-                                    <React.Fragment key={m._id || i}>
-                                        {i > 0 && <View style={s.divider} />}
-                                        <TouchableOpacity style={s.medRow} onPress={() => toggleMed(m._id)} activeOpacity={0.7}>
-                                            <View style={[s.checkbox, checkedMeds[m._id] && s.checkboxDone]}>
-                                                {checkedMeds[m._id] && <Feather name="check" size={14} color="#FFFFFF" />}
+                                medications.map((m, i) => {
+                                    const isChecked = checkedMeds[getMedKey(m)];
+                                    return (
+                                        <React.Fragment key={getMedKey(m) || i}>
+                                            {i > 0 && <View style={st.divider} />}
+                                            <TouchableOpacity style={st.medRow} onPress={() => toggleMed(m)} activeOpacity={0.65}>
+                                                <View style={[st.medCheck, isChecked && st.medCheckDone]}>
+                                                    {isChecked && <Feather name="check" size={13} color="#FFF" />}
+                                                </View>
+                                                <View style={st.medInfo}>
+                                                    <Text style={[st.medName, isChecked && st.medDone]} numberOfLines={1}>{m.name}</Text>
+                                                    <Text style={[st.medDetail, isChecked && st.medDone]}>{m.dosage} · {m.frequency}</Text>
+                                                </View>
+                                                <View style={[st.medStatusPill, isChecked ? st.medStatusDone : st.medStatusPending]}>
+                                                    <Text style={[st.medStatusTxt, isChecked && { color: '#059669' }]}>
+                                                        {isChecked ? 'Confirmed' : 'Pending'}
+                                                    </Text>
+                                                </View>
+                                            </TouchableOpacity>
+                                        </React.Fragment>
+                                    );
+                                })
+                            )}
+                        </View>
+
+                        {/* ═══ Previous Shift Missed Meds ═══ */}
+                        {prevShiftMeds.length > 0 && (
+                            <>
+                                <View style={st.sectionHeader}>
+                                    <Feather name="clock" size={15} color="#D97706" />
+                                    <Text style={[st.sectionTitle, { color: '#92400E' }]}>Missed from Earlier</Text>
+                                    <View style={st.prevCountPill}>
+                                        <Text style={st.prevCountTxt}>{prevShiftMeds.length}</Text>
+                                    </View>
+                                </View>
+                                <View style={[st.card, { borderColor: '#FDE68A' }]}>
+                                    {prevShiftMeds.map((m, i) => {
+                                        const isChecked = checkedPrevMeds[getPrevMedKey(m)];
+                                        return (
+                                            <React.Fragment key={getPrevMedKey(m) || i}>
+                                                {i > 0 && <View style={st.divider} />}
+                                                <TouchableOpacity style={st.medRow} onPress={() => togglePrevMed(m)} activeOpacity={0.65}>
+                                                    <View style={[st.medCheck, isChecked && st.medCheckDone]}>
+                                                        {isChecked && <Feather name="check" size={13} color="#FFF" />}
+                                                    </View>
+                                                    <View style={st.medInfo}>
+                                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                                            <Text style={[st.medName, isChecked && st.medDone]} numberOfLines={1}>{m.name}</Text>
+                                                            <View style={st.shiftTag}>
+                                                                <Text style={st.shiftTagTxt}>{getShiftLabel(m._shift)}</Text>
+                                                            </View>
+                                                        </View>
+                                                        <Text style={[st.medDetail, isChecked && st.medDone]}>{m.dosage} · {m.frequency}</Text>
+                                                    </View>
+                                                    <View style={[st.medStatusPill, isChecked ? st.medStatusDone : { backgroundColor: '#FEF3C7' }]}>
+                                                        <Text style={[st.medStatusTxt, isChecked ? { color: '#059669' } : { color: '#B45309' }]}>
+                                                            {isChecked ? 'Confirmed' : 'Missed'}
+                                                        </Text>
+                                                    </View>
+                                                </TouchableOpacity>
+                                            </React.Fragment>
+                                        );
+                                    })}
+                                </View>
+                            </>
+                        )}
+
+                        {/* ═══ Patient Mood ═══ */}
+                        <View style={st.sectionHeader}>
+                            <Feather name="heart" size={15} color="#4F46E5" />
+                            <Text style={st.sectionTitle}>Patient Mood</Text>
+                        </View>
+                        <View style={st.moodRow}>
+                            {[
+                                { id: 'good', icon: 'happy', color: '#10B981', bg: ['#D1FAE5', '#A7F3D0'], label: 'Good' },
+                                { id: 'neutral', icon: 'happy-outline', color: '#F59E0B', bg: ['#FEF3C7', '#FDE68A'], label: 'Neutral' },
+                                { id: 'bad', icon: 'sad', color: '#EF4444', bg: ['#FEE2E2', '#FECACA'], label: 'Unwell' }
+                            ].map(opt => {
+                                const active = mood === opt.id;
+                                return (
+                                    <TouchableOpacity key={opt.id} style={[st.moodCard, active && { borderColor: opt.color }]} activeOpacity={0.75} onPress={() => setMood(opt.id)}>
+                                        <View style={[st.moodIconWrap, active && { backgroundColor: opt.color + '18' }]}>
+                                            <Ionicons name={opt.icon} size={26} color={active ? opt.color : '#94A3B8'} />
+                                        </View>
+                                        <Text style={[st.moodLabel, active && { color: opt.color, fontWeight: '800' }]}>{opt.label}</Text>
+                                        {active && <View style={[st.moodDot, { backgroundColor: opt.color }]} />}
+                                    </TouchableOpacity>
+                                );
+                            })}
+                        </View>
+
+                        {/* ═══ Call Outcome ═══ */}
+                        <View style={st.sectionHeader}>
+                            <Feather name="phone" size={15} color="#4F46E5" />
+                            <Text style={st.sectionTitle}>Call Outcome</Text>
+                        </View>
+                        <View style={st.card}>
+                            {[
+                                { id: 'completed', label: 'Completed', sub: 'Contact was made', icon: 'checkmark-circle', color: '#10B981' },
+                                { id: 'no_answer', label: 'No Answer', sub: 'Patient didn\'t pick up', icon: 'call', color: '#F59E0B' },
+                                { id: 'missed', label: 'Cancelled', sub: 'Call was skipped', icon: 'close-circle', color: '#EF4444' },
+                            ].map((item, i) => {
+                                const active = outcome === item.id;
+                                return (
+                                    <React.Fragment key={item.id}>
+                                        {i > 0 && <View style={st.divider} />}
+                                        <TouchableOpacity style={st.outcomeRow} activeOpacity={0.7} onPress={() => setOutcome(item.id)}>
+                                            <View style={[st.outcomeIconWrap, active && { backgroundColor: item.color + '15' }]}>
+                                                <Ionicons name={item.icon} size={20} color={active ? item.color : '#CBD5E1'} />
                                             </View>
-                                            <View style={{ flex: 1, marginLeft: 14 }}>
-                                                <Text style={[s.medName, checkedMeds[m._id] && s.medNameDone, Theme.typography.common]}>
-                                                    {m.name}
-                                                </Text>
-                                                <Text style={[s.medSub, checkedMeds[m._id] && s.medNameDone, Theme.typography.common]}>
-                                                    {m.dosage} • {m.frequency}
-                                                </Text>
+                                            <View style={st.outcomeInfo}>
+                                                <Text style={[st.outcomeLabel, active && { color: '#0F172A' }]}>{item.label}</Text>
+                                                <Text style={st.outcomeSub}>{item.sub}</Text>
+                                            </View>
+                                            <View style={[st.radioOuter, active && { borderColor: item.color }]}>
+                                                {active && <View style={[st.radioInner, { backgroundColor: item.color }]} />}
                                             </View>
                                         </TouchableOpacity>
                                     </React.Fragment>
-                                ))
-                            )}
+                                );
+                            })}
                         </View>
 
-                        {/* ── Patient Mood ── */}
-                        <Text style={[s.secTitle, Theme.typography.common]}>Patient Mood</Text>
-                        <View style={s.card}>
-                            <View style={s.moodRow}>
-                                {[
-                                    { id: 'good', icon: 'smile', color: '#10B981', label: 'Good' },
-                                    { id: 'neutral', icon: 'meh', color: '#F59E0B', label: 'Neutral' },
-                                    { id: 'bad', icon: 'frown', color: '#EF4444', label: 'Unwell' }
-                                ].map(option => {
-                                    const isActive = mood === option.id;
-                                    return (
-                                        <TouchableOpacity 
-                                            key={option.id}
-                                            style={[s.moodBtn, isActive && { backgroundColor: option.color + '15', borderColor: option.color }]}
-                                            activeOpacity={0.8}
-                                            onPress={() => setMood(option.id)}
-                                        >
-                                            <Feather name={option.icon} size={24} color={isActive ? option.color : '#94A3B8'} />
-                                            <Text style={[s.moodLbl, Theme.typography.common, isActive && { color: option.color, fontWeight: '800' }]}>
-                                                {option.label}
-                                            </Text>
-                                        </TouchableOpacity>
-                                    );
-                                })}
-                            </View>
+                        {/* ═══ Notes ═══ */}
+                        <View style={st.sectionHeader}>
+                            <Feather name="edit-3" size={15} color="#4F46E5" />
+                            <Text style={st.sectionTitle}>Notes</Text>
                         </View>
-
-                        {/* ── Call Outcome ── */}
-                        <Text style={[s.secTitle, Theme.typography.common]}>Call Outcome</Text>
-                        <View style={s.cardRows}>
-                            {[
-                                { id: 'completed', label: 'Completed (Contact Made)', icon: 'phone-call' },
-                                { id: 'no_answer', label: 'No Answer', icon: 'phone-missed' },
-                                { id: 'missed', label: 'Cancelled / Missed', icon: 'x-circle' },
-                            ].map(item => (
-                                <TouchableOpacity 
-                                    key={item.id} 
-                                    style={s.outcomeRow} 
-                                    activeOpacity={0.8} 
-                                    onPress={() => setOutcome(item.id)}
-                                >
-                                    <View style={[s.radioOuter, outcome === item.id && s.radioOuterActive]}>
-                                        {outcome === item.id && <View style={s.radioInner} />}
-                                    </View>
-                                    <View style={s.outcomeLabelWrap}>
-                                        <Text style={[s.outcomeLbl, Theme.typography.common, outcome === item.id && { color: '#0F172A' }]}>
-                                            {item.label}
-                                        </Text>
-                                    </View>
-                                    <Feather name={item.icon} size={18} color={outcome === item.id ? '#2563EB' : '#CBD5E1'} />
-                                </TouchableOpacity>
-                            ))}
-                        </View>
-
-                        {/* ── Notes ── */}
-                        <Text style={[s.secTitle, Theme.typography.common]}>Notes</Text>
-                        <View style={s.card}>
-                            <TextInput 
-                                style={[s.notesInput, Theme.typography.common]} 
-                                placeholder="Any important observations?" 
+                        <View style={st.card}>
+                            <TextInput
+                                style={st.notesInput}
+                                placeholder="Any important observations about this call..."
                                 placeholderTextColor="#94A3B8"
-                                value={notes} 
-                                onChangeText={setNotes} 
-                                multiline 
-                                textAlignVertical="top" 
+                                value={notes}
+                                onChangeText={setNotes}
+                                multiline
+                                textAlignVertical="top"
                             />
                         </View>
 
-                        {/* ── End Call ── */}
-                        <TouchableOpacity style={s.endBtn} activeOpacity={0.8} onPress={handleEndCall} disabled={saving}>
-                            {saving ? (
-                                <ActivityIndicator size="small" color="#FFFFFF" />
-                            ) : (
-                                <>
-                                    <Feather name="phone-off" size={20} color="#FFFFFF" />
-                                    <Text style={[s.endBtnText, Theme.typography.common]}>Log & End Call</Text>
-                                </>
-                            )}
+                        {/* ═══ End Call Button ═══ */}
+                        <TouchableOpacity style={st.endBtnWrap} activeOpacity={0.85} onPress={handleEndCall} disabled={saving}>
+                            <LinearGradient colors={['#EF4444', '#DC2626']} start={{x:0,y:0}} end={{x:1,y:0}} style={st.endBtnGrad}>
+                                {saving ? (
+                                    <ActivityIndicator size="small" color="#FFFFFF" />
+                                ) : (
+                                    <>
+                                        <Feather name="phone-off" size={19} color="#FFFFFF" />
+                                        <Text style={st.endBtnText}>Log & End Call</Text>
+                                    </>
+                                )}
+                            </LinearGradient>
                         </TouchableOpacity>
-                        
+
                         <View style={{ height: 40 }} />
                     </>
                 )}
@@ -351,70 +530,98 @@ export default function ActiveCallScreen({ navigation, route }) {
 }
 
 // ═══════════════════════════════════════════
-// STYLES
+// PREMIUM STYLES
 // ═══════════════════════════════════════════
-const s = StyleSheet.create({
+const st = StyleSheet.create({
     root: { flex: 1, backgroundColor: '#F8FAFC' },
-    
-    // Header
-    header: { backgroundColor: '#0F172A', paddingTop: 50, paddingBottom: 32, borderBottomLeftRadius: 24, borderBottomRightRadius: 24, ...Theme.shadows.sharp },
-    headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20 },
-    backBtn: { width: 44, height: 44, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.1)', justifyContent: 'center', alignItems: 'center' },
-    liveBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#EF4444', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
-    liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#FFFFFF', marginRight: 6 },
-    liveBadgeTxt: { fontSize: 11, fontWeight: '800', color: '#FFFFFF', letterSpacing: 0.5 },
-    
-    timerArea: { alignItems: 'center', marginTop: 24 },
-    timerText: { fontSize: 56, fontWeight: '800', color: '#FFFFFF', letterSpacing: 2 },
-    patientName: { fontSize: 16, fontWeight: '600', color: '#94A3B8', marginTop: 4 },
 
-    shiftBadge: { 
-        flexDirection: 'row', alignItems: 'center', justifyContent: 'center', 
-        gap: 6, alignSelf: 'center', marginTop: 12,
-        backgroundColor: 'rgba(245,158,11,0.15)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10 
+    // ── Header ──
+    header: { paddingTop: 54, paddingBottom: 24, borderBottomLeftRadius: 32, borderBottomRightRadius: 32, ...Theme.shadows.sharp, shadowColor: '#6366F1', shadowOpacity: 0.06 },
+    headerTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 20, gap: 10 },
+    livePill: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#EF4444', paddingHorizontal: 12, paddingVertical: 5, borderRadius: 20, gap: 6 },
+    liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#FFFFFF' },
+    liveTxt: { fontSize: 10, fontWeight: '900', color: '#FFFFFF', letterSpacing: 0.8 },
+    shiftPill: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFBEB', paddingHorizontal: 12, paddingVertical: 5, borderRadius: 20, gap: 5, borderWidth: 1, borderColor: '#FDE68A' },
+    shiftTxt: { fontSize: 11, fontWeight: '700', color: '#D97706' },
+
+    // Timer
+    timerBlock: { alignItems: 'center', marginTop: 20 },
+    timerRingWrap: { width: 150, height: 150, justifyContent: 'center', alignItems: 'center' },
+    timerInner: {
+        width: 126, height: 126, borderRadius: 63,
+        backgroundColor: '#FFFFFF',
+        justifyContent: 'center', alignItems: 'center',
+        ...Theme.shadows.sharp, shadowColor: '#6366F1', shadowOpacity: 0.1,
     },
-    shiftBadgeText: { fontSize: 11, fontWeight: '700', color: '#F59E0B', letterSpacing: 0.3 },
-    
-    scroll: { flex: 1 },
-    content: { padding: 16 },
-    loader: { paddingVertical: 60, alignItems: 'center' },
-    
-    secTitle: { fontSize: 14, fontWeight: '800', color: '#0F172A', marginTop: 24, marginBottom: 12 },
-    
-    // Cards
-    card: { backgroundColor: '#FFFFFF', borderRadius: 16, borderWidth: 1, borderColor: '#F1F5F9', ...Theme.shadows.sharp, overflow: 'hidden' },
-    cardRows: { backgroundColor: '#FFFFFF', borderRadius: 16, borderWidth: 1, borderColor: '#F1F5F9', ...Theme.shadows.sharp, overflow: 'hidden' },
+    timerText: { fontSize: 38, fontWeight: '900', color: '#0F172A', letterSpacing: 2, fontVariant: ['tabular-nums'] },
+    timerSec: { fontSize: 10, fontWeight: '600', color: '#94A3B8', letterSpacing: 1, textTransform: 'uppercase', marginTop: 2 },
+    patientNameText: { fontSize: 18, fontWeight: '800', color: '#1E293B', marginTop: 14, paddingHorizontal: 40 },
 
-    divider: { height: 1, backgroundColor: '#F1F5F9' },
-    
-    // Med Row
-    medRow: { flexDirection: 'row', alignItems: 'center', padding: 16 },
-    checkbox: { width: 28, height: 28, borderRadius: 8, borderWidth: 2, borderColor: '#CBD5E1', justifyContent: 'center', alignItems: 'center' },
-    checkboxDone: { backgroundColor: '#10B981', borderColor: '#10B981' },
+    // ── Scrollable ──
+    scroll: { flex: 1 },
+    scrollContent: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 20 },
+    loader: { paddingVertical: 60, alignItems: 'center' },
+
+    // Section
+    sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 28, marginBottom: 14, paddingHorizontal: 2 },
+    sectionTitle: { fontSize: 16, fontWeight: '800', color: '#0F172A', flex: 1, letterSpacing: -0.2 },
+    medCountPill: { backgroundColor: '#EEF2FF', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12, borderWidth: 1, borderColor: '#E0E7FF' },
+    medCountTxt: { fontSize: 12, fontWeight: '800', color: '#4F46E5' },
+
+    // Card
+    card: { backgroundColor: '#FFFFFF', borderRadius: 22, borderWidth: 1, borderColor: '#F1F5F9', overflow: 'hidden', ...Theme.shadows.sharp, elevation: 2 },
+    divider: { height: StyleSheet.hairlineWidth, backgroundColor: '#E2E8F0', marginLeft: 58 },
+
+    // Empty State
+    emptyState: { paddingVertical: 40, alignItems: 'center' },
+    emptyIconWrap: { width: 56, height: 56, borderRadius: 18, backgroundColor: '#F0FDF4', justifyContent: 'center', alignItems: 'center', marginBottom: 14 },
+    emptyTitle: { fontSize: 17, fontWeight: '800', color: '#0F172A', marginBottom: 4 },
+    emptySub: { fontSize: 13, fontWeight: '500', color: '#94A3B8' },
+
+    // Medication Row
+    medRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 15, paddingHorizontal: 18 },
+    medCheck: { width: 28, height: 28, borderRadius: 10, borderWidth: 2.5, borderColor: '#D1D5DB', justifyContent: 'center', alignItems: 'center' },
+    medCheckDone: { backgroundColor: '#10B981', borderColor: '#10B981' },
+    medInfo: { flex: 1, marginLeft: 14 },
     medName: { fontSize: 15, fontWeight: '700', color: '#0F172A' },
-    medSub: { fontSize: 12, fontWeight: '600', color: '#64748B', marginTop: 2 },
-    medNameDone: { textDecorationLine: 'line-through', color: '#94A3B8' },
+    medDetail: { fontSize: 12, fontWeight: '500', color: '#94A3B8', marginTop: 3 },
+    medDone: { textDecorationLine: 'line-through', color: '#B0B8C4' },
+    medStatusPill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
+    medStatusPending: { backgroundColor: '#FFF7ED' },
+    medStatusDone: { backgroundColor: '#ECFDF5' },
+    medStatusTxt: { fontSize: 10, fontWeight: '800', color: '#D97706', letterSpacing: 0.3 },
+
+    // Previous Shift
+    prevCountPill: { backgroundColor: '#FEF3C7', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, borderWidth: 1, borderColor: '#FDE68A' },
+    prevCountTxt: { fontSize: 12, fontWeight: '800', color: '#B45309' },
+    shiftTag: { backgroundColor: '#EEF2FF', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6 },
+    shiftTagTxt: { fontSize: 9, fontWeight: '800', color: '#6366F1', letterSpacing: 0.3, textTransform: 'uppercase' },
 
     // Mood
-    moodRow: { flexDirection: 'row', padding: 10 },
-    moodBtn: { flex: 1, alignItems: 'center', paddingVertical: 14, borderRadius: 12, borderWidth: 1, borderColor: 'transparent' },
-    moodLbl: { fontSize: 12, fontWeight: '700', color: '#94A3B8', marginTop: 8 },
+    moodRow: { flexDirection: 'row', gap: 10 },
+    moodCard: {
+        flex: 1, alignItems: 'center', paddingVertical: 18, borderRadius: 20,
+        backgroundColor: '#FFFFFF', borderWidth: 1.5, borderColor: '#F1F5F9',
+        ...Theme.shadows.sharp, elevation: 2,
+    },
+    moodIconWrap: { width: 48, height: 48, borderRadius: 16, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8FAFC' },
+    moodLabel: { fontSize: 13, fontWeight: '700', color: '#94A3B8', marginTop: 10 },
+    moodDot: { width: 6, height: 6, borderRadius: 3, marginTop: 8 },
 
     // Outcome
-    outcomeRow: { flexDirection: 'row', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
-    radioOuter: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: '#CBD5E1', justifyContent: 'center', alignItems: 'center', marginRight: 14 },
-    radioOuterActive: { borderColor: '#2563EB' },
-    radioInner: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#2563EB' },
-    outcomeLabelWrap: { flex: 1 },
-    outcomeLbl: { fontSize: 14, fontWeight: '700', color: '#64748B' },
+    outcomeRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 16, paddingHorizontal: 18 },
+    outcomeIconWrap: { width: 42, height: 42, borderRadius: 14, backgroundColor: '#F8FAFC', justifyContent: 'center', alignItems: 'center', marginRight: 14 },
+    outcomeInfo: { flex: 1 },
+    outcomeLabel: { fontSize: 15, fontWeight: '700', color: '#64748B' },
+    outcomeSub: { fontSize: 12, fontWeight: '500', color: '#94A3B8', marginTop: 2 },
+    radioOuter: { width: 24, height: 24, borderRadius: 12, borderWidth: 2.5, borderColor: '#D1D5DB', justifyContent: 'center', alignItems: 'center' },
+    radioInner: { width: 12, height: 12, borderRadius: 6 },
 
     // Notes
-    notesInput: { fontSize: 15, color: '#0F172A', minHeight: 100, padding: 16 },
+    notesInput: { fontSize: 15, fontWeight: '500', color: '#0F172A', minHeight: 110, padding: 18, lineHeight: 22 },
 
     // End Button
-    endBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: '#EF4444', borderRadius: 14, paddingVertical: 16, marginTop: 32, ...Theme.shadows.sharp },
-    endBtnText: { fontSize: 16, fontWeight: '800', color: '#FFFFFF' },
-    
-    emptyArea: { paddingVertical: 32, alignItems: 'center', gap: 8 },
-    emptyText: { fontSize: 13, fontWeight: '600', color: '#64748B' }
+    endBtnWrap: { marginTop: 36, borderRadius: 20, overflow: 'hidden', ...Theme.shadows.sharp, shadowColor: '#EF4444', shadowOpacity: 0.3, elevation: 4 },
+    endBtnGrad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 19 },
+    endBtnText: { fontSize: 17, fontWeight: '900', color: '#FFFFFF', letterSpacing: 0.3 },
 });

@@ -30,7 +30,14 @@
     "plugins": [
       "expo-web-browser",
       "expo-font",
-      "expo-splash-screen"
+      "expo-splash-screen",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#6366F1"
+        }
+      ]
     ],
     "extra": {
       "eas": {
