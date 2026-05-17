@@ -1,6 +1,8 @@
 import React, { createContext, useState, useContext, useEffect, useCallback, useRef } from 'react';
+import { Platform } from 'react-native';
 import { supabase, auth, handleAuthError } from '../lib/supabase';
 import { apiService, handleApiError } from '../lib/api';
+import { registerForPushNotifications } from '../services/pushNotifications';
 
 const AuthContext = createContext(null);
 
@@ -18,6 +20,34 @@ export function AuthProvider({ children }) {
   const [mustVerifyPhone, setMustVerifyPhone] = useState(false);
 
   const skipNextFetchRef = useRef(false);
+  const pushTokenRef = useRef(null);
+
+  // Register push token with backend
+  const registerPushToken = useCallback(async () => {
+    try {
+      const token = await registerForPushNotifications();
+      if (token) {
+        pushTokenRef.current = token;
+        await apiService.notifications.registerPushToken(token, Platform.OS);
+        console.log('[Auth] Push token registered');
+      }
+    } catch (e) {
+      console.warn('[Auth] Push token registration failed:', e.message);
+    }
+  }, []);
+
+  // Unregister push token on logout
+  const unregisterPushToken = useCallback(async () => {
+    try {
+      if (pushTokenRef.current) {
+        await apiService.notifications.unregisterPushToken(pushTokenRef.current);
+        pushTokenRef.current = null;
+        console.log('[Auth] Push token unregistered');
+      }
+    } catch (e) {
+      console.warn('[Auth] Push token unregister failed:', e.message);
+    }
+  }, []);
 
   // ─── Initialization ────
   // Restore existing session on mount (keeps user logged in across refreshes)
@@ -49,6 +79,8 @@ export function AuthProvider({ children }) {
             setMustChangePassword(prof.mustChangePassword || false);
             setMustVerifyPhone(PHONE_REQUIRED_ROLES.includes(prof.role) && !prof.phoneVerified);
             skipNextFetchRef.current = true;
+            // Re-register push token on session restore
+            registerPushToken();
           } catch {
             // Profile fetch failed or timed out — clear session so user re-logs
             await auth.signOut().catch(() => {});
@@ -148,6 +180,9 @@ export function AuthProvider({ children }) {
         refresh_token: session.refresh_token,
       });
 
+      // Register push notifications after login
+      registerPushToken();
+
       return response.data;
     } catch (error) {
       const serverMsg = error?.response?.data?.error;
@@ -177,6 +212,9 @@ export function AuthProvider({ children }) {
         refresh_token: session.refresh_token,
       });
 
+      // Register push notifications after Google login
+      registerPushToken();
+
       return googleData;
     } catch (error) {
       const serverMsg = error?.response?.data?.error;
@@ -188,6 +226,8 @@ export function AuthProvider({ children }) {
 
   // ─── Sign Out ────
   const signOut = useCallback(async () => {
+    // Unregister push token before signing out
+    await unregisterPushToken();
     try {
       await auth.signOut();
     } catch {
@@ -197,7 +237,7 @@ export function AuthProvider({ children }) {
     setProfile(null);
     setMustChangePassword(false);
     setMustVerifyPhone(false);
-  }, []);
+  }, [unregisterPushToken]);
 
   // ─── Other Auth Methods (kept for compatibility) ────
   const signUp = useCallback(async (email, password, fullName, role, additionalData = {}) => {

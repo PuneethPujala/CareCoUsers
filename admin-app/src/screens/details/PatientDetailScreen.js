@@ -12,9 +12,9 @@ import { apiService, handleApiError } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 
 const PHASE_TIMES = {
-    morning: ['08:00 AM'],
-    afternoon: ['01:00 PM'],
-    night: ['08:00 PM']
+    morning: ['08:00'],
+    afternoon: ['13:00'],
+    night: ['20:00']
 };
 
 const filterMedsByShift = (medications, shift) => {

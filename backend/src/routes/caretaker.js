@@ -98,19 +98,17 @@ function filterMedsByShift(medications, shift) {
             }
 
             if (hour === -1) {
-                // If it's an unrecognized format, default it to morning shift so it's not lost
-                console.log(`[DEBUG] filterMedsByShift: Unrecognized format ${t}, defaulting to morning`);
                 return shift === 'morning';
             }
 
-            console.log(`[DEBUG] filterMedsByShift: Evaluated hour ${hour} against shift ${shift}`);
+
             if (shift === 'morning') return hour >= 0 && hour < 12;
             if (shift === 'afternoon') return hour >= 12 && hour < 17;
             if (shift === 'night') return hour >= 17;
 
             return false;
         });
-        console.log(`[DEBUG] filterMedsByShift result for ${med.name || med.medicine_name}:`, isMatch);
+
         return isMatch;
     });
 }
@@ -442,14 +440,24 @@ async function getPatientShiftStatus(caretakerId, patientId, shiftMeds, shiftSta
     const failedAttempts = shiftLogs.filter(l => ['no_answer', 'missed'].includes(l.status)).length;
     const completedLogs = shiftLogs.filter(l => l.status === 'completed');
 
-    // Collect ALL confirmed med IDs across ALL completed call logs for this shift
-    // (covers cases where caller does multiple calls for the same patient)
+    // Collect confirmed med IDs ONLY from completed call logs within THIS shift window.
+    // The shiftStart/shiftEnd params already scope the query (line 439), so completedLogs
+    // are only calls inside the current shift. However, the medicationConfirmations array
+    // itself still has no shift field, so we rely on the CallLog's scheduledTime being
+    // within the shift window as our shift-scoping mechanism.
+    // Helper to get a safe identifier since embedded meds often lack an _id
+    const getMedIdentifier = (med) => med._id ? med._id.toString() : (med.name || med.medicine_name || '').toLowerCase();
+
     const confirmedMedIds = new Set();
     for (const log of completedLogs) {
         const confirmations = log.medicationConfirmations || [];
         for (const c of confirmations) {
-            if (c.confirmed === true && c.medicationId) {
-                confirmedMedIds.add(c.medicationId.toString());
+            if (c.confirmed === true) {
+                if (c.medicationId) {
+                    confirmedMedIds.add(c.medicationId.toString());
+                } else if (c.medicationName) {
+                    confirmedMedIds.add(c.medicationName.toLowerCase());
+                }
             }
         }
     }
@@ -466,43 +474,59 @@ async function getPatientShiftStatus(caretakerId, patientId, shiftMeds, shiftSta
         const MedicineLog = mongoose.model('MedicineLog');
         const todayLog = await MedicineLog.findOne({ patient_id: patientId, date: today }).lean();
 
-        // Determine current shift string bucket based on shiftStart hour
-        const shiftHour = shiftStart.getHours();
-        const currentShiftString = shiftHour < 12 ? 'morning' : (shiftHour < 17 ? 'afternoon' : 'night');
+        // Determine current shift string bucket using IST-aware helper
+        // (not shiftStart.getHours() which is timezone-dependent)
+        const currentShiftString = getCurrentShift();
 
-        // Check MedicineLog array
+        // ── PRIMARY: Check MedicineLog (the sole authority for shift-level adherence) ──
+        // Only match entries whose scheduled_time exactly equals the current shift.
         if (todayLog && todayLog.medicines) {
             for (const medLog of todayLog.medicines) {
                 if (medLog.taken) {
                     const matchedMed = shiftMeds.find(sm => sm.name && medLog.medicine_name && sm.name.toLowerCase() === medLog.medicine_name.toLowerCase());
                     if (matchedMed) {
                          const logShift = medLog.scheduled_time?.toLowerCase();
-                         if (logShift === currentShiftString || !logShift) {
-                             confirmedMedIds.add(matchedMed._id?.toString());
+                         const isShiftMatch = logShift === currentShiftString ||
+                             (currentShiftString === 'night' && logShift === 'evening');
+                         if (logShift && isShiftMatch) {
+                             confirmedMedIds.add(getMedIdentifier(matchedMed));
                          }
                     }
                 }
             }
         }
 
-        // Check takenLogs inside the shiftMeds directly (if it was updated elsewhere)
-        for (const med of shiftMeds) {
-            if (med.takenLogs && med.takenLogs.some(l => l.date === todayStr)) {
-                // Find if the log matches this shift
-                const isTakenThisShift = med.takenLogs.some(l => {
-                    if (l.date !== todayStr) return false;
-                    if (l.shift && l.shift.toLowerCase() === currentShiftString) return true;
-                    if (l.timestamp) {
-                        const tsHour = new Date(l.timestamp).getHours();
-                        if (currentShiftString === 'morning' && tsHour < 12) return true;
-                        if (currentShiftString === 'afternoon' && tsHour >= 12 && tsHour < 17) return true;
-                        if (currentShiftString === 'night' && tsHour >= 17) return true;
+        // ── FALLBACK: Check takenLogs ONLY when MedicineLog does not exist ──
+        // takenLogs from embedded Patient/Profile docs have NO shift field and their
+        // timestamps can be misleading (morning dose logged at 6:47 PM IST = night window).
+        // So we NEVER use timestamp-based matching here. Only explicit shift field or
+        // single-shift-med date match.
+        if (!todayLog) {
+            for (const med of shiftMeds) {
+                if (med.takenLogs && med.takenLogs.some(l => l.date === todayStr)) {
+                    const allTimes = med.scheduledTimes && med.scheduledTimes.length > 0 ? med.scheduledTimes : (med.times || []);
+                    const medShiftCount = allTimes.length > 0 ? new Set(allTimes.map(t => {
+                        const lower = (t || '').toLowerCase().trim();
+                        if (['morning','afternoon','night','evening'].includes(lower)) return lower === 'evening' ? 'night' : lower;
+                        const m24 = lower.match(/^(\d{1,2}):(\d{2})/);
+                        if (m24) { const h = parseInt(m24[1], 10); return h < 12 ? 'morning' : h < 17 ? 'afternoon' : 'night'; }
+                        return 'morning';
+                    })).size : 1;
+
+                    const isTakenThisShift = med.takenLogs.some(l => {
+                        if (l.date !== todayStr) return false;
+                        if (l.shift) {
+                            let logShift = l.shift.toLowerCase().trim();
+                            if (logShift === 'evening') logShift = 'night';
+                            return logShift === currentShiftString;
+                        }
+                        // Only valid for single-shift meds; multi-shift meds without
+                        // shift field cannot be reliably mapped → return false (safe).
+                        return medShiftCount === 1;
+                    });
+                    if (isTakenThisShift) {
+                        confirmedMedIds.add(getMedIdentifier(med));
                     }
-                    // Legacy fallback
-                    return !l.shift && !l.timestamp;
-                });
-                if (isTakenThisShift) {
-                    confirmedMedIds.add(med._id?.toString());
                 }
             }
         }
@@ -514,7 +538,7 @@ async function getPatientShiftStatus(caretakerId, patientId, shiftMeds, shiftSta
     if (shiftMeds.length === 0 && completedLogs.length > 0) {
         isFullyCompleted = true;
     } else if (shiftMeds.length > 0) {
-        isFullyCompleted = shiftMeds.every(med => confirmedMedIds.has(med._id?.toString()));
+        isFullyCompleted = shiftMeds.every(med => confirmedMedIds.has(getMedIdentifier(med)));
     }
 
     let status = 'pending';
@@ -525,7 +549,7 @@ async function getPatientShiftStatus(caretakerId, patientId, shiftMeds, shiftSta
     }
 
     // Count how many meds are still unconfirmed
-    const unconfirmedCount = shiftMeds.filter(med => !confirmedMedIds.has(med._id?.toString())).length;
+    const unconfirmedCount = shiftMeds.filter(med => !confirmedMedIds.has(getMedIdentifier(med))).length;
 
     return { status, attempts: shiftLogs.length, failedAttempts, confirmedMedIds, unconfirmedCount };
 }
@@ -613,6 +637,7 @@ router.get('/dashboard', async (req, res) => {
         // ── Next call: first pending patient ──
         let nextCall = null;
         let nextCallMedCount = 0;
+        let nextCallFailedAttempts = 0;
         if (firstPendingPatient) {
             const pDoc = await Patient.findById(firstPendingPatient).lean() || await Profile.findById(firstPendingPatient).lean();
             if (pDoc) {
@@ -624,8 +649,9 @@ router.get('/dashboard', async (req, res) => {
                 };
                 const allMeds = await getPatientMedications(pDoc._id, true);
                 const shiftMeds = filterMedsByShift(allMeds, currentShift);
-                const { unconfirmedCount } = await getPatientShiftStatus(caretakerId, pDoc._id, shiftMeds, shiftStart, shiftEnd);
-                nextCallMedCount = unconfirmedCount;
+                const shiftStatus = await getPatientShiftStatus(caretakerId, pDoc._id, shiftMeds, shiftStart, shiftEnd);
+                nextCallMedCount = shiftStatus.unconfirmedCount;
+                nextCallFailedAttempts = shiftStatus.failedAttempts || 0;
                 nextCall = {
                     _id: new mongoose.Types.ObjectId(),
                     patientId: nextCallPatient,
@@ -704,7 +730,8 @@ router.get('/dashboard', async (req, res) => {
                 scheduledTime: nextCall.scheduledTime,
                 priority: nextCall.priority,
                 timeUntil: getTimeAgo(nextCall.scheduledTime),
-                medCount: nextCallMedCount
+                medCount: nextCallMedCount,
+                failedAttempts: nextCallFailedAttempts || 0
             } : null,
         });
     } catch (error) {
@@ -1056,11 +1083,17 @@ router.get('/patients/:id/meds', async (req, res) => {
         const todayLog = await MedicineLog.findOne({ patient_id: patientId, date: today }).lean();
 
         // For each med, get the last confirmation from call logs AND patient logs
+        // IMPORTANT: Scope to current shift bounds so morning confirmations don't
+        // leak into night shift and cause auto-pre-checking in ActiveCallScreen.
+        const currentShift = shift || getCurrentShift();
+        const { shiftStart: sStart, shiftEnd: sEnd } = getShiftBounds(currentShift);
+
         const enriched = await Promise.all(medications.map(async (med) => {
             const lastConfirmation = await CallLog.findOne({
                 patientId,
                 caretakerId,
                 status: 'completed',
+                scheduledTime: { $gte: sStart, $lte: sEnd },
                 'medicationConfirmations.medicationId': med._id,
             })
                 .sort({ scheduledTime: -1 })
@@ -1080,7 +1113,10 @@ router.get('/patients/:id/meds', async (req, res) => {
                  const medLogEntries = todayLog.medicines.filter(m => 
                      m.medicine_name && med.name && 
                      m.medicine_name.toLowerCase() === med.name.toLowerCase() &&
-                     (!shift || (m.scheduled_time && m.scheduled_time.toLowerCase() === shift.toLowerCase()))
+                     (!shift || (m.scheduled_time && (
+                         m.scheduled_time.toLowerCase() === shift.toLowerCase() ||
+                         (shift.toLowerCase() === 'night' && m.scheduled_time.toLowerCase() === 'evening')
+                     )))
                  );
                  
                  for (const m of medLogEntries) {
@@ -1467,10 +1503,10 @@ const syncMedicineLogHelper = async (pId, d, exactTimeStr, bucketIdentifier, mNa
                     }
                 }
             }
-            if (!medsToLog.some(m => m.medicine_name === mName && m.scheduled_time === bucket)) {
+            if (!medsToLog.some(m => m.medicine_name === mName && m.scheduled_time === bucketIdentifier)) {
                 medsToLog.push({
                     medicine_name: mName,
-                    scheduled_time: bucket,
+                    scheduled_time: bucketIdentifier,
                     taken: false,
                     is_active: true
                 });
@@ -1603,10 +1639,16 @@ router.post('/calls', async (req, res) => {
             const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 
             for (const mc of medicationConfirmations) {
-                if (mc.confirmed && mc.medicationId) {
-                    // 1. Try Medication collection first
+                if (!mc.confirmed) continue;
+
+                // Resolve the medication name — needed for MedicineLog sync
+                const medName = mc.medicationName || null;
+                const medId = mc.medicationId || null;
+
+                // 1. Try Medication collection first (only if we have an ID)
+                if (medId) {
                     try {
-                        const medDoc = await Medication.findById(mc.medicationId);
+                        const medDoc = await Medication.findById(medId);
                         if (medDoc) {
                             if (!medDoc.takenLogs) medDoc.takenLogs = [];
                             medDoc.takenLogs.push({
@@ -1614,14 +1656,13 @@ router.post('/calls', async (req, res) => {
                                 timestamp: new Date(),
                             });
                             await medDoc.save();
-                            // continue removed to allow 3-tier sync
                         }
                     } catch (e) { /* not in Medication collection */ }
 
-                    // 2. Fallback: Update embedded Patient.medications
+                    // 2. Fallback: Update embedded Patient.medications (only if we have an ID)
                     try {
                         await Patient.updateOne(
-                            { $or: [{ _id: patientId }, { profile_id: patientId }], 'medications._id': mc.medicationId },
+                            { $or: [{ _id: patientId }, { profile_id: patientId }], 'medications._id': medId },
                             {
                                 $push: {
                                     'medications.$.takenLogs': {
@@ -1638,37 +1679,47 @@ router.post('/calls', async (req, res) => {
                     } catch (e) {
                         console.error('[CallLog] Failed to update embedded med:', e.message);
                     }
+                }
 
-                    // 3. 3-Layer Sync: Update the Patient's Daily Checklist (MedicineLog)
-                    // CRITICAL: Derive bucket from the MEDICATION's own scheduledTimes,
-                    // NOT from the call's clock time. This prevents a 6 PM catch-up call
-                    // from writing an Afternoon medication into the Night bucket.
+                // 3. 3-Layer Sync: Update the Patient's Daily Checklist (MedicineLog)
+                // This MUST work even without a medicationId — use medicationName.
+                // CRITICAL: Derive bucket from the MEDICATION's own scheduledTimes,
+                // NOT from the call's clock time.
+                if (medName) {
                     let medBucketTime = null;
                     try {
-                        // Look up the medication's own schedule to determine correct bucket
                         let medSchedule = null;
-                        const medDocLookup = await Medication.findById(mc.medicationId).select('scheduledTimes times').lean();
-                        if (medDocLookup) {
-                            medSchedule = medDocLookup.scheduledTimes && medDocLookup.scheduledTimes.length > 0
-                                ? medDocLookup.scheduledTimes : medDocLookup.times;
-                        }
-                        if (!medSchedule) {
-                            // Check embedded Patient.medications
-                            const ptDoc = await Patient.findOne(
-                                { $or: [{ _id: patientId }, { profile_id: patientId }], 'medications._id': mc.medicationId },
-                                { 'medications.$': 1 }
-                            ).lean();
-                            if (ptDoc && ptDoc.medications && ptDoc.medications[0]) {
-                                const embMed = ptDoc.medications[0];
-                                medSchedule = embMed.scheduledTimes && embMed.scheduledTimes.length > 0
-                                    ? embMed.scheduledTimes : embMed.times;
+                        // Look up by ID if available
+                        if (medId) {
+                            const medDocLookup = await Medication.findById(medId).select('scheduledTimes times').lean();
+                            if (medDocLookup) {
+                                medSchedule = medDocLookup.scheduledTimes && medDocLookup.scheduledTimes.length > 0
+                                    ? medDocLookup.scheduledTimes : medDocLookup.times;
                             }
                         }
-                        // Convert the medication's schedule into a representative time string
-                        // that syncMedicineLogHelper will parse into the correct bucket
+                        // Fallback: look up by name in Medication collection
+                        if (!medSchedule) {
+                            const byName = await Medication.findOne({ patientId, name: medName, isActive: true }).select('scheduledTimes times').lean();
+                            if (byName) {
+                                medSchedule = byName.scheduledTimes && byName.scheduledTimes.length > 0
+                                    ? byName.scheduledTimes : byName.times;
+                            }
+                        }
+                        // Fallback: check embedded Patient.medications by name
+                        if (!medSchedule) {
+                            const ptDoc = await Patient.findOne(
+                                { $or: [{ _id: patientId }, { profile_id: patientId }] }
+                            ).select('medications').lean();
+                            if (ptDoc && ptDoc.medications) {
+                                const embMed = ptDoc.medications.find(m => m.name && m.name.toLowerCase() === medName.toLowerCase());
+                                if (embMed) {
+                                    medSchedule = embMed.scheduledTimes && embMed.scheduledTimes.length > 0
+                                        ? embMed.scheduledTimes : embMed.times;
+                                }
+                            }
+                        }
                         if (medSchedule && medSchedule.length > 0) {
                             const buckets = mapScheduledTimesToBuckets(medSchedule);
-                            // Use the current shift as the target if the med spans multiple shifts
                             const currentShift = getCurrentShift();
                             const targetBucket = buckets.includes(currentShift) ? currentShift : buckets[0];
                             medBucketTime = targetBucket;
@@ -1676,8 +1727,14 @@ router.post('/calls', async (req, res) => {
                     } catch (lookupErr) {
                         console.warn('[CallLog] Med schedule lookup failed:', lookupErr.message);
                     }
-                    
-                    // Fallback to call's scheduled time bucket if we couldn't determine from med
+
+                    // If the frontend explicitly provides a scheduledShift (e.g. for previous shift meds),
+                    // override the computed bucket so the MedicineLog entry goes to the correct shift.
+                    if (mc.scheduledShift) {
+                        medBucketTime = mc.scheduledShift;
+                    }
+
+                    // Fallback to call's scheduled time bucket
                     if (!medBucketTime) {
                         const hour = new Date(scheduledTime || new Date()).getHours();
                         if (hour < 12) medBucketTime = 'morning';
@@ -1685,7 +1742,7 @@ router.post('/calls', async (req, res) => {
                         else medBucketTime = 'night';
                     }
 
-                    await syncMedicineLogHelper(patientId, today, endedAt || new Date().toISOString(), medBucketTime, mc.medicationName, true, req.profile.role);
+                    await syncMedicineLogHelper(patientId, today, endedAt || new Date().toISOString(), medBucketTime, medName, true, req.profile.role);
                 }
             }
         }

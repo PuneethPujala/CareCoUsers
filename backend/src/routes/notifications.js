@@ -97,4 +97,67 @@ router.patch('/:id/read', async (req, res) => {
     }
 });
 
+// ── POST /push-token — Register an Expo push token ────────────
+router.post('/push-token', async (req, res) => {
+    try {
+        const PushToken = require('../models/PushToken');
+        const { token, platform } = req.body;
+
+        if (!token) {
+            return res.status(400).json({ error: 'token is required' });
+        }
+
+        // Upsert: update if exists, create if not
+        await PushToken.findOneAndUpdate(
+            { profileId: req.profile._id, token },
+            { profileId: req.profile._id, token, platform: platform || 'android', isActive: true },
+            { upsert: true, new: true }
+        );
+
+        console.log(`[PushToken] Registered for ${req.profile.fullName || req.profile._id} (${platform || 'android'})`);
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Failed to register push token:', err);
+        res.status(500).json({ error: 'Failed to register push token' });
+    }
+});
+
+// ── DELETE /push-token — Unregister push token on logout ──────
+router.delete('/push-token', async (req, res) => {
+    try {
+        const PushToken = require('../models/PushToken');
+        const { token } = req.body;
+
+        if (token) {
+            await PushToken.deleteOne({ profileId: req.profile._id, token });
+        } else {
+            // Remove all tokens for this user
+            await PushToken.deleteMany({ profileId: req.profile._id });
+        }
+
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Failed to unregister push token:', err);
+        res.status(500).json({ error: 'Failed to unregister push token' });
+    }
+});
+
+// ── POST /test-push — Send a test push to yourself (dev only) ─
+router.post('/test-push', async (req, res) => {
+    try {
+        const { sendPush } = require('../services/pushService');
+        const result = await sendPush(req.profile._id, {
+            title: 'Test Notification 🔔',
+            body: 'Push notifications are working! Tap to open your dashboard.',
+            type: 'call_reminder',
+            priority: 'high',
+            data: { screen: 'CallerDashboard' },
+        });
+        res.json({ success: true, notificationId: result?._id });
+    } catch (err) {
+        console.error('Test push failed:', err);
+        res.status(500).json({ error: 'Test push failed', details: err.message });
+    }
+});
+
 module.exports = router;

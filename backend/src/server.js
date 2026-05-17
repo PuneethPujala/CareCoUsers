@@ -145,6 +145,7 @@ if (require.main === module) {
   const http = require('http');
   const { initializeWebSocket } = require('./websocket/handlers');
   const { startNotificationCrons } = require('./services/notificationService');
+  const { startScheduler: startCallerScheduler } = require('./services/callerNotificationScheduler');
 
   const server = http.createServer(app);
 
@@ -162,6 +163,9 @@ if (require.main === module) {
 
       // Start automated notification crons
       startNotificationCrons();
+
+      // Start caller push notification scheduler (every 5 min)
+      startCallerScheduler(5 * 60 * 1000);
     });
   });
 
