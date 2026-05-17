@@ -24,13 +24,13 @@ export default function PatientHealthView({
     
     // Helper to check if a timestamp belongs to the current shift
     const isTimestampInShift = (timestamp, shiftName) => {
-        if (!timestamp || !shiftName) return true;
+        if (!timestamp || !shiftName) return false;
         const hour = new Date(timestamp).getHours();
         const shift = shiftName.toLowerCase();
         if (shift === 'morning') return hour >= 0 && hour < 12;
         if (shift === 'afternoon') return hour >= 12 && hour < 17;
         if (shift === 'night') return hour >= 17;
-        return true;
+        return false;
     };
 
     // Progress Bar Logic — count per shift-slot, not per medication
@@ -40,10 +40,13 @@ export default function PatientHealthView({
     const parseTimeToShift = (t) => {
         const lower = (t || '').toLowerCase().trim();
         if (['morning', 'afternoon', 'night', 'evening'].includes(lower)) return lower === 'evening' ? 'night' : lower;
-        const m24 = lower.match(/^(\d{1,2}):(\d{2})/);
-        if (m24) { const h = parseInt(m24[1], 10); return h < 12 ? 'morning' : h < 17 ? 'afternoon' : 'night'; }
+        // Check 12-hour format FIRST (e.g. "01:00 PM", "08:00 AM")
+        // Must come before 24-hour check because "01:00 pm" also matches ^(\d):(\d{2})
         const m12 = lower.match(/^(\d{1,2}):(\d{2})\s*(am|pm)/i);
         if (m12) { let h = parseInt(m12[1], 10); const p = m12[3].toLowerCase(); if (p === 'pm' && h !== 12) h += 12; if (p === 'am' && h === 12) h = 0; return h < 12 ? 'morning' : h < 17 ? 'afternoon' : 'night'; }
+        // 24-hour format (e.g. "13:00", "20:00")
+        const m24 = lower.match(/^(\d{1,2}):(\d{2})/);
+        if (m24) { const h = parseInt(m24[1], 10); return h < 12 ? 'morning' : h < 17 ? 'afternoon' : 'night'; }
         return 'morning';
     };
 
@@ -86,19 +89,26 @@ export default function PatientHealthView({
         }
         
         // 2. Fallbacks: callerMarked / patientMarked / lastConfirmed
-        const confirmedToday = med.lastConfirmed && med.lastConfirmedAt && new Date(med.lastConfirmedAt).toDateString() === now.toDateString();
-        if (med.patientMarked || med.callerMarked || confirmedToday) {
-            // If the caller just confirmed it in ActiveCall, the backend maps it to the CURRENT shift.
-            // But since this is a summary view, we want to match it to the slots.
-            // If there's a currentShift prop, match it. Otherwise manually mark the current time's shift.
-            const currentSk = (currentShift || (now.getHours() < 12 ? 'morning' : now.getHours() < 17 ? 'afternoon' : 'night')).toLowerCase();
-            
-            if (medShifts.includes(currentSk) && !matchedSlots.has(currentSk)) {
-                completedSlots++;
-                matchedSlots.add(currentSk);
-            } else if (!matchedSlots.has(medShifts[0])) { // legacy safety
-                completedSlots++;
-                matchedSlots.add(medShifts[0]);
+        // IMPORTANT: These are MEDICATION-level flags (not per-shift).
+        // Only use them when takenLogs is NOT available. When takenLogs exists
+        // (even if empty), the per-shift check above is authoritative.
+        const hasTakenLogsData = med.takenLogs && Array.isArray(med.takenLogs);
+        if (!hasTakenLogsData) {
+            const confirmedToday = med.lastConfirmed && med.lastConfirmedAt && new Date(med.lastConfirmedAt).toDateString() === now.toDateString();
+            if (med.patientMarked || med.callerMarked || confirmedToday) {
+                // For single-shift meds, mark that shift. For multi-shift meds,
+                // try to match using lastConfirmedAt timestamp if available.
+                if (medShifts.length === 1 && !matchedSlots.has(medShifts[0])) {
+                    completedSlots++;
+                    matchedSlots.add(medShifts[0]);
+                } else if (confirmedToday && med.lastConfirmedAt) {
+                    const confHour = new Date(med.lastConfirmedAt).getHours();
+                    const confSk = confHour < 12 ? 'morning' : confHour < 17 ? 'afternoon' : 'night';
+                    if (medShifts.includes(confSk) && !matchedSlots.has(confSk)) {
+                        completedSlots++;
+                        matchedSlots.add(confSk);
+                    }
+                }
             }
         }
     });
@@ -282,11 +292,23 @@ export default function PatientHealthView({
                                         if (['morning', 'afternoon', 'night', 'evening'].includes(lower)) {
                                             shiftKey = lower === 'evening' ? 'night' : lower;
                                         } else {
-                                            const match24 = lower.match(/^(\d{1,2}):(\d{2})/);
-                                            if (match24) {
-                                                const h = parseInt(match24[1], 10);
+                                            // Try 12-hour format first (e.g. "08:00 AM", "08:00 pm")
+                                            const match12 = lower.match(/^(\d{1,2}):(\d{2})\s*(am|pm)/i);
+                                            if (match12) {
+                                                let h = parseInt(match12[1], 10);
+                                                const p = match12[3].toLowerCase();
+                                                if (p === 'pm' && h !== 12) h += 12;
+                                                if (p === 'am' && h === 12) h = 0;
                                                 shiftKey = h < 12 ? 'morning' : h < 17 ? 'afternoon' : 'night';
                                                 clockTime = t.trim();
+                                            } else {
+                                                // Fallback: 24-hour format (e.g. "10:00", "20:00")
+                                                const match24 = lower.match(/^(\d{1,2}):(\d{2})/);
+                                                if (match24) {
+                                                    const h = parseInt(match24[1], 10);
+                                                    shiftKey = h < 12 ? 'morning' : h < 17 ? 'afternoon' : 'night';
+                                                    clockTime = t.trim();
+                                                }
                                             }
                                         }
                                         if (shiftKey) {
@@ -314,6 +336,9 @@ export default function PatientHealthView({
                                     if (med.takenLogs) {
                                         const shiftLog = med.takenLogs.find(l => {
                                             if (l.date !== todayStr) return false;
+                                            // When shift field exists, use it as the SOLE authority.
+                                            // NEVER fall through to timestamp — timestamps can be
+                                            // misleading (e.g. morning dose logged at 6:47 PM IST).
                                             if (l.shift) {
                                                 let logShiftKey = l.shift.toLowerCase().trim();
                                                 if (logShiftKey === 'evening') logShiftKey = 'night';
@@ -324,10 +349,12 @@ export default function PatientHealthView({
                                                     logShiftKey = h < 12 ? 'morning' : h < 17 ? 'afternoon' : 'night';
                                                 }
                                                 
-                                                if (logShiftKey === shiftKey || logShiftKey.includes(shiftKey)) return true;
+                                                return logShiftKey === shiftKey;
                                             }
-                                            if (!l.timestamp) return medShiftKeys.length === 1;
-                                            return isTimestampInShift(l.timestamp, shiftKey);
+                                            // No shift field — use timestamp as fallback (legacy data only)
+                                            if (l.timestamp) return isTimestampInShift(l.timestamp, shiftKey);
+                                            // No shift, no timestamp — only valid for single-shift meds
+                                            return medShiftKeys.length === 1;
                                         });
 
                                         if (shiftLog) {

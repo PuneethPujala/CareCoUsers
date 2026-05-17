@@ -65,9 +65,19 @@ async function buildMergedMeds(patient) {
     if (patient.profile_id) searchIds.push(patient.profile_id);
     const externalMeds = await Medication.find({ patientId: { $in: searchIds }, isActive: true });
 
-    const allMedsRaw = [...(patient.medications || [])];
+    // SYNC FIX: External Medication collection takes priority over embedded
+    // patient.medications. When a caller updates a med (e.g., changes shifts
+    // from 3 to 2), only the Medication doc is updated — the embedded copy
+    // stays stale. By adding external first, we ensure the patient app shows
+    // the same schedule the caller configured.
+    const allMedsRaw = [];
+    const seenNames = new Set();
+
+    // 1. Add external (caller-managed) meds FIRST
     for (const extMed of externalMeds) {
-        if (!allMedsRaw.some(m => m.name === extMed.name)) {
+        const name = extMed.name;
+        if (name && !seenNames.has(name.toLowerCase())) {
+            seenNames.add(name.toLowerCase());
             let mappedTimes = extMed.times?.length > 0
                 ? extMed.times
                 : (extMed.scheduledTimes || []).map(mapTimeToLegacyBucket);
@@ -82,6 +92,16 @@ async function buildMergedMeds(patient) {
             });
         }
     }
+
+    // 2. Fill gaps from embedded patient.medications (only add if not already covered)
+    for (const med of (patient.medications || [])) {
+        const name = med.name;
+        if (name && !seenNames.has(name.toLowerCase())) {
+            seenNames.add(name.toLowerCase());
+            allMedsRaw.push(med);
+        }
+    }
+
     return allMedsRaw;
 }
 

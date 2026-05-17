@@ -4,7 +4,7 @@ const MedicationConfirmationSchema = new mongoose.Schema({
     medicationId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Medication',
-        required: true,
+        default: null,
     },
     medicationName: {
         type: String,
@@ -16,6 +16,11 @@ const MedicationConfirmationSchema = new mongoose.Schema({
         type: Boolean,
         required: true,
         description: 'Whether the patient confirmed taking this medication',
+    },
+    scheduledShift: {
+        type: String,
+        trim: true,
+        description: 'Override shift for cross-shift confirmations (e.g. morning med confirmed in afternoon call)',
     },
     reason: {
         type: String,

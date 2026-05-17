@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
@@ -6,6 +6,7 @@ import { LogBox, View, Text } from 'react-native';
 import { AuthProvider } from './src/context/AuthContext';
 import RootNavigator from './src/navigation/RootNavigator';
 import SplashScreen from './src/screens/SplashScreen';
+import { setupNotificationListeners, removeNotificationListeners } from './src/services/pushNotifications';
 
 // Try to use expo-splash-screen but don't crash if it fails
 try {
@@ -42,6 +43,7 @@ class ErrorBoundary extends React.Component {
 
 export default function App() {
   const [showSplash, setShowSplash] = useState(true);
+  const navigationRef = useRef(null);
 
   useEffect(() => {
     // Hide native splash when our custom one mounts
@@ -49,6 +51,12 @@ export default function App() {
       const ExpoSplash = require('expo-splash-screen');
       ExpoSplash.hideAsync().catch(() => {});
     } catch (e) {}
+  }, []);
+
+  // Set up push notification tap listener
+  useEffect(() => {
+    setupNotificationListeners(navigationRef);
+    return () => removeNotificationListeners();
   }, []);
 
   const handleSplashFinish = useCallback(() => {
@@ -67,7 +75,7 @@ export default function App() {
     <ErrorBoundary>
       <SafeAreaProvider>
         <AuthProvider>
-          <NavigationContainer>
+          <NavigationContainer ref={navigationRef}>
             <RootNavigator />
             <StatusBar style="auto" />
           </NavigationContainer>
