@@ -94,3 +94,4 @@ bundle_*.js
 
 # AI Vector DB
 users-backend/chroma_db/
+chroma/

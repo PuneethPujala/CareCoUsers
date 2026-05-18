@@ -68,16 +68,10 @@ async function generatePoCResponse(patientId, userQuery, targetLanguage) {
             }
         }
 
-        // 4. Hard Fallback Guardrail
+        // 4. Fallback Guardrail (Relaxed)
         if (matchedGuidelines.length === 0) {
-            console.log(`[PoC] Guardrail Triggered: No guidelines met the ${SIMILARITY_THRESHOLD} threshold.`);
-            // Return immediate fallback, bypass LLM completely to save compute and avoid hallucination.
-            return {
-                success: true,
-                model: 'hardcoded_fallback',
-                response: "I cannot confidently answer that based on the available medical data. Please consult your caretaker or doctor for this information.",
-                contextTokensEstimate: 0
-            };
+            console.log(`[PoC] No guidelines met the ${SIMILARITY_THRESHOLD} threshold. Relying purely on PATIENT_LIVE_DATA.`);
+            matchedGuidelines.push("No specific medical guidelines retrieved from the knowledge base for this query.");
         }
 
         // 5. Build the Augmented System Prompt
