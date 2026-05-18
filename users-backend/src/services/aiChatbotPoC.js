@@ -104,7 +104,7 @@ ${JSON.stringify(patientContext, null, 2)}
         let reply = response.data.message?.content || 'No response generated.';
         
         // 8. Translation Layer (skip if English or not set)
-        const skipTranslation = !targetLanguage || targetLanguage === 'en' || targetLanguage.toLowerCase() === 'english';
+        const skipTranslation = !targetLanguage || targetLanguage.startsWith('en') || targetLanguage.toLowerCase() === 'english';
         if (!skipTranslation) {
             console.log(`[PoC] Translating response to ${targetLanguage} using Ollama...`);
             
