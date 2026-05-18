@@ -1207,7 +1207,7 @@ router.get('/me/dashboard', authenticateSession, async (req, res) => {
             const active = (log.medicines || []).filter(m => m.is_active !== false);
             const taken = active.filter(m => m.taken).length;
             const total = active.length;
-            const dateStr = moment(log.date).tz(timezone).format('YYYY-MM-DD');
+            const dateStr = log.date.toISOString().slice(0, 10);
 
             // Only count last 7 days for weekly rate
             if (moment(dateStr).isSameOrAfter(moment(todayStr).subtract(6, 'days'))) {
