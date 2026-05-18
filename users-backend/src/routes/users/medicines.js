@@ -79,7 +79,7 @@ async function buildMergedMeds(patient) {
         if (name && !seenNames.has(name.toLowerCase())) {
             seenNames.add(name.toLowerCase());
             let mappedTimes = extMed.times?.length > 0
-                ? extMed.times
+                ? extMed.times.map(mapTimeToLegacyBucket)
                 : (extMed.scheduledTimes || []).map(mapTimeToLegacyBucket);
             mappedTimes = [...new Set(mappedTimes)];
             if (mappedTimes.length === 0) mappedTimes = ['morning'];
