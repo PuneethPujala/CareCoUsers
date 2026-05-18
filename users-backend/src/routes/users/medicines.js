@@ -888,3 +888,4 @@ router.get('/adherence/recap', authenticateSession, async (req, res) => {
 
 module.exports = router;
 module.exports.buildMergedMeds = buildMergedMeds;
+module.exports.computeCurrentStreak = computeCurrentStreak;
