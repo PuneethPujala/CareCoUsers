@@ -1190,32 +1190,48 @@ router.get('/me/dashboard', authenticateSession, async (req, res) => {
             // 4. AI prediction
             AIVitalPrediction.findOne({ patient_id: patient._id }).lean().catch(() => null),
 
-            // 5. Adherence details (streak + score — lightweight version)
+            // 5. Adherence details (streak + score — use 30 days for accurate streak)
             MedicineLog.find({
                 patient_id: patient._id,
-                date: { $gte: sevenDaysAgo },
+                date: { $gte: new Date(`${moment().tz(timezone).subtract(30, 'days').format('YYYY-MM-DD')}T00:00:00.000Z`) },
             }).sort({ date: 1 }).lean(),
         ]);
 
         // ── Compute adherence summary ───────────────────────────────────────
-        let streak = 0;
         let weeklyTaken = 0;
         let weeklyTotal = 0;
+
+        // Build daily log in the same format computeCurrentStreak expects
+        const dailyLog = [];
         for (const log of adherenceLogs) {
             const active = (log.medicines || []).filter(m => m.is_active !== false);
             const taken = active.filter(m => m.taken).length;
-            weeklyTaken += taken;
-            weeklyTotal += active.length;
+            const total = active.length;
+            const dateStr = moment(log.date).tz(timezone).format('YYYY-MM-DD');
+
+            // Only count last 7 days for weekly rate
+            if (moment(dateStr).isSameOrAfter(moment(todayStr).subtract(6, 'days'))) {
+                weeklyTaken += taken;
+                weeklyTotal += total;
+            }
+
+            dailyLog.push({
+                date: dateStr,
+                taken,
+                total,
+                rate: total > 0 ? Math.round((taken / total) * 100) : 0,
+            });
         }
-        // Simple streak: count consecutive days (from today backward) with >50% adherence
-        const dayLogs = [...adherenceLogs].reverse();
-        for (const log of dayLogs) {
-            const active = (log.medicines || []).filter(m => m.is_active !== false);
-            if (active.length === 0) continue;
-            const rate = active.filter(m => m.taken).length / active.length;
-            if (rate > 0.5) streak++;
-            else break;
-        }
+
+        // Use the same streak function as the Medications screen
+        const { computeCurrentStreak } = require('./medicines');
+        const historyStartStr = moment().tz(timezone).subtract(30, 'days').format('YYYY-MM-DD');
+        const streak = computeCurrentStreak(dailyLog, todayStr, historyStartStr);
+
+        const adherence = {
+            streak,
+            weeklyRate: weeklyTotal > 0 ? Math.round((weeklyTaken / weeklyTotal) * 100) : 0,
+        };
 
         const vitals = todayVitals.length > 0 ? todayVitals[0] : null;
 
@@ -1225,10 +1241,7 @@ router.get('/me/dashboard', authenticateSession, async (req, res) => {
             vitalsHistory,
             meds: todayMedLog,
             aiPrediction: aiPrediction || null,
-            adherence: {
-                streak,
-                weeklyRate: weeklyTotal > 0 ? Math.round((weeklyTaken / weeklyTotal) * 100) : 0,
-            },
+            adherence,
         });
     } catch (error) {
         logger.error('Dashboard aggregate error', { error: error.message, patientId: req.user?.id });
