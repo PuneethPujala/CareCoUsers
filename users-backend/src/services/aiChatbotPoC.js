@@ -10,7 +10,7 @@ const { ChromaClient } = require('chromadb');
 const { buildPatientContext } = require('./aiContextService');
 
 const OLLAMA_URL = process.env.OLLAMA_URL || 'http://localhost:11434';
-const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'mistral'; // default to mistral
+const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'llama3:8b';
 const EMBED_MODEL = 'nomic-embed-text';
 const SIMILARITY_THRESHOLD = 0.75; // Strict threshold to prevent hallucination
 
