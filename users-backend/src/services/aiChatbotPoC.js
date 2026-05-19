@@ -78,6 +78,12 @@ async function generatePoCResponse(patientId, userQuery, targetLanguage) {
         const SYSTEM_PROMPT = `You are CareMyMed AI, a helpful, empathetic, and professional medical assistant.
 You must ONLY use the provided [PATIENT_LIVE_DATA] and [MEDICAL_GUIDELINES] to answer the user's question. 
 If the answer is not contained within these two sources, you must decline to answer and tell them to consult their caretaker or doctor. Do NOT guess or hallucinate.
+Keep your responses concise (2-4 sentences max). Be warm and conversational.
+
+At the END of every response, always include exactly 3 short follow-up questions the patient might want to ask next. Format them on separate lines starting with ">>" like:
+>> Follow-up question 1
+>> Follow-up question 2  
+>> Follow-up question 3
 
 [MEDICAL_GUIDELINES]
 ${matchedGuidelines.join('\n\n')}
@@ -122,10 +128,25 @@ ${JSON.stringify(patientContext, null, 2)}
             reply = translationResponse.data.message?.content || reply;
         }
 
+        // 8. Parse follow-up suggestions from the response
+        let suggestions = [];
+        const lines = reply.split('\n');
+        const mainLines = [];
+        for (const line of lines) {
+            if (line.trim().startsWith('>>')) {
+                suggestions.push(line.trim().replace(/^>>\s*/, ''));
+            } else {
+                mainLines.push(line);
+            }
+        }
+        reply = mainLines.join('\n').trim();
+        suggestions = suggestions.slice(0, 3); // Cap at 3
+
         return {
             success: true,
             model: OLLAMA_MODEL,
             response: reply,
+            suggestions,
             contextTokensEstimate: Math.ceil(SYSTEM_PROMPT.length / 4)
         };
 
