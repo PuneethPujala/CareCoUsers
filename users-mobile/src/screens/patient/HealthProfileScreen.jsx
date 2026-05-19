@@ -668,14 +668,23 @@ export default function HealthProfileScreen({ navigation }) {
                                 { key: 'mobility',   label: t('health_profile.dim_mobility',   { defaultValue: 'Mobility' }),   icon: '🚶' },
                                 { key: 'preventive', label: t('health_profile.dim_preventive', { defaultValue: 'Preventive Care' }), icon: '🛡️' },
                             ].filter(d => hsBreakdown[d.key])
-                             .map(d => ({ ...d, dim: hsBreakdown[d.key], pct: Math.round((hsBreakdown[d.key].pts / hsBreakdown[d.key].max) * 100) }))
+                             .map(d => {
+                                 const bd = hsBreakdown[d.key];
+                                 // Safely extract pts and max to prevent NaN% crash in Yoga layout
+                                 const pts = typeof bd === 'object' ? (bd.pts || 0) : (Number(bd) || 0);
+                                 const max = typeof bd === 'object' && bd.max ? bd.max : 100;
+                                 let pct = Math.round((pts / max) * 100);
+                                 if (isNaN(pct) || !isFinite(pct)) pct = 0;
+                                 
+                                 return { ...d, dim: bd, pts, max, pct };
+                             })
                              .sort((a, b) => a.pct - b.pct);
 
                             return (
                                 <View style={s.breakdownSection}>
                                     <Text style={s.breakdownTitle}>{t('health_profile.score_breakdown', { defaultValue: 'SCORE BREAKDOWN' })}</Text>
-                                    {dims.map(({ key, label, icon, dim, pct }) => {
-                                        const lost = dim.max - dim.pts;
+                                    {dims.map(({ key, label, icon, pts, max, pct }) => {
+                                        const lost = max - pts;
                                         const isGood = pct >= 70;
                                         const dimColor = pct >= 70 ? '#10B981' : pct >= 40 ? '#F59E0B' : '#EF4444';
                                         return (
@@ -689,7 +698,7 @@ export default function HealthProfileScreen({ navigation }) {
                                                             : <TrendingDown size={10} color={dimColor} />
                                                         }
                                                         <Text style={[s.breakdownPtsTxt, { color: dimColor }]}>
-                                                            {isGood ? `+${dim.pts}` : `-${lost}`} {t('health_profile.pts', { defaultValue: 'pts' })}
+                                                            {isGood ? `+${pts}` : `-${lost}`} {t('health_profile.pts', { defaultValue: 'pts' })}
                                                         </Text>
                                                     </View>
                                                 </View>
