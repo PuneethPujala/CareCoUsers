@@ -5,7 +5,7 @@ import PremiumFormModal from '../../components/ui/PremiumFormModal';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { LinearGradient } from 'expo-linear-gradient';
-import { TriangleAlert, ShieldCheck, HeartPulse, Activity, Droplet, Phone, Plus, Pencil, X, Trash2, CircleCheck, RefreshCw, ChevronDown, Upload, Siren, ChevronRight, TrendingUp, BellRing, FileText, Pill, Syringe, Link2, Users, Calendar, Info } from 'lucide-react-native';
+import { TriangleAlert, ShieldCheck, HeartPulse, Activity, Droplet, Phone, Plus, Pencil, X, Trash2, CircleCheck, RefreshCw, ChevronDown, Upload, Siren, ChevronRight, TrendingUp, TrendingDown, Sparkles, BellRing, FileText, Pill, Syringe, Link2, Users, Calendar, Info } from 'lucide-react-native';
 import { StatusBar } from 'react-native';
 import Svg, { Circle as SvgCircle } from 'react-native-svg';
 import { apiService } from '../../lib/api';
@@ -606,14 +606,7 @@ export default function HealthProfileScreen({ navigation }) {
 
                 {/* ── INTELLIGENT HEALTH SCORE CARD ── */}
                 <Animated.View style={[anim(0), { marginTop: 0 }]}>
-                    <Pressable style={s.dashboardCard} onPress={() => setTipsModalVisible(true)} activeOpacity={0.92}>
-                        {/* Tap hint */}
-                        <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginBottom: -4 }}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#F0FDF4', borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3 }}>
-                                <TrendingUp size={10} color="#10B981" />
-                                <Text style={{ fontSize: 10, ...FONT.bold, color: '#10B981' }}>View tips to improve</Text>
-                            </View>
-                        </View>
+                    <View style={s.dashboardCard}>
                         {/* Top row: Score + Ring */}
                         <View style={s.dashTopRow}>
                             <View style={s.dashLeft}>
@@ -666,56 +659,95 @@ export default function HealthProfileScreen({ navigation }) {
                             </View>
                         </View>
 
-                        {/* Dimension breakdown chips */}
-                        {hsBreakdown && (
-                            <View style={s.breakdownRow}>
-                                {[
-                                    { key: 'adherence', label: t('health_profile.dim_adherence', { defaultValue: 'Adherence' }), icon: '💊' },
-                                    { key: 'lifestyle',  label: t('health_profile.dim_lifestyle',  { defaultValue: 'Lifestyle' }),  icon: '🏃' },
-                                    { key: 'vitals',     label: t('health_profile.dim_vitals',     { defaultValue: 'Vitals' }),     icon: '🫺' },
-                                    { key: 'mobility',   label: t('health_profile.dim_mobility',   { defaultValue: 'Mobility' }),   icon: '🚶' },
-                                    { key: 'preventive', label: t('health_profile.dim_preventive', { defaultValue: 'Preventive' }), icon: '🛡️' },
-                                ].map(({ key, label, icon }) => {
-                                    const dim = hsBreakdown[key];
-                                    if (!dim) return null;
-                                    const pct = Math.round((dim.pts / dim.max) * 100);
-                                    const dimColor = pct >= 70 ? '#10B981' : pct >= 40 ? '#F59E0B' : '#EF4444';
+                        {/* Score breakdown — sorted vertical impact bars */}
+                        {hsBreakdown && (() => {
+                            const dims = [
+                                { key: 'adherence', label: t('health_profile.dim_adherence', { defaultValue: 'Medication Adherence' }), icon: '💊' },
+                                { key: 'lifestyle',  label: t('health_profile.dim_lifestyle',  { defaultValue: 'Lifestyle Habits' }),  icon: '🏃' },
+                                { key: 'vitals',     label: t('health_profile.dim_vitals',     { defaultValue: 'Vitals Tracking' }),     icon: '🩺' },
+                                { key: 'mobility',   label: t('health_profile.dim_mobility',   { defaultValue: 'Mobility' }),   icon: '🚶' },
+                                { key: 'preventive', label: t('health_profile.dim_preventive', { defaultValue: 'Preventive Care' }), icon: '🛡️' },
+                            ].filter(d => hsBreakdown[d.key])
+                             .map(d => ({ ...d, dim: hsBreakdown[d.key], pct: Math.round((hsBreakdown[d.key].pts / hsBreakdown[d.key].max) * 100) }))
+                             .sort((a, b) => a.pct - b.pct);
+
+                            return (
+                                <View style={s.breakdownSection}>
+                                    <Text style={s.breakdownTitle}>{t('health_profile.score_breakdown', { defaultValue: 'SCORE BREAKDOWN' })}</Text>
+                                    {dims.map(({ key, label, icon, dim, pct }) => {
+                                        const lost = dim.max - dim.pts;
+                                        const isGood = pct >= 70;
+                                        const dimColor = pct >= 70 ? '#10B981' : pct >= 40 ? '#F59E0B' : '#EF4444';
+                                        return (
+                                            <View key={key} style={s.breakdownItem}>
+                                                <View style={s.breakdownItemTop}>
+                                                    <Text style={s.breakdownItemIcon}>{icon}</Text>
+                                                    <Text style={s.breakdownItemLabel} numberOfLines={1}>{label}</Text>
+                                                    <View style={[s.breakdownPtsChip, { backgroundColor: dimColor + '15' }]}>
+                                                        {isGood
+                                                            ? <TrendingUp size={10} color={dimColor} />
+                                                            : <TrendingDown size={10} color={dimColor} />
+                                                        }
+                                                        <Text style={[s.breakdownPtsTxt, { color: dimColor }]}>
+                                                            {isGood ? `+${dim.pts}` : `-${lost}`} {t('health_profile.pts', { defaultValue: 'pts' })}
+                                                        </Text>
+                                                    </View>
+                                                </View>
+                                                <View style={s.breakdownBarBg}>
+                                                    <View style={[s.breakdownBarFill, { width: `${pct}%`, backgroundColor: dimColor }]} />
+                                                </View>
+                                            </View>
+                                        );
+                                    })}
+                                </View>
+                            );
+                        })()}
+                    </View>
+                </Animated.View>
+                {/* ── TODAY'S FOCUS (INLINE INSIGHTS) ── */}
+                <Animated.View style={anim(0.5)}>
+                    <View style={s.focusSection}>
+                        <View style={s.focusHeaderRow}>
+                            <Sparkles size={16} color="#6366F1" />
+                            <Text style={s.focusHeaderTitle}>{t('health_profile.todays_focus', { defaultValue: "TODAY'S FOCUS" })}</Text>
+                        </View>
+                        
+                        {hs && hs.tips && hs.tips.length > 0 ? (
+                            <View>
+                                {hs.tips.slice(0, 2).map((tip, idx) => {
+                                    const impactCfg = {
+                                        high:   { bg: '#FEF2F2', border: '#FCA5A5', accent: '#DC2626', label: t('health_profile.high_impact', { defaultValue: 'High Impact' }) },
+                                        medium: { bg: '#FFFBEB', border: '#FDE68A', accent: '#D97706', label: t('health_profile.med_impact', { defaultValue: 'Medium' }) },
+                                        low:    { bg: '#F0FDF4', border: '#BBF7D0', accent: '#16A34A', label: t('health_profile.good_habit', { defaultValue: 'Good to have' }) },
+                                    }[tip.impact] || { bg: '#EEF2FF', border: '#C7D2FE', accent: '#6366F1', label: t('health_profile.tip', { defaultValue: 'Tip' }) };
+                                    
                                     return (
-                                        <View key={key} style={s.breakdownChip}>
-                                            <Text style={s.breakdownChipIcon}>{icon}</Text>
-                                            <Text style={s.breakdownChipLbl}>{label}</Text>
-                                            <Text style={[s.breakdownChipVal, { color: dimColor }]}>{pct}%</Text>
+                                        <View key={idx} style={[s.insightCard, { backgroundColor: impactCfg.bg, borderColor: impactCfg.border, borderLeftColor: impactCfg.accent }]}>
+                                            <View style={s.insightTop}>
+                                                <Text style={s.insightIcon}>{tip.icon || '💡'}</Text>
+                                                <View style={{ flex: 1 }}>
+                                                    <Text style={s.insightTitle}>{tip.title}</Text>
+                                                </View>
+                                                <View style={[s.insightBadge, { backgroundColor: impactCfg.accent + '18', borderColor: impactCfg.border }]}>
+                                                    <Text style={[s.insightBadgeText, { color: impactCfg.accent }]}>{impactCfg.label}</Text>
+                                                </View>
+                                            </View>
+                                            <Text style={s.insightBody}>{tip.body}</Text>
                                         </View>
                                     );
                                 })}
+                                <Pressable style={s.seeAllInsightsBtn} onPress={() => setTipsModalVisible(true)}>
+                                    <Text style={s.seeAllInsightsTxt}>{t('health_profile.see_all_insights', { defaultValue: 'See all insights' })}</Text>
+                                    <ChevronRight size={14} color="#6366F1" />
+                                </Pressable>
+                            </View>
+                        ) : (
+                            <View style={s.emptyFocusState}>
+                                <Text style={s.emptyFocusIcon}>🌟</Text>
+                                <Text style={s.emptyFocusTxt}>{t('health_profile.no_urgent_focus', { defaultValue: "You're on track! Keep up the great habits." })}</Text>
                             </View>
                         )}
-
-                        {/* Bottom row: Mini metrics */}
-                        <View style={s.dashMetricsRow}>
-                            <View style={s.dashMiniMetric}>
-                                <View style={[s.dashMiniIcon, { backgroundColor: '#EEF2FF' }]}><TrendingUp size={12} color="#4F46E5" /></View>
-                                <View>
-                                    <Text style={s.dashMiniLbl}>{t('health_profile.good_habits', { defaultValue: 'Habits' })}</Text>
-                                    <Text style={[s.dashMiniVal, { color: habitColor }]}>{habitScore}%</Text>
-                                </View>
-                            </View>
-                            <View style={s.dashMiniMetric}>
-                                <View style={[s.dashMiniIcon, { backgroundColor: '#FFF7ED' }]}><Users size={12} color="#F97316" /></View>
-                                <View>
-                                    <Text style={s.dashMiniLbl}>{t('health_profile.bmi', { defaultValue: 'BMI' })}</Text>
-                                    <Text style={[s.dashMiniVal, { color: '#F97316' }]}>{bmi || '—'}</Text>
-                                </View>
-                            </View>
-                            <View style={s.dashMiniMetric}>
-                                <View style={[s.dashMiniIcon, { backgroundColor: '#ECFDF5' }]}><ShieldCheck size={12} color="#10B981" /></View>
-                                <View>
-                                    <Text style={s.dashMiniLbl}>{t('health_profile.conditions', { defaultValue: 'Conditions' })}</Text>
-                                    <Text style={[s.dashMiniVal, { color: trendColor }]}>{trendLabel}</Text>
-                                </View>
-                            </View>
-                        </View>
-                    </Pressable>
+                    </View>
                 </Animated.View>
 
                 {/* ── ALERTS CARD ── */}
@@ -1626,12 +1658,34 @@ const s = StyleSheet.create({
     bracketTag: { backgroundColor: '#F8FAFC', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3, marginBottom: 8, alignSelf: 'flex-start' },
     bracketTagTxt: { fontSize: 10, ...FONT.bold, color: '#64748B', letterSpacing: 0.3 },
 
-    // Dimension breakdown chips
-    breakdownRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingVertical: 14, borderTopWidth: 1, borderTopColor: '#F1F5F9' },
-    breakdownChip: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#F8FAFC', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 5, borderWidth: 1, borderColor: '#E2E8F0' },
-    breakdownChipIcon: { fontSize: 11 },
-    breakdownChipLbl: { fontSize: 11, ...FONT.bold, color: '#64748B' },
-    breakdownChipVal: { fontSize: 11, ...FONT.heavy },
+    // Score Breakdown Explainer
+    breakdownSection: { borderTopWidth: 1, borderTopColor: '#F1F5F9', paddingTop: 16 },
+    breakdownTitle: { fontSize: 10, ...FONT.heavy, color: '#94A3B8', letterSpacing: 1, marginBottom: 12 },
+    breakdownItem: { marginBottom: 12 },
+    breakdownItemTop: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
+    breakdownItemIcon: { fontSize: 13, marginRight: 6 },
+    breakdownItemLabel: { flex: 1, fontSize: 13, ...FONT.bold, color: '#334155' },
+    breakdownPtsChip: { flexDirection: 'row', alignItems: 'center', gap: 2, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
+    breakdownPtsTxt: { fontSize: 11, ...FONT.heavy },
+    breakdownBarBg: { height: 6, backgroundColor: '#F1F5F9', borderRadius: 3, overflow: 'hidden' },
+    breakdownBarFill: { height: '100%', borderRadius: 3 },
+
+    // Today's Focus (Inline Insights)
+    focusSection: { marginBottom: 20 },
+    focusHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12, paddingHorizontal: 4 },
+    focusHeaderTitle: { fontSize: 11, ...FONT.heavy, color: '#6366F1', letterSpacing: 1 },
+    insightCard: { borderRadius: 16, padding: 14, marginBottom: 10, borderWidth: 1, borderLeftWidth: 4, shadowColor: '#6366F1', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.04, shadowRadius: 8, elevation: 2 },
+    insightTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 6 },
+    insightIcon: { fontSize: 18, lineHeight: 22 },
+    insightTitle: { fontSize: 14, ...FONT.bold, color: '#0F172A', lineHeight: 20 },
+    insightBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8, borderWidth: 1, marginTop: 2 },
+    insightBadgeText: { fontSize: 9, ...FONT.heavy, textTransform: 'uppercase', letterSpacing: 0.3 },
+    insightBody: { fontSize: 13, ...FONT.medium, color: '#475569', lineHeight: 18, marginLeft: 26 },
+    seeAllInsightsBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: 12, marginTop: 4 },
+    seeAllInsightsTxt: { fontSize: 13, ...FONT.bold, color: '#6366F1' },
+    emptyFocusState: { backgroundColor: '#FFF', borderRadius: 16, padding: 24, alignItems: 'center', borderWidth: 1, borderColor: '#F1F5F9' },
+    emptyFocusIcon: { fontSize: 24, marginBottom: 8 },
+    emptyFocusTxt: { fontSize: 13, ...FONT.medium, color: '#64748B', textAlign: 'center' },
 
     alertsCard: { backgroundColor: '#FFF', borderRadius: 20, padding: 16, marginBottom: 20, shadowColor: '#EF4444', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.06, shadowRadius: 16, elevation: 4 },
     alertHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16 },

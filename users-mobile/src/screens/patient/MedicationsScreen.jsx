@@ -560,7 +560,7 @@ export default function MedicationsScreen({ navigation }) {
                     data: { screen: 'Medications', type: 'medication_reminder' },
                     sound: 'default',
                 },
-                trigger: { seconds: 30 * 60 },
+                trigger: { type: 'timeInterval', seconds: 30 * 60, channelId: 'meds' },
             });
             showToast(t('medications.snoozed', { defaultValue: 'Snoozed 30 min' }), `${t('medications.remind_you_about', { defaultValue: "We'll remind you about" })} ${med.name}.`);
         } catch (err) {
