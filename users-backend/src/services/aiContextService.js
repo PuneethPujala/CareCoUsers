@@ -24,37 +24,62 @@ const VitalLog = require('../models/VitalLog');
  */
 async function buildPatientContext(patientId) {
     // 1. Fetch Patient & Profile
-    const patient = await Patient.findById(patientId).select('name date_of_birth gender profile_id timezone');
+    const patient = await Patient.findById(patientId).select('name date_of_birth gender profile_id timezone medications');
     if (!patient) return null;
     
-    const tz = patient.timezone || 'UTC';
+    const tz = patient.timezone || 'Asia/Kolkata';
     const profile = await Profile.findById(patient.profile_id).select('blood_type dietary_restrictions medical_history vaccinations');
     
     const now = moment().tz(tz);
-    const threeDaysAgo = now.clone().subtract(3, 'days').startOf('day').toDate();
-    const sevenDaysAgo = now.clone().subtract(7, 'days').startOf('day').toDate();
+    const todayStr = now.format('YYYY-MM-DD');
+    const threeDaysAgoDate = new Date(`${now.clone().subtract(3, 'days').format('YYYY-MM-DD')}T00:00:00.000Z`);
+    const sevenDaysAgoDate = new Date(`${now.clone().subtract(7, 'days').format('YYYY-MM-DD')}T00:00:00.000Z`);
 
-    // 2. Active Medications
-    const activeMeds = await Medication.find({ patient_id: patientId, is_active: true })
-        .select('name dosage frequency times -_id');
-        
-    // 3. Adherence (Last 3 Days)
+    // 2. Active Medications (search both patient._id and profile_id like the rest of the app)
+    const searchIds = [patient._id];
+    if (patient.profile_id) searchIds.push(patient.profile_id);
+    
+    const externalMeds = await Medication.find({ patientId: { $in: searchIds }, isActive: true })
+        .select('name dosage frequency times scheduledTimes instructions -_id');
+    
+    // Also include embedded patient.medications
+    const embeddedMeds = (patient.medications || []).filter(m => m.is_active !== false);
+    
+    // Merge (external first, dedup by name)
+    const seenNames = new Set();
+    const allMeds = [];
+    for (const m of externalMeds) {
+        if (m.name && !seenNames.has(m.name.toLowerCase())) {
+            seenNames.add(m.name.toLowerCase());
+            allMeds.push({ name: m.name, dosage: m.dosage, freq: m.frequency, times: m.times || m.scheduledTimes });
+        }
+    }
+    for (const m of embeddedMeds) {
+        if (m.name && !seenNames.has(m.name.toLowerCase())) {
+            seenNames.add(m.name.toLowerCase());
+            allMeds.push({ name: m.name, dosage: m.dosage, freq: 'daily', times: m.times });
+        }
+    }
+
+    // 3. Adherence (Last 3 Days) — query by `date` field (UTC midnight dates)
     const logs = await MedicineLog.find({
-        patient_id: patientId,
-        scheduled_time: { $gte: threeDaysAgo }
-    }).select('status scheduled_time');
+        patient_id: patient._id,
+        date: { $gte: threeDaysAgoDate }
+    }).sort({ date: -1 });
     
     let takenMeds = 0;
-    let missedMeds = 0;
+    let totalMeds = 0;
     logs.forEach(log => {
-        if (log.status === 'taken') takenMeds++;
-        else missedMeds++;
+        const activeMeds = log.medicines.filter(m => m.is_active !== false);
+        totalMeds += activeMeds.length;
+        takenMeds += activeMeds.filter(m => m.taken).length;
     });
+    const missedMeds = totalMeds - takenMeds;
 
     // 4. Vitals (7-Day Aggregate)
     const vitals = await VitalLog.find({
-        patient_id: patientId,
-        date: { $gte: sevenDaysAgo }
+        patient_id: patient._id,
+        date: { $gte: sevenDaysAgoDate }
     }).select('heart_rate blood_pressure oxygen_saturation hydration');
 
     let vitalsSummary = 'No vitals logged in last 7 days';
@@ -85,18 +110,16 @@ async function buildPatientContext(patientId) {
             blood_type: profile?.blood_type,
             diet: profile?.dietary_restrictions
         },
+        today: todayStr,
         medical_history: (profile?.medical_history || []).map(h => h.event).slice(0, 5), // Top 5
         vaccinations: (profile?.vaccinations || []).map(v => v.name),
-        medications: activeMeds.map(m => ({
-            name: m.name,
-            dosage: m.dosage,
-            freq: m.frequency,
-            times: m.times
-        })),
+        medications: allMeds,
         recent_adherence: {
             period: 'Last 3 days',
+            total_scheduled: totalMeds,
             taken: takenMeds,
-            missed: missedMeds
+            missed: missedMeds,
+            rate: totalMeds > 0 ? Math.round((takenMeds / totalMeds) * 100) + '%' : 'N/A'
         },
         recent_vitals: vitalsSummary
     };
