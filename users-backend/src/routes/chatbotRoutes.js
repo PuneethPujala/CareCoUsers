@@ -3,7 +3,7 @@ const router = express.Router();
 const multer = require('multer');
 const FormData = require('form-data');
 const axios = require('axios');
-const { generatePoCResponse } = require('../services/aiChatbotPoC');
+const { generatePoCResponse, streamPoCResponse } = require('../services/aiChatbotPoC');
 const { authenticate } = require('../middleware/authenticate'); 
 
 const PYTHON_API = process.env.PYTHON_API || 'http://localhost:8000';
@@ -33,9 +33,17 @@ function buildErrorResponse(stage, errorMsg) {
 
 /**
  * POST /api/chatbot/chat
+ * SSE Streaming endpoint.
  * Accepts multipart/form-data.
- * - If `audio` is provided, proxies it to Python for transcription, then runs RAG.
- * - If `query` text is provided, runs RAG directly.
+ * - If `audio` is provided, proxies it to Python for transcription, then streams RAG.
+ * - If `query` text is provided, streams RAG directly.
+ * 
+ * SSE Event Types:
+ *   { type: "meta",        transcribedText: "..." }     — STT result (audio only)
+ *   { type: "chunk",       text: "..." }                 — Token-by-token AI response
+ *   { type: "suggestions", items: ["...", "...", "..."] } — Follow-up suggestion chips
+ *   { type: "done" }                                      — Stream complete
+ *   { type: "error",       message: "..." }               — Error during stream
  */
 router.post('/chat', authenticate, upload.single('audio'), async (req, res) => {
     try {
@@ -49,8 +57,9 @@ router.post('/chat', authenticate, upload.single('audio'), async (req, res) => {
         }
 
         let extractedQuery = query;
+        let transcribedText = null;
 
-        // 1. Audio Proxy Phase (STT)
+        // 1. Audio Proxy Phase (STT) — runs BEFORE we open the SSE stream
         if (req.file) {
             console.log(`[ChatbotRoute] Received audio file: ${req.file.originalname} (${req.file.mimetype})`);
             
@@ -69,6 +78,7 @@ router.post('/chat', authenticate, upload.single('audio'), async (req, res) => {
 
                 if (sttResponse.data && sttResponse.data.success && sttResponse.data.text) {
                     extractedQuery = sttResponse.data.text;
+                    transcribedText = extractedQuery;
                     console.log(`[ChatbotRoute] STT Success: "${extractedQuery}"`);
                 } else {
                     return res.status(500).json(buildErrorResponse('transcription', 'Transcription failed or returned empty.'));
@@ -79,38 +89,49 @@ router.post('/chat', authenticate, upload.single('audio'), async (req, res) => {
             }
         }
 
-        // 2. RAG & Reasoning Phase
+        // 2. Validate query
         if (!extractedQuery) {
             return res.status(400).json(buildErrorResponse('validation', 'Neither audio nor text query was provided.'));
         }
 
-        console.log(`[ChatbotRoute] Running RAG pipeline for query: "${extractedQuery}"`);
-        
-        try {
-            // Wait for Llama 3 Reasoning & Translation
-            const result = await generatePoCResponse(patientId, extractedQuery, targetLanguage);
-            
-            if (!result.success) {
-                return res.status(500).json(buildErrorResponse('reasoning', result.error || 'LLM inference failed.'));
-            }
+        console.log(`[ChatbotRoute] Streaming RAG pipeline for query: "${extractedQuery}"`);
 
-            // Return standardized success
-            res.status(200).json({
-                success: true,
-                message: result.response,
-                suggestions: result.suggestions || [],
-                transcribedText: req.file ? extractedQuery : null, // Good for UI debugging
-                contextTokensEstimate: result.contextTokensEstimate
-            });
+        // 3. Set SSE headers and begin streaming
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
+        res.setHeader('X-Accel-Buffering', 'no'); // Disable Nginx buffering if behind proxy
+        res.flushHeaders();
 
-        } catch (ragError) {
-            console.error(`[ChatbotRoute] RAG Error:`, ragError.message);
-            return res.status(500).json(buildErrorResponse('reasoning', 'An error occurred during medical reasoning.'));
+        // Handle client disconnect (abort / cancellation)
+        let clientDisconnected = false;
+        req.on('close', () => {
+            clientDisconnected = true;
+            console.log('[ChatbotRoute] Client disconnected, aborting stream.');
+        });
+
+        // 4. Stream the response
+        await streamPoCResponse(patientId, extractedQuery, targetLanguage, res, transcribedText);
+
+        // 5. Close the SSE stream
+        if (!clientDisconnected) {
+            res.end();
         }
 
     } catch (error) {
         console.error('Chatbot API Error:', error);
-        res.status(500).json(buildErrorResponse('server', 'Internal server error during chat processing.'));
+        // If headers haven't been sent yet, send a normal JSON error
+        if (!res.headersSent) {
+            res.status(500).json(buildErrorResponse('server', 'Internal server error during chat processing.'));
+        } else {
+            // Headers already sent (SSE mode), emit error event
+            try {
+                res.write(`data: ${JSON.stringify({ type: 'error', message: 'Internal server error.' })}\n\n`);
+                res.end();
+            } catch (e) {
+                // Response already closed, ignore
+            }
+        }
     }
 });
 
