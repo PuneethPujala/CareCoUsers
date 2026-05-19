@@ -428,8 +428,8 @@ router.get('/me/calls',
     async (req, res) => {
         try {
             const CallLog = require('../models/CallLog');
-            const calls = await CallLog.find({ patient_id: req.profile._id })
-                .sort({ call_date: -1 })
+            const calls = await CallLog.find({ patientId: req.profile._id })
+                .sort({ scheduledTime: -1 })
                 .limit(20);
 
             res.json({ calls: calls || [] });

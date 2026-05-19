@@ -47,14 +47,14 @@ router.get('/me/patients/today', authenticate, async (req, res) => {
         tomorrow.setDate(tomorrow.getDate() + 1);
 
         const todayCalls = await CallLog.find({
-            caller_id: caller._id,
-            call_date: { $gte: today, $lt: tomorrow },
+            caretakerId: caller._id,
+            scheduledTime: { $gte: today, $lt: tomorrow },
         });
 
         // Build patient list with call status
         const patientList = patients.map((patient) => {
             const callLog = todayCalls.find(
-                (c) => c.patient_id.toString() === patient._id.toString()
+                (c) => c.patientId.toString() === patient._id.toString()
             );
             return {
                 ...patient.toJSON(),
@@ -103,15 +103,14 @@ router.post('/me/calls', authenticate, async (req, res) => {
         }
 
         const callLog = new CallLog({
-            patient_id,
-            caller_id: caller._id,
-            manager_id: caller.manager_id,
-            organization_id: caller.organization_id,
-            call_date: new Date(),
-            call_duration_seconds: call_duration_seconds || 0,
+            patientId: patient_id,
+            caretakerId: caller._id,
+            organizationId: caller.organization_id,
+            scheduledTime: new Date(),
+            duration: call_duration_seconds || 0,
             status,
-            medicine_adherence: medicine_adherence || {},
-            caller_notes: caller_notes || '',
+            medicationConfirmations: medicine_adherence ? [medicine_adherence] : [],
+            notes: caller_notes || '',
         });
         await callLog.save();
 
@@ -120,10 +119,10 @@ router.post('/me/calls', authenticate, async (req, res) => {
             const today = new Date();
             today.setHours(0, 0, 0, 0);
             const missCount = await CallLog.countDocuments({
-                patient_id,
-                caller_id: caller._id,
+                patientId: patient_id,
+                caretakerId: caller._id,
                 status: 'missed',
-                call_date: { $gte: today },
+                scheduledTime: { $gte: today },
             });
 
             if (missCount >= 3) {
@@ -144,9 +143,9 @@ router.post('/me/calls', authenticate, async (req, res) => {
             const threeDaysAgo = new Date();
             threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
             const refusalCount = await CallLog.countDocuments({
-                patient_id,
+                patientId: patient_id,
                 status: 'refused',
-                call_date: { $gte: threeDaysAgo },
+                scheduledTime: { $gte: threeDaysAgo },
             });
 
             if (refusalCount >= 3) {
@@ -210,13 +209,12 @@ router.get('/me/patients/:patientId', authenticate, async (req, res) => {
             return res.status(404).json({ error: 'Patient not found' });
         }
 
-        // Get call history for this patient (caller_notes visible to caller, admin_notes stripped)
+        // Get call history for this patient
         const calls = await CallLog.find({
-            patient_id: patientId,
-            caller_id: caller._id,
+            patientId: patientId,
+            caretakerId: caller._id,
         })
-            .select('-admin_notes')
-            .sort({ call_date: -1 })
+            .sort({ scheduledTime: -1 })
             .limit(50);
 
         res.json({ patient, calls });
@@ -326,9 +324,9 @@ router.get('/me/stats', authenticate, async (req, res) => {
         weekStart.setHours(0, 0, 0, 0);
 
         const weekCalls = await CallLog.countDocuments({
-            caller_id: caller._id,
+            caretakerId: caller._id,
             status: 'completed',
-            call_date: { $gte: weekStart },
+            scheduledTime: { $gte: weekStart },
         });
 
         res.json({

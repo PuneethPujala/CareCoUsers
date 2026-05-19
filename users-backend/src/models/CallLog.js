@@ -2,71 +2,75 @@ const mongoose = require('mongoose');
 
 const CallLogSchema = new mongoose.Schema(
     {
-        patient_id: {
+        patientId: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'Patient',
             required: true,
             index: true,
         },
-        caller_id: {
+        caretakerId: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'Caller',
             required: true,
             index: true,
         },
-        manager_id: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: 'Profile',
-            index: true,
-        },
-        organization_id: {
+        organizationId: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'Organization',
             index: true,
         },
-        call_date: {
+        scheduledTime: {
             type: Date,
             required: true,
-            default: Date.now,
         },
-        call_duration_seconds: {
+        duration: {
             type: Number,
             default: 0,
         },
         status: {
             type: String,
-            enum: ['completed', 'missed', 'refused', 'escalated', 'attempted'],
-            required: true,
+            enum: ['completed', 'missed', 'refused', 'escalated', 'attempted', 'pending'],
             index: true,
         },
-        ai_summary: {
+        priority: {
+            type: String,
+        },
+        outcome: {
+            type: String,
+        },
+        attempts: {
+            type: Number,
+            default: 1,
+        },
+        medicationConfirmations: [{
+            type: mongoose.Schema.Types.Mixed,
+        }],
+        notes: {
             type: String,
             default: '',
         },
-        // Visible to managers and above ONLY — stripped from Users App patient endpoints
-        caller_notes: {
+        followUpRequired: {
+            type: Boolean,
+            default: false,
+        },
+        callQuality: {
+            type: mongoose.Schema.Types.Mixed,
+        },
+        patientMood: {
             type: String,
-            default: '',
         },
-        // Visible to admins ONLY — NEVER exposed via patient-facing or caller-facing endpoints
-        admin_notes: {
-            type: String,
-            default: '',
-        },
-        medicine_adherence: {
-            taken: [String],
-            refused: [String],
-            pending: [String],
-        },
+        healthConcerns: [{
+            type: mongoose.Schema.Types.Mixed,
+        }],
     },
     {
-        timestamps: { createdAt: 'created_at' },
+        timestamps: true, // adds createdAt and updatedAt
     }
 );
 
 // Compound indexes for common queries
-CallLogSchema.index({ caller_id: 1, call_date: -1 });
-CallLogSchema.index({ patient_id: 1, call_date: -1 });
-CallLogSchema.index({ organization_id: 1, call_date: -1 });
+CallLogSchema.index({ caretakerId: 1, scheduledTime: -1 });
+CallLogSchema.index({ patientId: 1, scheduledTime: -1 });
+CallLogSchema.index({ organizationId: 1, scheduledTime: -1 });
 
 module.exports = mongoose.model('CallLog', CallLogSchema);
