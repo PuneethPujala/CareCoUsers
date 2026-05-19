@@ -209,7 +209,7 @@ export default function RecapStoryModal({ visible, onClose, recap, period = 'wee
                 content = (
                     <Animated.View style={[s.slideContent, s.slideLeftAlign, makeSlideAnim(0)]}>
                         <BrandBadge />
-                        <Text style={s.introTitle}>Your{'\n'}Health{'\n'}Wrapped</Text>
+                        <Text style={s.introTitle} adjustsFontSizeToFit numberOfLines={3}>YOUR{"\n"}HEALTH{"\n"}WRAPPED</Text>
                         <View style={s.datePill}>
                             <Text style={s.datePillText}>{r.date_range?.start} — {r.date_range?.end}</Text>
                         </View>
@@ -223,7 +223,7 @@ export default function RecapStoryModal({ visible, onClose, recap, period = 'wee
                         <View style={s.cardPanel}>
                             <Text style={s.slideLabel}>ADHERENCE SCORE</Text>
                             <ProgressRing progress={r.adherence_rate || 0} />
-                            <Text style={s.slideTitleAlt}>
+                            <Text style={s.slideTitleAlt} adjustsFontSizeToFit numberOfLines={2}>
                                 {r.adherence_rate >= 90 ? 'Outstanding.' : r.adherence_rate >= 70 ? 'Great Work.' : 'Keep It Up.'}
                             </Text>
                             {r.improvement_vs_previous !== 0 && (
@@ -267,7 +267,7 @@ export default function RecapStoryModal({ visible, onClose, recap, period = 'wee
                 content = (
                     <Animated.View style={[s.slideContent, makeSlideAnim(4)]}>
                         <Text style={s.bigEmoji}>{TIME_EMOJIS[bestTime]}</Text>
-                        <Text style={s.slideTitle}>{TIME_LABELS[bestTime]}{'\n'}Champion</Text>
+                        <Text style={s.slideTitle} adjustsFontSizeToFit numberOfLines={2}>{TIME_LABELS[bestTime]}{'\n'}Champion</Text>
                         <Text style={s.slideCaption}>Your most consistent time slot</Text>
                     </Animated.View>
                 );
@@ -276,7 +276,7 @@ export default function RecapStoryModal({ visible, onClose, recap, period = 'wee
                 content = (
                     <Animated.View style={[s.slideContent, makeSlideAnim(5)]}>
                         <Text style={s.bigEmoji}>{r.level?.emoji || '🌱'}</Text>
-                        <Text style={s.slideTitle}>You're{'\n'}{r.level?.label || 'Growing'}</Text>
+                        <Text style={s.slideTitle} adjustsFontSizeToFit numberOfLines={2}>You're{'\n'}{r.level?.label || 'Growing'}</Text>
                         <Text style={s.slideCaption}>{r.badges_earned || 0} badges earned</Text>
                         {r.top_medication && (
                             <View style={s.topMedBadge}>
@@ -291,7 +291,7 @@ export default function RecapStoryModal({ visible, onClose, recap, period = 'wee
                 content = (
                     <Animated.View style={[s.slideContent, makeSlideAnim(6)]}>
                         <Sparkles size={40} color="#FDE68A" style={{ marginBottom: 16 }} />
-                        <Text style={s.slideTitle}>{r.motivational_message || 'Keep going! 💙'}</Text>
+                        <Text style={s.slideTitle} adjustsFontSizeToFit numberOfLines={3}>{r.motivational_message || 'Keep going! 💙'}</Text>
                         <BrandBadge />
                         <Pressable style={s.shareBtn} onPress={handleShare} disabled={isSharing}>
                             <Share2 size={18} color="#0F172A" />
@@ -492,14 +492,14 @@ const s = StyleSheet.create({
     },
     watermarkText: { fontSize: 10, fontWeight: '900', color: '#000', letterSpacing: 0.5, textTransform: 'uppercase' },
 
-    introTitle: { fontSize: 64, fontWeight: '900', color: '#000', textAlign: 'left', lineHeight: 68, letterSpacing: -2, textTransform: 'uppercase' },
+    introTitle: { fontSize: 52, fontWeight: '900', color: '#000', textAlign: 'left', lineHeight: 56, letterSpacing: -2, textTransform: 'uppercase' },
     datePill: { backgroundColor: '#000', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, marginTop: 24 },
     datePillText: { fontSize: 14, color: '#FFF', fontWeight: '800', letterSpacing: 1 },
     introHint: { fontSize: 16, color: 'rgba(0,0,0,0.6)', marginTop: 40, fontWeight: '800' },
 
     slideLabel: { fontSize: 16, fontWeight: '900', color: '#000', letterSpacing: 3, marginTop: 16, textTransform: 'uppercase' },
-    slideTitle: { fontSize: 48, fontWeight: '900', color: '#000', textAlign: 'center', lineHeight: 52, letterSpacing: -2, textTransform: 'uppercase' },
-    slideTitleAlt: { fontSize: 40, fontWeight: '900', color: '#000', textAlign: 'left', marginTop: 10, letterSpacing: -1 },
+    slideTitle: { fontSize: 40, fontWeight: '900', color: '#000', textAlign: 'center', lineHeight: 44, letterSpacing: -2, textTransform: 'uppercase' },
+    slideTitleAlt: { fontSize: 34, fontWeight: '900', color: '#000', textAlign: 'left', marginTop: 10, letterSpacing: -1 },
     slideCaption: { fontSize: 18, color: 'rgba(0,0,0,0.7)', marginTop: 12, fontWeight: '700', textAlign: 'center' },
 
     bigStat: { fontSize: 96, fontWeight: '900', color: '#000', letterSpacing: -4, marginTop: -10 },
