@@ -19,6 +19,8 @@ const INITIAL_SUGGESTIONS = [
     '📊 Show my vitals summary',
     '🩺 Health tips for today',
     '⏰ When is my next dose?',
+    '📈 How is my adherence?',
+    '💉 Any drug interactions?',
 ];
 
 // ── Single chat bubble ─────────────────────────────────────────────────────
@@ -68,6 +70,26 @@ function ChatBubble({ message, isUser }) {
     );
 }
 
+// ── Follow-up suggestion chips ──────────────────────────────────────────────
+function FollowUpChips({ suggestions, onPress }) {
+    const fadeAnim = useRef(new Animated.Value(0)).current;
+    useEffect(() => {
+        Animated.timing(fadeAnim, { toValue: 1, duration: 400, delay: 200, useNativeDriver: true }).start();
+    }, []);
+
+    if (!suggestions || suggestions.length === 0) return null;
+
+    return (
+        <Animated.View style={[styles.followUpContainer, { opacity: fadeAnim, transform: [{ translateY: fadeAnim.interpolate({ inputRange: [0, 1], outputRange: [8, 0] }) }] }]}>
+            {suggestions.map((s, i) => (
+                <Pressable key={i} style={styles.followUpChip} onPress={() => onPress(s)}>
+                    <Text style={styles.followUpText}>{s}</Text>
+                </Pressable>
+            ))}
+        </Animated.View>
+    );
+}
+
 // ── Typing indicator ────────────────────────────────────────────────────────
 function TypingIndicator({ stage }) {
     const dots = [useRef(new Animated.Value(0)).current, useRef(new Animated.Value(0)).current, useRef(new Animated.Value(0)).current];
@@ -112,6 +134,9 @@ export default function ChatbotScreen({ navigation }) {
     // UI Loading States
     const [isTyping, setIsTyping] = useState(false);
     const [typingStage, setTypingStage] = useState(''); // 'Listening...', 'Transcribing...', 'Thinking...'
+    
+    // Follow-up suggestions from the last bot response
+    const [followUpSuggestions, setFollowUpSuggestions] = useState([]);
     
     // Audio recording state
     const [recording, setRecording] = useState(null);
@@ -188,6 +213,7 @@ export default function ChatbotScreen({ navigation }) {
 
             return {
                 text: data.message,
+                suggestions: data.suggestions || [],
                 transcribedText: data.transcribedText
             };
 
@@ -223,6 +249,7 @@ export default function ChatbotScreen({ navigation }) {
         setInputText('');
         setIsTyping(true);
         setTypingStage('Listening...');
+        setFollowUpSuggestions([]); // Clear old suggestions while loading
 
         try {
             const responseData = await submitToBackend(msg, isAudioMsg, currentRecordingUri);
@@ -234,12 +261,16 @@ export default function ChatbotScreen({ navigation }) {
                 timestamp: Date.now(),
             };
             setMessages(prev => [...prev, botReply]);
+            
+            // Set follow-up suggestions from the response
+            if (responseData.suggestions && responseData.suggestions.length > 0) {
+                setFollowUpSuggestions(responseData.suggestions);
+            } else {
+                setFollowUpSuggestions([]);
+            }
 
             if (isAudioMsg && responseData.transcribedText) {
                 console.log(`[STT Preview] Heard: ${responseData.transcribedText}`);
-                // Optional: Show preview message for debugging
-                // const debugMsg = { id: Date.now().toString(), text: `📝 Heard: "${responseData.transcribedText}"`, isUser: false, timestamp: Date.now() };
-                // setMessages(prev => [...prev, debugMsg]);
             }
         } catch (error) {
             const botReply = {
@@ -249,6 +280,7 @@ export default function ChatbotScreen({ navigation }) {
                 timestamp: Date.now(),
             };
             setMessages(prev => [...prev, botReply]);
+            setFollowUpSuggestions([]);
         } finally {
             setIsTyping(false);
             setTypingStage('');
@@ -371,7 +403,17 @@ export default function ChatbotScreen({ navigation }) {
                             </LinearGradient>
                         </View>
                     }
-                    ListFooterComponent={isTyping ? <TypingIndicator stage={typingStage} /> : null}
+                    ListFooterComponent={
+                        <>
+                            {isTyping ? <TypingIndicator stage={typingStage} /> : null}
+                            {!isTyping && followUpSuggestions.length > 0 ? (
+                                <FollowUpChips 
+                                    suggestions={followUpSuggestions} 
+                                    onPress={(s) => handleSend(s)} 
+                                />
+                            ) : null}
+                        </>
+                    }
                 />
 
                 {/* ── Suggestion chips (shown when few messages) ── */}
@@ -478,13 +520,25 @@ const styles = StyleSheet.create({
     typingBubble: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingVertical: 14, paddingHorizontal: 18 },
     typingDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#6366F1' },
 
-    // ── Suggestions ──
+    // ── Initial Suggestions ──
     suggestionsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: 16, paddingVertical: 10 },
     suggestionChip: {
         backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E0E7FF',
         borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8,
     },
     suggestionText: { fontSize: 12, fontWeight: '600', color: '#4F46E5' },
+
+    // ── Follow-up Suggestions ──
+    followUpContainer: {
+        flexDirection: 'row', flexWrap: 'wrap', gap: 8,
+        paddingHorizontal: 50, // offset to align with bot bubble (avatar width + gap)
+        paddingVertical: 4, marginBottom: 4,
+    },
+    followUpChip: {
+        backgroundColor: '#F0F0FF', borderWidth: 1, borderColor: '#C7D2FE',
+        borderRadius: 16, paddingHorizontal: 12, paddingVertical: 7,
+    },
+    followUpText: { fontSize: 12, fontWeight: '600', color: '#4338CA' },
 
     // ── Input bar ──
     inputBar: {

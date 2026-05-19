@@ -98,6 +98,7 @@ router.post('/chat', authenticate, upload.single('audio'), async (req, res) => {
             res.status(200).json({
                 success: true,
                 message: result.response,
+                suggestions: result.suggestions || [],
                 transcribedText: req.file ? extractedQuery : null, // Good for UI debugging
                 contextTokensEstimate: result.contextTokensEstimate
             });
