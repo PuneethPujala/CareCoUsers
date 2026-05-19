@@ -758,17 +758,28 @@ router.get('/me/calls', authenticateSession, async (req, res) => {
         const skip = (page - 1) * limit;
 
         const [calls, total] = await Promise.all([
-            CallLog.find({ patient_id: patient._id })
-                .select('-caller_notes -admin_notes')
-                .sort({ call_date: -1 })
+            CallLog.find({ patientId: patient._id })
+                .sort({ scheduledTime: -1 })
                 .skip(skip)
                 .limit(limit)
-                .populate('caller_id', 'name profile_photo_url'),
-            CallLog.countDocuments({ patient_id: patient._id }),
+                .populate('caretakerId', 'name profile_photo_url'),
+            CallLog.countDocuments({ patientId: patient._id }),
         ]);
 
+        // Map the new schema fields back to what the mobile app expects
+        const mappedCalls = calls.map(c => ({
+            _id: c._id,
+            patient_id: c.patientId,
+            caller_id: c.caretakerId,
+            call_date: c.scheduledTime,
+            call_duration_seconds: c.duration,
+            status: c.status,
+            ai_summary: c.notes,
+            created_at: c.createdAt
+        }));
+
         res.json({
-            calls,
+            calls: mappedCalls,
             pagination: { page, limit, total, pages: Math.ceil(total / limit) },
         });
     } catch (error) {
