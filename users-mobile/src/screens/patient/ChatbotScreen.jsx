@@ -129,6 +129,7 @@ export default function ChatbotScreen({ navigation }) {
     const patient = usePatientStore(state => state.patient);
     const insets = useSafeAreaInsets();
     const flatListRef = useRef(null);
+    const xhrRef = useRef(null); // Track active SSE stream for abort/cancellation
     const [inputText, setInputText] = useState('');
     
     // UI Loading States
@@ -159,68 +160,153 @@ export default function ChatbotScreen({ navigation }) {
 
     useEffect(() => { scrollToBottom(); }, [messages, isTyping]);
 
-    // Cleanup audio on unmount
+    // Cleanup audio and abort active stream on unmount
     useEffect(() => {
         return () => {
             if (recording) {
                 recording.stopAndUnloadAsync();
             }
+            // Abort any in-flight SSE stream when leaving screen
+            if (xhrRef.current) {
+                xhrRef.current.abort();
+                xhrRef.current = null;
+            }
         };
     }, [recording]);
 
-    // ── Real API Integration ────────────
-    const submitToBackend = async (userMsg, isAudio = false, recordingUri = null) => {
-        try {
-            const tokens = await getApiTokens();
-            if (!tokens?.access_token) {
-                throw new Error('Not authenticated. Please log in again.');
+    // ── SSE Streaming API Integration ────────────
+    const streamFromBackend = (userMsg, botMessageId, isAudio = false, recordingUri = null) => {
+        return new Promise(async (resolve, reject) => {
+            try {
+                // Abort any previous in-flight stream
+                if (xhrRef.current) {
+                    xhrRef.current.abort();
+                    xhrRef.current = null;
+                }
+
+                const tokens = await getApiTokens();
+                if (!tokens?.access_token) {
+                    throw new Error('Not authenticated. Please log in again.');
+                }
+                const token = tokens.access_token;
+                const targetLanguage = patient?.preferredLanguage ?? patient?.language ?? 'en';
+
+                const formData = new FormData();
+                formData.append('targetLanguage', targetLanguage);
+
+                if (isAudio && recordingUri) {
+                    setTypingStage('📝 Transcribing...');
+                    const extension = Platform.OS === 'ios' ? 'm4a' : 'm4a';
+                    formData.append('audio', {
+                        uri: recordingUri,
+                        type: `audio/${extension}`,
+                        name: `voice_note.${extension}`
+                    });
+                } else {
+                    setTypingStage('🧠 Thinking...');
+                    formData.append('query', userMsg);
+                }
+
+                const baseUrl = process.env.EXPO_PUBLIC_CHATBOT_URL || process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.5:3001/api';
+                const url = `${baseUrl}/chatbot/chat`;
+
+                // Use XMLHttpRequest for streaming in React Native
+                const xhr = new XMLHttpRequest();
+                xhrRef.current = xhr;
+                let lastIndex = 0; // Track how much of responseText we've processed
+
+                xhr.open('POST', url, true);
+                xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+                // Don't set Content-Type for FormData — XHR sets the boundary automatically
+
+                xhr.onreadystatechange = () => {
+                    // readyState 3 = LOADING (partial data available)
+                    if (xhr.readyState === 3 || xhr.readyState === 4) {
+                        const newText = xhr.responseText.substring(lastIndex);
+                        lastIndex = xhr.responseText.length;
+
+                        // Parse SSE lines from the new chunk
+                        const lines = newText.split('\n');
+                        for (const line of lines) {
+                            if (!line.startsWith('data: ')) continue;
+                            try {
+                                const event = JSON.parse(line.substring(6));
+
+                                if (event.type === 'meta' && event.transcribedText) {
+                                    console.log(`[SSE] Heard: "${event.transcribedText}"`);
+                                }
+
+                                if (event.type === 'chunk' && event.text) {
+                                    setIsTyping(false); // Hide typing indicator, show live text
+                                    setMessages(prev =>
+                                        prev.map(m =>
+                                            m.id === botMessageId
+                                                ? { ...m, text: (m.text || '') + event.text }
+                                                : m
+                                        )
+                                    );
+                                }
+
+                                if (event.type === 'suggestions' && event.items) {
+                                    setFollowUpSuggestions(event.items.slice(0, 3));
+                                }
+
+                                if (event.type === 'done') {
+                                    // Stream finished successfully
+                                }
+
+                                if (event.type === 'error') {
+                                    setMessages(prev =>
+                                        prev.map(m =>
+                                            m.id === botMessageId
+                                                ? { ...m, text: `Sorry, I ran into an issue: ${event.message}. Please try again.` }
+                                                : m
+                                        )
+                                    );
+                                }
+                            } catch (e) {
+                                // Partial JSON line, ignore
+                            }
+                        }
+                    }
+
+                    // readyState 4 = DONE
+                    if (xhr.readyState === 4) {
+                        xhrRef.current = null;
+                        if (xhr.status >= 200 && xhr.status < 300) {
+                            resolve();
+                        } else if (xhr.status === 0) {
+                            // Aborted — don't reject
+                            resolve();
+                        } else {
+                            // Non-SSE error (auth failure, validation, etc.)
+                            try {
+                                const errData = JSON.parse(xhr.responseText);
+                                reject(new Error(errData.error || 'Request failed'));
+                            } catch {
+                                reject(new Error(`Request failed with status ${xhr.status}`));
+                            }
+                        }
+                    }
+                };
+
+                xhr.onerror = () => {
+                    xhrRef.current = null;
+                    reject(new Error('Network request failed. Please try again.'));
+                };
+
+                xhr.ontimeout = () => {
+                    xhrRef.current = null;
+                    reject(new Error('Request timed out. Please try again.'));
+                };
+
+                xhr.timeout = 120000; // 2 minute timeout
+                xhr.send(formData);
+
+            } catch (error) {
+                reject(error);
             }
-            const token = tokens.access_token;
-            const patientId = user?.id;
-            const targetLanguage = patient?.preferredLanguage ?? patient?.language ?? 'en';
-
-            const formData = new FormData();
-            formData.append('patientId', patientId);
-            formData.append('targetLanguage', targetLanguage);
-
-            if (isAudio && recordingUri) {
-                setTypingStage('📝 Transcribing...');
-                const extension = Platform.OS === 'ios' ? 'm4a' : 'm4a';
-                formData.append('audio', {
-                    uri: recordingUri,
-                    type: `audio/${extension}`,
-                    name: `voice_note.${extension}`
-                });
-            } else {
-                setTypingStage('🧠 Thinking...');
-                formData.append('query', userMsg);
-            }
-
-            const baseUrl = process.env.EXPO_PUBLIC_CHATBOT_URL || process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.5:3001/api';
-            const response = await fetch(`${baseUrl}/chatbot/chat`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                },
-                body: formData
-            });
-
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.error || 'API Request Failed');
-            }
-
-            return {
-                text: data.message,
-                suggestions: data.suggestions || [],
-                transcribedText: data.transcribedText
-            };
-
-        } catch (error) {
-            console.error('API Error:', error);
-            throw error;
-        }
+        });
     };
 
     const handleSend = useCallback(async (text, imageUri = null, audioUri = null) => {
@@ -244,42 +330,32 @@ export default function ChatbotScreen({ navigation }) {
             isUser: true, 
             timestamp: Date.now() 
         };
+
+        // Create an empty bot message placeholder that will be filled by streaming
+        const botMessageId = (Date.now() + 1).toString();
+        const botPlaceholder = {
+            id: botMessageId,
+            text: '',
+            isUser: false,
+            timestamp: Date.now(),
+        };
         
-        setMessages(prev => [...prev, userMessage]);
+        setMessages(prev => [...prev, userMessage, botPlaceholder]);
         setInputText('');
         setIsTyping(true);
-        setTypingStage('Listening...');
-        setFollowUpSuggestions([]); // Clear old suggestions while loading
+        setTypingStage(isAudioMsg ? '📝 Transcribing...' : '🧠 Thinking...');
+        setFollowUpSuggestions([]);
 
         try {
-            const responseData = await submitToBackend(msg, isAudioMsg, currentRecordingUri);
-            
-            const botReply = {
-                id: (Date.now() + 1).toString(),
-                text: responseData.text,
-                isUser: false,
-                timestamp: Date.now(),
-            };
-            setMessages(prev => [...prev, botReply]);
-            
-            // Set follow-up suggestions from the response
-            if (responseData.suggestions && responseData.suggestions.length > 0) {
-                setFollowUpSuggestions(responseData.suggestions);
-            } else {
-                setFollowUpSuggestions([]);
-            }
-
-            if (isAudioMsg && responseData.transcribedText) {
-                console.log(`[STT Preview] Heard: ${responseData.transcribedText}`);
-            }
+            await streamFromBackend(msg, botMessageId, isAudioMsg, currentRecordingUri);
         } catch (error) {
-            const botReply = {
-                id: (Date.now() + 1).toString(),
-                text: `Sorry, I ran into an issue: ${error.message}. Please try again.`,
-                isUser: false,
-                timestamp: Date.now(),
-            };
-            setMessages(prev => [...prev, botReply]);
+            setMessages(prev =>
+                prev.map(m =>
+                    m.id === botMessageId
+                        ? { ...m, text: `Sorry, I ran into an issue: ${error.message}. Please try again.` }
+                        : m
+                )
+            );
             setFollowUpSuggestions([]);
         } finally {
             setIsTyping(false);

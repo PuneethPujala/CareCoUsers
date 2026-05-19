@@ -144,7 +144,7 @@ export default function PatientHomeScreen({ navigation }) {
     const [formError, setFormError] = useState(null);
     const [submitLoading, setSubmitLoading] = useState(false);
     const [medsExpanded, setMedsExpanded] = useState(false);
-    const [showStreakBanner, setShowStreakBanner] = useState(true);
+
     const [syncStatus, setSyncStatus] = useState({
         enabled: false, connected: false, lastSync: null, readingsToday: 0, syncing: false,
     });
@@ -312,26 +312,26 @@ export default function PatientHomeScreen({ navigation }) {
         },
     ];
 
-    // ── Quick actions ──────────────────────────────────────────────────────
+    // ── Quick actions (horizontal chips) ──────────────────────────────────
     const QUICK_ACTIONS = [
         {
-            label: t('home.med_adherence', { defaultValue: 'Med Adherence' }), sub: t('home.view_progress', { defaultValue: 'View Progress' }),
-            grad: ['#10B981', '#059669'], Icon: CheckCircle2,
+            label: t('home.my_medications', { defaultValue: 'My Medications' }),
+            Icon: Pill, color: '#6366F1', bg: '#EEF2FF', border: '#C7D2FE',
+            onPress: () => navigation.navigate('Medications'),
+        },
+        {
+            label: t('home.reminders', { defaultValue: 'Reminders' }),
+            Icon: Bell, color: '#F97316', bg: '#FFF7ED', border: '#FED7AA',
+            onPress: () => navigation.navigate('Notifications'),
+        },
+        {
+            label: t('home.adherence', { defaultValue: 'Adherence' }),
+            Icon: TrendingUp, color: '#10B981', bg: '#F0FDF4', border: '#BBF7D0',
             onPress: () => navigation.navigate('AdherenceDetails'),
         },
         {
-            label: t('home.med_delivery', { defaultValue: 'Med Delivery' }), sub: t('home.coming_soon', { defaultValue: 'Coming Soon' }),
-            grad: ['#0EA5E9', '#0284C7'], Icon: Package,
-            onPress: () => AlertManager.alert(t('home.coming_soon_title', { defaultValue: 'Coming Soon! 🚀' }), t('home.coming_soon_body', { defaultValue: "Med Delivery is on its way! We're building a seamless way to order and track your medications right from the app." }), [{ text: t('common.got_it', { defaultValue: 'Got it!' }), style: 'default' }]),
-        },
-        {
-            label: t('home.health_profile', { defaultValue: 'Health Profile' }), sub: t('home.view_edit', { defaultValue: 'View & Edit' }),
-            grad: ['#6366F1', '#4F46E5'], Icon: Activity,
-            onPress: () => navigation.navigate('HealthProfile'),
-        },
-        {
-            label: t('home.schedule', { defaultValue: 'Schedule' }), sub: t('home.next_appointment', { defaultValue: 'Next Appointment' }),
-            grad: ['#F59E0B', '#D97706'], Icon: CalendarDays,
+            label: t('home.health_profile', { defaultValue: 'Health Profile' }),
+            Icon: Shield, color: '#A855F7', bg: '#FAF5FF', border: '#E9D5FF',
             onPress: () => navigation.navigate('HealthProfile'),
         },
     ];
@@ -430,33 +430,20 @@ export default function PatientHomeScreen({ navigation }) {
                         </View>
                     )}
 
-                        {/* ── BANNERS ── */}
+                        {/* ── QUICK ACTIONS (horizontal chips) ── */}
                         <Animated.View style={anim(2)}>
-                            {showStreakBanner && medicationStreak >= 3 && (
-                                <LinearGradient colors={['#FEF3C7', '#FFF7ED']} style={[styles.banner, { borderColor: '#FDE68A' }]}>
-                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
-                                        <Text style={{ fontSize: 22 }}>🔥</Text>
-                                        <View>
-                                            <Text style={styles.bannerTitle}>{t('home.streak_banner', { defaultValue: '{{count}}-day medication streak!', count: medicationStreak })}</Text>
-                                            <Text style={styles.bannerSub}>{t('home.streak_sub', { defaultValue: 'Keep logging to unlock better insights' })}</Text>
+                            <Text style={styles.sectionTitle}>{t('common.quick_actions', { defaultValue: 'QUICK ACTIONS' })}</Text>
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingRight: 4, marginBottom: 20 }}>
+                                {QUICK_ACTIONS.map(({ label, Icon: QIcon, color, bg, border, onPress }) => (
+                                    <Pressable key={label} style={[styles.quickChip, { backgroundColor: bg, borderColor: border }]} onPress={onPress}>
+                                        <View style={[styles.quickChipIcon, { backgroundColor: color + '20' }]}>
+                                            <QIcon size={16} color={color} strokeWidth={2.5} />
                                         </View>
-                                    </View>
-                                    <Pressable onPress={() => setShowStreakBanner(false)} hitSlop={12}>
-                                        <Text style={{ fontSize: 16, color: '#D97706', fontWeight: '800', padding: 4 }}>✕</Text>
+                                        <Text style={[styles.quickChipLabel, { color }]}>{label}</Text>
+                                        <ChevronRight size={14} color={color} style={{ opacity: 0.6 }} />
                                     </Pressable>
-                                </LinearGradient>
-                            )}
-                            {takenCount === totalMeds && totalMeds > 0 && (
-                                <LinearGradient colors={['#F0FDF4', '#ECFDF5']} style={[styles.banner, { borderColor: '#BBF7D0' }]}>
-                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
-                                        <Text style={{ fontSize: 22 }}>✅</Text>
-                                        <View>
-                                            <Text style={[styles.bannerTitle, { color: '#166534' }]}>{t('home.all_meds_taken', { defaultValue: 'All meds taken today!' })}</Text>
-                                            <Text style={[styles.bannerSub, { color: '#15803D' }]}>{t('home.great_job', { defaultValue: 'Great job staying on track' })}</Text>
-                                        </View>
-                                    </View>
-                                </LinearGradient>
-                            )}
+                                ))}
+                            </ScrollView>
                         </Animated.View>
 
                         {/* ── TODAY'S MEDICATIONS ── */}
@@ -691,26 +678,7 @@ export default function PatientHomeScreen({ navigation }) {
                             </View>
                         </Animated.View>
 
-                        {/* ── QUICK ACTIONS ── */}
-                        <Animated.View style={anim(6)}>
-                            <View style={styles.section}>
-                                <Text style={styles.sectionTitle}>{t('common.quick_actions', { defaultValue: 'QUICK ACTIONS' })}</Text>
-                                <View style={styles.quickGrid}>
-                                    {QUICK_ACTIONS.map(({ label, sub, grad, Icon, onPress }) => (
-                                        <Pressable key={label} style={styles.quickCard} onPress={onPress}>
-                                            <LinearGradient colors={grad} style={styles.quickIconBox}>
-                                                <Icon size={22} color="#FFF" strokeWidth={2.5} />
-                                            </LinearGradient>
-                                            <View style={{ flex: 1 }}>
-                                                <Text style={styles.quickCardTitle}>{label}</Text>
-                                                <Text style={styles.quickCardSub}>{sub}</Text>
-                                            </View>
-                                            <ChevronRight size={16} color="#CBD5E1" />
-                                        </Pressable>
-                                    ))}
-                                </View>
-                            </View>
-                        </Animated.View>
+
 
                         <View style={{ height: 30 }} />
                     </ScrollView>
@@ -780,14 +748,17 @@ const styles = StyleSheet.create({
     },
     offlineBannerText: { fontSize: 12, fontWeight: '600', color: '#92400E' },
 
-    // ── Banners ──
-    banner: {
-        flexDirection: 'row', alignItems: 'center',
-        borderWidth: 1, borderRadius: 20, padding: 14, paddingHorizontal: 16,
-        marginBottom: 12, overflow: 'hidden',
+    // ── Quick action chips ──
+    quickChip: {
+        flexDirection: 'row', alignItems: 'center', gap: 8,
+        paddingHorizontal: 14, paddingVertical: 10,
+        borderRadius: 20, borderWidth: 1,
     },
-    bannerTitle: { fontSize: 14, fontWeight: '800', color: '#92400E' },
-    bannerSub: { fontSize: 12, fontWeight: '500', color: '#B45309', marginTop: 1 },
+    quickChipIcon: {
+        width: 28, height: 28, borderRadius: 10,
+        alignItems: 'center', justifyContent: 'center',
+    },
+    quickChipLabel: { fontSize: 13, fontWeight: '700' },
 
     // ── Sections ──
     section: { marginBottom: 28 },
@@ -916,19 +887,5 @@ const styles = StyleSheet.create({
     tipLabel: { fontSize: 11, fontWeight: '800', color: '#6366F1', letterSpacing: 1.2, textTransform: 'uppercase' },
     tipText: { fontSize: 14, color: '#3730A3', lineHeight: 22, fontWeight: '500' },
 
-    // ── Quick actions ──
-    quickGrid: { gap: 12 },
-    quickCard: {
-        backgroundColor: '#FFFFFF', borderRadius: 20, padding: 16,
-        flexDirection: 'row', alignItems: 'center', gap: 16,
-        shadowColor: '#6366F1', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 3,
-        borderWidth: 1, borderColor: '#F1F5F9',
-    },
-    quickIconBox: {
-        width: 48, height: 48, borderRadius: 15,
-        alignItems: 'center', justifyContent: 'center',
-        shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 8, elevation: 4,
-    },
-    quickCardTitle: { fontSize: 15, fontWeight: '800', color: '#1E293B' },
-    quickCardSub: { fontSize: 12, color: '#64748B', marginTop: 2, fontWeight: '600' },
+
 });
