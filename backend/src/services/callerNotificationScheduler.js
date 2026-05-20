@@ -1,13 +1,14 @@
 /**
  * Caller Notification Scheduler
  * Runs periodically to check for caller-relevant events and sends push notifications.
- * Non-spammy: uses tracking to avoid duplicate sends.
+ * Non-spammy: uses DB-level deduplication to survive server restarts.
  */
 const mongoose = require('mongoose');
 const Profile = require('../models/Profile');
 const Patient = require('../models/Patient');
 const CallLog = require('../models/CallLog');
 const CaretakerPatient = require('../models/CaretakerPatient');
+const Notification = require('../models/Notification');
 const { sendPush } = require('./pushService');
 
 // ── IST Helpers ──────────────────────────────────────────────
@@ -28,26 +29,16 @@ function getShiftLabel(shift) {
     return shift === 'morning' ? 'Morning' : shift === 'afternoon' ? 'Afternoon' : 'Night';
 }
 
-// Track what we've already sent to avoid spam
-// Key: `${callerProfileId}_${eventType}_${shift}_${dateStr}`
-const sentTracker = new Map();
-
-function alreadySent(callerId, eventType, shift) {
-    const dateStr = new Date().toISOString().split('T')[0];
-    const key = `${callerId}_${eventType}_${shift}_${dateStr}`;
-    return sentTracker.has(key);
-}
-
-function markSent(callerId, eventType, shift) {
-    const dateStr = new Date().toISOString().split('T')[0];
-    const key = `${callerId}_${eventType}_${shift}_${dateStr}`;
-    sentTracker.set(key, Date.now());
-
-    // Cleanup old entries (older than 24h)
-    const cutoff = Date.now() - 24 * 60 * 60 * 1000;
-    for (const [k, v] of sentTracker) {
-        if (v < cutoff) sentTracker.delete(k);
-    }
+// ── DB-level deduplication (survives server restarts) ────────
+async function alreadySent(callerId, eventType, shift) {
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    const existing = await Notification.findOne({
+        recipientId: callerId,
+        'data.schedulerEvent': `${eventType}_${shift}`,
+        createdAt: { $gte: startOfToday },
+    });
+    return !!existing;
 }
 
 // ── Get today's start/end ────────────────────────────────────
@@ -143,14 +134,13 @@ async function checkShiftStart(callers) {
         if (patientCount === 0) continue;
 
         await sendPush(caller._id, {
-            title: `${getShiftLabel(shift)} Shift Started 🌅`,
-            body: `You have ${patientCount} patient${patientCount > 1 ? 's' : ''} to call this shift. Let's go!`,
+            title: `${getShiftLabel(shift)} Shift Started`,
+            body: `You have ${patientCount} patient${patientCount > 1 ? 's' : ''} to call this shift.`,
             type: 'shift_reminder',
             priority: 'normal',
-            data: { screen: 'CallerDashboard', shift },
+            data: { screen: 'CallerDashboard', shift, schedulerEvent: `shift_start_${shift}` },
         });
 
-        markSent(caller._id, 'shift_start', shift);
         console.log(`[Scheduler] Shift start notification sent to ${caller.fullName}`);
     }
 }
@@ -182,14 +172,13 @@ async function checkPatientsWaiting(callers) {
         if (uncalled === 0) continue;
 
         await sendPush(caller._id, {
-            title: `${uncalled} Patient${uncalled > 1 ? 's' : ''} Waiting 📋`,
+            title: `${uncalled} Patient${uncalled > 1 ? 's' : ''} Waiting`,
             body: `${uncalled} patient${uncalled > 1 ? 's haven\'t' : ' hasn\'t'} been contacted yet this ${shift} shift.`,
             type: 'call_reminder',
             priority: 'high',
-            data: { screen: 'CallerDashboard', shift },
+            data: { screen: 'CallerDashboard', shift, schedulerEvent: `patients_waiting_${shift}` },
         });
 
-        markSent(caller._id, 'patients_waiting', shift);
         console.log(`[Scheduler] Patients waiting notification sent to ${caller.fullName}`);
     }
 }
@@ -221,14 +210,13 @@ async function checkCallReminder(callers) {
         if (uncalled === 0) continue;
 
         await sendPush(caller._id, {
-            title: `Action Needed ⚡`,
+            title: `Action Needed`,
             body: `${uncalled} patient${uncalled > 1 ? 's' : ''} still pending in your ${getShiftLabel(shift).toLowerCase()} queue. Patients are waiting for medication confirmation.`,
             type: 'call_overdue',
             priority: 'urgent',
-            data: { screen: 'CallerDashboard', shift },
+            data: { screen: 'CallerDashboard', shift, schedulerEvent: `call_reminder_${shift}` },
         });
 
-        markSent(caller._id, 'call_reminder', shift);
         console.log(`[Scheduler] Call reminder notification sent to ${caller.fullName}`);
     }
 }
@@ -258,15 +246,26 @@ async function checkShiftSummary(callers) {
         const patients = await getAssignedPatients(caller._id);
         const uncalled = await getUncalledCount(caller._id, patients);
 
+        // Build a clear, professional summary
+        let summaryBody;
+        if (callCount === 0 && patients.length === 0) {
+            summaryBody = 'No patients were assigned this shift.';
+        } else if (callCount === 0) {
+            summaryBody = `${patients.length} patient${patients.length !== 1 ? 's' : ''} assigned but no calls were completed.`;
+        } else if (uncalled > 0) {
+            summaryBody = `${callCount} call${callCount !== 1 ? 's' : ''} completed. ${uncalled} patient${uncalled > 1 ? 's' : ''} still pending.`;
+        } else {
+            summaryBody = `${callCount} call${callCount !== 1 ? 's' : ''} completed. All patients have been contacted.`;
+        }
+
         await sendPush(caller._id, {
-            title: `${getShiftLabel(shift)} Shift Wrapping Up 📊`,
-            body: `Great work! ${callCount} call${callCount !== 1 ? 's' : ''} completed. ${uncalled > 0 ? `${uncalled} patient${uncalled > 1 ? 's' : ''} still pending.` : 'All patients contacted! 🎉'}`,
+            title: `${getShiftLabel(shift)} Shift Summary`,
+            body: summaryBody,
             type: 'shift_reminder',
             priority: 'normal',
-            data: { screen: 'CallerDashboard', shift, summary: true },
+            data: { screen: 'CallerDashboard', shift, summary: true, schedulerEvent: `shift_summary_${shift}` },
         });
 
-        markSent(caller._id, 'shift_summary', shift);
         console.log(`[Scheduler] Shift summary notification sent to ${caller.fullName}`);
     }
 }
