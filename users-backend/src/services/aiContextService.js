@@ -24,7 +24,7 @@ const VitalLog = require('../models/VitalLog');
  */
 async function buildPatientContext(patientId) {
     // 1. Fetch Patient & Profile
-    const patient = await Patient.findById(patientId).select('name date_of_birth gender profile_id timezone medications');
+    const patient = await Patient.findById(patientId).select('name date_of_birth gender profile_id timezone medications gamification');
     if (!patient) return null;
     
     const tz = patient.timezone || 'Asia/Kolkata';
@@ -76,6 +76,33 @@ async function buildPatientContext(patientId) {
     });
     const missedMeds = totalMeds - takenMeds;
 
+    // 3b. Today's session state — individual med status + last log time
+    const todayDate = new Date(`${todayStr}T00:00:00.000Z`);
+    const todayLog = await MedicineLog.findOne({ patient_id: patient._id, date: todayDate });
+    let todayStatus = null;
+    if (todayLog) {
+        const activeTodayMeds = todayLog.medicines.filter(m => m.is_active !== false);
+        const todayTaken = activeTodayMeds.filter(m => m.taken).length;
+        const todayTotal = activeTodayMeds.length;
+        const lastTakenEntry = activeTodayMeds
+            .filter(m => m.taken && m.taken_at)
+            .sort((a, b) => new Date(b.taken_at) - new Date(a.taken_at))[0];
+
+        todayStatus = {
+            total_scheduled: todayTotal,
+            taken: todayTaken,
+            missed: todayTotal - todayTaken,
+            rate: todayTotal > 0 ? Math.round((todayTaken / todayTotal) * 100) + '%' : 'N/A',
+            all_done: todayTotal > 0 && todayTaken === todayTotal,
+            last_log_time: lastTakenEntry ? moment(lastTakenEntry.taken_at).tz(tz).format('h:mm A') : null,
+            medicines: activeTodayMeds.map(m => ({
+                name: m.medicine_name,
+                time_slot: m.scheduled_time,
+                taken: m.taken
+            }))
+        };
+    }
+
     // 4. Vitals (7-Day Aggregate)
     const vitals = await VitalLog.find({
         patient_id: patient._id,
@@ -101,7 +128,11 @@ async function buildPatientContext(patientId) {
         };
     }
 
-    // 5. Build final payload
+    // 5. Streak
+    const currentStreak = patient.gamification?.current_streak || 0;
+    const longestStreak = patient.gamification?.longest_streak || 0;
+
+    // 6. Build final payload
     const payload = {
         patient: {
             name: patient.name,
@@ -111,6 +142,13 @@ async function buildPatientContext(patientId) {
             diet: profile?.dietary_restrictions
         },
         today: todayStr,
+        current_time: now.format('h:mm A'),
+        streak: {
+            current: currentStreak,
+            longest: longestStreak,
+            label: currentStreak >= 14 ? 'Strong' : currentStreak >= 7 ? 'Building' : currentStreak >= 3 ? 'Starting' : 'New'
+        },
+        today_status: todayStatus,
         medical_history: (profile?.medical_history || []).map(h => h.event).slice(0, 5), // Top 5
         vaccinations: (profile?.vaccinations || []).map(v => v.name),
         medications: allMeds,

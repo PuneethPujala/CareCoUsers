@@ -7,6 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { X, Share2, ChevronLeft, ChevronRight, Flame, Pill, Sunrise, Sun, Moon, Trophy, Heart, Sparkles } from 'lucide-react-native';
 import ViewShot from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
+import { HapticPatterns } from '../../utils/haptics';
 
 const { width: SW, height: SH } = Dimensions.get('window');
 const SLIDE_COUNT = 7;
@@ -126,6 +127,9 @@ export default function RecapStoryModal({ visible, onClose, recap, period = 'wee
         }
         setCurrentSlide(idx);
         scrollRef.current?.scrollTo({ x: idx * SW, animated: true });
+        if (idx === 2) {
+            HapticPatterns.milestone();
+        }
         animateSlide(idx);
         // Fill previous progress bars, reset future ones
         progressAnims.forEach((a, i) => {
@@ -141,6 +145,9 @@ export default function RecapStoryModal({ visible, onClose, recap, period = 'wee
             stopAutoPlay();
             setIsAutoPlaying(false);
             setCurrentSlide(idx);
+            if (idx === 2) {
+                HapticPatterns.milestone();
+            }
             animateSlide(idx);
             progressAnims.forEach((a, i) => {
                 if (i < idx) a.setValue(1);
