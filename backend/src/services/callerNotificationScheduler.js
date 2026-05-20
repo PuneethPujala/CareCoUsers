@@ -63,7 +63,7 @@ async function getActiveCallers() {
 async function getAssignedPatients(callerId) {
     const assignments = await CaretakerPatient.find({
         caretakerId: callerId,
-        isActive: true,
+        status: 'active',
     }).select('patientId').lean();
 
     const patientIds = assignments.map(a => a.patientId);
