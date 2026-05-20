@@ -17,6 +17,7 @@ import { apiService } from '../../lib/api';
 import { COUNTRY_CODES, parsePhoneWithCode, validatePhone } from '../../utils/phoneUtils';
 import { useTranslation } from 'react-i18next';
 import AlertManager from '../../utils/AlertManager';
+import { HapticPatterns } from '../../utils/haptics';
 
 // ── Skeleton ────────────────────────────────────────────────────────────────
 const SkeletonItem = ({ width, height, borderRadius = 8, style }) => {
@@ -227,6 +228,9 @@ export default function MyCallerScreen({ navigation }) {
         ? await apiService.patients.updateTrustedContact(editingContact._id, payload)
         : await apiService.patients.addTrustedContact(payload);
       setContacts(res.data.trusted_contacts);
+      if (!editingContact) {
+        HapticPatterns.caregiverConnected();
+      }
       closeContactModal();
     } catch (err) {
       AlertManager.alert(t('common.error', { defaultValue: 'Error' }), t('caller.failed_save_contact', { defaultValue: 'Failed to save contact.' }));
@@ -560,8 +564,8 @@ export default function MyCallerScreen({ navigation }) {
           <Animated.View style={anim(4)}>
             <View style={s.sectionHeaderRow}>
               <Text style={s.sectionLabel}>{t('caller.recent_calls', { defaultValue: 'RECENT CALLS' })}</Text>
-              {caller && (
-                <Pressable onPress={() => openModal(caller)}>
+              {calls.length > 0 && (
+                <Pressable onPress={() => navigation.navigate('CallHistory')}>
                   <Text style={s.seeAllText}>{t('common.see_all', { defaultValue: 'See all' })}</Text>
                 </Pressable>
               )}
