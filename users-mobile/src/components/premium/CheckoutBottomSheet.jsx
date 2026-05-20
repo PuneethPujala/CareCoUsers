@@ -21,6 +21,7 @@ const UPI_APPS = [
 export default function CheckoutBottomSheet({ visible, onClose, plan, onSuccess, isRenewal }) {
     const [step, setStep] = useState('select'); // 'select' | 'processing' | 'success'
     const [selectedUpi, setSelectedUpi] = useState(null);
+    const [newExpiry, setNewExpiry] = useState(null);
     
     // Animations
     const slideAnim = useRef(new Animated.Value(SH)).current;
@@ -75,7 +76,12 @@ export default function CheckoutBottomSheet({ visible, onClose, plan, onSuccess,
             await new Promise(res => setTimeout(res, 2800)); // Simulating UPI switch
             
             // Backend Subscription Call
-            await apiService.patients.subscribe({ plan: plan?.id || 'premium_monthly' });
+            const response = await apiService.patients.subscribe({ plan: plan?.id || 'premium_monthly' });
+            
+            if (response.data?.patient?.subscription?.expires_at) {
+                const dateObj = new Date(response.data.patient.subscription.expires_at);
+                setNewExpiry(dateObj.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' }));
+            }
             
             // Success Celebration
             setStep('success');
@@ -210,8 +216,8 @@ export default function CheckoutBottomSheet({ visible, onClose, plan, onSuccess,
                                     <Sparkles size={40} color="#FFFFFF" strokeWidth={2.5} />
                                 </LinearGradient>
                             </Animated.View>
-                            <Text style={s.successTitle}>{isRenewal ? 'Plan Extended!' : 'Welcome to Premium!'}</Text>
-                            <Text style={s.successSub}>{isRenewal ? 'Your new plan duration has been successfully added.' : 'Your health insights are fully unlocked.'}</Text>
+                            <Text style={s.successTitle}>You're all set.</Text>
+                            <Text style={s.successSub}>{isRenewal && newExpiry ? `Your plan now runs until ${newExpiry}.` : 'Your health insights are fully unlocked.'}</Text>
                             
                             <Animated.View 
                                 style={[
