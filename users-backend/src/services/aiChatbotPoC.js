@@ -241,7 +241,12 @@ async function streamPoCResponse(patientId, userQuery, targetLanguage, res, tran
 
     } catch (error) {
         console.error('[PoC Stream Error]:', error.response?.data || error.message);
-        sendEvent('error', { message: error.message || 'LLM inference failed.' });
+        
+        // Emulate a graceful fallback message when Ollama times out or fails
+        const fallbackMessage = "I'm having a little trouble connecting to my charts right now. Could you try asking me again in a moment?";
+        sendEvent('chunk', { text: fallbackMessage });
+        sendEvent('suggestions', { items: ["Try again", "Call Care Coordinator"] });
+        sendEvent('done', {});
     }
 }
 
