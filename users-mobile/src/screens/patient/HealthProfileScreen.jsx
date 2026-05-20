@@ -488,7 +488,8 @@ export default function HealthProfileScreen({ navigation }) {
 
     // ── Intelligent Health Score (from backend) ───────────────────────────────
     const hs = profile?.health_score || null;
-    const hsScore    = hs?.score ?? null;
+    const _rawScore = hs?.score;
+    const hsScore    = (_rawScore !== undefined && _rawScore !== null && !isNaN(Number(_rawScore))) ? Number(_rawScore) : null;
     const hsLabel    = hs?.label ?? t('health_profile.status_stable', { defaultValue: 'Stable' });
     const hsColor    = hs?.color ?? '#0EA5E9';
     const hsGrade    = hs?.grade ?? '—';
@@ -714,7 +715,7 @@ export default function HealthProfileScreen({ navigation }) {
                     </View>
                 </Animated.View>
                 {/* ── TODAY'S FOCUS (INLINE INSIGHTS) ── */}
-                <Animated.View style={anim(0.5)}>
+                <Animated.View style={anim(1)}>
                     <View style={s.focusSection}>
                         <View style={s.focusHeaderRow}>
                             <Sparkles size={16} color="#6366F1" />
