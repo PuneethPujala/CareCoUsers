@@ -147,7 +147,7 @@ export default function CheckoutBottomSheet({ visible, onClose, plan, onSuccess,
                                 <View style={s.divider} />
                                 <View style={s.summaryRow}>
                                     <Text style={s.summaryLabel}>Total Due</Text>
-                                    <Text style={s.summaryPrice}>{plan?.price || '₹299'}</Text>
+                                    <Text style={s.summaryPrice}>{plan?.price || '₹499'}</Text>
                                 </View>
                             </View>
 
