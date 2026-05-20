@@ -21,32 +21,32 @@ const OVERDUE_THRESHOLD_MINUTES = 5;
 
 const NOTIFICATION_TEMPLATES = {
     call_overdue: {
-        title: '⏰ Call Overdue',
+        title: 'Call Overdue',
         body: (data) => `Your call with ${data.patientName} was scheduled for ${data.scheduledTime} and is overdue.`,
         priority: 'high',
     },
     escalation_assigned: {
-        title: '🚨 New Escalation Assigned',
+        title: 'New Escalation Assigned',
         body: (data) => `${data.type.replace(/_/g, ' ')} alert for ${data.patientName}: ${data.message}`,
         priority: 'urgent',
     },
     patient_reassigned: {
-        title: '🔄 Patient Reassigned',
+        title: 'Patient Reassigned',
         body: (data) => `${data.patientName} has been ${data.direction === 'to' ? 'assigned to' : 'removed from'} you.`,
         priority: 'high',
     },
     weekly_summary: {
-        title: '📊 Weekly Performance Summary',
+        title: 'Weekly Performance Summary',
         body: (data) => `Completion: ${data.completionRate}% | Adherence: ${data.adherenceRate}% | Calls: ${data.totalCalls}`,
         priority: 'normal',
     },
     medication_reminder: {
-        title: '💊 Medication Confirmation Pending',
+        title: 'Medication Confirmation Pending',
         body: (data) => `${data.patientName} has ${data.medicationCount} medications pending confirmation.`,
         priority: 'high',
     },
     low_adherence_alert: {
-        title: '⚠️ Low Adherence Alert',
+        title: 'Low Adherence Alert',
         body: (data) => `${data.patientName}'s adherence dropped to ${data.adherenceRate}% (threshold: ${data.threshold}%).`,
         priority: 'high',
     },
@@ -235,7 +235,7 @@ async function notifyEscalationAssigned(escalationId) {
     if (escalation.priority === 'critical') {
         await sendPushNotification(escalation.assignedTo, {
             type: 'escalation_alert',
-            title: '🚨 CRITICAL ESCALATION',
+            title: 'CRITICAL ESCALATION',
             body: `${escalation.type.replace(/_/g, ' ').toUpperCase()} for ${escalation.patientId?.fullName}: ${escalation.message}`,
             priority: 'urgent',
             data: { screen: 'EscalationDetail', escalationId: escalation._id.toString() },
@@ -261,7 +261,7 @@ async function notifyPatientReassignment(data) {
         organizationId: data.organizationId,
         type: 'patient_reassigned',
         channel: 'in_app',
-        title: '🔄 New Patient Assigned',
+        title: 'New Patient Assigned',
         body: `${data.patientName} has been assigned to you.`,
         priority: 'high',
         data: { screen: 'PatientDetail', patientId: data.patientId.toString(), direction: 'to' },
@@ -276,7 +276,7 @@ async function notifyPatientReassignment(data) {
             organizationId: data.organizationId,
             type: 'patient_reassigned',
             channel: 'in_app',
-            title: '🔄 Patient Reassigned',
+            title: 'Patient Reassigned',
             body: `${data.patientName} has been reassigned to another caretaker.`,
             priority: 'normal',
             data: { screen: 'Dashboard', direction: 'from' },
@@ -486,7 +486,7 @@ function startNotificationCrons() {
         }
     }, 60 * 60 * 1000);
 
-    console.log('📡 Notification crons started');
+    console.log('[Crons] Notification crons started');
 }
 
 module.exports = {
