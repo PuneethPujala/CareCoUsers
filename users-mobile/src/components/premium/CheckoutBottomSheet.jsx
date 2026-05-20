@@ -135,31 +135,53 @@ export default function CheckoutBottomSheet({ visible, onClose, plan, onSuccess 
 
                             <View style={s.summaryCard}>
                                 <View style={s.summaryRow}>
-                                    <Text style={s.summaryLabel}>Plan Selected</Text>
+                                    <Text style={s.summaryLabel}>Plan</Text>
                                     <Text style={s.summaryValue}>{plan?.name || 'Premium'}</Text>
                                 </View>
                                 <View style={s.divider} />
                                 <View style={s.summaryRow}>
-                                    <Text style={s.summaryLabel}>Starts Today</Text>
-                                    <Text style={s.summaryValue}>{plan?.price || '₹299'}</Text>
+                                    <Text style={s.summaryLabel}>Total Due</Text>
+                                    <Text style={s.summaryPrice}>{plan?.price || '₹299'}</Text>
                                 </View>
                             </View>
 
                             <Text style={s.upiLabel}>Select Payment Method</Text>
-                            <View style={s.upiGrid}>
-                                {UPI_APPS.map((app) => (
-                                    <Pressable 
-                                        key={app.id} 
-                                        style={s.upiCard}
-                                        onPress={() => handlePay(app)}
-                                    >
-                                        <View style={[s.upiIcon, { backgroundColor: app.color + '15' }]}>
-                                            <Text style={[s.upiInitials, { color: app.color }]}>{app.initials}</Text>
-                                        </View>
-                                        <Text style={s.upiName}>{app.name}</Text>
-                                    </Pressable>
-                                ))}
+                            <View style={s.upiList}>
+                                {UPI_APPS.map((app) => {
+                                    const isSelected = selectedUpi === app.id;
+                                    return (
+                                        <Pressable 
+                                            key={app.id} 
+                                            style={[s.upiRow, isSelected && s.upiRowActive]}
+                                            onPress={() => setSelectedUpi(app.id)}
+                                        >
+                                            <View style={[s.upiIcon, { backgroundColor: app.color + '15' }]}>
+                                                <Text style={[s.upiInitials, { color: app.color }]}>{app.initials}</Text>
+                                            </View>
+                                            <Text style={[s.upiName, isSelected && { color: app.color }]}>{app.name}</Text>
+                                            
+                                            <View style={[s.radioBtn, isSelected && { borderColor: app.color }]}>
+                                                {isSelected && <View style={[s.radioFill, { backgroundColor: app.color }]} />}
+                                            </View>
+                                        </Pressable>
+                                    )
+                                })}
                             </View>
+
+                            <Pressable 
+                                style={[s.payButton, !selectedUpi && s.payButtonDisabled]} 
+                                onPress={() => selectedUpi && handlePay(UPI_APPS.find(a => a.id === selectedUpi))}
+                                disabled={!selectedUpi}
+                            >
+                                <LinearGradient 
+                                    colors={selectedUpi ? ['#0F172A', '#1E293B'] : ['#E2E8F0', '#E2E8F0']} 
+                                    style={s.payBtnGradient}
+                                >
+                                    <Text style={[s.payBtnText, !selectedUpi && { color: '#94A3B8' }]}>
+                                        Proceed to Pay
+                                    </Text>
+                                </LinearGradient>
+                            </Pressable>
 
                             <View style={s.trustBadge}>
                                 <ShieldCheck size={14} color="#10B981" />
@@ -231,16 +253,26 @@ const s = StyleSheet.create({
     
     summaryCard: { backgroundColor: '#F8FAFC', borderRadius: 20, padding: 20, marginBottom: 24, borderWidth: 1, borderColor: '#F1F5F9' },
     summaryRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-    summaryLabel: { fontSize: 14, color: '#64748B', fontWeight: '500' },
+    summaryLabel: { fontSize: 15, color: '#64748B', fontWeight: '500' },
     summaryValue: { fontSize: 16, color: '#0F172A', fontWeight: '700' },
+    summaryPrice: { fontSize: 20, color: '#0F172A', fontWeight: '900', letterSpacing: -0.5 },
     divider: { height: 1, backgroundColor: '#E2E8F0', marginVertical: 14 },
     
-    upiLabel: { fontSize: 15, fontWeight: '700', color: '#334155', marginBottom: 16 },
-    upiGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-    upiCard: { width: (SW - 60) / 2, backgroundColor: '#FFFFFF', borderRadius: 16, paddingVertical: 16, alignItems: 'center', borderWidth: 1.5, borderColor: '#F1F5F9', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 4, elevation: 1 },
-    upiIcon: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
-    upiInitials: { fontSize: 18, fontWeight: '800' },
-    upiName: { fontSize: 14, fontWeight: '600', color: '#1E293B' },
+    upiLabel: { fontSize: 14, fontWeight: '800', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 16 },
+    upiList: { gap: 12, marginBottom: 24 },
+    upiRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 16, padding: 16, borderWidth: 2, borderColor: '#F1F5F9' },
+    upiRowActive: { borderColor: '#A855F7', backgroundColor: '#FAF5FF' },
+    upiIcon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginRight: 16 },
+    upiInitials: { fontSize: 16, fontWeight: '800' },
+    upiName: { flex: 1, fontSize: 16, fontWeight: '700', color: '#1E293B' },
+    
+    radioBtn: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: '#CBD5E1', alignItems: 'center', justifyContent: 'center' },
+    radioFill: { width: 10, height: 10, borderRadius: 5 },
+
+    payButton: { borderRadius: 16, overflow: 'hidden' },
+    payButtonDisabled: { opacity: 0.8 },
+    payBtnGradient: { paddingVertical: 18, alignItems: 'center' },
+    payBtnText: { color: '#FFF', fontSize: 16, fontWeight: '800' },
     
     trustBadge: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 24 },
     trustText: { fontSize: 13, color: '#10B981', fontWeight: '600' },

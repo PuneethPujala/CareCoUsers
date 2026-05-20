@@ -51,7 +51,10 @@ async function refreshHealthScoreCache(patientId) {
 // ─── Subscription & Onboarding ────────────────────────────────────────────────
 
 async function subscribeAndSeedDemoData(patient, planId) {
-    if (patient.subscription?.status === 'active') return patient;
+    const isActive = patient.subscription?.status === 'active';
+    const isExpired = patient.subscription?.expires_at && new Date(patient.subscription.expires_at) < new Date();
+    // Only skip if genuinely active AND not expired
+    if (isActive && !isExpired) return patient;
 
     const session = await mongoose.startSession();
     session.startTransaction();
@@ -59,14 +62,24 @@ async function subscribeAndSeedDemoData(patient, planId) {
     try {
         const orgId = patient.organization_id || new mongoose.Types.ObjectId('674f07e1525049b7348908f9');
 
+        // Map plan pricing correctly
+        const planAmounts = {
+            'premium_monthly': 299,
+            'premium_annual': 2499,
+            'basic': 99,
+        };
+        const resolvedPlan = planId || patient.pending_plan || 'basic';
+        const amount = planAmounts[resolvedPlan] || 299;
+        const durationDays = resolvedPlan === 'premium_annual' ? 365 : 30;
+
         const subscriptionUpdates = {
             'subscription.status': 'active',
-            'subscription.plan': planId || patient.pending_plan || 'basic',
-            'subscription.amount': 500,
+            'subscription.plan': resolvedPlan,
+            'subscription.amount': amount,
             'subscription.payment_date': new Date(),
             'subscription.started_at': new Date(),
-            'subscription.expires_at': new Date(Date.now() + 30 * 86400000),
-            'subscription.next_billing': new Date(Date.now() + 30 * 86400000),
+            'subscription.expires_at': new Date(Date.now() + durationDays * 86400000),
+            'subscription.next_billing': new Date(Date.now() + durationDays * 86400000),
             paid: 1,
         };
 
@@ -229,9 +242,10 @@ router.post('/subscribe', authenticateSession, async (req, res) => {
         if (paid !== undefined) patient.paid = paid;
         if (resolvedPlanId) patient.pending_plan = resolvedPlanId;
 
-        // If patient is already active, just save the 'paid' status and return.
-        // This handles cases where a previous attempt was partially recorded.
-        if (patient.subscription?.status === 'active') {
+        // If patient is genuinely active (not expired), just save metadata and return.
+        const isActive = patient.subscription?.status === 'active';
+        const isExpired = patient.subscription?.expires_at && new Date(patient.subscription.expires_at) < new Date();
+        if (isActive && !isExpired) {
             await patient.save();
             return res.json({ success: true, patient, message: 'Subscription already active, data updated.' });
         }
