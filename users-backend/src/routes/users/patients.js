@@ -67,7 +67,7 @@ async function subscribeAndSeedDemoData(patient, planId) {
             'basic': 99,
         };
         const resolvedPlan = planId || patient.pending_plan || 'basic';
-        const amount = planAmounts[resolvedPlan] || 299;
+        const amount = planAmounts[resolvedPlan] || 499;
         const durationDays = resolvedPlan === 'premium_annual' ? 365 : 30;
         
         let newExpiresAt;
