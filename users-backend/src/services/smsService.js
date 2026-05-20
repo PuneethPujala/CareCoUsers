@@ -47,6 +47,39 @@ class SmsService {
     }
     
     /**
+     * Send a custom SMS message (not OTP — uses Twilio Messages API)
+     * Used for warm caregiver invitations, etc.
+     */
+    async sendMessage(phoneNumber, body) {
+        if (!this.isConfigured) {
+            console.log(`[Twilio Mock] 📲 Would send SMS to ${phoneNumber}: "${body}"`);
+            return { success: true, mocked: true };
+        }
+
+        try {
+            const formattedPhone = phoneNumber.startsWith('+') ? phoneNumber : `+91${phoneNumber}`;
+            const fromNumber = process.env.TWILIO_FROM_NUMBER;
+            if (!fromNumber) {
+                console.warn('[Twilio] TWILIO_FROM_NUMBER not set. Skipping SMS.');
+                return { success: false, reason: 'No sender number configured' };
+            }
+
+            const message = await this.client.messages.create({
+                body,
+                from: fromNumber,
+                to: formattedPhone,
+            });
+
+            console.log(`[Twilio] SMS sent successfully. SID: ${message.sid}`);
+            return { success: true, sid: message.sid };
+        } catch (err) {
+            console.error('[Twilio] Failed to send SMS:', err.message);
+            // Non-critical — don't throw, just return failure
+            return { success: false, reason: err.message };
+        }
+    }
+
+    /**
      * Check an OTP via Twilio Verify
      */
     async checkVerification(phoneNumber, code) {

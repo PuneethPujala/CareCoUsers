@@ -81,7 +81,7 @@ const CHART_DEFS = [
         icon: Heart, accent: '#CC5B31', bgTint: '#FFF7F5',
         extract: (v) => v.heart_rate || 0,
         normalRange: [60, 100],
-        insight: (val) => val < 60 ? 'Your heart rate is slightly lower than usual.' : val > 100 ? 'Heart rate is a bit elevated. Take it easy!' : 'Your heart rate is perfectly in the zone today.',
+        insight: (val) => val < 60 ? 'A little lower than usual. Nothing urgent — just worth keeping an eye on.' : val > 100 ? 'A bit higher than your usual range. Worth noting for your next appointment.' : 'Your heart rate looks steady today.',
     },
     {
         id: 'blood_pressure', title: 'BP Systolic', unit: 'mmHg', yLabel: 'mmHg',
@@ -90,21 +90,21 @@ const CHART_DEFS = [
         extractAlt: (v) => v.blood_pressure?.diastolic || 0,
         legend: ['Systolic', 'Diastolic'],
         normalRange: [90, 140],
-        insight: (val) => val > 140 ? 'Systolic pressure is high. Avoid caffeine.' : 'Your blood pressure is within a healthy range.',
+        insight: (val) => val > 140 ? 'That reading is a little higher than usual. Worth mentioning at your next appointment.' : 'Your blood pressure looks healthy.',
     },
     {
         id: 'oxygen_saturation', title: 'SpO₂', unit: '%', yLabel: 'SpO₂',
         icon: Wind, accent: '#4DA379', bgTint: '#F0F9F5',
         extract: (v) => v.oxygen_saturation || 0,
         normalRange: [95, 100],
-        insight: (val) => val < 95 ? 'SpO₂ is slightly low. Try deep breathing.' : 'Your oxygen saturation is excellent.',
+        insight: (val) => val < 95 ? 'A touch below the typical range. Some slow deep breaths might help.' : 'Your oxygen levels look great.',
     },
     {
         id: 'hydration', title: 'Hydration', unit: '%', yLabel: '%',
         icon: Droplets, accent: '#376DAF', bgTint: '#EFF6FF',
         extract: (v) => v.hydration || 0,
         normalRange: [60, 100],
-        insight: (val) => val < 60 ? "Drink some water! You're below optimal hydration." : 'Great job staying hydrated today!',
+        insight: (val) => val < 60 ? 'A little on the low side. A glass of water when you can.' : 'Hydration is looking good today.',
     },
 ];
 
@@ -121,7 +121,7 @@ const getInsight = (data, label, isSingle) => {
     const avgSecond = secondHalf.reduce((a, b) => a + b, 0) / secondHalf.length;
     const pctChange = ((avgSecond - avgFirst) / avgFirst) * 100;
     const periodText = isSingle ? 'today' : 'over the selected period';
-    if (pctChange > 5) return { text: `Your ${label} is trending higher ${periodText}.`, type: 'warning' };
+    if (pctChange > 5) return { text: `Your ${label} has been a bit higher ${periodText}. Worth keeping an eye on.`, type: 'warning' };
     if (pctChange < -5) return { text: `Your ${label} is improving ${periodText}.`, type: 'positive' };
     return { text: `Your ${label} has been stable ${periodText}.`, type: 'stable' };
 };
@@ -350,14 +350,14 @@ export default function VitalsHistoryScreen({ navigation }) {
                 altMax = Math.max(...altData);
             }
         }
-        let status = 'Within normal'; let statusColor = '#10B981';
+        let status = 'Looking good'; let statusColor = '#10B981';
         if (id === 'heart_rate') {
-            if (avgVal > 100 || avgVal < 60) { status = 'Outside range'; statusColor = '#EF4444'; }
+            if (avgVal > 100 || avgVal < 60) { status = 'Worth watching'; statusColor = '#F59E0B'; }
         } else if (id === 'oxygen_saturation') {
-            if (avgVal < 95) { status = 'Below normal'; statusColor = '#EF4444'; }
+            if (avgVal < 95) { status = 'A bit low'; statusColor = '#F59E0B'; }
         } else if (id === 'blood_pressure') {
-            if (avgVal > 140 || (altAvg && altAvg > 90)) { status = 'Elevated'; statusColor = '#EF4444'; }
-            else if (avgVal < 90 || (altAvg && altAvg < 60)) { status = 'Low'; statusColor = '#EF4444'; }
+            if (avgVal > 140 || (altAvg && altAvg > 90)) { status = 'A bit high'; statusColor = '#F59E0B'; }
+            else if (avgVal < 90 || (altAvg && altAvg < 60)) { status = 'A bit low'; statusColor = '#F59E0B'; }
         }
         return {
             avg: altAvg ? `${avgVal.toFixed(0)}/${altAvg.toFixed(0)}` : avgVal.toFixed(1),
