@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
     View, Text, StyleSheet, ScrollView, Platform, Pressable, Animated,
     ActivityIndicator, KeyboardAvoidingView, TouchableOpacity,
-    DeviceEventEmitter, InteractionManager, Dimensions, StatusBar,
+    DeviceEventEmitter, InteractionManager, Dimensions, StatusBar, AppState
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
@@ -23,6 +23,7 @@ import SmartInput from '../../components/ui/SmartInput';
 import AlertManager from '../../utils/AlertManager';
 import { useTranslation } from 'react-i18next';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { HapticPatterns } from '../../utils/haptics';
 import PremiumFormModal from '../../components/ui/PremiumFormModal';
 
 const { width: SW } = Dimensions.get('window');
@@ -201,6 +202,7 @@ export default function PatientHomeScreen({ navigation }) {
                 oxygen_saturation: o2,
                 hydration: hyd,
             });
+            HapticPatterns.log();
             setIsLogging(false);
             setFormValues({ heart_rate: '', systolic: '', diastolic: '', oxygen_saturation: '', hydration: '' });
             DeviceEventEmitter.emit('VITALS_UPDATED');
@@ -245,7 +247,18 @@ export default function PatientHomeScreen({ navigation }) {
         return () => unsub();
     }, [fetchData]);
 
-    const [showPremiumModal, setShowPremiumModal] = useState(false);
+    const [now, setNow] = useState(new Date());
+
+    useEffect(() => {
+        const subscription = AppState.addEventListener('change', nextAppState => {
+            if (nextAppState === 'active') {
+                setNow(new Date());
+            }
+        });
+        return () => subscription.remove();
+    }, []);
+
+    const openPremium = () => navigation.navigate('PremiumShowcase');
 
     useEffect(() => {
         const checkPremiumPopup = async () => {
@@ -255,7 +268,7 @@ export default function PatientHomeScreen({ navigation }) {
                     const today = new Date().toDateString();
                     if (lastPrompt !== today) {
                         await AsyncStorage.setItem('last_premium_prompt', today);
-                        setTimeout(() => setShowPremiumModal(true), 1500);
+                        setTimeout(() => openPremium(), 1500);
                     }
                 } catch (e) { console.error('Premium prompt error', e); }
             }
@@ -279,12 +292,51 @@ export default function PatientHomeScreen({ navigation }) {
         daysPremiumRemaining = Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
     }
 
-    const getGreeting = () => {
-        const h = new Date().getHours();
-        if (h < 12) return t('home.good_morning', { defaultValue: 'Good Morning' });
-        if (h < 17) return t('home.good_afternoon', { defaultValue: 'Good Afternoon' });
-        return t('home.good_evening', { defaultValue: 'Good Evening' });
+    // ── The Morning/Evening Brief (Dynamic Context) ──
+    const getDynamicBrief = () => {
+        const h = now.getHours();
+        const isMorning = h >= 5 && h < 12;
+        const isEvening = h >= 18 && h <= 23;
+
+        const dailyLog = adherenceDetails?.daily_log || [];
+        let yesterdayPct = null;
+        if (dailyLog.length >= 2) {
+            // daily_log is sorted chronologically. length - 1 is today, length - 2 is yesterday.
+            const yLog = dailyLog[dailyLog.length - 2];
+            if (yLog && yLog.total > 0) {
+                yesterdayPct = Math.round((yLog.taken / yLog.total) * 100);
+            }
+        }
+
+        const scheduledToday = totalMeds;
+        const takenToday = takenCount;
+        const incompleteToday = scheduledToday - takenToday;
+
+        if (isMorning) {
+            if (yesterdayPct === 100) {
+                return { greeting: t('home.brief_morning_good', { defaultValue: 'Good morning.' }), sub: t('home.brief_morning_perfect', { defaultValue: `Yesterday was perfect. You have ${scheduledToday} medication${scheduledToday !== 1 ? 's' : ''} this morning.` }) };
+            } else if (yesterdayPct !== null && yesterdayPct < 100) {
+                return { greeting: t('home.brief_morning_fresh', { defaultValue: `Good morning, ${firstName}.` }), sub: t('home.brief_morning_restart', { defaultValue: `Today's a fresh start. ${scheduledToday} medication${scheduledToday !== 1 ? 's' : ''} scheduled this morning.` }) };
+            } else {
+                return { greeting: t('home.brief_morning_good', { defaultValue: 'Good morning.' }), sub: t('home.brief_morning_build', { defaultValue: "Let's build a good day." }) };
+            }
+        } else if (isEvening) {
+            if (scheduledToday > 0 && incompleteToday === 0) {
+                return { greeting: t('home.brief_evening_winding', { defaultValue: 'Winding down.' }), sub: t('home.brief_evening_perfect', { defaultValue: "Everything's logged for today. Rest well." }) };
+            } else if (scheduledToday > 0 && incompleteToday > 0) {
+                return { greeting: t('home.brief_evening_greeting', { defaultValue: `Evening, ${firstName}.` }), sub: t('home.brief_evening_almost', { defaultValue: `${incompleteToday} more medication${incompleteToday !== 1 ? 's' : ''} before bed — you're nearly there.` }) };
+            } else {
+                return { greeting: t('home.brief_evening_good', { defaultValue: 'Good evening.' }), sub: t('home.brief_evening_checkin', { defaultValue: 'How are you feeling today?' }) };
+            }
+        } else {
+            // Afternoon fallback (12pm - 5pm)
+            return {
+                greeting: t('home.brief_afternoon', { defaultValue: `Good afternoon, ${firstName}.` }),
+                sub: scheduledToday > 0 ? (incompleteToday === 0 ? t('home.brief_all_done', { defaultValue: 'All done for today!' }) : t('home.brief_left', { defaultValue: `${incompleteToday} left today.` })) : t('home.brief_hope_good', { defaultValue: "Hope you're having a good day." })
+            };
+        }
     };
+    const brief = getDynamicBrief();
 
     const getNextDose = () => {
         const hour = new Date().getHours();
@@ -315,7 +367,20 @@ export default function PatientHomeScreen({ navigation }) {
         transform: [{ translateY: staggerAnims[i].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }],
     });
 
+    const isNewUser = totalMeds === 0 && vitalsHistory.length === 0 && medicationStreak === 0;
+    const hasVitalsToday = vitals?.heart_rate || vitals?.blood_pressure?.systolic || vitals?.oxygen_saturation != null || vitals?.hydration != null;
+
+    // Seam 1: Track days with data for presence hand-off
+    const daysTracked = adherenceDetails?.daily_log?.length || 0;
+    const isFirstWeek = daysTracked > 0 && daysTracked <= 7;
+
     // ── Stat chip configs ──────────────────────────────────────────────────
+    // Seam 5: Reframe zero-streak as 'Ready' instead of cold '0'
+    const streakValue = medicationStreak > 0 ? String(medicationStreak) : '—';
+    const streakLabel = medicationStreak > 0
+        ? t('home.day_streak', { defaultValue: 'Day Streak' })
+        : t('home.streak_ready', { defaultValue: 'Streak' });
+
     const STATS = [
         {
             Icon: Pill, value: `${takenCount}/${totalMeds}`, label: t('home.meds_today', { defaultValue: 'Meds Today' }),
@@ -323,14 +388,14 @@ export default function PatientHomeScreen({ navigation }) {
             onPress: () => navigation.navigate('AdherenceDetails'),
         },
         {
-            Icon: Flame, value: String(medicationStreak), label: t('home.day_streak', { defaultValue: 'Day Streak' }),
-            iconColor: '#F97316', bg: ['#FFF7ED', '#FEF3C7'], iconBg: '#FED7AA',
+            Icon: Flame, value: streakValue, label: streakLabel,
+            iconColor: medicationStreak > 0 ? '#F97316' : '#D4A574', bg: medicationStreak > 0 ? ['#FFF7ED', '#FEF3C7'] : ['#FFFBF5', '#FFF7ED'], iconBg: medicationStreak > 0 ? '#FED7AA' : '#FDE8D0',
             onPress: () => navigation.navigate('AdherenceDetails'),
         },
         {
             Icon: Sparkles, value: String(daysPremiumRemaining), label: t('home.days_premium', { defaultValue: 'Days Premium' }),
             iconColor: '#A855F7', bg: ['#FAF5FF', '#F3E8FF'], iconBg: '#E9D5FF',
-            onPress: () => setShowPremiumModal(true),
+            onPress: () => openPremium(),
         },
     ];
 
@@ -391,9 +456,11 @@ export default function PatientHomeScreen({ navigation }) {
                 {/* ── SIMPLE HEADER (fixed, like care team) ── */}
                 <View style={styles.header}>
                     <View style={styles.mainHeaderRow}>
-                        <View style={{ flex: 1 }}>
-                            <Text style={styles.greetingLabel}>{getGreeting()},</Text>
-                            <Text style={styles.greetingName}>{firstName} 👋</Text>
+                        <View style={{ flex: 1, paddingRight: 16 }}>
+                            <Text style={styles.greetingLabel}>{brief.greeting}</Text>
+                            <Text style={[styles.greetingName, { fontSize: 18, lineHeight: 24, color: '#0F172A', marginTop: 4, fontWeight: '700' }]}>
+                                {brief.sub}
+                            </Text>
                         </View>
                         <View style={styles.headerActions}>
                             <Pressable style={styles.headerIconBtn} onPress={() => navigation.navigate('Notifications')}>
@@ -430,7 +497,7 @@ export default function PatientHomeScreen({ navigation }) {
                     </Animated.View>
 
                     {daysPremiumRemaining <= 0 && (
-                        <Pressable style={styles.premiumBanner} onPress={() => setShowPremiumModal(true)}>
+                        <Pressable style={styles.premiumBanner} onPress={() => openPremium()}>
                             <View style={styles.premiumBannerLeft}>
                                 <View style={styles.premiumBannerIcon}>
                                     <Sparkles size={18} color="#A855F7" />
@@ -458,6 +525,61 @@ export default function PatientHomeScreen({ navigation }) {
                             </Pressable>
                         ))}
                     </Animated.View>
+
+                    {/* ── STREAK / PRESENCE CARD ── */}
+                    {/* Seam 5: Warm messaging for zero-streak (new AND returning users) */}
+                    {medicationStreak === 0 && totalMeds > 0 && (
+                        <Animated.View style={[anim(2), { marginHorizontal: 20, marginBottom: 20 }]}>
+                            <View style={[styles.emptyCard, { backgroundColor: '#FFFBF5', borderColor: '#FEF3C7', marginHorizontal: 0, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 16 }]}>
+                                <View style={[styles.emptyIconBox, { backgroundColor: '#FFEDD5', marginBottom: 0, width: 48, height: 48, borderRadius: 24 }]}>
+                                    <Flame size={24} color="#D4A574" strokeWidth={2.5} />
+                                </View>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={[styles.emptyTitle, { color: '#92400E', textAlign: 'left', marginBottom: 4 }]}>
+                                        {t('home.streak_paused', { defaultValue: "Today's a new start" })}
+                                    </Text>
+                                    <Text style={[styles.emptySub, { textAlign: 'left', marginTop: 0 }]}>
+                                        {t('home.streak_paused_sub', { defaultValue: 'Your streak begins with your next log. No rush.' })}
+                                    </Text>
+                                </View>
+                            </View>
+                        </Animated.View>
+                    )}
+                    {isNewUser && medicationStreak === 0 && (
+                        <Animated.View style={[anim(2), { marginHorizontal: 20, marginBottom: 20 }]}>
+                            <View style={[styles.emptyCard, { backgroundColor: '#FFF7ED', borderColor: '#FEF3C7', marginHorizontal: 0, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 16 }]}>
+                                <View style={[styles.emptyIconBox, { backgroundColor: '#FFEDD5', marginBottom: 0, width: 48, height: 48, borderRadius: 24 }]}>
+                                    <Flame size={24} color="#F97316" strokeWidth={2.5} />
+                                </View>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={[styles.emptyTitle, { color: '#C2410C', textAlign: 'left', marginBottom: 4 }]}>
+                                        {t('home.streak_welcome', { defaultValue: 'Every great routine starts today' })}
+                                    </Text>
+                                    <Text style={[styles.emptySub, { textAlign: 'left', marginTop: 0 }]}>
+                                        {t('home.streak_welcome_sub', { defaultValue: 'Your streak begins with your first log.' })}
+                                    </Text>
+                                </View>
+                            </View>
+                        </Animated.View>
+                    )}
+                    {/* Seam 1: Presence hand-off — warm contextual layer during first week */}
+                    {isFirstWeek && !isNewUser && (
+                        <Animated.View style={[anim(2), { marginHorizontal: 20, marginBottom: 16 }]}>
+                            <View style={{ backgroundColor: '#F0FDF4', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: '#BBF7D0', flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                                <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#DCFCE7', alignItems: 'center', justifyContent: 'center' }}>
+                                    <Sparkles size={18} color="#16A34A" strokeWidth={2} />
+                                </View>
+                                <Text style={{ flex: 1, fontSize: 13, color: '#15803D', lineHeight: 18, fontWeight: '500' }}>
+                                    {daysTracked <= 2
+                                        ? t('home.presence_day1', { defaultValue: "You're building something. We're already paying attention." })
+                                        : daysTracked <= 5
+                                            ? t('home.presence_day3', { defaultValue: `${daysTracked} days in. Your routine is taking shape.` })
+                                            : t('home.presence_day7', { defaultValue: "Almost a full week. You're establishing a real rhythm." })
+                                    }
+                                </Text>
+                            </View>
+                        </Animated.View>
+                    )}
 
                     {/* Offline banner */}
                     {isCached && (
@@ -533,8 +655,8 @@ export default function PatientHomeScreen({ navigation }) {
                                 ) : (
                                     <View style={styles.emptyCard}>
                                         <View style={styles.emptyIconBox}><Pill size={28} color="#CBD5E1" strokeWidth={1.5} /></View>
-                                        <Text style={styles.emptyTitle}>{t('common.no_medications_yet', { defaultValue: 'No Medications Yet' })}</Text>
-                                        <Text style={styles.emptySub}>{t('common.your_care_team_will_add_medications_here_they_ll_show_up_as_actionable_cards', { defaultValue: "Your care team will add medications here. They'll show up as actionable cards." })}</Text>
+                                        <Text style={styles.emptyTitle}>{t('common.no_medications_added', { defaultValue: 'No medications added' })}</Text>
+                                        <Text style={styles.emptySub}>{t('common.meds_empty_desc', { defaultValue: "Your medications will appear here once you add your first one. We'll help you stay on track." })}</Text>
                                     </View>
                                 )}
 
@@ -590,15 +712,23 @@ export default function PatientHomeScreen({ navigation }) {
                                 </Pressable>
 
                                 {/* Vitals cards row */}
-                                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingRight: 4, marginBottom: 16 }}>
-                                    <VitalsCard label={t('home.heart_rate', { defaultValue: 'Heart Rate' })} value={vitals?.heart_rate || '—'} unit="bpm" icon={Heart} color="#EF4444" status={vitals?.heart_rate ? 'Recorded' : 'Not Logged'} />
-                                    <VitalsCard label={t('home.blood_pressure', { defaultValue: 'Blood Pressure' })} value={vitals?.blood_pressure?.systolic ? `${vitals.blood_pressure.systolic}/${vitals.blood_pressure.diastolic}` : '—'} unit="mmHg" icon={Activity} color="#6366F1" status={vitals?.blood_pressure?.systolic ? 'Recorded' : 'Not Logged'} />
-                                    <VitalsCard label={t('home.oxygen', { defaultValue: 'Oxygen' })} value={vitals?.oxygen_saturation != null ? vitals.oxygen_saturation : '—'} unit="%" icon={Wind} color="#0EA5E9" status={vitals?.oxygen_saturation != null ? 'Recorded' : 'Not Logged'} />
-                                    <VitalsCard label={t('home.hydration', { defaultValue: 'Hydration' })} value={vitals?.hydration != null ? vitals.hydration : '—'} unit="%" icon={Droplets} color="#06B6D4" status={vitals?.hydration != null ? 'Recorded' : 'Not Logged'} />
-                                </ScrollView>
+                                {hasVitalsToday ? (
+                                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingRight: 4, marginBottom: 16 }}>
+                                        <VitalsCard label={t('home.heart_rate', { defaultValue: 'Heart Rate' })} value={vitals?.heart_rate || '—'} unit="bpm" icon={Heart} color="#EF4444" status={vitals?.heart_rate ? 'Recorded' : 'Not Logged'} />
+                                        <VitalsCard label={t('home.blood_pressure', { defaultValue: 'Blood Pressure' })} value={vitals?.blood_pressure?.systolic ? `${vitals.blood_pressure.systolic}/${vitals.blood_pressure.diastolic}` : '—'} unit="mmHg" icon={Activity} color="#6366F1" status={vitals?.blood_pressure?.systolic ? 'Recorded' : 'Not Logged'} />
+                                        <VitalsCard label={t('home.oxygen', { defaultValue: 'Oxygen' })} value={vitals?.oxygen_saturation != null ? vitals.oxygen_saturation : '—'} unit="%" icon={Wind} color="#0EA5E9" status={vitals?.oxygen_saturation != null ? 'Recorded' : 'Not Logged'} />
+                                        <VitalsCard label={t('home.hydration', { defaultValue: 'Hydration' })} value={vitals?.hydration != null ? vitals.hydration : '—'} unit="%" icon={Droplets} color="#06B6D4" status={vitals?.hydration != null ? 'Recorded' : 'Not Logged'} />
+                                    </ScrollView>
+                                ) : (
+                                    <View style={[styles.emptyCard, { marginBottom: 16 }]}>
+                                        <View style={styles.emptyIconBox}><Activity size={28} color="#CBD5E1" strokeWidth={1.5} /></View>
+                                        <Text style={styles.emptyTitle}>{t('common.no_vitals_recorded', { defaultValue: 'No vitals recorded' })}</Text>
+                                        <Text style={styles.emptySub}>{t('common.vitals_empty_desc', { defaultValue: "We're ready to track your vitals whenever you are. Start with whatever feels easiest." })}</Text>
+                                    </View>
+                                )}
 
                                 {/* AI Outlook */}
-                                {(aiPrediction || vitalsHistory.length > 0) && (
+                                {(aiPrediction || vitalsHistory.length > 0) ? (
                                     <View style={styles.card}>
                                         <View style={styles.cardHeaderRow}>
                                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
@@ -630,7 +760,7 @@ export default function PatientHomeScreen({ navigation }) {
                                             <View style={{ marginTop: 10 }}>
                                                 {daysPremiumRemaining <= 0 && (
                                                     <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(255,255,255,0.75)', zIndex: 10, alignItems: 'center', justifyContent: 'center', borderRadius: 16, marginTop: -10 }]}>
-                                                        <Pressable onPress={() => setShowPremiumModal(true)} style={{ backgroundColor: '#FFF', paddingHorizontal: 16, paddingVertical: 12, borderRadius: 24, shadowColor: '#A855F7', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 12, elevation: 6, flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderColor: '#F3E8FF' }}>
+                                                        <Pressable onPress={() => openPremium()} style={{ backgroundColor: '#FFF', paddingHorizontal: 16, paddingVertical: 12, borderRadius: 24, shadowColor: '#A855F7', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 12, elevation: 6, flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderColor: '#F3E8FF' }}>
                                                             <Sparkles size={16} color="#A855F7" />
                                                             <Text style={{ fontSize: 13, fontWeight: '800', color: '#6B21A8' }}>Renew to continue personalized AI analysis</Text>
                                                         </Pressable>
@@ -650,6 +780,24 @@ export default function PatientHomeScreen({ navigation }) {
                                                 />
                                             </View>
                                         )}
+                                    </View>
+                                ) : (
+                                    <View style={styles.card}>
+                                        <View style={styles.cardHeaderRow}>
+                                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                                                <LinearGradient colors={['#EEF2FF', '#C7D2FE']} style={styles.aiIconBox}>
+                                                    <Sparkles size={16} color="#6366F1" />
+                                                </LinearGradient>
+                                                <Text style={styles.cardTitle}>{t('common.ai_health_outlook', { defaultValue: 'AI Health Outlook' })}</Text>
+                                            </View>
+                                        </View>
+                                        <View style={[styles.emptyCard, { marginTop: 16, backgroundColor: '#FAF5FF', borderColor: '#F3E8FF' }]}>
+                                            <View style={[styles.emptyIconBox, { backgroundColor: '#E9D5FF' }]}>
+                                                <Sparkles size={28} color="#A855F7" strokeWidth={1.5} />
+                                            </View>
+                                            <Text style={[styles.emptyTitle, { color: '#6B21A8' }]}>No data available</Text>
+                                            <Text style={[styles.emptySub, { color: '#9333EA' }]}>Your personalized insights will grow here as you log your routine. We're already paying attention.</Text>
+                                        </View>
                                     </View>
                                 )}
 
@@ -730,48 +878,6 @@ export default function PatientHomeScreen({ navigation }) {
                         <View style={{ height: 30 }} />
                     </ScrollView>
             </View>
-
-            {/* ── PREMIUM RENEWAL MODAL ── */}
-            <PremiumFormModal
-                visible={showPremiumModal}
-                title="Premium Renewal"
-                onClose={() => setShowPremiumModal(false)}
-            >
-                <View style={{ alignItems: 'center', paddingVertical: 10 }}>
-                    <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: '#FAF5FF', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
-                        <Sparkles size={36} color="#A855F7" />
-                    </View>
-                    <Text style={{ fontSize: 24, fontWeight: '900', color: '#0F172A', textAlign: 'center', marginBottom: 8, letterSpacing: -0.5 }}>Unlock deeper health insights</Text>
-                    <Text style={{ fontSize: 15, color: '#64748B', textAlign: 'center', paddingHorizontal: 10, lineHeight: 22, marginBottom: 24 }}>
-                        Keep your care connected. Renew Premium to continue tracking medication trends and empowering your AI health assistant.
-                    </Text>
-
-                    <View style={{ width: '100%', gap: 12, marginBottom: 24 }}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#F8FAFC', padding: 16, borderRadius: 16 }}>
-                            <Activity size={20} color="#A855F7" />
-                            <Text style={{ flex: 1, fontSize: 15, fontWeight: '700', color: '#334155' }}>Advanced AI Health Analysis</Text>
-                        </View>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#F8FAFC', padding: 16, borderRadius: 16 }}>
-                            <TrendingUp size={20} color="#10B981" />
-                            <Text style={{ flex: 1, fontSize: 15, fontWeight: '700', color: '#334155' }}>AI-powered medication consistency tracking</Text>
-                        </View>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#F8FAFC', padding: 16, borderRadius: 16 }}>
-                            <Shield size={20} color="#6366F1" />
-                            <Text style={{ flex: 1, fontSize: 15, fontWeight: '700', color: '#334155' }}>Track long-term improvement trends</Text>
-                        </View>
-                    </View>
-
-                    <Pressable
-                        style={{ width: '100%', backgroundColor: '#A855F7', paddingVertical: 18, borderRadius: 16, alignItems: 'center', shadowColor: '#A855F7', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.3, shadowRadius: 10, elevation: 6 }}
-                        onPress={() => {
-                            setShowPremiumModal(false);
-                            navigation.navigate('Payment');
-                        }}
-                    >
-                        <Text style={{ color: '#FFF', fontSize: 16, fontWeight: '800' }}>Renew Now</Text>
-                    </Pressable>
-                </View>
-            </PremiumFormModal>
 
         </KeyboardAvoidingView>
     );
