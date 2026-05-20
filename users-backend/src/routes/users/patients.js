@@ -683,7 +683,8 @@ router.post('/me/trusted-contacts', authenticateSession, async (req, res) => {
         try {
             const smsService = require('../../services/smsService');
             const patientName = patient.name || 'Someone';
-            const warmMessage = `Hi — ${patientName} has added you as a trusted contact on CareMyMed, their health companion app. They'd like you to be part of their care. Tap here to get started: https://caremymed.app/invite`;
+            const caregiverFirstName = name.split(' ')[0];
+            const warmMessage = `Hi ${caregiverFirstName} — ${patientName} has added you to their trusted care circle on CareMyMed. They'd love for you to be quietly kept in the loop regarding their health. Tap here to connect: https://caremymed.app/invite`;
             smsService.sendMessage(phone, warmMessage).catch(e =>
                 logger.warn('Caregiver invite SMS failed (non-critical)', { error: e.message })
             );
