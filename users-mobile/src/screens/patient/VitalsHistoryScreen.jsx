@@ -750,8 +750,6 @@ export default function VitalsHistoryScreen({ navigation }) {
                     onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
                     scrollEventThrottle={16}
                 >
-                    <View style={{ height: Platform.OS === 'ios' ? 100 : 80 }} />
-
                     {initialLoading ? renderSkeleton() : (
                         <>
                             {/* ── Hero Summary Card ───────────── */}
@@ -976,7 +974,7 @@ export default function VitalsHistoryScreen({ navigation }) {
 // ─── Styles ───────────────────────────────────────────────────
 const styles = StyleSheet.create({
     container: { flex: 1 },
-    scrollContent: { paddingHorizontal: 20, paddingTop: 110, paddingBottom: layout.TAB_BAR_CLEARANCE + 20 },
+    scrollContent: { paddingHorizontal: 20, paddingTop: Platform.OS === 'ios' ? 110 : 90, paddingBottom: layout.TAB_BAR_CLEARANCE + 20 },
 
     /* Glass Header */
     glassHeader: {
@@ -1100,7 +1098,7 @@ const styles = StyleSheet.create({
     retryText: { color: '#FFF', fontSize: 12, fontWeight: '700' },
 
     /* Empty State */
-    emptyState: { alignItems: 'center', paddingVertical: 48 },
+    emptyState: { alignItems: 'center', paddingVertical: 24 },
     emptyIconCircle: { width: 80, height: 80, borderRadius: 40, alignItems: 'center', justifyContent: 'center', marginBottom: 18 },
     emptyTitle: { color: '#0F172A', fontSize: 18, fontWeight: '800' },
     emptySub: { color: '#64748B', fontSize: 14, marginTop: 8, textAlign: 'center', paddingHorizontal: 32, lineHeight: 20 },
@@ -1128,7 +1126,7 @@ const styles = StyleSheet.create({
     historyEntryBadge: { backgroundColor: '#EEF2FF', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
     historyEntryNum: { fontSize: 12, fontWeight: '800', color: '#6366F1' },
     historyChipsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-    historyChip: { width: '47%', borderRadius: 14, padding: 12, borderWidth: 1 },
+    historyChip: { flex: 1, minWidth: '45%', borderRadius: 14, padding: 10, borderWidth: 1 },
     historyChipTop: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 6 },
     historyChipLabel: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
     historyChipValue: { fontSize: 17, fontWeight: '900' },
