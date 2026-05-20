@@ -9,6 +9,8 @@
  *   AlertManager.alert('Title', 'Message', [{ text: 'OK' }]);
  */
 
+import { HapticPatterns } from './haptics';
+
 let _alertRef = null;
 
 const AlertManager = {
@@ -24,6 +26,7 @@ const AlertManager = {
    * @param {Object} [options] - { type: 'success' | 'error' | 'warning' | 'info' }
    */
   alert(title, message, buttons, options) {
+    HapticPatterns.attention();
     if (_alertRef) {
       _alertRef.show(title, message, buttons, options);
     } else {
