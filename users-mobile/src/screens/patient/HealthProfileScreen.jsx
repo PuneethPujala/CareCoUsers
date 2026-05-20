@@ -140,6 +140,7 @@ export default function HealthProfileScreen({ navigation }) {
     const [datePickerField, setDatePickerField] = useState(null);
     const [countryCodeModal, setCountryCodeModal] = useState(false);
     const [tipsModalVisible, setTipsModalVisible] = useState(false);
+    const [showScoreInfo, setShowScoreInfo] = useState(false);
 
     const backdropAnim = useRef(new Animated.Value(0)).current;
     const modalAnim = useRef(new Animated.Value(0)).current;
@@ -611,10 +612,10 @@ export default function HealthProfileScreen({ navigation }) {
                         {/* Top row: Score + Ring */}
                         <View style={s.dashTopRow}>
                             <View style={s.dashLeft}>
-                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                                <Pressable style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }} onPress={() => setShowScoreInfo(true)} hitSlop={10}>
                                     <Text style={s.dashEyebrow}>{t('health_profile.health_score', { defaultValue: 'HEALTH SCORE' })}</Text>
                                     <Info size={12} color="#94A3B8" />
-                                </View>
+                                </Pressable>
                                 <View style={s.dashScoreRow}>
                                     <Text style={[s.dashScoreMain, { color: hsScore !== null ? hsColor : C.muted }]}>
                                         {hsScore !== null ? hsScore : '—'}
@@ -1424,6 +1425,43 @@ export default function HealthProfileScreen({ navigation }) {
                 </View>
             </Modal>
 
+            {/* ── SCORE INFO MODAL ── */}
+            <PremiumFormModal
+                visible={showScoreInfo}
+                title="About Your Health Score"
+                onClose={() => setShowScoreInfo(false)}
+            >
+                <View style={{ gap: 16 }}>
+                    <Text style={{ fontSize: 16, color: '#334155', lineHeight: 24, marginBottom: 10 }}>
+                        Your health score is a dynamic measure of your overall well-being. It is not a fixed grade, but rather an indicator of where you are right now and where you can improve.
+                    </Text>
+
+                    <View style={{ backgroundColor: '#F8FAFC', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: '#F1F5F9' }}>
+                        <Text style={{ fontSize: 14, fontWeight: '800', color: '#0F172A', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>How it's calculated</Text>
+                        <Text style={{ fontSize: 15, color: '#475569', lineHeight: 22 }}>
+                            We start with a baseline determined by your age and BMI. From there, the score adapts based on your consistency. High medication adherence and stable vitals will improve your score, while missed doses or critical alerts highlight areas to focus on.
+                        </Text>
+                    </View>
+
+                    <View style={{ backgroundColor: '#EEF2FF', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: '#E0E7FF' }}>
+                        <Text style={{ fontSize: 14, fontWeight: '800', color: '#4338CA', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>What the points mean</Text>
+                        <Text style={{ fontSize: 15, color: '#4F46E5', lineHeight: 22 }}>
+                            The "Score Breakdown" chips show recent factors influencing your score. Don't worry about the exact math—focus instead on the habits! Medication consistency is often the fastest way to see improvement.
+                        </Text>
+                    </View>
+
+                    <View style={{ backgroundColor: '#F0FDF4', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: '#DCFCE7' }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                            <CircleCheck size={18} color="#16A34A" />
+                            <Text style={{ fontSize: 14, fontWeight: '800', color: '#15803D', textTransform: 'uppercase', letterSpacing: 0.5 }}>Keep It Up!</Text>
+                        </View>
+                        <Text style={{ fontSize: 15, color: '#16A34A', lineHeight: 22 }}>
+                            You're building healthier routines. Whether it's taking your meds or syncing your vitals, every consistent day helps improve your overall well-being.
+                        </Text>
+                    </View>
+                </View>
+            </PremiumFormModal>
+
         </View>
     );
 }
@@ -1675,7 +1713,7 @@ const s = StyleSheet.create({
     breakdownItemTop: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
     breakdownItemIcon: { fontSize: 13, marginRight: 6 },
     breakdownItemLabel: { flex: 1, fontSize: 13, ...FONT.bold, color: '#334155' },
-    breakdownPtsChip: { flexDirection: 'row', alignItems: 'center', gap: 2, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
+    breakdownPtsChip: { flexDirection: 'row', alignItems: 'center', gap: 2, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, flexShrink: 0 },
     breakdownPtsTxt: { fontSize: 11, ...FONT.heavy },
     breakdownBarBg: { height: 6, backgroundColor: '#F1F5F9', borderRadius: 3, overflow: 'hidden' },
     breakdownBarFill: { height: '100%', borderRadius: 3 },

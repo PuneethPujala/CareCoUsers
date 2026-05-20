@@ -255,6 +255,7 @@ export default function MyCallerScreen({ navigation }) {
   };
 
   const formatDate = (dateStr) => {
+    if (!dateStr) return '';
     const d   = new Date(dateStr);
     const now = new Date();
     const isToday     = d.toDateString() === now.toDateString();
@@ -716,7 +717,7 @@ export default function MyCallerScreen({ navigation }) {
                                 </View>
                                 <View style={s.sheetCallBody}>
                                   <Text style={s.sheetCallDate}>
-                                    {formatRelativeDate(call.call_date || call.created_at)}
+                                    {formatDate(call.call_date || call.created_at)}
                                   </Text>
                                   <Text style={s.sheetCallNote} numberOfLines={1}>{call.ai_summary || t('caller.routine_checkin', { defaultValue: 'Routine check-in' })}</Text>
                                 </View>
