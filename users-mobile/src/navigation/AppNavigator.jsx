@@ -46,6 +46,8 @@ import AddAddressScreen from "../screens/patient/AddAddressScreen";
 import HealthConnectSetupScreen from "../screens/patient/HealthConnectSetupScreen";
 import AdherenceScreen from "../screens/patient/AdherenceScreen";
 import ChatbotScreen from "../screens/patient/ChatbotScreen";
+import CallHistoryScreen from "../screens/patient/CallHistoryScreen";
+import PremiumShowcaseScreen from "../screens/patient/PremiumShowcaseScreen";
 import ChatFAB from "../components/ui/ChatFAB";
 
 const Stack = createNativeStackNavigator();
@@ -144,6 +146,8 @@ const MainAppStack = () => (
         <Stack.Screen name="HealthConnectSetup" component={HealthConnectSetupScreen} options={{ presentation: "modal", animation: "slide_from_bottom" }} />
         <Stack.Screen name="AdherenceDetails" component={AdherenceScreen} options={{ presentation: "modal", animation: "slide_from_bottom", headerShown: false }} />
         <Stack.Screen name="Chatbot" component={ChatbotScreen} options={{ presentation: "modal", animation: "slide_from_bottom", headerShown: false }} />
+        <Stack.Screen name="CallHistory" component={CallHistoryScreen} />
+        <Stack.Screen name="PremiumShowcase" component={PremiumShowcaseScreen} />
         <Stack.Screen name="Payment" component={PaymentScreen} />
         <Stack.Screen name="WaitingRoom" component={WaitingScreen} />
         <Stack.Screen name="MFASetup" component={MFASetupScreen} options={{ presentation: "modal", animation: "slide_from_bottom" }} />
