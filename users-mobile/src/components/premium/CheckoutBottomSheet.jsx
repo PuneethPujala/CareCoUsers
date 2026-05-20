@@ -18,7 +18,7 @@ const UPI_APPS = [
     { id: 'other', name: 'Other UPI', color: '#64748B', initials: '₹' },
 ];
 
-export default function CheckoutBottomSheet({ visible, onClose, plan, onSuccess }) {
+export default function CheckoutBottomSheet({ visible, onClose, plan, onSuccess, isRenewal }) {
     const [step, setStep] = useState('select'); // 'select' | 'processing' | 'success'
     const [selectedUpi, setSelectedUpi] = useState(null);
     
@@ -210,8 +210,8 @@ export default function CheckoutBottomSheet({ visible, onClose, plan, onSuccess 
                                     <Sparkles size={40} color="#FFFFFF" strokeWidth={2.5} />
                                 </LinearGradient>
                             </Animated.View>
-                            <Text style={s.successTitle}>Welcome to Premium!</Text>
-                            <Text style={s.successSub}>Your health insights are fully unlocked.</Text>
+                            <Text style={s.successTitle}>{isRenewal ? 'Plan Extended!' : 'Welcome to Premium!'}</Text>
+                            <Text style={s.successSub}>{isRenewal ? 'Your new plan duration has been successfully added.' : 'Your health insights are fully unlocked.'}</Text>
                             
                             <Animated.View 
                                 style={[
