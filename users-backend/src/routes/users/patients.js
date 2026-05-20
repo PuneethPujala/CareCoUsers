@@ -659,6 +659,20 @@ router.post('/me/trusted-contacts', authenticateSession, async (req, res) => {
             permissions: permissions || [],
         });
         await patient.save();
+
+        // Seam 4: Send warm caregiver invitation SMS (fire-and-forget)
+        try {
+            const smsService = require('../../services/smsService');
+            const patientName = patient.name || 'Someone';
+            const warmMessage = `Hi — ${patientName} has added you as a trusted contact on CareMyMed, their health companion app. They'd like you to be part of their care. Tap here to get started: https://caremymed.app/invite`;
+            smsService.sendMessage(phone, warmMessage).catch(e =>
+                logger.warn('Caregiver invite SMS failed (non-critical)', { error: e.message })
+            );
+        } catch (smsErr) {
+            // Non-critical — never block the response
+            logger.warn('Caregiver invite SMS setup failed', { error: smsErr.message });
+        }
+
         res.status(201).json({ trusted_contacts: patient.trusted_contacts, message: 'Trusted contact added successfully' });
     } catch (error) {
         logger.error('Add trusted contact error', { error: error.message, patientId: req.user?.id });
