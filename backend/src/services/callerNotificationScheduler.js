@@ -126,7 +126,7 @@ async function checkShiftStart(callers) {
     if (!isShiftStart) return;
 
     for (const caller of callers) {
-        if (alreadySent(caller._id, 'shift_start', shift)) continue;
+        if (await alreadySent(caller._id, 'shift_start', shift)) continue;
 
         const patients = await getAssignedPatients(caller._id);
         const patientCount = patients.length;
@@ -164,7 +164,7 @@ async function checkPatientsWaiting(callers) {
     if (!is15Min) return;
 
     for (const caller of callers) {
-        if (alreadySent(caller._id, 'patients_waiting', shift)) continue;
+        if (await alreadySent(caller._id, 'patients_waiting', shift)) continue;
 
         const patients = await getAssignedPatients(caller._id);
         const uncalled = await getUncalledCount(caller._id, patients);
@@ -202,7 +202,7 @@ async function checkCallReminder(callers) {
     if (!is45Min) return;
 
     for (const caller of callers) {
-        if (alreadySent(caller._id, 'call_reminder', shift)) continue;
+        if (await alreadySent(caller._id, 'call_reminder', shift)) continue;
 
         const patients = await getAssignedPatients(caller._id);
         const uncalled = await getUncalledCount(caller._id, patients);
@@ -240,7 +240,7 @@ async function checkShiftSummary(callers) {
     if (!isShiftEnd) return;
 
     for (const caller of callers) {
-        if (alreadySent(caller._id, 'shift_summary', shift)) continue;
+        if (await alreadySent(caller._id, 'shift_summary', shift)) continue;
 
         const callCount = await getTodayCallCount(caller._id);
         const patients = await getAssignedPatients(caller._id);
