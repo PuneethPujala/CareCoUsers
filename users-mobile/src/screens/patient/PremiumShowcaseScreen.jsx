@@ -133,6 +133,7 @@ export default function PremiumShowcaseScreen({ navigation, route }) {
                 onClose={() => setShowCheckout(false)} 
                 plan={selectedPlan}
                 onSuccess={handleSuccess}
+                isRenewal={isRenewal}
             />
         </View>
     );
