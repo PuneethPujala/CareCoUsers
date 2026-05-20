@@ -258,7 +258,10 @@ export default function PatientHomeScreen({ navigation }) {
         return () => subscription.remove();
     }, []);
 
-    const openPremium = () => navigation.navigate('PremiumShowcase', { isRenewal: true });
+    const openPremium = () => {
+        const isRenewal = !!patient?.subscription?.expires_at;
+        navigation.navigate('PremiumShowcase', { isRenewal });
+    };
 
     useEffect(() => {
         const checkPremiumPopup = async () => {
