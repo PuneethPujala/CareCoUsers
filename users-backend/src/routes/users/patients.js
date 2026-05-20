@@ -53,8 +53,6 @@ async function refreshHealthScoreCache(patientId) {
 async function subscribeAndSeedDemoData(patient, planId) {
     const isActive = patient.subscription?.status === 'active';
     const isExpired = patient.subscription?.expires_at && new Date(patient.subscription.expires_at) < new Date();
-    // Only skip if genuinely active AND not expired
-    if (isActive && !isExpired) return patient;
 
     const session = await mongoose.startSession();
     session.startTransaction();
@@ -71,17 +69,29 @@ async function subscribeAndSeedDemoData(patient, planId) {
         const resolvedPlan = planId || patient.pending_plan || 'basic';
         const amount = planAmounts[resolvedPlan] || 299;
         const durationDays = resolvedPlan === 'premium_annual' ? 365 : 30;
+        
+        let newExpiresAt;
+        if (isActive && !isExpired && patient.subscription?.expires_at) {
+            // Stack the days on top of the current remaining days
+            newExpiresAt = new Date(new Date(patient.subscription.expires_at).getTime() + (durationDays * 86400000));
+        } else {
+            // Start fresh from today
+            newExpiresAt = new Date(Date.now() + durationDays * 86400000);
+        }
 
         const subscriptionUpdates = {
             'subscription.status': 'active',
             'subscription.plan': resolvedPlan,
             'subscription.amount': amount,
             'subscription.payment_date': new Date(),
-            'subscription.started_at': new Date(),
-            'subscription.expires_at': new Date(Date.now() + durationDays * 86400000),
-            'subscription.next_billing': new Date(Date.now() + durationDays * 86400000),
+            'subscription.expires_at': newExpiresAt,
+            'subscription.next_billing': newExpiresAt,
             paid: 1,
         };
+        
+        if (!isActive || isExpired) {
+            subscriptionUpdates['subscription.started_at'] = new Date();
+        }
 
         await Patient.updateOne({ _id: patient._id }, { $set: subscriptionUpdates }, { session });
 
@@ -91,20 +101,20 @@ async function subscribeAndSeedDemoData(patient, planId) {
             role: { $in: ['manager', 'admin', 'super_admin', 'care manager'] },
         }).session(session);
 
-        if (manager) {
+        if (manager && !patient.assigned_manager_id) {
             await Patient.updateOne({ _id: patient._id }, { $set: { assigned_manager_id: manager._id } }, { session });
+            
+            const Alert = require('../../models/Alert');
+            await Alert.create([{
+                type: 'team_lead_recommended',
+                patient_id: patient._id,
+                manager_id: manager._id,
+                organization_id: orgId,
+                description: `New patient "${patient.name || patient.email}" subscribed. Needs caregiver assignment.`,
+                auto_generated: true,
+                status: 'open',
+            }], { session });
         }
-
-        const Alert = require('../../models/Alert');
-        await Alert.create([{
-            type: 'team_lead_recommended',
-            patient_id: patient._id,
-            manager_id: manager?._id || undefined,
-            organization_id: orgId,
-            description: `New patient "${patient.name || patient.email}" subscribed. Needs caregiver assignment.`,
-            auto_generated: true,
-            status: 'open',
-        }], { session });
 
         await Notification.create([{
             patient_id: patient._id,
@@ -242,13 +252,8 @@ router.post('/subscribe', authenticateSession, async (req, res) => {
         if (paid !== undefined) patient.paid = paid;
         if (resolvedPlanId) patient.pending_plan = resolvedPlanId;
 
-        // If patient is genuinely active (not expired), just save metadata and return.
-        const isActive = patient.subscription?.status === 'active';
-        const isExpired = patient.subscription?.expires_at && new Date(patient.subscription.expires_at) < new Date();
-        if (isActive && !isExpired) {
-            await patient.save();
-            return res.json({ success: true, patient, message: 'Subscription already active, data updated.' });
-        }
+        // We no longer block active users from subscribing.
+        // If they are already active, we just stack their days in `subscribeAndSeedDemoData`.
 
         patient = await subscribeAndSeedDemoData(patient, resolvedPlanId);
 
