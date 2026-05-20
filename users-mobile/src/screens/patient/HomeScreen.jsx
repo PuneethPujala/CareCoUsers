@@ -22,6 +22,8 @@ import usePatientStore from '../../store/usePatientStore';
 import SmartInput from '../../components/ui/SmartInput';
 import AlertManager from '../../utils/AlertManager';
 import { useTranslation } from 'react-i18next';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import PremiumFormModal from '../../components/ui/PremiumFormModal';
 
 const { width: SW } = Dimensions.get('window');
 
@@ -243,6 +245,26 @@ export default function PatientHomeScreen({ navigation }) {
         return () => unsub();
     }, [fetchData]);
 
+    const [showPremiumModal, setShowPremiumModal] = useState(false);
+
+    useEffect(() => {
+        const checkPremiumPopup = async () => {
+            if (daysPremiumRemaining <= 7) {
+                try {
+                    const lastPrompt = await AsyncStorage.getItem('last_premium_prompt');
+                    const today = new Date().toDateString();
+                    if (lastPrompt !== today) {
+                        await AsyncStorage.setItem('last_premium_prompt', today);
+                        setTimeout(() => setShowPremiumModal(true), 1500);
+                    }
+                } catch (e) { console.error('Premium prompt error', e); }
+            }
+        };
+        if (!loading) {
+            checkPremiumPopup();
+        }
+    }, [daysPremiumRemaining, loading]);
+
     // ── Derived values ─────────────────────────────────────────────────────
     const takenCount = meds.filter(m => m.taken).length;
     const totalMeds = meds.length;
@@ -308,7 +330,7 @@ export default function PatientHomeScreen({ navigation }) {
         {
             Icon: Sparkles, value: String(daysPremiumRemaining), label: t('home.days_premium', { defaultValue: 'Days Premium' }),
             iconColor: '#A855F7', bg: ['#FAF5FF', '#F3E8FF'], iconBg: '#E9D5FF',
-            onPress: null,
+            onPress: () => setShowPremiumModal(true),
         },
     ];
 
@@ -406,6 +428,21 @@ export default function PatientHomeScreen({ navigation }) {
                             </Text>
                         </Pressable>
                     </Animated.View>
+
+                    {daysPremiumRemaining <= 0 && (
+                        <Pressable style={styles.premiumBanner} onPress={() => setShowPremiumModal(true)}>
+                            <View style={styles.premiumBannerLeft}>
+                                <View style={styles.premiumBannerIcon}>
+                                    <Sparkles size={18} color="#A855F7" />
+                                </View>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={styles.premiumBannerTitle}>Premium Expired</Text>
+                                    <Text style={styles.premiumBannerSub}>Your AI health insights are paused until renewal.</Text>
+                                </View>
+                            </View>
+                            <ChevronRight size={20} color="#CBD5E1" />
+                        </Pressable>
+                    )}
 
                     {/* Stats strip */}
                     <Animated.View style={[styles.statsStrip, anim(1)]}>
@@ -590,7 +627,16 @@ export default function PatientHomeScreen({ navigation }) {
                                         </View>
                                         <Text style={styles.aiDesc}>{t('home.ai_desc', { defaultValue: 'Our AI analyzes your vitals history to forecast trends and flag potential concerns.' })}</Text>
                                         {vitalsHistory.length > 0 && (
-                                            <AIPredictionChart
+                                            <View style={{ marginTop: 10 }}>
+                                                {daysPremiumRemaining <= 0 && (
+                                                    <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(255,255,255,0.75)', zIndex: 10, alignItems: 'center', justifyContent: 'center', borderRadius: 16, marginTop: -10 }]}>
+                                                        <Pressable onPress={() => setShowPremiumModal(true)} style={{ backgroundColor: '#FFF', paddingHorizontal: 16, paddingVertical: 12, borderRadius: 24, shadowColor: '#A855F7', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 12, elevation: 6, flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderColor: '#F3E8FF' }}>
+                                                            <Sparkles size={16} color="#A855F7" />
+                                                            <Text style={{ fontSize: 13, fontWeight: '800', color: '#6B21A8' }}>Renew to continue personalized AI analysis</Text>
+                                                        </Pressable>
+                                                    </View>
+                                                )}
+                                                <AIPredictionChart
                                                 metricName="Heart Rate"
                                                 unit="bpm"
                                                 vitalsHistory={vitalsHistory.map(v => ({
@@ -601,7 +647,8 @@ export default function PatientHomeScreen({ navigation }) {
                                                     label: new Date(p.date).toLocaleDateString([], { month: 'short', day: 'numeric' }),
                                                     value: p.heart_rate,
                                                 })) : null}
-                                            />
+                                                />
+                                            </View>
                                         )}
                                     </View>
                                 )}
@@ -683,6 +730,49 @@ export default function PatientHomeScreen({ navigation }) {
                         <View style={{ height: 30 }} />
                     </ScrollView>
             </View>
+
+            {/* ── PREMIUM RENEWAL MODAL ── */}
+            <PremiumFormModal
+                visible={showPremiumModal}
+                title="Premium Renewal"
+                onClose={() => setShowPremiumModal(false)}
+            >
+                <View style={{ alignItems: 'center', paddingVertical: 10 }}>
+                    <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: '#FAF5FF', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+                        <Sparkles size={36} color="#A855F7" />
+                    </View>
+                    <Text style={{ fontSize: 24, fontWeight: '900', color: '#0F172A', textAlign: 'center', marginBottom: 8, letterSpacing: -0.5 }}>Unlock deeper health insights</Text>
+                    <Text style={{ fontSize: 15, color: '#64748B', textAlign: 'center', paddingHorizontal: 10, lineHeight: 22, marginBottom: 24 }}>
+                        Keep your care connected. Renew Premium to continue tracking medication trends and empowering your AI health assistant.
+                    </Text>
+
+                    <View style={{ width: '100%', gap: 12, marginBottom: 24 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#F8FAFC', padding: 16, borderRadius: 16 }}>
+                            <Activity size={20} color="#A855F7" />
+                            <Text style={{ flex: 1, fontSize: 15, fontWeight: '700', color: '#334155' }}>Advanced AI Health Analysis</Text>
+                        </View>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#F8FAFC', padding: 16, borderRadius: 16 }}>
+                            <TrendingUp size={20} color="#10B981" />
+                            <Text style={{ flex: 1, fontSize: 15, fontWeight: '700', color: '#334155' }}>AI-powered medication consistency tracking</Text>
+                        </View>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#F8FAFC', padding: 16, borderRadius: 16 }}>
+                            <Shield size={20} color="#6366F1" />
+                            <Text style={{ flex: 1, fontSize: 15, fontWeight: '700', color: '#334155' }}>Track long-term improvement trends</Text>
+                        </View>
+                    </View>
+
+                    <Pressable
+                        style={{ width: '100%', backgroundColor: '#A855F7', paddingVertical: 18, borderRadius: 16, alignItems: 'center', shadowColor: '#A855F7', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.3, shadowRadius: 10, elevation: 6 }}
+                        onPress={() => {
+                            setShowPremiumModal(false);
+                            navigation.navigate('Payment');
+                        }}
+                    >
+                        <Text style={{ color: '#FFF', fontSize: 16, fontWeight: '800' }}>Renew Now</Text>
+                    </Pressable>
+                </View>
+            </PremiumFormModal>
+
         </KeyboardAvoidingView>
     );
 }
@@ -691,6 +781,12 @@ export default function PatientHomeScreen({ navigation }) {
 // ══ STYLES ═══════════════════════════════════════════════════════════════════
 // ══════════════════════════════════════════════════════════════════════════════
 const styles = StyleSheet.create({
+    premiumBanner: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FAF5FF', borderRadius: 20, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: '#F3E8FF' },
+    premiumBannerLeft: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
+    premiumBannerIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#F3E8FF', alignItems: 'center', justifyContent: 'center' },
+    premiumBannerTitle: { fontSize: 15, fontWeight: '800', color: '#6B21A8' },
+    premiumBannerSub: { fontSize: 13, color: '#9333EA', fontWeight: '500', marginTop: 2, lineHeight: 18 },
+
     // ── Skeleton ──
     skeletonHeader: { paddingTop: Platform.OS === 'ios' ? 60 : 44, paddingBottom: 20, backgroundColor: '#F8FAFC', paddingHorizontal: 24 },
 
