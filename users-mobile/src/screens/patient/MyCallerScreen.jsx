@@ -262,12 +262,15 @@ export default function MyCallerScreen({ navigation }) {
     const time = d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
     if (isToday)     return `${t('common.today',     { defaultValue: 'Today' })}, ${time}`;
     if (isYesterday) return `${t('common.yesterday', { defaultValue: 'Yesterday' })}, ${time}`;
-    return d.toLocaleDateString('en-IN', { weekday: 'short', month: 'short', day: 'numeric' });
+    return `${d.toLocaleDateString('en-IN', { weekday: 'short', month: 'short', day: 'numeric' })}, ${time}`;
   };
 
   const formatDuration = (seconds) => {
     if (!seconds || seconds === 0) return null;
-    return `${Math.floor(seconds / 60)}m`;
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    if (m > 0) return `${m}m ${s}s`;
+    return `${s}s`;
   };
 
   const anim = (i) => ({
@@ -713,7 +716,7 @@ export default function MyCallerScreen({ navigation }) {
                                 </View>
                                 <View style={s.sheetCallBody}>
                                   <Text style={s.sheetCallDate}>
-                                    {new Date(call.call_date || call.created_at).toLocaleDateString('en-IN', { weekday: 'short', month: 'short', day: 'numeric' })}
+                                    {formatRelativeDate(call.call_date || call.created_at)}
                                   </Text>
                                   <Text style={s.sheetCallNote} numberOfLines={1}>{call.ai_summary || t('caller.routine_checkin', { defaultValue: 'Routine check-in' })}</Text>
                                 </View>
