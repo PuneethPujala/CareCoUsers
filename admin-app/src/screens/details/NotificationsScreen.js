@@ -33,6 +33,13 @@ const CFG = {
     system_announcement: { icon: 'radio',         color: '#64748B', bg: '#F1F5F9' },
     account_activity:    { icon: 'shield',        color: '#64748B', bg: '#F1F5F9' },
     password_change:     { icon: 'lock',          color: '#64748B', bg: '#F1F5F9' },
+    // ── Care Manager specific ──
+    team_briefing:       { icon: 'briefcase',    color: '#0EA5E9', bg: '#F0F9FF' },
+    caller_inactive:     { icon: 'phone-off',    color: '#F43F5E', bg: '#FFF1F2' },
+    capacity_warning:    { icon: 'alert-octagon',color: '#D946EF', bg: '#FAF5FF' },
+    // ── Failover / Coverage ──
+    caller_coverage:     { icon: 'users',        color: '#F59E0B', bg: '#FFFBEB' },
+    coverage_revert:     { icon: 'rotate-ccw',   color: '#10B981', bg: '#ECFDF5' },
 };
 const cfg = (t) => CFG[t] || { icon: 'bell', color: '#94A3B8', bg: '#F8FAFC' };
 
@@ -40,10 +47,12 @@ const cfg = (t) => CFG[t] || { icon: 'bell', color: '#94A3B8', bg: '#F8FAFC' };
 const CAT = {
     call_overdue:'alerts',call_reminder:'alerts',shift_reminder:'alerts',medication_alert:'alerts',
     escalation_alert:'alerts',sla_breach:'alerts',low_adherence_alert:'alerts',compliance_alert:'alerts',
+    caller_inactive:'alerts',capacity_warning:'alerts',caller_coverage:'alerts',
     patient_reassigned:'updates',assignment_change:'updates',patient_update:'updates',
     new_user_added:'updates',schedule_change:'updates',
     weekly_summary:'reports',report_ready:'reports',invoice_generated:'reports',payment_received:'reports',
-    system_announcement:'system',account_activity:'system',password_change:'system',
+    team_briefing:'reports',
+    system_announcement:'system',account_activity:'system',password_change:'system',coverage_revert:'system',
 };
 
 // ── Helpers ──────────────────────────────────────────────────
