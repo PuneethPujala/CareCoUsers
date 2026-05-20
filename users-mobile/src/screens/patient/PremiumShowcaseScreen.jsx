@@ -32,7 +32,8 @@ const BENEFITS = [
     { icon: Zap, title: 'Never lose medication history', color: '#F59E0B' },
 ];
 
-export default function PremiumShowcaseScreen({ navigation }) {
+export default function PremiumShowcaseScreen({ navigation, route }) {
+    const isRenewal = route.params?.isRenewal || false;
     const [selectedPlanId, setSelectedPlanId] = useState('premium_annual');
     const [showCheckout, setShowCheckout] = useState(false);
 
@@ -41,7 +42,13 @@ export default function PremiumShowcaseScreen({ navigation }) {
     const handleSuccess = () => {
         // Wait a little before replacing to prevent glitchy transitions
         setTimeout(() => {
-            navigation.replace('WaitingRoom', { plan: selectedPlan });
+            if (isRenewal) {
+                // If they are an existing user renewing, go straight back to dashboard
+                navigation.navigate('PatientTabs', { screen: 'PatientHome' });
+            } else {
+                // New user flow
+                navigation.replace('WaitingRoom', { plan: selectedPlan });
+            }
         }, 500);
     };
 
