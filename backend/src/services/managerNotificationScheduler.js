@@ -98,7 +98,7 @@ async function checkMorningBriefing(managers) {
     const { start, end } = getTodayBounds();
 
     for (const mgr of managers) {
-        if (alreadySent(mgr._id, 'morning_briefing')) continue;
+        if (await alreadySent(mgr._id, 'morning_briefing')) continue;
 
         const callers = await getManagedCallerIds(mgr._id);
         const callerIds = callers.map(c => c._id);
@@ -145,7 +145,7 @@ async function checkUnassignedPatients(managers) {
     if (hour !== 9 || min < 30 || min >= 40) return;
 
     for (const mgr of managers) {
-        if (alreadySent(mgr._id, 'unassigned_patients')) continue;
+        if (await alreadySent(mgr._id, 'unassigned_patients')) continue;
 
         const orgId = mgr.organizationId;
         if (!orgId) continue;
@@ -197,7 +197,7 @@ async function checkCallerInactivity(managers) {
     const { start, end } = getTodayBounds();
 
     for (const mgr of managers) {
-        if (alreadySent(mgr._id, 'caller_inactive', shift)) continue;
+        if (await alreadySent(mgr._id, 'caller_inactive', shift)) continue;
 
         const callers = await getManagedCallerIds(mgr._id);
         const inactiveCallers = [];
@@ -253,7 +253,7 @@ async function checkCapacityWarning(managers) {
     const MAX_PATIENTS_PER_CALLER = 25;
 
     for (const mgr of managers) {
-        if (alreadySent(mgr._id, 'capacity_warning')) continue;
+        if (await alreadySent(mgr._id, 'capacity_warning')) continue;
 
         const orgId = mgr.organizationId;
         if (!orgId) continue;
@@ -305,7 +305,7 @@ async function checkEndOfDaySummary(managers) {
     const { start, end } = getTodayBounds();
 
     for (const mgr of managers) {
-        if (alreadySent(mgr._id, 'eod_summary')) continue;
+        if (await alreadySent(mgr._id, 'eod_summary')) continue;
 
         const callers = await getManagedCallerIds(mgr._id);
         const callerIds = callers.map(c => c._id);
