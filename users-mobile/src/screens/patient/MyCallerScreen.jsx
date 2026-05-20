@@ -414,7 +414,7 @@ export default function MyCallerScreen({ navigation }) {
                   <View style={s.heroStatSep} />
                   <View style={s.heroStat}>
                     <Text style={s.heroStatVal}>
-                      {calls.length > 0 ? `${Math.round(calls.reduce((a, c) => a + (c.call_duration_seconds || 0), 0) / calls.length / 60)}m` : '—'}
+                      {calls.length > 0 ? (formatDuration(Math.round(calls.reduce((a, c) => a + (c.call_duration_seconds || 0), 0) / calls.length)) || '0s') : '—'}
                     </Text>
                     <Text style={s.heroStatLabel}>Avg Duration</Text>
                   </View>
