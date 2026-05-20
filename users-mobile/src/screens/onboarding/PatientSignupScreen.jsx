@@ -20,8 +20,10 @@ import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { step1Schema, stepPhoneSchema, step2Schema, step3Schema, step5Schema } from './signupSchema';
 
-import { OTPModal, UPIPaymentModal } from './components';
+import { OTPModal } from './components';
+import CheckoutBottomSheet from '../../components/premium/CheckoutBottomSheet';
 import { styles, FONT, C } from './components/SignupStyles';
+import { HapticPatterns } from '../../utils/haptics';
 import Step1Profile from './components/Step1Profile';
 import Step2Phone from './components/Step2Phone';
 import Step2Locality from './components/Step2Locality';
@@ -417,6 +419,7 @@ export default function PatientSignupScreen({ navigation, route }) {
             await refreshPatient();
             isManualTransitionRef.current = true;
             await saveProgress(3);
+            HapticPatterns.stepComplete();
             setStep(3);
         } catch (error) {
             setErrors(prev => ({ ...prev, phoneNumber: 'Failed to save phone number. Please try again.' }));
@@ -532,6 +535,7 @@ export default function PatientSignupScreen({ navigation, route }) {
         finally { setSignupLoading(false); }
         await saveProgress(4);
         isManualTransitionRef.current = true;
+        HapticPatterns.stepComplete();
         setStep(4);
         refreshPatient().catch(err => console.warn('[Onboarding] Background patient refresh failed:', err.message));
     }, [form.city, saveProgress, refreshPatient, methods]);
@@ -594,6 +598,7 @@ export default function PatientSignupScreen({ navigation, route }) {
     const handleGoToStep6 = async () => {
         isManualTransitionRef.current = true;
         await saveProgress(6);
+        HapticPatterns.stepComplete();
         setStep(6);
     };
 
@@ -800,13 +805,12 @@ export default function PatientSignupScreen({ navigation, route }) {
                     remainingSlots={remainingSlots}
                 />
 
-                {/* UPI Payment Modal */}
-                <UPIPaymentModal
+                {/* Checkout Bottom Sheet */}
+                <CheckoutBottomSheet
                     visible={upiModalVisible}
                     onClose={() => setUpiModalVisible(false)}
                     onSuccess={handlePaymentSuccess}
-                    planName={selectedPlan.name}
-                    planPrice={selectedPlan.price}
+                    plan={selectedPlan}
                 />
 
                 {renderFeaturesModal()}

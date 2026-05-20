@@ -22,6 +22,7 @@ import { getCache, setCache, CACHE_KEYS } from '../lib/CacheService';
 import OfflineSyncService from '../lib/OfflineSyncService';
 import WidgetBridge from '../lib/WidgetBridge';
 import i18n from '../i18n';
+import { HapticPatterns } from '../utils/haptics';
 
 const TIME_LABELS = { morning: 'Morning', afternoon: 'Afternoon', evening: 'Evening', night: 'Night', as_needed: 'As Needed' };
 const ACCENT_MAP = { morning: '#22C55E', afternoon: '#F59E0B', evening: '#7C3AED', night: '#8B5CF6', as_needed: '#6366F1' };
@@ -389,6 +390,16 @@ const usePatientStore = create((set, get) => ({
             ),
         }));
 
+        if (targetState) {
+            const updatedMeds = get().dashboardMeds;
+            const allDone = updatedMeds.length > 0 && updatedMeds.every(m => m.taken);
+            if (allDone) {
+                HapticPatterns.allDone();
+            } else {
+                HapticPatterns.log();
+            }
+        }
+
         set(s => {
             const schedule = { ...s.medicationSchedule };
             Object.keys(schedule).forEach(slot => {
@@ -480,6 +491,14 @@ const usePatientStore = create((set, get) => ({
             }
             return { medicationSchedule: schedule };
         });
+
+        const updatedMeds = get().dashboardMeds;
+        const allDone = updatedMeds.length > 0 && updatedMeds.every(m => m.taken);
+        if (allDone) {
+            HapticPatterns.allDone();
+        } else {
+            HapticPatterns.log();
+        }
 
         try {
             await apiService.medicines.markSlotTaken({ scheduled_time: slot, marked_by: 'patient' });
