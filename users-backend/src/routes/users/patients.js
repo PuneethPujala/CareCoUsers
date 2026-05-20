@@ -62,8 +62,8 @@ async function subscribeAndSeedDemoData(patient, planId) {
 
         // Map plan pricing correctly
         const planAmounts = {
-            'premium_monthly': 299,
-            'premium_annual': 2499,
+            'premium_monthly': 499,
+            'premium_annual': 4199,
             'basic': 99,
         };
         const resolvedPlan = planId || patient.pending_plan || 'basic';
