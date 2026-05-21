@@ -1383,7 +1383,8 @@ export default function HealthProfileScreen({ navigation }) {
                                                     <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
                                                         <Text style={{ fontSize: 15, marginRight: 8 }}>{icon}</Text>
                                                         <Text style={{ flex: 1, fontSize: 14, ...FONT.bold, color: '#334155' }}>{label}</Text>
-                                                        <Text style={{ fontSize: 14, ...FONT.heavy, color: dimColor }}>{pts}/{max}</Text>
+                                                        <TrendingUp size={14} color={dimColor} style={{ marginRight: 4 }} />
+                                                        <Text style={{ fontSize: 14, ...FONT.heavy, color: dimColor }}>+{pts} pts</Text>
                                                     </View>
                                                     <View style={{ height: 8, backgroundColor: '#F1F5F9', borderRadius: 4, overflow: 'hidden' }}>
                                                         <View style={{ height: '100%', width: `${pct}%`, backgroundColor: dimColor, borderRadius: 4 }} />
