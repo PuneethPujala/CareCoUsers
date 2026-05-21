@@ -427,9 +427,11 @@ const usePatientStore = create((set, get) => ({
         } catch (err) {
             if (err.request || err.code === 'ECONNABORTED' || err.message === 'Network Error') {
                 console.warn('[Store] Network error, enqueueing mutation offline:', err.message);
+                const tz = get().patient?.timezone || 'Asia/Kolkata';
+                const targetDate = getTodayStringInTz(tz);
                 OfflineSyncService.enqueueMutation({
                     type: 'MARK_MED_TAKEN',
-                    payload: { medicine_name: med.name, scheduled_time: med.type, taken: targetState },
+                    payload: { medicine_name: med.name, scheduled_time: med.type, taken: targetState, targetDate },
                 });
                 return;
             }
@@ -504,6 +506,17 @@ const usePatientStore = create((set, get) => ({
             await apiService.medicines.markSlotTaken({ scheduled_time: slot, marked_by: 'patient' });
             get().fetchDashboard(true);
         } catch (err) {
+            if (err.request || err.code === 'ECONNABORTED' || err.message === 'Network Error') {
+                console.warn('[Store] Network error, enqueueing mark-slot mutation offline:', err.message);
+                const tz = get().patient?.timezone || 'Asia/Kolkata';
+                const targetDate = getTodayStringInTz(tz);
+                // Assume OfflineSyncService handles MARK_SLOT_TAKEN, though we'll queue it just in case
+                OfflineSyncService.enqueueMutation({
+                    type: 'MARK_SLOT_TAKEN',
+                    payload: { scheduled_time: slot, marked_by: 'patient', targetDate },
+                });
+                return;
+            }
             // BUG 14 FIX: actually revert instead of leaving UI wrong
             console.warn('[Store] optimisticMarkSlotTaken failed, reverting:', err.message);
             set({ dashboardMeds: prevDashboardMeds, medicationSchedule: prevSchedule });

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
     View, Text, StyleSheet, ScrollView, Platform, Pressable, Animated,
     ActivityIndicator, KeyboardAvoidingView, TouchableOpacity,
-    DeviceEventEmitter, InteractionManager, Dimensions, StatusBar, AppState
+    DeviceEventEmitter, InteractionManager, Dimensions, StatusBar, AppState, RefreshControl
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
@@ -147,6 +147,13 @@ export default function PatientHomeScreen({ navigation }) {
     const [formError, setFormError] = useState(null);
     const [submitLoading, setSubmitLoading] = useState(false);
     const [medsExpanded, setMedsExpanded] = useState(false);
+    const [refreshing, setRefreshing] = useState(false);
+
+    const onRefresh = useCallback(async () => {
+        setRefreshing(true);
+        await fetchData(true);
+        setRefreshing(false);
+    }, [fetchData]);
 
     const [syncStatus, setSyncStatus] = useState({
         enabled: false, connected: false, lastSync: null, readingsToday: 0, syncing: false,
@@ -482,6 +489,7 @@ export default function PatientHomeScreen({ navigation }) {
                     showsVerticalScrollIndicator={false}
                     contentContainerStyle={styles.scrollContent}
                     keyboardShouldPersistTaps="handled"
+                    refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#4F46E5" />}
                 >
                     {/* Date + location row */}
                     <Animated.View style={[anim(0), { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16 }]}>

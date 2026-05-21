@@ -216,7 +216,7 @@ const PatientSchema = new mongoose.Schema(
             },
             plan: {
                 type: String,
-                enum: ['free', 'basic', 'premium', 'explore'],
+                enum: ['free', 'basic', 'premium', 'premium_monthly', 'premium_yearly', 'explore'],
                 default: 'basic',
             },
             amount: { type: Number, default: 0 },
