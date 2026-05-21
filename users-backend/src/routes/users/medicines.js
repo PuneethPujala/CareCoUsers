@@ -38,6 +38,14 @@ function getDaysAgoUtcMidnight(timezone, n) {
     return new Date(`${dateStr}T00:00:00.000Z`);
 }
 
+/**
+ * Get UTC midnight from a YYYY-MM-DD string explicitly to avoid local timezone shifts.
+ */
+function getUtcMidnightFromDateString(dateStr) {
+    const [year, month, day] = dateStr.split('-').map(Number);
+    return new Date(Date.UTC(year, month - 1, day));
+}
+
 function mapTimeToLegacyBucket(timeStr) {
     if (!timeStr) return 'morning';
     const isPM = timeStr.toLowerCase().includes('pm');
@@ -239,20 +247,42 @@ router.get('/today', authenticateSession, async (req, res) => {
  */
 router.put('/mark', authenticateSession, async (req, res) => {
     try {
-        const { medicine_name, scheduled_time, taken, marked_by = 'patient' } = req.body;
+        const { medicine_name, scheduled_time, taken, marked_by = 'patient', targetDate } = req.body;
         const patient = await getOrCreatePatient(req);
+
+        if (targetDate && !/^\d{4}-\d{2}-\d{2}$/.test(targetDate)) {
+            return res.status(400).json({ error: "Invalid targetDate format" });
+        }
 
         // BUG 2 FIX: same UTC date derivation fix as /today
         const { todayStr, date: today } = getTodayUtcMidnight(patient.timezone);
+        const logDate = targetDate ? getUtcMidnightFromDateString(targetDate) : today;
+        const logDateStr = targetDate || todayStr;
 
-        let log = await MedicineLog.findOne({ patient_id: patient._id, date: today });
+        // STRICT TIME VALIDATION: Prevent marking future slots for today
+        if (logDateStr === todayStr && taken) {
+            const formatter = new Intl.DateTimeFormat('en-US', {
+                timeZone: patient.timezone || 'Asia/Kolkata',
+                hour: 'numeric',
+                hour12: false
+            });
+            const currentHour = parseInt(formatter.format(new Date()), 10);
+            const SLOT_START_HOURS = { morning: 5, afternoon: 11, evening: 16, night: 19 };
+            const slotStart = SLOT_START_HOURS[scheduled_time];
+            
+            if (slotStart !== undefined && currentHour < slotStart) {
+                return res.status(400).json({ error: `Strict Validation: Cannot mark ${scheduled_time} medicines before ${slotStart}:00` });
+            }
+        }
+
+        let log = await MedicineLog.findOne({ patient_id: patient._id, date: logDate });
 
         if (!log) {
             // BUG 3 FIX: use merged meds (patient + external) for fallback log
             const allMedsRaw = await buildMergedMeds(patient);
             log = new MedicineLog({
                 patient_id: patient._id,
-                date: today,
+                date: logDate,
                 medicines: allMedsRaw.flatMap(med => {
                     if (med.is_active === false) return [];
                     return med.times.map(t => ({ medicine_name: med.name, scheduled_time: t, taken: false }));
@@ -279,7 +309,7 @@ router.put('/mark', authenticateSession, async (req, res) => {
             if (taken) {
                 if (!patientMed.takenDates) patientMed.takenDates = [];
                 const alreadyTakenToday = patientMed.takenDates.some(d => {
-                    try { return new Date(d).toISOString().split('T')[0] === todayStr; } catch { return false; }
+                    try { return new Date(d).toISOString().split('T')[0] === logDateStr; } catch { return false; }
                 });
                 if (!alreadyTakenToday) patientMed.takenDates.push(new Date());
             }
@@ -290,7 +320,7 @@ router.put('/mark', authenticateSession, async (req, res) => {
             const extMed = await Medication.findOne({ patientId: { $in: searchIds }, name: medicine_name });
             if (extMed) {
                 if (!extMed.takenLogs) extMed.takenLogs = [];
-                extMed.takenLogs.push({ date: todayStr, timestamp: new Date() });
+                extMed.takenLogs.push({ date: logDateStr, timestamp: new Date() });
                 await extMed.save();
             }
         }
@@ -310,18 +340,40 @@ router.put('/mark', authenticateSession, async (req, res) => {
  */
 router.put('/mark-slot', authenticateSession, async (req, res) => {
     try {
-        const { scheduled_time, marked_by = 'patient' } = req.body;
+        const { scheduled_time, marked_by = 'patient', targetDate } = req.body;
         const patient = await getOrCreatePatient(req);
 
-        const { todayStr, date: today } = getTodayUtcMidnight(patient.timezone);
+        if (targetDate && !/^\d{4}-\d{2}-\d{2}$/.test(targetDate)) {
+            return res.status(400).json({ error: "Invalid targetDate format" });
+        }
 
-        let log = await MedicineLog.findOne({ patient_id: patient._id, date: today });
+        const { todayStr, date: today } = getTodayUtcMidnight(patient.timezone);
+        const logDate = targetDate ? getUtcMidnightFromDateString(targetDate) : today;
+        const logDateStr = targetDate || todayStr;
+
+        // STRICT TIME VALIDATION: Prevent marking future slots for today
+        if (logDateStr === todayStr) {
+            const formatter = new Intl.DateTimeFormat('en-US', {
+                timeZone: patient.timezone || 'Asia/Kolkata',
+                hour: 'numeric',
+                hour12: false
+            });
+            const currentHour = parseInt(formatter.format(new Date()), 10);
+            const SLOT_START_HOURS = { morning: 5, afternoon: 11, evening: 16, night: 19 };
+            const slotStart = SLOT_START_HOURS[scheduled_time];
+            
+            if (slotStart !== undefined && currentHour < slotStart) {
+                return res.status(400).json({ error: `Strict Validation: Cannot mark ${scheduled_time} slot before ${slotStart}:00` });
+            }
+        }
+
+        let log = await MedicineLog.findOne({ patient_id: patient._id, date: logDate });
         if (!log) {
             // BUG 3 FIX: was only using patient.medications — now uses full merged list
             const allMedsRaw = await buildMergedMeds(patient);
             log = new MedicineLog({
                 patient_id: patient._id,
-                date: today,
+                date: logDate,
                 medicines: allMedsRaw.flatMap(med => {
                     if (med.is_active === false) return [];
                     return med.times.map(t => ({ medicine_name: med.name, scheduled_time: t, taken: false }));
@@ -343,7 +395,7 @@ router.put('/mark-slot', authenticateSession, async (req, res) => {
                     patientMed.takenLogs.push({ timestamp: new Date(), status: 'taken', markedBy: marked_by });
                     if (!patientMed.takenDates) patientMed.takenDates = [];
                     const alreadyTakenToday = patientMed.takenDates.some(d => {
-                        try { return new Date(d).toISOString().split('T')[0] === todayStr; } catch { return false; }
+                        try { return new Date(d).toISOString().split('T')[0] === logDateStr; } catch { return false; }
                     });
                     if (!alreadyTakenToday) patientMed.takenDates.push(new Date());
                 }
@@ -808,13 +860,7 @@ router.get('/adherence/recap', authenticateSession, async (req, res) => {
         const prevRate = prevTotal > 0 ? Math.round((prevTaken / prevTotal) * 100) : 0;
         const improvement = adherenceRate - prevRate;
 
-        const badgesEarned = [
-            perfectDays >= 1,
-            bestStreak >= 3,
-            adherenceRate >= 90,
-            perfectDays >= 7,
-            adherenceRate >= 80 && dailyEntries.length >= 25,
-        ].filter(Boolean).length;
+        const badgesEarned = (patient.unlockedAchievements || []).length;
 
         const messages = {
             optimal: ["You're unstoppable! 🔥", "Health champion status achieved! 💪", "Consistency is your superpower! ⭐"],

@@ -51,7 +51,8 @@ async function refreshHealthScoreCache(patientId) {
 // ─── Subscription & Onboarding ────────────────────────────────────────────────
 
 async function subscribeAndSeedDemoData(patient, planId) {
-    if (patient.subscription?.status === 'active') return patient;
+    const isActive = patient.subscription?.status === 'active';
+    const isExpired = patient.subscription?.expires_at && new Date(patient.subscription.expires_at) < new Date();
 
     const session = await mongoose.startSession();
     session.startTransaction();
@@ -59,16 +60,38 @@ async function subscribeAndSeedDemoData(patient, planId) {
     try {
         const orgId = patient.organization_id || new mongoose.Types.ObjectId('674f07e1525049b7348908f9');
 
+        // Map plan pricing correctly
+        const planAmounts = {
+            'premium_monthly': 499,
+            'premium_annual': 4199,
+            'basic': 99,
+        };
+        const resolvedPlan = planId || patient.pending_plan || 'basic';
+        const amount = planAmounts[resolvedPlan] || 499;
+        const durationDays = resolvedPlan === 'premium_annual' ? 365 : 30;
+        
+        let newExpiresAt;
+        if (isActive && !isExpired && patient.subscription?.expires_at) {
+            // Stack the days on top of the current remaining days
+            newExpiresAt = new Date(new Date(patient.subscription.expires_at).getTime() + (durationDays * 86400000));
+        } else {
+            // Start fresh from today
+            newExpiresAt = new Date(Date.now() + durationDays * 86400000);
+        }
+
         const subscriptionUpdates = {
             'subscription.status': 'active',
-            'subscription.plan': planId || patient.pending_plan || 'basic',
-            'subscription.amount': 500,
+            'subscription.plan': resolvedPlan,
+            'subscription.amount': amount,
             'subscription.payment_date': new Date(),
-            'subscription.started_at': new Date(),
-            'subscription.expires_at': new Date(Date.now() + 30 * 86400000),
-            'subscription.next_billing': new Date(Date.now() + 30 * 86400000),
+            'subscription.expires_at': newExpiresAt,
+            'subscription.next_billing': newExpiresAt,
             paid: 1,
         };
+        
+        if (!isActive || isExpired) {
+            subscriptionUpdates['subscription.started_at'] = new Date();
+        }
 
         await Patient.updateOne({ _id: patient._id }, { $set: subscriptionUpdates }, { session });
 
@@ -78,20 +101,20 @@ async function subscribeAndSeedDemoData(patient, planId) {
             role: { $in: ['manager', 'admin', 'super_admin', 'care manager'] },
         }).session(session);
 
-        if (manager) {
+        if (manager && !patient.assigned_manager_id) {
             await Patient.updateOne({ _id: patient._id }, { $set: { assigned_manager_id: manager._id } }, { session });
+            
+            const Alert = require('../../models/Alert');
+            await Alert.create([{
+                type: 'team_lead_recommended',
+                patient_id: patient._id,
+                manager_id: manager._id,
+                organization_id: orgId,
+                description: `New patient "${patient.name || patient.email}" subscribed. Needs caregiver assignment.`,
+                auto_generated: true,
+                status: 'open',
+            }], { session });
         }
-
-        const Alert = require('../../models/Alert');
-        await Alert.create([{
-            type: 'team_lead_recommended',
-            patient_id: patient._id,
-            manager_id: manager?._id || undefined,
-            organization_id: orgId,
-            description: `New patient "${patient.name || patient.email}" subscribed. Needs caregiver assignment.`,
-            auto_generated: true,
-            status: 'open',
-        }], { session });
 
         await Notification.create([{
             patient_id: patient._id,
@@ -229,12 +252,8 @@ router.post('/subscribe', authenticateSession, async (req, res) => {
         if (paid !== undefined) patient.paid = paid;
         if (resolvedPlanId) patient.pending_plan = resolvedPlanId;
 
-        // If patient is already active, just save the 'paid' status and return.
-        // This handles cases where a previous attempt was partially recorded.
-        if (patient.subscription?.status === 'active') {
-            await patient.save();
-            return res.json({ success: true, patient, message: 'Subscription already active, data updated.' });
-        }
+        // We no longer block active users from subscribing.
+        // If they are already active, we just stack their days in `subscribeAndSeedDemoData`.
 
         patient = await subscribeAndSeedDemoData(patient, resolvedPlanId);
 
@@ -664,7 +683,8 @@ router.post('/me/trusted-contacts', authenticateSession, async (req, res) => {
         try {
             const smsService = require('../../services/smsService');
             const patientName = patient.name || 'Someone';
-            const warmMessage = `Hi — ${patientName} has added you as a trusted contact on CareMyMed, their health companion app. They'd like you to be part of their care. Tap here to get started: https://caremymed.app/invite`;
+            const caregiverFirstName = name.split(' ')[0];
+            const warmMessage = `Hi ${caregiverFirstName} — ${patientName} has added you to their trusted care circle on CareMyMed. They'd love for you to be quietly kept in the loop regarding their health. Tap here to connect: https://caremymed.app/invite`;
             smsService.sendMessage(phone, warmMessage).catch(e =>
                 logger.warn('Caregiver invite SMS failed (non-critical)', { error: e.message })
             );

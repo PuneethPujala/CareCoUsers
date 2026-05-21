@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
     View, Text, StyleSheet, ScrollView, Platform, Pressable, Animated,
     ActivityIndicator, KeyboardAvoidingView, TouchableOpacity,
-    DeviceEventEmitter, InteractionManager, Dimensions, StatusBar, AppState
+    DeviceEventEmitter, InteractionManager, Dimensions, StatusBar, AppState, RefreshControl
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
@@ -147,6 +147,13 @@ export default function PatientHomeScreen({ navigation }) {
     const [formError, setFormError] = useState(null);
     const [submitLoading, setSubmitLoading] = useState(false);
     const [medsExpanded, setMedsExpanded] = useState(false);
+    const [refreshing, setRefreshing] = useState(false);
+
+    const onRefresh = useCallback(async () => {
+        setRefreshing(true);
+        await fetchData(true);
+        setRefreshing(false);
+    }, [fetchData]);
 
     const [syncStatus, setSyncStatus] = useState({
         enabled: false, connected: false, lastSync: null, readingsToday: 0, syncing: false,
@@ -258,7 +265,10 @@ export default function PatientHomeScreen({ navigation }) {
         return () => subscription.remove();
     }, []);
 
-    const openPremium = () => navigation.navigate('PremiumShowcase');
+    const openPremium = () => {
+        const isRenewal = !!patient?.subscription?.expires_at;
+        navigation.navigate('PremiumShowcase', { isRenewal });
+    };
 
     useEffect(() => {
         const checkPremiumPopup = async () => {
@@ -457,8 +467,8 @@ export default function PatientHomeScreen({ navigation }) {
                 <View style={styles.header}>
                     <View style={styles.mainHeaderRow}>
                         <View style={{ flex: 1, paddingRight: 16 }}>
-                            <Text style={styles.greetingLabel}>{brief.greeting}</Text>
-                            <Text style={[styles.greetingName, { fontSize: 18, lineHeight: 24, color: '#0F172A', marginTop: 4, fontWeight: '700' }]}>
+                            <Text style={styles.greetingName}>{brief.greeting}</Text>
+                            <Text style={{ fontSize: 15, lineHeight: 22, color: '#475569', marginTop: 4, fontWeight: '500' }}>
                                 {brief.sub}
                             </Text>
                         </View>
@@ -479,6 +489,7 @@ export default function PatientHomeScreen({ navigation }) {
                     showsVerticalScrollIndicator={false}
                     contentContainerStyle={styles.scrollContent}
                     keyboardShouldPersistTaps="handled"
+                    refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#4F46E5" />}
                 >
                     {/* Date + location row */}
                     <Animated.View style={[anim(0), { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16 }]}>
@@ -486,11 +497,11 @@ export default function PatientHomeScreen({ navigation }) {
                             <CalendarDays size={12} color="#CBD5E1" />
                             <Text style={styles.dateText}>{dateStr}</Text>
                         </View>
-                        <Pressable onPress={() => navigation.navigate('LocationSearch')} style={styles.locationPill}>
+                        <Pressable onPress={() => navigation.navigate('LocationSearch')} style={[styles.locationPill, { flexShrink: 1 }]}>
                             <View style={styles.locationDot}>
                                 <MapPin size={10} color="#FFF" fill="#FFF" />
                             </View>
-                            <Text style={styles.locationText} numberOfLines={1}>
+                            <Text style={[styles.locationText, { flexShrink: 1 }]} numberOfLines={1}>
                                 {patient?.city || profile?.city || t('home.detecting', { defaultValue: 'Detecting...' })}
                             </Text>
                         </Pressable>

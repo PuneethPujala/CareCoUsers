@@ -141,6 +141,7 @@ export default function HealthProfileScreen({ navigation }) {
     const [countryCodeModal, setCountryCodeModal] = useState(false);
     const [tipsModalVisible, setTipsModalVisible] = useState(false);
     const [showScoreInfo, setShowScoreInfo] = useState(false);
+    const [showScoreDetail, setShowScoreDetail] = useState(false);
 
     const backdropAnim = useRef(new Animated.Value(0)).current;
     const modalAnim = useRef(new Animated.Value(0)).current;
@@ -606,16 +607,15 @@ export default function HealthProfileScreen({ navigation }) {
                     </Pressable>
                 </Animated.View>
 
-                {/* ── INTELLIGENT HEALTH SCORE CARD ── */}
+                {/* ── COMPACT HEALTH SCORE CARD (tappable) ── */}
                 <Animated.View style={[anim(0), { marginTop: 0 }]}>
-                    <View style={s.dashboardCard}>
-                        {/* Top row: Score + Ring */}
-                        <View style={s.dashTopRow}>
-                            <View style={s.dashLeft}>
-                                <Pressable style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }} onPress={() => setShowScoreInfo(true)} hitSlop={10}>
-                                    <Text style={s.dashEyebrow}>{t('health_profile.health_score', { defaultValue: 'HEALTH SCORE' })}</Text>
-                                    <Info size={12} color="#94A3B8" />
-                                </Pressable>
+                    <Pressable style={({ pressed }) => [{ opacity: pressed ? 0.96 : 1 }]} onPress={() => setShowScoreDetail(true)}>
+                        <View style={s.dashboardCard}>
+                            <View style={s.dashTopRow}>
+                                <View style={s.dashLeft}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                                        <Text style={s.dashEyebrow}>{t('health_profile.health_score', { defaultValue: 'HEALTH SCORE' })}</Text>
+                                    </View>
                                 <View style={s.dashScoreRow}>
                                     <Text style={[s.dashScoreMain, { color: hsScore !== null ? hsColor : C.muted }]}>
                                         {hsScore !== null ? hsScore : '—'}
@@ -660,105 +660,13 @@ export default function HealthProfileScreen({ navigation }) {
                                 </View>
                             </View>
                         </View>
-
-                        {/* Score breakdown — sorted vertical impact bars */}
-                        {hsBreakdown && (() => {
-                            const dims = [
-                                { key: 'adherence', label: t('health_profile.dim_adherence', { defaultValue: 'Medication Adherence' }), icon: '💊' },
-                                { key: 'lifestyle',  label: t('health_profile.dim_lifestyle',  { defaultValue: 'Lifestyle Habits' }),  icon: '🏃' },
-                                { key: 'vitals',     label: t('health_profile.dim_vitals',     { defaultValue: 'Vitals Tracking' }),     icon: '🩺' },
-                                { key: 'mobility',   label: t('health_profile.dim_mobility',   { defaultValue: 'Mobility' }),   icon: '🚶' },
-                                { key: 'preventive', label: t('health_profile.dim_preventive', { defaultValue: 'Preventive Care' }), icon: '🛡️' },
-                            ].filter(d => hsBreakdown[d.key])
-                             .map(d => {
-                                 const bd = hsBreakdown[d.key];
-                                 // Safely extract pts and max to prevent NaN% crash in Yoga layout
-                                 const pts = typeof bd === 'object' ? (bd.pts || 0) : (Number(bd) || 0);
-                                 const max = typeof bd === 'object' && bd.max ? bd.max : 100;
-                                 let pct = Math.round((pts / max) * 100);
-                                 if (isNaN(pct) || !isFinite(pct)) pct = 0;
-                                 
-                                 return { ...d, dim: bd, pts, max, pct };
-                             })
-                             .sort((a, b) => a.pct - b.pct);
-
-                            return (
-                                <View style={s.breakdownSection}>
-                                    <Text style={s.breakdownTitle}>{t('health_profile.score_breakdown', { defaultValue: 'SCORE BREAKDOWN' })}</Text>
-                                    {dims.map(({ key, label, icon, pts, max, pct }) => {
-                                        const lost = max - pts;
-                                        const isGood = pct >= 70;
-                                        const dimColor = pct >= 70 ? '#10B981' : pct >= 40 ? '#F59E0B' : '#EF4444';
-                                        return (
-                                            <View key={key} style={s.breakdownItem}>
-                                                <View style={s.breakdownItemTop}>
-                                                    <Text style={s.breakdownItemIcon}>{icon}</Text>
-                                                    <Text style={s.breakdownItemLabel} numberOfLines={1}>{label}</Text>
-                                                    <View style={[s.breakdownPtsChip, { backgroundColor: dimColor + '15' }]}>
-                                                        {isGood
-                                                            ? <TrendingUp size={10} color={dimColor} />
-                                                            : <TrendingDown size={10} color={dimColor} />
-                                                        }
-                                                        <Text style={[s.breakdownPtsTxt, { color: dimColor }]}>
-                                                            {isGood ? `+${pts}` : `-${lost}`} {t('health_profile.pts', { defaultValue: 'pts' })}
-                                                        </Text>
-                                                    </View>
-                                                </View>
-                                                <View style={s.breakdownBarBg}>
-                                                    <View style={[s.breakdownBarFill, { width: `${pct}%`, backgroundColor: dimColor }]} />
-                                                </View>
-                                            </View>
-                                        );
-                                    })}
-                                </View>
-                            );
-                        })()}
-                    </View>
-                </Animated.View>
-                {/* ── TODAY'S FOCUS (INLINE INSIGHTS) ── */}
-                <Animated.View style={anim(1)}>
-                    <View style={s.focusSection}>
-                        <View style={s.focusHeaderRow}>
-                            <Sparkles size={16} color="#6366F1" />
-                            <Text style={s.focusHeaderTitle}>{t('health_profile.todays_focus', { defaultValue: "TODAY'S FOCUS" })}</Text>
+                            {/* Tap hint */}
+                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingTop: 14, borderTopWidth: 1, borderTopColor: '#F1F5F9' }}>
+                                <Text style={{ fontSize: 12, color: '#94A3B8', ...FONT.bold }}>Tap for full breakdown &amp; insights</Text>
+                                <ChevronRight size={14} color="#94A3B8" style={{ marginLeft: 4 }} />
+                            </View>
                         </View>
-                        
-                        {hs && hs.tips && hs.tips.length > 0 ? (
-                            <View>
-                                {hs.tips.slice(0, 2).map((tip, idx) => {
-                                    const impactCfg = {
-                                        high:   { bg: '#FEF2F2', border: '#FCA5A5', accent: '#DC2626', label: t('health_profile.high_impact', { defaultValue: 'High Impact' }) },
-                                        medium: { bg: '#FFFBEB', border: '#FDE68A', accent: '#D97706', label: t('health_profile.med_impact', { defaultValue: 'Medium' }) },
-                                        low:    { bg: '#F0FDF4', border: '#BBF7D0', accent: '#16A34A', label: t('health_profile.good_habit', { defaultValue: 'Good to have' }) },
-                                    }[tip.impact] || { bg: '#EEF2FF', border: '#C7D2FE', accent: '#6366F1', label: t('health_profile.tip', { defaultValue: 'Tip' }) };
-                                    
-                                    return (
-                                        <View key={idx} style={[s.insightCard, { backgroundColor: impactCfg.bg, borderColor: impactCfg.border, borderLeftColor: impactCfg.accent }]}>
-                                            <View style={s.insightTop}>
-                                                <Text style={s.insightIcon}>{tip.icon || '💡'}</Text>
-                                                <View style={{ flex: 1 }}>
-                                                    <Text style={s.insightTitle}>{tip.title}</Text>
-                                                </View>
-                                                <View style={[s.insightBadge, { backgroundColor: impactCfg.accent + '18', borderColor: impactCfg.border }]}>
-                                                    <Text style={[s.insightBadgeText, { color: impactCfg.accent }]}>{impactCfg.label}</Text>
-                                                </View>
-                                            </View>
-                                            <Text style={s.insightBody}>{tip.body}</Text>
-                                        </View>
-                                    );
-                                })}
-                                <Pressable style={s.seeAllInsightsBtn} onPress={() => setTipsModalVisible(true)}>
-                                    <Text style={s.seeAllInsightsTxt}>{t('health_profile.see_all_insights', { defaultValue: 'See all insights' })}</Text>
-                                    <ChevronRight size={14} color="#6366F1" />
-                                </Pressable>
-                            </View>
-                        ) : (
-                            <View style={s.emptyFocusState}>
-                                <Text style={s.emptyFocusIcon}>🌟</Text>
-                                <Text style={s.emptyFocusTxt}>{t('health_profile.no_urgent_focus', { defaultValue: "You're on track! Keep up the great habits." })}</Text>
-                            </View>
-                        )}
-                    </View>
+                    </Pressable>
                 </Animated.View>
 
                 {/* ── ALERTS CARD ── */}
@@ -1421,6 +1329,109 @@ export default function HealthProfileScreen({ navigation }) {
                         <Pressable style={s.tipsCloseBtn} onPress={() => setTipsModalVisible(false)}>
                             <Text style={s.tipsCloseTxt}>Got it, thanks!</Text>
                         </Pressable>
+                    </View>
+                </View>
+            </Modal>
+
+            {/* ── SCORE DETAIL BOTTOM SHEET ── */}
+            <Modal visible={showScoreDetail} transparent animationType="slide" statusBarTranslucent onRequestClose={() => setShowScoreDetail(false)}>
+                <View style={s.tipsBackdrop}>
+                    <Pressable style={StyleSheet.absoluteFill} onPress={() => setShowScoreDetail(false)} />
+                    <View style={s.tipsSheet}>
+                        {/* Handle */}
+                        <View style={{ alignItems: 'center', paddingTop: 12, paddingBottom: 8 }}>
+                            <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: '#E2E8F0' }} />
+                        </View>
+                        {/* Header */}
+                        <View style={{ paddingHorizontal: 24, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' }}>
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <Text style={{ fontSize: 20, ...FONT.heavy, color: '#0F172A' }}>Health Score Details</Text>
+                                <Pressable onPress={() => setShowScoreDetail(false)} hitSlop={12}>
+                                    <X size={22} color="#94A3B8" />
+                                </Pressable>
+                            </View>
+                            <Text style={{ fontSize: 13, ...FONT.medium, color: '#64748B', marginTop: 4 }}>How your score of {hsScore ?? '—'} is calculated</Text>
+                        </View>
+                        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 24, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+                            {/* Score Breakdown */}
+                            {hsBreakdown && (() => {
+                                const dims = [
+                                    { key: 'adherence', label: 'Medication Adherence', icon: '💊', max: 30 },
+                                    { key: 'lifestyle',  label: 'Lifestyle Habits',  icon: '🏃', max: 20 },
+                                    { key: 'conditions', label: 'Condition Burden',  icon: '🩺', max: 15 },
+                                    { key: 'vitals',     label: 'Vitals Tracking',   icon: '❤️', max: 15 },
+                                    { key: 'preventive', label: 'Preventive Care',   icon: '🛡️', max: 10 },
+                                    { key: 'mobility',   label: 'Mobility',          icon: '🚶', max: 10 },
+                                ].filter(d => hsBreakdown[d.key])
+                                 .map(d => {
+                                     const bd = hsBreakdown[d.key];
+                                     const pts = typeof bd === 'object' ? (bd.pts || 0) : (Number(bd) || 0);
+                                     const max = typeof bd === 'object' && bd.max ? bd.max : d.max;
+                                     let pct = Math.round((pts / max) * 100);
+                                     if (isNaN(pct) || !isFinite(pct)) pct = 0;
+                                     return { ...d, pts, max, pct };
+                                 })
+                                 .sort((a, b) => b.pct - a.pct);
+
+                                return (
+                                    <View style={{ marginBottom: 28 }}>
+                                        <Text style={{ fontSize: 11, ...FONT.heavy, color: '#94A3B8', letterSpacing: 1, marginBottom: 16 }}>SCORE BREAKDOWN</Text>
+                                        {dims.map(({ key, label, icon, pts, max, pct }) => {
+                                            const dimColor = pct >= 70 ? '#10B981' : pct >= 40 ? '#F59E0B' : '#EF4444';
+                                            return (
+                                                <View key={key} style={{ marginBottom: 18 }}>
+                                                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                                                        <Text style={{ fontSize: 15, marginRight: 8 }}>{icon}</Text>
+                                                        <Text style={{ flex: 1, fontSize: 14, ...FONT.bold, color: '#334155' }}>{label}</Text>
+                                                        <Text style={{ fontSize: 14, ...FONT.heavy, color: dimColor }}>{pts}/{max}</Text>
+                                                    </View>
+                                                    <View style={{ height: 8, backgroundColor: '#F1F5F9', borderRadius: 4, overflow: 'hidden' }}>
+                                                        <View style={{ height: '100%', width: `${pct}%`, backgroundColor: dimColor, borderRadius: 4 }} />
+                                                    </View>
+                                                </View>
+                                            );
+                                        })}
+                                    </View>
+                                );
+                            })()}
+
+                            {/* Today's Focus / Insights */}
+                            {hs && hs.tips && hs.tips.length > 0 && (
+                                <View>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 16 }}>
+                                        <Sparkles size={16} color="#6366F1" />
+                                        <Text style={{ fontSize: 11, ...FONT.heavy, color: '#6366F1', letterSpacing: 1 }}>TODAY'S FOCUS</Text>
+                                    </View>
+                                    {hs.tips.map((tip, idx) => {
+                                        const impactCfg = {
+                                            high:   { bg: '#FEF2F2', border: '#FCA5A5', accent: '#DC2626', label: 'High Impact' },
+                                            medium: { bg: '#FFFBEB', border: '#FDE68A', accent: '#D97706', label: 'Medium' },
+                                            low:    { bg: '#F0FDF4', border: '#BBF7D0', accent: '#16A34A', label: 'Good to have' },
+                                        }[tip.impact] || { bg: '#EEF2FF', border: '#C7D2FE', accent: '#6366F1', label: 'Tip' };
+                                        return (
+                                            <View key={idx} style={[s.insightCard, { backgroundColor: impactCfg.bg, borderColor: impactCfg.border, borderLeftColor: impactCfg.accent }]}>
+                                                <View style={s.insightTop}>
+                                                    <Text style={s.insightIcon}>{tip.icon || '💡'}</Text>
+                                                    <View style={{ flex: 1 }}>
+                                                        <Text style={s.insightTitle}>{tip.title}</Text>
+                                                    </View>
+                                                    <View style={[s.insightBadge, { backgroundColor: impactCfg.accent + '18', borderColor: impactCfg.border }]}>
+                                                        <Text style={[s.insightBadgeText, { color: impactCfg.accent }]}>{impactCfg.label}</Text>
+                                                    </View>
+                                                </View>
+                                                <Text style={s.insightBody}>{tip.body}</Text>
+                                            </View>
+                                        );
+                                    })}
+                                </View>
+                            )}
+
+                            {/* Info link */}
+                            <Pressable style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 16, marginTop: 8 }} onPress={() => { setShowScoreDetail(false); setTimeout(() => setShowScoreInfo(true), 300); }}>
+                                <Info size={14} color="#6366F1" />
+                                <Text style={{ fontSize: 13, ...FONT.bold, color: '#6366F1' }}>How is this score calculated?</Text>
+                            </Pressable>
+                        </ScrollView>
                     </View>
                 </View>
             </Modal>

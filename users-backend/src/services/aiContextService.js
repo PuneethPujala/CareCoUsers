@@ -16,6 +16,7 @@ const Profile = require('../models/Profile');
 const Medication = require('../models/Medication');
 const MedicineLog = require('../models/MedicineLog');
 const VitalLog = require('../models/VitalLog');
+const CallLog = require('../models/CallLog');
 
 /**
  * Builds the truncated patient context for LLM injection
@@ -132,7 +133,33 @@ async function buildPatientContext(patientId) {
     const currentStreak = patient.gamification?.current_streak || 0;
     const longestStreak = patient.gamification?.longest_streak || 0;
 
-    // 6. Build final payload
+    // 6. Care Coordinator & Recent Interactions
+    let careTeam = null;
+    let recentCall = null;
+
+    if (patient.assigned_manager_id) {
+        const manager = await Profile.findById(patient.assigned_manager_id).select('name role');
+        if (manager) {
+            careTeam = {
+                assigned_caller: manager.name,
+                role: manager.role
+            };
+
+            const lastCall = await CallLog.findOne({ patient_id: patient._id, manager_id: manager._id })
+                .sort({ started_at: -1 })
+                .select('status started_at call_duration_seconds');
+
+            if (lastCall) {
+                recentCall = {
+                    date: moment(lastCall.started_at).tz(tz).format('MMM D, h:mm A'),
+                    status: lastCall.status,
+                    duration_seconds: lastCall.call_duration_seconds
+                };
+            }
+        }
+    }
+
+    // 7. Build final payload
     const payload = {
         patient: {
             name: patient.name,
@@ -141,6 +168,8 @@ async function buildPatientContext(patientId) {
             blood_type: profile?.blood_type,
             diet: profile?.dietary_restrictions
         },
+        care_team: careTeam,
+        latest_interaction: recentCall,
         today: todayStr,
         current_time: now.format('h:mm A'),
         streak: {
