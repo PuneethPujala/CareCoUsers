@@ -425,7 +425,7 @@ const usePatientStore = create((set, get) => ({
             get().fetchMedications();
             get().fetchDashboard(true);
         } catch (err) {
-            if (err.request || err.code === 'ECONNABORTED' || err.message === 'Network Error') {
+            if ((err.request && !err.response) || err.code === 'ECONNABORTED' || err.message === 'Network Error') {
                 console.warn('[Store] Network error, enqueueing mutation offline:', err.message);
                 const tz = get().patient?.timezone || 'Asia/Kolkata';
                 const targetDate = getTodayStringInTz(tz);
@@ -506,7 +506,7 @@ const usePatientStore = create((set, get) => ({
             await apiService.medicines.markSlotTaken({ scheduled_time: slot, marked_by: 'patient' });
             get().fetchDashboard(true);
         } catch (err) {
-            if (err.request || err.code === 'ECONNABORTED' || err.message === 'Network Error') {
+            if ((err.request && !err.response) || err.code === 'ECONNABORTED' || err.message === 'Network Error') {
                 console.warn('[Store] Network error, enqueueing mark-slot mutation offline:', err.message);
                 const tz = get().patient?.timezone || 'Asia/Kolkata';
                 const targetDate = getTodayStringInTz(tz);
