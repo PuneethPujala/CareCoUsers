@@ -1068,7 +1068,6 @@ const styles = StyleSheet.create({
     insightCard: {
         borderRadius: 20, padding: 18, marginBottom: 20, flexDirection: 'row', alignItems: 'center',
         gap: 14, overflow: 'hidden', borderWidth: 1, borderColor: '#F1F5F9',
-        shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.04, shadowRadius: 10, elevation: 2,
     },
     insightIconBubble: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
     insightBody: { flex: 1 },
