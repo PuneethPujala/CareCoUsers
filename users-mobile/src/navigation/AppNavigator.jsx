@@ -38,7 +38,6 @@ import MedicationsScreen from "../screens/patient/MedicationsScreen";
 import HealthProfileScreen from "../screens/patient/HealthProfileScreen";
 import NotificationsScreen from "../screens/patient/NotificationsScreen";
 import PatientProfileScreen from "../screens/patient/ProfileScreen";
-import PaymentScreen from "../screens/patient/PaymentScreen";
 import WaitingScreen from "../screens/patient/WaitingScreen";
 import VitalsHistoryScreen from "../screens/patient/VitalsHistoryScreen";
 import LocationSearchScreen from "../screens/patient/LocationSearchScreen";
@@ -148,7 +147,6 @@ const MainAppStack = () => (
         <Stack.Screen name="Chatbot" component={ChatbotScreen} options={{ presentation: "modal", animation: "slide_from_bottom", headerShown: false }} />
         <Stack.Screen name="CallHistory" component={CallHistoryScreen} />
         <Stack.Screen name="PremiumShowcase" component={PremiumShowcaseScreen} />
-        <Stack.Screen name="Payment" component={PaymentScreen} />
         <Stack.Screen name="WaitingRoom" component={WaitingScreen} />
         <Stack.Screen name="MFASetup" component={MFASetupScreen} options={{ presentation: "modal", animation: "slide_from_bottom" }} />
     </Stack.Navigator>

@@ -121,7 +121,6 @@ export default function PatientProfileScreen({ navigation }) {
 
     // Language
     const [selectedLang, setSelectedLang] = useState('en_IN');
-    const [basicPlanModalVisible, setBasicPlanModalVisible] = useState(false);
     const LANGUAGES = [
         { code: 'en_IN', label: 'English (India)' },
         { code: 'hi_IN', label: 'हिन्दी (Hindi)' },
@@ -623,7 +622,7 @@ export default function PatientProfileScreen({ navigation }) {
                 {/* ── CareMyMed Plan Banner (Upgrade hidden) ── */}
                 <Animated.View style={anim(2)}>
                     <Text style={s.sectionTitle}>{t('profile.caremymed_plan', { defaultValue: 'CareMyMed PLAN' })}</Text>
-                    <Pressable style={s.premiumCard} onPress={() => setBasicPlanModalVisible(true)}>
+                    <Pressable style={s.premiumCard} onPress={() => navigation.navigate('PremiumShowcase', { isRenewal: !!patient?.subscription?.expires_at })}>
                         <View style={s.premiumLeft}>
                             <View style={s.starBadge}><Star size={18} color="#FFF" fill="#FFF" /></View>
                             <View style={{ flexShrink: 1 }}>
@@ -1344,37 +1343,7 @@ export default function PatientProfileScreen({ navigation }) {
                     </Pressable>
                 </Pressable>
             </Modal>
-        {/* ── Basic Plan Features Modal ── */}
-        <Modal visible={basicPlanModalVisible} animationType="slide" transparent={true}>
-            <View style={s.modalOverlay}>
-                <View style={s.modalContent}>
-                    <View style={s.modalHeader}>
-                        <Text style={s.modalTitle}>{t('profile.basic_plan_features', { defaultValue: 'Basic Plan Features' })}</Text>
-                        <Pressable onPress={() => setBasicPlanModalVisible(false)} style={s.closeBtn}>
-                            <X size={20} color={C.mid} />
-                        </Pressable>
-                    </View>
-                    <Text style={{ fontSize: 16, color: C.mid, marginBottom: 16 }}>{t('profile.basic_plan_desc', { defaultValue: 'Your Basic Plan provides essential care tracking, including:' })}</Text>
-                    <View style={{ gap: 12 }}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                            <ShieldCheck size={20} color={C.success} />
-                            <Text style={{ fontSize: 15, color: C.dark, fontWeight: '500' }}>{t('profile.plan_feature_1', { defaultValue: 'Medication & Vitals Logging' })}</Text>
-                        </View>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                            <ShieldCheck size={20} color={C.success} />
-                            <Text style={{ fontSize: 15, color: C.dark, fontWeight: '500' }}>{t('profile.plan_feature_2', { defaultValue: 'Care Team Alerts & Notifications' })}</Text>
-                        </View>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                            <ShieldCheck size={20} color={C.success} />
-                            <Text style={{ fontSize: 15, color: C.dark, fontWeight: '500' }}>{t('profile.plan_feature_3', { defaultValue: 'Basic Health Profile Sharing' })}</Text>
-                        </View>
-                    </View>
-                    <Pressable style={[s.saveBtn, { marginTop: 24 }]} onPress={() => setBasicPlanModalVisible(false)}>
-                        <Text style={s.saveBtnTxt}>{t('common.got_it', { defaultValue: 'Got it' })}</Text>
-                    </Pressable>
-                </View>
-            </View>
-        </Modal>
+
 
         </View>
     );

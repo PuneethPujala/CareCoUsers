@@ -76,6 +76,11 @@ export default function RecapStoryModal({ visible, onClose, recap, period = 'wee
     const progressAnims = useRef([...Array(SLIDE_COUNT)].map(() => new Animated.Value(0))).current;
     const autoPlayTimer = useRef(null);
 
+    // Micro-animations state
+    const floatAnim = useRef(new Animated.Value(0)).current;
+    const blobAnim1 = useRef(new Animated.Value(0)).current;
+    const blobAnim2 = useRef(new Animated.Value(0)).current;
+
     const periodLabel = period === 'yearly' && recap?.is_all_time_fallback ? 'All-Time' : period === 'yearly' ? 'Yearly' : period === 'monthly' ? 'Monthly' : 'Weekly';
 
     // ── Auto-play logic (Instagram Stories style) ──
@@ -87,10 +92,26 @@ export default function RecapStoryModal({ visible, onClose, recap, period = 'wee
             progressAnims.forEach(a => a.setValue(0));
             animateSlide(0);
             startAutoPlay(0);
+
+            // Start ambient micro-animations
+            Animated.loop(Animated.sequence([
+                Animated.timing(floatAnim, { toValue: 1, duration: 2500, useNativeDriver: true }),
+                Animated.timing(floatAnim, { toValue: 0, duration: 2500, useNativeDriver: true })
+            ])).start();
+            Animated.loop(Animated.timing(blobAnim1, { toValue: 1, duration: 14000, useNativeDriver: true })).start();
+            Animated.loop(Animated.timing(blobAnim2, { toValue: 1, duration: 18000, useNativeDriver: true })).start();
         } else {
             stopAutoPlay();
+            floatAnim.stopAnimation();
+            blobAnim1.stopAnimation();
+            blobAnim2.stopAnimation();
         }
-        return () => stopAutoPlay();
+        return () => {
+            stopAutoPlay();
+            floatAnim.stopAnimation();
+            blobAnim1.stopAnimation();
+            blobAnim2.stopAnimation();
+        };
     }, [visible]);
 
     const startAutoPlay = (fromSlide) => {
@@ -200,6 +221,16 @@ export default function RecapStoryModal({ visible, onClose, recap, period = 'wee
         }],
     });
 
+    const floatTransform = [{ translateY: floatAnim.interpolate({ inputRange: [0, 1], outputRange: [-10, 10] }) }];
+    const b1Transform = [
+        { rotate: blobAnim1.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] }) },
+        { scale: blobAnim1.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1.5, 1.8, 1.5] }) }
+    ];
+    const b2Transform = [
+        { rotate: blobAnim2.interpolate({ inputRange: [0, 1], outputRange: ['360deg', '0deg'] }) },
+        { scale: blobAnim2.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1.5, 2.0, 1.5] }) }
+    ];
+
     const BrandBadge = () => (
         <View style={s.brandBadge}>
             <Heart size={14} color="#FFF" />
@@ -260,7 +291,9 @@ export default function RecapStoryModal({ visible, onClose, recap, period = 'wee
             case 3:
                 content = (
                     <Animated.View style={[s.slideContent, makeSlideAnim(3)]}>
-                        <Pill size={48} color="#FFF" style={{ marginBottom: 16 }} />
+                        <Animated.View style={{ transform: floatTransform, marginBottom: 16 }}>
+                            <Pill size={48} color="#FFF" />
+                        </Animated.View>
                         <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
                             <AnimatedCounter value={r.total_doses_taken || 0} style={s.bigStat} />
                             <Text style={s.bigStatSub}> / {r.total_doses_scheduled || 0}</Text>
@@ -273,7 +306,7 @@ export default function RecapStoryModal({ visible, onClose, recap, period = 'wee
             case 4:
                 content = (
                     <Animated.View style={[s.slideContent, makeSlideAnim(4)]}>
-                        <Text style={s.bigEmoji}>{TIME_EMOJIS[bestTime]}</Text>
+                        <Animated.Text style={[s.bigEmoji, { transform: [...floatTransform, { rotate: '-10deg' }] }]}>{TIME_EMOJIS[bestTime]}</Animated.Text>
                         <Text style={s.slideTitle} adjustsFontSizeToFit numberOfLines={2}>{TIME_LABELS[bestTime]}{'\n'}Champion</Text>
                         <Text style={s.slideCaption}>Your most consistent time slot</Text>
                     </Animated.View>
@@ -282,7 +315,7 @@ export default function RecapStoryModal({ visible, onClose, recap, period = 'wee
             case 5:
                 content = (
                     <Animated.View style={[s.slideContent, makeSlideAnim(5)]}>
-                        <Text style={s.bigEmoji}>{r.level?.emoji || '🌱'}</Text>
+                        <Animated.Text style={[s.bigEmoji, { transform: [...floatTransform, { rotate: '-10deg' }] }]}>{r.level?.emoji || '🌱'}</Animated.Text>
                         <Text style={s.slideTitle} adjustsFontSizeToFit numberOfLines={2}>You're{'\n'}{r.level?.label || 'Growing'}</Text>
                         <Text style={s.slideCaption}>{r.badges_earned || 0} badges earned</Text>
                         {r.top_medication && (
@@ -297,7 +330,9 @@ export default function RecapStoryModal({ visible, onClose, recap, period = 'wee
             case 6:
                 content = (
                     <Animated.View style={[s.slideContent, makeSlideAnim(6)]}>
-                        <Sparkles size={40} color="#FDE68A" style={{ marginBottom: 16 }} />
+                        <Animated.View style={{ transform: floatTransform, marginBottom: 16 }}>
+                            <Sparkles size={40} color="#FDE68A" />
+                        </Animated.View>
                         <Text style={s.slideTitle} adjustsFontSizeToFit numberOfLines={3}>{r.motivational_message || 'Keep going! 💙'}</Text>
                         <BrandBadge />
                         <Pressable style={s.shareBtn} onPress={handleShare} disabled={isSharing}>
@@ -315,17 +350,9 @@ export default function RecapStoryModal({ visible, onClose, recap, period = 'wee
                     <LinearGradient colors={grad} style={StyleSheet.absoluteFill} />
                     
                     {/* Floating Background Blobs for Spotify Texture */}
-                    <View style={[s.bgBlob, { top: -100, left: -50, width: 300, height: 300, backgroundColor: grad[1] }]} />
-                    <View style={[s.bgBlob, { bottom: -50, right: -100, width: 400, height: 400, backgroundColor: grad[0] }]} />
+                    <Animated.View style={[s.bgBlob, { top: -100, left: -50, width: 300, height: 300, backgroundColor: grad[1], transform: b1Transform }]} />
+                    <Animated.View style={[s.bgBlob, { bottom: -50, right: -100, width: 400, height: 400, backgroundColor: grad[0], transform: b2Transform }]} />
                     
-                    {/* Grain overlay placeholder (opacity makes it subtle) */}
-                    <View style={s.grainOverlay} />
-
-                    {/* Watermark */}
-                    <View style={s.watermark}>
-                        <Heart size={10} color="#000" />
-                        <Text style={s.watermarkText}>CareMyMed</Text>
-                    </View>
                     {content}
                 </ViewShot>
             </View>
