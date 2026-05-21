@@ -369,6 +369,7 @@ let schedulerInterval = null;
 
 async function runManagerSchedulerCycle() {
     try {
+        if (mongoose.connection.readyState !== 1) return;
         const managers = await getActiveCareManagers();
         if (managers.length === 0) return;
 

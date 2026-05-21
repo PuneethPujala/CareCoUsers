@@ -433,6 +433,7 @@ async function handleCallerDeactivation(callerId, orgId) {
  */
 async function cleanupStaleTemporaryAssignments() {
     try {
+        if (mongoose.connection.readyState !== 1) return;
         const startOfToday = new Date();
         startOfToday.setHours(0, 0, 0, 0);
 
@@ -457,6 +458,7 @@ let failoverInterval = null;
 
 async function runFailoverCycle() {
     try {
+        if (mongoose.connection.readyState !== 1) return;
         await checkShiftCoverage();
     } catch (err) {
         console.error('[Failover] Cycle error:', err.message);

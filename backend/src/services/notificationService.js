@@ -449,6 +449,7 @@ function startNotificationCrons() {
     // Check overdue calls every minute
     setInterval(async () => {
         try {
+            if (mongoose.connection.readyState !== 1) return;
             const result = await checkOverdueCalls();
             if (result.notified > 0) {
                 console.log(`[Cron] Notified ${result.notified} overdue calls`);
@@ -463,6 +464,7 @@ function startNotificationCrons() {
         try {
             const hour = new Date().getHours();
             if (hour === 9) { // Run at 9 AM only
+                if (mongoose.connection.readyState !== 1) return;
                 const result = await checkLowAdherenceAlerts();
                 if (result.alerted > 0) {
                     console.log(`[Cron] Sent ${result.alerted} low adherence alerts`);
@@ -478,6 +480,7 @@ function startNotificationCrons() {
         try {
             const now = new Date();
             if (now.getDay() === 1 && now.getHours() === 8) {
+                if (mongoose.connection.readyState !== 1) return;
                 const result = await sendWeeklyPerformanceSummary();
                 console.log(`[Cron] Sent ${result.sent} weekly summaries`);
             }
