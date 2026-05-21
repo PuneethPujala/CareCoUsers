@@ -460,8 +460,8 @@ export default function PatientHomeScreen({ navigation }) {
                 <View style={styles.header}>
                     <View style={styles.mainHeaderRow}>
                         <View style={{ flex: 1, paddingRight: 16 }}>
-                            <Text style={styles.greetingLabel}>{brief.greeting}</Text>
-                            <Text style={[styles.greetingName, { fontSize: 18, lineHeight: 24, color: '#0F172A', marginTop: 4, fontWeight: '700' }]}>
+                            <Text style={styles.greetingName}>{brief.greeting}</Text>
+                            <Text style={{ fontSize: 15, lineHeight: 22, color: '#475569', marginTop: 4, fontWeight: '500' }}>
                                 {brief.sub}
                             </Text>
                         </View>
@@ -489,11 +489,11 @@ export default function PatientHomeScreen({ navigation }) {
                             <CalendarDays size={12} color="#CBD5E1" />
                             <Text style={styles.dateText}>{dateStr}</Text>
                         </View>
-                        <Pressable onPress={() => navigation.navigate('LocationSearch')} style={styles.locationPill}>
+                        <Pressable onPress={() => navigation.navigate('LocationSearch')} style={[styles.locationPill, { flexShrink: 1 }]}>
                             <View style={styles.locationDot}>
                                 <MapPin size={10} color="#FFF" fill="#FFF" />
                             </View>
-                            <Text style={styles.locationText} numberOfLines={1}>
+                            <Text style={[styles.locationText, { flexShrink: 1 }]} numberOfLines={1}>
                                 {patient?.city || profile?.city || t('home.detecting', { defaultValue: 'Detecting...' })}
                             </Text>
                         </Pressable>

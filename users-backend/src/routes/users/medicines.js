@@ -808,13 +808,7 @@ router.get('/adherence/recap', authenticateSession, async (req, res) => {
         const prevRate = prevTotal > 0 ? Math.round((prevTaken / prevTotal) * 100) : 0;
         const improvement = adherenceRate - prevRate;
 
-        const badgesEarned = [
-            perfectDays >= 1,
-            bestStreak >= 3,
-            adherenceRate >= 90,
-            perfectDays >= 7,
-            adherenceRate >= 80 && dailyEntries.length >= 25,
-        ].filter(Boolean).length;
+        const badgesEarned = (patient.unlockedAchievements || []).length;
 
         const messages = {
             optimal: ["You're unstoppable! 🔥", "Health champion status achieved! 💪", "Consistency is your superpower! ⭐"],
