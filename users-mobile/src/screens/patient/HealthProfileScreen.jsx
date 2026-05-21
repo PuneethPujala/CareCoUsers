@@ -1353,48 +1353,7 @@ export default function HealthProfileScreen({ navigation }) {
                             <Text style={{ fontSize: 13, ...FONT.medium, color: '#64748B', marginTop: 4 }}>How your score of {hsScore ?? '—'} is calculated</Text>
                         </View>
                         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 24, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
-                            {/* Score Breakdown */}
-                            {hsBreakdown && (() => {
-                                const dims = [
-                                    { key: 'adherence', label: 'Medication Adherence', icon: '💊', max: 30 },
-                                    { key: 'lifestyle',  label: 'Lifestyle Habits',  icon: '🏃', max: 20 },
-                                    { key: 'conditions', label: 'Condition Burden',  icon: '🩺', max: 15 },
-                                    { key: 'vitals',     label: 'Vitals Tracking',   icon: '❤️', max: 15 },
-                                    { key: 'preventive', label: 'Preventive Care',   icon: '🛡️', max: 10 },
-                                    { key: 'mobility',   label: 'Mobility',          icon: '🚶', max: 10 },
-                                ].filter(d => hsBreakdown[d.key])
-                                 .map(d => {
-                                     const bd = hsBreakdown[d.key];
-                                     const pts = typeof bd === 'object' ? (bd.pts || 0) : (Number(bd) || 0);
-                                     const max = typeof bd === 'object' && bd.max ? bd.max : d.max;
-                                     let pct = Math.round((pts / max) * 100);
-                                     if (isNaN(pct) || !isFinite(pct)) pct = 0;
-                                     return { ...d, pts, max, pct };
-                                 })
-                                 .sort((a, b) => b.pct - a.pct);
-
-                                return (
-                                    <View style={{ marginBottom: 28 }}>
-                                        <Text style={{ fontSize: 11, ...FONT.heavy, color: '#94A3B8', letterSpacing: 1, marginBottom: 16 }}>SCORE BREAKDOWN</Text>
-                                        {dims.map(({ key, label, icon, pts, max, pct }) => {
-                                            const dimColor = pct >= 70 ? '#10B981' : pct >= 40 ? '#F59E0B' : '#EF4444';
-                                            return (
-                                                <View key={key} style={{ marginBottom: 18 }}>
-                                                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                                                        <Text style={{ fontSize: 15, marginRight: 8 }}>{icon}</Text>
-                                                        <Text style={{ flex: 1, fontSize: 14, ...FONT.bold, color: '#334155' }}>{label}</Text>
-                                                        <TrendingUp size={14} color={dimColor} style={{ marginRight: 4 }} />
-                                                        <Text style={{ fontSize: 14, ...FONT.heavy, color: dimColor }}>+{pts} pts</Text>
-                                                    </View>
-                                                    <View style={{ height: 8, backgroundColor: '#F1F5F9', borderRadius: 4, overflow: 'hidden' }}>
-                                                        <View style={{ height: '100%', width: `${pct}%`, backgroundColor: dimColor, borderRadius: 4 }} />
-                                                    </View>
-                                                </View>
-                                            );
-                                        })}
-                                    </View>
-                                );
-                            })()}
+                            {/* Score Breakdown moved to pop-up modal */}
 
                             {/* Today's Focus / Insights */}
                             {hs && hs.tips && hs.tips.length > 0 && (
@@ -1457,9 +1416,51 @@ export default function HealthProfileScreen({ navigation }) {
 
                     <View style={{ backgroundColor: '#EEF2FF', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: '#E0E7FF' }}>
                         <Text style={{ fontSize: 14, fontWeight: '800', color: '#4338CA', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>What the points mean</Text>
-                        <Text style={{ fontSize: 15, color: '#4F46E5', lineHeight: 22 }}>
-                            The "Score Breakdown" chips show recent factors influencing your score. Don't worry about the exact math—focus instead on the habits! Medication consistency is often the fastest way to see improvement.
+                        <Text style={{ fontSize: 15, color: '#4F46E5', lineHeight: 22, marginBottom: 12 }}>
+                            The "Score Breakdown" below shows recent factors influencing your score. Don't worry about the exact math—focus instead on the habits!
                         </Text>
+                        
+                        {/* Score Breakdown */}
+                        {hsBreakdown && (() => {
+                            const dims = [
+                                { key: 'adherence', label: 'Medication Adherence', icon: '💊', max: 30 },
+                                { key: 'lifestyle',  label: 'Lifestyle Habits',  icon: '🏃', max: 20 },
+                                { key: 'conditions', label: 'Condition Burden',  icon: '🩺', max: 15 },
+                                { key: 'vitals',     label: 'Vitals Tracking',   icon: '❤️', max: 15 },
+                                { key: 'preventive', label: 'Preventive Care',   icon: '🛡️', max: 10 },
+                                { key: 'mobility',   label: 'Mobility',          icon: '🚶', max: 10 },
+                            ].filter(d => hsBreakdown[d.key])
+                             .map(d => {
+                                 const bd = hsBreakdown[d.key];
+                                 const pts = typeof bd === 'object' ? (bd.pts || 0) : (Number(bd) || 0);
+                                 const max = typeof bd === 'object' && bd.max ? bd.max : d.max;
+                                 let pct = Math.round((pts / max) * 100);
+                                 if (isNaN(pct) || !isFinite(pct)) pct = 0;
+                                 return { ...d, pts, max, pct };
+                             })
+                             .sort((a, b) => b.pct - a.pct);
+
+                            return (
+                                <View style={{ marginTop: 8 }}>
+                                    {dims.map(({ key, label, icon, pts, max, pct }) => {
+                                        const dimColor = pct >= 70 ? '#10B981' : pct >= 40 ? '#F59E0B' : '#EF4444';
+                                        return (
+                                            <View key={key} style={{ marginBottom: 14 }}>
+                                                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+                                                    <Text style={{ fontSize: 15, marginRight: 8 }}>{icon}</Text>
+                                                    <Text style={{ flex: 1, fontSize: 13, ...FONT.bold, color: '#312E81' }}>{label}</Text>
+                                                    <TrendingUp size={14} color={dimColor} style={{ marginRight: 4 }} />
+                                                    <Text style={{ fontSize: 13, ...FONT.heavy, color: dimColor }}>+{pts} pts</Text>
+                                                </View>
+                                                <View style={{ height: 6, backgroundColor: '#C7D2FE', borderRadius: 3, overflow: 'hidden' }}>
+                                                    <View style={{ height: '100%', width: `${pct}%`, backgroundColor: dimColor, borderRadius: 3 }} />
+                                                </View>
+                                            </View>
+                                        );
+                                    })}
+                                </View>
+                            );
+                        })()}
                     </View>
 
                     <View style={{ backgroundColor: '#F0FDF4', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: '#DCFCE7' }}>
