@@ -278,6 +278,7 @@ let schedulerInterval = null;
 
 async function runSchedulerCycle() {
     try {
+        if (mongoose.connection.readyState !== 1) return;
         const callers = await getActiveCallers();
         if (callers.length === 0) return;
 
