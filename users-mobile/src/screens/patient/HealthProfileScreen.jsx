@@ -615,6 +615,9 @@ export default function HealthProfileScreen({ navigation }) {
                                 <View style={s.dashLeft}>
                                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
                                         <Text style={s.dashEyebrow}>{t('health_profile.health_score', { defaultValue: 'HEALTH SCORE' })}</Text>
+                                        <Pressable onPress={(e) => { e.stopPropagation(); setShowScoreInfo(true); }} hitSlop={10} style={{ padding: 4, backgroundColor: '#F1F5F9', borderRadius: 12, marginLeft: 4 }}>
+                                            <Info size={12} color="#64748B" />
+                                        </Pressable>
                                     </View>
                                 <View style={s.dashScoreRow}>
                                     <Text style={[s.dashScoreMain, { color: hsScore !== null ? hsColor : C.muted }]}>
@@ -1441,20 +1444,15 @@ export default function HealthProfileScreen({ navigation }) {
                              .sort((a, b) => b.pct - a.pct);
 
                             return (
-                                <View style={{ marginTop: 8 }}>
+                                <View style={{ marginTop: 12, flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                                     {dims.map(({ key, label, icon, pts, max, pct }) => {
                                         const dimColor = pct >= 70 ? '#10B981' : pct >= 40 ? '#F59E0B' : '#EF4444';
                                         return (
-                                            <View key={key} style={{ marginBottom: 14 }}>
-                                                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
-                                                    <Text style={{ fontSize: 15, marginRight: 8 }}>{icon}</Text>
-                                                    <Text style={{ flex: 1, fontSize: 13, ...FONT.bold, color: '#312E81' }}>{label}</Text>
-                                                    <TrendingUp size={14} color={dimColor} style={{ marginRight: 4 }} />
-                                                    <Text style={{ fontSize: 13, ...FONT.heavy, color: dimColor }}>+{pts} pts</Text>
-                                                </View>
-                                                <View style={{ height: 6, backgroundColor: '#C7D2FE', borderRadius: 3, overflow: 'hidden' }}>
-                                                    <View style={{ height: '100%', width: `${pct}%`, backgroundColor: dimColor, borderRadius: 3 }} />
-                                                </View>
+                                            <View key={key} style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 12, borderWidth: 1, borderColor: '#C7D2FE' }}>
+                                                <Text style={{ fontSize: 14, marginRight: 6 }}>{icon}</Text>
+                                                <Text style={{ fontSize: 13, ...FONT.bold, color: '#312E81', marginRight: 6 }}>{label}</Text>
+                                                <TrendingUp size={12} color={dimColor} style={{ marginRight: 4 }} />
+                                                <Text style={{ fontSize: 13, ...FONT.heavy, color: dimColor }}>+{pts}</Text>
                                             </View>
                                         );
                                     })}
