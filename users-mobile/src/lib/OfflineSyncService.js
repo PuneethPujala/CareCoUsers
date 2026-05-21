@@ -62,6 +62,10 @@ class OfflineSyncService {
                             await apiService.medicines.markMedicine(item.payload);
                             success = true;
                             break;
+                        case 'MARK_SLOT_TAKEN':
+                            await apiService.medicines.markSlotTaken(item.payload);
+                            success = true;
+                            break;
                         // Add more offline-capable mutations here in the future
                         default:
                             console.warn(`[OfflineSync] Unknown mutation type: ${item.type}`);
