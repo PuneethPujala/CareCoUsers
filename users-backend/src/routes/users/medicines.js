@@ -259,6 +259,22 @@ router.put('/mark', authenticateSession, async (req, res) => {
         const logDate = targetDate ? getUtcMidnightFromDateString(targetDate) : today;
         const logDateStr = targetDate || todayStr;
 
+        // STRICT TIME VALIDATION: Prevent marking future slots for today
+        if (logDateStr === todayStr && taken) {
+            const formatter = new Intl.DateTimeFormat('en-US', {
+                timeZone: patient.timezone || 'Asia/Kolkata',
+                hour: 'numeric',
+                hour12: false
+            });
+            const currentHour = parseInt(formatter.format(new Date()), 10);
+            const SLOT_START_HOURS = { morning: 5, afternoon: 11, evening: 16, night: 19 };
+            const slotStart = SLOT_START_HOURS[scheduled_time];
+            
+            if (slotStart !== undefined && currentHour < slotStart) {
+                return res.status(400).json({ error: `Strict Validation: Cannot mark ${scheduled_time} medicines before ${slotStart}:00` });
+            }
+        }
+
         let log = await MedicineLog.findOne({ patient_id: patient._id, date: logDate });
 
         if (!log) {
@@ -334,6 +350,22 @@ router.put('/mark-slot', authenticateSession, async (req, res) => {
         const { todayStr, date: today } = getTodayUtcMidnight(patient.timezone);
         const logDate = targetDate ? getUtcMidnightFromDateString(targetDate) : today;
         const logDateStr = targetDate || todayStr;
+
+        // STRICT TIME VALIDATION: Prevent marking future slots for today
+        if (logDateStr === todayStr) {
+            const formatter = new Intl.DateTimeFormat('en-US', {
+                timeZone: patient.timezone || 'Asia/Kolkata',
+                hour: 'numeric',
+                hour12: false
+            });
+            const currentHour = parseInt(formatter.format(new Date()), 10);
+            const SLOT_START_HOURS = { morning: 5, afternoon: 11, evening: 16, night: 19 };
+            const slotStart = SLOT_START_HOURS[scheduled_time];
+            
+            if (slotStart !== undefined && currentHour < slotStart) {
+                return res.status(400).json({ error: `Strict Validation: Cannot mark ${scheduled_time} slot before ${slotStart}:00` });
+            }
+        }
 
         let log = await MedicineLog.findOne({ patient_id: patient._id, date: logDate });
         if (!log) {
