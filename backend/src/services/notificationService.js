@@ -80,14 +80,22 @@ async function sendPushNotification(userId, notification) {
         sentAt: new Date(),
     });
 
-    // ── FCM / APN hook ─────────────────────────────────────────
-    // TODO: integrate actual push provider
-    // if (profile?.pushToken) {
-    //   await fcm.send({ token: profile.pushToken, notification: { title, body }, data });
-    //   record.status = 'delivered';
-    //   record.deliveredAt = new Date();
-    //   await record.save();
-    // }
+    // ── Send real device push via Expo Push API ────────────────
+    try {
+        const { sendPush } = require('./pushService');
+        await sendPush(userId, {
+            title: notification.title,
+            body: notification.body,
+            type: notification.type || 'system_announcement',
+            priority: notification.priority || 'normal',
+            data: notification.data || {},
+        });
+        record.status = 'delivered';
+        record.deliveredAt = new Date();
+        await record.save();
+    } catch (pushErr) {
+        console.warn('[NotificationService] Push delivery failed:', pushErr.message);
+    }
 
     return record;
 }

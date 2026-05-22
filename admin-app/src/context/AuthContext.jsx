@@ -51,6 +51,27 @@ export function AuthProvider({ children }) {
 
   // ─── Initialization ────
   // Restore existing session on mount (keeps user logged in across refreshes)
+  // Retry profile fetch with exponential backoff (for Render cold starts)
+  const retryProfileFetch = useCallback(async (session, maxRetries = 3) => {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const timeoutMs = attempt === 1 ? 20000 : 30000; // 20s first try, 30s retries
+        const response = await Promise.race([
+          apiService.auth.getProfile(),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), timeoutMs)),
+        ]);
+        return response.data.profile;
+      } catch (err) {
+        console.warn(`[Auth] Profile fetch attempt ${attempt}/${maxRetries} failed:`, err?.message);
+        if (attempt < maxRetries) {
+          // Wait before retry (2s, 4s)
+          await new Promise(r => setTimeout(r, 2000 * attempt));
+        }
+      }
+    }
+    return null; // All attempts failed
+  }, []);
+
   useEffect(() => {
     const init = async () => {
       try {
@@ -62,13 +83,10 @@ export function AuthProvider({ children }) {
 
         if (session?.user) {
           setUser(session.user);
-          // Fetch profile from backend with a 4s timeout
-          try {
-            const response = await Promise.race([
-              apiService.auth.getProfile(),
-              new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 15000)),
-            ]);
-            const prof = response.data.profile;
+          // Fetch profile from backend with retries (handles Render cold starts)
+          const prof = await retryProfileFetch(session);
+
+          if (prof) {
             if (!ADMIN_ROLES.includes(prof.role)) {
               await auth.signOut().catch(() => {});
               setUser(null);
@@ -81,11 +99,12 @@ export function AuthProvider({ children }) {
             skipNextFetchRef.current = true;
             // Re-register push token on session restore
             registerPushToken();
-          } catch {
-            // Profile fetch failed or timed out — clear session so user re-logs
-            await auth.signOut().catch(() => {});
-            setUser(null);
-            setProfile(null);
+          } else {
+            // Profile fetch failed after all retries — keep user set but no profile.
+            // Do NOT sign out — preserve the Supabase session so user doesn't
+            // have to re-enter credentials. The auth state listener will retry
+            // when the backend wakes up.
+            console.warn('[Auth] Profile fetch failed after retries. Session preserved — will retry on next app focus.');
           }
         }
       } catch {
