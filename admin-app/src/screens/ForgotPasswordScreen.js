@@ -142,7 +142,7 @@ export default function ForgotPasswordScreen({ navigation }) {
         setLoading(true);
         try {
             const res = await apiService.auth.resetPasswordWithOtp({ email: email.trim().toLowerCase(), otp, newPassword });
-            Alert.alert('Success', 'Password has been reset securely.', [{ text: 'Sign In', onPress: () => navigation.navigate('Login') }]);
+            setStep('success');
         } catch (err) {
             setFieldError(err?.response?.data?.error || 'Failed to reset password.');
         } finally { setLoading(false); }
@@ -152,7 +152,54 @@ export default function ForgotPasswordScreen({ navigation }) {
         email: 'Enter the email address associated with your account to receive a secure reset link.',
         otp: `We've sent a secure 6-digit confirmation code to ${email}`,
         password: 'Create a strong, secure new password for your CareConnect account.',
+        success: 'Your password has been updated successfully.',
     };
+
+    // ─── Success Screen ───
+    if (step === 'success') {
+        return (
+            <View style={s.container}>
+                <StatusBar barStyle="dark-content" />
+                <View style={s.ambientBgWrapper} />
+                <SafeAreaView style={s.safe}>
+                    <KeyboardAwareScrollView style={{ flex: 1 }} contentContainerStyle={[s.scrollContent, { justifyContent: 'center', alignItems: 'center' }]}>
+                        <Animated.View style={{ opacity: fadeAnim, transform: [{ scale: iconScaleAnim }], alignItems: 'center' }}>
+                            {/* Success Icon */}
+                            <View style={{ width: 96, height: 96, borderRadius: 48, backgroundColor: '#ECFDF5', justifyContent: 'center', alignItems: 'center', marginBottom: 32, borderWidth: 2, borderColor: '#D1FAE5' }}>
+                                <Feather name="check-circle" size={48} color="#059669" />
+                            </View>
+
+                            <Text style={[s.heroTitle, { textAlign: 'center', fontSize: 28 }]}>Password Reset{"\n"}Successful!</Text>
+                            <Text style={[s.heroSubtitle, { textAlign: 'center', paddingRight: 0, marginBottom: 12 }]}>Your password has been securely updated.{"\n"}You can now sign in with your new credentials.</Text>
+
+                            {/* Email reminder */}
+                            <View style={{ backgroundColor: '#F8FAFC', borderRadius: 16, paddingHorizontal: 20, paddingVertical: 12, marginTop: 8, marginBottom: 32, borderWidth: 1, borderColor: '#E2E8F0', flexDirection: 'row', alignItems: 'center' }}>
+                                <Feather name="mail" size={16} color="#64748B" style={{ marginRight: 10 }} />
+                                <Text style={{ fontSize: 14, fontWeight: '700', color: '#334155' }}>{email}</Text>
+                            </View>
+
+                            {/* Sign In Button */}
+                            <TouchableOpacity
+                                onPress={() => navigation.navigate('Login')}
+                                activeOpacity={0.8}
+                                style={[s.btnShadow, { width: '100%' }]}
+                            >
+                                <View style={[s.btnPrimary, { flexDirection: 'row', gap: 10 }]}>
+                                    <Feather name="log-in" size={20} color="#FFF" />
+                                    <Text style={s.btnPrimaryText}>Sign In Now</Text>
+                                </View>
+                            </TouchableOpacity>
+
+                            {/* Footer hint */}
+                            <Text style={{ fontSize: 13, fontWeight: '500', color: '#94A3B8', textAlign: 'center', marginTop: 24, lineHeight: 20 }}>
+                                Use your new password to log in.{"\n"}If you face any issues, contact support.
+                            </Text>
+                        </Animated.View>
+                    </KeyboardAwareScrollView>
+                </SafeAreaView>
+            </View>
+        );
+    }
 
     return (
         <View style={s.container}>
