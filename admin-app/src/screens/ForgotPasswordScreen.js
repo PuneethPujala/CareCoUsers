@@ -77,18 +77,39 @@ export default function ForgotPasswordScreen({ navigation }) {
             setStep('otp');
             setCooldown(60);
         } catch (err) {
-            setFieldError(err?.response?.data?.error || 'Failed to send OTP. Try again.');
+            // If an OTP was already sent recently (429), move to OTP step anyway
+            if (err?.response?.status === 429) {
+                setStep('otp');
+                setCooldown(30);
+                setFieldError('An OTP was already sent recently. Please enter it below or wait to resend.');
+                return;
+            }
+            const serverMsg = err?.response?.data?.error;
+            if (serverMsg) {
+                setFieldError(serverMsg);
+            } else if (err?.message?.includes('Network') || err?.message?.includes('timeout')) {
+                setFieldError('Network error. Please check your connection and try again.');
+            } else {
+                setFieldError(err?.message || 'Failed to send OTP. Try again.');
+            }
         } finally { setLoading(false); }
     };
 
     const handleResendOtp = async () => {
         if (cooldown > 0) return;
+        setFieldError('');
         setLoading(true);
         try {
             await apiService.auth.sendResetOtp({ email: email.trim().toLowerCase() });
             setCooldown(60);
+            setFieldError('');
         } catch (err) {
-            setFieldError(err?.response?.data?.error || 'Failed to resend OTP.');
+            if (err?.response?.status === 429) {
+                setCooldown(30);
+                setFieldError('OTP was sent recently. Please wait before requesting a new one.');
+            } else {
+                setFieldError(err?.response?.data?.error || 'Failed to resend OTP.');
+            }
         } finally { setLoading(false); }
     };
 
@@ -192,7 +213,15 @@ export default function ForgotPasswordScreen({ navigation }) {
                         {/* White Form Card */}
                         <Animated.View style={[s.card, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
                             
-                            {/* Step 1: Email */}
+                            {/* Error Message Display */}
+                            {fieldError ? (
+                                <View style={{ backgroundColor: '#FEF2F2', borderRadius: 12, padding: 12, marginBottom: 16, flexDirection: 'row', alignItems: 'flex-start' }}>
+                                    <Feather name="alert-circle" size={16} color="#DC2626" style={{ marginRight: 8, marginTop: 2 }} />
+                                    <Text style={{ flex: 1, fontSize: 13, fontWeight: '600', color: '#DC2626', lineHeight: 18 }}>{fieldError}</Text>
+                                </View>
+                            ) : null}
+
+
                             {step === 'email' && (
                                 <>
                                     <View style={s.inputWrapper}>
