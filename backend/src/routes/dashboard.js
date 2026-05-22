@@ -491,15 +491,26 @@ router.get('/care-manager-stats',
                         caretakerId: { $in: managedCallerIds },
                         status: 'active'
                     }).distinct('patientId');
-                    const assignedCount = managedAssignments.length;
+                    
+                    const assignedCount = await Patient.countDocuments({
+                        _id: { $in: managedAssignments },
+                        is_active: { $ne: false }
+                    });
                     
                     // FLAW 2 FIX: Unassigned = org patients NOT in ANY active assignment (org-scoped)
                     const allOrgAssignedIds = await CaretakerPatient.find({
                         status: 'active'
                     }).distinct('patientId');
-                    const unassignedCount = await Patient.countDocuments({
-                        organization_id: req.profile.organizationId,
-                        is_active: true,
+                    
+                    const orgObjId = mongoose.Types.ObjectId.isValid(req.profile.organizationId) ? new mongoose.Types.ObjectId(req.profile.organizationId) : req.profile.organizationId;
+                    
+                    const unassignedCount = await mongoose.connection.db.collection('patients').countDocuments({
+                        $or: [
+                            { organization_id: req.profile.organizationId },
+                            { organization_id: req.profile.organizationId.toString() },
+                            { organization_id: orgObjId }
+                        ],
+                        is_active: { $ne: false },
                         _id: { $nin: allOrgAssignedIds }
                     });
 
