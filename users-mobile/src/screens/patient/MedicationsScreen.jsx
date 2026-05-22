@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useFocusEffect } from '@react-navigation/native';
 import {
     View, Text, StyleSheet, ScrollView, Platform, Pressable, Animated,
-    ActivityIndicator, Dimensions, Modal, RefreshControl,
+    ActivityIndicator, Dimensions, Modal, RefreshControl, TextInput,
     InteractionManager, LayoutAnimation, UIManager, StatusBar,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';

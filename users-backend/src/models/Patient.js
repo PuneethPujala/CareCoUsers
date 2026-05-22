@@ -300,6 +300,12 @@ const PatientSchema = new mongoose.Schema(
                 takenDates: [{ type: Date }], // Dates when this medication was taken
                 is_active: { type: Boolean, default: true },
                 instructions: String,
+                refillInfo: {
+                    totalDoses: { type: Number },
+                    remainingDoses: { type: Number },
+                    alertThreshold: { type: Number, default: 5 },
+                    lastRefillDate: { type: Date },
+                },
             },
         ],
         uploaded_prescriptions: [
