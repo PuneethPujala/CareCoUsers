@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
+import * as Linking from 'expo-linking';
 
 // Supabase configuration
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
@@ -93,8 +94,9 @@ export const auth = {
 
   // Reset password
   resetPassword: async (email) => {
+    const defaultRedirect = Linking.createURL('reset-password');
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: process.env.EXPO_PUBLIC_RESET_PASSWORD_URL,
+      redirectTo: process.env.EXPO_PUBLIC_RESET_PASSWORD_URL || defaultRedirect,
     });
 
     if (error) throw error;
