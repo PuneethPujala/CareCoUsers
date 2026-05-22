@@ -82,7 +82,8 @@ export default function CreateUserScreen({ navigation, route }) {
         setStatusBanner(null);
         if (Object.keys(errs).length > 0) return;
         
-        const targetOrgId = needsOrgPicker ? selectedOrgId : callerOrgId;
+        const resolvedCallerOrgId = typeof callerOrgId === 'object' && callerOrgId !== null ? (callerOrgId._id || callerOrgId.id) : callerOrgId;
+        const targetOrgId = needsOrgPicker ? selectedOrgId : resolvedCallerOrgId;
         setLoading(true);
         try {
             const result = await createUser(email.trim().toLowerCase(), fullName.trim(), allowedRole, targetOrgId);
