@@ -34,6 +34,10 @@ async function register(req, res) {
     if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
       return res.status(504).json({ error: 'The request timed out. Please try again.', code: 'TIMEOUT' });
     }
+    if (err.name === 'ValidationError') {
+      const messages = Object.values(err.errors).map(e => e.message);
+      return res.status(400).json({ error: messages.join(', '), code: 'VALIDATION_ERROR' });
+    }
     res.status(500).json({ error: 'Registration failed. Please try again or contact support.', code: 'REGISTRATION_FAILED' });
   }
 }
