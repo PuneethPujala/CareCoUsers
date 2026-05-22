@@ -333,6 +333,39 @@ const PatientSchema = new mongoose.Schema(
                 permissions: [String], // e.g. ['medications', 'mood', 'bp']
             },
         ],
+        
+        // ── Family Companion Access ───────────────────
+        invite_code: {
+            type: String,
+            select: false, // Security: Never return by default
+        },
+        invite_code_expires_at: {
+            type: Date,
+        },
+        companions: [
+            {
+                profile_id: {
+                    type: mongoose.Schema.Types.ObjectId,
+                    ref: 'Profile',
+                    required: true,
+                },
+                joined_at: {
+                    type: Date,
+                    default: Date.now,
+                },
+                notification_preferences: {
+                    missed_meds: { type: Boolean, default: true },
+                    long_inactivity: { type: Boolean, default: true },
+                    weekly_summaries: { type: Boolean, default: true },
+                    adherence_improvements: { type: Boolean, default: true },
+                },
+                is_active: {
+                    type: Boolean,
+                    default: true
+                }
+            }
+        ],
+
         care_instructions: {
             type: String,
             trim: true,

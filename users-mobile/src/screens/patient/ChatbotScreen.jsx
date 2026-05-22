@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import {
     View, Text, StyleSheet, FlatList, TextInput, Pressable, KeyboardAvoidingView,
-    Platform, Animated, ActivityIndicator, StatusBar, Image, Alert
+    Platform, Animated, ActivityIndicator, StatusBar, Image, Alert, PanResponder, Vibration, AppState
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -141,14 +141,29 @@ export default function ChatbotScreen({ navigation }) {
     
     // Audio recording state
     const [recording, setRecording] = useState(null);
-    const [isRecording, setIsRecording] = useState(false);
+    const [recordingMode, setRecordingMode] = useState('idle'); // 'idle', 'holding', 'locked'
+    const [isCancelling, setIsCancelling] = useState(false);
+    
+    const recordingModeRef = useRef('idle');
+    const isCancellingRef = useRef(false);
+    const pan = useRef(new Animated.ValueXY()).current;
+
+    const setRecMode = useCallback((mode) => {
+        setRecordingMode(mode);
+        recordingModeRef.current = mode;
+    }, []);
+
+    const setCancelMode = useCallback((val) => {
+        setIsCancelling(val);
+        isCancellingRef.current = val;
+    }, []);
 
     const firstName = displayName?.split(' ')[0] || 'there';
 
     const [messages, setMessages] = useState([
         {
             id: '1',
-            text: `Hi ${firstName}! 👋 I'm your CareMyMed AI assistant. I can help you with medication info, vitals, health tips, and more. How can I help you today?`,
+            text: `Hi ${firstName}! 👋 I'm your Conversational Care Assistant. I can help you with medication info, vitals, health tips, and more. How can I help you today?`,
             isUser: false,
             timestamp: Date.now(),
         },
@@ -162,7 +177,14 @@ export default function ChatbotScreen({ navigation }) {
 
     // Cleanup audio and abort active stream on unmount
     useEffect(() => {
+        const subscription = AppState.addEventListener('change', nextAppState => {
+            if (nextAppState.match(/inactive|background/) && recordingModeRef.current !== 'idle') {
+                cancelRecording();
+            }
+        });
+
         return () => {
+            subscription.remove();
             if (recording) {
                 recording.stopAndUnloadAsync();
             }
@@ -173,6 +195,25 @@ export default function ChatbotScreen({ navigation }) {
             }
         };
     }, [recording]);
+
+    // Conversational processing sequence
+    useEffect(() => {
+        let interval;
+        if (isTyping) {
+            // Seed the stages based on initial state
+            const isAudio = typingStage.includes('🎤') || typingStage.includes('📝');
+            const stages = isAudio 
+                ? ['🎤 Listening...', '🧠 Understanding...', '💬 Preparing response...']
+                : ['🧠 Understanding...', '💬 Preparing response...'];
+            
+            let idx = 0;
+            interval = setInterval(() => {
+                idx = Math.min(idx + 1, stages.length - 1);
+                setTypingStage(stages[idx]);
+            }, 1500);
+        }
+        return () => clearInterval(interval);
+    }, [isTyping]); // Don't include typingStage as a dependency to avoid resetting the interval
 
     // ── SSE Streaming API Integration ────────────
     const streamFromBackend = (userMsg, botMessageId, isAudio = false, recordingUri = null) => {
@@ -313,13 +354,14 @@ export default function ChatbotScreen({ navigation }) {
         const msg = (text || inputText).trim();
         if (!msg && !imageUri && !audioUri && !recording) return;
 
-        const isAudioMsg = !!recording || !!audioUri;
+        const isAudioMsg = recordingModeRef.current !== 'idle' || !!audioUri;
         const currentRecordingUri = isAudioMsg ? (audioUri || recording?.getURI()) : null;
 
         if (recording) {
             await recording.stopAndUnloadAsync();
             setRecording(null);
-            setIsRecording(false);
+            setRecMode('idle');
+            setCancelMode(false);
         }
 
         const userMessage = { 
@@ -343,7 +385,12 @@ export default function ChatbotScreen({ navigation }) {
         setMessages(prev => [...prev, userMessage, botPlaceholder]);
         setInputText('');
         setIsTyping(true);
-        setTypingStage(isAudioMsg ? '📝 Transcribing...' : '🧠 Thinking...');
+        // Start the sequential text processing state
+        if (isAudioMsg) {
+            setTypingStage('🎤 Listening...');
+        } else {
+            setTypingStage('🧠 Understanding...');
+        }
         setFollowUpSuggestions([]);
 
         try {
@@ -388,24 +435,24 @@ export default function ChatbotScreen({ navigation }) {
                     allowsRecordingIOS: true,
                     playsInSilentModeIOS: true,
                 });
-                setIsRecording(true);
                 const { recording } = await Audio.Recording.createAsync(
                     Audio.RecordingOptionsPresets.HIGH_QUALITY
                 );
                 setRecording(recording);
             } else {
                 Alert.alert('Permission needed', 'Please grant microphone access to send voice messages.');
+                setRecMode('idle');
             }
         } catch (err) {
             console.error('Failed to start recording', err);
-            setIsRecording(false);
+            setRecMode('idle');
         }
     };
 
-    const stopRecording = async () => {
+    const stopRecordingAndSend = async () => {
         if (!recording) return;
-        setIsRecording(false);
         try {
+            setRecMode('idle');
             await recording.stopAndUnloadAsync();
             const uri = recording.getURI();
             setRecording(null);
@@ -419,13 +466,68 @@ export default function ChatbotScreen({ navigation }) {
         }
     };
 
-    const toggleRecording = () => {
-        if (isRecording) {
-            stopRecording();
-        } else {
-            startRecording();
+    const cancelRecording = async () => {
+        if (!recording) return;
+        try {
+            setRecMode('idle');
+            setCancelMode(false);
+            await recording.stopAndUnloadAsync();
+            setRecording(null);
+            Vibration.vibrate([0, 50, 50, 50]); // Quick buzz to indicate cancelled
+        } catch (err) {
+            console.error('Failed to cancel recording', err);
+            setRecording(null);
         }
     };
+
+    const panResponder = useRef(
+        PanResponder.create({
+            onStartShouldSetPanResponder: () => true,
+            onPanResponderGrant: async () => {
+                setRecMode('holding');
+                setCancelMode(false);
+                pan.setValue({ x: 0, y: 0 });
+                Vibration.vibrate(50); 
+                await startRecording();
+            },
+            onPanResponderMove: (evt, gestureState) => {
+                if (recordingModeRef.current === 'locked') return;
+
+                if (gestureState.dy < -80) {
+                    // Locked!
+                    setRecMode('locked');
+                    Vibration.vibrate(50);
+                    pan.setValue({ x: 0, y: 0 });
+                } else if (gestureState.dx < -80) {
+                    // Cancel!
+                    setCancelMode(true);
+                    pan.setValue({ x: gestureState.dx, y: 0 });
+                } else {
+                    setCancelMode(false);
+                    // Move the mic visually up/left based on drag
+                    pan.setValue({ 
+                        x: gestureState.dx < 0 ? gestureState.dx : 0, 
+                        y: gestureState.dy < 0 ? gestureState.dy : 0 
+                    });
+                }
+            },
+            onPanResponderRelease: async (evt, gestureState) => {
+                if (isCancellingRef.current) {
+                    pan.setValue({ x: 0, y: 0 });
+                    await cancelRecording();
+                } else if (recordingModeRef.current === 'locked') {
+                    // Doing nothing, wait for tap to stop
+                } else {
+                    pan.setValue({ x: 0, y: 0 });
+                    await stopRecordingAndSend();
+                }
+            },
+            onPanResponderTerminate: async () => {
+                pan.setValue({ x: 0, y: 0 });
+                await cancelRecording();
+            }
+        })
+    ).current;
 
     const renderMessage = useCallback(({ item }) => (
         <ChatBubble message={item} isUser={item.isUser} />
@@ -447,7 +549,7 @@ export default function ChatbotScreen({ navigation }) {
                         <Sparkles size={18} color="#FFF" strokeWidth={2.5} />
                     </LinearGradient>
                     <View>
-                        <Text style={styles.headerTitle}>CareMyMed AI</Text>
+                        <Text style={styles.headerTitle}>Care Assistant</Text>
                         <View style={styles.onlineRow}>
                             <View style={styles.onlineDot} />
                             <Text style={styles.onlineText}>Online</Text>
@@ -472,7 +574,7 @@ export default function ChatbotScreen({ navigation }) {
                                 <LinearGradient colors={['#818CF8', '#6366F1']} style={styles.welcomeIconBox}>
                                     <Sparkles size={20} color="#FFF" />
                                 </LinearGradient>
-                                <Text style={styles.welcomeTitle}>Your AI Health Assistant</Text>
+                                <Text style={styles.welcomeTitle}>Talk to Care Assistant</Text>
                                 <Text style={styles.welcomeSub}>
                                     Ask me about medications, vitals, health tips, and more. I'm here to help you stay on top of your health.
                                 </Text>
@@ -505,40 +607,80 @@ export default function ChatbotScreen({ navigation }) {
 
                 {/* ── Input bar ── */}
                 <View style={[styles.inputBar, { paddingBottom: Math.max(insets.bottom, 12) }]}>
-                    <Pressable style={styles.inputAction} onPress={handlePickImage}>
-                        <Paperclip size={20} color="#94A3B8" strokeWidth={2} />
-                    </Pressable>
-                    <View style={styles.inputWrapper}>
-                        <TextInput
-                            style={styles.textInput}
-                            placeholder="Type your message..."
-                            placeholderTextColor="#94A3B8"
-                            value={inputText}
-                            onChangeText={setInputText}
-                            multiline
-                            maxLength={500}
-                            returnKeyType="send"
-                            onSubmitEditing={() => handleSend()}
-                            blurOnSubmit={false}
-                        />
-                    </View>
-                    <Pressable style={styles.inputAction} onPress={toggleRecording}>
-                        <View style={isRecording ? styles.recordingDotActive : null}>
-                            <Mic size={20} color={isRecording ? '#EF4444' : '#94A3B8'} strokeWidth={2} />
+                    {recordingMode === 'idle' ? (
+                        <>
+                            <Pressable style={styles.inputAction} onPress={handlePickImage}>
+                                <Paperclip size={20} color="#94A3B8" strokeWidth={2} />
+                            </Pressable>
+                            <View style={styles.inputWrapper}>
+                                <TextInput
+                                    style={styles.textInput}
+                                    placeholder="Type your message..."
+                                    placeholderTextColor="#94A3B8"
+                                    value={inputText}
+                                    onChangeText={setInputText}
+                                    multiline
+                                    maxLength={500}
+                                    returnKeyType="send"
+                                    onSubmitEditing={() => handleSend()}
+                                    blurOnSubmit={false}
+                                />
+                            </View>
+                        </>
+                    ) : (
+                        <View style={styles.recordingOverlay}>
+                            {recordingMode === 'locked' ? (
+                                <>
+                                    <View style={styles.recordingRow}>
+                                        <View style={styles.recordingDotPulse} />
+                                        <Text style={styles.recordingText}>Recording...</Text>
+                                    </View>
+                                    <Pressable style={styles.cancelRecordingBtn} onPress={cancelRecording}>
+                                        <Text style={styles.cancelRecordingTxt}>Cancel</Text>
+                                    </Pressable>
+                                </>
+                            ) : (
+                                <>
+                                    <View style={styles.recordingRow}>
+                                        <View style={[styles.recordingDotPulse, isCancelling && { backgroundColor: '#EF4444' }]} />
+                                        <Text style={[styles.recordingText, isCancelling && { color: '#EF4444' }]}>
+                                            {isCancelling ? 'Release to cancel' : 'Slide up to lock ⬆️'}
+                                        </Text>
+                                    </View>
+                                    <Text style={{ color: '#94A3B8', fontSize: 13, marginRight: 50 }}>Slide left to cancel ⬅️</Text>
+                                </>
+                            )}
                         </View>
-                    </Pressable>
-                    <Pressable
-                        style={[styles.sendBtn, !inputText.trim() && styles.sendBtnDisabled]}
-                        onPress={() => handleSend()}
-                        disabled={!inputText.trim() && !isTyping}
-                    >
-                        <LinearGradient
-                            colors={inputText.trim() ? ['#818CF8', '#4F46E5'] : ['#E2E8F0', '#E2E8F0']}
-                            style={styles.sendGradient}
+                    )}
+
+                    {/* Primary Button: Send or Hold-to-Speak */}
+                    {inputText.trim().length > 0 ? (
+                        <Pressable style={styles.sendBtn} onPress={() => handleSend()}>
+                            <LinearGradient colors={['#818CF8', '#4F46E5']} style={styles.sendGradient}>
+                                <Send size={18} color="#FFF" strokeWidth={2.5} />
+                            </LinearGradient>
+                        </Pressable>
+                    ) : (
+                        <Animated.View 
+                            style={[
+                                styles.micBtnContainer, 
+                                { transform: [{ translateX: pan.x }, { translateY: pan.y }] }
+                            ]} 
+                            {...panResponder.panHandlers}
                         >
-                            <Send size={18} color={inputText.trim() ? '#FFF' : '#94A3B8'} strokeWidth={2.5} />
-                        </LinearGradient>
-                    </Pressable>
+                            {recordingMode === 'locked' ? (
+                                <Pressable style={styles.sendBtn} onPress={stopRecordingAndSend}>
+                                    <LinearGradient colors={['#10B981', '#059669']} style={styles.sendGradient}>
+                                        <Send size={18} color="#FFF" strokeWidth={2.5} />
+                                    </LinearGradient>
+                                </Pressable>
+                            ) : (
+                                <View style={[styles.micBtnInner, recordingMode === 'holding' ? styles.micBtnHolding : styles.micBtnIdle]}>
+                                    <Mic size={20} color={recordingMode === 'holding' ? '#EF4444' : '#FFF'} strokeWidth={2.5} />
+                                </View>
+                            )}
+                        </Animated.View>
+                    )}
                 </View>
             </KeyboardAvoidingView>
         </View>
@@ -590,7 +732,16 @@ const styles = StyleSheet.create({
     bubbleTime: { fontSize: 10, color: '#94A3B8', marginTop: 4, textAlign: 'right', fontWeight: '600' },
     bubbleTimeUser: { color: 'rgba(255,255,255,0.7)' },
     
-    recordingDotActive: { backgroundColor: '#FEE2E2', padding: 4, borderRadius: 12 },
+    recordingOverlay: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingLeft: 10 },
+    recordingRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    recordingDotPulse: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#EF4444' },
+    recordingText: { fontSize: 15, fontWeight: '600', color: '#334155' },
+    cancelRecordingBtn: { paddingHorizontal: 12, paddingVertical: 6, marginRight: 40 },
+    cancelRecordingTxt: { color: '#EF4444', fontWeight: '600', fontSize: 14 },
+    micBtnContainer: { width: 44, height: 44, borderRadius: 22, overflow: 'hidden' },
+    micBtnInner: { flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 22 },
+    micBtnIdle: { backgroundColor: '#6366F1' },
+    micBtnHolding: { backgroundColor: '#FEE2E2', transform: [{ scale: 1.2 }] },
 
     // ── Typing indicator ──
     typingBubble: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingVertical: 14, paddingHorizontal: 18 },

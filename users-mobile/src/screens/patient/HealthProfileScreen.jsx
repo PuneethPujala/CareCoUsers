@@ -141,7 +141,6 @@ export default function HealthProfileScreen({ navigation }) {
     const [countryCodeModal, setCountryCodeModal] = useState(false);
     const [tipsModalVisible, setTipsModalVisible] = useState(false);
     const [showScoreInfo, setShowScoreInfo] = useState(false);
-    const [showScoreDetail, setShowScoreDetail] = useState(false);
 
     const backdropAnim = useRef(new Animated.Value(0)).current;
     const modalAnim = useRef(new Animated.Value(0)).current;
@@ -609,7 +608,7 @@ export default function HealthProfileScreen({ navigation }) {
 
                 {/* ── COMPACT HEALTH SCORE CARD (tappable) ── */}
                 <Animated.View style={[anim(0), { marginTop: 0 }]}>
-                    <Pressable style={({ pressed }) => [{ opacity: pressed ? 0.96 : 1 }]} onPress={() => setShowScoreDetail(true)}>
+                    <Pressable style={({ pressed }) => [{ opacity: pressed ? 0.96 : 1 }]} onPress={() => setShowScoreInfo(true)}>
                         <View style={s.dashboardCard}>
                             <View style={s.dashTopRow}>
                                 <View style={s.dashLeft}>
@@ -1336,76 +1335,49 @@ export default function HealthProfileScreen({ navigation }) {
                 </View>
             </Modal>
 
-            {/* ── SCORE DETAIL BOTTOM SHEET ── */}
-            <Modal visible={showScoreDetail} transparent animationType="slide" statusBarTranslucent onRequestClose={() => setShowScoreDetail(false)}>
-                <View style={s.tipsBackdrop}>
-                    <Pressable style={StyleSheet.absoluteFill} onPress={() => setShowScoreDetail(false)} />
-                    <View style={s.tipsSheet}>
-                        {/* Handle */}
-                        <View style={{ alignItems: 'center', paddingTop: 12, paddingBottom: 8 }}>
-                            <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: '#E2E8F0' }} />
-                        </View>
-                        {/* Header */}
-                        <View style={{ paddingHorizontal: 24, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' }}>
-                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <Text style={{ fontSize: 20, ...FONT.heavy, color: '#0F172A' }}>Health Score Details</Text>
-                                <Pressable onPress={() => setShowScoreDetail(false)} hitSlop={12}>
-                                    <X size={22} color="#94A3B8" />
-                                </Pressable>
-                            </View>
-                            <Text style={{ fontSize: 13, ...FONT.medium, color: '#64748B', marginTop: 4 }}>How your score of {hsScore ?? '—'} is calculated</Text>
-                        </View>
-                        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 24, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
-                            {/* Score Breakdown moved to pop-up modal */}
-
-                            {/* Today's Focus / Insights */}
-                            {hs && hs.tips && hs.tips.length > 0 && (
-                                <View>
-                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 16 }}>
-                                        <Sparkles size={16} color="#6366F1" />
-                                        <Text style={{ fontSize: 11, ...FONT.heavy, color: '#6366F1', letterSpacing: 1 }}>TODAY'S FOCUS</Text>
-                                    </View>
-                                    {hs.tips.map((tip, idx) => {
-                                        const impactCfg = {
-                                            high:   { bg: '#FEF2F2', border: '#FCA5A5', accent: '#DC2626', label: 'High Impact' },
-                                            medium: { bg: '#FFFBEB', border: '#FDE68A', accent: '#D97706', label: 'Medium' },
-                                            low:    { bg: '#F0FDF4', border: '#BBF7D0', accent: '#16A34A', label: 'Good to have' },
-                                        }[tip.impact] || { bg: '#EEF2FF', border: '#C7D2FE', accent: '#6366F1', label: 'Tip' };
-                                        return (
-                                            <View key={idx} style={[s.insightCard, { backgroundColor: impactCfg.bg, borderColor: impactCfg.border, borderLeftColor: impactCfg.accent }]}>
-                                                <View style={s.insightTop}>
-                                                    <Text style={s.insightIcon}>{tip.icon || '💡'}</Text>
-                                                    <View style={{ flex: 1 }}>
-                                                        <Text style={s.insightTitle}>{tip.title}</Text>
-                                                    </View>
-                                                    <View style={[s.insightBadge, { backgroundColor: impactCfg.accent + '18', borderColor: impactCfg.border }]}>
-                                                        <Text style={[s.insightBadgeText, { color: impactCfg.accent }]}>{impactCfg.label}</Text>
-                                                    </View>
-                                                </View>
-                                                <Text style={s.insightBody}>{tip.body}</Text>
-                                            </View>
-                                        );
-                                    })}
-                                </View>
-                            )}
-
-                            {/* Info link */}
-                            <Pressable style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 16, marginTop: 8 }} onPress={() => { setShowScoreDetail(false); setTimeout(() => setShowScoreInfo(true), 300); }}>
-                                <Info size={14} color="#6366F1" />
-                                <Text style={{ fontSize: 13, ...FONT.bold, color: '#6366F1' }}>How is this score calculated?</Text>
-                            </Pressable>
-                        </ScrollView>
-                    </View>
-                </View>
-            </Modal>
-
             {/* ── SCORE INFO MODAL ── */}
-            <PremiumFormModal
-                visible={showScoreInfo}
-                title="About Your Health Score"
-                onClose={() => setShowScoreInfo(false)}
-            >
-                <View style={{ gap: 16 }}>
+            <Modal visible={showScoreInfo} transparent animationType="fade" statusBarTranslucent onRequestClose={() => setShowScoreInfo(false)}>
+                <View style={{ flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.6)', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+                    <Pressable style={StyleSheet.absoluteFill} onPress={() => setShowScoreInfo(false)} />
+                    <View style={{ backgroundColor: '#FFF', borderRadius: 24, width: '100%', maxHeight: '85%', overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.1, shadowRadius: 20, elevation: 10 }}>
+                        <View style={{ paddingHorizontal: 24, paddingTop: 24, paddingBottom: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#F1F5F9' }}>
+                            <Text style={{ fontSize: 18, ...FONT.heavy, color: '#0F172A' }}>Health Score Details</Text>
+                            <Pressable onPress={() => setShowScoreInfo(false)} hitSlop={12} style={{ backgroundColor: '#F1F5F9', padding: 6, borderRadius: 16 }}>
+                                <X size={18} color="#64748B" />
+                            </Pressable>
+                        </View>
+                        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 24, gap: 16 }}>
+                    {/* Today's Focus / Insights */}
+                    {hs && hs.tips && hs.tips.length > 0 && (
+                        <View style={{ marginBottom: 8 }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12 }}>
+                                <Sparkles size={16} color="#6366F1" />
+                                <Text style={{ fontSize: 11, ...FONT.heavy, color: '#6366F1', letterSpacing: 1 }}>TODAY'S FOCUS</Text>
+                            </View>
+                            {hs.tips.map((tip, idx) => {
+                                const impactCfg = {
+                                    high:   { bg: '#FEF2F2', border: '#FCA5A5', accent: '#DC2626', label: 'High Impact' },
+                                    medium: { bg: '#FFFBEB', border: '#FDE68A', accent: '#D97706', label: 'Medium' },
+                                    low:    { bg: '#F0FDF4', border: '#BBF7D0', accent: '#16A34A', label: 'Good to have' },
+                                }[tip.impact] || { bg: '#EEF2FF', border: '#C7D2FE', accent: '#6366F1', label: 'Tip' };
+                                return (
+                                    <View key={idx} style={[s.insightCard, { backgroundColor: impactCfg.bg, borderColor: impactCfg.border, borderLeftColor: impactCfg.accent, marginBottom: 8 }]}>
+                                        <View style={s.insightTop}>
+                                            <Text style={s.insightIcon}>{tip.icon || '💡'}</Text>
+                                            <View style={{ flex: 1 }}>
+                                                <Text style={s.insightTitle}>{tip.title}</Text>
+                                            </View>
+                                            <View style={[s.insightBadge, { backgroundColor: impactCfg.accent + '18', borderColor: impactCfg.border }]}>
+                                                <Text style={[s.insightBadgeText, { color: impactCfg.accent }]}>{impactCfg.label}</Text>
+                                            </View>
+                                        </View>
+                                        <Text style={s.insightBody}>{tip.body}</Text>
+                                    </View>
+                                );
+                            })}
+                        </View>
+                    )}
+
                     <Text style={{ fontSize: 16, color: '#334155', lineHeight: 24, marginBottom: 10 }}>
                         Your health score is a dynamic measure of your overall well-being. It is not a fixed grade, but rather an indicator of where you are right now and where you can improve.
                     </Text>
@@ -1470,9 +1442,10 @@ export default function HealthProfileScreen({ navigation }) {
                             You're building healthier routines. Whether it's taking your meds or syncing your vitals, every consistent day helps improve your overall well-being.
                         </Text>
                     </View>
+                        </ScrollView>
+                    </View>
                 </View>
-            </PremiumFormModal>
-
+            </Modal>
         </View>
     );
 }

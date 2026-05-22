@@ -31,6 +31,11 @@ import ResetPasswordScreen from "../screens/onboarding/ResetPasswordScreen";
 import VerifyEmailScreen from "../screens/onboarding/VerifyEmailScreen";
 import MFAVerifyScreen from "../screens/auth/MFAVerifyScreen";
 import MFASetupScreen from "../screens/settings/MFASetupScreen";
+import CompanionSignupScreen from '../screens/onboarding/CompanionSignupScreen';
+
+// Dummy screens for Companion Tab Navigator (will be created in next step)
+import CompanionDashboardScreen from '../screens/app/CompanionDashboardScreen';
+import CompanionAlertsScreen from '../screens/app/CompanionAlertsScreen';
 
 import PatientHomeScreen from "../screens/patient/HomeScreen";
 import MyCallerScreen from "../screens/patient/MyCallerScreen";
@@ -47,6 +52,7 @@ import AdherenceScreen from "../screens/patient/AdherenceScreen";
 import ChatbotScreen from "../screens/patient/ChatbotScreen";
 import CallHistoryScreen from "../screens/patient/CallHistoryScreen";
 import PremiumShowcaseScreen from "../screens/patient/PremiumShowcaseScreen";
+import PrescriptionVerificationScreen from "../screens/patient/PrescriptionVerificationScreen";
 import ChatFAB from "../components/ui/ChatFAB";
 
 const Stack = createNativeStackNavigator();
@@ -119,10 +125,21 @@ function PatientTabNavigator() {
     );
 }
 
+function CompanionTabNavigator() {
+    return (
+        <Tab.Navigator tabBar={(props) => <CustomTabBar {...props} />} screenOptions={{ headerShown: false }}>
+            <Tab.Screen name="CompanionHome" component={CompanionDashboardScreen} options={{ tabBarIconComponent: LayoutDashboard }} />
+            <Tab.Screen name="CompanionAlerts" component={CompanionAlertsScreen} options={{ tabBarIconComponent: Pill }} />
+            <Tab.Screen name="Profile" component={PatientProfileScreen} options={{ tabBarIconComponent: UserCircle }} />
+        </Tab.Navigator>
+    );
+}
+
 const AuthStack = () => (
     <Stack.Navigator screenOptions={{ headerShown: false, animation: "fade", animationDuration: 300 }} initialRouteName="Login">
         <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="PatientSignup" component={PatientSignupScreen} />
+        <Stack.Screen name="CompanionSignup" component={CompanionSignupScreen} />
         <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
         <Stack.Screen name="VerifyEmail" component={VerifyEmailScreen} />
         <Stack.Screen name="MFAVerify" component={MFAVerifyScreen} />
@@ -145,6 +162,7 @@ const MainAppStack = () => (
         <Stack.Screen name="HealthConnectSetup" component={HealthConnectSetupScreen} options={{ presentation: "modal", animation: "slide_from_bottom" }} />
         <Stack.Screen name="AdherenceDetails" component={AdherenceScreen} options={{ presentation: "modal", animation: "slide_from_bottom", headerShown: false }} />
         <Stack.Screen name="Chatbot" component={ChatbotScreen} options={{ presentation: "modal", animation: "slide_from_bottom", headerShown: false }} />
+        <Stack.Screen name="PrescriptionVerification" component={PrescriptionVerificationScreen} options={{ presentation: "modal", animation: "slide_from_bottom", headerShown: false }} />
         <Stack.Screen name="CallHistory" component={CallHistoryScreen} />
         <Stack.Screen name="PremiumShowcase" component={PremiumShowcaseScreen} />
         <Stack.Screen name="WaitingRoom" component={WaitingScreen} />
@@ -294,12 +312,22 @@ export default function AppNavigator() {
             <CustomAlert ref={alertRef} />
         </>
     );
-    if (!onboardingComplete) return (
+    if (!onboardingComplete && profile?.role !== 'companion') return (
         <>
             <PatientOnboardingStack />
             <CustomAlert ref={alertRef} />
         </>
     );
+
+    // Companions bypass subscription check
+    if (profile?.role === 'companion') {
+        return (
+            <View style={{ flex: 1 }}>
+                <CompanionTabNavigator />
+                <CustomAlert ref={alertRef} />
+            </View>
+        );
+    }
 
     if (subscriptionStatus !== 'active') {
         return (

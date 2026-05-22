@@ -219,6 +219,7 @@ export const apiService = {
         updatePrimaryDoctor: (data) => api.put('/users/patients/me/primary-doctor', data),
         deleteHealthItem: (collection, id) => api.delete(`/users/patients/me/${collection}/${id}`),
         updateCallPreferences: (data) => api.put('/users/patients/me/call-preferences', data),
+        extractOCR: (imageBase64) => api.post('/ocr/extract', { imageBase64 }),
         updateMe: (data) => api.put('/users/patients/me', data),
         subscribe: (data) => api.post('/users/patients/subscribe', data),
         updateEmergencyContact: (data) => api.put('/users/patients/me/emergency-contact', data),
@@ -247,9 +248,20 @@ export const apiService = {
         getSyncStatus: () => api.get('/vitals/sync/status'),
 
         requestScreenshotOTP: () => api.post('/users/patients/me/security/screenshots/request-otp'),
-        verifyScreenshotOTP: (data) => api.post('/users/patients/me/security/screenshots/verify', data),
+        verifyScreenshotOTP: (otp) => api.post('/users/patients/me/security/screenshots/verify-otp', { otp }),
+
+        // Family Companion
+        generateInviteCode: () => api.post('/users/patients/me/invite-code'),
+        revokeCompanionAccess: (id) => api.delete(`/users/patients/me/companions/${id}`),
+
         requestEcOTP: () => api.post('/users/patients/me/security/emergency-contact/request-otp'),
         verifyEcOTP: (data) => api.post('/users/patients/me/security/emergency-contact/verify', data),
+    },
+
+    companion: {
+        join: (data) => api.post('/companion/join', data),
+        getPatientStatus: () => api.get('/companion/patient-status'),
+        acknowledgeAlert: (id) => api.post(`/companion/alerts/${id}/acknowledge`)
     },
 
     callers: {
@@ -269,6 +281,8 @@ export const apiService = {
         getMonthlyAdherence: () => api.get('/users/medicines/adherence/monthly'),
         getAdherenceDetails: () => api.get('/users/medicines/adherence/details'),
         getAdherenceRecap: (period) => api.get('/users/medicines/adherence/recap', { params: { period } }),
+        refill: (name, newTotal) => api.post(`/users/medicines/${encodeURIComponent(name)}/refill`, { newTotal }),
+        getWeeklySummary: () => api.get('/users/medicines/adherence/weekly-summary'),
     },
 };
 

@@ -128,7 +128,9 @@ const MedicationSchema = new mongoose.Schema(
             pharmacyPhone: { type: String, trim: true },
             lastRefillDate: Date,
             nextRefillDate: Date,
+            totalDoses: { type: Number, min: 0 },
             remainingDoses: { type: Number, min: 0 },
+            alertThreshold: { type: Number, min: 0, default: 5 },
             autoRefill: { type: Boolean, default: false },
         },
 

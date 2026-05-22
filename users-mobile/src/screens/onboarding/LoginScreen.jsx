@@ -655,6 +655,15 @@ export default function LoginScreen({ navigation }) {
                         </Pressable>
                     </View>
 
+                    {/* Companion Mode Entry */}
+                    <Pressable 
+                        style={styles.companionBtn} 
+                        onPress={() => navigation.navigate('CompanionSignup')}
+                    >
+                        <Text style={styles.companionBtnText}>Join as Family Companion</Text>
+                    </Pressable>
+
+
                 </Animated.View>
             </ScrollView>
 
@@ -1016,8 +1025,21 @@ const styles = StyleSheet.create({
         color: C.mid,
     },
     signupLink: {
-        fontSize: 14,
-        ...FONT.heavy,
+        fontSize: 15,
+        ...FONT.bold,
         color: C.primary,
     },
+    companionBtn: {
+        marginTop: 20,
+        alignSelf: 'center',
+        paddingVertical: 10,
+        paddingHorizontal: 20,
+        borderRadius: 20,
+        backgroundColor: C.primarySoft,
+    },
+    companionBtnText: {
+        color: C.primaryDark,
+        fontSize: 14,
+        ...FONT.bold,
+    }
 });

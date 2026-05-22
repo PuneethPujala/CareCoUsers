@@ -3,6 +3,8 @@ const moment = require('moment-timezone'); // BUG 9 FIX: top-level require, not 
 const Patient = require('../../models/Patient');
 const MedicineLog = require('../../models/MedicineLog');
 const Medication = require('../../models/Medication');
+const Notification = require('../../models/Notification');
+const PushNotificationService = require('../../utils/pushNotifications');
 const { authenticateSession } = require('../../middleware/authenticate');
 const { getOrCreatePatient } = require('../../utils/patientHelpers');
 const logger = require('../../utils/logger');
@@ -97,6 +99,7 @@ async function buildMergedMeds(patient) {
                 instructions: extMed.instructions,
                 is_active: extMed.isActive,
                 times: mappedTimes,
+                refillInfo: extMed.refillInfo,
             });
         }
     }
@@ -231,6 +234,7 @@ router.get('/today', authenticateSession, async (req, res) => {
                     dosage: patMed?.dosage || '',
                     instructions: patMed?.instructions || '',
                     preferred_time: preferences[m.scheduled_time] || '',
+                    refillInfo: patMed?.refillInfo || null,
                 };
             });
         }
@@ -312,6 +316,33 @@ router.put('/mark', authenticateSession, async (req, res) => {
                     try { return new Date(d).toISOString().split('T')[0] === logDateStr; } catch { return false; }
                 });
                 if (!alreadyTakenToday) patientMed.takenDates.push(new Date());
+
+                // Supply tracking deduction
+                if (patientMed.refillInfo && typeof patientMed.refillInfo.remainingDoses === 'number' && patientMed.refillInfo.remainingDoses > 0) {
+                    patientMed.refillInfo.remainingDoses -= 1;
+                    
+                    // Low supply alert
+                    if (patientMed.refillInfo.remainingDoses === (patientMed.refillInfo.alertThreshold || 5)) {
+                        try {
+                            await Notification.create({
+                                patient_id: patient._id,
+                                title: '⚠️ Low Medication Supply',
+                                message: `You are running low on ${medicine_name}. Only ${patientMed.refillInfo.remainingDoses} doses left!`,
+                                type: 'alert',
+                                target_screen: 'Medications',
+                            });
+                            if (patient.expo_push_token) {
+                                await PushNotificationService.sendPushNotification(patient.expo_push_token, {
+                                    title: '⚠️ Low Medication Supply',
+                                    body: `You are running low on ${medicine_name}. Only ${patientMed.refillInfo.remainingDoses} doses left!`,
+                                    data: { screen: 'Medications' }
+                                });
+                            }
+                        } catch (err) {
+                            logger.error('Failed to send supply alert', { error: err.message });
+                        }
+                    }
+                }
             }
             await patient.save();
         } else {
@@ -321,6 +352,32 @@ router.put('/mark', authenticateSession, async (req, res) => {
             if (extMed) {
                 if (!extMed.takenLogs) extMed.takenLogs = [];
                 extMed.takenLogs.push({ date: logDateStr, timestamp: new Date() });
+                
+                if (taken && extMed.refillInfo && typeof extMed.refillInfo.remainingDoses === 'number' && extMed.refillInfo.remainingDoses > 0) {
+                    extMed.refillInfo.remainingDoses -= 1;
+                    
+                    if (extMed.refillInfo.remainingDoses === (extMed.refillInfo.alertThreshold || 5)) {
+                        try {
+                            await Notification.create({
+                                patient_id: patient._id,
+                                title: '⚠️ Low Medication Supply',
+                                message: `You are running low on ${medicine_name}. Only ${extMed.refillInfo.remainingDoses} doses left!`,
+                                type: 'alert',
+                                target_screen: 'Medications',
+                            });
+                            if (patient.expo_push_token) {
+                                await PushNotificationService.sendPushNotification(patient.expo_push_token, {
+                                    title: '⚠️ Low Medication Supply',
+                                    body: `You are running low on ${medicine_name}. Only ${extMed.refillInfo.remainingDoses} doses left!`,
+                                    data: { screen: 'Medications' }
+                                });
+                            }
+                        } catch (err) {
+                            logger.error('Failed to send supply alert', { error: err.message });
+                        }
+                    }
+                }
+                
                 await extMed.save();
             }
         }
@@ -382,7 +439,7 @@ router.put('/mark-slot', authenticateSession, async (req, res) => {
         }
 
         let updatedAny = false;
-        log.medicines.forEach(m => {
+        for (const m of log.medicines) {
             if (m.scheduled_time === scheduled_time && !m.taken) {
                 m.taken = true;
                 m.taken_at = new Date();
@@ -398,9 +455,68 @@ router.put('/mark-slot', authenticateSession, async (req, res) => {
                         try { return new Date(d).toISOString().split('T')[0] === logDateStr; } catch { return false; }
                     });
                     if (!alreadyTakenToday) patientMed.takenDates.push(new Date());
+
+                    if (patientMed.refillInfo && typeof patientMed.refillInfo.remainingDoses === 'number' && patientMed.refillInfo.remainingDoses > 0) {
+                        patientMed.refillInfo.remainingDoses -= 1;
+                        
+                        if (patientMed.refillInfo.remainingDoses === (patientMed.refillInfo.alertThreshold || 5)) {
+                            try {
+                                await Notification.create({
+                                    patient_id: patient._id,
+                                    title: '⚠️ Low Medication Supply',
+                                    message: `You are running low on ${m.medicine_name}. Only ${patientMed.refillInfo.remainingDoses} doses left!`,
+                                    type: 'alert',
+                                    target_screen: 'Medications',
+                                });
+                                if (patient.expo_push_token) {
+                                    await PushNotificationService.sendPushNotification(patient.expo_push_token, {
+                                        title: '⚠️ Low Medication Supply',
+                                        body: `You are running low on ${m.medicine_name}. Only ${patientMed.refillInfo.remainingDoses} doses left!`,
+                                        data: { screen: 'Medications' }
+                                    });
+                                }
+                            } catch (err) {
+                                logger.error('Failed to send supply alert', { error: err.message });
+                            }
+                        }
+                    }
+                } else {
+                    const searchIds = [patient._id];
+                    if (patient.profile_id) searchIds.push(patient.profile_id);
+                    const extMed = await Medication.findOne({ patientId: { $in: searchIds }, name: m.medicine_name });
+                    if (extMed) {
+                        if (!extMed.takenLogs) extMed.takenLogs = [];
+                        extMed.takenLogs.push({ date: logDateStr, timestamp: new Date() });
+                        
+                        if (extMed.refillInfo && typeof extMed.refillInfo.remainingDoses === 'number' && extMed.refillInfo.remainingDoses > 0) {
+                            extMed.refillInfo.remainingDoses -= 1;
+                            
+                            if (extMed.refillInfo.remainingDoses === (extMed.refillInfo.alertThreshold || 5)) {
+                                try {
+                                    await Notification.create({
+                                        patient_id: patient._id,
+                                        title: '⚠️ Low Medication Supply',
+                                        message: `You are running low on ${m.medicine_name}. Only ${extMed.refillInfo.remainingDoses} doses left!`,
+                                        type: 'alert',
+                                        target_screen: 'Medications',
+                                    });
+                                    if (patient.expo_push_token) {
+                                        await PushNotificationService.sendPushNotification(patient.expo_push_token, {
+                                            title: '⚠️ Low Medication Supply',
+                                            body: `You are running low on ${m.medicine_name}. Only ${extMed.refillInfo.remainingDoses} doses left!`,
+                                            data: { screen: 'Medications' }
+                                        });
+                                    }
+                                } catch (err) {
+                                    logger.error('Failed to send supply alert', { error: err.message });
+                                }
+                            }
+                        }
+                        await extMed.save();
+                    }
                 }
             }
-        });
+        }
 
         if (updatedAny) {
             await Promise.all([log.save(), patient.save()]);
@@ -412,6 +528,95 @@ router.put('/mark-slot', authenticateSession, async (req, res) => {
     } catch (error) {
         logger.error('Mark slot error', { error: error.message, patientId: req.user?.id });
         res.status(500).json({ error: 'Failed to mark medications as taken' });
+    }
+});
+
+/**
+ * POST /api/users/medicines/:name/refill
+ * Reset remainingDoses. If newTotal is provided, updates totalDoses as well.
+ */
+router.post('/:name/refill', authenticateSession, async (req, res) => {
+    try {
+        const patient = await getOrCreatePatient(req);
+        const medName = req.params.name;
+        const newTotal = req.body.newTotal ? parseInt(req.body.newTotal, 10) : null;
+        let refilled = false;
+
+        // Try embedded medications first
+        const patientMed = patient.medications.find(m => m.name === medName);
+        if (patientMed && patientMed.refillInfo) {
+            if (newTotal) {
+                patientMed.refillInfo.totalDoses = newTotal;
+                if (typeof patientMed.refillInfo.remainingDoses === 'number') {
+                    patientMed.refillInfo.remainingDoses += newTotal;
+                } else {
+                    patientMed.refillInfo.remainingDoses = newTotal;
+                }
+                patientMed.refillInfo.lastRefillDate = new Date();
+                await patient.save();
+                refilled = true;
+            }
+        }
+
+        // Try external medications
+        const searchIds = [patient._id];
+        if (patient.profile_id) searchIds.push(patient.profile_id);
+        const extMed = await Medication.findOne({ patientId: { $in: searchIds }, name: medName });
+        if (extMed && extMed.refillInfo) {
+            if (newTotal) {
+                extMed.refillInfo.totalDoses = newTotal;
+                if (typeof extMed.refillInfo.remainingDoses === 'number') {
+                    extMed.refillInfo.remainingDoses += newTotal;
+                } else {
+                    extMed.refillInfo.remainingDoses = newTotal;
+                }
+                extMed.refillInfo.lastRefillDate = new Date();
+                await extMed.save();
+                refilled = true;
+            }
+        }
+
+        if (!refilled) {
+            return res.status(404).json({ error: 'Medication not found or totalDoses not configured.' });
+        }
+
+        res.json({ success: true, message: 'Medication refilled successfully.' });
+    } catch (error) {
+        logger.error('Refill medicine error', { error: error.message, patientId: req.user?.id });
+        res.status(500).json({ error: 'Failed to refill medication' });
+    }
+});
+
+/**
+ * GET /api/users/medicines/adherence/weekly-summary
+ * Fetches the latest AI generated weekly summary
+ */
+router.get('/adherence/weekly-summary', authenticateSession, async (req, res) => {
+    try {
+        const patient = await getOrCreatePatient(req);
+        
+        const WeeklySummary = require('../../models/WeeklySummary');
+        const summary = await WeeklySummary.findOne({ patient_id: patient._id })
+            .sort({ week_start: -1 })
+            .lean();
+
+        if (!summary) {
+            return res.json({ success: true, summary: null });
+        }
+
+        // Mark as read if not already read
+        if (!summary.read_at) {
+            await WeeklySummary.updateOne(
+                { _id: summary._id },
+                { $set: { read_at: new Date() } }
+            );
+            summary.read_at = new Date();
+        }
+
+        res.json({ success: true, summary });
+    } catch (error) {
+        logger.error('Fetch weekly summary error', { error: error.message, patientId: req.user?.id });
+        res.status(500).json({ error: 'Failed to fetch weekly summary' });
     }
 });
 

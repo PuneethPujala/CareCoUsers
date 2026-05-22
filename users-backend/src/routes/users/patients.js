@@ -16,6 +16,14 @@ const { computeHealthScore } = require('../../services/healthScoreService');
 
 const router = express.Router();
 
+// SEC-FIX: Block companions from accessing patient mutation/settings routes
+router.use((req, res, next) => {
+    if (req.profile && req.profile.role === 'companion') {
+        return res.status(403).json({ error: 'Companions cannot access or mutate patient records directly. Use the companion APIs.' });
+    }
+    next();
+});
+
 /**
  * Refresh the healthScoreCache on the patient document.
  * Called fire-and-forget from any mutating endpoint so admin queries stay fresh.
@@ -337,7 +345,8 @@ router.delete('/me/addresses/:id', authenticateSession, validateObjectId('id'), 
 
 router.get('/me', authenticateSession, async (req, res) => {
     try {
-        const patient = await getOrCreatePatient(req);
+        let patient = await getOrCreatePatient(req);
+        patient = await Patient.findById(patient._id).populate('companions.profile_id');
         const withHash = await Patient.findById(patient._id).select('+passwordHash');
         const patientObj = patient.toObject();
         patientObj.hasPassword = !!withHash?.passwordHash;
@@ -645,6 +654,67 @@ router.put('/me/emergency-contact', authenticateSession, async (req, res) => {
     } catch (error) {
         logger.error('Update emergency contact error', { error: error.message, patientId: req.user?.id });
         res.status(500).json({ error: 'Failed to update emergency contact' });
+    }
+});
+
+// ─── Family Companion Access ──────────────────────────────────────────────────
+
+/**
+ * POST /api/users/patients/me/invite-code
+ * Generates a single-use 6-character invite code valid for 24 hours.
+ */
+router.post('/me/invite-code', authenticateSession, async (req, res) => {
+    try {
+        const patient = await getOrCreatePatient(req);
+        
+        // Generate a clean 6-char alphanumeric code (excluding confusing chars like 0/O, 1/I)
+        const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+        let code = '';
+        for (let i = 0; i < 6; i++) {
+            code += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+
+        const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+        await Patient.updateOne(
+            { _id: patient._id },
+            { $set: { invite_code: code, invite_code_expires_at: expiresAt } }
+        );
+
+        logger.info('Companion invite code generated', { patientId: patient._id });
+        res.json({ success: true, invite_code: code, expires_at: expiresAt });
+    } catch (error) {
+        logger.error('Generate invite code error', { error: error.message, patientId: req.user?.id });
+        res.status(500).json({ error: 'Failed to generate invite code' });
+    }
+});
+
+/**
+ * DELETE /api/users/patients/me/companions/:id
+ * Revokes a companion's access to this patient's data.
+ */
+router.delete('/me/companions/:id', authenticateSession, validateObjectId('id'), async (req, res) => {
+    try {
+        const patient = await getOrCreatePatient(req);
+        const companionId = req.params.id; // This is the Profile ID of the companion
+
+        // Remove from companions array
+        await Patient.updateOne(
+            { _id: patient._id },
+            { $pull: { companions: { profile_id: companionId } } }
+        );
+        
+        // Also ensure they are removed from trusted_contacts if they were auto-linked there
+        // (Assuming trusted_contacts doesn't strictly link profile_id, but just in case)
+        
+        // FUTURE: In a robust setup, you might want to force-logout the companion here
+        // by invalidating their RefreshTokens in the DB.
+
+        logger.info('Companion access revoked', { patientId: patient._id, companionId });
+        res.json({ success: true, message: 'Companion access revoked successfully.' });
+    } catch (error) {
+        logger.error('Revoke companion error', { error: error.message, patientId: req.user?.id });
+        res.status(500).json({ error: 'Failed to revoke companion access' });
     }
 });
 
