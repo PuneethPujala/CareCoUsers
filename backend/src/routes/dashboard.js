@@ -467,11 +467,20 @@ router.get('/care-manager-stats',
                 async () => {
                     // ── Stats (scoped to THIS manager's managed callers) ──
                     // FLAW 1+4 FIX: Only count callers managed by this specific care manager
-                    const managedCallers = await Profile.find({
+                    let managedCallers = await Profile.find({
                         managedBy: managerId,
                         role: { $in: ['caller', 'caretaker'] },
                         isActive: true
                     }).select('_id fullName').lean();
+
+                    if (managedCallers.length === 0) {
+                        managedCallers = await Profile.find({
+                            organizationId: req.profile.organizationId,
+                            role: { $in: ['caller', 'caretaker'] },
+                            isActive: true
+                        }).select('_id fullName').lean();
+                    }
+
                     const totalCallers = managedCallers.length;
                     const managedCallerIds = managedCallers.map(c => c._id);
                     
@@ -482,25 +491,37 @@ router.get('/care-manager-stats',
                         caretakerId: { $in: managedCallerIds },
                         status: 'active'
                     }).distinct('patientId');
-                    const assignedCount = managedAssignments.length;
-                    const totalPatients = assignedCount;
+                    
+                    const assignedCount = await Patient.countDocuments({
+                        _id: { $in: managedAssignments },
+                        is_active: { $ne: false }
+                    });
                     
                     // FLAW 2 FIX: Unassigned = org patients NOT in ANY active assignment (org-scoped)
                     const allOrgAssignedIds = await CaretakerPatient.find({
                         status: 'active'
                     }).distinct('patientId');
-                    const unassignedCount = await Patient.countDocuments({
-                        organization_id: req.profile.organizationId,
-                        is_active: true,
+                    
+                    const orgObjId = mongoose.Types.ObjectId.isValid(req.profile.organizationId) ? new mongoose.Types.ObjectId(req.profile.organizationId) : req.profile.organizationId;
+                    
+                    const unassignedCount = await mongoose.connection.db.collection('patients').countDocuments({
+                        $or: [
+                            { organization_id: req.profile.organizationId },
+                            { organization_id: req.profile.organizationId.toString() },
+                            { organization_id: orgObjId }
+                        ],
+                        is_active: { $ne: false },
                         _id: { $nin: allOrgAssignedIds }
                     });
+
+                    const totalPatients = assignedCount + unassignedCount;
 
                     // ── Capacity Forecasting Engine (Enhanced) ──
                     // Capacity is based on THIS manager's callers only
                     const MAX_PATIENTS_PER_CALLER = 30;
                     const maxCapacity = totalCallers * MAX_PATIENTS_PER_CALLER;
-                    const availableSlots = Math.max(0, maxCapacity - assignedCount);
-                    const utilizationPct = maxCapacity > 0 ? Math.round((assignedCount / maxCapacity) * 100) : 0;
+                    const availableSlots = Math.max(0, maxCapacity - totalPatients);
+                    const utilizationPct = maxCapacity > 0 ? Math.round((totalPatients / maxCapacity) * 100) : 0;
 
                     // Growth rate: use multiple windows for accuracy
                     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
