@@ -29,9 +29,9 @@ const PatientSchema = new mongoose.Schema(
             trim: true,
             validate: {
                 validator: function (v) {
-                    return /^[a-zA-Z0-9\s'-]+$/.test(v);
+                    return /^[a-zA-Z0-9\s'.,-]+$/.test(v);
                 },
-                message: props => `${props.value} is not a valid name! Names can only contain letters, numbers, spaces, hyphens, and apostrophes.`
+                message: props => `${props.value} is not a valid name! Names can only contain letters, numbers, spaces, hyphens, apostrophes, periods, and commas.`
             }
         },
         email: {

@@ -35,9 +35,9 @@ const ProfileSchema = new mongoose.Schema(
       maxlength: 100,
       validate: {
         validator: function(v) {
-          return /^[a-zA-Z\s'-]+$/.test(v);
+          return /^[a-zA-Z\s'.,-]+$/.test(v);
         },
-        message: props => `${props.value} is not a valid name! Names can only contain letters, spaces, hyphens, and apostrophes.`
+        message: props => `${props.value} is not a valid name! Names can only contain letters, spaces, hyphens, apostrophes, periods, and commas.`
       }
     },
     phone: {
