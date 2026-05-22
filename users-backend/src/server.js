@@ -23,6 +23,7 @@ const usersMedicineRoutes = require('./routes/users/medicines');
 const notificationsRoutes = require('./routes/users/notifications');
 const vitalsRoutes = require('./routes/vitalsRoutes');
 const vitalsSyncRoutes = require('./routes/vitalsSync');
+const companionRoutes = require('./routes/companion');
 
 const app = express();
 // Enable if you're behind a reverse proxy (Heroku, Bluemix, AWS ELB, Nginx, Render, etc)
@@ -63,6 +64,7 @@ if (process.env.NODE_ENV !== 'test') {
       console.warn('⚠️  BullMQ scheduling failed, falling back to in-process cron:', err.message);
       require('./jobs/notificationJob').startNotificationCron();
       require('./jobs/medicationReminderJob'); // Starts the 1-minute medication cron
+      require('./jobs/escalationJob'); // Starts the hourly escalation cron
     }
   })();
 }
@@ -139,9 +141,16 @@ app.use('/api/users/medicines', usersMedicineRoutes);
 app.use('/api/vitals', vitalsRoutes);
 app.use('/api/vitals', vitalsSyncRoutes);
 
+// Companion Routes
+app.use('/api/companion', companionRoutes);
+
 // ─── Chatbot API ───────────────────────────────
 const chatbotRoutes = require('./routes/chatbotRoutes');
 app.use('/api/chatbot', chatbotRoutes);
+
+// ─── OCR API ───────────────────────────────────
+const ocrRoutes = require('./routes/ocrRoutes');
+app.use('/api/ocr', ocrRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {

@@ -141,6 +141,10 @@ export default function PatientProfileScreen({ navigation }) {
     const [setPassConfirm, setSetPassConfirm] = useState('');
     const [savingSetPass, setSavingSetPass] = useState(false);
 
+    // Companion Invite State
+    const [inviteCode, setInviteCode] = useState(null);
+    const [generatingInvite, setGeneratingInvite] = useState(false);
+
     // Screenshots OTP
     const [screenshotOTPModalVisible, setScreenshotOTPModalVisible] = useState(false);
     const [screenshotOTP, setScreenshotOTP] = useState('');
@@ -495,6 +499,36 @@ export default function PatientProfileScreen({ navigation }) {
         }
     };
 
+    const handleGenerateInvite = async () => {
+        setGeneratingInvite(true);
+        try {
+            const { data } = await apiService.patients.generateInviteCode();
+            setInviteCode(data.invite_code);
+            // Refresh patient to get updated code/expiry
+            const pRes = await apiService.patients.getMe();
+            setPatient(pRes.data.patient);
+            usePatientStore.getState().setPatient(pRes.data.patient);
+        } catch (err) {
+            AlertManager.alert(t('common.error', { defaultValue: 'Error' }), t('profile.invite_error', { defaultValue: 'Failed to generate invite code.' }));
+        } finally {
+            setGeneratingInvite(false);
+        }
+    };
+
+    const handleRevokeCompanion = async (id) => {
+        try {
+            await apiService.patients.revokeCompanionAccess(id);
+            // Optimistic update
+            setPatient(prev => ({
+                ...prev,
+                companions: prev.companions.filter(c => c.profile_id?._id !== id)
+            }));
+            AlertManager.alert(t('common.success', { defaultValue: 'Success' }), t('profile.companion_revoked', { defaultValue: 'Companion access revoked.' }));
+        } catch (err) {
+            AlertManager.alert(t('common.error', { defaultValue: 'Error' }), t('profile.revoke_error', { defaultValue: 'Failed to revoke access.' }));
+        }
+    };
+
     /* ── Derived ──────────────────────────────── */
     const planLabel = patient?.subscription?.plan === 'explore' ? 'Explore Plan' : patient?.subscription?.plan === 'basic' ? 'Basic Plan' : 'Free Plan';
     const planColor = patient?.subscription?.plan === 'explore' ? '#9333EA' : '#16A34A';
@@ -676,7 +710,7 @@ export default function PatientProfileScreen({ navigation }) {
                     <Text style={s.sectionTitle}>{t('profile.health_info', { defaultValue: 'HEALTH INFORMATION' })}</Text>
                     <View style={s.card}>
                         <InfoRow icon={Heart} iconBg="#FFF1F2" iconColor="#EF4444" label={t('profile.my_medical_records', { defaultValue: 'My Medical Records' })} value={t('profile.allergies_chronic', { defaultValue: 'Allergies, chronic diseases, etc.' })} placeholder="" onPress={() => navigation.navigate('HealthProfile')} />
-                        <InfoRow icon={Users} iconBg="#EEF2FF" iconColor="#6366F1" label={t('profile.family_profiles', { defaultValue: 'Family Profiles' })} value={t('profile.manage_health_records', { defaultValue: 'Manage health records of your family' })} placeholder="" onPress={() => setFamilyModalVisible(true)} isLast />
+                        <InfoRow icon={Users} iconBg="#EEF2FF" iconColor="#6366F1" label={t('profile.family_companions', { defaultValue: 'Family Companions' })} value={t('profile.manage_companions', { defaultValue: 'Invite family to monitor your adherence' })} placeholder="" onPress={() => setFamilyModalVisible(true)} isLast />
                     </View>
                 </Animated.View>
 
@@ -1290,27 +1324,58 @@ export default function PatientProfileScreen({ navigation }) {
             </Modal>
 
             {/* ── Family Profiles ── */}
-            <Modal visible={familyModalVisible} animationType="slide" transparent onRequestClose={() => setFamilyModalVisible(false)}>
+            <Modal visible={familyModalVisible} animationType="slide" transparent onRequestClose={() => { setFamilyModalVisible(false); setInviteCode(null); }}>
                 <View style={s.modalOverlay}>
                     <View style={s.modalContent}>
                         <View style={s.modalHeader}>
-                            <Text style={s.modalTitle}>{t('profile.family_profiles', { defaultValue: 'Family Profiles' })}</Text>
-                            <Pressable onPress={() => setFamilyModalVisible(false)} hitSlop={10}><X size={24} color="#64748B" /></Pressable>
+                            <Text style={s.modalTitle}>{t('profile.family_companions', { defaultValue: 'Family Companions' })}</Text>
+                            <Pressable onPress={() => { setFamilyModalVisible(false); setInviteCode(null); }} hitSlop={10}><X size={24} color="#64748B" /></Pressable>
                         </View>
-                        <View style={s.emptyState}>
-                            <Users size={40} color={C.light} />
-                            <Text style={s.emptyTitle}>{t('common.no_family_profiles_yet', { defaultValue: 'No family profiles yet' })}</Text>
-                            <Text style={s.emptyDesc}>{t('profile.family_empty_desc', { defaultValue: 'Add your family members to share health records and manage their care from one place.' })}</Text>
-                        </View>
-                        <View style={s.familyFeatures}>
-                            <View style={s.featureRow}><ShieldCheck size={16} color={C.success} /><Text style={s.featureTxt}>{t('profile.family_feature_1', { defaultValue: 'Share health records with trusted contacts' })}</Text></View>
-                            <View style={s.featureRow}><ShieldCheck size={16} color={C.success} /><Text style={s.featureTxt}>{t('profile.family_feature_2', { defaultValue: 'Track medications for family members' })}</Text></View>
-                            <View style={s.featureRow}><ShieldCheck size={16} color={C.success} /><Text style={s.featureTxt}>{t('profile.family_feature_3', { defaultValue: 'Manage appointments in one dashboard' })}</Text></View>
-                        </View>
-                        <Pressable style={[s.saveBtn, { backgroundColor: C.primarySoft }]} onPress={() => { AlertManager.alert(t('common.coming_soon', { defaultValue: 'Coming Soon' }), t('profile.feature_future_update', { defaultValue: 'This feature will be available in a future update!' })); setFamilyModalVisible(false); }}>
-                            <Users size={18} color={C.primary} />
-                            <Text style={[s.saveBtnTxt, { color: C.primary }]}>{t('profile.add_family_member', { defaultValue: 'Add Family Member' })}</Text>
-                        </Pressable>
+                        
+                        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }}>
+                            {patient?.companions && patient.companions.length > 0 ? (
+                                <View style={{ marginBottom: 20 }}>
+                                    <Text style={[s.sectionTitle, { marginLeft: 0 }]}>{t('profile.linked_companions', { defaultValue: 'Linked Companions' })}</Text>
+                                    {patient.companions.map(c => {
+                                        const comp = c.profile_id;
+                                        if (!comp) return null;
+                                        return (
+                                            <View key={comp._id} style={s.addrCard}>
+                                                <View style={s.addrCardLeft}>
+                                                    <View style={[s.iconBox, { backgroundColor: '#EEF2FF' }]}><User size={18} color="#6366F1" /></View>
+                                                    <View style={{ flex: 1 }}>
+                                                        <Text style={s.addrLabel}>{comp.fullName || 'Unknown'}</Text>
+                                                        <Text style={s.addrLine}>{comp.email}</Text>
+                                                    </View>
+                                                </View>
+                                                <Pressable onPress={() => AlertManager.alert('Revoke Access?', 'They will no longer be able to monitor your adherence.', [{ text: 'Cancel' }, { text: 'Revoke', style: 'destructive', onPress: () => handleRevokeCompanion(comp._id) }])} hitSlop={8}>
+                                                    <X size={18} color={C.danger} />
+                                                </Pressable>
+                                            </View>
+                                        );
+                                    })}
+                                </View>
+                            ) : (
+                                <View style={s.emptyState}>
+                                    <Users size={40} color={C.light} />
+                                    <Text style={s.emptyTitle}>{t('common.no_companions_yet', { defaultValue: 'No family companions yet' })}</Text>
+                                    <Text style={s.emptyDesc}>{t('profile.companion_empty_desc', { defaultValue: 'Invite family members so they can monitor your adherence and receive alerts if you miss your medication.' })}</Text>
+                                </View>
+                            )}
+
+                            {(inviteCode || (patient?.invite_code && new Date(patient.invite_code_expires_at) > new Date())) ? (
+                                <View style={[s.card, { backgroundColor: C.primarySoft, borderColor: C.primary, borderWidth: 1, padding: 20, alignItems: 'center' }]}>
+                                    <Text style={{ fontSize: 14, ...FONT.medium, color: C.primaryDark, marginBottom: 8 }}>Your Invite Code (Expires in 24h)</Text>
+                                    <Text style={{ fontSize: 32, ...FONT.heavy, color: C.primary, letterSpacing: 4 }}>{inviteCode || patient.invite_code}</Text>
+                                    <Text style={{ fontSize: 13, color: C.mid, textAlign: 'center', marginTop: 12 }}>Share this code with your family member. They can use it to join as a companion on the login screen.</Text>
+                                </View>
+                            ) : (
+                                <Pressable style={[s.saveBtn, { backgroundColor: C.primarySoft, marginTop: 10 }]} onPress={handleGenerateInvite} disabled={generatingInvite}>
+                                    <ShieldCheck size={18} color={C.primary} />
+                                    <Text style={[s.saveBtnTxt, { color: C.primary }]}>{generatingInvite ? 'Generating...' : t('profile.generate_invite_code', { defaultValue: 'Generate Invite Code' })}</Text>
+                                </Pressable>
+                            )}
+                        </ScrollView>
                     </View>
                 </View>
             </Modal>

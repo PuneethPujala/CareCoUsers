@@ -19,7 +19,9 @@ const PatientMedicationsEditor = ({ patientId }) => {
         name: '',
         dosage: '',
         instructions: '',
-        times: []
+        times: [],
+        totalDoses: '',
+        alertThreshold: '5'
     });
 
     useEffect(() => {
@@ -80,14 +82,16 @@ const PatientMedicationsEditor = ({ patientId }) => {
             name: med.name || '',
             dosage: med.dosage || '',
             instructions: med.instructions || '',
-            times: med.times || []
+            times: med.times || [],
+            totalDoses: med.refillInfo?.totalDoses ? String(med.refillInfo.totalDoses) : '',
+            alertThreshold: med.refillInfo?.alertThreshold ? String(med.refillInfo.alertThreshold) : '5'
         });
         setEditingIndex(index);
         setModalVisible(true);
     };
 
     const openAddModal = () => {
-        setFormData({ name: '', dosage: '', instructions: '', times: [] });
+        setFormData({ name: '', dosage: '', instructions: '', times: [], totalDoses: '', alertThreshold: '5' });
         setEditingIndex(-1);
         setModalVisible(true);
     };
@@ -114,6 +118,16 @@ const PatientMedicationsEditor = ({ patientId }) => {
             times: formData.times,
             is_active: true
         };
+
+        if (formData.totalDoses) {
+            medObj.refillInfo = {
+                totalDoses: parseInt(formData.totalDoses, 10),
+                remainingDoses: editingIndex >= 0 && medications[editingIndex]?.refillInfo?.remainingDoses !== undefined 
+                    ? medications[editingIndex].refillInfo.remainingDoses 
+                    : parseInt(formData.totalDoses, 10),
+                alertThreshold: parseInt(formData.alertThreshold, 10) || 5
+            };
+        }
 
         if (editingIndex >= 0) {
             newArray[editingIndex] = medObj;
@@ -257,6 +271,31 @@ const PatientMedicationsEditor = ({ patientId }) => {
                                 value={formData.instructions}
                                 onChangeText={t => setFormData(p => ({ ...p, instructions: t }))}
                             />
+
+                            <View style={{ flexDirection: 'row', gap: 12 }}>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={styles.label}>Total Doses (Supply)</Text>
+                                    <TextInput 
+                                        style={styles.input}
+                                        placeholder="e.g. 30"
+                                        placeholderTextColor="#94A3B8"
+                                        keyboardType="numeric"
+                                        value={formData.totalDoses}
+                                        onChangeText={t => setFormData(p => ({ ...p, totalDoses: t }))}
+                                    />
+                                </View>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={styles.label}>Alert Threshold</Text>
+                                    <TextInput 
+                                        style={styles.input}
+                                        placeholder="e.g. 5"
+                                        placeholderTextColor="#94A3B8"
+                                        keyboardType="numeric"
+                                        value={formData.alertThreshold}
+                                        onChangeText={t => setFormData(p => ({ ...p, alertThreshold: t }))}
+                                    />
+                                </View>
+                            </View>
 
                             <Text style={styles.label}>Schedule Times</Text>
                             <View style={styles.timesGrid}>

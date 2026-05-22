@@ -56,10 +56,11 @@ const ProfileSchema = new mongoose.Schema(
     // care_manager → manages up to 50 callers
     // caller       → makes calls, manages up to 30 patients
     // patient      → end user receiving care
+    // companion    → family member (read-only)
     role: {
       type: String,
       required: true,
-      enum: ['super_admin', 'org_admin', 'care_manager', 'caller', 'patient'],
+      enum: ['super_admin', 'org_admin', 'care_manager', 'caller', 'patient', 'companion'],
       index: true,
     },
 

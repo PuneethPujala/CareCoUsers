@@ -171,7 +171,7 @@ const SlotHeader = ({ slot, callTime }) => {
 };
 
 // ── Medication Card ───────────────────────────────────────────────────────────
-const MedCard = ({ med, onToggle, onSnooze }) => {
+const MedCard = ({ med, onToggle, onSnooze, onRefill }) => {
     const { t } = useTranslation();
     const [expanded, setExpanded] = useState(false);
     const swRef = useRef(null);
@@ -213,6 +213,9 @@ const MedCard = ({ med, onToggle, onSnooze }) => {
             </Pressable>
         );
     };
+
+    const hasRefillInfo = med.refillInfo && typeof med.refillInfo.remainingDoses === 'number';
+    const isLowSupply = hasRefillInfo && med.refillInfo.remainingDoses <= (med.refillInfo.alertThreshold || 5);
 
     return (
         <Swipeable
@@ -263,9 +266,19 @@ const MedCard = ({ med, onToggle, onSnooze }) => {
                                 </View>
                             )}
                         </View>
-                        <Text style={styles.medDose}>
-                            {med.preferred_time ? `${med.preferred_time} · ` : ''}{med.dosage}
-                        </Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 2 }}>
+                            <Text style={styles.medDose}>
+                                {med.preferred_time ? `${med.preferred_time} · ` : ''}{med.dosage}
+                            </Text>
+                            {hasRefillInfo && (
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: isLowSupply ? '#FEE2E2' : '#F1F5F9', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
+                                    <Zap size={10} color={isLowSupply ? '#EF4444' : '#64748B'} />
+                                    <Text style={{ fontSize: 10, fontWeight: '700', color: isLowSupply ? '#EF4444' : '#64748B' }}>
+                                        {med.refillInfo.remainingDoses} left
+                                    </Text>
+                                </View>
+                            )}
+                        </View>
                     </View>
 
                     {/* Expand chevron */}
@@ -285,6 +298,15 @@ const MedCard = ({ med, onToggle, onSnooze }) => {
                                 {med.instructions || t('medications.no_instructions', { defaultValue: 'No special instructions provided.' })}
                             </Text>
                         </View>
+                        {hasRefillInfo && (
+                            <Pressable 
+                                onPress={() => onRefill && onRefill(med)}
+                                style={{ marginTop: 8, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 6, paddingHorizontal: 12, backgroundColor: '#EEF2FF', borderRadius: 8, borderWidth: 1, borderColor: '#C7D2FE' }}
+                            >
+                                <Zap size={14} color="#6366F1" />
+                                <Text style={{ fontSize: 13, fontWeight: '700', color: '#6366F1' }}>Mark as Refilled</Text>
+                            </Pressable>
+                        )}
                     </View>
                 )}
             </Pressable>
@@ -453,6 +475,8 @@ export default function MedicationsScreen({ navigation }) {
     const [requestingMod, setRequestingMod] = useState(false);
     const [modRequested, setModRequested] = useState(false);
     const [uploadingImage, setUploadingImage] = useState(false);
+    const [weeklySummary, setWeeklySummary] = useState(null);
+    const [refillModal, setRefillModal] = useState({ visible: false, med: null, count: '' });
 
     const staggerAnims = useRef([...Array(10)].map(() => new Animated.Value(0))).current;
     const hasAnimated = useRef(false);
@@ -478,6 +502,16 @@ export default function MedicationsScreen({ navigation }) {
     const load = useCallback(async (isRefresh = false) => {
         try {
             await storeFetchMedications();
+            
+            try {
+                const { data } = await apiService.medicines.getWeeklySummary();
+                if (data?.summary) {
+                    setWeeklySummary(data.summary);
+                }
+            } catch (sumErr) {
+                console.warn('Failed to fetch AI summary:', sumErr.message);
+            }
+
             if (!isRefresh && !hasAnimated.current) {
                 hasAnimated.current = true;
                 runAnimations();
@@ -580,30 +614,93 @@ export default function MedicationsScreen({ navigation }) {
         }
     };
 
+    const handleRefill = (med) => {
+        setRefillModal({ 
+            visible: true, 
+            med, 
+            count: med.refillInfo?.totalDoses ? String(med.refillInfo.totalDoses) : '30' 
+        });
+    };
+
+    const submitRefill = async () => {
+        if (!refillModal.med) return;
+        const newCount = parseInt(refillModal.count, 10);
+        if (isNaN(newCount) || newCount <= 0) {
+            AlertManager.alert('Invalid Count', 'Please enter a valid number of doses.');
+            return;
+        }
+
+        try {
+            await apiService.medicines.refill(refillModal.med.name, newCount);
+            showToast(t('common.success', { defaultValue: 'Success' }), t('medications.refill_success', { defaultValue: 'Medication supply refilled!' }));
+            setRefillModal({ visible: false, med: null, count: '' });
+            load(true);
+        } catch (err) {
+            console.warn('Refill failed:', err.message);
+            showToast(t('common.error', { defaultValue: 'Error' }), t('medications.refill_failed', { defaultValue: 'Failed to refill medication.' }));
+        }
+    };
+
     const handleUploadPrescription = async () => {
         try {
-            const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-            if (status !== 'granted') { showToast(t('common.permission_needed', { defaultValue: 'Permission needed' }), t('medications.camera_roll_req', { defaultValue: 'Camera roll access required.' })); return; }
-            const result = await ImagePicker.launchImageLibraryAsync({
-                mediaTypes: ImagePicker.MediaTypeOptions.Images,
-                allowsEditing: true, quality: 0.8, base64: true,
-            });
-            if (!result.canceled && result.assets[0]) {
+            const { status } = await ImagePicker.requestCameraPermissionsAsync();
+            if (status !== 'granted') { 
+                showToast(t('common.permission_needed', { defaultValue: 'Permission needed' }), t('medications.camera_req', { defaultValue: 'Camera access required.' })); 
+                return; 
+            }
+            
+            AlertManager.alert(
+                'Scan Prescription',
+                'How would you like to provide the prescription?',
+                [
+                    { 
+                        text: 'Take Photo', 
+                        onPress: async () => {
+                            const result = await ImagePicker.launchCameraAsync({
+                                allowsEditing: true, quality: 0.8, base64: true,
+                            });
+                            processSelectedImage(result);
+                        }
+                    },
+                    { 
+                        text: 'Choose from Gallery', 
+                        onPress: async () => {
+                            const result = await ImagePicker.launchImageLibraryAsync({
+                                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                                allowsEditing: true, quality: 0.8, base64: true,
+                            });
+                            processSelectedImage(result);
+                        }
+                    },
+                    { text: 'Cancel', style: 'cancel' }
+                ]
+            );
+        } catch (error) {
+            showToast(t('common.error', { defaultValue: 'Error' }), error.message);
+        }
+    };
+
+    const processSelectedImage = async (result) => {
+        if (!result.canceled && result.assets && result.assets[0]) {
+            try {
                 setUploadingImage(true);
                 const manipResult = await ImageManipulator.manipulateAsync(
                     result.assets[0].uri,
-                    [{ resize: { width: 800 } }],
-                    { compress: 0.5, format: ImageManipulator.SaveFormat.JPEG, base64: true }
+                    [{ resize: { width: 1024 } }], // Larger width for better OCR
+                    { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG, base64: true }
                 );
-                if (!manipResult.base64) throw new Error(t('medications.process_img_failed', { defaultValue: 'Failed to process image.' }));
-                await apiService.patients.uploadPrescription({ file_base64: manipResult.base64, content_type: 'image/jpeg' });
-                showToast(t('medications.uploaded', { defaultValue: 'Uploaded! ✓' }), t('medications.prescription_sent', { defaultValue: 'Prescription sent for caregiver review.' }));
-                load(true);
+                if (!manipResult.base64) throw new Error('Failed to process image.');
+                
+                // Navigate to the verification screen, passing the image
+                navigation.navigate('PrescriptionVerification', { 
+                    imageBase64: manipResult.base64,
+                    imageUri: manipResult.uri
+                });
+            } catch (error) {
+                showToast('Image Error', 'Could not process the selected image.');
+            } finally {
+                setUploadingImage(false);
             }
-        } catch (error) {
-            showToast(t('common.upload_failed', { defaultValue: 'Upload Failed' }), error.response?.data?.error || error.message || t('common.try_again', { defaultValue: 'Try again.' }));
-        } finally {
-            setUploadingImage(false);
         }
     };
 
@@ -826,6 +923,27 @@ export default function MedicationsScreen({ navigation }) {
                                     ))}
                                 </View>
                             </View>
+
+                            {/* ── AI WEEKLY SUMMARY ── */}
+                            {weeklySummary && (
+                                <View style={{ backgroundColor: '#F0FDF4', borderRadius: 16, padding: 16, marginBottom: 20, borderWidth: 1, borderColor: '#BBF7D0' }}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                                        <Zap size={16} color="#16A34A" />
+                                        <Text style={{ fontSize: 13, fontWeight: '800', color: '#16A34A', letterSpacing: 0.5, textTransform: 'uppercase' }}>
+                                            AI Weekly Summary
+                                        </Text>
+                                    </View>
+                                    <Text style={{ fontSize: 15, fontWeight: '600', color: '#064E3B', lineHeight: 22, marginBottom: 8 }}>
+                                        {weeklySummary.summary_text}
+                                    </Text>
+                                    <Text style={{ fontSize: 14, color: '#047857', fontStyle: 'italic', marginBottom: 4 }}>
+                                        "{weeklySummary.encouragement_text}"
+                                    </Text>
+                                    <Text style={{ fontSize: 13, color: '#065F46', marginTop: 4 }}>
+                                        💡 {weeklySummary.areas_to_improve}
+                                    </Text>
+                                </View>
+                            )}
                         </Animated.View>
 
                         {/* ── TIME SECTIONS ── */}
@@ -838,7 +956,7 @@ export default function MedicationsScreen({ navigation }) {
                                         <SlotHeader slot={slot} callTime={preferences[slot]} />
                                         {meds.map(med => (
                                             <View key={med.id} style={{ marginBottom: 10 }}>
-                                                <MedCard med={med} onToggle={handleMedIconPress} onSnooze={handleSnooze} />
+                                                <MedCard med={med} onToggle={handleMedIconPress} onSnooze={handleSnooze} onRefill={handleRefill} />
                                             </View>
                                         ))}
                                     </View>
@@ -952,6 +1070,37 @@ export default function MedicationsScreen({ navigation }) {
                     setActivePicker(null);
                 }}
             />
+
+            {/* ── REFILL MODAL ── */}
+            <Modal visible={refillModal.visible} transparent animationType="fade">
+                <View style={[styles.confirmOverlay, { justifyContent: 'center', alignItems: 'center' }]}>
+                    <View style={{ backgroundColor: '#FFF', width: '85%', borderRadius: 16, padding: 24, shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.1, shadowRadius: 15, elevation: 10 }}>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                            <Text style={{ fontSize: 18, fontWeight: '800', color: '#1E293B' }}>Refill Medication</Text>
+                            <Pressable onPress={() => setRefillModal({ visible: false, med: null, count: '' })}>
+                                <X color="#64748B" size={20} />
+                            </Pressable>
+                        </View>
+                        <Text style={{ fontSize: 14, color: '#475569', marginBottom: 16, lineHeight: 20 }}>
+                            How many doses did you purchase? This will be added to your current supply of <Text style={{ fontWeight: '700', color: '#1E293B' }}>{refillModal.med?.name}</Text>.
+                        </Text>
+                        <TextInput
+                            style={{ backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12, padding: 14, fontSize: 16, color: '#1E293B', marginBottom: 20 }}
+                            value={refillModal.count}
+                            onChangeText={(t) => setRefillModal(p => ({ ...p, count: t }))}
+                            keyboardType="numeric"
+                            placeholder="e.g. 30"
+                            placeholderTextColor="#94A3B8"
+                        />
+                        <Pressable 
+                            style={{ backgroundColor: '#1E3A8A', paddingVertical: 14, borderRadius: 12, alignItems: 'center' }}
+                            onPress={submitRefill}
+                        >
+                            <Text style={{ color: '#FFF', fontSize: 16, fontWeight: '700' }}>Confirm Refill</Text>
+                        </Pressable>
+                    </View>
+                </View>
+            </Modal>
 
             {/* ── CONFIRMATION MODAL (bottom sheet) ── */}
             <Modal visible={isConfirmVisible} transparent animationType="slide">
