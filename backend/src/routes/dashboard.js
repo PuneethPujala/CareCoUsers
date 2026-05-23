@@ -466,20 +466,16 @@ router.get('/care-manager-stats',
                 CacheKeys.managerDashboard(managerId),
                 async () => {
                     // ── Stats (scoped to THIS manager's managed callers) ──
-                    // FLAW 1+4 FIX: Only count callers managed by this specific care manager
                     let managedCallers = await Profile.find({
-                        managedBy: managerId,
+                        organizationId: req.profile.organizationId,
                         role: { $in: ['caller', 'caretaker'] },
-                        isActive: true
+                        isActive: true,
+                        $or: [
+                            { managedBy: managerId },
+                            { managedBy: { $exists: false } },
+                            { managedBy: null }
+                        ]
                     }).select('_id fullName').lean();
-
-                    if (managedCallers.length === 0) {
-                        managedCallers = await Profile.find({
-                            organizationId: req.profile.organizationId,
-                            role: { $in: ['caller', 'caretaker'] },
-                            isActive: true
-                        }).select('_id fullName').lean();
-                    }
 
                     const totalCallers = managedCallers.length;
                     const managedCallerIds = managedCallers.map(c => c._id);
