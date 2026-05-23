@@ -965,6 +965,61 @@ export default function MedicationsScreen({ navigation }) {
                             })}
                         </Animated.View>
 
+                        {/* ── MEDICATION SUPPLY ── */}
+                        {(() => {
+                            const supplyMeds = [];
+                            const seen = new Set();
+                            allMeds.forEach(med => {
+                                if (med.refillInfo && !seen.has(med.name)) {
+                                    seen.add(med.name);
+                                    const remaining = med.refillInfo.remainingDoses ?? med.refillInfo.totalDoses ?? null;
+                                    if (remaining !== null) {
+                                        supplyMeds.push({
+                                            name: med.name,
+                                            remaining,
+                                            total: med.refillInfo.totalDoses || remaining,
+                                            isLow: remaining <= (med.refillInfo.alertThreshold || 5),
+                                        });
+                                    }
+                                }
+                            });
+                            if (supplyMeds.length === 0) return null;
+                            return (
+                                <Animated.View style={anim(3)}>
+                                    <View style={{ backgroundColor: '#FFFFFF', borderRadius: 20, padding: 18, marginBottom: 16, borderWidth: 1, borderColor: '#E2E8F0' }}>
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+                                            <View style={{ width: 28, height: 28, borderRadius: 8, backgroundColor: '#EEF2FF', alignItems: 'center', justifyContent: 'center' }}>
+                                                <Pill size={14} color="#6366F1" strokeWidth={2.5} />
+                                            </View>
+                                            <Text style={{ fontSize: 14, fontWeight: '800', color: '#0F172A', letterSpacing: 0.3 }}>
+                                                {t('medications.supply_tracker', { defaultValue: 'Medication Supply' })}
+                                            </Text>
+                                        </View>
+                                        {supplyMeds.map(sm => {
+                                            const pct = sm.total > 0 ? Math.min((sm.remaining / sm.total) * 100, 100) : 0;
+                                            return (
+                                                <View key={sm.name} style={{ marginBottom: 12 }}>
+                                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                                                        <Text style={{ fontSize: 13, fontWeight: '700', color: '#334155' }}>{sm.name}</Text>
+                                                        <Text style={{ fontSize: 12, fontWeight: '700', color: sm.isLow ? '#EF4444' : '#64748B' }}>
+                                                            {sm.remaining} / {sm.total} {t('medications.left', { defaultValue: 'left' })}
+                                                        </Text>
+                                                    </View>
+                                                    <View style={{ height: 6, backgroundColor: '#F1F5F9', borderRadius: 3, overflow: 'hidden' }}>
+                                                        <View style={{
+                                                            height: 6, borderRadius: 3,
+                                                            width: `${Math.max(pct, 2)}%`,
+                                                            backgroundColor: sm.isLow ? '#EF4444' : pct > 50 ? '#10B981' : '#F59E0B',
+                                                        }} />
+                                                    </View>
+                                                </View>
+                                            );
+                                        })}
+                                    </View>
+                                </Animated.View>
+                            );
+                        })()}
+
                         {/* ── ACTION BUTTONS ── */}
                         <Animated.View style={[anim(3), styles.actionGroup]}>
                             <Pressable
