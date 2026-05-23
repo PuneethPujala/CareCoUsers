@@ -152,6 +152,7 @@ const usePatientStore = create((set, get) => ({
                         type: m.scheduled_time,
                         taken: isTaken,
                         accent: ACCENT_MAP[m.scheduled_time] || '#6366F1',
+                        refillInfo: m.refillInfo || null,
                     };
                 });
 
@@ -237,6 +238,7 @@ const usePatientStore = create((set, get) => ({
                     type: m.scheduled_time,
                     taken: isTaken,
                     accent: ACCENT_MAP[m.scheduled_time] || '#6366F1',
+                    refillInfo: m.refillInfo || null,
                 };
             });
 
@@ -318,6 +320,7 @@ const usePatientStore = create((set, get) => ({
                         verifiedByCaller: m.marked_by === 'caller',
                         accent: ACCENT_MAP[m.scheduled_time] || '#6366F1',
                         preferred_time: m.preferred_time || prefs[m.scheduled_time] || '',
+                        refillInfo: m.refillInfo || null,
                     };
                 });
 
