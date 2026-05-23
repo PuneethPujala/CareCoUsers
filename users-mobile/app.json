@@ -26,7 +26,7 @@
         }
       },
       "supportsTablet": true,
-      "bundleIdentifier": "com.caremymed.users",
+      "bundleIdentifier": "com.careco.users",
       "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "NSHealthShareUsageDescription": "CareMyMed requires access to your health data to monitor your wellbeing.",
@@ -44,7 +44,7 @@
           "resizeMode": "contain"
         }
       },
-      "package": "com.caremymed.users",
+      "package": "com.careco.users",
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
