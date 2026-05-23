@@ -29,16 +29,15 @@ const PulseLine = ({ color, reversed = false }) => {
     );
 };
 
-// SVG for the Pill/Capsule to merge with Clock
 const Pill = () => {
     return (
-        <Svg width="40" height="40" viewBox="0 0 40 40" style={{ position: 'absolute', top: 45, left: 45, transform: [{ rotate: '45deg' }] }}>
+        <Svg width="40" height="40" viewBox="0 0 40 40" style={{ position: 'absolute', top: 40, left: 40, transform: [{ rotate: '45deg' }, { scale: 0.75 }] }}>
             {/* Pill bottom half */}
             <Path d="M 10 20 L 10 30 A 10 10 0 0 0 30 30 L 30 20 Z" fill="#00a86b" />
             {/* Pill top half */}
             <Path d="M 10 20 L 10 10 A 10 10 0 0 1 30 10 L 30 20 Z" fill="#1a8fe1" />
             {/* White cross inside green part */}
-            <Path d="M 17 24 L 23 24 M 20 21 L 20 27" stroke="#ffffff" strokeWidth="2.5" strokeLinecap="round" />
+            <Path d="M 17 25 L 23 25 M 20 22 L 20 28" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" />
         </Svg>
     );
 };
@@ -149,35 +148,38 @@ export default function SplashScreen({ onFinish }) {
                         </Svg>
                     </Animated.View>
 
-                    {/* Clock & Pill Icon */}
-                    <View style={s.iconContainer}>
-                        {/* Clock Face */}
-                        <Svg width="80" height="80" viewBox="0 0 80 80">
-                            <Circle cx="40" cy="40" r="36" stroke="#1a8fe1" strokeWidth="6" fill="#ffffff" />
-                            {/* Tick marks */}
-                            <Path d="M 40 10 L 40 16 M 40 70 L 40 64 M 10 40 L 16 40 M 70 40 L 64 40" stroke="#1a8fe1" strokeWidth="2" strokeLinecap="round" />
-                        </Svg>
-                        
-                        {/* Animated Clock Hands */}
-                        <Animated.View style={[s.handContainer, { transform: [{ rotate: hourInterpolate }] }]}>
-                            <View style={s.hourHand} />
-                        </Animated.View>
-                        <Animated.View style={[s.handContainer, { transform: [{ rotate: minuteInterpolate }] }]}>
-                            <View style={s.minuteHand} />
-                        </Animated.View>
-                        
-                        {/* Center Dot */}
-                        <View style={s.centerDot} />
+                    {/* Centered Group for Clock and Text */}
+                    <View style={s.logoGroup}>
+                        {/* Clock & Pill Icon */}
+                        <View style={s.iconContainer}>
+                            {/* Clock Face */}
+                            <Svg width="80" height="80" viewBox="0 0 80 80">
+                                <Circle cx="40" cy="40" r="36" stroke="#1a8fe1" strokeWidth="6" fill="#ffffff" />
+                                {/* Tick marks */}
+                                <Path d="M 40 10 L 40 16 M 40 70 L 40 64 M 10 40 L 16 40 M 70 40 L 64 40" stroke="#1a8fe1" strokeWidth="2" strokeLinecap="round" />
+                            </Svg>
+                            
+                            {/* Animated Clock Hands */}
+                            <Animated.View style={[s.handContainer, { transform: [{ rotate: hourInterpolate }] }]}>
+                                <View style={s.hourHand} />
+                            </Animated.View>
+                            <Animated.View style={[s.handContainer, { transform: [{ rotate: minuteInterpolate }] }]}>
+                                <View style={s.minuteHand} />
+                            </Animated.View>
+                            
+                            {/* Center Dot */}
+                            <View style={s.centerDot} />
 
-                        {/* Merged Pill */}
-                        <Pill />
-                    </View>
+                            {/* Merged Pill */}
+                            <Pill />
+                        </View>
 
-                    {/* Logo Text */}
-                    <View style={s.logoTextContainer}>
-                        <Text style={s.logoTextBlue}>Care</Text>
-                        <Text style={s.logoTextGreen}>My</Text>
-                        <Text style={s.logoTextBlue}>Med</Text>
+                        {/* Logo Text */}
+                        <View style={s.logoTextContainer}>
+                            <Text style={s.logoTextBlue}>Care</Text>
+                            <Text style={s.logoTextGreen}>My</Text>
+                            <Text style={s.logoTextBlue}>Med</Text>
+                        </View>
                     </View>
                 </Animated.View>
 
@@ -239,35 +241,35 @@ const s = StyleSheet.create({
         shadowRadius: 30,
         elevation: 8,
     },
-    iconContainer: {
-        width: 100,
-        height: 100,
-        justifyContent: 'center',
+    logoGroup: {
         alignItems: 'center',
-        marginTop: -10, // Adjust for text below
+        justifyContent: 'center',
     },
-    handContainer: {
-        position: 'absolute',
+    iconContainer: {
         width: 80,
         height: 80,
         justifyContent: 'center',
         alignItems: 'center',
     },
-    hourHand: {
+    handContainer: {
         position: 'absolute',
+        width: 80,
+        height: 80,
+        alignItems: 'center',
+    },
+    hourHand: {
         width: 4,
         height: 20,
         backgroundColor: '#1a8fe1',
         borderRadius: 2,
-        top: 20,
+        marginTop: 20,
     },
     minuteHand: {
-        position: 'absolute',
         width: 2.5,
         height: 28,
         backgroundColor: '#00c9a7',
         borderRadius: 1.5,
-        top: 12,
+        marginTop: 12,
     },
     centerDot: {
         position: 'absolute',
@@ -280,8 +282,7 @@ const s = StyleSheet.create({
     },
     logoTextContainer: {
         flexDirection: 'row',
-        position: 'absolute',
-        bottom: 30,
+        marginTop: 16,
     },
     logoTextBlue: {
         color: '#1a8fe1',
