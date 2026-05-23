@@ -37,7 +37,13 @@ app.get("/debug-sentry", function mainHandler(req, res) {
 
 // Connect to MongoDB (skip in test environment to avoid open handles or missing mocks)
 if (process.env.NODE_ENV !== 'test') {
-  connectDB();
+  connectDB().then(() => {
+    // Run idempotent database migrations safely
+    const { runMigrations } = require('./scripts/migrate-companions');
+    runMigrations().catch(err => {
+      console.error('Failed to run database migrations:', err);
+    });
+  });
 
   // ── Job scheduling ────────────────────────────────────────────────
   // Register repeatable BullMQ jobs (processed by worker.js).

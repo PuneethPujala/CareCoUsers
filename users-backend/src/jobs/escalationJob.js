@@ -2,6 +2,7 @@ const cron = require('node-cron');
 const moment = require('moment-timezone');
 const Patient = require('../models/Patient');
 const MedicineLog = require('../models/MedicineLog');
+const CompanionAccess = require('../models/CompanionAccess');
 const NotificationService = require('../services/NotificationService');
 const logger = require('../utils/logger');
 
@@ -25,11 +26,11 @@ const runEscalationJob = async () => {
             const todayStr = localTime.format('YYYY-MM-DD');
             const yesterdayStr = localTime.clone().subtract(1, 'day').format('YYYY-MM-DD');
 
-            // Find patients with companions
+            // Find active patients in this timezone
             const patients = await Patient.find({
                 timezone: tz,
                 is_active: true,
-            }).populate('companions.profile_id');
+            });
 
             for (const patient of patients) {
                 // Determine past thresholds for today based on current hour
@@ -47,8 +48,6 @@ const runEscalationJob = async () => {
                 }
 
                 // Simplified consecutive miss count: 
-                // In a production scenario, we'd query MedicineLog and sequence them.
-                // For this MVP, if they missed 3+ active meds recently, we escalate.
                 const recentLogs = await MedicineLog.find({
                     patient_id: patient._id,
                     date: { $gte: new Date(yesterdayStr) }
@@ -83,24 +82,26 @@ const runEscalationJob = async () => {
                         });
                     }
                 } else if (missedCount >= 3) {
-                    // Notify Companions
-                    if (patient.companions && patient.companions.length > 0) {
-                        const companionProfiles = patient.companions.map(c => c.profile_id);
-                        for (const comp of companionProfiles) {
-                            // In real system, lookup companion push tokens. 
-                            // Here we just log the alert for the companion dashboard.
-                            const Alert = require('../models/Alert');
-                            await Alert.updateOne(
-                                { patient_id: patient._id, type: 'medication_missed', status: 'open' },
-                                { 
-                                    $set: { 
-                                        description: `${patient.name} has missed 3+ consecutive doses.`,
-                                        organization_id: patient.organization_id 
-                                    } 
-                                },
-                                { upsert: true }
-                            );
-                        }
+                    // Query only active companion linkages for this specific patient
+                    const activeCompanionsCount = await CompanionAccess.countDocuments({
+                        patient_id: patient._id,
+                        is_active: true,
+                        status: 'accepted'
+                    });
+
+                    if (activeCompanionsCount > 0) {
+                        // Generate alert for companion dashboard
+                        const Alert = require('../models/Alert');
+                        await Alert.updateOne(
+                            { patient_id: patient._id, type: 'medication_missed', status: 'open' },
+                            { 
+                                $set: { 
+                                    description: `${patient.name} has missed 3+ consecutive doses.`,
+                                    organization_id: patient.organization_id 
+                                } 
+                            },
+                            { upsert: true }
+                        );
                     }
                 }
             }

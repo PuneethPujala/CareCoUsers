@@ -8,6 +8,7 @@ const VitalLog = require('../../models/VitalLog');
 const Caller = require('../../models/Caller');
 const Notification = require('../../models/Notification');
 const AIVitalPrediction = require('../../models/AIVitalPrediction');
+const CompanionAccess = require('../../models/CompanionAccess');
 const logger = require('../../utils/logger');
 const { getOrCreatePatient, createBasicPatient, findOrCreatePatientRecord } = require('../../utils/patientHelpers');
 const { authenticateSession } = require('../../middleware/authenticate');
@@ -346,10 +347,29 @@ router.delete('/me/addresses/:id', authenticateSession, validateObjectId('id'), 
 router.get('/me', authenticateSession, async (req, res) => {
     try {
         let patient = await getOrCreatePatient(req);
-        patient = await Patient.findById(patient._id).populate('companions.profile_id');
         const withHash = await Patient.findById(patient._id).select('+passwordHash');
         const patientObj = patient.toObject();
         patientObj.hasPassword = !!withHash?.passwordHash;
+
+        // Fetch active companions from the decoupled relationship collection
+        const companionAccesses = await CompanionAccess.find({
+            patient_id: patient._id,
+            is_active: true,
+            status: 'accepted'
+        }).populate('companion_id');
+
+        // Map back to the expected array format for transparent backward compatibility
+        patientObj.companions = companionAccesses.map(access => ({
+            _id: access._id,
+            profile_id: access.companion_id,
+            joined_at: access.joined_at,
+            notification_preferences: access.notification_preferences,
+            is_active: access.is_active,
+            access_level: access.access_level,
+            permissions: access.permissions,
+            status: access.status
+        }));
+
         res.json({ patient: patientObj });
     } catch (error) {
         logger.error('Get patient profile error', { error: error.message, patientId: req.user?.id });
@@ -698,14 +718,16 @@ router.delete('/me/companions/:id', authenticateSession, validateObjectId('id'),
         const patient = await getOrCreatePatient(req);
         const companionId = req.params.id; // This is the Profile ID of the companion
 
-        // Remove from companions array
-        await Patient.updateOne(
-            { _id: patient._id },
-            { $pull: { companions: { profile_id: companionId } } }
+        // Soft-deactivate the relationship inside the CompanionAccess mapping table
+        await CompanionAccess.updateOne(
+            { companion_id: companionId, patient_id: patient._id },
+            { 
+                is_active: false, 
+                status: 'revoked', 
+                revoked_at: new Date(), 
+                revoked_by: req.profile._id 
+            }
         );
-        
-        // Also ensure they are removed from trusted_contacts if they were auto-linked there
-        // (Assuming trusted_contacts doesn't strictly link profile_id, but just in case)
         
         // FUTURE: In a robust setup, you might want to force-logout the companion here
         // by invalidating their RefreshTokens in the DB.
