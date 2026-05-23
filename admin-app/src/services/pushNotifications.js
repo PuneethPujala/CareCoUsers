@@ -103,11 +103,11 @@ function setupNotificationListeners(navigationRef) {
 
 function removeNotificationListeners() {
     if (notificationResponseListener) {
-        Notifications.removeNotificationSubscription(notificationResponseListener);
+        notificationResponseListener.remove();
         notificationResponseListener = null;
     }
     if (notificationReceivedListener) {
-        Notifications.removeNotificationSubscription(notificationReceivedListener);
+        notificationReceivedListener.remove();
         notificationReceivedListener = null;
     }
 }
