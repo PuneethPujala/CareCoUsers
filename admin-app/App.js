@@ -42,7 +42,6 @@ class ErrorBoundary extends React.Component {
 }
 
 export default function App() {
-  const [showSplash, setShowSplash] = useState(true);
   const navigationRef = useRef(null);
 
   useEffect(() => {
@@ -58,18 +57,6 @@ export default function App() {
     setupNotificationListeners(navigationRef);
     return () => removeNotificationListeners();
   }, []);
-
-  const handleSplashFinish = useCallback(() => {
-    setShowSplash(false);
-  }, []);
-
-  if (showSplash) {
-    return (
-      <ErrorBoundary>
-        <SplashScreen onFinish={handleSplashFinish} />
-      </ErrorBoundary>
-    );
-  }
 
   return (
     <ErrorBoundary>

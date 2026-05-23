@@ -128,7 +128,7 @@ export default function SplashScreen({ onFinish }) {
             <View style={s.centerContent}>
                 {/* CIRCULAR LOGO AREA */}
                 <Animated.View style={[s.logoArea, { transform: [{ scale: logoScale }] }]}>
-                    {/* Orbit Ring */}
+                    {/* Orbit Ring and Background */}
                     <Animated.View style={[StyleSheet.absoluteFill, { transform: [{ rotate: orbitInterpolate }] }]}>
                         <Svg width="220" height="220" viewBox="0 0 220 220">
                             <Defs>
@@ -137,6 +137,9 @@ export default function SplashScreen({ onFinish }) {
                                     <Stop offset="100%" stopColor="#1a8fe1" stopOpacity="0" />
                                 </SvgLinearGradient>
                             </Defs>
+                            {/* Frosted Background Circle */}
+                            <Circle cx="110" cy="110" r="110" fill="rgba(255,255,255,0.07)" />
+                            {/* Orbit Ring */}
                             <Circle 
                                 cx="110" cy="110" r="108" 
                                 stroke="url(#orbitGrad)" 
@@ -230,16 +233,8 @@ const s = StyleSheet.create({
     logoArea: {
         width: 220,
         height: 220,
-        borderRadius: 110,
-        backgroundColor: 'rgba(255,255,255,0.07)',
         justifyContent: 'center',
         alignItems: 'center',
-        // Soft elevation/glow
-        shadowColor: '#1a8fe1',
-        shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 0.3,
-        shadowRadius: 30,
-        elevation: 8,
     },
     logoGroup: {
         alignItems: 'center',
