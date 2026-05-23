@@ -50,7 +50,7 @@ async function login(req, res) {
     if (err.status) return sendError(res, err);
     console.error('Login error:', err);
     // Surface a more specific message for common infra errors
-    if (err.name === 'MongooseServerSelectionError' || err.name === 'MongoServerError') {
+    if (err.name === 'MongooseServerSelectionError' || err.name === 'MongoServerError' || err.name === 'MongooseError') {
       return res.status(503).json({ error: 'Our servers are temporarily busy. Please try again in a moment.', code: 'SERVICE_UNAVAILABLE' });
     }
     if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {

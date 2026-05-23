@@ -34,6 +34,13 @@ const GENDER_OPTIONS = ['male', 'female', 'other', 'prefer_not_to_say'];
 const GENDER_LABELS = { male: 'Male', female: 'Female', other: 'Other', prefer_not_to_say: 'Prefer not to say' };
 const BLOOD_OPTIONS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'unknown'];
 
+const FONT = {
+    regular: { fontFamily: 'Inter_400Regular' },
+    medium: { fontFamily: 'Inter_500Medium' },
+    semibold: { fontFamily: 'Inter_600SemiBold' },
+    bold: { fontFamily: 'Inter_700Bold' },
+    heavy: { fontFamily: 'Inter_800ExtraBold' },
+};
 import { COUNTRY_CODES, parsePhoneWithCode, validatePhone } from '../../utils/phoneUtils';
 
 import AlertManager from '../../utils/AlertManager';
