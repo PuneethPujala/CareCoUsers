@@ -191,7 +191,7 @@ export function AuthProvider({ children }) {
                     if (__DEV__) console.log('[Auth] Profile:', !!profileData, '| User:', !!userData);
 
                     if (profileData && userData) {
-                        profileData.role = 'patient';
+                        profileData.role = profileData.role || 'patient';
                         setCacheUserId(userData.id);
                         setUser(userData);
                         setSession({ access_token: apiTok.access_token, user: userData });
@@ -201,7 +201,7 @@ export function AuthProvider({ children }) {
                         // Network responded but returned no profile — serve cache.
                         const cached = await getCachedProfile();
                         if (cached) {
-                            cached.role = 'patient';
+                            cached.role = cached.role || 'patient';
                             const id = cached.id || cached._id;
                             setCacheUserId(id);
                             setUser({ id, email: cached.email });
@@ -229,7 +229,7 @@ export function AuthProvider({ children }) {
                         ]);
                         const profileData = profileRes?.data?.profile;
                         if (profileData) {
-                            profileData.role = 'patient';
+                            profileData.role = profileData.role || 'patient';
                             await setProfileAndCache(profileData);
                         }
                         analytics.identify(currentSession.user.id, { role: 'patient' });
@@ -247,7 +247,7 @@ export function AuthProvider({ children }) {
                     // force-logged-out just because they launched with no network.
                     const cached = await getCachedProfile();
                     if (cached) {
-                        cached.role = 'patient';
+                        cached.role = cached.role || 'patient';
                         const id = cached.id || cached._id;
                         setCacheUserId(id);
                         setUser({ id, email: cached.email });
@@ -308,7 +308,7 @@ export function AuthProvider({ children }) {
                         const response = await apiService.auth.getProfile().catch(() => ({ data: null }));
                         const pd = response?.data?.profile;
                         if (pd) {
-                            pd.role = 'patient';
+                            pd.role = pd.role || 'patient';
                             await setProfileAndCache(pd);
                         }
                     } catch { }
@@ -345,7 +345,7 @@ export function AuthProvider({ children }) {
                         const response = await apiService.auth.getProfile();
                         const profileData = response.data.profile || null;
                         if (profileData) {
-                            profileData.role = 'patient';
+                            profileData.role = profileData.role || 'patient';
                             await setProfileAndCache(profileData);
                         }
                         await fetchPatientData();
@@ -370,7 +370,7 @@ export function AuthProvider({ children }) {
                 return response.data;
             }
             const { session: loginSession, profile: profileData } = response.data;
-            if (profileData) profileData.role = 'patient';
+            if (profileData) profileData.role = profileData.role || 'patient';
             await setProfileAndCache(profileData);
             await saveApiTokens({
                 access_token: loginSession.access_token,
@@ -392,7 +392,7 @@ export function AuthProvider({ children }) {
 
     const completeMfaLogin = useCallback(async (mfaSession, profileData) => {
         try {
-            if (profileData) profileData.role = 'patient';
+            if (profileData) profileData.role = profileData.role || 'patient';
             await setProfileAndCache(profileData);
             await saveApiTokens({
                 access_token: mfaSession.access_token,
@@ -415,7 +415,7 @@ export function AuthProvider({ children }) {
             await apiService.auth.register({ email, password, fullName, role, ...additionalData });
             const loginRes = await apiService.auth.login({ email, password, role });
             const { session: signUpSession, profile: profileData } = loginRes.data;
-            if (profileData) profileData.role = 'patient';
+            if (profileData) profileData.role = profileData.role || 'patient';
             await setProfileAndCache(profileData);
             await saveApiTokens({
                 access_token: signUpSession.access_token,
@@ -458,7 +458,7 @@ export function AuthProvider({ children }) {
     }, []);
 
     const injectSession = useCallback(async (newSession, newProfile) => {
-        if (newProfile) newProfile.role = 'patient';
+        if (newProfile) newProfile.role = newProfile.role || 'patient';
         await setProfileAndCache(newProfile);
         await saveApiTokens({
             access_token: newSession.access_token,
