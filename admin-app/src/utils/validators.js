@@ -1,5 +1,5 @@
 /**
- * Centralized Validation Rules for CareCo Admin App
+ * Centralized Validation Rules for CareMyMed Admin App
  * These strictly enforce data integrity before any API calls are made.
  */
 

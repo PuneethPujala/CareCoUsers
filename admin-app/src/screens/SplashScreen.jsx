@@ -1,127 +1,114 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, Animated, StyleSheet, Dimensions, StatusBar } from 'react-native';
+import { View, Text, Animated, StyleSheet, Dimensions, StatusBar, TouchableOpacity, Image } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const { width, height } = Dimensions.get('window');
 
 export default function SplashScreen({ onFinish }) {
     const logoScale = useRef(new Animated.Value(0.3)).current;
     const logoOpacity = useRef(new Animated.Value(0)).current;
-    const textOpacity = useRef(new Animated.Value(0)).current;
-    const textTranslateY = useRef(new Animated.Value(30)).current;
-    const subtitleOpacity = useRef(new Animated.Value(0)).current;
-    const subtitleTranslateY = useRef(new Animated.Value(20)).current;
-    const pulseAnim = useRef(new Animated.Value(1)).current;
-    const ring1Scale = useRef(new Animated.Value(0.5)).current;
-    const ring1Opacity = useRef(new Animated.Value(0.6)).current;
-    const ring2Scale = useRef(new Animated.Value(0.5)).current;
-    const ring2Opacity = useRef(new Animated.Value(0.4)).current;
-    const bottomOpacity = useRef(new Animated.Value(0)).current;
+    
+    const contentOpacity = useRef(new Animated.Value(0)).current;
+    const contentTranslateY = useRef(new Animated.Value(30)).current;
+    
+    const buttonOpacity = useRef(new Animated.Value(0)).current;
+    const buttonScale = useRef(new Animated.Value(0.9)).current;
+
+    // Glowing effect
+    const glowAnim = useRef(new Animated.Value(0.5)).current;
 
     useEffect(() => {
-        // Phase 1: Logo scales up with spring
+        // Phase 1: Logo scales up and fades in
         Animated.parallel([
-            Animated.spring(logoScale, { toValue: 1, friction: 4, tension: 40, useNativeDriver: true }),
-            Animated.timing(logoOpacity, { toValue: 1, duration: 600, useNativeDriver: true }),
+            Animated.spring(logoScale, { toValue: 1, friction: 5, tension: 40, useNativeDriver: true }),
+            Animated.timing(logoOpacity, { toValue: 1, duration: 800, useNativeDriver: true }),
         ]).start();
 
-        // Phase 2: Ring ripple effects
-        Animated.sequence([
-            Animated.delay(300),
-            Animated.parallel([
-                Animated.timing(ring1Scale, { toValue: 2.5, duration: 1200, useNativeDriver: true }),
-                Animated.timing(ring1Opacity, { toValue: 0, duration: 1200, useNativeDriver: true }),
-            ]),
-        ]).start();
+        // Phase 2: Glow breathing effect
+        Animated.loop(
+            Animated.sequence([
+                Animated.timing(glowAnim, { toValue: 1, duration: 2000, useNativeDriver: true }),
+                Animated.timing(glowAnim, { toValue: 0.5, duration: 2000, useNativeDriver: true })
+            ])
+        ).start();
 
-        Animated.sequence([
-            Animated.delay(600),
-            Animated.parallel([
-                Animated.timing(ring2Scale, { toValue: 3, duration: 1400, useNativeDriver: true }),
-                Animated.timing(ring2Opacity, { toValue: 0, duration: 1400, useNativeDriver: true }),
-            ]),
-        ]).start();
-
-        // Phase 3: Title text slides up
+        // Phase 3: Content slides up
         Animated.sequence([
             Animated.delay(500),
             Animated.parallel([
-                Animated.timing(textOpacity, { toValue: 1, duration: 500, useNativeDriver: true }),
-                Animated.spring(textTranslateY, { toValue: 0, friction: 6, useNativeDriver: true }),
+                Animated.timing(contentOpacity, { toValue: 1, duration: 600, useNativeDriver: true }),
+                Animated.spring(contentTranslateY, { toValue: 0, friction: 7, tension: 40, useNativeDriver: true }),
             ]),
         ]).start();
 
-        // Phase 4: Subtitle
+        // Phase 4: Button pops in
         Animated.sequence([
-            Animated.delay(800),
+            Animated.delay(900),
             Animated.parallel([
-                Animated.timing(subtitleOpacity, { toValue: 1, duration: 500, useNativeDriver: true }),
-                Animated.spring(subtitleTranslateY, { toValue: 0, friction: 6, useNativeDriver: true }),
+                Animated.timing(buttonOpacity, { toValue: 1, duration: 500, useNativeDriver: true }),
+                Animated.spring(buttonScale, { toValue: 1, friction: 6, tension: 50, useNativeDriver: true }),
             ]),
         ]).start();
 
-        // Phase 5: Pulse animation on logo
-        Animated.sequence([
-            Animated.delay(1000),
-            Animated.loop(
-                Animated.sequence([
-                    Animated.timing(pulseAnim, { toValue: 1.08, duration: 1000, useNativeDriver: true }),
-                    Animated.timing(pulseAnim, { toValue: 1, duration: 1000, useNativeDriver: true }),
-                ])
-            ),
-        ]).start();
-
-        // Phase 6: Bottom text
-        Animated.sequence([
-            Animated.delay(1100),
-            Animated.timing(bottomOpacity, { toValue: 1, duration: 600, useNativeDriver: true }),
-        ]).start();
-
-        // Auto-finish after 2.8 seconds
-        const timer = setTimeout(() => {
-            if (onFinish) onFinish();
-        }, 2800);
-
-        return () => clearTimeout(timer);
     }, []);
 
     return (
         <View style={s.container}>
             <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
+            
+            {/* Background Gradient */}
+            <LinearGradient
+                colors={['#051020', '#020617', '#000000']}
+                style={StyleSheet.absoluteFillObject}
+            />
 
-            {/* Ripple rings */}
-            <Animated.View style={[s.ring, { transform: [{ scale: ring1Scale }], opacity: ring1Opacity }]} />
-            <Animated.View style={[s.ring, { transform: [{ scale: ring2Scale }], opacity: ring2Opacity }]} />
+            {/* Glowing Backdrop */}
+            <Animated.View style={[s.glowCircle, {
+                opacity: glowAnim,
+                transform: [{ scale: Animated.add(1, Animated.multiply(glowAnim, 0.2)) }]
+            }]} />
 
-            {/* Logo */}
-            <Animated.View style={[s.logoContainer, { 
-                transform: [{ scale: Animated.multiply(logoScale, pulseAnim) }], 
-                opacity: logoOpacity 
-            }]}>
-                <View style={s.logoCircle}>
-                    <View style={s.logoInner}>
-                        <Text style={s.logoLetter}>C</Text>
+            <View style={s.centerContent}>
+                {/* Logo Image */}
+                <Animated.View style={{ 
+                    transform: [{ scale: logoScale }], 
+                    opacity: logoOpacity 
+                }}>
+                    <Image 
+                        source={require('../../assets/caremymed-logo.png')} 
+                        style={s.logoImage}
+                        resizeMode="contain"
+                    />
+                </Animated.View>
+
+                {/* Subtitle */}
+                <Animated.View style={{ opacity: contentOpacity, transform: [{ translateY: contentTranslateY }], alignItems: 'center' }}>
+                    <View style={s.dividerContainer}>
+                        <View style={[s.dividerLine, { backgroundColor: '#0284c7' }]} />
+                        <Text style={s.subtitle}>Admin Portal</Text>
+                        <View style={[s.dividerLine, { backgroundColor: '#16a34a' }]} />
                     </View>
-                </View>
-            </Animated.View>
+                    <Text style={s.tagline}>Intelligent Healthcare Management</Text>
+                </Animated.View>
+            </View>
 
-            {/* Title */}
-            <Animated.View style={{ opacity: textOpacity, transform: [{ translateY: textTranslateY }] }}>
-                <Text style={s.title}>Care<Text style={s.titleAccent}>Co</Text></Text>
-            </Animated.View>
-
-            {/* Subtitle */}
-            <Animated.View style={{ opacity: subtitleOpacity, transform: [{ translateY: subtitleTranslateY }] }}>
-                <Text style={s.subtitle}>Admin Portal</Text>
-                <View style={s.divider} />
-                <Text style={s.tagline}>Empowering Care, Enabling Health</Text>
-            </Animated.View>
-
-            {/* Bottom */}
-            <Animated.View style={[s.bottom, { opacity: bottomOpacity }]}>
-                <View style={s.loadingBar}>
-                    <View style={s.loadingFill} />
-                </View>
-                <Text style={s.versionText}>v1.0.0</Text>
+            {/* Interactive Login Button */}
+            <Animated.View style={[s.bottomArea, { opacity: buttonOpacity, transform: [{ scale: buttonScale }] }]}>
+                <TouchableOpacity 
+                    activeOpacity={0.8} 
+                    onPress={onFinish}
+                    style={s.loginButtonContainer}
+                >
+                    <LinearGradient
+                        colors={['#0284c7', '#0369a1']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={s.loginButton}
+                    >
+                        <Text style={s.loginButtonText}>Admin Login</Text>
+                    </LinearGradient>
+                </TouchableOpacity>
+                <Text style={s.versionText}>Secure Platform v1.0.0</Text>
             </Animated.View>
         </View>
     );
@@ -130,111 +117,89 @@ export default function SplashScreen({ onFinish }) {
 const s = StyleSheet.create({
     container: {
         flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: '#0A1628',
+        backgroundColor: '#000000',
     },
-    ring: {
+    glowCircle: {
         position: 'absolute',
-        width: 100,
-        height: 100,
-        borderRadius: 50,
-        borderWidth: 2,
-        borderColor: 'rgba(96, 165, 250, 0.3)',
-    },
-    logoContainer: {
-        marginBottom: 32,
-    },
-    logoCircle: {
-        width: 120,
-        height: 120,
-        borderRadius: 60,
-        backgroundColor: 'rgba(255, 255, 255, 0.08)',
-        borderWidth: 2,
-        borderColor: 'rgba(96, 165, 250, 0.4)',
-        justifyContent: 'center',
-        alignItems: 'center',
-        shadowColor: '#3B82F6',
+        top: height / 2 - 200,
+        left: width / 2 - 200,
+        width: 400,
+        height: 400,
+        borderRadius: 200,
+        backgroundColor: 'rgba(2, 132, 199, 0.15)', // Subdued blue glow
+        shadowColor: '#0284c7',
         shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 0.5,
-        shadowRadius: 30,
-        elevation: 20,
+        shadowOpacity: 0.8,
+        shadowRadius: 100,
+        elevation: 10,
     },
-    logoInner: {
-        width: 90,
-        height: 90,
-        borderRadius: 45,
-        backgroundColor: 'rgba(59, 130, 246, 0.2)',
-        borderWidth: 1.5,
-        borderColor: 'rgba(147, 197, 253, 0.5)',
+    centerContent: {
+        flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
     },
-    logoLetter: {
-        fontSize: 48,
-        fontWeight: '800',
-        color: '#FFFFFF',
-        letterSpacing: -2,
-        textShadowColor: 'rgba(59, 130, 246, 0.8)',
-        textShadowOffset: { width: 0, height: 0 },
-        textShadowRadius: 20,
-    },
-    title: {
-        fontSize: 42,
-        fontWeight: '800',
-        color: '#FFFFFF',
-        letterSpacing: -1,
-        textAlign: 'center',
-    },
-    titleAccent: {
-        color: '#60A5FA',
+    logoImage: {
+        width: 250,
+        height: 250,
+        marginBottom: 24,
     },
     subtitle: {
-        fontSize: 18,
-        fontWeight: '600',
-        color: 'rgba(148, 163, 184, 0.9)',
-        textAlign: 'center',
+        fontSize: 16,
+        fontWeight: '700',
+        color: '#f8fafc',
         letterSpacing: 4,
         textTransform: 'uppercase',
-        marginTop: 8,
+        marginHorizontal: 16,
     },
-    divider: {
-        width: 60,
+    dividerContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 12,
+    },
+    dividerLine: {
+        width: 40,
         height: 2,
-        backgroundColor: 'rgba(96, 165, 250, 0.4)',
         borderRadius: 1,
-        alignSelf: 'center',
-        marginVertical: 16,
     },
     tagline: {
         fontSize: 14,
         fontWeight: '400',
-        color: 'rgba(148, 163, 184, 0.6)',
-        textAlign: 'center',
+        color: '#94a3b8',
+        letterSpacing: 1,
+    },
+    bottomArea: {
+        paddingHorizontal: 32,
+        paddingBottom: 60,
+        alignItems: 'center',
+        width: '100%',
+    },
+    loginButtonContainer: {
+        width: '100%',
+        shadowColor: '#0284c7',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.3,
+        shadowRadius: 20,
+        elevation: 10,
+    },
+    loginButton: {
+        width: '100%',
+        paddingVertical: 18,
+        borderRadius: 16,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.1)',
+    },
+    loginButtonText: {
+        fontSize: 18,
+        fontWeight: '700',
+        color: '#ffffff',
         letterSpacing: 0.5,
     },
-    bottom: {
-        position: 'absolute',
-        bottom: 60,
-        alignItems: 'center',
-    },
-    loadingBar: {
-        width: 120,
-        height: 3,
-        backgroundColor: 'rgba(255, 255, 255, 0.1)',
-        borderRadius: 2,
-        overflow: 'hidden',
-        marginBottom: 12,
-    },
-    loadingFill: {
-        width: '60%',
-        height: '100%',
-        backgroundColor: 'rgba(96, 165, 250, 0.6)',
-        borderRadius: 2,
-    },
     versionText: {
+        marginTop: 24,
         fontSize: 12,
-        color: 'rgba(148, 163, 184, 0.4)',
+        color: '#475569',
         letterSpacing: 1,
     },
 });

@@ -70,7 +70,7 @@ app.get('/health', async (req, res) => {
   res.status(mongoStatus === 'connected' ? 200 : 503).json({
     status: mongoStatus === 'connected' ? 'OK' : 'DEGRADED',
     timestamp: new Date().toISOString(),
-    service: 'CareConnect Backend API',
+    service: 'CareMyMednnect Backend API',
     version: process.env.npm_package_version || '1.0.0',
     uptime: `${Math.floor(process.uptime())}s`,
     connections: {
@@ -158,7 +158,7 @@ if (require.main === module) {
   connectDB().then(() => {
     connectRedis();
     server.listen(PORT, '0.0.0.0', () => {
-      console.log(`🚀 CareConnect Backend API running on port ${PORT} (all interfaces)`);
+      console.log(`🚀 CareMyMednnect Backend API running on port ${PORT} (all interfaces)`);
       console.log(`📊 Health check: http://localhost:${PORT}/health`);
       console.log(`🌍 Environment: ${process.env.NODE_ENV}`);
       console.log(`📡 WebSocket ready on ws://localhost:${PORT}`);

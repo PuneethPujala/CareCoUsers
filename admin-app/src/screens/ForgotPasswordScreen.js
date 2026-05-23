@@ -130,7 +130,7 @@ export default function ForgotPasswordScreen({ navigation }) {
     const subtitles = {
         email: 'Enter the email address associated with your account to receive a secure reset link.',
         otp: `We've sent a secure 6-digit confirmation code to ${email}`,
-        password: 'Create a strong, secure new password for your CareConnect account.',
+        password: 'Create a strong, secure new password for your CareMyMednnect account.',
     };
 
     return (
@@ -199,7 +199,7 @@ export default function ForgotPasswordScreen({ navigation }) {
                                         <Text style={s.label}>Email Address</Text>
                                         <PremiumInput
                                             icon={<Feather name="mail" size={18} color="#94A3B8" />}
-                                            placeholder="director@careconnect.io"
+                                            placeholder="director@caremymednnect.io"
                                             value={email}
                                             onChangeText={setEmail}
                                             autoCapitalize="none"
@@ -311,7 +311,7 @@ export default function ForgotPasswordScreen({ navigation }) {
                             </TouchableOpacity>
                             <Text style={s.securityFooter}>
                                 <Feather name="shield" size={12} color="#94A3B8" /> 
-                                {' '}Secured by CareConnect Enterprise SSL
+                                {' '}Secured by CareMyMednnect Enterprise SSL
                             </Text>
                         </View>
 

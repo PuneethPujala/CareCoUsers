@@ -1,4 +1,4 @@
-package com.careco.users
+package com.caremymed.users
 
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
@@ -25,7 +25,7 @@ class MedicineWidgetProvider : AppWidgetProvider() {
 
     companion object {
         fun updateAppWidget(context: Context, appWidgetManager: AppWidgetManager, appWidgetId: Int) {
-            val prefs: SharedPreferences = context.getSharedPreferences("CareCoWidgetPrefs", Context.MODE_PRIVATE)
+            val prefs: SharedPreferences = context.getSharedPreferences("CareMyMedWidgetPrefs", Context.MODE_PRIVATE)
             val rawData = prefs.getString("widget_data", null) ?: prefs.getString("medicine_data", null)
             val size = WidgetSizeHelper.getCategory(appWidgetManager, appWidgetId)
 

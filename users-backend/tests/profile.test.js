@@ -376,7 +376,7 @@ describe('Profile Routes', () => {
                 organizationId: { _id: 'org123', toString: () => 'org123', equals: (o) => String(o?._id ?? o) === 'org123' },
             };
 
-            const target = profileWithOrg({ _id: 'target123', email: 'staff@careco.in' });
+            const target = profileWithOrg({ _id: 'target123', email: 'staff@caremymed.in' });
             // Route: findById (existence check) then findByIdAndUpdate().populate()
             Profile.findById          = jest.fn().mockResolvedValue(target);
             Profile.findByIdAndUpdate = jest.fn().mockReturnValue(makeUpdateChain({
@@ -458,7 +458,7 @@ describe('Profile Routes', () => {
                 _id:      'target123',
                 role:     'caller',
                 isActive: true,
-                email:    'caller@careco.in',
+                email:    'caller@caremymed.in',
                 fullName: 'Old Caller',
             });
 

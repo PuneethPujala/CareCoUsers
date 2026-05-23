@@ -1,4 +1,4 @@
-package com.careco.users
+package com.caremymed.users
 
 import android.appwidget.AppWidgetManager
 import android.content.ComponentName
@@ -28,7 +28,7 @@ class WidgetModule(reactContext: ReactApplicationContext) : ReactContextBaseJava
     @ReactMethod
     fun setWidgetData(data: String) {
         val context = reactApplicationContext
-        val prefs = context.getSharedPreferences("CareCoWidgetPrefs", Context.MODE_PRIVATE)
+        val prefs = context.getSharedPreferences("CareMyMedWidgetPrefs", Context.MODE_PRIVATE)
         prefs.edit()
             .putString("widget_data", data)
             .putString("medicine_data", data) // backward compat
@@ -50,7 +50,7 @@ class WidgetModule(reactContext: ReactApplicationContext) : ReactContextBaseJava
     @ReactMethod
     fun clearWidgetData() {
         val context = reactApplicationContext
-        val prefs = context.getSharedPreferences("CareCoWidgetPrefs", Context.MODE_PRIVATE)
+        val prefs = context.getSharedPreferences("CareMyMedWidgetPrefs", Context.MODE_PRIVATE)
         prefs.edit()
             .remove("widget_data")
             .remove("medicine_data")

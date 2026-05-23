@@ -1,6 +1,6 @@
-# CareConnect Setup Guide
+# CareMyMednnect Setup Guide
 
-This guide will walk you through setting up the complete CareConnect healthcare management platform from scratch.
+This guide will walk you through setting up the complete CareMyMednnect healthcare management platform from scratch.
 
 ## 📋 Prerequisites
 
@@ -23,7 +23,7 @@ Before you begin, make sure you have:
 4. Click "New Project"
 5. Choose organization or create new one
 6. Enter project details:
-   - **Name**: `CareConnect`
+   - **Name**: `CareMyMednnect`
    - **Database Password**: Generate a strong password
    - **Region**: Choose closest to your users
 7. Click "Create new project"
@@ -58,16 +58,16 @@ Before you begin, make sure you have:
 
 1. Go to [MongoDB Atlas](https://cloud.mongodb.com)
 2. Sign up and create a free account
-3. Create a new project: `CareConnect`
+3. Create a new project: `CareMyMednnect`
 4. Create a new cluster:
    - Choose **M0 Sandbox** (free)
    - Select a cloud provider and region
-   - Cluster name: `CareConnect`
+   - Cluster name: `CareMyMednnect`
 5. Configure network access:
    - Add your IP address to whitelist
    - For development, add `0.0.0.0/0` (allows all IPs)
 6. Create database user:
-   - Username: `careconnect`
+   - Username: `caremymednnect`
    - Password: Generate a strong password
 7. Get connection string:
    - Click "Connect" → "Connect your application"
@@ -164,7 +164,7 @@ SUPABASE_SERVICE_ROLE_KEY=your-service-role-key-here
 SUPABASE_ANON_KEY=your-anon-key-here
 
 # MongoDB Configuration
-MONGODB_URI=mongodb+srv://careconnect:password@cluster.mongodb.net/careconnect?retryWrites=true&w=majority
+MONGODB_URI=mongodb+srv://caremymednnect:password@cluster.mongodb.net/caremymednnect?retryWrites=true&w=majority
 
 # Server Configuration
 PORT=3001
@@ -209,7 +209,7 @@ Should return:
 {
   "status": "OK",
   "timestamp": "2024-01-01T00:00:00.000Z",
-  "service": "CareConnect Backend API"
+  "service": "CareMyMednnect Backend API"
 }
 ```
 
@@ -354,11 +354,11 @@ If you encounter issues during setup:
 1. Check the [Troubleshooting Guide](./TROUBLESHOOTING.md)
 2. Review the [API Documentation](./API.md)
 3. Check GitHub Issues for similar problems
-4. Contact support at support@careconnect.com
+4. Contact support at support@caremymednnect.com
 
 ## 🎉 You're Done!
 
-Once you've completed these steps, you should have a fully functional CareConnect platform with:
+Once you've completed these steps, you should have a fully functional CareMyMednnect platform with:
 
 - ✅ User authentication and authorization
 - ✅ Role-based access control

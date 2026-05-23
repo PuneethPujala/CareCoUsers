@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════════
- * CARECONNECT — React Native Dashboard Hooks
+ * CareMyMed — React Native Dashboard Hooks
  *
  * Hooks:
  *   useDashboardData(role)  — auto-refresh every 30s

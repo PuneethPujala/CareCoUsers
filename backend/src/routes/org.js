@@ -346,7 +346,7 @@ router.post('/care-managers', async (req, res) => {
         }
 
         // Create Supabase auth user
-        const password = tempPassword || `CareConnect_${Math.random().toString(36).slice(2, 10)}!`;
+        const password = tempPassword || `CareMyMednnect_${Math.random().toString(36).slice(2, 10)}!`;
         const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
             email,
             password,
@@ -391,7 +391,7 @@ router.post('/care-managers', async (req, res) => {
             organizationId: orgId,
             type: 'new_user_added',
             channel: 'in_app',
-            title: 'Welcome to CareConnect',
+            title: 'Welcome to CareMyMednnect',
             body: `Your care manager account has been created by ${req.profile.fullName}. Please change your temporary password.`,
             priority: 'high',
         });

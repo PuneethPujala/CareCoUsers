@@ -114,7 +114,7 @@ const ForgotPasswordScreen = () => {
                 <View className="flex-row items-start">
                   <Text className="text-blue-600 mr-2">2.</Text>
                   <Text className="text-blue-800 flex-1 text-sm">
-                    Find the email from "CareConnect"
+                    Find the email from "CareMyMednnect"
                   </Text>
                 </View>
                 <View className="flex-row items-start">
@@ -266,7 +266,7 @@ const ForgotPasswordScreen = () => {
             </View>
             <View className="mt-3 pt-3 border-t border-gray-300">
               <Text className="text-sm text-gray-600">
-                Need immediate help? Email us at support@careconnect.com
+                Need immediate help? Email us at support@caremymednnect.com
               </Text>
             </View>
           </View>

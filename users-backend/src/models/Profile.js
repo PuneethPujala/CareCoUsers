@@ -51,7 +51,7 @@ const ProfileSchema = new mongoose.Schema(
     },
 
     // ── Roles ─────────────────────────────────────
-    // super_admin  → CareCo platform level
+    // super_admin  → CareMyMed platform level
     // org_admin    → runs a city organisation
     // care_manager → manages up to 50 callers
     // caller       → makes calls, manages up to 30 patients

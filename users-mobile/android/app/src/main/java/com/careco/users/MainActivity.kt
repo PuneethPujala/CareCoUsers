@@ -1,4 +1,4 @@
-package com.careco.users
+package com.caremymed.users
 import expo.modules.splashscreen.SplashScreenManager
 
 import android.os.Build

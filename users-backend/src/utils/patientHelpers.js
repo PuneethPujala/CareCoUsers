@@ -17,7 +17,7 @@ async function createBasicPatient(supabaseUid, email, name, profileId, paid = 0)
             supabase_uid: supabaseUid,
             profile_id: profileId,
             name: name || (email ? email.split('@')[0] : 'Patient'),
-            email: email || `${supabaseUid}@phone.careco.in`,
+            email: email || `${supabaseUid}@phone.caremymed.in`,
             organization_id: new mongoose.Types.ObjectId(DEFAULT_ORG_ID),
             subscription: {
                 status: paid === 1 ? 'active' : 'pending_payment',

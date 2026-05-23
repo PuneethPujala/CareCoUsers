@@ -16,7 +16,7 @@ async function runTest() {
     console.log('Connected.');
 
     // 2. Create dummy patient
-    const mockEmail = 'ai_test_patient_' + Date.now() + '@careco.test';
+    const mockEmail = 'ai_test_patient_' + Date.now() + '@caremymed.test';
     const patient = await Patient.create({
         supabase_uid: 'fake_uid_' + Date.now(),
         email: mockEmail,

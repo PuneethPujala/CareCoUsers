@@ -25,10 +25,10 @@ const getTransporter = () => {
  */
 const sendEmail = async (to, subject, html) => {
   const transport = getTransporter();
-  const fromEmail = process.env.FROM_EMAIL || 'noreply@careconnect.com';
+  const fromEmail = process.env.FROM_EMAIL || 'noreply@caremymednnect.com';
 
   const mailOptions = {
-    from: `"CareConnect" <${fromEmail}>`,
+    from: `"CareMyMednnect" <${fromEmail}>`,
     to,
     subject,
     html,
@@ -49,7 +49,7 @@ const sendEmail = async (to, subject, html) => {
  * Send temporary password email to newly created user
  */
 const sendTempPasswordEmail = async (to, fullName, tempPassword, roleName) => {
-  const loginUrl = process.env.FRONTEND_URL || 'https://app.careconnect.com';
+  const loginUrl = process.env.FRONTEND_URL || 'https://app.caremymednnect.com';
 
   const html = `
     <!DOCTYPE html>
@@ -75,11 +75,11 @@ const sendTempPasswordEmail = async (to, fullName, tempPassword, roleName) => {
     <body>
       <div class="container">
         <div class="header">
-          <h1>🏥 CareConnect Account Created</h1>
+          <h1>🏥 CareMyMednnect Account Created</h1>
         </div>
         <div class="body">
           <p>Hello <strong>${fullName}</strong>,</p>
-          <p>Your CareConnect account has been created with the role <strong>${roleName}</strong>. Please use the credentials below to log in:</p>
+          <p>Your CareMyMednnect account has been created with the role <strong>${roleName}</strong>. Please use the credentials below to log in:</p>
           
           <div class="creds">
             <p><strong>Email:</strong> ${to}</p>
@@ -90,19 +90,19 @@ const sendTempPasswordEmail = async (to, fullName, tempPassword, roleName) => {
             <p>⚠️ <strong>You must change your password on first login.</strong> You will not be able to access any features until you set a new password.</p>
           </div>
 
-          <a href="${loginUrl}" class="btn">Log In to CareConnect</a>
+          <a href="${loginUrl}" class="btn">Log In to CareMyMednnect</a>
 
           <p style="font-size: 13px; color: #64748B; margin-top: 24px;">If you did not expect this account, please contact your organization administrator.</p>
         </div>
         <div class="footer">
-          &copy; ${new Date().getFullYear()} CareConnect &mdash; Healthcare Coordination Platform
+          &copy; ${new Date().getFullYear()} CareMyMednnect &mdash; Healthcare Coordination Platform
         </div>
       </div>
     </body>
     </html>
   `;
 
-  return sendEmail(to, 'CareConnect — Your Account Has Been Created', html);
+  return sendEmail(to, 'CareMyMednnect — Your Account Has Been Created', html);
 };
 
 /**
@@ -131,18 +131,18 @@ const sendPasswordChangedEmail = async (to, fullName) => {
         </div>
         <div class="body">
           <p>Hello <strong>${fullName}</strong>,</p>
-          <p>Your CareConnect password has been changed successfully. If you did not make this change, please contact your administrator immediately.</p>
+          <p>Your CareMyMednnect password has been changed successfully. If you did not make this change, please contact your administrator immediately.</p>
           <p style="font-size: 13px; color: #64748B;">Changed at: ${new Date().toISOString()}</p>
         </div>
         <div class="footer">
-          &copy; ${new Date().getFullYear()} CareConnect &mdash; Healthcare Coordination Platform
+          &copy; ${new Date().getFullYear()} CareMyMednnect &mdash; Healthcare Coordination Platform
         </div>
       </div>
     </body>
     </html>
   `;
 
-  return sendEmail(to, 'CareConnect — Password Changed', html);
+  return sendEmail(to, 'CareMyMednnect — Password Changed', html);
 };
 
 /**
@@ -176,7 +176,7 @@ const sendOtpEmail = async (to, fullName, otp) => {
         </div>
         <div class="body">
           <p>Hello <strong>${fullName}</strong>,</p>
-          <p>You requested a password reset for your CareCo Admin account. Use the OTP below to verify your identity:</p>
+          <p>You requested a password reset for your CareMyMed Admin account. Use the OTP below to verify your identity:</p>
           
           <div class="otp-box">
             <p class="otp-label">Your verification code</p>
@@ -191,14 +191,14 @@ const sendOtpEmail = async (to, fullName, otp) => {
           <p style="font-size: 13px; color: #64748B;">For security, never share this code with anyone.</p>
         </div>
         <div class="footer">
-          &copy; ${new Date().getFullYear()} CareConnect &mdash; Healthcare Coordination Platform
+          &copy; ${new Date().getFullYear()} CareMyMednnect &mdash; Healthcare Coordination Platform
         </div>
       </div>
     </body>
     </html>
   `;
 
-  return sendEmail(to, 'CareCo Admin — Password Reset OTP', html);
+  return sendEmail(to, 'CareMyMed Admin — Password Reset OTP', html);
 };
 
 module.exports = {

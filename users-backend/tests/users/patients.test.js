@@ -20,7 +20,7 @@ const mockAuthState = {
     rejectAuth: false,
     userId:     'sup-uid-patient',
     profileId:  'profile-id',
-    email:      'patient@careco.in',
+    email:      'patient@caremymed.in',
     metadata:   { full_name: 'Test Patient' },
 };
 
@@ -72,7 +72,7 @@ function makePatient(overrides = {}) {
         _id:                fakeId(overrides._id || 'patient-id'),
         supabase_uid:       overrides.supabase_uid || 'sup-uid-patient',
         name:               overrides.name || 'Test Patient',
-        email:              overrides.email || 'patient@careco.in',
+        email:              overrides.email || 'patient@caremymed.in',
         city:               overrides.city || 'Hyderabad',
         organization_id:    fakeId(overrides.organization_id || 'org-id'),
         assigned_caller_id: overrides.assigned_caller_id ? fakeId(overrides.assigned_caller_id) : null,

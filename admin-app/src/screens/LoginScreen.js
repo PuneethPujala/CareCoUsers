@@ -82,7 +82,7 @@ export default function LoginScreen({ navigation }) {
                             </View>
                             <Text style={s.title}>Admin Portal</Text>
                             <Text style={s.subtitle}>
-                                Sign in to manage CareConnect
+                                Sign in to manage CareMyMednnect
                             </Text>
                         </View>
 

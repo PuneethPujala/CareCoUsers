@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════════
- * CARECONNECT — React Native Socket.io Client
+ * CareMyMed — React Native Socket.io Client
  *
  * Usage:
  *   import { socketService } from './services/socket';

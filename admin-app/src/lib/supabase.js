@@ -23,7 +23,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   // Add custom headers for mobile app identification
   global: {
     headers: {
-      'x-app-name': 'CareConnect',
+      'x-app-name': 'CareMyMednnect',
       'x-app-platform': Platform.OS,
       'x-app-version': '1.0.0',
     },

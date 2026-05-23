@@ -24,7 +24,7 @@ process.env.AUTH_ENABLE_SUPABASE_FALLBACK = 'true';
 
 const mockAuthState = {
     user:       { id: 'test-user', supabaseUid: 'test-user', email_confirmed_at: new Date().toISOString(), created_at: new Date().toISOString() },
-    profile:    { _id: 'test-profile', supabaseUid: 'test-user', role: 'care_manager', organizationId: 'org123', email: 'staff@careco.in', fullName: 'Test Staff' },
+    profile:    { _id: 'test-profile', supabaseUid: 'test-user', role: 'care_manager', organizationId: 'org123', email: 'staff@caremymed.in', fullName: 'Test Staff' },
     rejectAuth: false,   // set true to make authenticate return 401
 };
 
@@ -166,7 +166,7 @@ describe('Auth Routes', () => {
         jest.clearAllMocks();
         mockAuthState.rejectAuth = false;
         mockAuthState.user    = { id: 'test-user', supabaseUid: 'test-user', email_confirmed_at: new Date().toISOString(), created_at: new Date().toISOString() };
-        mockAuthState.profile = { _id: 'test-profile', supabaseUid: 'test-user', role: 'care_manager', organizationId: 'org123', email: 'staff@careco.in', fullName: 'Test Staff' };
+        mockAuthState.profile = { _id: 'test-profile', supabaseUid: 'test-user', role: 'care_manager', organizationId: 'org123', email: 'staff@caremymed.in', fullName: 'Test Staff' };
     });
 
     // ── POST /api/auth/register ────────────────────────────────────────────────
@@ -186,11 +186,11 @@ describe('Auth Routes', () => {
 
         it('returns 400 when email already exists', async () => {
             // Early check: Patient.findOne returns an existing patient → 400 before Supabase
-            Patient.findOne = jest.fn().mockResolvedValueOnce({ _id: 'existing', email: 'dupe@careco.in' });
+            Patient.findOne = jest.fn().mockResolvedValueOnce({ _id: 'existing', email: 'dupe@caremymed.in' });
 
             const res = await request(app)
                 .post('/api/auth/register')
-                .send({ email: 'dupe@careco.in', fullName: 'Test', password: 'Pass12345', city: 'Hyderabad' });
+                .send({ email: 'dupe@caremymed.in', fullName: 'Test', password: 'Pass12345', city: 'Hyderabad' });
 
             expect(res.status).toBe(400);
             expect(res.body.code).toBe('EMAIL_ALREADY_EXISTS');
@@ -345,7 +345,7 @@ describe('Auth Routes', () => {
 
             const res = await request(app)
                 .post('/api/auth/login')
-                .send({ email: 'caller@careco.in', password: 'wrongpass', role: 'caller' });
+                .send({ email: 'caller@caremymed.in', password: 'wrongpass', role: 'caller' });
 
             expect(res.status).toBe(401);
             expect(res.body.code).toBe('INVALID_CREDENTIALS');
@@ -366,7 +366,7 @@ describe('Auth Routes', () => {
 
             const res = await request(app)
                 .post('/api/auth/login')
-                .send({ email: 'caller@careco.in', password: 'Pass12345', role: 'caller' });
+                .send({ email: 'caller@caremymed.in', password: 'Pass12345', role: 'caller' });
 
             expect(res.status).toBe(423);
             expect(res.body.code).toBe('ACCOUNT_LOCKED');
@@ -375,7 +375,7 @@ describe('Auth Routes', () => {
         it('logs in patient successfully and returns session + profile', async () => {
             const patient = mockPatient({
                 _id:          'patient123',
-                email:        'patient@careco.in',
+                email:        'patient@caremymed.in',
                 supabase_uid: 'sup-uid-pat-stable',
                 failedLoginAttempts: 0,
             });
@@ -384,7 +384,7 @@ describe('Auth Routes', () => {
 
             mockSupabase.auth.signInWithPassword.mockResolvedValue({
                 data: {
-                    user:    { id: 'sup-uid-123', email: 'patient@careco.in', email_confirmed_at: new Date().toISOString() },
+                    user:    { id: 'sup-uid-123', email: 'patient@caremymed.in', email_confirmed_at: new Date().toISOString() },
                     session: { access_token: 'acc-tok', refresh_token: 'ref-tok', expires_in: 3600 },
                 },
                 error: null,
@@ -392,7 +392,7 @@ describe('Auth Routes', () => {
 
             const res = await request(app)
                 .post('/api/auth/login')
-                .send({ email: 'patient@careco.in', password: 'Pass12345', role: 'patient' });
+                .send({ email: 'patient@caremymed.in', password: 'Pass12345', role: 'patient' });
 
             expect(res.status).toBe(200);
             expect(res.body.session.access_token).toBe('mock-access-token');
@@ -415,7 +415,7 @@ describe('Auth Routes', () => {
 
             mockSupabase.auth.signInWithPassword.mockResolvedValue({
                 data: {
-                    user:    { id: 'sup-uid-123', email: 'caller@careco.in', email_confirmed_at: new Date().toISOString() },
+                    user:    { id: 'sup-uid-123', email: 'caller@caremymed.in', email_confirmed_at: new Date().toISOString() },
                     session: { access_token: 'acc-tok', refresh_token: 'ref-tok', expires_in: 3600 },
                 },
                 error: null,
@@ -423,7 +423,7 @@ describe('Auth Routes', () => {
 
             const res = await request(app)
                 .post('/api/auth/login')
-                .send({ email: 'caller@careco.in', password: 'Pass12345', role: 'caller' });
+                .send({ email: 'caller@caremymed.in', password: 'Pass12345', role: 'caller' });
 
             expect(res.status).toBe(200);
             expect(res.body.session.access_token).toBe('mock-access-token');
@@ -541,7 +541,7 @@ describe('Auth Routes', () => {
     describe('GET /api/auth/me', () => {
 
         it('returns current user profile', async () => {
-            const profile = mockProfile({ _id: 'profile123', email: 'staff@careco.in', role: 'care_manager' });
+            const profile = mockProfile({ _id: 'profile123', email: 'staff@caremymed.in', role: 'care_manager' });
             mockAuthState.user    = { id: 'sup-uid-123', email_confirmed_at: new Date().toISOString(), created_at: new Date().toISOString() };
             mockAuthState.profile = profile;
 
@@ -554,13 +554,13 @@ describe('Auth Routes', () => {
             const res = await request(app).get('/api/auth/me');
 
             expect(res.status).toBe(200);
-            expect(res.body.profile.email).toBe('staff@careco.in');
+            expect(res.body.profile.email).toBe('staff@caremymed.in');
             expect(res.body.profile.role).toBe('care_manager');
         });
 
         it('returns subscription_status for patient role', async () => {
             const patient = mockPatient({ _id: 'patient123', role: 'patient', subscription: { status: 'active', plan: 'basic' } });
-            mockAuthState.user    = { id: 'sup-uid-123', email: 'patient@careco.in', email_confirmed_at: new Date().toISOString(), created_at: new Date().toISOString() };
+            mockAuthState.user    = { id: 'sup-uid-123', email: 'patient@caremymed.in', email_confirmed_at: new Date().toISOString(), created_at: new Date().toISOString() };
             mockAuthState.profile = patient;
 
             // me() calls Patient.findById(id).select('+passwordHash') for patients
@@ -602,7 +602,7 @@ describe('Auth Routes', () => {
         it('returns 400 when required fields are missing', async () => {
             const res = await request(app)
                 .post('/api/auth/create-user')
-                .send({ email: 'new@careco.in' });
+                .send({ email: 'new@caremymed.in' });
 
             expect(res.status).toBe(400);
             expect(res.body.code).toBe('VALIDATION');
@@ -611,7 +611,7 @@ describe('Auth Routes', () => {
         it('returns 403 when role hierarchy is violated (org_admin cannot create org_admin)', async () => {
             const res = await request(app)
                 .post('/api/auth/create-user')
-                .send({ email: 'new@careco.in', fullName: 'New Admin', role: 'org_admin' });
+                .send({ email: 'new@caremymed.in', fullName: 'New Admin', role: 'org_admin' });
 
             expect(res.status).toBe(403);
             expect(res.body.code).toBe('ROLE_HIERARCHY_VIOLATION');
@@ -627,7 +627,7 @@ describe('Auth Routes', () => {
 
             const res = await request(app)
                 .post('/api/auth/create-user')
-                .send({ email: 'new@careco.in', fullName: 'New Caller', role: 'caller', organizationId: testOrgId });
+                .send({ email: 'new@caremymed.in', fullName: 'New Caller', role: 'caller', organizationId: testOrgId });
 
             expect(res.status).toBe(400);
             expect(res.body.code).toBe('CAPACITY_LIMIT_REACHED');
@@ -643,7 +643,7 @@ describe('Auth Routes', () => {
 
             const res = await request(app)
                 .post('/api/auth/create-user')
-                .send({ email: 'newcaller@careco.in', fullName: 'New Caller', role: 'caller', organizationId: testOrgId });
+                .send({ email: 'newcaller@caremymed.in', fullName: 'New Caller', role: 'caller', organizationId: testOrgId });
 
             expect(res.status).toBe(201);
             expect(mockSupabase.auth.admin.createUser).not.toHaveBeenCalled();

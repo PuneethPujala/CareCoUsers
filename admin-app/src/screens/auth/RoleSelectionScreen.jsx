@@ -103,7 +103,7 @@ const RoleSelectionScreen = ({ route }) => {
         'Platform analytics and reporting',
         'User support and troubleshooting',
       ],
-      requirements: 'Invite only - must be CareConnect platform administrator',
+      requirements: 'Invite only - must be CareMyMednnect platform administrator',
     },
   };
 
@@ -159,7 +159,7 @@ const RoleSelectionScreen = ({ route }) => {
     if (role === 'super_admin') {
       Alert.alert(
         'Super Admin Role',
-        'The Super Admin role is invite only. Please contact CareConnect support if you believe you should have access.',
+        'The Super Admin role is invite only. Please contact CareMyMednnect support if you believe you should have access.',
         [{ text: 'OK' }]
       );
       return;
@@ -314,7 +314,7 @@ const RoleSelectionScreen = ({ route }) => {
               Choose Your Role
             </Text>
             <Text className="text-gray-600 text-center">
-              Select how you'll be using CareConnect
+              Select how you'll be using CareMyMednnect
             </Text>
           </View>
 

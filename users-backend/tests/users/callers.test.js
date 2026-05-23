@@ -55,7 +55,7 @@ function makeCaller(overrides = {}) {
         _id:            fakeId(overrides._id || 'caller-id'),
         supabase_uid:   'sup-uid-caller',
         name:           overrides.name || 'Priya Sharma',
-        email:          'caller@careco.in',
+        email:          'caller@caremymed.in',
         organization_id: fakeId(overrides.organization_id || 'org-id'),
         manager_id:     overrides.manager_id ? fakeId(overrides.manager_id) : fakeId('manager-id'),
         patient_ids:    overrides.patient_ids !== undefined ? overrides.patient_ids : ['patient-id'],
@@ -70,7 +70,7 @@ function makePatient(overrides = {}) {
     return {
         _id:         id,
         name:        overrides.name || 'Test Patient',
-        email:       'patient@careco.in',
+        email:       'patient@caremymed.in',
         city:        'Hyderabad',
         conditions:  [],
         medications: [],

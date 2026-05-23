@@ -1,6 +1,6 @@
 /**
  * ═══════════════════════════════════════════════════════════════
- * SEED SCRIPT — CareConnect Database Initialization
+ * SEED SCRIPT — CareMyMednnect Database Initialization
  *
  * Creates:
  *   1. Role permissions for all 6 roles
@@ -131,8 +131,8 @@ async function seedPermissions() {
 async function seedSuperAdmin() {
   console.log('\n👤 Seeding Super Admin...');
 
-  const email = process.env.SUPER_ADMIN_EMAIL || 'admin@careconnect.com';
-  const password = process.env.SUPER_ADMIN_PASSWORD || 'CareConnect@2025!';
+  const email = process.env.SUPER_ADMIN_EMAIL || 'admin@caremymednnect.com';
+  const password = process.env.SUPER_ADMIN_PASSWORD || 'CareMyMednnect@2025!';
 
   // Check if already exists
   const existing = await Profile.findOne({ email, role: 'super_admin' });
@@ -198,16 +198,16 @@ async function seedSuperAdmin() {
 async function seedSampleOrganization() {
   console.log('\n🏥 Seeding sample organization...');
 
-  const existing = await Organization.findOne({ name: 'CareConnect Demo Clinic' });
+  const existing = await Organization.findOne({ name: 'CareMyMednnect Demo Clinic' });
   if (existing) {
     console.log('   ⚠️  Sample org already exists');
     return existing;
   }
 
   const org = await Organization.create({
-    name: 'CareConnect Demo Clinic',
+    name: 'CareMyMednnect Demo Clinic',
     type: 'clinic',
-    contactEmail: 'demo@careconnect.com',
+    contactEmail: 'demo@caremymednnect.com',
     contactPhone: '+1-555-0100',
     address: {
       street: '123 Health Ave',
@@ -236,7 +236,7 @@ async function seedSampleOrganization() {
   console.log(`   ✅ Sample org created: ${org.name} (ID: ${org._id})`);
 
   // Create a sample Org Admin for this org
-  const orgAdminEmail = 'orgadmin@demo.careconnect.com';
+  const orgAdminEmail = 'orgadmin@demo.caremymednnect.com';
   const existingAdmin = await Profile.findOne({ email: orgAdminEmail });
   if (!existingAdmin) {
     try {
@@ -271,7 +271,7 @@ async function seedSampleOrganization() {
 // ═══════════════════════════════════════════════════════════════
 
 async function main() {
-  console.log('🌱 CareConnect Database Seed');
+  console.log('🌱 CareMyMednnect Database Seed');
   console.log('═══════════════════════════════════════════');
 
   await connectDB();
