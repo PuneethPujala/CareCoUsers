@@ -214,8 +214,9 @@ const MedCard = ({ med, onToggle, onSnooze, onRefill }) => {
         );
     };
 
-    const hasRefillInfo = med.refillInfo && typeof med.refillInfo.remainingDoses === 'number';
-    const isLowSupply = hasRefillInfo && med.refillInfo.remainingDoses <= (med.refillInfo.alertThreshold || 5);
+    const hasRefillInfo = med.refillInfo && (typeof med.refillInfo.remainingDoses === 'number' || typeof med.refillInfo.totalDoses === 'number');
+    const displayDoses = med.refillInfo?.remainingDoses ?? med.refillInfo?.totalDoses ?? 0;
+    const isLowSupply = hasRefillInfo && displayDoses <= (med.refillInfo.alertThreshold || 5);
 
     return (
         <Swipeable
@@ -274,7 +275,7 @@ const MedCard = ({ med, onToggle, onSnooze, onRefill }) => {
                                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: isLowSupply ? '#FEE2E2' : '#F1F5F9', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
                                     <Zap size={10} color={isLowSupply ? '#EF4444' : '#64748B'} />
                                     <Text style={{ fontSize: 10, fontWeight: '700', color: isLowSupply ? '#EF4444' : '#64748B' }}>
-                                        {med.refillInfo.remainingDoses} left
+                                        {displayDoses} left
                                     </Text>
                                 </View>
                             )}

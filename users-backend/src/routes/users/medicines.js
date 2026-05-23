@@ -318,28 +318,34 @@ router.put('/mark', authenticateSession, async (req, res) => {
                 if (!alreadyTakenToday) patientMed.takenDates.push(new Date());
 
                 // Supply tracking deduction
-                if (patientMed.refillInfo && typeof patientMed.refillInfo.remainingDoses === 'number' && patientMed.refillInfo.remainingDoses > 0) {
-                    patientMed.refillInfo.remainingDoses -= 1;
+                if (patientMed.refillInfo) {
+                    if (typeof patientMed.refillInfo.remainingDoses !== 'number' && typeof patientMed.refillInfo.totalDoses === 'number') {
+                        patientMed.refillInfo.remainingDoses = patientMed.refillInfo.totalDoses;
+                    }
                     
-                    // Low supply alert
-                    if (patientMed.refillInfo.remainingDoses === (patientMed.refillInfo.alertThreshold || 5)) {
-                        try {
-                            await Notification.create({
-                                patient_id: patient._id,
-                                title: '⚠️ Low Medication Supply',
-                                message: `You are running low on ${medicine_name}. Only ${patientMed.refillInfo.remainingDoses} doses left!`,
-                                type: 'alert',
-                                target_screen: 'Medications',
-                            });
-                            if (patient.expo_push_token) {
-                                await PushNotificationService.sendPushNotification(patient.expo_push_token, {
+                    if (typeof patientMed.refillInfo.remainingDoses === 'number' && patientMed.refillInfo.remainingDoses > 0) {
+                        patientMed.refillInfo.remainingDoses -= 1;
+                    
+                        // Low supply alert
+                        if (patientMed.refillInfo.remainingDoses === (patientMed.refillInfo.alertThreshold || 5)) {
+                            try {
+                                await Notification.create({
+                                    patient_id: patient._id,
                                     title: '⚠️ Low Medication Supply',
-                                    body: `You are running low on ${medicine_name}. Only ${patientMed.refillInfo.remainingDoses} doses left!`,
-                                    data: { screen: 'Medications' }
+                                    message: `You are running low on ${medicine_name}. Only ${patientMed.refillInfo.remainingDoses} doses left!`,
+                                    type: 'alert',
+                                    target_screen: 'Medications',
                                 });
+                                if (patient.expo_push_token) {
+                                    await PushNotificationService.sendPushNotification(patient.expo_push_token, {
+                                        title: '⚠️ Low Medication Supply',
+                                        body: `You are running low on ${medicine_name}. Only ${patientMed.refillInfo.remainingDoses} doses left!`,
+                                        data: { screen: 'Medications' }
+                                    });
+                                }
+                            } catch (err) {
+                                logger.error('Failed to send supply alert', { error: err.message });
                             }
-                        } catch (err) {
-                            logger.error('Failed to send supply alert', { error: err.message });
                         }
                     }
                 }
@@ -353,8 +359,13 @@ router.put('/mark', authenticateSession, async (req, res) => {
                 if (!extMed.takenLogs) extMed.takenLogs = [];
                 extMed.takenLogs.push({ date: logDateStr, timestamp: new Date() });
                 
-                if (taken && extMed.refillInfo && typeof extMed.refillInfo.remainingDoses === 'number' && extMed.refillInfo.remainingDoses > 0) {
-                    extMed.refillInfo.remainingDoses -= 1;
+                if (taken && extMed.refillInfo) {
+                    if (typeof extMed.refillInfo.remainingDoses !== 'number' && typeof extMed.refillInfo.totalDoses === 'number') {
+                        extMed.refillInfo.remainingDoses = extMed.refillInfo.totalDoses;
+                    }
+                    
+                    if (typeof extMed.refillInfo.remainingDoses === 'number' && extMed.refillInfo.remainingDoses > 0) {
+                        extMed.refillInfo.remainingDoses -= 1;
                     
                     if (extMed.refillInfo.remainingDoses === (extMed.refillInfo.alertThreshold || 5)) {
                         try {
@@ -376,6 +387,7 @@ router.put('/mark', authenticateSession, async (req, res) => {
                             logger.error('Failed to send supply alert', { error: err.message });
                         }
                     }
+                }
                 }
                 
                 await extMed.save();
@@ -456,10 +468,15 @@ router.put('/mark-slot', authenticateSession, async (req, res) => {
                     });
                     if (!alreadyTakenToday) patientMed.takenDates.push(new Date());
 
-                    if (patientMed.refillInfo && typeof patientMed.refillInfo.remainingDoses === 'number' && patientMed.refillInfo.remainingDoses > 0) {
-                        patientMed.refillInfo.remainingDoses -= 1;
+                    if (patientMed.refillInfo) {
+                        if (typeof patientMed.refillInfo.remainingDoses !== 'number' && typeof patientMed.refillInfo.totalDoses === 'number') {
+                            patientMed.refillInfo.remainingDoses = patientMed.refillInfo.totalDoses;
+                        }
                         
-                        if (patientMed.refillInfo.remainingDoses === (patientMed.refillInfo.alertThreshold || 5)) {
+                        if (typeof patientMed.refillInfo.remainingDoses === 'number' && patientMed.refillInfo.remainingDoses > 0) {
+                            patientMed.refillInfo.remainingDoses -= 1;
+                            
+                            if (patientMed.refillInfo.remainingDoses === (patientMed.refillInfo.alertThreshold || 5)) {
                             try {
                                 await Notification.create({
                                     patient_id: patient._id,
@@ -480,6 +497,7 @@ router.put('/mark-slot', authenticateSession, async (req, res) => {
                             }
                         }
                     }
+                }
                 } else {
                     const searchIds = [patient._id];
                     if (patient.profile_id) searchIds.push(patient.profile_id);
@@ -488,27 +506,33 @@ router.put('/mark-slot', authenticateSession, async (req, res) => {
                         if (!extMed.takenLogs) extMed.takenLogs = [];
                         extMed.takenLogs.push({ date: logDateStr, timestamp: new Date() });
                         
-                        if (extMed.refillInfo && typeof extMed.refillInfo.remainingDoses === 'number' && extMed.refillInfo.remainingDoses > 0) {
-                            extMed.refillInfo.remainingDoses -= 1;
+                        if (extMed.refillInfo) {
+                            if (typeof extMed.refillInfo.remainingDoses !== 'number' && typeof extMed.refillInfo.totalDoses === 'number') {
+                                extMed.refillInfo.remainingDoses = extMed.refillInfo.totalDoses;
+                            }
                             
-                            if (extMed.refillInfo.remainingDoses === (extMed.refillInfo.alertThreshold || 5)) {
-                                try {
-                                    await Notification.create({
-                                        patient_id: patient._id,
-                                        title: '⚠️ Low Medication Supply',
-                                        message: `You are running low on ${m.medicine_name}. Only ${extMed.refillInfo.remainingDoses} doses left!`,
-                                        type: 'alert',
-                                        target_screen: 'Medications',
-                                    });
-                                    if (patient.expo_push_token) {
-                                        await PushNotificationService.sendPushNotification(patient.expo_push_token, {
+                            if (typeof extMed.refillInfo.remainingDoses === 'number' && extMed.refillInfo.remainingDoses > 0) {
+                                extMed.refillInfo.remainingDoses -= 1;
+                                
+                                if (extMed.refillInfo.remainingDoses === (extMed.refillInfo.alertThreshold || 5)) {
+                                    try {
+                                        await Notification.create({
+                                            patient_id: patient._id,
                                             title: '⚠️ Low Medication Supply',
-                                            body: `You are running low on ${m.medicine_name}. Only ${extMed.refillInfo.remainingDoses} doses left!`,
-                                            data: { screen: 'Medications' }
+                                            message: `You are running low on ${m.medicine_name}. Only ${extMed.refillInfo.remainingDoses} doses left!`,
+                                            type: 'alert',
+                                            target_screen: 'Medications',
                                         });
+                                        if (patient.expo_push_token) {
+                                            await PushNotificationService.sendPushNotification(patient.expo_push_token, {
+                                                title: '⚠️ Low Medication Supply',
+                                                body: `You are running low on ${m.medicine_name}. Only ${extMed.refillInfo.remainingDoses} doses left!`,
+                                                data: { screen: 'Medications' }
+                                            });
+                                        }
+                                    } catch (err) {
+                                        logger.error('Failed to send supply alert', { error: err.message });
                                     }
-                                } catch (err) {
-                                    logger.error('Failed to send supply alert', { error: err.message });
                                 }
                             }
                         }
