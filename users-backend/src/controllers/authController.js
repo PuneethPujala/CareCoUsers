@@ -56,6 +56,7 @@ async function login(req, res) {
     if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
       return res.status(504).json({ error: 'The request timed out. Please try again.', code: 'TIMEOUT' });
     }
+    console.error('CRITICAL LOGIN FAILURE:', err.stack);
     res.status(500).json({ error: 'Login failed. Please try again or contact support.', code: 'LOGIN_FAILED' });
   }
 }
