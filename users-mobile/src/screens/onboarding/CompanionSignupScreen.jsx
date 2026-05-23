@@ -62,7 +62,7 @@ export default function CompanionSignupScreen({ navigation }) {
 
         try {
             // Note: We bypass the normal auth loop here because it's a specialized endpoint
-            const res = await apiService.api.post('/companion/join', {
+            const res = await apiService.companion.join({
                 invite_code: inviteCode,
                 email,
                 password,
