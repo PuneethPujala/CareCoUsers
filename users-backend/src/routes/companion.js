@@ -3,6 +3,7 @@ const router = express.Router();
 const { authenticateSession } = require('../middleware/authenticate');
 const Patient = require('../models/Patient');
 const Profile = require('../models/Profile');
+const CompanionAccess = require('../models/CompanionAccess');
 const authService = require('../services/authService');
 const logger = require('../utils/logger');
 const tokenService = require('../services/tokenService');
@@ -55,8 +56,18 @@ router.post('/join', async (req, res) => {
             emailVerified: true // Assume verified if they have the code, or require OTP later
         });
 
-        // 3. Link Profile to Patient
-        patient.companions.push({ profile_id: profile._id });
+        // 3. Link Profile to Patient using CompanionAccess Relationship Model
+        await CompanionAccess.create({
+            companion_id: profile._id,
+            patient_id: patient._id,
+            relationship_type: 'Other',
+            access_level: 'caregiver',
+            permissions: ['read_only', 'alerts'],
+            status: 'accepted',
+            is_active: true,
+            joined_at: new Date(),
+            created_by: profile._id
+        });
         
         // Add to trusted_contacts for backward compatibility in notifications
         patient.trusted_contacts.push({
@@ -123,11 +134,20 @@ router.get('/patient-status', authenticateSession, async (req, res) => {
             return res.status(403).json({ error: 'Access denied.' });
         }
 
-        // Find patient linked to this companion
-        const patient = await Patient.findOne({ 'companions.profile_id': req.profile._id });
+        // Find patient linked to this companion using decoupled relationship model
+        const access = await CompanionAccess.findOne({ 
+            companion_id: req.profile._id, 
+            is_active: true, 
+            status: 'accepted' 
+        });
         
-        if (!patient) {
+        if (!access) {
             return res.status(404).json({ error: 'Linked patient not found or access revoked.' });
+        }
+
+        const patient = await Patient.findById(access.patient_id);
+        if (!patient) {
+            return res.status(404).json({ error: 'Linked patient not found.' });
         }
 
         // Gather read-only data
