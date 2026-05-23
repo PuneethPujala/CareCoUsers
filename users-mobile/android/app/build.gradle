@@ -87,9 +87,9 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace 'com.careco.users'
+    namespace 'com.caremymed.users'
     defaultConfig {
-        applicationId 'com.careco.users'
+        applicationId 'com.caremymed.users'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1

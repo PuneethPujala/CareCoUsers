@@ -25,7 +25,7 @@ export default function LandingScreen({ navigation }) {
                     </View>
 
                     <Text style={s.appName}>
-                        CareCo Admin
+                        CareMyMed Admin
                     </Text>
 
                     <Text style={s.tagline}>
@@ -52,7 +52,7 @@ export default function LandingScreen({ navigation }) {
                     </View>
 
                     <Text style={s.footer}>
-                        © 2026 CareCo Admin Portal. Internal Use Only.
+                        © 2026 CareMyMed Admin Portal. Internal Use Only.
                     </Text>
                 </View>
             </SafeAreaView>

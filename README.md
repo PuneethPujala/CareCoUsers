@@ -1,4 +1,4 @@
-# CareConnect - Healthcare Management Platform
+# CareMyMednnect - Healthcare Management Platform
 
 A comprehensive healthcare management system built with React Native, Supabase Auth, and MongoDB, featuring role-based access control (RBAC) for 6 distinct user types.
 
@@ -14,7 +14,7 @@ A comprehensive healthcare management system built with React Native, Supabase A
 ## 👥 User Roles & Hierarchy
 
 ```
-Super Admin (Platform Owner - CareConnect Internal)
+Super Admin (Platform Owner - CareMyMednnect Internal)
     └── Org Admin (Healthcare Organization Administrator)
         └── Care Manager (Clinical Coordinator)
             └── Caretaker (Call Agent)
@@ -24,7 +24,7 @@ Super Admin (Platform Owner - CareConnect Internal)
 
 ### Role Definitions
 
-1. **Super Admin** — CareConnect internal staff, full platform access
+1. **Super Admin** — CareMyMednnect internal staff, full platform access
 2. **Org Admin** — Organization administrator, manages their org
 3. **Care Manager** — Clinical coordinator, oversees caretakers & patients in org
 4. **Caretaker** — Call agent, accesses assigned patients only
@@ -114,7 +114,7 @@ SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 SUPABASE_ANON_KEY=your-anon-key
 
 # MongoDB Configuration
-MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/careconnect?retryWrites=true&w=majority
+MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/caremymednnect?retryWrites=true&w=majority
 
 # Server Configuration
 PORT=3001
@@ -349,7 +349,7 @@ npm test           # Run backend tests
 
 ```bash
 # Connect to MongoDB
-mongosh mongodb+srv://username:password@cluster.mongodb.net/careconnect
+mongosh mongodb+srv://username:password@cluster.mongodb.net/caremymednnect
 
 # View collections
 show collections
@@ -374,10 +374,10 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 For support and questions:
 
-- **Email**: support@careconnect.com
+- **Email**: support@caremymednnect.com
 - **Phone**: 1-800-CARE-CONNECT
-- **Documentation**: [Wiki](https://github.com/your-org/careconnect/wiki)
-- **Issues**: [GitHub Issues](https://github.com/your-org/careconnect/issues)
+- **Documentation**: [Wiki](https://github.com/your-org/caremymednnect/wiki)
+- **Issues**: [GitHub Issues](https://github.com/your-org/caremymednnect/issues)
 
 ## 🎯 Roadmap
 

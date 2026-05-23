@@ -36,7 +36,7 @@ function mockPatient(overrides = {}) {
         profile_id:         overrides.profile_id         || null,
         role:               overrides.role               || 'patient',
         name:               overrides.name               || 'Test Patient',
-        email:              overrides.email              || 'patient@careco.in',
+        email:              overrides.email              || 'patient@caremymed.in',
         phone:              overrides.phone              || '+919999999999',
         city:               overrides.city               || 'Hyderabad',
         organization_id:    fakeId(overrides.organization_id    || 'test-org-id'),
@@ -148,7 +148,7 @@ function mockProfile(overrides = {}) {
     return {
         _id:            id,
         supabaseUid:    overrides.supabaseUid    || `sup-uid-${rawId}`,
-        email:          overrides.email          || 'staff@careco.in',
+        email:          overrides.email          || 'staff@caremymed.in',
         fullName:       overrides.fullName       || 'Test Staff',
         role:           overrides.role           || 'care_manager',
         organizationId: overrides.organizationId
@@ -185,7 +185,7 @@ function mockCaller(overrides = {}) {
         _id:             id,
         supabase_uid:    overrides.supabase_uid    || `sup-uid-call-${rawId}`,
         name:            overrides.name            || 'Test Caller',
-        email:           overrides.email           || 'caller@careco.in',
+        email:           overrides.email           || 'caller@caremymed.in',
         employee_id:     overrides.employee_id     || 'CC-1234',
         city:            overrides.city            || 'Hyderabad',
         organization_id: fakeId(overrides.organization_id || 'test-org-id'),

@@ -1,7 +1,7 @@
 {
-  "name": "careconnect-backend",
+  "name": "caremymednnect-backend",
   "version": "1.0.0",
-  "description": "CareConnect Backend API with Supabase Auth and MongoDB",
+  "description": "CareMyMednnect Backend API with Supabase Auth and MongoDB",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
@@ -40,6 +40,6 @@
     "supabase",
     "mongodb"
   ],
-  "author": "CareConnect Team",
+  "author": "CareMyMednnect Team",
   "license": "MIT"
 }

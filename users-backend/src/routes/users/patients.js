@@ -127,7 +127,7 @@ async function subscribeAndSeedDemoData(patient, planId) {
         await Notification.create([{
             patient_id: patient._id,
             type: 'system',
-            title: 'Welcome to CareCo! 🎉',
+            title: 'Welcome to CareMyMed! 🎉',
             message: 'Your account is now active. Explore the app while we appoint your dedicated caregiver.',
             target_screen: 'HealthProfile',
         }], { session });
@@ -139,7 +139,7 @@ async function subscribeAndSeedDemoData(patient, planId) {
             const PushNotificationService = require('../../utils/pushNotifications');
             PushNotificationService.sendPush(
                 patient.expo_push_token,
-                'Welcome to CareCo! 🎉',
+                'Welcome to CareMyMed! 🎉',
                 'Your account is now active.'
             ).catch(err => logger.warn('Push notification failed', { error: err.message }));
         }
@@ -187,7 +187,7 @@ router.get('/location/reverse', async (req, res) => {
         const fetch = global.fetch || require('node-fetch');
         const response = await fetch(
             `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&addressdetails=1`,
-            { headers: { 'User-Agent': 'CareCo-Backend/1.0' } }
+            { headers: { 'User-Agent': 'CareMyMed-Backend/1.0' } }
         );
         const data = await response.json();
         res.json(data);
@@ -205,7 +205,7 @@ router.get('/location/search', async (req, res) => {
         const fetch = global.fetch || require('node-fetch');
         const response = await fetch(
             `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&addressdetails=1&countrycodes=in&limit=5`,
-            { headers: { 'User-Agent': 'CareCo-Backend/1.0' } }
+            { headers: { 'User-Agent': 'CareMyMed-Backend/1.0' } }
         );
         const data = await response.json();
         const results = data.map(item => ({

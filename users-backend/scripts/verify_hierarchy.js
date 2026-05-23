@@ -27,7 +27,7 @@ async function verifyHierarchy() {
 
         // 2. Create an Org Admin
         const orgAdmin = await Profile.findOneAndUpdate(
-            { email: 'org.admin.test@careco.in' },
+            { email: 'org.admin.test@caremymed.in' },
             {
                 supabaseUid: 'test-org-admin-id',
                 fullName: 'Test Org Admin',
@@ -41,7 +41,7 @@ async function verifyHierarchy() {
 
         // 3. Create a Care Manager
         const careManager = await Profile.findOneAndUpdate(
-            { email: 'manager.test@careco.in' },
+            { email: 'manager.test@caremymed.in' },
             {
                 supabaseUid: 'test-manager-id',
                 fullName: 'Test Care Manager',
@@ -56,7 +56,7 @@ async function verifyHierarchy() {
 
         // 4. Create a Caller under the Manager
         // This simulates the behavior of the create-user route
-        const callerEmail = 'caller.test@careco.in';
+        const callerEmail = 'caller.test@caremymed.in';
         let callerProfile = await Profile.findOne({ email: callerEmail });
         if (callerProfile) await callerProfile.deleteOne();
         let callerOp = await Caller.findOne({ email: callerEmail });
@@ -90,7 +90,7 @@ async function verifyHierarchy() {
         console.log('\n🔄 Testing reassignment by Org Admin...');
         const newManager = await Profile.create({
             supabaseUid: 'test-manager-2-id-' + Date.now(),
-            email: 'manager2.test@careco.in',
+            email: 'manager2.test@caremymed.in',
             fullName: 'New Care Manager',
             role: 'care_manager',
             organizationId: testOrg._id,
@@ -114,8 +114,8 @@ async function verifyHierarchy() {
         console.error('\n❌ Verification failed:', err);
     } finally {
         // Cleanup test data
-        await Profile.deleteMany({ email: /test@careco\.in/ });
-        await Caller.deleteMany({ email: /test@careco\.in/ });
+        await Profile.deleteMany({ email: /test@caremymed\.in/ });
+        await Caller.deleteMany({ email: /test@caremymed\.in/ });
         await mongoose.connection.close();
         process.exit(0);
     }

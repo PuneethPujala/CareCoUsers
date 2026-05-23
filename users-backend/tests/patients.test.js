@@ -369,7 +369,7 @@ describe('Patients Routes', () => {
         });
 
         it('logs patient_deactivated event on successful delete', async () => {
-            const patient = makePatient({ _id: 'patient123', organization_id: 'org123', email: 'p@careco.in' });
+            const patient = makePatient({ _id: 'patient123', organization_id: 'org123', email: 'p@caremymed.in' });
             Patient.findById = jest.fn().mockResolvedValue(patient);
             Organization.findByIdAndUpdate = jest.fn().mockResolvedValue(null);
 

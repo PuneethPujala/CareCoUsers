@@ -142,7 +142,7 @@ export default function ChangePasswordScreen({ navigation, route }) {
                             <Text style={s.heroSubtitle}>
                                 {forced 
                                     ? 'For security reasons, your temporary passcode must be changed immediately.'
-                                    : 'Update your localized encryption strings to keep your CareConnect account fortified.'}
+                                    : 'Update your localized encryption strings to keep your CareMyMednnect account fortified.'}
                             </Text>
                         </View>
 

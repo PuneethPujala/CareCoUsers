@@ -1,8 +1,8 @@
 {
   "expo": {
     "name": "CareMyMed",
-    "slug": "careco-users",
-    "scheme": "careco-app",
+    "slug": "caremymed-users",
+    "scheme": "caremymed-app",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/logo.png",
@@ -26,7 +26,7 @@
         }
       },
       "supportsTablet": true,
-      "bundleIdentifier": "com.careco.users",
+      "bundleIdentifier": "com.caremymed.users",
       "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "NSHealthShareUsageDescription": "CareMyMed requires access to your health data to monitor your wellbeing.",
@@ -44,7 +44,7 @@
           "resizeMode": "contain"
         }
       },
-      "package": "com.careco.users",
+      "package": "com.caremymed.users",
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",

@@ -1,5 +1,5 @@
 /**
- * CareConnect Design System
+ * CareMyMednnect Design System
  * Blue-gradient foundation with role-specific accents
  */
 

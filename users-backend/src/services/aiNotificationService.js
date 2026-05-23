@@ -84,7 +84,7 @@ async function triggerAiNotification(trigger, patient, category = 'health_tips',
 
     // 2. Dispatch Push
     const pushDelivered = await NotificationService.sendPush(patient._id, {
-        title: 'CareCo Companion 🤖',
+        title: 'CareMyMed Companion 🤖',
         body: messageBody,
         data: { screen: targetScreen, notification_id: notificationDoc._id.toString() },
     });

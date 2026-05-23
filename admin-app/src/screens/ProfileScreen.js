@@ -277,7 +277,7 @@ export default function ProfileScreen({ navigation }) {
                         </View>
                         
                         <Text style={[s.profileName, Theme.typography.common]}>{displayName}</Text>
-                        <Text style={[s.profileEmail, Theme.typography.common]}>{user?.email || 'admin@careconnect.ai'}</Text>
+                        <Text style={[s.profileEmail, Theme.typography.common]}>{user?.email || 'admin@caremymednnect.ai'}</Text>
                         
                         <View style={s.roleBadge}>
                             <Feather name="shield" size={12} color="#4F46E5" />
@@ -300,7 +300,7 @@ export default function ProfileScreen({ navigation }) {
                     <View style={s.premiumCard}>
                         <InfoRow icon="user" label="Full Name" value={profile?.fullName || displayName} />
                         <View style={s.cardDivider} />
-                        <InfoRow icon="mail" label="E-mail Address" value={user?.email || 'admin@careconnect.ai'} onPress={() => Linking.openURL(`mailto:${user?.email}`)} />
+                        <InfoRow icon="mail" label="E-mail Address" value={user?.email || 'admin@caremymednnect.ai'} onPress={() => Linking.openURL(`mailto:${user?.email}`)} />
                         <View style={s.cardDivider} />
                         <InfoRow 
                             icon="phone" 
@@ -425,7 +425,7 @@ export default function ProfileScreen({ navigation }) {
                                     <Feather name="alert-triangle" size={24} color="#EF4444" />
                                 </View>
                                 <View style={{ flex: 1 }}>
-                                    <Text style={s.logoutDangerTitle}>Sign out of CareConnect?</Text>
+                                    <Text style={s.logoutDangerTitle}>Sign out of CareMyMednnect?</Text>
                                     <Text style={s.logoutDangerText}>You will be securely disconnected from this device.</Text>
                                 </View>
                             </View>
@@ -445,7 +445,7 @@ export default function ProfileScreen({ navigation }) {
                         </TouchableOpacity>
                     )}
 
-                    <Text style={s.versionTag}>CareConnect Enterprise OS • v2.4.0</Text>
+                    <Text style={s.versionTag}>CareMyMednnect Enterprise OS • v2.4.0</Text>
                 </Animated.View>
             </Animated.ScrollView>
 

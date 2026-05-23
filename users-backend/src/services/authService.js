@@ -110,7 +110,7 @@ async function registerPatient(body, req) {
         email: emailNorm,
       });
 
-      // Issue CareConnect JWTs so the mobile has tokens the backend can verify.
+      // Issue CareMyMednnect JWTs so the mobile has tokens the backend can verify.
       // Supabase JWTs from Google OAuth can't be verified without the fallback.
       const tokens = await tokenService.issueTokenPair(
         {
@@ -292,7 +292,7 @@ async function registerPatient(body, req) {
     },
   };
 
-  // For OAuth users, issue CareConnect JWTs so the mobile has usable tokens.
+  // For OAuth users, issue CareMyMednnect JWTs so the mobile has usable tokens.
   // Email-password users get their tokens from the subsequent login() call.
   if (isOAuth) {
     const tokens = await tokenService.issueTokenPair(

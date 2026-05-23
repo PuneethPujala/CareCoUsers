@@ -170,7 +170,7 @@ const SignupScreen = () => {
               Create Account
             </Text>
             <Text className="text-gray-600 text-center">
-              Join CareConnect healthcare platform
+              Join CareMyMednnect healthcare platform
             </Text>
           </View>
 

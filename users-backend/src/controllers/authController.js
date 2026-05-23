@@ -215,7 +215,7 @@ async function exportMyData(req, res) {
     await logEvent(req.user.id, 'data_exported', isPatient ? 'patient' : 'profile', req.profile._id, req);
 
     res.setHeader('Content-Type', 'application/json');
-    res.setHeader('Content-Disposition', `attachment; filename="careco-export-${Date.now()}.json"`);
+    res.setHeader('Content-Disposition', `attachment; filename="caremymed-export-${Date.now()}.json"`);
     res.json(exported);
   } catch (err) {
     console.error('Export data error:', err);

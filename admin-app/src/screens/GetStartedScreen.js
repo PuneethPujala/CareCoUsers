@@ -69,7 +69,7 @@ return (
 
                 <View style={s.content}>
                     <View>
-                        <Text style={s.title}>How CareConnect Works</Text>
+                        <Text style={s.title}>How CareMyMednnect Works</Text>
                         <Text style={s.subtitle}>Connecting care teams, families, and patients through compassionate calls.</Text>
                     </View>
 

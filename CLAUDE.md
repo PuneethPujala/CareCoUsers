@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository Layout
 
-This is a monorepo for **CareMyMed / CareConnect** — a healthcare management platform.
+This is a monorepo for **CareMyMed / CareMyMednnect** — a healthcare management platform.
 
 | Directory | Purpose |
 |-----------|---------|

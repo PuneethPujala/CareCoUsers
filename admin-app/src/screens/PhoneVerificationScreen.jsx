@@ -279,7 +279,7 @@ export default function PhoneVerificationScreen() {
                             )}
 
                             <Text style={s.hintText}>
-                                Phone verification is mandatory for your role. This ensures secure communication within the CareConnect platform.
+                                Phone verification is mandatory for your role. This ensures secure communication within the CareMyMednnect platform.
                             </Text>
 
                         </Animated.View>

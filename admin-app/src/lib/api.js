@@ -55,7 +55,7 @@ const api = axios.create({
   timeout: 15000,
   headers: {
     'Content-Type': 'application/json',
-    'x-app-name': 'CareConnect',
+    'x-app-name': 'CareMyMednnect',
     'x-app-platform': 'mobile',
   },
 });

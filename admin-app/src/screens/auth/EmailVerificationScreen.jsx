@@ -134,7 +134,7 @@ const EmailVerificationScreen = () => {
               <View className="flex-row items-start">
                 <Text className="text-blue-600 mr-2">2.</Text>
                 <Text className="text-blue-800 flex-1 text-sm">
-                  Find the email from "CareConnect" (check spam folder too)
+                  Find the email from "CareMyMednnect" (check spam folder too)
                 </Text>
               </View>
               <View className="flex-row items-start">
@@ -228,7 +228,7 @@ const EmailVerificationScreen = () => {
           </Text>
           <View className="space-y-1">
             <Text className="text-sm text-gray-600">
-              Email: support@careconnect.com
+              Email: support@caremymednnect.com
             </Text>
             <Text className="text-sm text-gray-600">
               Phone: 1-800-CARE-CONNECT

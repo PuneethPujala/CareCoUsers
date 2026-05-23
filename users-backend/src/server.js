@@ -81,7 +81,7 @@ app.use(cors({
     if (!origin) return callback(null, true);
     if (process.env.NODE_ENV === 'production') {
         const whitelist = [process.env.FRONTEND_URL];
-        if (whitelist.includes(origin) || origin.startsWith('careco-app://') || origin.startsWith('exp://')) {
+        if (whitelist.includes(origin) || origin.startsWith('caremymed-app://') || origin.startsWith('exp://')) {
             callback(null, true);
         } else {
             callback(new Error('Not allowed by CORS'));
@@ -122,7 +122,7 @@ app.get(['/', '/health'], (req, res) => {
   res.status(200).json({
     status: 'OK',
     timestamp: new Date().toISOString(),
-    service: 'CareConnect Backend API'
+    service: 'CareMyMednnect Backend API'
   });
 });
 
@@ -196,7 +196,7 @@ app.use((err, req, res, next) => {
 // Start server
 if (require.main === module) {
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 CareConnect Backend API running on port ${PORT} (all interfaces)`);
+    console.log(`🚀 CareMyMednnect Backend API running on port ${PORT} (all interfaces)`);
     console.log(`📊 Health check: http://localhost:${PORT}/health`);
     console.log(`🌍 Environment: ${process.env.NODE_ENV}`);
   });

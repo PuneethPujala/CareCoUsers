@@ -67,7 +67,7 @@ const handleSignup = async () => {
                             <LinearGradient colors={['#6366F1', '#8B5CF6']} style={s.logoMini}>
                                 <Text style={{ fontSize: 14, color: '#fff' }}>♥</Text>
                             </LinearGradient>
-                            <Text style={s.logoText}>CareConnect</Text>
+                            <Text style={s.logoText}>CareMyMednnect</Text>
                         </View>
                         <Text style={s.title}>Create Account</Text>
                         <Text style={s.subtitle}>Join care community</Text>

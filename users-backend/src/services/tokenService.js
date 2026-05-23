@@ -14,16 +14,16 @@ function signAccessToken(payload) {
   assertSecrets();
   return jwt.sign(payload, jwtConfig.accessSecret, {
     expiresIn: jwtConfig.accessExpiresIn,
-    issuer: 'careconnect-api',
-    audience: 'careconnect-clients',
+    issuer: 'caremymednnect-api',
+    audience: 'caremymednnect-clients',
   });
 }
 
 function verifyAccessToken(token) {
   assertSecrets();
   return jwt.verify(token, jwtConfig.accessSecret, {
-    issuer: 'careconnect-api',
-    audience: 'careconnect-clients',
+    issuer: 'caremymednnect-api',
+    audience: 'caremymednnect-clients',
   });
 }
 

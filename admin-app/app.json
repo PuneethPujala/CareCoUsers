@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "CareCo Admin Portal",
-    "slug": "careco-admin",
-    "scheme": "careco-admin",
+    "name": "CareMyMed Admin Portal",
+    "slug": "caremymed-admin",
+    "scheme": "caremymed-admin",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -14,7 +14,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.careco.admin"
+      "bundleIdentifier": "com.caremymed.admin"
     },
     "android": {
       "googleServicesFile": "./google-services.json",
@@ -23,7 +23,7 @@
         "monochromeImage": "./assets/android-icon-monochrome.png",
         "backgroundColor": "#0A2463"
       },
-      "package": "com.careco.admin"
+      "package": "com.caremymed.admin"
     },
     "web": {
       "favicon": "./assets/favicon.png"

@@ -75,7 +75,7 @@ const LoginScreen = () => {
             <View className="w-20 h-20 bg-blue-600 rounded-full justify-center items-center mb-4">
               <Text className="text-white text-2xl font-bold">CC</Text>
             </View>
-            <Text className="text-2xl font-bold text-gray-900 mb-1">CareConnect</Text>
+            <Text className="text-2xl font-bold text-gray-900 mb-1">CareMyMednnect</Text>
             <Text className="text-gray-600 text-center">Healthcare management platform</Text>
           </View>
 

@@ -42,7 +42,7 @@ function mockProfile(overrides = {}) {
     const base = {
         _id:                fakeId(rawId),
         supabaseUid:        overrides.supabaseUid        || `sup-uid-${String(rawId).slice(0, 8)}`,
-        email:              overrides.email              || 'test@careco.in',
+        email:              overrides.email              || 'test@caremymed.in',
         fullName:           overrides.fullName           || 'Test User',
         role:               overrides.role               || 'care_manager',
         organizationId:     fakeId(rawOrg),
@@ -99,7 +99,7 @@ function mockProfile(overrides = {}) {
 function mockSupabaseUser(overrides = {}) {
     return {
         id:                  overrides.id    || 'sup-uid-12345678',
-        email:               overrides.email || 'test@careco.in',
+        email:               overrides.email || 'test@caremymed.in',
         email_confirmed_at:  overrides.email_confirmed_at  || new Date().toISOString(),
         created_at:          overrides.created_at          || new Date().toISOString(),
         user_metadata:       overrides.user_metadata || { full_name: 'Test User', role: 'care_manager' },
