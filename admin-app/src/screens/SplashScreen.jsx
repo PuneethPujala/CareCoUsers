@@ -116,44 +116,6 @@ const CheckCircleIcon = () => (
   </Svg>
 );
 
-// ─── CALL ALERT ICONS ──────────────────────────────────────────────────────
-const SignalBars = () => {
-  const bar1 = useRef(new Animated.Value(0)).current;
-  const bar2 = useRef(new Animated.Value(0)).current;
-  const bar3 = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    const animateBar = (anim, delay) => {
-      Animated.loop(
-        Animated.sequence([
-          Animated.delay(delay),
-          Animated.timing(anim, { toValue: 1, duration: 450, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-          Animated.timing(anim, { toValue: 0, duration: 450, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-        ])
-      ).start();
-    };
-    animateBar(bar1, 0);
-    animateBar(bar2, 150);
-    animateBar(bar3, 300);
-  }, []);
-
-  const getStyle = (anim, h) => ({
-    width: 3,
-    height: h,
-    backgroundColor: '#00c9a7',
-    borderRadius: 1.5,
-    opacity: anim.interpolate({ inputRange: [0, 1], outputRange: [0.3, 1] }),
-  });
-
-  return (
-    <View style={s.signalBars}>
-      <Animated.View style={getStyle(bar1, 6)} />
-      <Animated.View style={getStyle(bar2, 10)} />
-      <Animated.View style={getStyle(bar3, 14)} />
-    </View>
-  );
-};
-
 // ─── MAIN COMPONENT ────────────────────────────────────────────────────────
 export default function SplashScreen({ onFinish }) {
   const minuteAnim = useRef(new Animated.Value(0)).current;
@@ -168,23 +130,10 @@ export default function SplashScreen({ onFinish }) {
   const buttonTranslate = useRef(new Animated.Value(20)).current;
   const buttonScale = useRef(new Animated.Value(1)).current;
 
-  const phoneRingAnim = useRef(new Animated.Value(0)).current;
-  const callAlertTranslate = useRef(new Animated.Value(-40)).current;
-  const callAlertOpacity = useRef(new Animated.Value(0)).current;
-  const alertShown = useRef(false);
-
   useEffect(() => {
     Animated.loop(Animated.timing(minuteAnim, { toValue: 1, duration: 15000, easing: Easing.linear, useNativeDriver: true })).start();
     Animated.loop(Animated.timing(hourAnim, { toValue: 1, duration: 120000, easing: Easing.linear, useNativeDriver: true })).start();
     Animated.loop(Animated.timing(orbitAnim, { toValue: 1, duration: 30000, easing: Easing.linear, useNativeDriver: true })).start();
-
-    // Phone ring pulse
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(phoneRingAnim, { toValue: 1, duration: 900, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-        Animated.timing(phoneRingAnim, { toValue: 0, duration: 900, easing: Easing.inOut(Easing.sin), useNativeDriver: true })
-      ])
-    ).start();
 
     // Entrance animations
     Animated.parallel([
@@ -207,31 +156,6 @@ export default function SplashScreen({ onFinish }) {
         Animated.timing(buttonTranslate, { toValue: 0, duration: 500, easing: Easing.out(Easing.back(1.2)), useNativeDriver: true })
       ])
     ]).start();
-
-    // Call Alert Trigger
-    const listenerId = minuteAnim.addListener(({ value }) => {
-      if (value >= 0.32 && value <= 0.36 && !alertShown.current) {
-        alertShown.current = true;
-        
-        Animated.parallel([
-          Animated.spring(callAlertTranslate, { toValue: 0, friction: 6, tension: 40, useNativeDriver: true }),
-          Animated.timing(callAlertOpacity, { toValue: 1, duration: 400, useNativeDriver: true })
-        ]).start();
-
-        setTimeout(() => {
-          Animated.parallel([
-            Animated.timing(callAlertTranslate, { toValue: -40, duration: 400, easing: Easing.in(Easing.cubic), useNativeDriver: true }),
-            Animated.timing(callAlertOpacity, { toValue: 0, duration: 400, useNativeDriver: true })
-          ]).start();
-          
-          setTimeout(() => {
-            alertShown.current = false;
-          }, 9000);
-        }, 3000);
-      }
-    });
-
-    return () => minuteAnim.removeListener(listenerId);
   }, []);
 
   const handlePressIn = () => Animated.spring(buttonScale, { toValue: 0.97, useNativeDriver: true }).start();
@@ -240,8 +164,6 @@ export default function SplashScreen({ onFinish }) {
   const minuteDeg = minuteAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
   const hourDeg = hourAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
   const orbitDeg = orbitAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
-  
-  const phoneScale = phoneRingAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 1.3] });
 
   return (
     <View style={s.container}>
@@ -306,28 +228,6 @@ export default function SplashScreen({ onFinish }) {
                 <Pill />
               </View>
             </View>
-
-            {/* Call Alert (Floating glass card) */}
-            <Animated.View style={[s.callAlert, { opacity: callAlertOpacity, transform: [{ translateY: callAlertTranslate }] }]}>
-               {Platform.OS === 'android' ? (
-                 <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(255,255,255,0.7)' }]} />
-               ) : (
-                 <BlurView intensity={18} tint="light" style={StyleSheet.absoluteFill} />
-               )}
-               <View style={s.callAlertContent}>
-                 <View style={s.callIconWrapper}>
-                    <Animated.View style={[s.callIconRing, { transform: [{ scale: phoneScale }] }]} />
-                    <Svg width="18" height="18" viewBox="0 0 24 24" fill="#1a8fe1">
-                      <Path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z" />
-                    </Svg>
-                 </View>
-                 <View style={s.callAlertText}>
-                   <Text style={s.callAlertTitle}>Medicine Time</Text>
-                   <Text style={s.callAlertSub}>Calling patient now...</Text>
-                 </View>
-                 <SignalBars />
-               </View>
-            </Animated.View>
             
           </Animated.View>
         </View>
@@ -488,65 +388,6 @@ const s = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderWidth: 2.5,
     borderColor: '#1a8fe1',
-  },
-
-  // ── CALL ALERT ──
-  callAlert: {
-    position: 'absolute',
-    top: -30,
-    width: 220,
-    height: 72,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.55)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.85)',
-    shadowColor: '#1a8fe1',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.14,
-    shadowRadius: 28,
-    overflow: 'hidden',
-  },
-  callAlertContent: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    gap: 12,
-  },
-  callIconWrapper: {
-    width: 32,
-    height: 32,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  callIconRing: {
-    position: 'absolute',
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    borderWidth: 2,
-    borderColor: 'rgba(26,143,225,0.5)',
-  },
-  callAlertText: {
-    flex: 1,
-    justifyContent: 'center',
-  },
-  callAlertTitle: {
-    color: '#0d5fa1',
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  callAlertSub: {
-    color: '#5a7fa0',
-    fontSize: 11,
-    fontWeight: '300',
-    marginTop: 2,
-  },
-  signalBars: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: 4,
-    height: 14,
   },
 
   // ── TEXT & BADGES ──
