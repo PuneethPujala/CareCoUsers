@@ -15,6 +15,9 @@
 const scopeFilter = (resourceType) => {
     return async (req, res, next) => {
         try {
+            if (!req.profile) {
+                return res.status(500).json({ error: 'Scope filter error: profile missing' });
+            }
             const { role, _id: profileId, organizationId } = req.profile;
 
             switch (role) {
