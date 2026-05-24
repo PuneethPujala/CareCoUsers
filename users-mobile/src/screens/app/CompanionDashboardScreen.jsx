@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, RefreshControl, Pressable } from 'react-native';
 import { apiService } from '../../lib/api';
 import { HeartPulse, Activity, Bell } from 'lucide-react-native';
 
@@ -11,6 +11,8 @@ const C = {
     mid: '#475569',
     danger: '#EF4444',
     border: '#E2E8F0',
+    accent: '#38BDF8',
+    activeBg: '#E0F2FE',
 };
 
 const FONT = {
@@ -22,12 +24,17 @@ const FONT = {
 
 export default function CompanionDashboardScreen() {
     const [data, setData] = useState(null);
+    const [selectedPatientId, setSelectedPatientId] = useState(null);
     const [refreshing, setRefreshing] = useState(false);
 
-    const loadData = async () => {
+    const loadData = async (patientId = null) => {
         try {
-            const res = await apiService.companion.getPatientStatus();
+            const activeId = patientId || selectedPatientId;
+            const res = await apiService.companion.getPatientStatus(activeId ? { patientId: activeId } : undefined);
             setData(res.data);
+            if (res.data.patient && !selectedPatientId && !patientId) {
+                setSelectedPatientId(res.data.patient.id);
+            }
         } catch (err) {
             console.warn('Failed to load companion dashboard', err);
         }
@@ -43,6 +50,11 @@ export default function CompanionDashboardScreen() {
         setRefreshing(false);
     };
 
+    const handlePatientSwitch = async (patientId) => {
+        setSelectedPatientId(patientId);
+        await loadData(patientId);
+    };
+
     if (!data) return <View style={styles.container} />;
 
     return (
@@ -50,6 +62,62 @@ export default function CompanionDashboardScreen() {
             <View style={styles.header}>
                 <Text style={styles.title}>{data.patient.name}'s Health</Text>
             </View>
+
+            {/* Premium Horizontal Patient Switcher */}
+            {data.linked_patients?.length > 1 && (
+                <View style={styles.switcherContainer}>
+                    <ScrollView 
+                        horizontal 
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={styles.switcherScroll}
+                    >
+                        {data.linked_patients.map((p) => {
+                            const isSelected = p.id === selectedPatientId;
+                            const initials = p.name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
+                            return (
+                                <Pressable
+                                    key={p.id}
+                                    onPress={() => handlePatientSwitch(p.id)}
+                                    style={[
+                                        styles.avatarWrapper,
+                                        isSelected && styles.activeAvatarWrapper
+                                    ]}
+                                >
+                                    <View style={[
+                                        styles.avatar,
+                                        isSelected && styles.activeAvatar
+                                    ]}>
+                                        <Text style={[
+                                            styles.avatarText,
+                                            isSelected && styles.activeAvatarText
+                                        ]}>
+                                            {initials}
+                                        </Text>
+                                        
+                                        {p.health_score !== undefined && (
+                                            <View style={[
+                                                styles.scoreBadge,
+                                                { backgroundColor: p.health_score > 70 ? '#10B981' : '#F59E0B' }
+                                            ]}>
+                                                <Text style={styles.scoreText}>{p.health_score}</Text>
+                                            </View>
+                                        )}
+                                    </View>
+                                    <Text 
+                                        numberOfLines={1} 
+                                        style={[
+                                            styles.avatarName,
+                                            isSelected && styles.activeAvatarName
+                                        ]}
+                                    >
+                                        {p.name.split(' ')[0]}
+                                    </Text>
+                                </Pressable>
+                            );
+                        })}
+                    </ScrollView>
+                </View>
+            )}
 
             <ScrollView 
                 contentContainerStyle={styles.content}
@@ -96,9 +164,81 @@ export default function CompanionDashboardScreen() {
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: C.bg },
-    header: { paddingTop: 60, paddingHorizontal: 20, paddingBottom: 20, backgroundColor: C.surface },
+    header: { paddingTop: 60, paddingHorizontal: 24, paddingBottom: 12, backgroundColor: C.surface },
     title: { fontSize: 24, ...FONT.heavy, color: C.dark },
-    content: { padding: 20, gap: 16 },
+    
+    // Switcher Styles
+    switcherContainer: {
+        backgroundColor: C.surface,
+        borderBottomWidth: 1,
+        borderBottomColor: C.border,
+        paddingBottom: 14,
+    },
+    switcherScroll: {
+        paddingHorizontal: 24,
+        gap: 16,
+    },
+    avatarWrapper: {
+        alignItems: 'center',
+        gap: 6,
+        opacity: 0.65,
+    },
+    activeAvatarWrapper: {
+        opacity: 1,
+    },
+    avatar: {
+        width: 60,
+        height: 60,
+        borderRadius: 30,
+        backgroundColor: '#F1F5F9',
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 2,
+        borderColor: 'transparent',
+        position: 'relative',
+    },
+    activeAvatar: {
+        borderColor: C.primary,
+        backgroundColor: C.activeBg,
+    },
+    avatarText: {
+        fontSize: 16,
+        ...FONT.bold,
+        color: C.mid,
+    },
+    activeAvatarText: {
+        color: C.primary,
+    },
+    avatarName: {
+        fontSize: 12,
+        ...FONT.semibold,
+        color: C.mid,
+        maxWidth: 68,
+        textAlign: 'center',
+    },
+    activeAvatarName: {
+        color: C.dark,
+        ...FONT.bold,
+    },
+    scoreBadge: {
+        position: 'absolute',
+        bottom: -2,
+        right: -2,
+        paddingHorizontal: 5,
+        paddingVertical: 1,
+        borderRadius: 8,
+        borderWidth: 1.5,
+        borderColor: C.surface,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    scoreText: {
+        color: C.surface,
+        fontSize: 9,
+        fontWeight: 'bold',
+    },
+
+    content: { padding: 24, gap: 16 },
     card: { backgroundColor: C.surface, padding: 20, borderRadius: 24, shadowColor: C.dark, shadowOpacity: 0.05, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 2 },
     cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
     cardTitle: { fontSize: 16, ...FONT.bold, color: C.mid },
