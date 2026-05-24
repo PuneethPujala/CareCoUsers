@@ -95,7 +95,11 @@ export default function GradientHeader({
                             },
                             formattedAddress: displayLocation,
                         }
-                    }).catch(err => console.warn('Auto-save location failed:', err.message));
+                    }).catch(err => {
+                        if (err?.response?.status !== 401) {
+                            console.warn('Auto-save location failed:', err.message);
+                        }
+                    });
                 }
             }
         } catch (error) {

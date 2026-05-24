@@ -8,6 +8,7 @@ import {
   StatusBar,
   TouchableOpacity,
   Easing,
+  Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
@@ -286,7 +287,11 @@ export default function SplashScreen({ onFinish }) {
 
             {/* Glass Card */}
             <View style={s.logoCard}>
-              <BlurView intensity={18} tint="light" style={StyleSheet.absoluteFill} />
+              {Platform.OS === 'android' ? (
+                <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(255,255,255,0.7)' }]} />
+              ) : (
+                <BlurView intensity={18} tint="light" style={StyleSheet.absoluteFill} />
+              )}
               
               {/* Clock & Hands */}
               <View style={s.iconContainer}>
@@ -304,7 +309,11 @@ export default function SplashScreen({ onFinish }) {
 
             {/* Call Alert (Floating glass card) */}
             <Animated.View style={[s.callAlert, { opacity: callAlertOpacity, transform: [{ translateY: callAlertTranslate }] }]}>
-               <BlurView intensity={18} tint="light" style={StyleSheet.absoluteFill} />
+               {Platform.OS === 'android' ? (
+                 <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(255,255,255,0.7)' }]} />
+               ) : (
+                 <BlurView intensity={18} tint="light" style={StyleSheet.absoluteFill} />
+               )}
                <View style={s.callAlertContent}>
                  <View style={s.callIconWrapper}>
                     <Animated.View style={[s.callIconRing, { transform: [{ scale: phoneScale }] }]} />
@@ -335,19 +344,31 @@ export default function SplashScreen({ onFinish }) {
             
             <View style={s.chipsRow}>
               <View style={s.chip}>
-                <BlurView intensity={18} tint="light" style={StyleSheet.absoluteFill} />
+                {Platform.OS === 'android' ? (
+                  <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(255,255,255,0.7)' }]} />
+                ) : (
+                  <BlurView intensity={18} tint="light" style={StyleSheet.absoluteFill} />
+                )}
                 <View style={s.chipContent}>
                   <LockIcon /><Text style={s.chipText}>Secure</Text>
                 </View>
               </View>
               <View style={s.chip}>
-                <BlurView intensity={18} tint="light" style={StyleSheet.absoluteFill} />
+                {Platform.OS === 'android' ? (
+                  <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(255,255,255,0.7)' }]} />
+                ) : (
+                  <BlurView intensity={18} tint="light" style={StyleSheet.absoluteFill} />
+                )}
                 <View style={s.chipContent}>
                   <ShieldIcon /><Text style={s.chipText}>Certified</Text>
                 </View>
               </View>
               <View style={s.chip}>
-                <BlurView intensity={18} tint="light" style={StyleSheet.absoluteFill} />
+                {Platform.OS === 'android' ? (
+                  <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(255,255,255,0.7)' }]} />
+                ) : (
+                  <BlurView intensity={18} tint="light" style={StyleSheet.absoluteFill} />
+                )}
                 <View style={s.chipContent}>
                   <CheckCircleIcon /><Text style={s.chipText}>HIPAA</Text>
                 </View>
