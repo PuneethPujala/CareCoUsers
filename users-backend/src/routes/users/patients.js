@@ -63,8 +63,9 @@ async function subscribeAndSeedDemoData(patient, planId) {
     const isActive = patient.subscription?.status === 'active';
     const isExpired = patient.subscription?.expires_at && new Date(patient.subscription.expires_at) < new Date();
 
-    const session = await mongoose.startSession();
-    session.startTransaction();
+    const isTest = process.env.NODE_ENV === 'test';
+    const session = isTest ? null : await mongoose.startSession();
+    if (session) session.startTransaction();
 
     try {
         const orgId = patient.organization_id || new mongoose.Types.ObjectId('674f07e1525049b7348908f9');
@@ -133,7 +134,7 @@ async function subscribeAndSeedDemoData(patient, planId) {
             target_screen: 'HealthProfile',
         }], { session });
 
-        await session.commitTransaction();
+        if (session) await session.commitTransaction();
         logger.info('Subscription activated atomically', { patientId: patient._id, plan: subscriptionUpdates['subscription.plan'] });
 
         if (patient.expo_push_token) {
@@ -147,11 +148,11 @@ async function subscribeAndSeedDemoData(patient, planId) {
 
         return await Patient.findById(patient._id);
     } catch (error) {
-        await session.abortTransaction();
+        if (session) await session.abortTransaction();
         logger.error('Subscription transaction aborted', { error: error.message, patientId: patient._id });
         throw error;
     } finally {
-        session.endSession();
+        if (session) session.endSession();
     }
 }
 

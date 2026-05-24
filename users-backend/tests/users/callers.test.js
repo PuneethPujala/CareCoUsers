@@ -147,7 +147,7 @@ describe('User Callers Routes', () => {
                 makePatient({ _id: 'patient-2', name: 'Beta' }),
             ];
             // One completed call for patient-1
-            const todayCalls = [{ patient_id: 'patient-1', status: 'completed', _id: fakeId('call-1') }];
+            const todayCalls = [{ patientId: fakeId('patient-1'), patient_id: 'patient-1', status: 'completed', _id: fakeId('call-1') }];
 
             Caller.findOne = jest.fn().mockResolvedValue(caller);
             Patient.find   = jest.fn().mockReturnValue(makePatientFindChain(patients));
@@ -168,7 +168,7 @@ describe('User Callers Routes', () => {
                 makePatient({ _id: 'p2', name: 'Pending' }),
             ];
             // Only p1 has a completed call
-            const todayCalls = [{ patient_id: 'p1', status: 'completed', _id: fakeId('call-1') }];
+            const todayCalls = [{ patientId: fakeId('p1'), patient_id: 'p1', status: 'completed', _id: fakeId('call-1') }];
 
             Caller.findOne = jest.fn().mockResolvedValue(caller);
             Patient.find   = jest.fn().mockReturnValue(makePatientFindChain(patients));

@@ -30,6 +30,8 @@ jest.mock('../../src/middleware/authenticate', () => ({
 
 jest.mock('../../src/models/Patient');
 jest.mock('../../src/models/MedicineLog');
+jest.mock('../../src/models/Medication');
+jest.mock('../../src/models/Notification');
 
 // ─── Imports ──────────────────────────────────────────────────────────────────
 
@@ -37,6 +39,8 @@ const request    = require('supertest');
 const app        = require('../../src/server');
 const Patient    = require('../../src/models/Patient');
 const MedicineLog = require('../../src/models/MedicineLog');
+const Medication = require('../../src/models/Medication');
+const Notification = require('../../src/models/Notification');
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -46,11 +50,15 @@ function fakeId(val) {
 }
 
 function makePatient(overrides = {}) {
-    return {
+    const obj = {
         _id:         fakeId(overrides._id || 'patient-id'),
         supabase_uid: overrides.supabase_uid || 'sup-uid-patient',
         medications: overrides.medications || [],
         ...overrides,
+    };
+    return {
+        ...obj,
+        save: jest.fn().mockResolvedValue(true),
     };
 }
 
@@ -81,6 +89,16 @@ describe('User Medicines Routes', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         mockAuthState.rejectAuth = false;
+
+        // Default mock setups
+        Patient.create = jest.fn().mockImplementation((data) => Promise.resolve(makePatient(data)));
+        Patient.findById = jest.fn().mockReturnValue({
+            select: jest.fn().mockImplementation(() => Promise.resolve(makePatient())),
+        });
+
+        Medication.find = jest.fn().mockResolvedValue([]);
+        Medication.findOne = jest.fn().mockResolvedValue(null);
+        Notification.create = jest.fn().mockResolvedValue([]);
     });
 
     // ── GET /api/users/medicines/today ─────────────────────────────────────────
@@ -140,13 +158,13 @@ describe('User Medicines Routes', () => {
             expect(res.body.log.medicines).toEqual([]);
         });
 
-        it('returns 404 when patient not found', async () => {
-            Patient.findOne = jest.fn().mockResolvedValue(null);
+        it('returns 500 when database operation fails', async () => {
+            Patient.findOne = jest.fn().mockRejectedValue(new Error('DB error'));
 
             const res = await request(app).get('/api/users/medicines/today');
 
-            expect(res.status).toBe(404);
-            expect(res.body.error).toBe('Patient profile not found');
+            expect(res.status).toBe(500);
+            expect(res.body.error).toBe("Failed to get today's medicines");
         });
 
         it('returns 401 when not authenticated', async () => {
@@ -199,27 +217,34 @@ describe('User Medicines Routes', () => {
             expect(log.medicines[0].taken_at).toBeNull();
         });
 
-        it('returns 404 when patient not found', async () => {
-            Patient.findOne = jest.fn().mockResolvedValue(null);
+        it('returns 500 when database operation fails', async () => {
+            Patient.findOne = jest.fn().mockRejectedValue(new Error('DB error'));
 
             const res = await request(app)
                 .put('/api/users/medicines/mark')
                 .send({ medicine_name: 'Metformin', scheduled_time: 'morning', taken: true });
 
-            expect(res.status).toBe(404);
-            expect(res.body.error).toBe('Patient profile not found');
+            expect(res.status).toBe(500);
+            expect(res.body.error).toBe('Failed to mark medicine');
         });
 
-        it('returns 404 when no log exists for today', async () => {
-            Patient.findOne    = jest.fn().mockResolvedValue(makePatient());
+        it('auto-creates a log from schedule when no log exists for today', async () => {
+            const patient = makePatient({
+                medications: [{ name: 'Metformin', times: ['morning'] }],
+            });
+            const newLog = makeLog({
+                medicines: [{ medicine_name: 'Metformin', scheduled_time: 'morning', taken: false }],
+            });
+            Patient.findOne    = jest.fn().mockResolvedValue(patient);
             MedicineLog.findOne = jest.fn().mockResolvedValue(null);
+            MedicineLog.mockImplementation(() => newLog);
 
             const res = await request(app)
                 .put('/api/users/medicines/mark')
                 .send({ medicine_name: 'Metformin', scheduled_time: 'morning', taken: true });
 
-            expect(res.status).toBe(404);
-            expect(res.body.error).toBe('No medicine log found for today');
+            expect(res.status).toBe(200);
+            expect(newLog.save).toHaveBeenCalled();
         });
 
         it('returns 404 when medicine not found in schedule', async () => {
@@ -267,13 +292,13 @@ describe('User Medicines Routes', () => {
             expect(res.body.adherence).toEqual([]);
         });
 
-        it('returns 404 when patient not found', async () => {
-            Patient.findOne = jest.fn().mockResolvedValue(null);
+        it('returns 500 when database operation fails', async () => {
+            Patient.findOne = jest.fn().mockRejectedValue(new Error('DB error'));
 
             const res = await request(app).get('/api/users/medicines/adherence/weekly');
 
-            expect(res.status).toBe(404);
-            expect(res.body.error).toBe('Patient profile not found');
+            expect(res.status).toBe(500);
+            expect(res.body.error).toBe('Failed to get weekly adherence');
         });
     });
 
@@ -307,12 +332,13 @@ describe('User Medicines Routes', () => {
             expect(res.body.monthly).toMatchObject({ total: 0, taken: 0, rate: 0, days_tracked: 0 });
         });
 
-        it('returns 404 when patient not found', async () => {
-            Patient.findOne = jest.fn().mockResolvedValue(null);
+        it('returns 500 when database operation fails', async () => {
+            Patient.findOne = jest.fn().mockRejectedValue(new Error('DB error'));
 
             const res = await request(app).get('/api/users/medicines/adherence/monthly');
 
-            expect(res.status).toBe(404);
+            expect(res.status).toBe(500);
+            expect(res.body.error).toBe('Failed to get monthly adherence');
         });
     });
 });

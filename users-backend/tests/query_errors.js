@@ -2,7 +2,11 @@ const mongoose = require('mongoose');
 const dns = require('dns');
 dns.setServers(['8.8.8.8', '8.8.4.4']);
 
-const MONGODB_URI = 'REMOVED_MONGODB_URI';
+const MONGODB_URI = process.env.MONGODB_URI;
+if (!MONGODB_URI) {
+  console.error('Error: MONGODB_URI environment variable is not defined.');
+  process.exit(1);
+}
 
 async function run() {
   try {
