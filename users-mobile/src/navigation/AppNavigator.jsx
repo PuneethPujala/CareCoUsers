@@ -36,6 +36,7 @@ import CompanionSignupScreen from '../screens/onboarding/CompanionSignupScreen';
 // Dummy screens for Companion Tab Navigator (will be created in next step)
 import CompanionDashboardScreen from '../screens/app/CompanionDashboardScreen';
 import CompanionAlertsScreen from '../screens/app/CompanionAlertsScreen';
+import CompanionProfileScreen from '../screens/app/CompanionProfileScreen';
 
 import PatientHomeScreen from "../screens/patient/HomeScreen";
 import MyCallerScreen from "../screens/patient/MyCallerScreen";
@@ -130,7 +131,7 @@ function CompanionTabNavigator() {
         <Tab.Navigator tabBar={(props) => <CustomTabBar {...props} />} screenOptions={{ headerShown: false }}>
             <Tab.Screen name="CompanionHome" component={CompanionDashboardScreen} options={{ tabBarIconComponent: LayoutDashboard }} />
             <Tab.Screen name="CompanionAlerts" component={CompanionAlertsScreen} options={{ tabBarIconComponent: Pill }} />
-            <Tab.Screen name="Profile" component={PatientProfileScreen} options={{ tabBarIconComponent: UserCircle }} />
+            <Tab.Screen name="Profile" component={CompanionProfileScreen} options={{ tabBarIconComponent: UserCircle }} />
         </Tab.Navigator>
     );
 }
