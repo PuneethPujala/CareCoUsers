@@ -168,20 +168,30 @@ router.get('/patient-status', authenticateSession, async (req, res) => {
             return res.status(403).json({ error: 'Access denied.' });
         }
 
-        // Find patient linked to this companion using decoupled relationship model
-        const access = await CompanionAccess.findOne({ 
+        // Find all active patient relationships linked to this companion using decoupled model
+        const accesses = await CompanionAccess.find({ 
             companion_id: req.profile._id, 
             is_active: true, 
             status: 'accepted' 
-        });
+        }).populate('patient_id', 'name email avatar_url healthScoreCache gamification');
         
-        if (!access) {
-            return res.status(404).json({ error: 'Linked patient not found or access revoked.' });
+        if (accesses.length === 0) {
+            return res.status(404).json({ error: 'No linked patients found or access revoked.' });
         }
 
-        const patient = await Patient.findById(access.patient_id);
+        // Default to the first linked patient, or a specific patientId if requested
+        let selectedAccess = accesses[0];
+        const requestedPatientId = req.query.patientId;
+        if (requestedPatientId) {
+            const found = accesses.find(a => a.patient_id && a.patient_id._id.toString() === requestedPatientId);
+            if (found) {
+                selectedAccess = found;
+            }
+        }
+
+        const patient = await Patient.findById(selectedAccess.patient_id._id);
         if (!patient) {
-            return res.status(404).json({ error: 'Linked patient not found.' });
+            return res.status(404).json({ error: 'Selected linked patient not found.' });
         }
 
         // Gather read-only data
@@ -216,6 +226,7 @@ router.get('/patient-status', authenticateSession, async (req, res) => {
 
         res.json({
             patient: {
+                id: patient._id,
                 name: patient.name,
                 avatar_url: patient.avatar_url,
                 health_score: patient.healthScoreCache,
@@ -223,7 +234,16 @@ router.get('/patient-status', authenticateSession, async (req, res) => {
                 current_streak: patient.gamification?.current_streak || 0,
             },
             latest_vital: latestVital,
-            recent_alerts: recentAlerts
+            recent_alerts: recentAlerts,
+            linked_patients: accesses
+                .filter(a => a.patient_id)
+                .map(a => ({
+                    id: a.patient_id._id,
+                    name: a.patient_id.name,
+                    avatar_url: a.patient_id.avatar_url,
+                    health_score: a.patient_id.healthScoreCache,
+                    current_streak: a.patient_id.gamification?.current_streak || 0
+                }))
         });
 
     } catch (err) {
