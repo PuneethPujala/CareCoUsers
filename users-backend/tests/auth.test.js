@@ -306,6 +306,62 @@ describe('Auth Routes', () => {
                 expect.any(Object)
             );
         });
+
+        it('successfully links Google OAuth to an existing email/password Patient account', async () => {
+            const existingPatient = {
+                _id: 'patient-id-123',
+                email: 'hybrid@caremymed.in',
+                name: 'Hybrid User',
+                supabase_uid: 'original-local-uuid',
+                passwordHash: 'hashed-password-123',
+                emailVerified: true,
+                is_active: true,
+                save: jest.fn().mockResolvedValue({}),
+            };
+            Patient.findOne = jest.fn().mockResolvedValue(existingPatient);
+            Profile.findOne = jest.fn().mockResolvedValue(null);
+
+            const res = await request(app)
+                .post('/api/auth/register')
+                .send({
+                    email: 'hybrid@caremymed.in',
+                    fullName: 'Hybrid User',
+                    supabaseUid: 'google-uid-123',
+                });
+
+            expect(res.status).toBe(201);
+            expect(res.body.message).toBe('Account linked successfully');
+            expect(existingPatient.supabase_uid).toBe('google-uid-123');
+            expect(existingPatient.save).toHaveBeenCalled();
+        });
+
+        it('successfully links Google OAuth to an existing caregiver companion placeholder profile', async () => {
+            const existingProfile = {
+                _id: 'companion-profile-123',
+                email: 'companion@caremymed.in',
+                fullName: 'Companion User',
+                role: 'companion',
+                supabaseUid: 'cmp_placeholder-uuid',
+                emailVerified: true,
+                isActive: true,
+                save: jest.fn().mockResolvedValue({}),
+            };
+            Patient.findOne = jest.fn().mockResolvedValue(null);
+            Profile.findOne = jest.fn().mockResolvedValue(existingProfile);
+
+            const res = await request(app)
+                .post('/api/auth/register')
+                .send({
+                    email: 'companion@caremymed.in',
+                    fullName: 'Companion User',
+                    supabaseUid: 'google-uid-123',
+                });
+
+            expect(res.status).toBe(201);
+            expect(res.body.message).toBe('Account linked successfully');
+            expect(existingProfile.supabaseUid).toBe('google-uid-123');
+            expect(existingProfile.save).toHaveBeenCalled();
+        });
     });
 
     // ── POST /api/auth/login ───────────────────────────────────────────────────
