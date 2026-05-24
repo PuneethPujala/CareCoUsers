@@ -31,52 +31,87 @@ router.post('/join', async (req, res) => {
             return res.status(400).json({ error: 'Invalid or expired invite code.' });
         }
 
-        // 2. Create the Companion Profile
+        // 2. Resolve or Create the Companion Profile
         const emailNorm = email.toLowerCase().trim();
         
-        // Assert global cross-collection uniqueness for the email
-        await authService.assertGlobalUniqueEmail(emailNorm);
+        // Check if there is an existing Patient with this email
+        const existingPatient = await Patient.findOne({ email: emailNorm });
+        if (existingPatient) {
+            return res.status(400).json({ error: 'This email is registered to a Patient account. Companions must use a separate email.' });
+        }
 
-        const supabaseUid = `cmp_${Math.random().toString(36).substr(2, 9)}_${Date.now()}`;
-        
-        const bcrypt = require('bcryptjs');
-        const salt = await bcrypt.genSalt(10);
-        const passwordHash = await bcrypt.hash(password, salt);
+        let profile = await Profile.findOne({ email: emailNorm });
+        let isExistingProfile = false;
 
-        profile = await Profile.create({
-            supabaseUid,
-            email: emailNorm,
-            passwordHash,
-            fullName,
-            phone,
-            role: 'companion',
-            emailVerified: true // Assume verified if they have the code, or require OTP later
-        });
+        if (profile) {
+            if (profile.role !== 'companion') {
+                return res.status(400).json({ error: 'An account with this email already exists.' });
+            }
+            
+            // Check if they already have access to this specific patient
+            const existingAccess = await CompanionAccess.findOne({ companion_id: profile._id, patient_id: patient._id });
+            if (existingAccess) {
+                if (existingAccess.is_active && existingAccess.status === 'accepted') {
+                    return res.status(400).json({ error: 'You are already linked to this patient.' });
+                } else {
+                    // Reactivate existing relationship
+                    existingAccess.is_active = true;
+                    existingAccess.status = 'accepted';
+                    existingAccess.revoked_at = undefined;
+                    existingAccess.revoked_by = undefined;
+                    await existingAccess.save();
+                }
+            }
+            isExistingProfile = true;
+        } else {
+            // Create a new companion profile
+            const supabaseUid = `cmp_${Math.random().toString(36).substr(2, 9)}_${Date.now()}`;
+            
+            const bcrypt = require('bcryptjs');
+            const salt = await bcrypt.genSalt(10);
+            const passwordHash = await bcrypt.hash(password, salt);
+
+            profile = await Profile.create({
+                supabaseUid,
+                email: emailNorm,
+                passwordHash,
+                fullName,
+                phone,
+                role: 'companion',
+                emailVerified: true // Assume verified if they have the code, or require OTP later
+            });
+        }
 
         // 3. Link Profile to Patient using CompanionAccess Relationship Model
-        await CompanionAccess.create({
-            companion_id: profile._id,
-            patient_id: patient._id,
-            relationship_type: 'Other',
-            access_level: 'caregiver',
-            permissions: ['read_only', 'alerts'],
-            status: 'accepted',
-            is_active: true,
-            joined_at: new Date(),
-            created_by: profile._id
-        });
+        const existingAccess = await CompanionAccess.findOne({ companion_id: profile._id, patient_id: patient._id });
+        if (!existingAccess) {
+            await CompanionAccess.create({
+                companion_id: profile._id,
+                patient_id: patient._id,
+                relationship_type: 'Other',
+                access_level: 'caregiver',
+                permissions: ['read_only', 'alerts'],
+                status: 'accepted',
+                is_active: true,
+                joined_at: new Date(),
+                created_by: profile._id
+            });
+        }
         
-        // Add to trusted_contacts for backward compatibility in notifications
-        patient.trusted_contacts.push({
-            name: fullName,
-            phone: phone || 'N/A',
-            relation: 'Family',
-            email: emailNorm,
-            can_view_data: true,
-            is_primary: false,
-            is_emergency: false,
-            permissions: ['read_only']
-        });
+        // Add to trusted_contacts for backward compatibility in notifications if not already present
+        const hasContact = patient.trusted_contacts.some(c => c.email.toLowerCase() === emailNorm);
+        if (!hasContact) {
+            patient.trusted_contacts.push({
+                name: fullName || profile.fullName,
+                phone: phone || profile.phone || 'N/A',
+                relation: 'Family',
+                email: emailNorm,
+                can_view_data: true,
+                is_primary: false,
+                is_emergency: false,
+                permissions: ['read_only']
+            });
+        }
 
         // 4. Invalidate the invite code (Single Use)
         patient.invite_code = undefined;
@@ -88,7 +123,7 @@ router.post('/join', async (req, res) => {
             {
                 userId: profile._id,
                 userType: 'Profile',
-                subject: supabaseUid,
+                subject: profile.supabaseUid,
                 role: 'companion',
                 email: profile.email,
                 emailVerified: true,
@@ -96,16 +131,18 @@ router.post('/join', async (req, res) => {
             req
         );
 
-        await logEvent(supabaseUid, 'companion_joined', 'profile', profile._id, req, { patientId: patient._id });
+        await logEvent(profile.supabaseUid, 'companion_joined', 'profile', profile._id, req, { patientId: patient._id });
 
-        res.status(201).json({
-            message: 'Joined successfully as a family companion.',
+        res.status(isExistingProfile ? 200 : 201).json({
+            message: isExistingProfile 
+                ? 'Successfully linked to new patient.'
+                : 'Joined successfully as a family companion.',
             session: {
                 access_token: tokens.access_token,
                 refresh_token: tokens.refresh_token,
                 expires_in: tokens.expires_in,
                 expires_at: tokens.expires_at,
-                user: { id: supabaseUid, email: profile.email },
+                user: { id: profile.supabaseUid, email: profile.email },
             },
             profile: {
                 id: profile._id,
