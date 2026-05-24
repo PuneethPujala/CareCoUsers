@@ -148,6 +148,8 @@ if (require.main === module) {
   const { startScheduler: startCallerScheduler } = require('./services/callerNotificationScheduler');
   const { startManagerScheduler } = require('./services/managerNotificationScheduler');
   const { startFailoverService } = require('./services/callerFailoverService');
+  const { startOrgAdminScheduler } = require('./services/orgAdminNotificationScheduler');
+  const { startSuperAdminScheduler } = require('./services/superAdminNotificationScheduler');
 
   const server = http.createServer(app);
 
@@ -171,6 +173,12 @@ if (require.main === module) {
 
       // Start care manager push notification scheduler (every 5 min)
       startManagerScheduler(5 * 60 * 1000);
+
+      // Start org admin push notification scheduler (every 1 hour)
+      startOrgAdminScheduler(60 * 60 * 1000);
+
+      // Start super admin push notification scheduler (every 1 hour)
+      startSuperAdminScheduler(60 * 60 * 1000);
 
       // Start caller failover service (every 5 min)
       startFailoverService(5 * 60 * 1000);
