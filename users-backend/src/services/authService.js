@@ -42,6 +42,57 @@ function buildSessionUser(subject, email, emailVerified) {
   };
 }
 
+function resolveIdentity(patient, deactivated, profile, requestedRole = null) {
+  // Priority 1: If profile exists and role is companion, it ALWAYS wins (to resolve companion identity and avoid duplicate patient onboarding)
+  if (profile && profile.role === 'companion') {
+    return { account: profile, isPatient: false };
+  }
+
+  // Priority 2: If a requestedRole was provided, let it guide the choice when both exist (supports standard staff vs patient separation)
+  if (requestedRole) {
+    if (requestedRole === 'patient' && patient) {
+      return { account: patient, isPatient: true };
+    }
+    if (requestedRole !== 'patient' && profile) {
+      return { account: profile, isPatient: false };
+    }
+  }
+
+  // Priority 3: Active (or reactivated) patient
+  if (patient) {
+    return { account: patient, isPatient: true };
+  }
+
+  // Priority 4: Fallback active profile
+  if (profile) {
+    return { account: profile, isPatient: false };
+  }
+
+  return { account: null, isPatient: false };
+}
+
+async function assertGlobalUniqueEmail(email, ignoreId = null, ignoreModel = null) {
+  const emailNorm = email.toLowerCase().trim();
+
+  // 1. Check Patient collection
+  const patient = await Patient.findOne({ email: emailNorm });
+  if (patient && !(ignoreModel === 'Patient' && patient._id.equals(ignoreId))) {
+    const err = new Error(`An account with the email "${email}" already exists.`);
+    err.status = 400;
+    err.code = 'EMAIL_ALREADY_EXISTS';
+    throw err;
+  }
+
+  // 2. Check Profile collection
+  const profile = await Profile.findOne({ email: emailNorm });
+  if (profile && !(ignoreModel === 'Profile' && profile._id.equals(ignoreId))) {
+    const err = new Error(`An account with the email "${email}" already exists.`);
+    err.status = 400;
+    err.code = 'EMAIL_ALREADY_EXISTS';
+    throw err;
+  }
+}
+
 function buildLoginProfile(account, isPatient) {
   const accountId = account._id;
   let subscriptionStatus = null;
@@ -92,26 +143,86 @@ async function registerPatient(body, req) {
 
   const emailNorm = email.toLowerCase().trim();
 
-  // NOTE: Cross-collection Profile check removed — this is a patients-only app.
-  // Patient email uniqueness is enforced by the Patient.email unique index below.
+  // Find existing documents in both collections for robust cross-collection identity check
+  const existingPatient = await Patient.findOne({ email: emailNorm });
+  const existingProfile = await Profile.findOne({ email: emailNorm });
 
-  // ── Merge into existing patient for OAuth ─────────────────────────────────
-  // If a Google user is re-registering (e.g. profile fetch failed previously),
-  // link the Supabase UID to the existing Patient record instead of creating a duplicate.
-  const existingPatient = await Patient.findOne({ email: emailNorm, is_active: true });
+  // 1. Resolve conflicts / link OAuth for existing Profile
+  if (existingProfile) {
+    if (isOAuth && existingProfile.role === 'companion') {
+      // Overwrite Guard: if supabaseUid is already set, verify they match!
+      if (existingProfile.supabaseUid && existingProfile.supabaseUid !== supabaseUid) {
+        const err = new Error('This account is already linked to a different Google identity.');
+        err.status = 400;
+        err.code = 'OAUTH_LINK_CONFLICT';
+        throw err;
+      }
+
+      // Link Google OAuth to companion Profile
+      existingProfile.supabaseUid = supabaseUid;
+      if (fullName && !existingProfile.fullName) existingProfile.fullName = fullName;
+      await existingProfile.save();
+
+      await logEvent(supabaseUid, 'companion_oauth_linked', 'profile', existingProfile._id, req, {
+        email: emailNorm,
+      });
+
+      const tokens = await tokenService.issueTokenPair(
+        {
+          userId: existingProfile._id,
+          userType: 'Profile',
+          subject: supabaseUid,
+          role: existingProfile.role,
+          email: existingProfile.email,
+          emailVerified: existingProfile.emailVerified,
+        },
+        req
+      );
+
+      return {
+        message: 'Account linked successfully',
+        user: { id: supabaseUid, email: emailNorm },
+        session: {
+          access_token: tokens.access_token,
+          refresh_token: tokens.refresh_token,
+          expires_in: tokens.expires_in,
+          expires_at: tokens.expires_at,
+          user: buildSessionUser(supabaseUid, emailNorm, existingProfile.emailVerified),
+        },
+        profile: buildLoginProfile(existingProfile, false),
+      };
+    }
+
+    const err = new Error(`An account with the email "${email}" already exists with a different role. Please log in instead.`);
+    err.status = 400;
+    err.code = 'EMAIL_ALREADY_EXISTS';
+    throw err;
+  }
+
+  // 2. Resolve conflicts / link OAuth for existing Patient
   if (existingPatient) {
     if (isOAuth) {
-      // Link the new Supabase UID to the existing record
+      // Overwrite Guard: if supabaseUid is already set, verify they match!
+      if (existingPatient.supabase_uid && existingPatient.supabase_uid !== supabaseUid) {
+        const err = new Error('This account is already linked to a different Google identity.');
+        err.status = 400;
+        err.code = 'OAUTH_LINK_CONFLICT';
+        throw err;
+      }
+
       existingPatient.supabase_uid = supabaseUid;
       if (fullName && !existingPatient.name) existingPatient.name = fullName;
+      if (!existingPatient.is_active && existingPatient.deactivated_reason === 'user_requested') {
+        existingPatient.is_active = true;
+        existingPatient.deactivated_at = undefined;
+        existingPatient.deactivated_reason = undefined;
+      }
       await existingPatient.save();
 
       await logEvent(supabaseUid, 'patient_oauth_linked', 'patient', existingPatient._id, req, {
         email: emailNorm,
       });
 
-      // Issue CareMyMednnect JWTs so the mobile has tokens the backend can verify.
-      // Supabase JWTs from Google OAuth can't be verified without the fallback.
       const tokens = await tokenService.issueTokenPair(
         {
           userId: existingPatient._id,
@@ -134,72 +245,21 @@ async function registerPatient(body, req) {
           expires_at: tokens.expires_at,
           user: buildSessionUser(supabaseUid, emailNorm, existingPatient.emailVerified),
         },
-        profile: {
-          id: existingPatient._id,
-          email: existingPatient.email,
-          fullName: existingPatient.name,
-          role: existingPatient.role,
-          organizationId: existingPatient.organization_id,
-          isActive: existingPatient.is_active,
-        },
+        profile: buildLoginProfile(existingPatient, true),
       };
     }
+
+    if (!existingPatient.is_active && existingPatient.deactivated_reason === 'user_requested') {
+      const err = new Error('Your account was deactivated. Please log in with your credentials to reactivate it.');
+      err.status = 400;
+      err.code = 'ACCOUNT_DEACTIVATED';
+      err.hint = 'Log in with your existing credentials to reactivate your account.';
+      throw err;
+    }
+
     const err = new Error(`An account with the email "${email}" already exists. Please log in instead.`);
     err.status = 400;
     err.code = 'EMAIL_ALREADY_EXISTS';
-    throw err;
-  }
-
-  // Check for deactivated accounts — user should log in to reactivate, not re-register
-  const deactivatedPatient = await Patient.findOne({ email: emailNorm, is_active: false, deactivated_reason: 'user_requested' });
-  if (deactivatedPatient) {
-    if (isOAuth) {
-      // Reactivate on OAuth signup
-      deactivatedPatient.is_active = true;
-      deactivatedPatient.deactivated_at = undefined;
-      deactivatedPatient.deactivated_reason = undefined;
-      deactivatedPatient.supabase_uid = supabaseUid;
-      if (fullName && !deactivatedPatient.name) deactivatedPatient.name = fullName;
-      await deactivatedPatient.save();
-
-      await logEvent(supabaseUid, 'account_reactivated', 'patient', deactivatedPatient._id, req, { method: 'google_oauth' });
-
-      const tokens = await tokenService.issueTokenPair(
-        {
-          userId: deactivatedPatient._id,
-          userType: 'Patient',
-          subject: supabaseUid,
-          role: 'patient',
-          email: deactivatedPatient.email,
-          emailVerified: deactivatedPatient.emailVerified,
-        },
-        req
-      );
-
-      return {
-        message: 'Account reactivated successfully',
-        user: { id: supabaseUid, email: emailNorm },
-        session: {
-          access_token: tokens.access_token,
-          refresh_token: tokens.refresh_token,
-          expires_in: tokens.expires_in,
-          expires_at: tokens.expires_at,
-          user: buildSessionUser(supabaseUid, emailNorm, deactivatedPatient.emailVerified),
-        },
-        profile: {
-          id: deactivatedPatient._id,
-          email: deactivatedPatient.email,
-          fullName: deactivatedPatient.name,
-          role: deactivatedPatient.role,
-          organizationId: deactivatedPatient.organization_id,
-          isActive: deactivatedPatient.is_active,
-        },
-      };
-    }
-    const err = new Error('Your account was deactivated. Please log in with your credentials to reactivate it.');
-    err.status = 400;
-    err.code = 'ACCOUNT_DEACTIVATED';
-    err.hint = 'Log in with your existing credentials to reactivate your account.';
     throw err;
   }
 
@@ -325,43 +385,49 @@ async function login({ email, password, role }, req) {
     err.code = 'VALIDATION';
     throw err;
   }
-  if (!role) {
-    const err = new Error('Please select a role');
-    err.status = 400;
-    err.code = 'VALIDATION';
-    throw err;
-  }
 
+  // NOTE: We no longer require the 'role' parameter to be strictly selected or matched beforehand,
+  // making login truly identity-based. We support the role parameter as a fallback/hint, but prioritize
+  // companion role resolving to prevent duplicates and onboarding loop traps.
   const emailNorm = email.toLowerCase().trim();
-  const isPatient = role === 'patient';
 
-  let account;
-  if (isPatient) {
-    account = await Patient.findOne({ email: emailNorm, is_active: true }).select('+passwordHash');
-    
-    // If no active account found, check for a deactivated one and reactivate it
-    if (!account) {
-      const deactivated = await Patient.findOne({ email: emailNorm, is_active: false }).select('+passwordHash');
-      if (deactivated && deactivated.deactivated_reason === 'user_requested') {
-        // Reactivate the account
-        deactivated.is_active = true;
-        deactivated.deactivated_at = undefined;
-        deactivated.deactivated_reason = undefined;
-        await deactivated.save();
-        account = deactivated;
-        await logEvent(deactivated.supabase_uid, 'account_reactivated', 'patient', deactivated._id, req, {
-          method: 'login',
-        });
-      }
-    }
-  } else {
-    const chain = Profile.findOne({
-      email: emailNorm,
-      role,
-      isActive: true,
-    }).select('+passwordHash');
-    account = await chain.populate('organizationId', 'name city');
+  // Query all potential matches in parallel for optimal timing normalization and constant performance
+  let patientQuery = Patient.findOne({ email: emailNorm, is_active: true });
+  if (patientQuery && typeof patientQuery.select === 'function') {
+    patientQuery = patientQuery.select('+passwordHash');
   }
+
+  let deactivatedQuery = Patient.findOne({ email: emailNorm, is_active: false });
+  if (deactivatedQuery && typeof deactivatedQuery.select === 'function') {
+    deactivatedQuery = deactivatedQuery.select('+passwordHash');
+  }
+
+  let profileQuery = Profile.findOne({ email: emailNorm, isActive: true });
+  if (profileQuery && typeof profileQuery.select === 'function') {
+    profileQuery = profileQuery.select('+passwordHash');
+  }
+  if (profileQuery && typeof profileQuery.populate === 'function') {
+    profileQuery = profileQuery.populate('organizationId', 'name city');
+  }
+
+  let [patient, deactivated, profile] = await Promise.all([patientQuery, deactivatedQuery, profileQuery]);
+
+  // Reactivate deactivated patient if needed, before identity resolution
+  if (!patient && deactivated && deactivated.deactivated_reason === 'user_requested') {
+    deactivated.is_active = true;
+    deactivated.deactivated_at = undefined;
+    deactivated.deactivated_reason = undefined;
+    await deactivated.save();
+    patient = deactivated;
+    await logEvent(deactivated.supabase_uid, 'account_reactivated', 'patient', deactivated._id, req, {
+      method: 'login',
+    });
+  }
+
+  // Resolve identity using priority rules (companions win conflicts)
+  const resolved = resolveIdentity(patient, deactivated, profile, role);
+  const account = resolved.account;
+  const isPatient = resolved.isPatient;
 
   // SEC-FIX-1: Generic error for all "account not found" paths to prevent user enumeration.
   // We still perform a dummy bcrypt compare to keep response time constant.
@@ -394,8 +460,8 @@ async function login({ email, password, role }, req) {
   if (account.passwordHash) {
     passwordValid = await passwordService.verifyPassword(password, account.passwordHash);
   } else if (supabase) {
-    const { error } = await supabase.auth.signInWithPassword({ email: emailNorm, password });
-    passwordValid = !error;
+    const res = await supabase.auth.signInWithPassword({ email: emailNorm, password });
+    passwordValid = !!(res && !res.error && res.data);
     if (passwordValid) {
       account.passwordHash = await passwordService.hashPassword(password);
       await account.save();
@@ -891,6 +957,7 @@ module.exports = {
   createStaffUser,
   changePassword,
   setPassword,
+  assertGlobalUniqueEmail,
   buildSessionUser,
   getSupabaseFallback,
 };

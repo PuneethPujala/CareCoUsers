@@ -162,8 +162,32 @@ function patientSelectChain(resolvedValue) {
 
 describe('Auth Routes', () => {
 
+    const originalPatientFindOne = Patient.findOne;
+    const originalPatientFindById = Patient.findById;
+    const originalPatientSave = Patient.prototype.save;
+    const originalProfileFindOne = Profile.findOne;
+    const originalProfileFindById = Profile.findById;
+    const originalProfileSave = Profile.prototype.save;
+    const originalOrgFindOne = Organization.findOne;
+    const originalOrgFindById = Organization.findById;
+    const originalOrgFindByIdAndUpdate = Organization.findByIdAndUpdate;
+    const originalRefreshTokenFindOne = RefreshToken.findOne;
+    const originalRandomUUID = crypto.randomUUID;
+
     beforeEach(() => {
         jest.clearAllMocks();
+        Patient.findOne = originalPatientFindOne;
+        Patient.findById = originalPatientFindById;
+        Patient.prototype.save = originalPatientSave;
+        Profile.findOne = originalProfileFindOne;
+        Profile.findById = originalProfileFindById;
+        Profile.prototype.save = originalProfileSave;
+        Organization.findOne = originalOrgFindOne;
+        Organization.findById = originalOrgFindById;
+        Organization.findByIdAndUpdate = originalOrgFindByIdAndUpdate;
+        RefreshToken.findOne = originalRefreshTokenFindOne;
+        crypto.randomUUID = originalRandomUUID;
+
         mockAuthState.rejectAuth = false;
         mockAuthState.user    = { id: 'test-user', supabaseUid: 'test-user', email_confirmed_at: new Date().toISOString(), created_at: new Date().toISOString() };
         mockAuthState.profile = { _id: 'test-profile', supabaseUid: 'test-user', role: 'care_manager', organizationId: 'org123', email: 'staff@caremymed.in', fullName: 'Test Staff' };
