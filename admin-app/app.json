@@ -1,8 +1,8 @@
 {
   "expo": {
     "name": "CareMyMed Admin Portal",
-    "slug": "caremymed-admin",
-    "scheme": "caremymed-admin",
+    "slug": "careco-admin",
+    "scheme": "careco-admin",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
