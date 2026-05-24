@@ -391,6 +391,7 @@ const s = StyleSheet.create({
   },
   layoutTop: {
     alignItems: 'center',
+    marginTop: 30,
   },
   layoutMiddle: {
     flex: 1,
@@ -425,7 +426,6 @@ const s = StyleSheet.create({
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.14,
     shadowRadius: 28,
-    elevation: 12,
     overflow: 'hidden',
     justifyContent: 'center',
     alignItems: 'center',
@@ -483,7 +483,6 @@ const s = StyleSheet.create({
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.14,
     shadowRadius: 28,
-    elevation: 12,
     overflow: 'hidden',
   },
   callAlertContent: {
@@ -575,7 +574,6 @@ const s = StyleSheet.create({
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.14,
     shadowRadius: 28,
-    elevation: 2,
     overflow: 'hidden',
   },
   chipContent: {
