@@ -50,6 +50,36 @@ const NOTIFICATION_TEMPLATES = {
         body: (data) => `${data.patientName}'s adherence dropped to ${data.adherenceRate}% (threshold: ${data.threshold}%).`,
         priority: 'high',
     },
+    org_daily_summary: {
+        title: 'Org Daily Summary',
+        body: (data) => `Yesterday's Performance: ${data.completedCalls} calls completed. Adherence: ${data.adherenceRate}%. ${data.escalationCount} Escalation(s) reported.`,
+        priority: 'normal',
+    },
+    org_weekly_summary: {
+        title: 'Org Weekly Summary',
+        body: (data) => `Your organization completed ${data.completedCalls} calls this week. Overall Adherence is at ${data.adherenceRate}%.`,
+        priority: 'normal',
+    },
+    critical_escalation_alert: {
+        title: 'CRITICAL ESCALATION',
+        body: (data) => `CRITICAL ALERT: Medical emergency reported for patient ${data.patientName}. Care Manager has been notified.`,
+        priority: 'urgent',
+    },
+    platform_daily_summary: {
+        title: 'Platform Daily Update',
+        body: (data) => `Platform Daily Update: ${data.completedCalls} calls processed across ${data.activeOrgs} organizations yesterday.`,
+        priority: 'normal',
+    },
+    platform_weekly_summary: {
+        title: 'Platform Weekly Update',
+        body: (data) => `Platform Weekly Update: ${data.completedCalls} calls processed this week across ${data.activeOrgs} active organizations. Global Adherence: ${data.adherenceRate}%.`,
+        priority: 'normal',
+    },
+    new_org_created: {
+        title: 'New Organization Onboarded',
+        body: (data) => `New Organization Onboarded: '${data.orgName}' has been added to the platform.`,
+        priority: 'normal',
+    },
 };
 
 // ── 1. SEND PUSH NOTIFICATION ──────────────────────────────────
@@ -242,6 +272,10 @@ async function notifyEscalationAssigned(escalationId) {
             relatedEntityType: 'escalation',
             relatedEntityId: escalation._id,
         });
+
+        // Notify Org Admin for critical oversight
+        const { notifyCriticalEscalation } = require('./orgAdminNotificationScheduler');
+        await notifyCriticalEscalation(escalation);
     }
 }
 
@@ -365,6 +399,8 @@ async function sendWeeklyPerformanceSummary(organizationId) {
     return { sent };
 }
 
+
+
 // ── 8. LOW ADHERENCE ALERTS ─────────────────────────────────────
 
 /**
@@ -483,6 +519,32 @@ function startNotificationCrons() {
             }
         } catch (err) {
             console.error('[Cron] sendWeeklyPerformanceSummary error:', err.message);
+        }
+    }, 60 * 60 * 1000);
+
+    // Admin Daily Summaries every day at 8 AM
+    setInterval(async () => {
+        try {
+            const now = new Date();
+            if (now.getHours() === 8) {
+                const result = await sendAdminDailySummaries();
+                console.log(`[Cron] Sent ${result.sent} admin daily summaries`);
+            }
+        } catch (err) {
+            console.error('[Cron] sendAdminDailySummaries error:', err.message);
+        }
+    }, 60 * 60 * 1000);
+
+    // Admin Weekly Summaries every Monday at 8 AM
+    setInterval(async () => {
+        try {
+            const now = new Date();
+            if (now.getDay() === 1 && now.getHours() === 8) {
+                const result = await sendAdminWeeklySummaries();
+                console.log(`[Cron] Sent ${result.sent} admin weekly summaries`);
+            }
+        } catch (err) {
+            console.error('[Cron] sendAdminWeeklySummaries error:', err.message);
         }
     }, 60 * 60 * 1000);
 

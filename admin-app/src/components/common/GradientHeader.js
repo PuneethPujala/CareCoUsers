@@ -95,7 +95,11 @@ export default function GradientHeader({
                             },
                             formattedAddress: displayLocation,
                         }
-                    }).catch(err => console.warn('Auto-save location failed:', err.message));
+                    }).catch(err => {
+                        if (err?.response?.status !== 401) {
+                            console.warn('Auto-save location failed:', err.message);
+                        }
+                    });
                 }
             }
         } catch (error) {
@@ -152,8 +156,8 @@ export default function GradientHeader({
     // Premium Floating Graphic (Dashboard Only)
     const DecorativeCircle = () => isDashboard ? (
         <View style={{
-            position: 'absolute', top: -50, right: -30, width: 140, height: 140, 
-            borderRadius: 70, backgroundColor: 'rgba(99, 102, 241, 0.05)', zIndex: -1 
+            position: 'absolute', top: -50, right: -30, width: 140, height: 140,
+            borderRadius: 70, backgroundColor: 'rgba(99, 102, 241, 0.05)', zIndex: -1
         }} />
     ) : null;
 
@@ -165,13 +169,13 @@ export default function GradientHeader({
             <StatusBar barStyle={barStyle} backgroundColor="transparent" translucent />
             {/* Explicit spacer for status bar — guarantees breathing room on Android */}
             <View style={{ height: STATUSBAR_HEIGHT }} />
-            
+
             <DecorativeCircle />
             {/* ─── Top action row ─── */}
             <View style={styles.topRow}>
                 {isDashboard ? (
-                    <TouchableOpacity 
-                        style={styles.locationRow} 
+                    <TouchableOpacity
+                        style={styles.locationRow}
                         activeOpacity={0.7}
                         onPress={() => setShowLocationModal(true)}
                     >
@@ -241,8 +245,8 @@ export default function GradientHeader({
                         </View>
 
                         {/* Current location button */}
-                        <TouchableOpacity 
-                            style={styles.currentLocationBtn} 
+                        <TouchableOpacity
+                            style={styles.currentLocationBtn}
                             activeOpacity={0.8}
                             onPress={() => {
                                 setShowLocationModal(false);
@@ -277,8 +281,8 @@ export default function GradientHeader({
                             numberOfLines={2}
                         />
 
-                        <TouchableOpacity 
-                            style={[styles.saveBtn, savingAddress && styles.saveBtnDisabled]} 
+                        <TouchableOpacity
+                            style={[styles.saveBtn, savingAddress && styles.saveBtnDisabled]}
                             activeOpacity={0.8}
                             onPress={handleSaveManualAddress}
                             disabled={savingAddress}

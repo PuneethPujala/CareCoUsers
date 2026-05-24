@@ -8,6 +8,7 @@ import {
   StatusBar,
   TouchableOpacity,
   Easing,
+  Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
@@ -17,9 +18,25 @@ import Svg, {
   Defs,
   LinearGradient as SvgLinearGradient,
   Stop,
+  Pattern,
+  Rect,
 } from 'react-native-svg';
 
 const { width, height } = Dimensions.get('window');
+
+// ─── BACKGROUND PATTERN ────────────────────────────────────────────────────
+const BgPattern = () => (
+  <View style={StyleSheet.absoluteFill}>
+    <Svg width="100%" height="100%">
+      <Defs>
+        <Pattern id="dots" x="0" y="0" width="24" height="24" patternUnits="userSpaceOnUse">
+          <Circle cx="2" cy="2" r="1.5" fill="#1a8fe1" opacity="0.06" />
+        </Pattern>
+      </Defs>
+      <Rect x="0" y="0" width="100%" height="100%" fill="url(#dots)" />
+    </Svg>
+  </View>
+);
 
 // ─── CLOCK FACE (Static) ───────────────────────────────────────────────────
 const ClockFace = () => {
@@ -99,44 +116,6 @@ const CheckCircleIcon = () => (
   </Svg>
 );
 
-// ─── CALL ALERT ICONS ──────────────────────────────────────────────────────
-const SignalBars = () => {
-  const bar1 = useRef(new Animated.Value(0)).current;
-  const bar2 = useRef(new Animated.Value(0)).current;
-  const bar3 = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    const animateBar = (anim, delay) => {
-      Animated.loop(
-        Animated.sequence([
-          Animated.delay(delay),
-          Animated.timing(anim, { toValue: 1, duration: 450, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-          Animated.timing(anim, { toValue: 0, duration: 450, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-        ])
-      ).start();
-    };
-    animateBar(bar1, 0);
-    animateBar(bar2, 150);
-    animateBar(bar3, 300);
-  }, []);
-
-  const getStyle = (anim, h) => ({
-    width: 3,
-    height: h,
-    backgroundColor: '#00c9a7',
-    borderRadius: 1.5,
-    opacity: anim.interpolate({ inputRange: [0, 1], outputRange: [0.3, 1] }),
-  });
-
-  return (
-    <View style={s.signalBars}>
-      <Animated.View style={getStyle(bar1, 6)} />
-      <Animated.View style={getStyle(bar2, 10)} />
-      <Animated.View style={getStyle(bar3, 14)} />
-    </View>
-  );
-};
-
 // ─── MAIN COMPONENT ────────────────────────────────────────────────────────
 export default function SplashScreen({ onFinish }) {
   const minuteAnim = useRef(new Animated.Value(0)).current;
@@ -151,23 +130,10 @@ export default function SplashScreen({ onFinish }) {
   const buttonTranslate = useRef(new Animated.Value(20)).current;
   const buttonScale = useRef(new Animated.Value(1)).current;
 
-  const phoneRingAnim = useRef(new Animated.Value(0)).current;
-  const callAlertTranslate = useRef(new Animated.Value(-40)).current;
-  const callAlertOpacity = useRef(new Animated.Value(0)).current;
-  const alertShown = useRef(false);
-
   useEffect(() => {
     Animated.loop(Animated.timing(minuteAnim, { toValue: 1, duration: 15000, easing: Easing.linear, useNativeDriver: true })).start();
     Animated.loop(Animated.timing(hourAnim, { toValue: 1, duration: 120000, easing: Easing.linear, useNativeDriver: true })).start();
     Animated.loop(Animated.timing(orbitAnim, { toValue: 1, duration: 30000, easing: Easing.linear, useNativeDriver: true })).start();
-
-    // Phone ring pulse
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(phoneRingAnim, { toValue: 1, duration: 900, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-        Animated.timing(phoneRingAnim, { toValue: 0, duration: 900, easing: Easing.inOut(Easing.sin), useNativeDriver: true })
-      ])
-    ).start();
 
     // Entrance animations
     Animated.parallel([
@@ -190,31 +156,6 @@ export default function SplashScreen({ onFinish }) {
         Animated.timing(buttonTranslate, { toValue: 0, duration: 500, easing: Easing.out(Easing.back(1.2)), useNativeDriver: true })
       ])
     ]).start();
-
-    // Call Alert Trigger
-    const listenerId = minuteAnim.addListener(({ value }) => {
-      if (value >= 0.32 && value <= 0.36 && !alertShown.current) {
-        alertShown.current = true;
-        
-        Animated.parallel([
-          Animated.spring(callAlertTranslate, { toValue: 0, friction: 6, tension: 40, useNativeDriver: true }),
-          Animated.timing(callAlertOpacity, { toValue: 1, duration: 400, useNativeDriver: true })
-        ]).start();
-
-        setTimeout(() => {
-          Animated.parallel([
-            Animated.timing(callAlertTranslate, { toValue: -40, duration: 400, easing: Easing.in(Easing.cubic), useNativeDriver: true }),
-            Animated.timing(callAlertOpacity, { toValue: 0, duration: 400, useNativeDriver: true })
-          ]).start();
-          
-          setTimeout(() => {
-            alertShown.current = false;
-          }, 9000);
-        }, 3000);
-      }
-    });
-
-    return () => minuteAnim.removeListener(listenerId);
   }, []);
 
   const handlePressIn = () => Animated.spring(buttonScale, { toValue: 0.97, useNativeDriver: true }).start();
@@ -223,131 +164,136 @@ export default function SplashScreen({ onFinish }) {
   const minuteDeg = minuteAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
   const hourDeg = hourAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
   const orbitDeg = orbitAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
-  
-  const phoneScale = phoneRingAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 1.3] });
 
   return (
     <View style={s.container}>
       <StatusBar barStyle="dark-content" translucent backgroundColor="transparent" />
 
-      {/* BACKGROUND GRADIENT */}
-      <LinearGradient colors={['#dff0ff', '#eef7ff', '#f8fcff', '#ffffff']} start={{ x: 0.3, y: 0 }} end={{ x: 0.7, y: 1 }} style={StyleSheet.absoluteFill} />
+      {/* BACKGROUND LAYER */}
+      <LinearGradient 
+        colors={['#f8fcff', '#f0f7ff', '#e6f2ff', '#ffffff']} 
+        locations={[0, 0.4, 0.7, 1]} 
+        start={{ x: 0, y: 0 }} 
+        end={{ x: 1, y: 1 }} 
+        style={StyleSheet.absoluteFill} 
+      />
+      <BgPattern />
 
-      {/* DECORATIVE BLOBS */}
-      <View style={s.blob1} />
-      <View style={s.blob2} />
-
-      <View style={s.centerContent}>
+      {/* MAIN LAYOUT */}
+      <View style={s.layout}>
         
-        {/* LOGO AREA */}
-        <Animated.View style={[s.logoOuter, { opacity: logoOpacity, transform: [{ scale: logoScale }] }]}>
-          
-          {/* Static inner dashed ring */}
-          <View style={[StyleSheet.absoluteFill, s.svgCenter]}>
-             <Svg width="270" height="270" viewBox="0 0 270 270">
-               <Circle cx="135" cy="135" r="125" stroke="rgba(26,143,225,0.12)" strokeWidth="1" strokeDasharray="4, 7" fill="none" />
-             </Svg>
-          </View>
-
-          {/* Rotating comet ring */}
-          <Animated.View style={[StyleSheet.absoluteFill, s.svgCenter, { transform: [{ rotate: orbitDeg }] }]}>
-            <Svg width="270" height="270" viewBox="0 0 270 270">
-              <Defs>
-                <SvgLinearGradient id="cometGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <Stop offset="0%" stopColor="#00c9a7" stopOpacity="0" />
-                  <Stop offset="35%" stopColor="#00c9a7" stopOpacity="1" />
-                  <Stop offset="100%" stopColor="#1a8fe1" stopOpacity="1" />
-                </SvgLinearGradient>
-              </Defs>
-              <Circle cx="135" cy="135" r="132" stroke="url(#cometGrad)" strokeWidth="2.5" strokeDasharray="580, 248" strokeLinecap="round" fill="none" />
-            </Svg>
-          </Animated.View>
-
-          {/* Glass Card */}
-          <View style={s.logoCard}>
-            <BlurView intensity={18} tint="light" style={StyleSheet.absoluteFill} />
+        {/* LOGO AREA (TOP) */}
+        <View style={s.layoutTop}>
+          <Animated.View style={[s.logoOuter, { opacity: logoOpacity, transform: [{ scale: logoScale }] }]}>
             
-            {/* Clock & Hands */}
-            <View style={s.iconContainer}>
-              <ClockFace />
-              <Animated.View style={[s.handContainer, { transform: [{ rotate: hourDeg }] }]}>
-                <View style={s.hourHand} />
-              </Animated.View>
-              <Animated.View style={[s.handContainer, { transform: [{ rotate: minuteDeg }] }]}>
-                <View style={s.minuteHand} />
-              </Animated.View>
-              <View style={s.centerDot} />
-              <Pill />
+            {/* Static inner dashed ring */}
+            <View style={[StyleSheet.absoluteFill, s.svgCenter]}>
+               <Svg width="270" height="270" viewBox="0 0 270 270">
+                 <Circle cx="135" cy="135" r="125" stroke="rgba(26,143,225,0.12)" strokeWidth="1" strokeDasharray="4, 7" fill="none" />
+               </Svg>
             </View>
-          </View>
 
-          {/* Call Alert (Floating glass card) */}
-          <Animated.View style={[s.callAlert, { opacity: callAlertOpacity, transform: [{ translateY: callAlertTranslate }] }]}>
-             <BlurView intensity={18} tint="light" style={StyleSheet.absoluteFill} />
-             <View style={s.callAlertContent}>
-               <View style={s.callIconWrapper}>
-                  <Animated.View style={[s.callIconRing, { transform: [{ scale: phoneScale }] }]} />
-                  <Svg width="18" height="18" viewBox="0 0 24 24" fill="#1a8fe1">
-                    <Path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z" />
-                  </Svg>
-               </View>
-               <View style={s.callAlertText}>
-                 <Text style={s.callAlertTitle}>Medicine Time</Text>
-                 <Text style={s.callAlertSub}>Calling patient now...</Text>
-               </View>
-               <SignalBars />
-             </View>
+            {/* Rotating comet ring */}
+            <Animated.View style={[StyleSheet.absoluteFill, s.svgCenter, { transform: [{ rotate: orbitDeg }] }]}>
+              <Svg width="270" height="270" viewBox="0 0 270 270">
+                <Defs>
+                  <SvgLinearGradient id="cometGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <Stop offset="0%" stopColor="#00c9a7" stopOpacity="0" />
+                    <Stop offset="35%" stopColor="#00c9a7" stopOpacity="1" />
+                    <Stop offset="100%" stopColor="#1a8fe1" stopOpacity="1" />
+                  </SvgLinearGradient>
+                </Defs>
+                <Circle cx="135" cy="135" r="132" stroke="url(#cometGrad)" strokeWidth="2.5" strokeDasharray="580, 248" strokeLinecap="round" fill="none" />
+              </Svg>
+            </Animated.View>
+
+            {/* Glass Card */}
+            <View style={s.logoCard}>
+              {Platform.OS === 'android' ? (
+                <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(255,255,255,0.7)' }]} />
+              ) : (
+                <BlurView intensity={18} tint="light" style={StyleSheet.absoluteFill} />
+              )}
+              
+              {/* Clock & Hands */}
+              <View style={s.iconContainer}>
+                <ClockFace />
+                <Animated.View style={[s.handContainer, { transform: [{ rotate: hourDeg }] }]}>
+                  <View style={s.hourHand} />
+                </Animated.View>
+                <Animated.View style={[s.handContainer, { transform: [{ rotate: minuteDeg }] }]}>
+                  <View style={s.minuteHand} />
+                </Animated.View>
+                <View style={s.centerDot} />
+                <Pill />
+              </View>
+            </View>
+            
           </Animated.View>
-          
-        </Animated.View>
+        </View>
 
-        {/* LABEL & BADGES */}
-        <Animated.View style={[s.textBlock, { opacity: contentOpacity, transform: [{ translateY: contentTranslate }] }]}>
-          <View style={s.portalRow}>
-            <View style={s.dividerLine} />
-            <Text style={s.portalLabel}>ADMIN PORTAL</Text>
-            <View style={[s.dividerLine, s.dividerGreen]} />
-          </View>
-          <Text style={s.subtitle}>Intelligent Healthcare Management</Text>
-          
-          <View style={s.chipsRow}>
-            <View style={s.chip}>
-              <BlurView intensity={18} tint="light" style={StyleSheet.absoluteFill} />
-              <View style={s.chipContent}>
-                <LockIcon /><Text style={s.chipText}>Secure</Text>
+        {/* LABEL & BADGES (MIDDLE) */}
+        <View style={s.layoutMiddle}>
+          <Animated.View style={[s.textBlock, { opacity: contentOpacity, transform: [{ translateY: contentTranslate }] }]}>
+            <View style={s.portalRow}>
+              <View style={s.dividerLine} />
+              <Text style={s.portalLabel}>ADMIN PORTAL</Text>
+              <View style={[s.dividerLine, s.dividerGreen]} />
+            </View>
+            <Text style={s.subtitle}>Intelligent Healthcare Management</Text>
+            
+            <View style={s.chipsRow}>
+              <View style={s.chip}>
+                {Platform.OS === 'android' ? (
+                  <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(255,255,255,0.7)' }]} />
+                ) : (
+                  <BlurView intensity={18} tint="light" style={StyleSheet.absoluteFill} />
+                )}
+                <View style={s.chipContent}>
+                  <LockIcon /><Text style={s.chipText}>Secure</Text>
+                </View>
+              </View>
+              <View style={s.chip}>
+                {Platform.OS === 'android' ? (
+                  <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(255,255,255,0.7)' }]} />
+                ) : (
+                  <BlurView intensity={18} tint="light" style={StyleSheet.absoluteFill} />
+                )}
+                <View style={s.chipContent}>
+                  <ShieldIcon /><Text style={s.chipText}>Certified</Text>
+                </View>
+              </View>
+              <View style={s.chip}>
+                {Platform.OS === 'android' ? (
+                  <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(255,255,255,0.7)' }]} />
+                ) : (
+                  <BlurView intensity={18} tint="light" style={StyleSheet.absoluteFill} />
+                )}
+                <View style={s.chipContent}>
+                  <CheckCircleIcon /><Text style={s.chipText}>HIPAA</Text>
+                </View>
               </View>
             </View>
-            <View style={s.chip}>
-              <BlurView intensity={18} tint="light" style={StyleSheet.absoluteFill} />
-              <View style={s.chipContent}>
-                <ShieldIcon /><Text style={s.chipText}>Certified</Text>
-              </View>
-            </View>
-            <View style={s.chip}>
-              <BlurView intensity={18} tint="light" style={StyleSheet.absoluteFill} />
-              <View style={s.chipContent}>
-                <CheckCircleIcon /><Text style={s.chipText}>HIPAA</Text>
-              </View>
-            </View>
-          </View>
-        </Animated.View>
+          </Animated.View>
+        </View>
+
+        {/* BOTTOM BUTTON (BOTTOM) */}
+        <View style={s.layoutBottom}>
+          <Animated.View style={[s.bottomArea, { opacity: buttonOpacity, transform: [{ translateY: buttonTranslate }] }]}>
+            <TouchableOpacity activeOpacity={1} onPressIn={handlePressIn} onPressOut={handlePressOut} onPress={onFinish} style={s.buttonWrap}>
+              <Animated.View style={[s.buttonShadow, { transform: [{ scale: buttonScale }] }]}>
+                <LinearGradient colors={['#1a8fe1', '#0d72c9']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.loginButton}>
+                  <Text style={s.loginText}>Admin Login</Text>
+                  <Svg width="18" height="18" viewBox="0 0 12 12" fill="none">
+                    <Path d="M 0 6 L 10 6 M 6 2 L 10 6 L 6 10" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </Svg>
+                </LinearGradient>
+              </Animated.View>
+            </TouchableOpacity>
+          </Animated.View>
+        </View>
 
       </View>
-
-      {/* BOTTOM BUTTON */}
-      <Animated.View style={[s.bottomArea, { opacity: buttonOpacity, transform: [{ translateY: buttonTranslate }] }]}>
-        <TouchableOpacity activeOpacity={1} onPressIn={handlePressIn} onPressOut={handlePressOut} onPress={onFinish} style={s.buttonWrap}>
-          <Animated.View style={[s.buttonShadow, { transform: [{ scale: buttonScale }] }]}>
-            <LinearGradient colors={['#1a8fe1', '#0d72c9']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.loginButton}>
-              <Text style={s.loginText}>Admin Login</Text>
-              <Svg width="18" height="18" viewBox="0 0 12 12" fill="none">
-                <Path d="M 0 6 L 10 6 M 6 2 L 10 6 L 6 10" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              </Svg>
-            </LinearGradient>
-          </Animated.View>
-        </TouchableOpacity>
-      </Animated.View>
-
     </View>
   );
 }
@@ -358,37 +304,24 @@ const s = StyleSheet.create({
     flex: 1,
     backgroundColor: '#ffffff',
   },
-  blob1: {
-    position: 'absolute',
-    width: 320,
-    height: 320,
-    borderRadius: 160,
-    backgroundColor: 'rgba(26,143,225,0.12)',
-    top: -60,
-    left: -80,
-    shadowColor: 'rgba(26,143,225,1)',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.5,
-    shadowRadius: 50,
-    elevation: 0,
+  layout: {
+    flex: 1,
+    paddingTop: height * 0.1,
+    paddingBottom: 40,
+    alignItems: 'center',
   },
-  blob2: {
-    position: 'absolute',
-    width: 260,
-    height: 260,
-    borderRadius: 130,
-    backgroundColor: 'rgba(0,201,167,0.10)',
-    bottom: 120,
-    right: -60,
-    shadowColor: 'rgba(0,201,167,1)',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.5,
-    shadowRadius: 50,
-    elevation: 0,
+  layoutTop: {
+    alignItems: 'center',
+    marginTop: 30,
   },
-  centerContent: {
-    ...StyleSheet.absoluteFillObject,
+  layoutMiddle: {
+    flex: 1,
     justifyContent: 'center',
+    alignItems: 'center',
+    width: '100%',
+  },
+  layoutBottom: {
+    width: '100%',
     alignItems: 'center',
   },
   
@@ -398,7 +331,6 @@ const s = StyleSheet.create({
     height: 270,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 40,
   },
   svgCenter: {
     alignItems: 'center',
@@ -415,7 +347,6 @@ const s = StyleSheet.create({
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.14,
     shadowRadius: 28,
-    elevation: 12,
     overflow: 'hidden',
     justifyContent: 'center',
     alignItems: 'center',
@@ -457,66 +388,6 @@ const s = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderWidth: 2.5,
     borderColor: '#1a8fe1',
-  },
-
-  // ── CALL ALERT ──
-  callAlert: {
-    position: 'absolute',
-    top: -30,
-    width: 220,
-    height: 72,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.55)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.85)',
-    shadowColor: '#1a8fe1',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.14,
-    shadowRadius: 28,
-    elevation: 12,
-    overflow: 'hidden',
-  },
-  callAlertContent: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    gap: 12,
-  },
-  callIconWrapper: {
-    width: 32,
-    height: 32,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  callIconRing: {
-    position: 'absolute',
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    borderWidth: 2,
-    borderColor: 'rgba(26,143,225,0.5)',
-  },
-  callAlertText: {
-    flex: 1,
-    justifyContent: 'center',
-  },
-  callAlertTitle: {
-    color: '#0d5fa1',
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  callAlertSub: {
-    color: '#5a7fa0',
-    fontSize: 11,
-    fontWeight: '300',
-    marginTop: 2,
-  },
-  signalBars: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: 4,
-    height: 14,
   },
 
   // ── TEXT & BADGES ──
@@ -565,7 +436,6 @@ const s = StyleSheet.create({
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.14,
     shadowRadius: 28,
-    elevation: 2,
     overflow: 'hidden',
   },
   chipContent: {
@@ -583,10 +453,7 @@ const s = StyleSheet.create({
 
   // ── BOTTOM BUTTON ──
   bottomArea: {
-    position: 'absolute',
-    bottom: 0,
     width: '100%',
-    paddingBottom: 40,
     alignItems: 'center',
   },
   buttonWrap: {

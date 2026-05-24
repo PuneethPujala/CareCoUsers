@@ -9,6 +9,7 @@ const Invoice = require('../models/Invoice');
 const AuditLog = require('../models/AuditLog');
 const Notification = require('../models/Notification');
 const CaretakerPatient = require('../models/CaretakerPatient');
+const { notifyNewOrganizationOnboarded } = require('../services/superAdminNotificationScheduler');
 const { authenticate, requireRole } = require('../middleware/authenticate');
 
 const router = express.Router();
@@ -247,6 +248,9 @@ router.post('/organizations', async (req, res) => {
             settings,
             createdBy: req.profile.supabaseUid,
         });
+
+        // Trigger super admin notification
+        await notifyNewOrganizationOnboarded(org);
 
         // Audit log
         await AuditLog.createLog({
