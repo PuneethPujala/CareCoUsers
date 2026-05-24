@@ -152,12 +152,12 @@ export default function SplashScreen({ onFinish }) {
   const buttonScale = useRef(new Animated.Value(1)).current;
 
   const phoneRingAnim = useRef(new Animated.Value(0)).current;
-  const callAlertTranslate = useRef(new Animated.Value(40)).current;
+  const callAlertTranslate = useRef(new Animated.Value(-40)).current;
   const callAlertOpacity = useRef(new Animated.Value(0)).current;
   const alertShown = useRef(false);
 
   useEffect(() => {
-    Animated.loop(Animated.timing(minuteAnim, { toValue: 1, duration: 10000, easing: Easing.linear, useNativeDriver: true })).start();
+    Animated.loop(Animated.timing(minuteAnim, { toValue: 1, duration: 15000, easing: Easing.linear, useNativeDriver: true })).start();
     Animated.loop(Animated.timing(hourAnim, { toValue: 1, duration: 120000, easing: Easing.linear, useNativeDriver: true })).start();
     Animated.loop(Animated.timing(orbitAnim, { toValue: 1, duration: 30000, easing: Easing.linear, useNativeDriver: true })).start();
 
@@ -203,7 +203,7 @@ export default function SplashScreen({ onFinish }) {
 
         setTimeout(() => {
           Animated.parallel([
-            Animated.timing(callAlertTranslate, { toValue: 40, duration: 400, easing: Easing.in(Easing.cubic), useNativeDriver: true }),
+            Animated.timing(callAlertTranslate, { toValue: -40, duration: 400, easing: Easing.in(Easing.cubic), useNativeDriver: true }),
             Animated.timing(callAlertOpacity, { toValue: 0, duration: 400, useNativeDriver: true })
           ]).start();
           
@@ -387,7 +387,7 @@ const s = StyleSheet.create({
     elevation: 0,
   },
   centerContent: {
-    flex: 1,
+    ...StyleSheet.absoluteFillObject,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -462,7 +462,7 @@ const s = StyleSheet.create({
   // ── CALL ALERT ──
   callAlert: {
     position: 'absolute',
-    bottom: -30,
+    top: -30,
     width: 220,
     height: 72,
     borderRadius: 20,
@@ -583,6 +583,8 @@ const s = StyleSheet.create({
 
   // ── BOTTOM BUTTON ──
   bottomArea: {
+    position: 'absolute',
+    bottom: 0,
     width: '100%',
     paddingBottom: 40,
     alignItems: 'center',
