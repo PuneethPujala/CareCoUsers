@@ -151,7 +151,8 @@ async function registerPatient(body, req) {
   if (existingProfile) {
     if (isOAuth && existingProfile.role === 'companion') {
       // Overwrite Guard: if supabaseUid is already set, verify they match!
-      if (existingProfile.supabaseUid && existingProfile.supabaseUid !== supabaseUid) {
+      const isPlaceholder = existingProfile.supabaseUid && existingProfile.supabaseUid.startsWith('cmp_');
+      if (existingProfile.supabaseUid && existingProfile.supabaseUid !== supabaseUid && !isPlaceholder) {
         const err = new Error('This account is already linked to a different Google identity.');
         err.status = 400;
         err.code = 'OAUTH_LINK_CONFLICT';
@@ -203,7 +204,8 @@ async function registerPatient(body, req) {
   if (existingPatient) {
     if (isOAuth) {
       // Overwrite Guard: if supabaseUid is already set, verify they match!
-      if (existingPatient.supabase_uid && existingPatient.supabase_uid !== supabaseUid) {
+      const isPlaceholder = !!existingPatient.passwordHash;
+      if (existingPatient.supabase_uid && existingPatient.supabase_uid !== supabaseUid && !isPlaceholder) {
         const err = new Error('This account is already linked to a different Google identity.');
         err.status = 400;
         err.code = 'OAUTH_LINK_CONFLICT';
