@@ -941,6 +941,17 @@ router.post('/google-login', async (req, res) => {
       });
     }
 
+    // Step 3.5: Enforce First Login Policy
+    const PHONE_REQUIRED_ROLES = ['org_admin', 'care_manager', 'caller'];
+    const mustVerifyPhone = PHONE_REQUIRED_ROLES.includes(profile.role) && !profile.phoneVerified;
+
+    if (profile.mustChangePassword || mustVerifyPhone) {
+      return res.status(403).json({
+        error: 'Please login using Email and Password for your first login to complete account setup.',
+        code: 'FIRST_LOGIN_REQUIRED'
+      });
+    }
+
     // Step 4: Log successful login
     await logEvent(user.id, 'login', 'profile', profile._id, req, {
       method: 'google_oauth',
