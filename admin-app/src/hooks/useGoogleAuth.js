@@ -29,20 +29,11 @@ export default function useGoogleAuth() {
         return uri;
     }, []);
 
-    // The backend trampoline URL (plain HTTP — Supabase accepts this)
+    // Use the native Expo deep link directly (works for both Expo Go and APK).
+    // Supabase will redirect directly back to the app (e.g. exp://... or careco-admin://...)
+    // This requires whitelisting `exp://*` (for dev) and `careco-admin://*` (for prod) in Supabase.
     const trampolineUrl = useMemo(() => {
-        // If running in development (Expo Go or Dev Client), we MUST use the backend trampoline
-        // because deep links (exp://) change dynamically based on IP.
-        if (__DEV__) {
-            const apiBase = getApiBaseUrl();
-            const url = `${apiBase}/auth/google-callback`;
-            console.log('[GoogleAuth] Dev mode detected. Supabase redirectTo trampoline:', url);
-            return url;
-        }
-        
-        // If running in a production standalone APK/IPA, bypass the trampoline!
-        // Supabase will redirect directly back to the app via its custom scheme (e.g. careco-admin://)
-        console.log('[GoogleAuth] Production App detected. Supabase redirectTo native scheme:', appRedirectUri);
+        console.log('[GoogleAuth] Supabase redirectTo native app scheme:', appRedirectUri);
         return appRedirectUri;
     }, [appRedirectUri]);
 
