@@ -258,4 +258,35 @@ describe('Companion Routes', () => {
             expect(res.body.linked_patients).toHaveLength(2);
         });
     });
+
+    describe('POST /api/companion/alerts/:id/acknowledge', () => {
+
+        it('returns 403 if user role is not companion', async () => {
+            mockAuthState.profile.role = 'patient';
+
+            const res = await request(app)
+                .post('/api/companion/alerts/alert123/acknowledge');
+
+            expect(res.status).toBe(403);
+        });
+
+        it('successfully acknowledges and dismisses alert for companion', async () => {
+            Alert.updateOne = jest.fn().mockResolvedValue({ nModified: 1 });
+
+            const res = await request(app)
+                .post('/api/companion/alerts/alert123/acknowledge');
+
+            expect(res.status).toBe(200);
+            expect(res.body.success).toBe(true);
+            expect(Alert.updateOne).toHaveBeenCalledWith(
+                { _id: 'alert123' },
+                expect.objectContaining({
+                    $set: expect.objectContaining({
+                        status: 'acknowledged',
+                        acknowledged_by: expect.anything()
+                    })
+                })
+            );
+        });
+    });
 });
