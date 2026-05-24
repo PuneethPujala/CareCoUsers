@@ -334,6 +334,23 @@ export default function PatientSignupScreen({ navigation, route }) {
                     else if (code === 'EMAIL_ALREADY_EXISTS') { setErrors({ google: 'An account with this email already exists. Please log in instead.' }); await signOut(); }
                     else { setErrors({ google: regError?.response?.data?.error || 'Failed to create account' }); await signOut(); }
                 }
+            } else {
+                // Existing user trying to sign up -> treat as login
+                const googleUser = result.user;
+                const fullName = googleUser.user_metadata?.full_name || googleUser.user_metadata?.name || googleUser.email.split('@')[0];
+                try {
+                    const regRes = await apiService.auth.register({ email: googleUser.email, fullName, role: 'patient', supabaseUid: googleUser.id });
+                    const regProfile = regRes.data?.profile;
+                    const regSession = regRes.data?.session;
+                    if (regProfile && regSession) await injectSession(regSession, regProfile);
+                    else if (regProfile) await injectSession(result.session, regProfile);
+                    else if (result.existingProfile) await injectSession(result.session, result.existingProfile);
+                } catch (regError) {
+                    const regProfile = regError?.response?.data?.profile;
+                    const regSession = regError?.response?.data?.session;
+                    if (regProfile && regSession) await injectSession(regSession, regProfile);
+                    else if (result.existingProfile) await injectSession(result.session, result.existingProfile);
+                }
             }
         } catch (error) {
             try { await GoogleSignin.signOut(); } catch { }

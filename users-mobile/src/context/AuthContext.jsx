@@ -445,7 +445,25 @@ export function AuthProvider({ children }) {
             });
             if (error) throw error;
             setSession(data.session);
-            return { isNewUser: true, user: data.user, session: data.session };
+
+            // Dynamically check if this user already exists in MongoDB
+            let isNewUser = true;
+            let existingProfile = null;
+            try {
+                const profileRes = await apiService.auth.getProfile({
+                    headers: { Authorization: `Bearer ${data.session.access_token}` }
+                });
+                if (profileRes.data?.profile) {
+                    isNewUser = false;
+                    existingProfile = profileRes.data.profile;
+                    // Returning user: allow the SIGNED_IN listener to run as fallback
+                    skipNextSignedInRef.current = false;
+                }
+            } catch (err) {
+                if (__DEV__) console.log('[Auth] Google sign-in getProfile check:', err.message);
+            }
+
+            return { isNewUser, user: data.user, session: data.session, existingProfile };
         } catch (error) {
             throw new Error(error?.message || 'Google sign-in failed');
         } finally {

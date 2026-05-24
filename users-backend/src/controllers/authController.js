@@ -473,7 +473,8 @@ async function sendOtp(req, res) {
       let searchPhone = phoneNorm;
       if (!searchPhone.startsWith('+')) searchPhone = `+91${searchPhone.replace(/^91/, '')}`;
       
-      const phoneCount = await Patient.countDocuments({ phone: phoneNorm, is_active: true });
+      const phoneVariants = [phoneNorm, searchPhone];
+      const phoneCount = await Patient.countDocuments({ phone: { $in: phoneVariants }, is_active: true });
       if (phoneCount >= 5) {
         return res.status(400).json({ 
           error: '5 accounts already exist with this number. Please delete an old account to use this number.',

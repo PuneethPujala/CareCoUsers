@@ -361,6 +361,37 @@ export default function LoginScreen({ navigation }) {
                     }
                 }
             } else {
+                // Returning user — get backend tokens via register (handles existing OAuth gracefully)
+                const googleUser = result.user;
+                const fullName = googleUser.user_metadata?.full_name
+                    || googleUser.user_metadata?.name
+                    || googleUser.email.split('@')[0];
+                try {
+                    const regRes = await apiService.auth.register({
+                        email: googleUser.email, fullName, role: 'patient',
+                        supabaseUid: googleUser.id,
+                    });
+                    const regProfile = regRes.data?.profile;
+                    const regSession = regRes.data?.session;
+                    if (regProfile && regSession) {
+                        await injectSession(regSession, regProfile);
+                    } else if (regProfile) {
+                        await injectSession(result.session, regProfile);
+                    } else if (result.existingProfile) {
+                        await injectSession(result.session, result.existingProfile);
+                    }
+                } catch (regError) {
+                    const regProfile = regError?.response?.data?.profile;
+                    const regSession = regError?.response?.data?.session;
+                    if (regProfile && regSession) {
+                        await injectSession(regSession, regProfile);
+                    } else if (result.existingProfile) {
+                        // Fallback: use profile from getProfile check, Supabase session
+                        await injectSession(result.session, result.existingProfile);
+                    }
+                    // If neither worked, the SIGNED_IN listener will handle it
+                    // (skipNextSignedInRef was reset to false for returning users in AuthContext)
+                }
                 analytics.loginSuccess(result?.user?.id);
             }
         } catch (error) {
