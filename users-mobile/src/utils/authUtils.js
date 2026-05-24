@@ -11,6 +11,7 @@ export const normaliseStatus = (raw) => {
 };
 
 export const resolveOnboardingStep = (patient, profile) => {
+    if (profile?.role === 'companion') return null;
     if (!profile && !patient) return 1;
 
     // Step 2: phone collection (always needed for Google users who skip Step 1)

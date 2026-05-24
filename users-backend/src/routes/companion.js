@@ -34,11 +34,8 @@ router.post('/join', async (req, res) => {
         // 2. Create the Companion Profile
         const emailNorm = email.toLowerCase().trim();
         
-        // Check if profile exists
-        let profile = await Profile.findOne({ email: emailNorm });
-        if (profile) {
-            return res.status(400).json({ error: 'An account with this email already exists.' });
-        }
+        // Assert global cross-collection uniqueness for the email
+        await authService.assertGlobalUniqueEmail(emailNorm);
 
         const supabaseUid = `cmp_${Math.random().toString(36).substr(2, 9)}_${Date.now()}`;
         
