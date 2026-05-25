@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Switc
 import { useAuth } from '../../context/AuthContext';
 import { apiService } from '../../lib/api';
 import { LogOut, ShieldCheck, Heart, User, Settings, ArrowRight, UserCheck, Share2, Phone } from 'lucide-react-native';
+import { layout } from '../../theme';
 import AlertManager from '../../utils/AlertManager';
 
 const C = {
@@ -246,7 +247,7 @@ const styles = StyleSheet.create({
     title: { fontSize: 24, ...FONT.heavy, color: C.dark },
     
     scroll: { flex: 1 },
-    content: { padding: 20, gap: 20, paddingBottom: 40 },
+    content: { padding: 20, gap: 20, paddingBottom: layout.TAB_BAR_CLEARANCE },
 
     // Identity Card
     profileCard: {

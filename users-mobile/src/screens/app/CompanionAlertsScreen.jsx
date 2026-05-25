@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, RefreshControl, Pressable } from 'react-native';
 import { apiService } from '../../lib/api';
+import { layout } from '../../theme';
 import { Bell, CheckCircle2, ShieldCheck, ShieldAlert, Phone, Clock, ChevronRight, Activity, Check } from 'lucide-react-native';
 
 const C = {
@@ -350,7 +351,7 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
     },
 
-    content: { padding: 20, gap: 20 },
+    content: { padding: 20, gap: 20, paddingBottom: layout.TAB_BAR_CLEARANCE },
     section: { gap: 12 },
     sectionTitle: {
         fontSize: 15,

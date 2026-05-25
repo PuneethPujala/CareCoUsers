@@ -629,7 +629,7 @@ const styles = StyleSheet.create({
         color: C.dark,
     },
 
-    content: { padding: 20, gap: 16 },
+    content: { padding: 20, gap: 16, paddingBottom: layout.TAB_BAR_CLEARANCE },
     
     // Premium Card Styles
     card: { 
