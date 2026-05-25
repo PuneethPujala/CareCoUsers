@@ -43,6 +43,12 @@ jest.mock('../../src/models/Patient', () => ({
   findOne: jest.fn((...args) => mockFindOnePatient(...args)),
 }));
 
+// ── Mock Companion model ────────────────────────────────────────────────────
+const mockFindOneCompanion = jest.fn();
+jest.mock('../../src/models/Companion', () => ({
+  findOne: jest.fn((...args) => mockFindOneCompanion(...args)),
+}));
+
 // ── Mock AuditLog model ─────────────────────────────────────────────────────
 jest.mock('../../src/models/AuditLog', () => ({
   createLog: jest.fn().mockResolvedValue(true),
@@ -78,6 +84,11 @@ function buildRes() {
 // authenticate
 // ─────────────────────────────────────────────────────────────────────────────
 describe('authenticate middleware', () => {
+  beforeEach(() => {
+    mockFindOneProfile.mockReturnValue(null);
+    mockFindOnePatient.mockReturnValue(null);
+    mockFindOneCompanion.mockReturnValue(null);
+  });
   afterEach(() => jest.clearAllMocks());
 
   test('rejects when Authorization header is missing', async () => {

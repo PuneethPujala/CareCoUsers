@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, RefreshControl, Pressable, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, RefreshControl, Pressable, Dimensions, Alert, Linking } from 'react-native';
 import { apiService } from '../../lib/api';
 import { HeartPulse, Activity, Bell, Phone, Send, ChevronRight, MessageSquare, ShieldCheck, AlertCircle } from 'lucide-react-native';
 
@@ -72,6 +72,35 @@ export default function CompanionDashboardScreen() {
     const handlePatientSwitch = async (patientId) => {
         setSelectedPatientId(patientId);
         await loadData(patientId);
+    };
+
+    const handleNudge = async () => {
+        try {
+            await apiService.companion.nudge({ patientId: selectedPatientId });
+            Alert.alert('Nudge Sent', `${data.patient.name} has been nudged successfully! ❤️`);
+        } catch (err) {
+            console.warn('Failed to nudge', err);
+            Alert.alert('Nudge Failed', 'Unable to send nudge reminder at this time.');
+        }
+    };
+
+    const handleCall = () => {
+        const phone = data.patient.phone;
+        if (phone) {
+            Linking.openURL(`tel:${phone}`);
+        } else {
+            Alert.alert('No Phone Number', `${data.patient.name} does not have a phone number configured.`);
+        }
+    };
+
+    const handleRequestBP = async () => {
+        try {
+            await apiService.companion.requestBP({ patientId: selectedPatientId });
+            Alert.alert('BP Request Sent', `Request for Blood Pressure log sent to ${data.patient.name} successfully! 🩺`);
+        } catch (err) {
+            console.warn('Failed to request BP', err);
+            Alert.alert('Request Failed', 'Unable to send Blood Pressure log request.');
+        }
     };
 
     if (!data) return <View style={styles.container} />;
@@ -158,21 +187,21 @@ export default function CompanionDashboardScreen() {
             >
                 {/* 1. Quick Actions Bar */}
                 <View style={styles.actionsContainer}>
-                    <Pressable style={styles.actionButton}>
+                    <Pressable style={styles.actionButton} onPress={handleNudge}>
                         <View style={[styles.actionIconContainer, { backgroundColor: C.primaryLight }]}>
                             <Send color={C.primary} size={18} />
                         </View>
                         <Text style={styles.actionLabel}>Nudge</Text>
                     </Pressable>
 
-                    <Pressable style={styles.actionButton}>
+                    <Pressable style={styles.actionButton} onPress={handleCall}>
                         <View style={[styles.actionIconContainer, { backgroundColor: C.successLight }]}>
                             <Phone color={C.success} size={18} />
                         </View>
                         <Text style={styles.actionLabel}>Call</Text>
                     </Pressable>
 
-                    <Pressable style={styles.actionButton}>
+                    <Pressable style={styles.actionButton} onPress={handleRequestBP}>
                         <View style={[styles.actionIconContainer, { backgroundColor: C.dangerLight }]}>
                             <HeartPulse color={C.danger} size={18} />
                         </View>

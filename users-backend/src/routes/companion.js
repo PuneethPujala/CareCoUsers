@@ -1,13 +1,17 @@
 const express = require('express');
 const router = express.Router();
-const { authenticateSession } = require('../middleware/authenticate');
+const { authenticate, authenticateSession } = require('../middleware/authenticate');
 const Patient = require('../models/Patient');
 const Profile = require('../models/Profile');
+const Companion = require('../models/Companion');
 const CompanionAccess = require('../models/CompanionAccess');
 const authService = require('../services/authService');
 const logger = require('../utils/logger');
 const tokenService = require('../services/tokenService');
 const { logEvent } = require('../services/auditService');
+const Notification = require('../models/Notification');
+const PushNotificationService = require('../utils/pushNotifications');
+
 
 /**
  * POST /api/companion/join
@@ -40,14 +44,16 @@ router.post('/join', async (req, res) => {
             return res.status(400).json({ error: 'This email is registered to a Patient account. Companions must use a separate email.' });
         }
 
-        let profile = await Profile.findOne({ email: emailNorm });
+        // Check if there is an existing Staff Profile with this email
+        const existingStaff = await Profile.findOne({ email: emailNorm });
+        if (existingStaff) {
+            return res.status(400).json({ error: 'An account with this email already exists.' });
+        }
+
+        let profile = await Companion.findOne({ email: emailNorm });
         let isExistingProfile = false;
 
         if (profile) {
-            if (profile.role !== 'companion') {
-                return res.status(400).json({ error: 'An account with this email already exists.' });
-            }
-            
             // Check if they already have access to this specific patient
             const existingAccess = await CompanionAccess.findOne({ companion_id: profile._id, patient_id: patient._id });
             if (existingAccess) {
@@ -71,7 +77,7 @@ router.post('/join', async (req, res) => {
             const salt = await bcrypt.genSalt(10);
             const passwordHash = await bcrypt.hash(password, salt);
 
-            profile = await Profile.create({
+            profile = await Companion.create({
                 supabaseUid,
                 email: emailNorm,
                 passwordHash,
@@ -122,7 +128,7 @@ router.post('/join', async (req, res) => {
         const tokens = await tokenService.issueTokenPair(
             {
                 userId: profile._id,
-                userType: 'Profile',
+                userType: 'Companion',
                 subject: profile.supabaseUid,
                 role: 'companion',
                 email: profile.email,
@@ -131,7 +137,7 @@ router.post('/join', async (req, res) => {
             req
         );
 
-        await logEvent(profile.supabaseUid, 'companion_joined', 'profile', profile._id, req, { patientId: patient._id });
+        await logEvent(profile.supabaseUid, 'companion_joined', 'companion', profile._id, req, { patientId: patient._id });
 
         res.status(isExistingProfile ? 200 : 201).json({
             message: isExistingProfile 
@@ -162,9 +168,9 @@ router.post('/join', async (req, res) => {
  * GET /api/companion/patient-status
  * Read-only dashboard for companion to view patient stats.
  */
-router.get('/patient-status', authenticateSession, async (req, res) => {
+router.get('/patient-status', authenticate, async (req, res) => {
     try {
-        if (req.profile.role !== 'companion') {
+        if (!req.profile || req.profile.role !== 'companion') {
             return res.status(403).json({ error: 'Access denied.' });
         }
 
@@ -173,7 +179,7 @@ router.get('/patient-status', authenticateSession, async (req, res) => {
             companion_id: req.profile._id, 
             is_active: true, 
             status: 'accepted' 
-        }).populate('patient_id', 'name email avatar_url healthScoreCache gamification');
+        }).populate('patient_id', 'name email phone avatar_url healthScoreCache gamification');
         
         if (accesses.length === 0) {
             return res.status(404).json({ error: 'No linked patients found or access revoked.' });
@@ -228,6 +234,7 @@ router.get('/patient-status', authenticateSession, async (req, res) => {
             patient: {
                 id: patient._id,
                 name: patient.name,
+                phone: patient.phone || '',
                 avatar_url: patient.avatar_url,
                 health_score: patient.healthScoreCache,
                 adherence_rate: adherenceRate,
@@ -240,6 +247,7 @@ router.get('/patient-status', authenticateSession, async (req, res) => {
                 .map(a => ({
                     id: a.patient_id._id,
                     name: a.patient_id.name,
+                    phone: a.patient_id.phone || '',
                     avatar_url: a.patient_id.avatar_url,
                     health_score: a.patient_id.healthScoreCache,
                     current_streak: a.patient_id.gamification?.current_streak || 0
@@ -253,12 +261,158 @@ router.get('/patient-status', authenticateSession, async (req, res) => {
 });
 
 /**
+ * POST /api/companion/nudge
+ * Nudge a patient to take their medication.
+ */
+router.post('/nudge', authenticate, async (req, res) => {
+    try {
+        if (!req.profile || req.profile.role !== 'companion') {
+            return res.status(403).json({ error: 'Access denied.' });
+        }
+
+        let patientId = req.body.patientId;
+
+        // If no patientId provided, look up companion's first linked patient
+        if (!patientId) {
+            const firstAccess = await CompanionAccess.findOne({
+                companion_id: req.profile._id,
+                is_active: true,
+                status: 'accepted'
+            });
+            if (!firstAccess) {
+                return res.status(400).json({ error: 'No linked patients found to nudge.' });
+            }
+            patientId = firstAccess.patient_id;
+        }
+
+        // Validate access relationship
+        const access = await CompanionAccess.findOne({
+            companion_id: req.profile._id,
+            patient_id: patientId,
+            is_active: true,
+            status: 'accepted'
+        });
+
+        if (!access) {
+            return res.status(403).json({ error: 'You do not have active access to this patient.' });
+        }
+
+        const patient = await Patient.findById(patientId);
+        if (!patient) {
+            return res.status(404).json({ error: 'Patient not found.' });
+        }
+
+        const companionName = req.profile.fullName || 'Your family caregiver';
+
+        // 1. Create in-app notification for patient
+        await Notification.create({
+            patient_id: patient._id,
+            type: 'reminders',
+            title: 'Reminded by family ❤️',
+            message: `${companionName} sent you a gentle reminder to check your medications.`,
+            target_screen: 'Medicines'
+        });
+
+        // 2. Send push notification if token exists
+        if (patient.expo_push_token) {
+            await PushNotificationService.sendPush(
+                patient.expo_push_token,
+                'Reminded by family ❤️',
+                `${companionName} sent you a gentle reminder to check your medications.`,
+                { screen: 'Medicines', type: 'companion_nudge' }
+            );
+        }
+
+        // 3. Log event
+        await logEvent(req.user.id, 'companion_sent_nudge', 'profile', req.profile._id, req, { patientId: patient._id });
+
+        res.json({ success: true, message: 'Nudge sent successfully.' });
+    } catch (err) {
+        logger.error('Companion nudge error', { error: err.message });
+        res.status(500).json({ error: 'Failed to send nudge.' });
+    }
+});
+
+/**
+ * POST /api/companion/request-bp
+ * Request a blood pressure reading from a patient.
+ */
+router.post('/request-bp', authenticate, async (req, res) => {
+    try {
+        if (!req.profile || req.profile.role !== 'companion') {
+            return res.status(403).json({ error: 'Access denied.' });
+        }
+
+        let patientId = req.body.patientId;
+
+        // If no patientId provided, look up companion's first linked patient
+        if (!patientId) {
+            const firstAccess = await CompanionAccess.findOne({
+                companion_id: req.profile._id,
+                is_active: true,
+                status: 'accepted'
+            });
+            if (!firstAccess) {
+                return res.status(400).json({ error: 'No linked patients found.' });
+            }
+            patientId = firstAccess.patient_id;
+        }
+
+        // Validate access relationship
+        const access = await CompanionAccess.findOne({
+            companion_id: req.profile._id,
+            patient_id: patientId,
+            is_active: true,
+            status: 'accepted'
+        });
+
+        if (!access) {
+            return res.status(403).json({ error: 'You do not have active access to this patient.' });
+        }
+
+        const patient = await Patient.findById(patientId);
+        if (!patient) {
+            return res.status(404).json({ error: 'Patient not found.' });
+        }
+
+        const companionName = req.profile.fullName || 'Your family caregiver';
+
+        // 1. Create in-app notification for patient
+        await Notification.create({
+            patient_id: patient._id,
+            type: 'reminders',
+            title: 'Blood Pressure Request 🩺',
+            message: `${companionName} wants to know your latest Blood Pressure. Please take a reading and record it!`,
+            target_screen: 'HealthProfile'
+        });
+
+        // 2. Send push notification if token exists
+        if (patient.expo_push_token) {
+            await PushNotificationService.sendPush(
+                patient.expo_push_token,
+                'Blood Pressure Request 🩺',
+                `${companionName} wants to know your latest Blood Pressure. Please take a reading and record it!`,
+                { screen: 'HealthProfile', type: 'companion_request_bp' }
+            );
+        }
+
+        // 3. Log event
+        await logEvent(req.user.id, 'companion_requested_bp', 'profile', req.profile._id, req, { patientId: patient._id });
+
+        res.json({ success: true, message: 'Blood Pressure request sent successfully.' });
+    } catch (err) {
+        logger.error('Companion request BP error', { error: err.message });
+        res.status(500).json({ error: 'Failed to request Blood Pressure.' });
+    }
+});
+
+/**
  * POST /api/companion/alerts/:id/acknowledge
  * Acknowledge an alert to dismiss it from the dashboard.
  */
-router.post('/alerts/:id/acknowledge', authenticateSession, async (req, res) => {
+router.post('/alerts/:id/acknowledge', authenticate, async (req, res) => {
     try {
-        if (req.profile.role !== 'companion') {
+        if (!req.profile || req.profile.role !== 'companion') {
             return res.status(403).json({ error: 'Access denied.' });
         }
 
@@ -279,3 +433,4 @@ router.post('/alerts/:id/acknowledge', authenticateSession, async (req, res) => 
 });
 
 module.exports = router;
+

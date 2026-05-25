@@ -52,19 +52,27 @@ jest.mock('../src/services/tokenService', () => ({
 
 jest.mock('../src/models/Patient');
 jest.mock('../src/models/Profile');
+jest.mock('../src/models/Companion');
 jest.mock('../src/models/CompanionAccess');
 jest.mock('../src/models/MedicineLog');
 jest.mock('../src/models/VitalLog');
 jest.mock('../src/models/Alert');
+jest.mock('../src/models/Notification');
+jest.mock('../src/utils/pushNotifications', () => ({
+    sendPush: jest.fn().mockResolvedValue({ success: true })
+}));
 
 const request = require('supertest');
 const app = require('../src/server');
 const Patient = require('../src/models/Patient');
 const Profile = require('../src/models/Profile');
+const Companion = require('../src/models/Companion');
 const CompanionAccess = require('../src/models/CompanionAccess');
 const MedicineLog = require('../src/models/MedicineLog');
 const VitalLog = require('../src/models/VitalLog');
 const Alert = require('../src/models/Alert');
+const Notification = require('../src/models/Notification');
+const PushNotificationService = require('../src/utils/pushNotifications');
 
 describe('Companion Routes', () => {
 
@@ -147,7 +155,8 @@ describe('Companion Routes', () => {
                 role: 'companion',
                 save: jest.fn().mockResolvedValue({})
             };
-            Profile.findOne = jest.fn().mockResolvedValue(existingProfileObj);
+            Profile.findOne = jest.fn().mockResolvedValue(null);
+            Companion.findOne = jest.fn().mockResolvedValue(existingProfileObj);
 
             CompanionAccess.findOne = jest.fn().mockResolvedValue(null);
             CompanionAccess.create = jest.fn().mockResolvedValue({ _id: 'access-123' });
@@ -164,7 +173,7 @@ describe('Companion Routes', () => {
             expect(res.status).toBe(200);
             expect(res.body.message).toMatch(/linked to new patient/i);
             expect(CompanionAccess.create).toHaveBeenCalled();
-            expect(Profile.prototype.save).not.toHaveBeenCalled();
+            expect(Companion.prototype.save).not.toHaveBeenCalled();
         });
     });
 
@@ -287,6 +296,108 @@ describe('Companion Routes', () => {
                     })
                 })
             );
+        });
+    });
+
+    describe('POST /api/companion/nudge', () => {
+        it('returns 403 if user role is not companion', async () => {
+            mockAuthState.profile.role = 'patient';
+
+            const res = await request(app)
+                .post('/api/companion/nudge')
+                .send({ patientId: 'patient-123' });
+
+            expect(res.status).toBe(403);
+        });
+
+        it('returns 400 if no linked patients exist and none provided', async () => {
+            CompanionAccess.findOne = jest.fn().mockResolvedValue(null);
+
+            const res = await request(app)
+                .post('/api/companion/nudge')
+                .send({});
+
+            expect(res.status).toBe(400);
+            expect(res.body.error).toMatch(/No linked patients found/i);
+        });
+
+        it('returns 403 if companion does not have active access to the patient', async () => {
+            CompanionAccess.findOne = jest.fn().mockResolvedValue(null);
+
+            const res = await request(app)
+                .post('/api/companion/nudge')
+                .send({ patientId: 'patient-123' });
+
+            expect(res.status).toBe(403);
+            expect(res.body.error).toMatch(/active access/i);
+        });
+
+        it('successfully nudges patient with push notification when token exists', async () => {
+            const mockAccess = {
+                companion_id: fakeId('companion-profile-id'),
+                patient_id: fakeId('patient-123'),
+                is_active: true,
+                status: 'accepted'
+            };
+            CompanionAccess.findOne = jest.fn().mockResolvedValue(mockAccess);
+
+            const mockPatientObj = {
+                _id: fakeId('patient-123'),
+                name: 'Jane Patient',
+                expo_push_token: 'ExponentPushToken[some-token]'
+            };
+            Patient.findById = jest.fn().mockResolvedValue(mockPatientObj);
+            Notification.create = jest.fn().mockResolvedValue({ _id: 'notification-123' });
+
+            const res = await request(app)
+                .post('/api/companion/nudge')
+                .send({ patientId: 'patient-123' });
+
+            expect(res.status).toBe(200);
+            expect(res.body.success).toBe(true);
+            expect(Notification.create).toHaveBeenCalledWith(expect.objectContaining({
+                patient_id: mockPatientObj._id,
+                type: 'reminders',
+                title: expect.stringMatching(/Reminded by family/i)
+            }));
+            expect(PushNotificationService.sendPush).toHaveBeenCalledWith(
+                'ExponentPushToken[some-token]',
+                expect.any(String),
+                expect.any(String),
+                expect.any(Object)
+            );
+        });
+    });
+
+    describe('POST /api/companion/request-bp', () => {
+        it('successfully requests BP from patient', async () => {
+            const mockAccess = {
+                companion_id: fakeId('companion-profile-id'),
+                patient_id: fakeId('patient-123'),
+                is_active: true,
+                status: 'accepted'
+            };
+            CompanionAccess.findOne = jest.fn().mockResolvedValue(mockAccess);
+
+            const mockPatientObj = {
+                _id: fakeId('patient-123'),
+                name: 'Jane Patient',
+                expo_push_token: 'ExponentPushToken[some-token]'
+            };
+            Patient.findById = jest.fn().mockResolvedValue(mockPatientObj);
+            Notification.create = jest.fn().mockResolvedValue({ _id: 'notification-123' });
+
+            const res = await request(app)
+                .post('/api/companion/request-bp')
+                .send({ patientId: 'patient-123' });
+
+            expect(res.status).toBe(200);
+            expect(res.body.success).toBe(true);
+            expect(Notification.create).toHaveBeenCalledWith(expect.objectContaining({
+                patient_id: mockPatientObj._id,
+                type: 'reminders',
+                title: expect.stringMatching(/Blood Pressure Request/i)
+            }));
         });
     });
 });

@@ -17,7 +17,7 @@ const RefreshTokenSchema = new mongoose.Schema(
     userType: {
       type: String,
       required: true,
-      enum: ['Profile', 'Patient'],
+      enum: ['Profile', 'Patient', 'Companion'],
     },
     /** Stable auth subject (matches Profile.supabaseUid / Patient.supabase_uid) */
     subject: {

@@ -4,7 +4,7 @@ const CompanionAccessSchema = new mongoose.Schema(
   {
     companion_id: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Profile',
+      ref: 'Companion',
       required: true,
       index: true,
     },

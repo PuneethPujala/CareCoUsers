@@ -68,6 +68,10 @@ async function attachJwtUser(token, req) {
       'organizationId',
       'name city'
     );
+    if (!profile) {
+      const Companion = require('../models/Companion');
+      profile = await Companion.findOne({ supabaseUid: subject, isActive: true });
+    }
   }
 
   if (!profile && !isPatient && payload.email) {
@@ -79,6 +83,17 @@ async function attachJwtUser(token, req) {
       emailProfile.supabaseUid = subject;
       await emailProfile.save();
       profile = await Profile.findById(emailProfile._id).populate('organizationId', 'name city');
+    } else {
+      const Companion = require('../models/Companion');
+      const emailCompanion = await Companion.findOne({
+        email: String(payload.email).toLowerCase().trim(),
+        isActive: true,
+      });
+      if (emailCompanion) {
+        emailCompanion.supabaseUid = subject;
+        await emailCompanion.save();
+        profile = await Companion.findById(emailCompanion._id);
+      }
     }
   }
 
@@ -113,7 +128,7 @@ async function attachJwtUser(token, req) {
     kind: 'jwt',
     subject,
     userId: profile._id,
-    userType: isPatient ? 'Patient' : 'Profile',
+    userType: isPatient ? 'Patient' : (profile.role === 'companion' ? 'Companion' : 'Profile'),
   };
   req.user = buildReqUserFromProfile(profile, subject);
   req.profile = profile;
@@ -150,6 +165,11 @@ async function attachSupabaseUser(token, req) {
     'name city'
   );
 
+  if (!profile) {
+    const Companion = require('../models/Companion');
+    profile = await Companion.findOne({ supabaseUid: user.id, isActive: true });
+  }
+
   if (!profile && user.email) {
     const emailProfile = await Profile.findOne({
       email: user.email.toLowerCase().trim(),
@@ -159,6 +179,17 @@ async function attachSupabaseUser(token, req) {
       emailProfile.supabaseUid = user.id;
       await emailProfile.save();
       profile = await Profile.findById(emailProfile._id).populate('organizationId', 'name city');
+    } else {
+      const Companion = require('../models/Companion');
+      const emailCompanion = await Companion.findOne({
+        email: user.email.toLowerCase().trim(),
+        isActive: true,
+      });
+      if (emailCompanion) {
+        emailCompanion.supabaseUid = user.id;
+        await emailCompanion.save();
+        profile = await Companion.findById(emailCompanion._id);
+      }
     }
   }
 
@@ -207,7 +238,7 @@ async function attachSupabaseUser(token, req) {
     kind: 'supabase',
     subject: user.id,
     userId: profile._id,
-    userType: profile.role === 'patient' ? 'Patient' : 'Profile',
+    userType: profile.role === 'patient' ? 'Patient' : (profile.role === 'companion' ? 'Companion' : 'Profile'),
   };
   req.user = {
     id: user.id,
