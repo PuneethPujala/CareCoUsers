@@ -21,6 +21,8 @@ import * as Notifications from 'expo-notifications';
 import { Linking } from 'react-native';
 import { Lock as LockIcon } from 'lucide-react-native';
 import * as WebBrowser from 'expo-web-browser';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 import usePatientStore from '../../store/usePatientStore';
 
 const C = {
@@ -854,9 +856,23 @@ export default function PatientProfileScreen({ navigation }) {
 
                         <InfoRow icon={FileText} iconBg="#F0FDF4" iconColor="#16A34A" label={t('profile.download_my_data', { defaultValue: 'Download My Data' })} value={null} placeholder={t('profile.export_records', { defaultValue: 'Export your records' })} onPress={async () => {
                             try {
-                                await apiService.auth.exportMyData();
-                                AlertManager.alert(t('profile.data_export_title', { defaultValue: 'Data Export' }), t('profile.data_export_desc', { defaultValue: 'Your data export has been prepared. In production, this will download as a file.' }));
+                                const response = await apiService.auth.exportMyData();
+                                const exportData = response?.data || response;
+                                
+                                const filename = `caremymed-export-${Date.now()}.json`;
+                                const fileUri = FileSystem.documentDirectory + filename;
+                                
+                                await FileSystem.writeAsStringAsync(fileUri, JSON.stringify(exportData, null, 2), {
+                                    encoding: FileSystem.EncodingType.UTF8
+                                });
+                                
+                                if (await Sharing.isAvailableAsync()) {
+                                    await Sharing.shareAsync(fileUri);
+                                } else {
+                                    AlertManager.alert(t('profile.data_export_title', { defaultValue: 'Data Export' }), t('profile.data_export_no_share', { defaultValue: 'Export prepared! Your health record file has been saved to your local storage.' }));
+                                }
                             } catch (e) {
+                                console.warn('Export failed:', e);
                                 AlertManager.alert(t('common.error', { defaultValue: 'Error' }), t('profile.data_export_error', { defaultValue: 'Failed to export data.' }));
                             }
                         }} isLast />
