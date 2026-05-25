@@ -21,8 +21,6 @@ import * as Notifications from 'expo-notifications';
 import { Linking } from 'react-native';
 import { Lock as LockIcon } from 'lucide-react-native';
 import * as WebBrowser from 'expo-web-browser';
-import * as FileSystem from 'expo-file-system';
-import * as Sharing from 'expo-sharing';
 import usePatientStore from '../../store/usePatientStore';
 
 const C = {
@@ -856,6 +854,9 @@ export default function PatientProfileScreen({ navigation }) {
 
                         <InfoRow icon={FileText} iconBg="#F0FDF4" iconColor="#16A34A" label={t('profile.download_my_data', { defaultValue: 'Download My Data' })} value={null} placeholder={t('profile.export_records', { defaultValue: 'Export your records' })} onPress={async () => {
                             try {
+                                const FileSystem = require('expo-file-system');
+                                const Sharing = require('expo-sharing');
+
                                 const response = await apiService.auth.exportMyData();
                                 const exportData = response?.data || response;
                                 
@@ -873,7 +874,7 @@ export default function PatientProfileScreen({ navigation }) {
                                 }
                             } catch (e) {
                                 console.warn('Export failed:', e);
-                                AlertManager.alert(t('common.error', { defaultValue: 'Error' }), t('profile.data_export_error', { defaultValue: 'Failed to export data.' }));
+                                AlertManager.alert(t('common.error', { defaultValue: 'Error' }), t('profile.data_export_error', { defaultValue: 'Failed to export data. Make sure your app is updated to compile the latest local modules.' }));
                             }
                         }} isLast />
                     </View>
