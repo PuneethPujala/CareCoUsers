@@ -129,6 +129,7 @@ const CustomAlert = forwardRef((_, ref) => {
           <View style={[
             styles.buttonRow,
             buttons.length === 1 && styles.buttonRowSingle,
+            buttons.length > 2 && { flexDirection: 'column' },
           ]}>
             {buttons.map((btn, idx) => {
               const isDestructive = btn.style === 'destructive';
@@ -155,7 +156,7 @@ const CustomAlert = forwardRef((_, ref) => {
                   style={({ pressed }) => [
                     styles.btn,
                     buttonStyle,
-                    buttons.length === 1 && styles.btnFull,
+                    (buttons.length === 1 || buttons.length > 2) && styles.btnFull,
                     pressed && styles.btnPressed,
                   ]}
                   onPress={() => handleButtonPress(btn)}

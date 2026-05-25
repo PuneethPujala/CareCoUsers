@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, RefreshControl, Pressable, Dimensions, Alert, Linking } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, RefreshControl, Pressable, Dimensions, Linking } from 'react-native';
 import { apiService } from '../../lib/api';
 import { HeartPulse, Activity, Bell, Phone, Send, ChevronRight, MessageSquare, ShieldCheck, AlertCircle } from 'lucide-react-native';
+import AlertManager from '../../utils/AlertManager';
 
 const { width } = Dimensions.get('window');
 
@@ -77,10 +78,10 @@ export default function CompanionDashboardScreen() {
     const handleNudge = async () => {
         try {
             await apiService.companion.nudge({ patientId: selectedPatientId });
-            Alert.alert('Nudge Sent', `${data.patient.name} has been nudged successfully! ❤️`);
+            AlertManager.alert('Nudge Sent', `${data.patient.name} has been nudged successfully! ❤️`);
         } catch (err) {
             console.warn('Failed to nudge', err);
-            Alert.alert('Nudge Failed', 'Unable to send nudge reminder at this time.');
+            AlertManager.alert('Nudge Failed', 'Unable to send nudge reminder at this time.');
         }
     };
 
@@ -89,17 +90,17 @@ export default function CompanionDashboardScreen() {
         if (phone) {
             Linking.openURL(`tel:${phone}`);
         } else {
-            Alert.alert('No Phone Number', `${data.patient.name} does not have a phone number configured.`);
+            AlertManager.alert('No Phone Number', `${data.patient.name} does not have a phone number configured.`);
         }
     };
 
     const handleRequestBP = async () => {
         try {
             await apiService.companion.requestBP({ patientId: selectedPatientId });
-            Alert.alert('BP Request Sent', `Request for Blood Pressure log sent to ${data.patient.name} successfully! 🩺`);
+            AlertManager.alert('BP Request Sent', `Request for Blood Pressure log sent to ${data.patient.name} successfully! 🩺`);
         } catch (err) {
             console.warn('Failed to request BP', err);
-            Alert.alert('Request Failed', 'Unable to send Blood Pressure log request.');
+            AlertManager.alert('Request Failed', 'Unable to send Blood Pressure log request.');
         }
     };
 
