@@ -1,25 +1,23 @@
 /**
  * SecurityProvider.jsx — Centralized Device Security Layer
  *
- * BUG 15 FIX: securityBlocked was declared but setSecurityBlocked(true) was
- *   never called. The "Security Alert" blocked screen was dead UI that could
- *   never render. Now setSecurityBlocked(true) is called when isRooted and the
- *   user taps "Exit App" (BackHandler.exitApp() doesn't always work on iOS, so
- *   the block screen is the correct fallback there).
+ * CRITICAL FIX: SecurityProvider previously blocked the entire React tree
+ * (including AuthProvider and AppNavigator) while performing async security
+ * checks. If any check hung or the AlertManager ref wasn't set yet, the app
+ * would stay on the splash screen indefinitely.
  *
- * BUG 16 FIX: The finally block ran even while the Alert was still pending,
- *   so setSecurityChecked(true) fired immediately — the security loading screen
- *   disappeared and the app rendered behind the alert before the user responded.
- *   Fixed by returning early before the finally when showing the alert, and
- *   calling setSecurityChecked(true) explicitly inside each alert button handler.
+ * Fix: children are ALWAYS rendered immediately. Security checks run
+ * non-blocking in the background. Only an explicit "Exit App" tap on a
+ * rooted device blocks the UI with the security alert screen.
  */
 
 import React, { useEffect, useState } from 'react';
-import { Platform, View, Text, StyleSheet, BackHandler } from 'react-native';
+import { View, Text, StyleSheet, BackHandler } from 'react-native';
 import { ShieldAlert } from 'lucide-react-native';
 import * as ScreenCapture from 'expo-screen-capture';
 
 import AlertManager from '../utils/AlertManager';
+
 let JailMonkey = null;
 let EncryptedStorage = null;
 
@@ -27,43 +25,36 @@ try {
     const jm = require('jail-monkey');
     JailMonkey = jm.default || jm;
 } catch (e) {
-    console.warn('[Security] jail-monkey not available:', e.message);
+    if (__DEV__) console.warn('[Security] jail-monkey not available:', e.message);
 }
 
 try {
     const es = require('react-native-encrypted-storage');
     EncryptedStorage = es.default || es;
 } catch (e) {
-    console.warn('[Security] react-native-encrypted-storage not available:', e.message);
+    if (__DEV__) console.warn('[Security] react-native-encrypted-storage not available:', e.message);
 }
 
 const SECURITY_DISMISSED_KEY = 'security_root_dismissed';
 
 export default function SecurityProvider({ children }) {
     const [securityBlocked, setSecurityBlocked] = useState(false);
-    const [securityChecked, setSecurityChecked] = useState(false);
 
     useEffect(() => {
         checkDeviceSecurity();
     }, []);
 
     async function checkDeviceSecurity() {
-        // BUG 16 FIX: Track whether we're showing an alert so the finally block
-        // doesn't prematurely set securityChecked=true while the user is reading it.
-        let showingAlert = false;
-
         try {
+            // Enable screenshot prevention (best-effort, non-blocking)
             try {
                 await ScreenCapture.preventScreenCaptureAsync();
-                console.log('[Security] Screenshot prevention enabled');
+                if (__DEV__) console.log('[Security] Screenshot prevention enabled');
             } catch (scErr) {
-                console.warn('[Security] Could not enable screenshot prevention:', scErr.message);
+                if (__DEV__) console.warn('[Security] Could not enable screenshot prevention:', scErr.message);
             }
 
-            if (!JailMonkey) {
-                setSecurityChecked(true);
-                return;
-            }
+            if (!JailMonkey) return;
 
             const isRooted = JailMonkey.isJailBroken();
 
@@ -77,72 +68,51 @@ export default function SecurityProvider({ children }) {
                 } catch { }
 
                 if (!dismissed) {
-                    // BUG 16 FIX: Set the flag BEFORE showing the alert so the
-                    // finally block knows not to resolve securityChecked here.
-                    showingAlert = true;
-
-                    AlertManager.alert(
-                        '⚠️ Security Warning',
-                        'This device appears to be rooted/jailbroken. ' +
-                        'For the safety of your health data, some features may be restricted.\n\n' +
-                        'We strongly recommend using a non-modified device.',
-                        [
-                            {
-                                text: 'Exit App',
-                                style: 'destructive',
-                                onPress: () => {
-                                    // BUG 15 FIX: Block the app on iOS where BackHandler
-                                    // doesn't terminate the process. The block screen is
-                                    // the correct fallback when the OS won't exit.
-                                    BackHandler.exitApp();
-                                    setSecurityBlocked(true);  // iOS fallback
-                                    setSecurityChecked(true);
+                    // Show a non-blocking security alert. The app tree is already
+                    // rendered behind this so AuthProvider + AppNavigator can
+                    // mount, bootstrap, and hide the splash screen normally.
+                    // We delay briefly to let AlertManager ref be set by AppNavigator.
+                    setTimeout(() => {
+                        AlertManager.alert(
+                            '⚠️ Security Warning',
+                            'This device appears to be rooted/jailbroken. ' +
+                            'For the safety of your health data, some features may be restricted.\n\n' +
+                            'We strongly recommend using a non-modified device.',
+                            [
+                                {
+                                    text: 'Exit App',
+                                    style: 'destructive',
+                                    onPress: () => {
+                                        BackHandler.exitApp();
+                                        setSecurityBlocked(true); // iOS fallback
+                                    },
                                 },
-                            },
-                            {
-                                text: 'Continue Anyway',
-                                style: 'cancel',
-                                onPress: async () => {
-                                    try {
-                                        if (EncryptedStorage) {
-                                            await EncryptedStorage.setItem(SECURITY_DISMISSED_KEY, 'true');
-                                        }
-                                    } catch { }
-                                    // BUG 16 FIX: Only mark as checked after user responds.
-                                    setSecurityChecked(true);
+                                {
+                                    text: 'Continue Anyway',
+                                    style: 'cancel',
+                                    onPress: async () => {
+                                        try {
+                                            if (EncryptedStorage) {
+                                                await EncryptedStorage.setItem(SECURITY_DISMISSED_KEY, 'true');
+                                            }
+                                        } catch { }
+                                    },
                                 },
-                            },
-                        ],
-                        { cancelable: false }
-                    );
-                    return; // BUG 16 FIX: Return before finally to prevent premature resolve
+                            ],
+                            { cancelable: false }
+                        );
+                    }, 2000); // Delay to ensure AlertManager ref is ready
+                    return;
                 }
 
-                console.warn('[Security] Running on rooted/jailbroken device (previously dismissed)');
+                if (__DEV__) console.warn('[Security] Running on rooted/jailbroken device (previously dismissed)');
             }
         } catch (err) {
-            console.warn('[Security] Device check failed:', err.message);
-        } finally {
-            // BUG 16 FIX: Only resolve here if we didn't hand off to the alert.
-            // If showingAlert is true, the alert button handlers call setSecurityChecked.
-            if (!showingAlert) {
-                setSecurityChecked(true);
-            }
+            if (__DEV__) console.warn('[Security] Device check failed:', err.message);
         }
     }
 
-    if (!securityChecked) {
-        return (
-            <View style={styles.container}>
-                <ShieldAlert color="#F59E0B" size={48} />
-                <Text style={styles.text}>Performing security checks...</Text>
-            </View>
-        );
-    }
-
-    // BUG 15 FIX: This screen can now actually render — setSecurityBlocked(true)
-    // is called when the user taps "Exit App" on iOS (where the process doesn't
-    // actually terminate). Previously this was dead code.
+    // Only block the entire UI if the user explicitly tapped "Exit App" on iOS
     if (securityBlocked) {
         return (
             <View style={styles.container}>
@@ -156,6 +126,9 @@ export default function SecurityProvider({ children }) {
         );
     }
 
+    // Always render children immediately — security checks are non-blocking.
+    // This ensures AuthProvider and AppNavigator mount instantly,
+    // preventing splash screen hangs.
     return children;
 }
 
