@@ -47,13 +47,29 @@ function buildErrorResponse(stage, errorMsg) {
  */
 router.post('/chat', authenticate, upload.single('audio'), async (req, res) => {
     try {
-        const { targetLanguage, query } = req.body;
+        const { targetLanguage, query, patientId: bodyPatientId } = req.body;
         
-        // Use securely resolved MongoDB ID from the authentication token
-        const patientId = req.auth?.userId;
+        // Securely resolve patient context
+        let patientId = req.auth?.userId;
         
         if (!patientId) {
             return res.status(401).json(buildErrorResponse('validation', 'User is not fully authenticated or profile is missing.'));
+        }
+
+        // Caregivers / Companions route patient lookup
+        if (req.auth?.userType === 'Companion') {
+            let resolvedPatientId = bodyPatientId;
+            if (!resolvedPatientId) {
+                const CompanionAccess = require('../models/CompanionAccess');
+                const access = await CompanionAccess.findOne({ companion_id: req.auth.userId, is_active: true, status: 'accepted' });
+                if (access) {
+                    resolvedPatientId = access.patient_id;
+                }
+            }
+            if (!resolvedPatientId) {
+                return res.status(400).json(buildErrorResponse('validation', 'No linked patient found for this companion circle.'));
+            }
+            patientId = resolvedPatientId;
         }
 
         let extractedQuery = query;

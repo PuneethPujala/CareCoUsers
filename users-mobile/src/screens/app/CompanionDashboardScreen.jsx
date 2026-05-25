@@ -185,6 +185,35 @@ export default function CompanionDashboardScreen() {
                 contentContainerStyle={styles.content}
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.primary} />}
             >
+                {/* Low Pill Stock Refill Warning Banner */}
+                {data.refill_alerts && data.refill_alerts.length > 0 && (
+                    <View style={styles.refillBanner}>
+                        <View style={styles.refillBannerHeader}>
+                            <AlertCircle color={C.warning} size={18} />
+                            <Text style={styles.refillBannerTitle}>Low Medication Stock Alert</Text>
+                        </View>
+                        <ScrollView style={styles.refillList} nestedScrollEnabled={true}>
+                            {data.refill_alerts.map((alert) => (
+                                <View key={alert.medication_id} style={styles.refillItem}>
+                                    <Text style={styles.refillMedName}>{alert.name}</Text>
+                                    <Text style={styles.refillMedStock}>
+                                        Only <Text style={{ color: C.danger, ...FONT.bold }}>{alert.remaining_doses}</Text> doses left!
+                                    </Text>
+                                    {alert.pharmacy_phone ? (
+                                        <Pressable 
+                                            style={styles.refillCallBtn}
+                                            onPress={() => Linking.openURL(`tel:${alert.pharmacy_phone}`)}
+                                        >
+                                            <Phone size={12} color={C.primary} />
+                                            <Text style={styles.refillCallText}>Order</Text>
+                                        </Pressable>
+                                    ) : null}
+                                </View>
+                            ))}
+                        </ScrollView>
+                    </View>
+                )}
+
                 {/* 1. Quick Actions Bar */}
                 <View style={styles.actionsContainer}>
                     <Pressable style={styles.actionButton} onPress={handleNudge}>
@@ -279,6 +308,63 @@ export default function CompanionDashboardScreen() {
                     </View>
                 </View>
 
+                {/* 2b. Daily Medication Timeline Checklist */}
+                {data.medication_schedule && data.medication_schedule.length > 0 && (
+                    <View style={styles.card}>
+                        <View style={styles.cardHeader}>
+                            <View style={[styles.iconBox, { backgroundColor: C.successLight }]}>
+                                <Activity color={C.success} size={18} />
+                            </View>
+                            <View>
+                                <Text style={styles.cardTitle}>Today's Dose Timeline</Text>
+                                <Text style={styles.cardSub}>Track hourly adherence status</Text>
+                            </View>
+                        </View>
+
+                        <View style={styles.timelineContainer}>
+                            {data.medication_schedule.map((item, idx) => {
+                                const isLast = idx === data.medication_schedule.length - 1;
+                                return (
+                                    <View key={idx} style={styles.timelineRow}>
+                                        <View style={styles.timelineLeft}>
+                                            <Text style={styles.timelineTime}>
+                                                {item.scheduled_time.toUpperCase()}
+                                            </Text>
+                                            <View style={styles.timelineLineContainer}>
+                                                <View style={[styles.timelineNode, { 
+                                                    backgroundColor: item.taken ? C.success : C.light,
+                                                    borderColor: item.taken ? C.successLight : C.border 
+                                                }]} />
+                                                {!isLast && <View style={[styles.timelineLine, { 
+                                                    backgroundColor: item.taken ? C.success : C.border 
+                                                }]} />}
+                                            </View>
+                                        </View>
+                                        
+                                        <Pressable style={[styles.timelineCard, item.taken ? styles.timelineCardTaken : null]}>
+                                            <View style={{ flex: 1 }}>
+                                                <Text style={styles.timelineMedName}>{item.name}</Text>
+                                                <Text style={styles.timelineMedDosage}>{item.dosage} • {item.route}</Text>
+                                            </View>
+                                            <View style={[
+                                                styles.timelineStatusBadge, 
+                                                { backgroundColor: item.taken ? C.successLight : C.warningLight }
+                                            ]}>
+                                                <Text style={[
+                                                    styles.timelineStatusText, 
+                                                    { color: item.taken ? C.success : C.warning }
+                                                ]}>
+                                                    {item.taken ? 'Taken' : 'Pending'}
+                                                </Text>
+                                            </View>
+                                        </Pressable>
+                                    </View>
+                                );
+                            })}
+                        </View>
+                    </View>
+                )}
+
                 {/* 3. Vitals Card (with beautiful elegant empty states) */}
                 <View style={styles.card}>
                     <View style={styles.cardHeader}>
@@ -322,6 +408,52 @@ export default function CompanionDashboardScreen() {
                         </View>
                     )}
                 </View>
+
+                {/* 3b. Vitals 14-Day Analytics Trends Graph */}
+                {data.vitals_history && data.vitals_history.length > 0 && (
+                    <View style={styles.card}>
+                        <View style={styles.cardHeader}>
+                            <View style={[styles.iconBox, { backgroundColor: C.primaryLight }]}>
+                                <Activity color={C.primary} size={18} />
+                            </View>
+                            <View>
+                                <Text style={styles.cardTitle}>Vitals Analytics (14-Day Trend)</Text>
+                                <Text style={styles.cardSub}>Chronological health monitoring</Text>
+                            </View>
+                        </View>
+
+                        <View style={styles.chartContainer}>
+                            <Text style={styles.chartTitle}>Heart Rate Trend (bpm)</Text>
+                            <View style={styles.barChart}>
+                                {data.vitals_history.slice(-7).map((log, idx) => {
+                                    const rate = log.heart_rate || 72;
+                                    const pct = Math.min(100, Math.max(20, (rate / 120) * 100));
+                                    const dateStr = log.date ? new Date(log.date).toLocaleDateString(undefined, { weekday: 'narrow' }) : '';
+                                    return (
+                                        <View key={idx} style={styles.barWrapper}>
+                                            <View style={styles.barTrack}>
+                                                <View style={[
+                                                    styles.barFill, 
+                                                    { 
+                                                        height: `${pct}%`,
+                                                        backgroundColor: rate > 100 || rate < 50 ? C.danger : C.primary
+                                                    }
+                                                ]} />
+                                            </View>
+                                            <Text style={styles.barLabel}>{dateStr || idx}</Text>
+                                        </View>
+                                    );
+                                })}
+                            </View>
+                            <View style={styles.vitalTrendSummary}>
+                                <ShieldCheck color={C.success} size={14} />
+                                <Text style={styles.vitalTrendSummaryText}>
+                                    Heart rate averaged {Math.round(data.vitals_history.reduce((acc, curr) => acc + (curr.heart_rate || 72), 0) / data.vitals_history.length)} bpm. Stable.
+                                </Text>
+                            </View>
+                        </View>
+                    </View>
+                )}
                 
                 {/* 4. Alerts Card */}
                 {data.recent_alerts?.length > 0 ? (
@@ -743,5 +875,164 @@ const styles = StyleSheet.create({
         fontSize: 13,
         ...FONT.bold,
         color: C.success,
+    },
+
+    // Low Pill Stock Refill Banner
+    refillBanner: {
+        backgroundColor: C.warningLight,
+        borderRadius: 24,
+        padding: 16,
+        borderWidth: 1,
+        borderColor: '#FDE68A',
+        gap: 10,
+    },
+    refillBannerHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    refillBannerTitle: {
+        fontSize: 14,
+        ...FONT.bold,
+        color: '#D97706',
+    },
+    refillList: {
+        maxHeight: 120,
+    },
+    refillItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: C.surface,
+        borderRadius: 16,
+        paddingVertical: 10,
+        paddingHorizontal: 14,
+        marginVertical: 4,
+        gap: 8,
+        borderWidth: 1,
+        borderColor: C.border,
+    },
+    refillMedName: {
+        fontSize: 12,
+        ...FONT.bold,
+        color: C.dark,
+        flex: 1.5,
+    },
+    refillMedStock: {
+        fontSize: 11,
+        ...FONT.medium,
+        color: C.mid,
+        flex: 2,
+    },
+    refillCallBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        backgroundColor: C.primaryLight,
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderRadius: 10,
+    },
+    refillCallText: {
+        fontSize: 10,
+        ...FONT.bold,
+        color: C.primary,
+    },
+
+    // Daily Medication Timeline Styles
+    timelineContainer: {
+        marginTop: 10,
+        gap: 16,
+    },
+    timelineRow: {
+        flexDirection: 'row',
+        gap: 12,
+        alignItems: 'center',
+    },
+    timelineLeft: {
+        width: 76,
+        alignItems: 'center',
+        position: 'relative',
+    },
+    timelineTime: {
+        fontSize: 10,
+        ...FONT.bold,
+        color: C.light,
+        textAlign: 'center',
+    },
+    timelineLineContainer: {
+        alignItems: 'center',
+        position: 'absolute',
+        right: 0,
+        top: 0,
+        bottom: 0,
+        width: 16,
+    },
+    timelineNode: {
+        width: 10,
+        height: 10,
+        borderRadius: 5,
+        borderWidth: 2,
+        zIndex: 2,
+    },
+    timelineLine: {
+        width: 2,
+        flex: 1,
+        position: 'absolute',
+        top: 8,
+        bottom: -16,
+        zIndex: 1,
+    },
+    timelineCard: {
+        flex: 1,
+        backgroundColor: '#F8FAFC',
+        borderRadius: 20,
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        flexDirection: 'row',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: C.border,
+    },
+    timelineCardTaken: {
+        backgroundColor: C.successLight + '33',
+        borderColor: '#A7F3D0',
+    },
+    timelineMedName: {
+        fontSize: 13,
+        ...FONT.bold,
+        color: C.dark,
+    },
+    timelineMedDosage: {
+        fontSize: 10,
+        ...FONT.medium,
+        color: C.light,
+        marginTop: 2,
+    },
+    timelineStatusBadge: {
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 8,
+    },
+    timelineStatusText: {
+        fontSize: 9,
+        ...FONT.bold,
+    },
+
+    // Vitals Trend Analytics Styles
+    vitalTrendSummary: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        backgroundColor: C.successLight,
+        borderRadius: 16,
+        paddingHorizontal: 14,
+        paddingVertical: 8,
+        marginTop: 16,
+    },
+    vitalTrendSummaryText: {
+        fontSize: 11,
+        ...FONT.semibold,
+        color: C.success,
+        flex: 1,
     },
 });

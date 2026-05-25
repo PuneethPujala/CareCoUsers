@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import { LayoutDashboard, Users, Pill, ShieldPlus, UserCircle } from "lucide-react-native";
+import { LayoutDashboard, Users, Pill, ShieldPlus, UserCircle, Bell, MessageSquare } from "lucide-react-native";
 import { useAuth } from "../context/AuthContext";
 import {
     sendDailyWelcomeNotification,
@@ -130,7 +130,8 @@ function CompanionTabNavigator() {
     return (
         <Tab.Navigator tabBar={(props) => <CustomTabBar {...props} />} screenOptions={{ headerShown: false }}>
             <Tab.Screen name="CompanionHome" component={CompanionDashboardScreen} options={{ tabBarIconComponent: LayoutDashboard }} />
-            <Tab.Screen name="CompanionAlerts" component={CompanionAlertsScreen} options={{ tabBarIconComponent: Pill }} />
+            <Tab.Screen name="CompanionAlerts" component={CompanionAlertsScreen} options={{ tabBarIconComponent: Bell }} />
+            <Tab.Screen name="CompanionChat" component={ChatbotScreen} options={{ tabBarIconComponent: MessageSquare }} />
             <Tab.Screen name="Profile" component={CompanionProfileScreen} options={{ tabBarIconComponent: UserCircle }} />
         </Tab.Navigator>
     );

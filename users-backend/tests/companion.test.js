@@ -58,6 +58,7 @@ jest.mock('../src/models/MedicineLog');
 jest.mock('../src/models/VitalLog');
 jest.mock('../src/models/Alert');
 jest.mock('../src/models/Notification');
+jest.mock('../src/models/Medication');
 jest.mock('../src/utils/pushNotifications', () => ({
     sendPush: jest.fn().mockResolvedValue({ success: true })
 }));
@@ -71,6 +72,7 @@ const CompanionAccess = require('../src/models/CompanionAccess');
 const MedicineLog = require('../src/models/MedicineLog');
 const VitalLog = require('../src/models/VitalLog');
 const Alert = require('../src/models/Alert');
+const Medication = require('../src/models/Medication');
 const Notification = require('../src/models/Notification');
 const PushNotificationService = require('../src/utils/pushNotifications');
 
@@ -231,6 +233,21 @@ describe('Companion Routes', () => {
                     })
                 })
             });
+            Medication.find = jest.fn().mockReturnValue({
+                lean: jest.fn().mockResolvedValue([
+                    { _id: 'med-123', name: 'Aspirin', dosage: '100mg', times: ['morning'], refillInfo: { remainingDoses: 10, alertThreshold: 5 } }
+                ])
+            });
+            VitalLog.find = jest.fn().mockReturnValue({
+                sort: jest.fn().mockReturnValue({
+                    lean: jest.fn().mockResolvedValue([{ date: new Date(), heart_rate: 72 }])
+                })
+            });
+            MedicineLog.findOne = jest.fn().mockReturnValue({
+                lean: jest.fn().mockResolvedValue({
+                    medicines: [{ medicine_name: 'Aspirin', scheduled_time: 'morning', taken: true }]
+                })
+            });
 
             const res = await request(app).get('/api/companion/patient-status');
 
@@ -238,6 +255,8 @@ describe('Companion Routes', () => {
             expect(res.body.patient.name).toBe('Jane Patient');
             expect(res.body.patient.adherence_rate).toBe(100);
             expect(res.body.latest_vital.systolic).toBe(120);
+            expect(res.body.medication_schedule).toHaveLength(1);
+            expect(res.body.vitals_history).toHaveLength(1);
         });
 
         it('selects requested patientId from multiple linked patients', async () => {
@@ -257,6 +276,15 @@ describe('Companion Routes', () => {
             MedicineLog.find = jest.fn().mockReturnValue({ lean: jest.fn().mockResolvedValue([]) });
             VitalLog.findOne = jest.fn().mockReturnValue({ sort: jest.fn().mockReturnValue({ lean: jest.fn().mockResolvedValue(null) }) });
             Alert.find = jest.fn().mockReturnValue({ sort: jest.fn().mockReturnValue({ limit: jest.fn().mockReturnValue({ lean: jest.fn().mockResolvedValue([]) }) }) });
+            Medication.find = jest.fn().mockReturnValue({
+                lean: jest.fn().mockResolvedValue([])
+            });
+            VitalLog.find = jest.fn().mockReturnValue({
+                sort: jest.fn().mockReturnValue({
+                    lean: jest.fn().mockResolvedValue([])
+                })
+            });
+            MedicineLog.findOne = jest.fn().mockReturnValue({ lean: jest.fn().mockResolvedValue(null) });
 
             const res = await request(app)
                 .get('/api/companion/patient-status')

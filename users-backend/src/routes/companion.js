@@ -204,13 +204,29 @@ router.get('/patient-status', authenticate, async (req, res) => {
         const MedicineLog = require('../models/MedicineLog');
         const VitalLog = require('../models/VitalLog');
         const Alert = require('../models/Alert');
+        const Medication = require('../models/Medication');
         
         const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+        const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+        const startOfToday = new Date();
+        startOfToday.setHours(0, 0, 0, 0);
+        const endOfToday = new Date();
+        endOfToday.setHours(23, 59, 59, 999);
         
-        const [logs, latestVital, recentAlerts] = await Promise.all([
+        const [
+            logs,
+            latestVital,
+            recentAlerts,
+            medications,
+            vitalsHistory,
+            todayMedicineLog
+        ] = await Promise.all([
             MedicineLog.find({ patient_id: patient._id, date: { $gte: weekAgo } }).lean(),
-            VitalLog.findOne({ patient_id: patient._id }).sort({ recorded_at: -1 }).lean(),
-            Alert.find({ patient_id: patient._id, status: 'open', type: 'medication_missed' }).sort({ created_at: -1 }).limit(3).lean()
+            VitalLog.findOne({ patient_id: patient._id }).sort({ date: -1 }).lean(),
+            Alert.find({ patient_id: patient._id, status: 'open', type: 'medication_missed' }).sort({ created_at: -1 }).limit(3).lean(),
+            Medication.find({ patientId: patient._id, isActive: true }).lean(),
+            VitalLog.find({ patient_id: patient._id, date: { $gte: fourteenDaysAgo } }).sort({ date: 1 }).lean(),
+            MedicineLog.findOne({ patient_id: patient._id, date: { $gte: startOfToday, $lte: endOfToday } }).lean()
         ]);
 
         let adherenceRate = null;
@@ -224,6 +240,56 @@ router.get('/patient-status', authenticate, async (req, res) => {
             }
             if (totalMeds > 0) {
                 adherenceRate = Math.round((takenMeds / totalMeds) * 100);
+            }
+        }
+
+        // 1. Medication Schedule Daily Timeline
+        const medication_schedule = [];
+        for (const med of medications) {
+            const slots = med.times && med.times.length > 0 ? med.times : ['morning'];
+            for (const slot of slots) {
+                let taken = false;
+                let taken_at = null;
+                
+                if (todayMedicineLog && todayMedicineLog.medicines) {
+                    const logEntry = todayMedicineLog.medicines.find(m => 
+                        m.medicine_name.toLowerCase() === med.name.toLowerCase() &&
+                        m.scheduled_time === slot
+                    );
+                    if (logEntry) {
+                        taken = logEntry.taken;
+                        taken_at = logEntry.taken_at;
+                    }
+                }
+                
+                medication_schedule.push({
+                    medication_id: med._id,
+                    name: med.name,
+                    dosage: med.dosage,
+                    route: med.route || 'oral',
+                    scheduled_time: slot,
+                    taken,
+                    taken_at
+                });
+            }
+        }
+
+        // 2. Refill & Low Stock alerts
+        const refill_alerts = [];
+        for (const med of medications) {
+            if (med.refillInfo && med.refillInfo.remainingDoses !== undefined) {
+                const remaining = med.refillInfo.remainingDoses;
+                const threshold = med.refillInfo.alertThreshold || 5;
+                if (remaining <= threshold) {
+                    refill_alerts.push({
+                        medication_id: med._id,
+                        name: med.name,
+                        remaining_doses: remaining,
+                        alert_threshold: threshold,
+                        pharmacy: med.refillInfo.pharmacy || '',
+                        pharmacy_phone: med.refillInfo.pharmacyPhone || ''
+                    });
+                }
             }
         }
 
@@ -242,6 +308,9 @@ router.get('/patient-status', authenticate, async (req, res) => {
             },
             latest_vital: latestVital,
             recent_alerts: recentAlerts,
+            medication_schedule,
+            vitals_history: vitalsHistory,
+            refill_alerts,
             linked_patients: accesses
                 .filter(a => a.patient_id)
                 .map(a => ({
