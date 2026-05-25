@@ -123,13 +123,17 @@ function TypingIndicator({ stage }) {
 // ══════════════════════════════════════════════════════════════════════════════
 // ══ MAIN CHATBOT SCREEN ══════════════════════════════════════════════════════
 // ══════════════════════════════════════════════════════════════════════════════
-export default function ChatbotScreen({ navigation }) {
+export default function ChatbotScreen({ navigation, route }) {
     const { t } = useTranslation();
     const { displayName, user } = useAuth();
     const patient = usePatientStore(state => state.patient);
     const insets = useSafeAreaInsets();
     const flatListRef = useRef(null);
     const xhrRef = useRef(null); // Track active SSE stream for abort/cancellation
+
+    const isCompanionChat = route?.name === 'CompanionChat';
+    const tabBottom = insets.bottom > 0 ? insets.bottom : 8;
+    const companionChatOffset = isCompanionChat ? (64 + tabBottom + 8) : 0;
     const [inputText, setInputText] = useState('');
     
     // UI Loading States
@@ -606,7 +610,7 @@ export default function ChatbotScreen({ navigation }) {
                 )}
 
                 {/* ── Input bar ── */}
-                <View style={[styles.inputBar, { paddingBottom: Math.max(insets.bottom, 12) }]}>
+                <View style={[styles.inputBar, { paddingBottom: Math.max(insets.bottom, 12), marginBottom: companionChatOffset }]}>
                     {recordingMode === 'idle' ? (
                         <>
                             <Pressable style={styles.inputAction} onPress={handlePickImage}>
