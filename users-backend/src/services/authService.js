@@ -42,8 +42,13 @@ function buildSessionUser(subject, email, emailVerified) {
   };
 }
 
-function resolveIdentity(patient, deactivated, profile, requestedRole = null) {
-  // Priority 1: If profile exists and role is companion, it ALWAYS wins (to resolve companion identity and avoid duplicate patient onboarding)
+function resolveIdentity(patient, deactivated, profile, companion, requestedRole = null) {
+  // Priority 1: If companion exists in dedicated collection, it ALWAYS wins (to resolve companion identity and avoid duplicate patient onboarding)
+  if (companion) {
+    return { account: companion, isPatient: false, isCompanion: true };
+  }
+
+  // Priority 1b: Legacy fallback for companion role in profiles
   if (profile && profile.role === 'companion') {
     return { account: profile, isPatient: false };
   }
@@ -71,6 +76,7 @@ function resolveIdentity(patient, deactivated, profile, requestedRole = null) {
   return { account: null, isPatient: false };
 }
 
+
 async function assertGlobalUniqueEmail(email, ignoreId = null, ignoreModel = null) {
   const emailNorm = email.toLowerCase().trim();
 
@@ -91,7 +97,18 @@ async function assertGlobalUniqueEmail(email, ignoreId = null, ignoreModel = nul
     err.code = 'EMAIL_ALREADY_EXISTS';
     throw err;
   }
+
+  // 3. Check Companion collection
+  const Companion = require('../models/Companion');
+  const companion = await Companion.findOne({ email: emailNorm });
+  if (companion && !(ignoreModel === 'Companion' && companion._id.equals(ignoreId))) {
+    const err = new Error(`An account with the email "${email}" already exists.`);
+    err.status = 400;
+    err.code = 'EMAIL_ALREADY_EXISTS';
+    throw err;
+  }
 }
+
 
 function buildLoginProfile(account, isPatient) {
   const accountId = account._id;
@@ -146,8 +163,63 @@ async function registerPatient(body, req) {
   // Find existing documents in both collections for robust cross-collection identity check
   const existingPatient = await Patient.findOne({ email: emailNorm });
   const existingProfile = await Profile.findOne({ email: emailNorm });
+  const Companion = require('../models/Companion');
+  const existingCompanion = await Companion.findOne({ email: emailNorm });
 
-  // 1. Resolve conflicts / link OAuth for existing Profile
+  // 1. Resolve conflicts / link OAuth for existing Companion (Priority)
+  if (existingCompanion) {
+    if (isOAuth) {
+      // Overwrite Guard: if supabaseUid is already set, verify they match!
+      const isPlaceholder = existingCompanion.supabaseUid && existingCompanion.supabaseUid.startsWith('cmp_');
+      if (existingCompanion.supabaseUid && existingCompanion.supabaseUid !== supabaseUid && !isPlaceholder) {
+        const err = new Error('This account is already linked to a different Google identity.');
+        err.status = 400;
+        err.code = 'OAUTH_LINK_CONFLICT';
+        throw err;
+      }
+
+      // Link Google OAuth to companion
+      existingCompanion.supabaseUid = supabaseUid;
+      if (fullName && !existingCompanion.fullName) existingCompanion.fullName = fullName;
+      await existingCompanion.save();
+
+      await logEvent(supabaseUid, 'companion_oauth_linked', 'companion', existingCompanion._id, req, {
+        email: emailNorm,
+      });
+
+      const tokens = await tokenService.issueTokenPair(
+        {
+          userId: existingCompanion._id,
+          userType: 'Companion',
+          subject: supabaseUid,
+          role: existingCompanion.role,
+          email: existingCompanion.email,
+          emailVerified: existingCompanion.emailVerified,
+        },
+        req
+      );
+
+      return {
+        message: 'Account linked successfully',
+        user: { id: supabaseUid, email: emailNorm },
+        session: {
+          access_token: tokens.access_token,
+          refresh_token: tokens.refresh_token,
+          expires_in: tokens.expires_in,
+          expires_at: tokens.expires_at,
+          user: buildSessionUser(supabaseUid, emailNorm, existingCompanion.emailVerified),
+        },
+        profile: buildLoginProfile(existingCompanion, false),
+      };
+    }
+
+    const err = new Error(`An account with the email "${email}" already exists with a different role. Please log in instead.`);
+    err.status = 400;
+    err.code = 'EMAIL_ALREADY_EXISTS';
+    throw err;
+  }
+
+  // 2. Resolve conflicts / link OAuth for existing Profile (Legacy companion)
   if (existingProfile) {
     if (isOAuth && existingProfile.role === 'companion') {
       // Overwrite Guard: if supabaseUid is already set, verify they match!
@@ -412,7 +484,18 @@ async function login({ email, password, role }, req) {
     profileQuery = profileQuery.populate('organizationId', 'name city');
   }
 
-  let [patient, deactivated, profile] = await Promise.all([patientQuery, deactivatedQuery, profileQuery]);
+  const Companion = require('../models/Companion');
+  let companionQuery = Companion.findOne({ email: emailNorm, isActive: true });
+  if (companionQuery && typeof companionQuery.select === 'function') {
+    companionQuery = companionQuery.select('+passwordHash');
+  }
+
+  let [patient, deactivated, profile, companion] = await Promise.all([
+    patientQuery,
+    deactivatedQuery,
+    profileQuery,
+    companionQuery,
+  ]);
 
   // Reactivate deactivated patient if needed, before identity resolution
   if (!patient && deactivated && deactivated.deactivated_reason === 'user_requested') {
@@ -427,9 +510,10 @@ async function login({ email, password, role }, req) {
   }
 
   // Resolve identity using priority rules (companions win conflicts)
-  const resolved = resolveIdentity(patient, deactivated, profile, role);
+  const resolved = resolveIdentity(patient, deactivated, profile, companion, role);
   const account = resolved.account;
   const isPatient = resolved.isPatient;
+  const isCompanion = resolved.isCompanion;
 
   // SEC-FIX-1: Generic error for all "account not found" paths to prevent user enumeration.
   // We still perform a dummy bcrypt compare to keep response time constant.
@@ -495,6 +579,7 @@ async function login({ email, password, role }, req) {
   }
 
   const subject = isPatient ? account.supabase_uid : account.supabaseUid;
+  const userType = isPatient ? 'Patient' : (isCompanion ? 'Companion' : 'Profile');
 
   // ── MFA Challenge Gate (Audit 2.1-2.4, 2.8) ─────────────────────────────
   // If MFA is enabled, do NOT issue full tokens yet.
@@ -506,7 +591,7 @@ async function login({ email, password, role }, req) {
       {
         purpose: 'mfa_challenge',
         userId: account._id.toString(),
-        userType: isPatient ? 'Patient' : 'Profile',
+        userType,
         subject,
         role: isPatient ? 'patient' : account.role,
         email: account.email,
@@ -532,7 +617,7 @@ async function login({ email, password, role }, req) {
   const tokens = await tokenService.issueTokenPair(
     {
       userId: account._id,
-      userType: isPatient ? 'Patient' : 'Profile',
+      userType,
       subject,
       role: isPatient ? 'patient' : account.role,
       email: account.email,

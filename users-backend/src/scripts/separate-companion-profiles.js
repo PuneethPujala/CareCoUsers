@@ -7,19 +7,23 @@ const runSeparateProfilesMigration = async () => {
     const MIGRATION_KEY = 'separate_companion_profiles_into_dedicated_collection';
 
     try {
-        // 1. Check if the migration has already been executed successfully
-        const existingMigration = await SystemMigration.findOne({ key: MIGRATION_KEY });
-        if (existingMigration) {
-            logger.info(`[Migration] Companion profile separation already executed on ${existingMigration.executed_at}. Skipping.`);
+        // 1. Fetch all profiles with role: 'companion' (Safety check on every boot)
+        const companionProfiles = await Profile.find({ role: 'companion' });
+
+        if (companionProfiles.length === 0) {
+            // Check if we need to set the migration key just for bookkeeping
+            const existingMigration = await SystemMigration.findOne({ key: MIGRATION_KEY });
+            if (!existingMigration) {
+                await SystemMigration.create({
+                    key: MIGRATION_KEY,
+                    version: '1.0.0',
+                    executed_at: new Date()
+                });
+            }
             return;
         }
 
-        logger.info('[Migration] Starting Companion profile separation migration...');
-
-        // 2. Fetch all profiles with role: 'companion'
-        const companionProfiles = await Profile.find({ role: 'companion' });
-
-        logger.info(`[Migration] Found ${companionProfiles.length} companion profiles to migrate.`);
+        logger.info(`[Migration] Leaked companion profiles found! Starting Companion profile separation migration for ${companionProfiles.length} user(s)...`);
 
         let migrateCount = 0;
         for (const profile of companionProfiles) {

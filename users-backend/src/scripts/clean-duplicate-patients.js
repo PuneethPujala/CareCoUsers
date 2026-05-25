@@ -31,8 +31,11 @@ async function run() {
   console.log(`RUN MODE: ${executeMode ? '⚠️ EXECUTE (Modifying Database)' : '🔍 DRY-RUN (Log Only)'}`);
   console.log('--------------------------------------------------\n');
 
-  // Find all companion profiles
-  const companions = await Profile.find({ role: 'companion' });
+  // Find all companion profiles from both Companion collection and Profile collection
+  const Companion = require('../models/Companion');
+  const companionDocs = await Companion.find();
+  const profileCompanionDocs = await Profile.find({ role: 'companion' });
+  const companions = [...companionDocs, ...profileCompanionDocs];
   console.log(`Found ${companions.length} companion profile(s) in database.`);
 
   const duplicates = [];

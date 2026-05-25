@@ -15,6 +15,7 @@ require('dotenv').config();
 const mongoose = require('mongoose');
 const Patient = require('../models/Patient');
 const Profile = require('../models/Profile');
+const Companion = require('../models/Companion');
 const CompanionAccess = require('../models/CompanionAccess');
 const authService = require('../services/authService');
 const passwordService = require('../services/passwordService');
@@ -34,14 +35,14 @@ async function run() {
   const testPassword = 'Password123!';
   const testUid = `sb_${Date.now()}`;
   let companionProfile = null;
-  let testPatient = null;
+  let oauthOnlyProfile = null;
 
   try {
     console.log('--- TEST 1: Registering Companion Profile ---');
-    // Pre-create the Companion Profile (as if they registered via invitation join)
+    // Pre-create the Companion Profile in dedicated Companion collection
     const salt = await require('bcryptjs').genSalt(10);
     const passwordHash = await require('bcryptjs').hash(testPassword, salt);
-    companionProfile = await Profile.create({
+    companionProfile = await Companion.create({
       supabaseUid: `cmp_${Date.now()}`,
       email: testEmail,
       fullName: 'Test Companion',
@@ -50,7 +51,7 @@ async function run() {
       isActive: true,
       emailVerified: true,
     });
-    console.log(`✅ Companion Profile created with email: ${testEmail}\n`);
+    console.log(`✅ Companion created with email: ${testEmail}\n`);
 
     console.log('--- TEST 2: Email/Password Login Dynamic Resolution ---');
     // Try logging in with the unified email/password login endpoint (simulating mobile client)
@@ -71,7 +72,7 @@ async function run() {
     }, { ip: '127.0.0.1', headers: {} });
 
     if (oauthRes.profile && oauthRes.profile.role === 'companion') {
-      console.log('✅ Success! OAuth register successfully linked to existing Profile instead of creating a Patient.\n');
+      console.log('✅ Success! OAuth register successfully linked to existing Companion instead of creating a Patient.\n');
     } else {
       throw new Error(`Failed: OAuth registration resolved to incorrect role or failed linking.`);
     }
@@ -100,9 +101,9 @@ async function run() {
     }
 
     console.log('--- TEST 5: NO_PASSWORD_SET for Google-only users ---');
-    // Create a Google-only companion who has no password set
+    // Create a Google-only companion who has no password set in dedicated collection
     const oauthOnlyEmail = `oauth_only_${Date.now()}@example.com`;
-    const oauthOnlyProfile = await Profile.create({
+    oauthOnlyProfile = await Companion.create({
       supabaseUid: `sb_oauth_${Date.now()}`,
       email: oauthOnlyEmail,
       fullName: 'OAuth Companion',
@@ -122,16 +123,18 @@ async function run() {
       }
     }
 
-    // Cleanup oauthOnly
-    await Profile.findByIdAndDelete(oauthOnlyProfile._id);
-
   } catch (error) {
     console.error('❌ Integration Test FAILED:', error);
     process.exit(1);
   } finally {
     console.log('Cleaning up test documents...');
     if (companionProfile) {
+      await Companion.findByIdAndDelete(companionProfile._id);
       await Profile.findByIdAndDelete(companionProfile._id);
+    }
+    if (oauthOnlyProfile) {
+      await Companion.findByIdAndDelete(oauthOnlyProfile._id);
+      await Profile.findByIdAndDelete(oauthOnlyProfile._id);
     }
     await mongoose.disconnect();
     console.log('Database connection closed. Run finished.');

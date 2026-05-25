@@ -65,7 +65,7 @@ async function logout(req, res) {
   try {
     const subject = req.auth?.subject || req.profile?.supabaseUid || req.profile?.supabase_uid;
     const userId = req.profile._id;
-    const userType = req.profile.role === 'patient' ? 'Patient' : 'Profile';
+    const userType = req.profile.role === 'patient' ? 'Patient' : (req.profile.role === 'companion' ? 'Companion' : 'Profile');
     await authService.logout(subject, userId, userType, req);
     res.json({ message: 'Logout successful' });
   } catch (err) {
@@ -123,6 +123,14 @@ async function deleteMe(req, res) {
         permanent: true,
         purgedCollections: ['CallLog', 'MedicineLog', 'VitalLog', 'Notification', 'RefreshToken', 'AIVitalPrediction', 'Medication', 'Alert', 'Caller', 'Patient'],
       });
+    } else if (req.profile.role === 'companion') {
+      // For Family Companions
+      const RefreshToken = require('../models/RefreshToken');
+      const Companion = require('../models/Companion');
+      
+      await Companion.findByIdAndDelete(userId);
+      await RefreshToken.deleteMany({ userId, userType: 'Companion' });
+      await logEvent(subject, 'account_hard_deleted', 'companion', userId, req, { permanent: true });
     } else {
       // For Staff/Admin profiles
       const RefreshToken = require('../models/RefreshToken');
@@ -143,7 +151,8 @@ async function deleteMe(req, res) {
     }
 
     // Revoke all sessions LAST (so the auth validation for the above operations succeeds)
-    await authService.logout(subject, userId, isPatient ? 'Patient' : 'Profile', req);
+    const userType = req.profile.role === 'patient' ? 'Patient' : (req.profile.role === 'companion' ? 'Companion' : 'Profile');
+    await authService.logout(subject, userId, userType, req);
 
     res.json({ message: 'Account permanently deleted. You may register again with the same email.' });
   } catch (err) {
@@ -165,6 +174,12 @@ async function deactivateMe(req, res) {
         deactivated_reason: 'user_requested',
       });
       await logEvent(subject, 'account_deactivated', 'patient', userId, req);
+    } else if (req.profile.role === 'companion') {
+      const Companion = require('../models/Companion');
+      await Companion.findByIdAndUpdate(userId, {
+        isActive: false,
+      });
+      await logEvent(subject, 'account_deactivated', 'companion', userId, req);
     } else {
       await Profile.findByIdAndUpdate(userId, {
         isActive: false,
@@ -173,7 +188,8 @@ async function deactivateMe(req, res) {
     }
 
     // Revoke all sessions so user is logged out
-    await authService.logout(subject, userId, isPatient ? 'Patient' : 'Profile', req);
+    const userType = req.profile.role === 'patient' ? 'Patient' : (req.profile.role === 'companion' ? 'Companion' : 'Profile');
+    await authService.logout(subject, userId, userType, req);
 
     res.json({ message: 'Account deactivated. Your data is preserved — log in anytime to reactivate.' });
   } catch (err) {
@@ -289,9 +305,15 @@ async function me(req, res) {
       return;
     }
 
-    const profile = await Profile.findById(req.profile._id)
-      .select('+passwordHash')
-      .populate('organizationId', 'name city subscriptionPlan');
+    let profile;
+    if (req.profile.role === 'companion') {
+      const Companion = require('../models/Companion');
+      profile = await Companion.findById(req.profile._id).select('+passwordHash');
+    } else {
+      profile = await Profile.findById(req.profile._id)
+        .select('+passwordHash')
+        .populate('organizationId', 'name city subscriptionPlan');
+    }
 
     let subscriptionStatus = null;
     if (profile.role === 'caller') {
