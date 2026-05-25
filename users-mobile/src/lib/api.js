@@ -264,6 +264,7 @@ export const apiService = {
         acknowledgeAlert: (id) => api.post(`/companion/alerts/${id}/acknowledge`),
         nudge: (data) => api.post('/companion/nudge', data),
         requestBP: (data) => api.post('/companion/request-bp', data),
+        generateInviteCode: (patientId) => api.post(`/companion/patients/${patientId}/invite-code`),
     },
 
     callers: {

@@ -501,5 +501,52 @@ router.post('/alerts/:id/acknowledge', authenticate, async (req, res) => {
     }
 });
 
+/**
+ * POST /api/companion/patients/:patientId/invite-code
+ * Allows an active Caregiver Companion to generate a 24-hour invite code for their patient.
+ */
+router.post('/patients/:patientId/invite-code', authenticate, async (req, res) => {
+    try {
+        const { patientId } = req.params;
+        
+        if (req.auth?.userType !== 'Companion') {
+            return res.status(403).json({ error: 'Only caregiver companions can access this endpoint.' });
+        }
+
+        // Verify active CompanionAccess relation
+        const CompanionAccess = require('../models/CompanionAccess');
+        const access = await CompanionAccess.findOne({
+            companion_id: req.auth.userId,
+            patient_id: patientId,
+            is_active: true,
+            status: 'accepted'
+        });
+
+        if (!access) {
+            return res.status(403).json({ error: 'You do not have active care circle permission for this patient.' });
+        }
+
+        // Generate a clean 6-char alphanumeric code (excluding confusing chars like 0/O, 1/I)
+        const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+        let code = '';
+        for (let i = 0; i < 6; i++) {
+            code += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+
+        const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+        const Patient = require('../models/Patient');
+        await Patient.updateOne(
+            { _id: patientId },
+            { $set: { invite_code: code, invite_code_expires_at: expiresAt } }
+        );
+
+        res.json({ success: true, invite_code: code, expires_at: expiresAt });
+    } catch (error) {
+        logger.error('Companion generate invite code error', { error: error.message });
+        res.status(500).json({ error: 'Failed to generate invite code from caregiver.' });
+    }
+});
+
 module.exports = router;
 

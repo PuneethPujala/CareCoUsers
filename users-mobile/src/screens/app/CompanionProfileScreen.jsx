@@ -30,6 +30,7 @@ const FONT = {
 export default function CompanionProfileScreen() {
     const { signOut, user, profile } = useAuth();
     const [loading, setLoading] = useState(true);
+    const [generatingCode, setGeneratingCode] = useState(false);
     const [linkedPatients, setLinkedPatients] = useState([]);
     const [pushEnabled, setPushEnabled] = useState(true);
 
@@ -59,13 +60,43 @@ export default function CompanionProfileScreen() {
         }
     };
 
-    const handleShareInviteCode = async () => {
+    const generateAndShareCode = async (patient) => {
+        if (generatingCode) return;
+        setGeneratingCode(true);
         try {
+            const res = await apiService.companion.generateInviteCode(patient.id);
+            const inviteCode = res.data.invite_code;
+            
             await Share.share({
-                message: `Hey! I'm set up as a Care Companion on CareMyMed. You can link your account with me by inviting me to your Care Circle.`,
+                message: `Hey! I'm sharing a secure invitation to monitor ${patient.name}'s care circle on CareMyMed.\n\nUse this 6-character Invite Code to join as a companion:\n🔑 Invite Code: ${inviteCode}\n\nDownload the CareMyMed app, tap 'Join as Companion' on the login screen, and enter this code. (Expires in 24 hours)`,
             });
         } catch (err) {
             console.warn('Share failed', err);
+            AlertManager.alert('Unable to Generate Code', 'Failed to generate invite code. Please try again.');
+        } finally {
+            setGeneratingCode(false);
+        }
+    };
+
+    const handleShareInviteCode = async () => {
+        if (linkedPatients.length === 0) {
+            AlertManager.alert('No Linked Members', 'You do not have any family members linked to invite companions to.');
+            return;
+        }
+
+        if (linkedPatients.length === 1) {
+            await generateAndShareCode(linkedPatients[0]);
+        } else {
+            const options = linkedPatients.map(p => ({
+                text: p.name,
+                onPress: () => generateAndShareCode(p)
+            }));
+            options.push({ text: 'Cancel', style: 'cancel' });
+            AlertManager.alert(
+                'Invite Family Caregiver',
+                'Which family member\'s care circle would you like to invite them to?',
+                options
+            );
         }
     };
 

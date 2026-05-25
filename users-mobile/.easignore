@@ -1,0 +1,28 @@
+# ==============================================================================
+# CareMyMed Users Mobile — EAS Ignore Rules
+# ==============================================================================
+
+# Dependencies
+node_modules/
+
+# Expo caches and builds
+.expo/
+dist/
+web-build/
+
+# Native folders (EAS builds clean on the cloud; local native folders are redundant and huge)
+android/
+ios/
+
+# Environment and secrets
+.env
+.env.local
+.env.*.local
+
+# Logs and system files
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+*.log
+.DS_Store
+Thumbs.db
