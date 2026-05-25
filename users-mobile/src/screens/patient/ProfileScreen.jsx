@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import {
     View, Text, StyleSheet, ScrollView, Platform, Pressable, Modal,
-    TextInput, Switch, Animated, StatusBar, FlatList, KeyboardAvoidingView, Alert,
+    TextInput, Switch, Animated, StatusBar, FlatList, KeyboardAvoidingView, Alert, Share,
 } from 'react-native';
 import SmartInput from '../../components/ui/SmartInput';
 import PremiumFormModal from '../../components/ui/PremiumFormModal';
@@ -522,6 +522,17 @@ export default function PatientProfileScreen({ navigation }) {
         }
     };
 
+    const handleOpenFamilyCompanions = async () => {
+        setFamilyModalVisible(true);
+        try {
+            const pRes = await apiService.patients.getMe();
+            setPatient(pRes.data.patient);
+            usePatientStore.getState().setPatient(pRes.data.patient);
+        } catch (err) {
+            console.warn('[Profile] Failed to refresh companion details:', err.message);
+        }
+    };
+
     const handleRevokeCompanion = async (id) => {
         try {
             await apiService.patients.revokeCompanionAccess(id);
@@ -717,7 +728,7 @@ export default function PatientProfileScreen({ navigation }) {
                     <Text style={s.sectionTitle}>{t('profile.health_info', { defaultValue: 'HEALTH INFORMATION' })}</Text>
                     <View style={s.card}>
                         <InfoRow icon={Heart} iconBg="#FFF1F2" iconColor="#EF4444" label={t('profile.my_medical_records', { defaultValue: 'My Medical Records' })} value={t('profile.allergies_chronic', { defaultValue: 'Allergies, chronic diseases, etc.' })} placeholder="" onPress={() => navigation.navigate('HealthProfile')} />
-                        <InfoRow icon={Users} iconBg="#EEF2FF" iconColor="#6366F1" label={t('profile.family_companions', { defaultValue: 'Family Companions' })} value={t('profile.manage_companions', { defaultValue: 'Invite family to monitor your adherence' })} placeholder="" onPress={() => setFamilyModalVisible(true)} isLast />
+                        <InfoRow icon={Users} iconBg="#EEF2FF" iconColor="#6366F1" label={t('profile.family_companions', { defaultValue: 'Family Companions' })} value={t('profile.manage_companions', { defaultValue: 'Invite family to monitor your adherence' })} placeholder="" onPress={handleOpenFamilyCompanions} isLast />
                     </View>
                 </Animated.View>
 
@@ -1372,9 +1383,27 @@ export default function PatientProfileScreen({ navigation }) {
 
                             {(inviteCode || (patient?.invite_code && new Date(patient.invite_code_expires_at) > new Date())) ? (
                                 <View style={[s.card, { backgroundColor: C.primarySoft, borderColor: C.primary, borderWidth: 1, padding: 20, alignItems: 'center' }]}>
-                                    <Text style={{ fontSize: 14, ...FONT.medium, color: C.primaryDark, marginBottom: 8 }}>Your Invite Code (Expires in 24h)</Text>
-                                    <Text style={{ fontSize: 32, ...FONT.heavy, color: C.primary, letterSpacing: 4 }}>{inviteCode || patient.invite_code}</Text>
-                                    <Text style={{ fontSize: 13, color: C.mid, textAlign: 'center', marginTop: 12 }}>Share this code with your family member. They can use it to join as a companion on the login screen.</Text>
+                                    <Text style={{ fontSize: 14, ...FONT.medium, color: C.primary, marginBottom: 8 }}>Your Invite Code (Expires in 24h)</Text>
+                                    <Text style={{ fontSize: 32, ...FONT.heavy, color: C.primary, letterSpacing: 4, marginBottom: 12 }}>{inviteCode || patient.invite_code}</Text>
+                                    
+                                    <Pressable 
+                                        style={[s.saveBtn, { width: '100%', marginTop: 4, marginBottom: 12 }]} 
+                                        onPress={async () => {
+                                            try {
+                                                const code = inviteCode || patient.invite_code;
+                                                await Share.share({
+                                                    message: `Hey! I'm inviting you to be my Care Companion on CareMyMed.\n\nUse this 6-character Invite Code to link our accounts:\n🔑 Invite Code: ${code}\n\nDownload the CareMyMed app, tap 'Join as Companion' on the login screen, and enter this code!`,
+                                                });
+                                            } catch (err) {
+                                                console.warn('Share failed', err);
+                                            }
+                                        }}
+                                    >
+                                        <Users size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
+                                        <Text style={s.saveBtnTxt}>Share Invite Code</Text>
+                                    </Pressable>
+                                    
+                                    <Text style={{ fontSize: 13, color: C.mid, textAlign: 'center' }}>Your family member can use this code to join as a companion on the login screen.</Text>
                                 </View>
                             ) : (
                                 <Pressable style={[s.saveBtn, { backgroundColor: C.primarySoft, marginTop: 10 }]} onPress={handleGenerateInvite} disabled={generatingInvite}>
