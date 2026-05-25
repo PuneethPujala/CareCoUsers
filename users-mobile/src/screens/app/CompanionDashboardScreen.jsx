@@ -291,7 +291,7 @@ export default function CompanionDashboardScreen() {
                     <View style={styles.chartContainer}>
                         <Text style={styles.chartTitle}>Weekly Adherence Trend</Text>
                         <View style={styles.barChart}>
-                            {mockWeeklyAdherence.map((item, idx) => (
+                            {(data?.weekly_adherence || mockWeeklyAdherence).map((item, idx) => (
                                 <View key={idx} style={styles.barWrapper}>
                                     <View style={styles.barTrack}>
                                         <View style={[

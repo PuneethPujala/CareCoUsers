@@ -293,6 +293,46 @@ router.get('/patient-status', authenticate, async (req, res) => {
             }
         }
 
+        // 3. Compute Weekly Adherence Trend (7 days)
+        const weekly_adherence = [];
+        const dayNames = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+        for (let i = 6; i >= 0; i--) {
+            const d = new Date();
+            d.setDate(d.getDate() - i);
+            d.setHours(0, 0, 0, 0);
+            
+            const start = new Date(d);
+            const end = new Date(d);
+            end.setHours(23, 59, 59, 999);
+            
+            const dayLogs = logs.filter(log => {
+                const logDate = new Date(log.date);
+                return logDate >= start && logDate <= end;
+            });
+            
+            let rate = 100;
+            if (dayLogs.length > 0) {
+                let totalMeds = 0;
+                let takenMeds = 0;
+                for (const log of dayLogs) {
+                    const active = (log.medicines || []).filter(m => m.is_active !== false);
+                    totalMeds += active.length;
+                    takenMeds += active.filter(m => m.taken).length;
+                }
+                if (totalMeds > 0) {
+                    rate = Math.round((takenMeds / totalMeds) * 100);
+                }
+            } else {
+                const activeScheduled = medications.length > 0;
+                rate = activeScheduled ? 0 : 100;
+            }
+            
+            weekly_adherence.push({
+                day: dayNames[d.getDay()],
+                rate
+            });
+        }
+
         // Log the activity
         await logEvent(req.user.id, 'companion_viewed_dashboard', 'profile', req.profile._id, req, { patientId: patient._id });
 
@@ -311,6 +351,7 @@ router.get('/patient-status', authenticate, async (req, res) => {
             medication_schedule,
             vitals_history: vitalsHistory,
             refill_alerts,
+            weekly_adherence,
             linked_patients: accesses
                 .filter(a => a.patient_id)
                 .map(a => ({
