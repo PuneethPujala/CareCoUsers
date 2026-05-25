@@ -548,9 +548,13 @@ export default function PatientProfileScreen({ navigation }) {
     };
 
     /* ── Derived ──────────────────────────────── */
-    const planLabel = patient?.subscription?.plan === 'explore' ? 'Explore Plan' : patient?.subscription?.plan === 'basic' ? 'Basic Plan' : 'Free Plan';
-    const planColor = patient?.subscription?.plan === 'explore' ? '#9333EA' : '#16A34A';
-    const planBg = patient?.subscription?.plan === 'explore' ? '#F3E8FF' : '#DCFCE7';
+    const plan = patient?.subscription?.plan || 'free';
+    const isPremium = plan.toLowerCase().includes('premium');
+    const planLabel = isPremium
+        ? (plan === 'premium_annual' ? 'Premium Annual' : plan === 'premium_monthly' ? 'Premium Monthly' : 'Premium Plan')
+        : plan === 'explore' ? 'Explore Plan' : plan === 'basic' ? 'Basic Plan' : 'Free Plan';
+    const planColor = isPremium ? '#A855F7' : plan === 'explore' ? '#9333EA' : '#16A34A';
+    const planBg = isPremium ? '#F5F3FF' : plan === 'explore' ? '#F3E8FF' : '#DCFCE7';
     const dobStr = patient?.date_of_birth ? new Date(patient.date_of_birth).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : null;
     const genderStr = patient?.gender ? GENDER_LABELS[patient.gender] || patient.gender : null;
     const bloodStr = patient?.blood_type && patient.blood_type !== 'unknown' ? patient.blood_type : null;
