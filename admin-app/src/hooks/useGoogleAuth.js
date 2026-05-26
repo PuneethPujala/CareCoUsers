@@ -1,40 +1,41 @@
 import { useState, useCallback, useMemo } from 'react';
 import * as WebBrowser from 'expo-web-browser';
-import * as Linking from 'expo-linking';
-import Constants, { ExecutionEnvironment } from 'expo-constants';
+import { makeRedirectUri } from 'expo-auth-session';
 import { supabase } from '../lib/supabase';
-import { apiService, getApiBaseUrl } from '../lib/api';
+import { apiService } from '../lib/api';
 
 // Dismiss any lingering browser sessions
 WebBrowser.maybeCompleteAuthSession();
 
 /**
- * Google OAuth via Supabase + backend trampoline.
+ * Google OAuth via Supabase (clean implementation).
+ *
+ * Uses expo-auth-session's makeRedirectUri to generate the correct
+ * redirect URL for the current environment (Expo Go vs standalone APK).
  *
  * Flow:
- * 1. Supabase generates the Google OAuth URL
- * 2. redirectTo → backend /api/auth/google-callback (plain HTTP, no query params)
- * 3. After Google auth, Supabase redirects to our backend (exact URL match ✅)
- * 4. Backend trampoline page reads tokens from URL hash, redirects to exp:// deep link
- * 5. WebBrowser catches the deep link, returns tokens to the app
+ * 1. Generate redirect URI using makeRedirectUri (handles exp:// vs custom scheme)
+ * 2. Ask Supabase for a Google OAuth URL with that redirect
+ * 3. Open the browser for Google sign-in
+ * 4. Browser redirects back to the app with tokens
+ * 5. Extract tokens, set Supabase session, then validate with our backend
  */
 export default function useGoogleAuth() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
 
-    // The deep link URI that the BACKEND trampoline will redirect to
-    const appRedirectUri = useMemo(() => {
-        const uri = Linking.createURL('auth/callback');
-        console.log('[GoogleAuth] App deep link:', uri);
+    // Generate the redirect URI using expo-auth-session
+    // This automatically handles:
+    //   - Expo Go: exp://10.x.x.x:8081/--/auth/callback
+    //   - Standalone APK: careco-admin://auth/callback
+    const redirectUri = useMemo(() => {
+        const uri = makeRedirectUri({
+            scheme: 'careco-admin',
+            path: 'auth/callback',
+        });
+        console.log('[GoogleAuth] Redirect URI:', uri);
         return uri;
     }, []);
-
-    // Use the native Expo deep link directly (bypasses the backend trampoline completely).
-    // This perfectly matches what the User App does.
-    const trampolineUrl = useMemo(() => {
-        console.log('[GoogleAuth] Supabase redirectTo native app scheme:', appRedirectUri);
-        return appRedirectUri;
-    }, [appRedirectUri]);
 
     const signInWithGoogle = useCallback(async () => {
         setLoading(true);
@@ -42,13 +43,13 @@ export default function useGoogleAuth() {
 
         try {
             console.log('[GoogleAuth] Starting sign-in...');
+            console.log('[GoogleAuth] Using redirectTo:', redirectUri);
 
             // Step 1: Get the Google OAuth URL from Supabase
-            // redirectTo is the plain backend URL — NO query params
             const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
                 provider: 'google',
                 options: {
-                    redirectTo: trampolineUrl,
+                    redirectTo: redirectUri,
                     skipBrowserRedirect: true,
                 },
             });
@@ -58,9 +59,10 @@ export default function useGoogleAuth() {
 
             console.log('[GoogleAuth] Opening browser...');
 
-            // Step 2: Open the browser
-            // Watch for the app deep link (exp://...) — the trampoline page will redirect there
-            const result = await WebBrowser.openAuthSessionAsync(data.url, appRedirectUri);
+            // Step 2: Open the browser for Google sign-in
+            // The second argument tells WebBrowser what URL pattern to watch for
+            // to know when to close the browser and return to the app
+            const result = await WebBrowser.openAuthSessionAsync(data.url, redirectUri);
 
             console.log('[GoogleAuth] Browser result:', result.type);
 
@@ -121,7 +123,7 @@ export default function useGoogleAuth() {
         } finally {
             setLoading(false);
         }
-    }, [trampolineUrl, appRedirectUri]);
+    }, [redirectUri]);
 
     return { signInWithGoogle, loading, error };
 }
