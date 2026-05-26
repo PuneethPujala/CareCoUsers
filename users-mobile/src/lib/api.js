@@ -260,6 +260,9 @@ export const apiService = {
 
     companion: {
         join: (data) => api.post('/companion/join', data),
+        checkEmail: (data) => api.post('/companion/check-email', data),
+        joinOtp: (data) => api.post('/companion/join-otp', data),
+        linkPatient: (data) => api.post('/companion/link-patient', data),
         getPatientStatus: (params) => api.get('/companion/patient-status', { params }),
         acknowledgeAlert: (id) => api.post(`/companion/alerts/${id}/acknowledge`),
         nudge: (data) => api.post('/companion/nudge', data),

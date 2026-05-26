@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, RefreshControl, Pressable, Dimensions, Linking } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, RefreshControl, Pressable, Dimensions, Linking, TextInput, ActivityIndicator } from 'react-native';
 import { apiService } from '../../lib/api';
 import { HeartPulse, Activity, Bell, Phone, Send, ChevronRight, MessageSquare, ShieldCheck, AlertCircle } from 'lucide-react-native';
 import AlertManager from '../../utils/AlertManager';
@@ -36,6 +36,8 @@ export default function CompanionDashboardScreen() {
     const [data, setData] = useState(null);
     const [selectedPatientId, setSelectedPatientId] = useState(null);
     const [refreshing, setRefreshing] = useState(false);
+    const [linkCode, setLinkCode] = useState('');
+    const [linking, setLinking] = useState(false);
 
     // Mock weekly data to render a stunning micro-chart (since backend is real-time only)
     const mockWeeklyAdherence = [
@@ -105,6 +107,24 @@ export default function CompanionDashboardScreen() {
         }
     };
 
+    const handleLinkPatient = async () => {
+        if (!linkCode || linkCode.length < 6) {
+            AlertManager.alert('Invalid Code', 'Please enter a valid 6-character invite code.');
+            return;
+        }
+        setLinking(true);
+        try {
+            await apiService.companion.linkPatient({ invite_code: linkCode });
+            setLinkCode('');
+            AlertManager.alert('Success', 'Patient successfully linked to your care circle!');
+            await loadData();
+        } catch (err) {
+            AlertManager.alert('Link Failed', err.response?.data?.error || 'Failed to link patient. Please check the code.');
+        } finally {
+            setLinking(false);
+        }
+    };
+
     if (!data) return <View style={styles.container} />;
 
     const adherence = data.patient.adherence_rate !== null ? data.patient.adherence_rate : 0;
@@ -125,6 +145,28 @@ export default function CompanionDashboardScreen() {
                     <Bell color={C.dark} size={20} />
                     {data.recent_alerts?.length > 0 && <View style={styles.bellDot} />}
                 </Pressable>
+            </View>
+
+            {/* Link New Patient Container */}
+            <View style={styles.linkContainer}>
+                <Text style={styles.linkTitle}>Link New Patient</Text>
+                <View style={styles.linkInputRow}>
+                    <TextInput
+                        style={styles.linkInput}
+                        placeholder="Enter 6-char Invite Code"
+                        placeholderTextColor={C.light}
+                        value={linkCode}
+                        onChangeText={(v) => setLinkCode(v.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6))}
+                        autoCapitalize="characters"
+                    />
+                    <Pressable 
+                        style={[styles.linkBtn, (!linkCode || linkCode.length < 6 || linking) && { opacity: 0.7 }]} 
+                        onPress={handleLinkPatient}
+                        disabled={!linkCode || linkCode.length < 6 || linking}
+                    >
+                        {linking ? <ActivityIndicator color="#FFF" size="small" /> : <Text style={styles.linkBtnText}>Link</Text>}
+                    </Pressable>
+                </View>
             </View>
 
             {/* Premium Horizontal Patient Switcher */}
@@ -530,6 +572,48 @@ const styles = StyleSheet.create({
         backgroundColor: C.danger,
     },
     
+    // Link Container Styles
+    linkContainer: {
+        backgroundColor: C.surface,
+        paddingHorizontal: 24,
+        paddingBottom: 20,
+    },
+    linkTitle: {
+        fontSize: 14,
+        ...FONT.bold,
+        color: C.dark,
+        marginBottom: 12,
+    },
+    linkInputRow: {
+        flexDirection: 'row',
+        gap: 12,
+    },
+    linkInput: {
+        flex: 1,
+        height: 48,
+        backgroundColor: C.bg,
+        borderWidth: 1,
+        borderColor: C.cardBorder,
+        borderRadius: 12,
+        paddingHorizontal: 16,
+        fontSize: 14,
+        ...FONT.medium,
+        color: C.dark,
+        textTransform: 'uppercase',
+    },
+    linkBtn: {
+        backgroundColor: C.primary,
+        borderRadius: 12,
+        paddingHorizontal: 20,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    linkBtnText: {
+        color: '#FFF',
+        fontSize: 14,
+        ...FONT.bold,
+    },
+
     // Switcher Styles
     switcherContainer: {
         backgroundColor: C.surface,

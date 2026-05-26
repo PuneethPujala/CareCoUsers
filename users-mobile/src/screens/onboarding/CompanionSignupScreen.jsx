@@ -35,34 +35,22 @@ export default function CompanionSignupScreen({ navigation }) {
     
     const [step, setStep] = useState(1);
     
-    // Step 1
-    const [inviteCode, setInviteCode] = useState('');
-    
-    // Step 2 & 3 State
+    // Step 1 State
     const [email, setEmail] = useState('');
     const [isExisting, setIsExisting] = useState(false);
     
-    // Step 3A (New User)
+    // Step 2A (New User)
     const [fullName, setFullName] = useState('');
     const [phone, setPhone] = useState('');
     const [password, setPassword] = useState('');
 
-    // Step 3B (Existing User)
+    // Step 2B (Existing User)
     const [otp, setOtp] = useState('');
     
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
-    const handleNextStep1 = () => {
-        if (!inviteCode || inviteCode.length < 6) {
-            setError('Please enter a valid 6-character invite code.');
-            return;
-        }
-        setError('');
-        setStep(2);
-    };
-
-    const handleNextStep2 = async () => {
+    const handleNextStep1 = async () => {
         const cleanEmail = email.trim().toLowerCase();
         if (!cleanEmail || !/\S+@\S+\.\S+/.test(cleanEmail)) {
             setError('Please enter a valid email address.');
@@ -73,15 +61,15 @@ export default function CompanionSignupScreen({ navigation }) {
         setError('');
 
         try {
-            const res = await apiService.companion.checkEmail({ invite_code: inviteCode, email: cleanEmail });
+            const res = await apiService.companion.checkEmail({ email: cleanEmail });
             if (res.data.exists) {
                 setIsExisting(true);
             } else {
                 setIsExisting(false);
             }
-            setStep(3);
+            setStep(2);
         } catch (err) {
-            setError(err.response?.data?.error || 'Failed to verify email. Please check your invite code.');
+            setError(err.response?.data?.error || 'Failed to verify email.');
         } finally {
             setLoading(false);
         }
@@ -98,7 +86,6 @@ export default function CompanionSignupScreen({ navigation }) {
 
         try {
             const res = await apiService.companion.join({
-                invite_code: inviteCode,
                 email: email.trim().toLowerCase(),
                 password,
                 fullName,
@@ -126,7 +113,6 @@ export default function CompanionSignupScreen({ navigation }) {
 
         try {
             const res = await apiService.companion.joinOtp({
-                invite_code: inviteCode,
                 email: email.trim().toLowerCase(),
                 otp
             });
@@ -150,7 +136,6 @@ export default function CompanionSignupScreen({ navigation }) {
                 <View style={styles.progressContainer}>
                     <View style={[styles.progressDot, step >= 1 && styles.progressDotActive]} />
                     <View style={[styles.progressDot, step >= 2 && styles.progressDotActive]} />
-                    <View style={[styles.progressDot, step >= 3 && styles.progressDotActive]} />
                 </View>
             </View>
 
@@ -169,27 +154,7 @@ export default function CompanionSignupScreen({ navigation }) {
 
                 {step === 1 && (
                     <View style={styles.stepContainer}>
-                        <Text style={styles.subtitle}>Enter the 6-character invite code provided by your family member.</Text>
-                        
-                        <SmartInput
-                            label="INVITE CODE"
-                            placeholder="e.g. A1B2C3"
-                            value={inviteCode}
-                            onChangeText={(v) => setInviteCode(v.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6))}
-                            autoCapitalize="characters"
-                            leftAccessory={<Key size={18} color={C.muted} style={{ marginRight: 8 }} />}
-                            style={{ marginBottom: 24 }}
-                        />
-
-                        <Pressable style={styles.btn} onPress={handleNextStep1}>
-                            <Text style={styles.btnText}>Continue</Text>
-                        </Pressable>
-                    </View>
-                )}
-
-                {step === 2 && (
-                    <View style={styles.stepContainer}>
-                        <Text style={styles.subtitle}>Enter your email address to continue linking to their care circle.</Text>
+                        <Text style={styles.subtitle}>Enter your email address to log in or create an account.</Text>
 
                         <SmartInput
                             label="EMAIL ADDRESS"
@@ -202,13 +167,13 @@ export default function CompanionSignupScreen({ navigation }) {
                             style={{ marginBottom: 24 }}
                         />
 
-                        <Pressable style={[styles.btn, loading && { opacity: 0.7 }]} onPress={handleNextStep2} disabled={loading}>
+                        <Pressable style={[styles.btn, loading && { opacity: 0.7 }]} onPress={handleNextStep1} disabled={loading}>
                             {loading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.btnText}>Continue</Text>}
                         </Pressable>
                     </View>
                 )}
 
-                {step === 3 && !isExisting && (
+                {step === 2 && !isExisting && (
                     <View style={styles.stepContainer}>
                         <View style={styles.badgeBox}>
                             <Text style={styles.badgeText}>New CareMyMed Account</Text>
@@ -242,18 +207,18 @@ export default function CompanionSignupScreen({ navigation }) {
                         />
 
                         <Pressable style={[styles.btn, loading && { opacity: 0.7 }]} onPress={handleJoinNew} disabled={loading}>
-                            {loading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.btnText}>Create & Join Circle</Text>}
+                            {loading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.btnText}>Create Account</Text>}
                         </Pressable>
                     </View>
                 )}
 
-                {step === 3 && isExisting && (
+                {step === 2 && isExisting && (
                     <View style={styles.stepContainer}>
                         <View style={styles.successBadgeBox}>
                             <Text style={styles.successBadgeText}>Account Recognized</Text>
                         </View>
                         <Text style={styles.subtitle}>
-                            Welcome back! We sent a 6-digit verification code to <Text style={{ ...FONT.bold, color: C.dark }}>{email}</Text>. Enter it below to securely link this care circle.
+                            Welcome back! We sent a 6-digit verification code to <Text style={{ ...FONT.bold, color: C.dark }}>{email}</Text>. Enter it below to log in.
                         </Text>
 
                         <OTPBoxes
@@ -264,7 +229,7 @@ export default function CompanionSignupScreen({ navigation }) {
                         />
 
                         <Pressable style={[styles.btn, { marginTop: 20 }, loading && { opacity: 0.7 }]} onPress={handleJoinExisting} disabled={loading}>
-                            {loading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.btnText}>Verify & Join Circle</Text>}
+                            {loading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.btnText}>Log In</Text>}
                         </Pressable>
                     </View>
                 )}

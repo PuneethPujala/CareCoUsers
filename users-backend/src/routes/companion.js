@@ -24,18 +24,21 @@ router.post('/join', async (req, res) => {
     try {
         const { invite_code, email, password, fullName, phone } = req.body;
         
-        if (!invite_code || !email || !password || !fullName) {
-            return res.status(400).json({ error: 'Invite code, email, password, and full name are required.' });
+        if (!email || !password || !fullName) {
+            return res.status(400).json({ error: 'Email, password, and full name are required.' });
         }
 
-        // 1. Find patient by invite code
-        const patient = await Patient.findOne({
-            invite_code: invite_code.toUpperCase(),
-            invite_code_expires_at: { $gt: new Date() }
-        }).select('+invite_code');
+        // 1. Find patient by invite code (if provided)
+        let patient = null;
+        if (invite_code) {
+            patient = await Patient.findOne({
+                invite_code: invite_code.toUpperCase(),
+                invite_code_expires_at: { $gt: new Date() }
+            }).select('+invite_code');
 
-        if (!patient) {
-            return res.status(400).json({ error: 'Invalid or expired invite code.' });
+            if (!patient) {
+                return res.status(400).json({ error: 'Invalid or expired invite code.' });
+            }
         }
 
         // 2. Resolve or Create the Companion Profile
@@ -68,17 +71,19 @@ router.post('/join', async (req, res) => {
             }
 
             // Check if they already have access to this specific patient
-            const existingAccess = await CompanionAccess.findOne({ companion_id: profile._id, patient_id: patient._id });
-            if (existingAccess) {
-                if (existingAccess.is_active && existingAccess.status === 'accepted') {
-                    return res.status(400).json({ error: 'You are already linked to this patient.' });
-                } else {
-                    // Reactivate existing relationship
-                    existingAccess.is_active = true;
-                    existingAccess.status = 'accepted';
-                    existingAccess.revoked_at = undefined;
-                    existingAccess.revoked_by = undefined;
-                    await existingAccess.save();
+            if (patient) {
+                const existingAccess = await CompanionAccess.findOne({ companion_id: profile._id, patient_id: patient._id });
+                if (existingAccess) {
+                    if (existingAccess.is_active && existingAccess.status === 'accepted') {
+                        return res.status(400).json({ error: 'You are already linked to this patient.' });
+                    } else {
+                        // Reactivate existing relationship
+                        existingAccess.is_active = true;
+                        existingAccess.status = 'accepted';
+                        existingAccess.revoked_at = undefined;
+                        existingAccess.revoked_by = undefined;
+                        await existingAccess.save();
+                    }
                 }
             }
             isExistingProfile = true;
@@ -102,40 +107,42 @@ router.post('/join', async (req, res) => {
         }
 
         // 3. Link Profile to Patient using CompanionAccess Relationship Model
-        const existingAccess = await CompanionAccess.findOne({ companion_id: profile._id, patient_id: patient._id });
-        if (!existingAccess) {
-            await CompanionAccess.create({
-                companion_id: profile._id,
-                patient_id: patient._id,
-                relationship_type: 'Other',
-                access_level: 'caregiver',
-                permissions: ['read_only', 'alerts'],
-                status: 'accepted',
-                is_active: true,
-                joined_at: new Date(),
-                created_by: profile._id
-            });
-        }
-        
-        // Add to trusted_contacts for backward compatibility in notifications if not already present
-        const hasContact = patient.trusted_contacts.some(c => c.email.toLowerCase() === emailNorm);
-        if (!hasContact) {
-            patient.trusted_contacts.push({
-                name: fullName || profile.fullName,
-                phone: phone || profile.phone || 'N/A',
-                relation: 'Family',
-                email: emailNorm,
-                can_view_data: true,
-                is_primary: false,
-                is_emergency: false,
-                permissions: ['read_only']
-            });
-        }
+        if (patient) {
+            const existingAccess = await CompanionAccess.findOne({ companion_id: profile._id, patient_id: patient._id });
+            if (!existingAccess) {
+                await CompanionAccess.create({
+                    companion_id: profile._id,
+                    patient_id: patient._id,
+                    relationship_type: 'Other',
+                    access_level: 'caregiver',
+                    permissions: ['read_only', 'alerts'],
+                    status: 'accepted',
+                    is_active: true,
+                    joined_at: new Date(),
+                    created_by: profile._id
+                });
+            }
+            
+            // Add to trusted_contacts for backward compatibility in notifications if not already present
+            const hasContact = patient.trusted_contacts.some(c => c.email.toLowerCase() === emailNorm);
+            if (!hasContact) {
+                patient.trusted_contacts.push({
+                    name: fullName || profile.fullName,
+                    phone: phone || profile.phone || 'N/A',
+                    relation: 'Family',
+                    email: emailNorm,
+                    can_view_data: true,
+                    is_primary: false,
+                    is_emergency: false,
+                    permissions: ['read_only']
+                });
+            }
 
-        // 4. Invalidate the invite code (Single Use)
-        patient.invite_code = undefined;
-        patient.invite_code_expires_at = undefined;
-        await patient.save();
+            // 4. Invalidate the invite code (Single Use)
+            patient.invite_code = undefined;
+            patient.invite_code_expires_at = undefined;
+            await patient.save();
+        }
 
         // 5. Issue Auth Session
         const tokens = await tokenService.issueTokenPair(
@@ -150,12 +157,14 @@ router.post('/join', async (req, res) => {
             req
         );
 
-        await logEvent(profile.supabaseUid, 'companion_joined', 'companion', profile._id, req, { patientId: patient._id });
+        if (patient) {
+            await logEvent(profile.supabaseUid, 'companion_joined', 'companion', profile._id, req, { patientId: patient._id });
+        }
 
         res.status(isExistingProfile ? 200 : 201).json({
             message: isExistingProfile 
-                ? 'Successfully linked to new patient.'
-                : 'Joined successfully as a family companion.',
+                ? (patient ? 'Successfully linked to new patient.' : 'Successfully logged in.')
+                : (patient ? 'Joined successfully as a family companion.' : 'Account created successfully.'),
             session: {
                 access_token: tokens.access_token,
                 refresh_token: tokens.refresh_token,
@@ -186,17 +195,19 @@ router.post('/check-email', otpRateLimiter, async (req, res) => {
     try {
         const { invite_code, email } = req.body;
         
-        if (!invite_code || !email) {
-            return res.status(400).json({ error: 'Invite code and email are required.' });
+        if (!email) {
+            return res.status(400).json({ error: 'Email is required.' });
         }
 
-        const patient = await Patient.findOne({
-            invite_code: invite_code.toUpperCase(),
-            invite_code_expires_at: { $gt: new Date() }
-        });
+        if (invite_code) {
+            const patient = await Patient.findOne({
+                invite_code: invite_code.toUpperCase(),
+                invite_code_expires_at: { $gt: new Date() }
+            });
 
-        if (!patient) {
-            return res.status(400).json({ error: 'Invalid or expired invite code.' });
+            if (!patient) {
+                return res.status(400).json({ error: 'Invalid or expired invite code.' });
+            }
         }
 
         const emailNorm = email.toLowerCase().trim();
@@ -230,17 +241,20 @@ router.post('/join-otp', otpRateLimiter, async (req, res) => {
     try {
         const { invite_code, email, otp } = req.body;
         
-        if (!invite_code || !email || !otp) {
-            return res.status(400).json({ error: 'Invite code, email, and OTP are required.' });
+        if (!email || !otp) {
+            return res.status(400).json({ error: 'Email and OTP are required.' });
         }
 
-        const patient = await Patient.findOne({
-            invite_code: invite_code.toUpperCase(),
-            invite_code_expires_at: { $gt: new Date() }
-        });
+        let patient = null;
+        if (invite_code) {
+            patient = await Patient.findOne({
+                invite_code: invite_code.toUpperCase(),
+                invite_code_expires_at: { $gt: new Date() }
+            });
 
-        if (!patient) {
-            return res.status(400).json({ error: 'Invalid or expired invite code.' });
+            if (!patient) {
+                return res.status(400).json({ error: 'Invalid or expired invite code.' });
+            }
         }
 
         const emailNorm = email.toLowerCase().trim();
@@ -766,4 +780,88 @@ router.post('/patients/:patientId/invite-code', authenticate, async (req, res) =
 });
 
 module.exports = router;
+
+/**
+ * POST /api/companion/link-patient
+ * Link an authenticated companion to a patient using an invite code.
+ */
+router.post('/link-patient', authenticateSession, async (req, res) => {
+    try {
+        const { invite_code } = req.body;
+        if (!invite_code) {
+            return res.status(400).json({ error: 'Invite code is required.' });
+        }
+
+        if (req.user.role !== 'companion') {
+            return res.status(403).json({ error: 'Only companions can link patients.' });
+        }
+
+        const patient = await Patient.findOne({
+            invite_code: invite_code.toUpperCase(),
+            invite_code_expires_at: { $gt: new Date() }
+        }).select('+invite_code');
+
+        if (!patient) {
+            return res.status(400).json({ error: 'Invalid or expired invite code.' });
+        }
+
+        const profileId = req.user.userId;
+        const profile = await Companion.findById(profileId);
+        if (!profile) {
+            return res.status(404).json({ error: 'Companion profile not found.' });
+        }
+
+        // Link Profile to Patient
+        const existingAccess = await CompanionAccess.findOne({ companion_id: profileId, patient_id: patient._id });
+        if (existingAccess) {
+            if (existingAccess.is_active && existingAccess.status === 'accepted') {
+                return res.status(400).json({ error: 'You are already linked to this patient.' });
+            } else {
+                existingAccess.is_active = true;
+                existingAccess.status = 'accepted';
+                existingAccess.revoked_at = undefined;
+                existingAccess.revoked_by = undefined;
+                await existingAccess.save();
+            }
+        } else {
+            await CompanionAccess.create({
+                companion_id: profileId,
+                patient_id: patient._id,
+                relationship_type: 'Other',
+                access_level: 'caregiver',
+                permissions: ['read_only', 'alerts'],
+                status: 'accepted',
+                is_active: true,
+                joined_at: new Date(),
+                created_by: profileId
+            });
+        }
+
+        // Add to trusted contacts
+        const hasContact = patient.trusted_contacts.some(c => c.email.toLowerCase() === profile.email.toLowerCase());
+        if (!hasContact) {
+            patient.trusted_contacts.push({
+                name: profile.fullName,
+                phone: profile.phone || 'N/A',
+                relation: 'Family',
+                email: profile.email,
+                can_view_data: true,
+                is_primary: false,
+                is_emergency: false,
+                permissions: ['read_only']
+            });
+        }
+
+        // Invalidate invite code
+        patient.invite_code = undefined;
+        patient.invite_code_expires_at = undefined;
+        await patient.save();
+
+        res.json({ message: 'Successfully linked patient to your care circle.' });
+
+    } catch (err) {
+        logger.error('Link patient error', { error: err.message });
+        res.status(500).json({ error: 'Failed to link patient.' });
+    }
+});
 
