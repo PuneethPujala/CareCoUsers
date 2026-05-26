@@ -211,11 +211,6 @@ router.post('/check-email', otpRateLimiter, async (req, res) => {
         }
 
         const emailNorm = email.toLowerCase().trim();
-        
-        const existingPatient = await Patient.findOne({ email: emailNorm });
-        if (existingPatient) {
-            return res.status(400).json({ error: 'This email is registered to a Patient account. Companions must use a separate email.' });
-        }
 
         const profile = await Companion.findOne({ email: emailNorm });
         
