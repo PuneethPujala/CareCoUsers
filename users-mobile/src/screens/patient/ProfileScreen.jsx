@@ -562,7 +562,8 @@ export default function PatientProfileScreen({ navigation }) {
     const dobStr = patient?.date_of_birth ? new Date(patient.date_of_birth).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : null;
     const genderStr = patient?.gender ? GENDER_LABELS[patient.gender] || patient.gender : null;
     const bloodStr = patient?.blood_type && patient.blood_type !== 'unknown' ? patient.blood_type : null;
-    const ecStr = patient?.emergency_contact?.name ? `${patient.emergency_contact.name} (${patient.emergency_contact.relation || 'N/A'})` : null;
+    const emergencyContact = patient?.trusted_contacts?.find(c => c.is_emergency);
+    const ecStr = emergencyContact?.name ? `${emergencyContact.name} (${emergencyContact.relation || 'N/A'})` : null;
 
     /* ── Reusable Row ─────────────────────────── */
     const InfoRow = ({ icon: Icon, iconBg, iconColor, label, value, placeholder, onPress, rightElement, isLast }) => (
@@ -1535,7 +1536,7 @@ export default function PatientProfileScreen({ navigation }) {
                                         <Phone size={32} color="#94A3B8" style={{ marginRight: 16 }} />
                                         <Text style={{ fontSize: 28, fontWeight: '700', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: 1 }}>Contact Phone</Text>
                                     </View>
-                                    <Text style={{ fontSize: 40, fontWeight: '800', color: '#FFF' }}>{patient?.emergency_contact?.phone || 'None'}</Text>
+                                    <Text style={{ fontSize: 40, fontWeight: '800', color: '#FFF' }}>{emergencyContact?.phone || 'None'}</Text>
                                 </View>
                             </View>
 
