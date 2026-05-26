@@ -6,11 +6,16 @@ let transporter;
 const getTransporter = () => {
     if (transporter) return transporter;
 
+    const smtpPort = parseInt(process.env.SMTP_PORT) || 465;
+    const isSecure = process.env.SMTP_SECURE !== undefined
+        ? process.env.SMTP_SECURE !== 'false'
+        : smtpPort === 465;
+
     // Use SMTP config from environment variables
     transporter = nodemailer.createTransport({
         host: process.env.SMTP_HOST || 'smtp.gmail.com',
-        port: parseInt(process.env.SMTP_PORT) || 465,
-        secure: process.env.SMTP_SECURE !== 'false', // Default to true for 465
+        port: smtpPort,
+        secure: isSecure,
         auth: {
             user: process.env.SMTP_USER,
             pass: process.env.SMTP_PASS,

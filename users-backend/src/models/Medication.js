@@ -126,10 +126,10 @@ const MedicationSchema = new mongoose.Schema(
         refillInfo: {
             pharmacy: { type: String, trim: true, maxlength: 200 },
             pharmacyPhone: { type: String, trim: true },
-            lastRefillDate: Date,
+            lastRefillDate: { type: Date, default: Date.now },
             nextRefillDate: Date,
-            totalDoses: { type: Number, min: 0 },
-            remainingDoses: { type: Number, min: 0 },
+            totalDoses: { type: Number, min: 0, default: 30 },
+            remainingDoses: { type: Number, min: 0, default: 30 },
             alertThreshold: { type: Number, min: 0, default: 5 },
             autoRefill: { type: Boolean, default: false },
         },

@@ -301,10 +301,10 @@ const PatientSchema = new mongoose.Schema(
                 is_active: { type: Boolean, default: true },
                 instructions: String,
                 refillInfo: {
-                    totalDoses: { type: Number },
-                    remainingDoses: { type: Number },
+                    totalDoses: { type: Number, default: 30 },
+                    remainingDoses: { type: Number, default: 30 },
                     alertThreshold: { type: Number, default: 5 },
-                    lastRefillDate: { type: Date },
+                    lastRefillDate: { type: Date, default: Date.now },
                 },
             },
         ],
