@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, RefreshControl, Pressable, Dimensio
 import { apiService } from '../../lib/api';
 import { HeartPulse, Activity, Bell, Phone, Send, ChevronRight, MessageSquare, ShieldCheck, AlertCircle } from 'lucide-react-native';
 import AlertManager from '../../utils/AlertManager';
+import { layout } from '../../theme';
 
 const { width } = Dimensions.get('window');
 

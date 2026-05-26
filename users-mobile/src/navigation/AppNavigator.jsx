@@ -335,7 +335,8 @@ export default function AppNavigator() {
         return (
             <>
                 <Stack.Navigator screenOptions={{ headerShown: false, animation: "fade" }}>
-                    <Stack.Screen name="Payment" component={PaymentScreen} />
+                    <Stack.Screen name="Payment" component={PremiumShowcaseScreen} />
+                    <Stack.Screen name="WaitingRoom" component={WaitingScreen} />
                     <Stack.Screen
                         name="Profile"
                         component={PatientProfileScreen}

@@ -205,17 +205,20 @@ async function exportMyData(req, res) {
     const exported = { exportedAt: new Date().toISOString(), format: 'JSON' };
 
     if (isPatient) {
-      const Patient = require('../models/Patient');
       const CallLog = require('../models/CallLog');
       const MedicineLog = require('../models/MedicineLog');
       const VitalLog = require('../models/VitalLog');
 
       const patient = await Patient.findById(req.profile._id).lean();
+      if (!patient) {
+        return res.status(404).json({ error: 'Patient profile not found' });
+      }
+      
       // Strip internal fields
       delete patient.passwordHash;
       delete patient.__v;
 
-      const calls = await CallLog.find({ patient_id: patient._id }).select('-__v').lean();
+      const calls = await CallLog.find({ patientId: patient._id }).select('-__v').lean();
       const medicines = await MedicineLog.find({ patient_id: patient._id }).select('-__v').lean();
       const vitals = await VitalLog.find({ patient_id: patient._id }).select('-__v').lean();
 

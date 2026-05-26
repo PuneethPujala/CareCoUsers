@@ -219,99 +219,116 @@ const MedCard = ({ med, onToggle, onSnooze, onRefill }) => {
     const isLowSupply = hasRefillInfo && displayDoses <= (med.refillInfo.alertThreshold || 5);
 
     return (
-        <Swipeable
-            ref={swRef}
-            renderLeftActions={med.taken ? null : renderLeft}
-            renderRightActions={med.taken ? null : renderRight}
-            onSwipeableLeftOpen={() => { if (!med.taken) onToggle(med); swRef.current?.close(); }}
-            friction={2} leftThreshold={40} rightThreshold={40}
-        >
-            <Pressable
-                onPress={() => {
-                    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-                    setExpanded(e => !e);
-                }}
-                style={[styles.medCard, med.taken && styles.medCardTaken]}
+        <View>
+            <Swipeable
+                ref={swRef}
+                renderLeftActions={med.taken ? null : renderLeft}
+                renderRightActions={med.taken ? null : renderRight}
+                onSwipeableLeftOpen={() => { if (!med.taken) onToggle(med); swRef.current?.close(); }}
+                friction={2} leftThreshold={40} rightThreshold={40}
             >
-                {/* Top accent bar */}
-                <View style={[styles.medTopBar, { backgroundColor: med.taken ? '#10B981' : cfg.color }]} />
+                <Pressable
+                    onPress={() => {
+                        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                        setExpanded(e => !e);
+                    }}
+                    style={[styles.medCard, med.taken && styles.medCardTaken]}
+                >
+                    {/* Top accent bar */}
+                    <View style={[styles.medTopBar, { backgroundColor: med.taken ? '#10B981' : cfg.color }]} />
 
-                <View style={styles.medCardBody}>
-                    {/* Icon box */}
-                    <View style={[styles.medIconBox, { backgroundColor: med.taken ? '#DCFCE7' : cfg.light, borderColor: med.taken ? '#A7F3D0' : cfg.border }]}>
-                        {med.taken ? (
-                            <Animated.View style={{ transform: [{ scale: checkScale }] }}>
-                                <CheckCircle2 size={22} color="#10B981" strokeWidth={2.5} />
-                            </Animated.View>
-                        ) : (
-                            <Pill size={22} color={cfg.color} strokeWidth={2.5} />
-                        )}
-                    </View>
-
-                    {/* Text content */}
-                    <View style={{ flex: 1, gap: 4 }}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                            <Text style={[styles.medName, med.taken && { color: '#10B981' }]}>{med.name}</Text>
-                            {med.taken && (
-                                <View style={styles.takenBadge}>
-                                    <CheckCircle2 size={10} color="#10B981" />
-                                    <Text style={styles.takenBadgeTxt}>
-                                        {med.marked_by === 'caller' ? t('medications.by_caregiver', { defaultValue: 'By Caregiver' }) : t('medications.taken', { defaultValue: 'Taken' })}
-                                    </Text>
-                                </View>
-                            )}
-                            {med.verifiedByCaller && (
-                                <View style={styles.verifiedBadge}>
-                                    <Shield size={9} color="#059669" />
-                                    <Text style={styles.verifiedTxt}>{t('medications.verified', { defaultValue: 'Verified' })}</Text>
-                                </View>
+                    <View style={styles.medCardBody}>
+                        {/* Icon box */}
+                        <View style={[styles.medIconBox, { backgroundColor: med.taken ? '#DCFCE7' : cfg.light, borderColor: med.taken ? '#A7F3D0' : cfg.border }]}>
+                            {med.taken ? (
+                                <Animated.View style={{ transform: [{ scale: checkScale }] }}>
+                                    <CheckCircle2 size={22} color="#10B981" strokeWidth={2.5} />
+                                </Animated.View>
+                            ) : (
+                                <Pill size={22} color={cfg.color} strokeWidth={2.5} />
                             )}
                         </View>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 2 }}>
-                            <Text style={styles.medDose}>
-                                {med.preferred_time ? `${med.preferred_time} · ` : ''}{med.dosage}
-                            </Text>
+
+                        {/* Text content */}
+                        <View style={{ flex: 1, gap: 4 }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                                <Text style={[styles.medName, med.taken && { color: '#10B981' }]}>{med.name}</Text>
+                                {med.taken && (
+                                    <View style={styles.takenBadge}>
+                                        <CheckCircle2 size={10} color="#10B981" />
+                                        <Text style={styles.takenBadgeTxt}>
+                                            {med.marked_by === 'caller' ? t('medications.by_caregiver', { defaultValue: 'By Caregiver' }) : t('medications.taken', { defaultValue: 'Taken' })}
+                                        </Text>
+                                    </View>
+                                )}
+                                {med.verifiedByCaller && (
+                                    <View style={styles.verifiedBadge}>
+                                        <Shield size={9} color="#059669" />
+                                        <Text style={styles.verifiedTxt}>{t('medications.verified', { defaultValue: 'Verified' })}</Text>
+                                    </View>
+                                )}
+                            </View>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 2 }}>
+                                <Text style={styles.medDose}>
+                                    {med.preferred_time ? `${med.preferred_time} · ` : ''}{med.dosage}
+                                </Text>
+                            </View>
+                        </View>
+
+                        {/* Expand chevron */}
+                        <View style={{ padding: 4, opacity: 0.5 }}>
+                            {expanded
+                                ? <ChevronUp size={18} color="#64748B" />
+                                : <ChevronDown size={18} color="#64748B" />}
+                        </View>
+                    </View>
+
+                    {/* Expanded instructions */}
+                    {expanded && (
+                        <View style={styles.expandSection}>
+                            <View style={[styles.instructionBox, { backgroundColor: cfg.light, borderColor: cfg.border }]}>
+                                <Info size={15} color={cfg.color} style={{ marginTop: 1, flexShrink: 0 }} />
+                                <Text style={[styles.instructionTxt, { color: cfg.color }]}>
+                                    {med.instructions || t('medications.no_instructions', { defaultValue: 'No special instructions provided.' })}
+                                </Text>
+                            </View>
                             {hasRefillInfo && (
-                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: isLowSupply ? '#FEE2E2' : '#F1F5F9', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
-                                    <Zap size={10} color={isLowSupply ? '#EF4444' : '#64748B'} />
-                                    <Text style={{ fontSize: 10, fontWeight: '700', color: isLowSupply ? '#EF4444' : '#64748B' }}>
-                                        {displayDoses} left
-                                    </Text>
-                                </View>
+                                <Pressable 
+                                    onPress={() => onRefill && onRefill(med)}
+                                    style={{ marginTop: 8, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 6, paddingHorizontal: 12, backgroundColor: '#EEF2FF', borderRadius: 8, borderWidth: 1, borderColor: '#C7D2FE' }}
+                                >
+                                    <Zap size={14} color="#6366F1" />
+                                    <Text style={{ fontSize: 13, fontWeight: '700', color: '#6366F1' }}>Mark as Refilled</Text>
+                                </Pressable>
                             )}
                         </View>
-                    </View>
+                    )}
+                </Pressable>
+            </Swipeable>
 
-                    {/* Expand chevron */}
-                    <View style={{ padding: 4, opacity: 0.5 }}>
-                        {expanded
-                            ? <ChevronUp size={18} color="#64748B" />
-                            : <ChevronDown size={18} color="#64748B" />}
+            {/* Supply Info - Rendered OUTSIDE the container to prevent congestion */}
+            {hasRefillInfo && (
+                <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: -20, marginRight: 24, zIndex: -1, elevation: -1 }}>
+                    <View style={{ 
+                        flexDirection: 'row', alignItems: 'center', gap: 6, 
+                        paddingHorizontal: 16, paddingVertical: 6, paddingTop: 26, 
+                        borderBottomLeftRadius: 14, borderBottomRightRadius: 14, 
+                        backgroundColor: isLowSupply ? '#FEF2F2' : '#F1F5F9',
+                        borderWidth: 1.5, borderTopWidth: 0,
+                        borderColor: isLowSupply ? '#FECACA' : '#E2E8F0',
+                    }}>
+                        {isLowSupply ? <AlertCircle size={12} color="#EF4444" strokeWidth={3} /> : <CheckCircle2 size={12} color="#64748B" strokeWidth={3} />}
+                        <Text style={{ 
+                            fontSize: 10, fontWeight: '900', 
+                            color: isLowSupply ? '#EF4444' : '#64748B', 
+                            letterSpacing: 0.8, textTransform: 'uppercase'
+                        }}>
+                            {displayDoses} {isLowSupply ? 'Left • Refill' : 'Supply Left'}
+                        </Text>
                     </View>
                 </View>
-
-                {/* Expanded instructions */}
-                {expanded && (
-                    <View style={styles.expandSection}>
-                        <View style={[styles.instructionBox, { backgroundColor: cfg.light, borderColor: cfg.border }]}>
-                            <Info size={15} color={cfg.color} style={{ marginTop: 1, flexShrink: 0 }} />
-                            <Text style={[styles.instructionTxt, { color: cfg.color }]}>
-                                {med.instructions || t('medications.no_instructions', { defaultValue: 'No special instructions provided.' })}
-                            </Text>
-                        </View>
-                        {hasRefillInfo && (
-                            <Pressable 
-                                onPress={() => onRefill && onRefill(med)}
-                                style={{ marginTop: 8, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 6, paddingHorizontal: 12, backgroundColor: '#EEF2FF', borderRadius: 8, borderWidth: 1, borderColor: '#C7D2FE' }}
-                            >
-                                <Zap size={14} color="#6366F1" />
-                                <Text style={{ fontSize: 13, fontWeight: '700', color: '#6366F1' }}>Mark as Refilled</Text>
-                            </Pressable>
-                        )}
-                    </View>
-                )}
-            </Pressable>
-        </Swipeable>
+            )}
+        </View>
     );
 };
 

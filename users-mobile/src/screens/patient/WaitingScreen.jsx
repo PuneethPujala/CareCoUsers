@@ -9,6 +9,7 @@ import {
     Clock, ChevronRight, Sparkles, Star, CheckCircle2
 } from 'lucide-react-native';
 import { colors } from '../../theme';
+import { useAuth } from '../../context/AuthContext';
 
 const { width } = Dimensions.get('window');
 
@@ -51,6 +52,7 @@ const TEAM_STATS = [
 ];
 
 export default function WaitingScreen({ navigation, route }) {
+    const { refreshPatient } = useAuth();
     const plan = route.params?.plan;
     const pulseAnim = useRef(new Animated.Value(1)).current;
     const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -188,7 +190,10 @@ export default function WaitingScreen({ navigation, route }) {
 
             {/* CTA */}
             <View style={styles.ctaContainer}>
-                <Pressable onPress={() => navigation.reset({ index: 0, routes: [{ name: 'PatientTabs' }] })}>
+                <Pressable onPress={async () => {
+                    await refreshPatient();
+                    navigation.reset({ index: 0, routes: [{ name: 'PatientTabs' }] });
+                }}>
                     <LinearGradient
                         colors={[colors.accent, '#1E5FAD']}
                         start={{ x: 0, y: 0 }}

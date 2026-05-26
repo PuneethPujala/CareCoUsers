@@ -22,7 +22,9 @@ import { Linking } from 'react-native';
 import { Lock as LockIcon } from 'lucide-react-native';
 import * as WebBrowser from 'expo-web-browser';
 import usePatientStore from '../../store/usePatientStore';
-
+import * as Sharing from 'expo-sharing';
+import ViewShot from 'react-native-view-shot';
+import { LinearGradient } from 'expo-linear-gradient';
 const C = {
     primary: '#6366F1', primarySoft: '#EEF2FF', dark: '#0F172A', mid: '#334155',
     muted: '#94A3B8', light: '#CBD5E1', border: '#F1F5F9', pageBg: '#F8FAFC',
@@ -68,6 +70,8 @@ export default function PatientProfileScreen({ navigation }) {
     const [loading, setLoading] = useState(true);
     const [mfaEnabled, setMfaEnabled] = useState(false);
     const [accountActionLoading, setAccountActionLoading] = useState(false);
+    const [isSharing, setIsSharing] = useState(false);
+    const shareCardRef = useRef(null);
 
     // Modals
     const [ecModalVisible, setEcModalVisible] = useState(false);
@@ -852,29 +856,27 @@ export default function PatientProfileScreen({ navigation }) {
                             }
                         />
 
-                        <InfoRow icon={FileText} iconBg="#F0FDF4" iconColor="#16A34A" label={t('profile.download_my_data', { defaultValue: 'Download My Data' })} value={null} placeholder={t('profile.export_records', { defaultValue: 'Export your records' })} onPress={async () => {
+                        <InfoRow icon={FileText} iconBg="#F0FDF4" iconColor="#16A34A" label={t('profile.download_my_data', { defaultValue: 'Download My Data' })} value={null} placeholder={isSharing ? t('common.loading', { defaultValue: 'Capturing...' }) : t('profile.export_records', { defaultValue: 'Export your records' })} onPress={async () => {
                             try {
-                                const FileSystem = require('expo-file-system');
-                                const Sharing = require('expo-sharing');
-
-                                const response = await apiService.auth.exportMyData();
-                                const exportData = response?.data || response;
+                                setIsSharing(true);
+                                // Add a small delay to ensure the hidden component has fully rendered off-screen
+                                await new Promise(r => setTimeout(r, 100));
+                                const uri = await shareCardRef.current.capture();
                                 
-                                const filename = `caremymed-export-${Date.now()}.json`;
-                                const fileUri = FileSystem.documentDirectory + filename;
-                                
-                                await FileSystem.writeAsStringAsync(fileUri, JSON.stringify(exportData, null, 2), {
-                                    encoding: FileSystem.EncodingType.UTF8
-                                });
-                                
-                                if (await Sharing.isAvailableAsync()) {
-                                    await Sharing.shareAsync(fileUri);
+                                const isAvailable = await Sharing.isAvailableAsync();
+                                if (isAvailable) {
+                                    await Sharing.shareAsync(uri, {
+                                        dialogTitle: 'My Health Profile',
+                                        mimeType: 'image/png'
+                                    });
                                 } else {
-                                    AlertManager.alert(t('profile.data_export_title', { defaultValue: 'Data Export' }), t('profile.data_export_no_share', { defaultValue: 'Export prepared! Your health record file has been saved to your local storage.' }));
+                                    AlertManager.alert('Success', 'Image generated, but sharing is not available on this device.');
                                 }
                             } catch (e) {
                                 console.warn('Export failed:', e);
-                                AlertManager.alert(t('common.error', { defaultValue: 'Error' }), t('profile.data_export_error', { defaultValue: 'Failed to export data. Make sure your app is updated to compile the latest local modules.' }));
+                                AlertManager.alert(t('common.error', { defaultValue: 'Error' }), 'Failed to generate image.');
+                            } finally {
+                                setIsSharing(false);
                             }
                         }} isLast />
                     </View>
@@ -1465,7 +1467,109 @@ export default function PatientProfileScreen({ navigation }) {
                     </Pressable>
                 </Pressable>
             </Modal>
+            {/* Hidden ID Card for Sharing */}
+            <View style={{ position: 'absolute', top: -10000, left: -10000, width: 1080, height: 1920 }}>
+                <ViewShot ref={shareCardRef} style={{ flex: 1, backgroundColor: '#020617' }} options={{ format: 'png', quality: 1 }}>
+                    <LinearGradient colors={['#0F172A', '#1E1B4B', '#020617']} style={StyleSheet.absoluteFill} />
+                    
+                    {/* Glowing Orbs for background texture */}
+                    <View style={{ position: 'absolute', top: -200, right: -200, width: 800, height: 800, borderRadius: 400, backgroundColor: '#6366F1', opacity: 0.15, transform: [{ scale: 1.5 }] }} />
+                    <View style={{ position: 'absolute', bottom: -100, left: -200, width: 600, height: 600, borderRadius: 300, backgroundColor: '#F43F5E', opacity: 0.1, transform: [{ scale: 1.5 }] }} />
 
+                    <View style={{ flex: 1, padding: 60, justifyContent: 'center' }}>
+                        {/* Header */}
+                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 80 }}>
+                            <Heart size={64} color="#FFF" fill="#FFF" style={{ marginRight: 20 }} />
+                            <Text style={{ fontSize: 56, fontWeight: '900', color: '#FFF', letterSpacing: 4, textTransform: 'uppercase' }}>CareMyMed</Text>
+                        </View>
+
+                        {/* Main Glass Card */}
+                        <View style={{ 
+                            backgroundColor: 'rgba(255,255,255,0.03)', 
+                            borderRadius: 60, 
+                            padding: 60, 
+                            borderWidth: 2, 
+                            borderColor: 'rgba(255,255,255,0.1)',
+                            shadowColor: '#000', shadowOffset: { width: 0, height: 40 }, shadowOpacity: 0.5, shadowRadius: 60
+                        }}>
+                            
+                            {/* Patient Name Area */}
+                            <View style={{ alignItems: 'center', marginBottom: 80, paddingBottom: 60, borderBottomWidth: 2, borderBottomColor: 'rgba(255,255,255,0.05)' }}>
+                                <View style={{ width: 160, height: 160, borderRadius: 80, backgroundColor: 'rgba(99,102,241,0.2)', alignItems: 'center', justifyContent: 'center', marginBottom: 30 }}>
+                                    <User size={80} color="#818CF8" />
+                                </View>
+                                <Text style={{ fontSize: 32, fontWeight: '700', color: '#818CF8', textTransform: 'uppercase', letterSpacing: 3, marginBottom: 16 }}>Health Profile</Text>
+                                <Text style={{ fontSize: 90, fontWeight: '900', color: '#FFF', letterSpacing: -2, textAlign: 'center' }}>
+                                    {patient?.name || displayName}
+                                </Text>
+                            </View>
+
+                            {/* Details Grid */}
+                            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 40, marginBottom: 80 }}>
+                                <View style={{ width: '45%', backgroundColor: 'rgba(255,255,255,0.03)', padding: 40, borderRadius: 32 }}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
+                                        <Calendar size={32} color="#94A3B8" style={{ marginRight: 16 }} />
+                                        <Text style={{ fontSize: 28, fontWeight: '700', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: 1 }}>Date of Birth</Text>
+                                    </View>
+                                    <Text style={{ fontSize: 40, fontWeight: '800', color: '#FFF' }}>{patient?.dob ? new Date(patient.dob).toLocaleDateString() : 'Not Specified'}</Text>
+                                </View>
+                                
+                                <View style={{ width: '45%', backgroundColor: 'rgba(255,255,255,0.03)', padding: 40, borderRadius: 32 }}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
+                                        <Droplets size={32} color="#F43F5E" style={{ marginRight: 16 }} />
+                                        <Text style={{ fontSize: 28, fontWeight: '700', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: 1 }}>Blood Group</Text>
+                                    </View>
+                                    <Text style={{ fontSize: 40, fontWeight: '800', color: '#F43F5E' }}>{patient?.blood_group?.toUpperCase() || 'Unknown'}</Text>
+                                </View>
+                                
+                                <View style={{ width: '45%', backgroundColor: 'rgba(255,255,255,0.03)', padding: 40, borderRadius: 32 }}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
+                                        <Shield size={32} color="#94A3B8" style={{ marginRight: 16 }} />
+                                        <Text style={{ fontSize: 28, fontWeight: '700', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: 1 }}>Emergency Contact</Text>
+                                    </View>
+                                    <Text style={{ fontSize: 40, fontWeight: '800', color: '#FFF' }}>{ecStr}</Text>
+                                </View>
+                                
+                                <View style={{ width: '45%', backgroundColor: 'rgba(255,255,255,0.03)', padding: 40, borderRadius: 32 }}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
+                                        <Phone size={32} color="#94A3B8" style={{ marginRight: 16 }} />
+                                        <Text style={{ fontSize: 28, fontWeight: '700', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: 1 }}>Contact Phone</Text>
+                                    </View>
+                                    <Text style={{ fontSize: 40, fontWeight: '800', color: '#FFF' }}>{patient?.emergency_contact?.phone || 'None'}</Text>
+                                </View>
+                            </View>
+
+                            {/* Medical Data */}
+                            <View style={{ backgroundColor: 'rgba(255,255,255,0.03)', padding: 40, borderRadius: 32, marginBottom: 40 }}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
+                                    <ClipboardList size={32} color="#94A3B8" style={{ marginRight: 16 }} />
+                                    <Text style={{ fontSize: 28, fontWeight: '700', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: 1 }}>Medical Conditions</Text>
+                                </View>
+                                <Text style={{ fontSize: 40, fontWeight: '800', color: '#FFF', lineHeight: 56 }}>
+                                    {patient?.conditions?.length > 0 ? patient.conditions.map(c => c.name).join(' • ') : 'None Reported'}
+                                </Text>
+                            </View>
+
+                            <View style={{ backgroundColor: 'rgba(244,63,94,0.05)', padding: 40, borderRadius: 32, borderWidth: 1, borderColor: 'rgba(244,63,94,0.1)' }}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
+                                    <ShieldCheckIcon size={32} color="#F43F5E" style={{ marginRight: 16 }} />
+                                    <Text style={{ fontSize: 28, fontWeight: '700', color: '#F43F5E', textTransform: 'uppercase', letterSpacing: 1 }}>Allergies</Text>
+                                </View>
+                                <Text style={{ fontSize: 40, fontWeight: '800', color: '#F43F5E', lineHeight: 56 }}>
+                                    {patient?.allergies?.length > 0 ? patient.allergies.map(a => a.name).join(' • ') : 'None Reported'}
+                                </Text>
+                            </View>
+                        </View>
+
+                        {/* Footer */}
+                        <View style={{ alignItems: 'center', marginTop: 80 }}>
+                            <Text style={{ fontSize: 32, fontWeight: '900', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: 6 }}>
+                                caremymed.com
+                            </Text>
+                        </View>
+                    </View>
+                </ViewShot>
+            </View>
 
         </View>
     );

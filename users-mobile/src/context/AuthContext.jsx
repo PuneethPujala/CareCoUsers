@@ -162,17 +162,42 @@ export function AuthProvider({ children }) {
             if (__DEV__) console.log('[Auth] Starting init...');
 
             // Fail-safe: force bootstrapping=false after 6s if init hangs
-            // (e.g. a network call that never resolves on a dead connection).
             const timeoutId = setTimeout(() => {
                 if (__DEV__) console.warn('[Auth] Init timeout — forcing bootstrapping false');
                 setIsBootstrapping(false);
             }, 6000);
 
-            // A5 FIX: The original code nested a try/catch inside the if(apiTok) branch.
-            // That inner catch's closing brace consumed the outer try's brace, leaving
-            // the else block and the final catch(error) with no matching outer try —
-            // a SyntaxError on parse that crashed the module before a single line ran.
-            // Fixed by wrapping the entire if/else in one flat try/catch.
+            // ── FRESH INSTALL / GHOST LOGIN PREVENTION ──
+            // iOS Keychain (SecureStore) survives app uninstalls. AsyncStorage does not.
+            // By comparing an installation ID across both, we can detect if this is a
+            // fresh install that inherited a "ghost" keychain from a previous installation.
+            try {
+                const asyncId = await AsyncStorage.getItem('CareMyMed_install_id');
+                const secureId = await SecureStore.getItemAsync('CareMyMed_install_id').catch(() => null);
+
+                if (!asyncId) {
+                    if (secureId) {
+                        // SecureStore exists but AsyncStorage is gone. This is a reinstall!
+                        // We must wipe the ghost data to ensure a clean slate.
+                        if (__DEV__) console.log('[Auth] Ghost login detected from previous install. Wiping SecureStore...');
+                        await clearApiTokens();
+                        await clearCachedProfile();
+                        try { await auth.signOut(); } catch { }
+                        await SecureStore.deleteItemAsync('CareMyMed_install_id').catch(() => {});
+                    }
+                    
+                    // Generate new install ID for this clean installation
+                    const newId = Date.now().toString();
+                    await AsyncStorage.setItem('CareMyMed_install_id', newId);
+                    await SecureStore.setItemAsync('CareMyMed_install_id', newId).catch(() => {});
+                } else if (!secureId || asyncId !== secureId) {
+                    // Sync the ID if it somehow got mismatched
+                    await SecureStore.setItemAsync('CareMyMed_install_id', asyncId).catch(() => {});
+                }
+            } catch (err) {
+                if (__DEV__) console.warn('[Auth] Ghost login check failed:', err.message);
+            }
+
             try {
                 const apiTok = await getApiTokens();
                 if (__DEV__) console.log('[Auth] API token present:', !!apiTok?.access_token);

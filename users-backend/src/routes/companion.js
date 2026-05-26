@@ -11,6 +11,9 @@ const tokenService = require('../services/tokenService');
 const { logEvent } = require('../services/auditService');
 const Notification = require('../models/Notification');
 const PushNotificationService = require('../utils/pushNotifications');
+const { otpRateLimiter } = require('../middleware/rateLimiter');
+const { createOTP, verifyOTP } = require('../services/otpService');
+const { sendOTPEmail } = require('../services/emailService');
 
 
 /**
@@ -54,6 +57,16 @@ router.post('/join', async (req, res) => {
         let isExistingProfile = false;
 
         if (profile) {
+            // SEC-FIX: CRITICAL VULNERABILITY PATCH
+            // We MUST verify the provided password matches the existing account's password 
+            // before allowing them to link to a new care circle.
+            const bcrypt = require('bcryptjs');
+            const isMatch = await bcrypt.compare(password, profile.passwordHash);
+            if (!isMatch) {
+                // Generic error to prevent aggressive enumeration, though the email existence is implied by the flow
+                return res.status(401).json({ error: 'Incorrect email or password.' });
+            }
+
             // Check if they already have access to this specific patient
             const existingAccess = await CompanionAccess.findOne({ companion_id: profile._id, patient_id: patient._id });
             if (existingAccess) {
@@ -160,6 +173,169 @@ router.post('/join', async (req, res) => {
 
     } catch (err) {
         logger.error('Companion join error', { error: err.message });
+        res.status(500).json({ error: 'Failed to join as companion.' });
+    }
+});
+
+/**
+ * POST /api/companion/check-email
+ * Checks if a companion profile exists for the given email.
+ * If it does, sends an OTP to verify identity (rate-limited).
+ */
+router.post('/check-email', otpRateLimiter, async (req, res) => {
+    try {
+        const { invite_code, email } = req.body;
+        
+        if (!invite_code || !email) {
+            return res.status(400).json({ error: 'Invite code and email are required.' });
+        }
+
+        const patient = await Patient.findOne({
+            invite_code: invite_code.toUpperCase(),
+            invite_code_expires_at: { $gt: new Date() }
+        });
+
+        if (!patient) {
+            return res.status(400).json({ error: 'Invalid or expired invite code.' });
+        }
+
+        const emailNorm = email.toLowerCase().trim();
+        
+        const existingPatient = await Patient.findOne({ email: emailNorm });
+        if (existingPatient) {
+            return res.status(400).json({ error: 'This email is registered to a Patient account. Companions must use a separate email.' });
+        }
+
+        const profile = await Companion.findOne({ email: emailNorm });
+        
+        if (profile) {
+            // Existing companion! Send an OTP.
+            const otp = await createOTP(emailNorm);
+            sendOTPEmail(emailNorm, otp).catch(err => logger.error('OTP email failed', { error: err.message }));
+            return res.json({ exists: true, message: 'If an account exists, a verification code has been sent.' });
+        }
+
+        res.json({ exists: false });
+    } catch (err) {
+        logger.error('Companion check-email error', { error: err.message });
+        res.status(500).json({ error: 'Failed to verify email.' });
+    }
+});
+
+/**
+ * POST /api/companion/join-otp
+ * Verify OTP for an existing companion and link them to the patient.
+ */
+router.post('/join-otp', otpRateLimiter, async (req, res) => {
+    try {
+        const { invite_code, email, otp } = req.body;
+        
+        if (!invite_code || !email || !otp) {
+            return res.status(400).json({ error: 'Invite code, email, and OTP are required.' });
+        }
+
+        const patient = await Patient.findOne({
+            invite_code: invite_code.toUpperCase(),
+            invite_code_expires_at: { $gt: new Date() }
+        });
+
+        if (!patient) {
+            return res.status(400).json({ error: 'Invalid or expired invite code.' });
+        }
+
+        const emailNorm = email.toLowerCase().trim();
+        const profile = await Companion.findOne({ email: emailNorm });
+        
+        if (!profile) {
+            return res.status(404).json({ error: 'Account not found.' });
+        }
+
+        // Verify the OTP
+        const otpResult = await verifyOTP(emailNorm, otp);
+        if (!otpResult.valid) {
+            return res.status(400).json({ error: otpResult.reason });
+        }
+
+        // Link Profile to Patient using CompanionAccess Relationship Model
+        const existingAccess = await CompanionAccess.findOne({ companion_id: profile._id, patient_id: patient._id });
+        if (existingAccess) {
+            if (existingAccess.is_active && existingAccess.status === 'accepted') {
+                // They are already linked but we verified their OTP. Just log them in.
+            } else {
+                // Reactivate existing relationship
+                existingAccess.is_active = true;
+                existingAccess.status = 'accepted';
+                existingAccess.revoked_at = undefined;
+                existingAccess.revoked_by = undefined;
+                await existingAccess.save();
+            }
+        } else {
+            await CompanionAccess.create({
+                companion_id: profile._id,
+                patient_id: patient._id,
+                relationship_type: 'Other',
+                access_level: 'caregiver',
+                permissions: ['read_only', 'alerts'],
+                status: 'accepted',
+                is_active: true,
+                joined_at: new Date(),
+                created_by: profile._id
+            });
+        }
+        
+        // Add to trusted_contacts for backward compatibility
+        const hasContact = patient.trusted_contacts.some(c => c.email.toLowerCase() === emailNorm);
+        if (!hasContact) {
+            patient.trusted_contacts.push({
+                name: profile.fullName,
+                phone: profile.phone || 'N/A',
+                relation: 'Family',
+                email: emailNorm,
+                can_view_data: true,
+                is_primary: false,
+                is_emergency: false,
+                permissions: ['read_only']
+            });
+        }
+
+        // Invalidate the invite code (Single Use)
+        patient.invite_code = undefined;
+        patient.invite_code_expires_at = undefined;
+        await patient.save();
+
+        // Issue Auth Session
+        const tokens = await tokenService.issueTokenPair(
+            {
+                userId: profile._id,
+                userType: 'Companion',
+                subject: profile.supabaseUid,
+                role: 'companion',
+                email: profile.email,
+                emailVerified: true,
+            },
+            req
+        );
+
+        await logEvent(profile.supabaseUid, 'companion_joined_otp', 'companion', profile._id, req, { patientId: patient._id });
+
+        res.status(200).json({
+            message: 'Successfully linked to new patient via OTP.',
+            session: {
+                access_token: tokens.access_token,
+                refresh_token: tokens.refresh_token,
+                expires_in: tokens.expires_in,
+                expires_at: tokens.expires_at,
+                user: { id: profile.supabaseUid, email: profile.email },
+            },
+            profile: {
+                id: profile._id,
+                email: profile.email,
+                fullName: profile.fullName,
+                role: profile.role,
+            }
+        });
+    } catch (err) {
+        logger.error('Companion join-otp error', { error: err.message });
         res.status(500).json({ error: 'Failed to join as companion.' });
     }
 });

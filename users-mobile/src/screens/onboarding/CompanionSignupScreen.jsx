@@ -5,6 +5,9 @@ import SmartInput from '../../components/ui/SmartInput';
 import { apiService } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 
+import { OTPBoxes } from './components';
+import { parseError } from '../../utils/parseError';
+
 const C = {
     bg: '#F8FAFC',
     surface: '#FFFFFF',
@@ -16,6 +19,8 @@ const C = {
     muted: '#94A3B8',
     danger: '#EF4444',
     border: '#E2E8F0',
+    success: '#10B981',
+    successSoft: '#D1FAE5',
 };
 
 const FONT = {
@@ -33,16 +38,22 @@ export default function CompanionSignupScreen({ navigation }) {
     // Step 1
     const [inviteCode, setInviteCode] = useState('');
     
-    // Step 2
-    const [fullName, setFullName] = useState('');
+    // Step 2 & 3 State
     const [email, setEmail] = useState('');
+    const [isExisting, setIsExisting] = useState(false);
+    
+    // Step 3A (New User)
+    const [fullName, setFullName] = useState('');
     const [phone, setPhone] = useState('');
     const [password, setPassword] = useState('');
+
+    // Step 3B (Existing User)
+    const [otp, setOtp] = useState('');
     
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
-    const handleNext = () => {
+    const handleNextStep1 = () => {
         if (!inviteCode || inviteCode.length < 6) {
             setError('Please enter a valid 6-character invite code.');
             return;
@@ -51,9 +62,10 @@ export default function CompanionSignupScreen({ navigation }) {
         setStep(2);
     };
 
-    const handleJoin = async () => {
-        if (!fullName || !email || !password) {
-            setError('Please fill in all required fields.');
+    const handleNextStep2 = async () => {
+        const cleanEmail = email.trim().toLowerCase();
+        if (!cleanEmail || !/\S+@\S+\.\S+/.test(cleanEmail)) {
+            setError('Please enter a valid email address.');
             return;
         }
         
@@ -61,10 +73,33 @@ export default function CompanionSignupScreen({ navigation }) {
         setError('');
 
         try {
-            // Note: We bypass the normal auth loop here because it's a specialized endpoint
+            const res = await apiService.companion.checkEmail({ invite_code: inviteCode, email: cleanEmail });
+            if (res.data.exists) {
+                setIsExisting(true);
+            } else {
+                setIsExisting(false);
+            }
+            setStep(3);
+        } catch (err) {
+            setError(err.response?.data?.error || 'Failed to verify email. Please check your invite code.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleJoinNew = async () => {
+        if (!fullName || !password) {
+            setError('Please provide your name and a strong password.');
+            return;
+        }
+        
+        setLoading(true);
+        setError('');
+
+        try {
             const res = await apiService.companion.join({
                 invite_code: inviteCode,
-                email,
+                email: email.trim().toLowerCase(),
                 password,
                 fullName,
                 phone
@@ -74,7 +109,33 @@ export default function CompanionSignupScreen({ navigation }) {
                 await injectSession(res.data.session, res.data.profile);
             }
         } catch (err) {
-            setError(err.response?.data?.error || 'Failed to join as companion.');
+            setError(err.response?.data?.error || 'Failed to create companion account.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleJoinExisting = async () => {
+        if (!otp || otp.length < 6) {
+            setError('Please enter the 6-digit verification code.');
+            return;
+        }
+        
+        setLoading(true);
+        setError('');
+
+        try {
+            const res = await apiService.companion.joinOtp({
+                invite_code: inviteCode,
+                email: email.trim().toLowerCase(),
+                otp
+            });
+            
+            if (res.data.session && res.data.profile) {
+                await injectSession(res.data.session, res.data.profile);
+            }
+        } catch (err) {
+            setError(err.response?.data?.error || 'Failed to verify code and link account.');
         } finally {
             setLoading(false);
         }
@@ -83,12 +144,13 @@ export default function CompanionSignupScreen({ navigation }) {
     return (
         <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
             <View style={styles.header}>
-                <Pressable onPress={() => { step === 2 ? setStep(1) : navigation.goBack() }} style={styles.backBtn} hitSlop={15}>
+                <Pressable onPress={() => { step > 1 ? setStep(step - 1) : navigation.goBack() }} style={styles.backBtn} hitSlop={15}>
                     <ChevronLeft color={C.dark} size={24} />
                 </Pressable>
                 <View style={styles.progressContainer}>
                     <View style={[styles.progressDot, step >= 1 && styles.progressDotActive]} />
                     <View style={[styles.progressDot, step >= 2 && styles.progressDotActive]} />
+                    <View style={[styles.progressDot, step >= 3 && styles.progressDotActive]} />
                 </View>
             </View>
 
@@ -105,7 +167,7 @@ export default function CompanionSignupScreen({ navigation }) {
                     </View>
                 ) : null}
 
-                {step === 1 ? (
+                {step === 1 && (
                     <View style={styles.stepContainer}>
                         <Text style={styles.subtitle}>Enter the 6-character invite code provided by your family member.</Text>
                         
@@ -119,13 +181,39 @@ export default function CompanionSignupScreen({ navigation }) {
                             style={{ marginBottom: 24 }}
                         />
 
-                        <Pressable style={styles.btn} onPress={handleNext}>
+                        <Pressable style={styles.btn} onPress={handleNextStep1}>
                             <Text style={styles.btnText}>Continue</Text>
                         </Pressable>
                     </View>
-                ) : (
+                )}
+
+                {step === 2 && (
                     <View style={styles.stepContainer}>
-                        <Text style={styles.subtitle}>Create your secure companion account.</Text>
+                        <Text style={styles.subtitle}>Enter your email address to continue linking to their care circle.</Text>
+
+                        <SmartInput
+                            label="EMAIL ADDRESS"
+                            placeholder="name@example.com"
+                            value={email}
+                            onChangeText={(v) => { setEmail(v); setError(''); }}
+                            keyboardType="email-address"
+                            autoCapitalize="none"
+                            leftAccessory={<Mail size={18} color={C.muted} style={{ marginRight: 8 }} />}
+                            style={{ marginBottom: 24 }}
+                        />
+
+                        <Pressable style={[styles.btn, loading && { opacity: 0.7 }]} onPress={handleNextStep2} disabled={loading}>
+                            {loading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.btnText}>Continue</Text>}
+                        </Pressable>
+                    </View>
+                )}
+
+                {step === 3 && !isExisting && (
+                    <View style={styles.stepContainer}>
+                        <View style={styles.badgeBox}>
+                            <Text style={styles.badgeText}>New CareMyMed Account</Text>
+                        </View>
+                        <Text style={styles.subtitle}>Let's create your companion profile to securely monitor their care.</Text>
 
                         <SmartInput
                             label="FULL NAME"
@@ -133,16 +221,6 @@ export default function CompanionSignupScreen({ navigation }) {
                             value={fullName}
                             onChangeText={setFullName}
                             leftAccessory={<User size={18} color={C.muted} style={{ marginRight: 8 }} />}
-                            style={{ marginBottom: 16 }}
-                        />
-                        <SmartInput
-                            label="EMAIL"
-                            placeholder="john@example.com"
-                            value={email}
-                            onChangeText={setEmail}
-                            keyboardType="email-address"
-                            autoCapitalize="none"
-                            leftAccessory={<Mail size={18} color={C.muted} style={{ marginRight: 8 }} />}
                             style={{ marginBottom: 16 }}
                         />
                         <SmartInput
@@ -154,7 +232,7 @@ export default function CompanionSignupScreen({ navigation }) {
                             style={{ marginBottom: 16 }}
                         />
                         <SmartInput
-                            label="PASSWORD"
+                            label="CREATE PASSWORD"
                             placeholder="Create a strong password"
                             value={password}
                             onChangeText={setPassword}
@@ -163,8 +241,30 @@ export default function CompanionSignupScreen({ navigation }) {
                             style={{ marginBottom: 24 }}
                         />
 
-                        <Pressable style={[styles.btn, loading && { opacity: 0.7 }]} onPress={handleJoin} disabled={loading}>
-                            {loading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.btnText}>Join Care Circle</Text>}
+                        <Pressable style={[styles.btn, loading && { opacity: 0.7 }]} onPress={handleJoinNew} disabled={loading}>
+                            {loading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.btnText}>Create & Join Circle</Text>}
+                        </Pressable>
+                    </View>
+                )}
+
+                {step === 3 && isExisting && (
+                    <View style={styles.stepContainer}>
+                        <View style={styles.successBadgeBox}>
+                            <Text style={styles.successBadgeText}>Account Recognized</Text>
+                        </View>
+                        <Text style={styles.subtitle}>
+                            Welcome back! We sent a 6-digit verification code to <Text style={{ ...FONT.bold, color: C.dark }}>{email}</Text>. Enter it below to securely link this care circle.
+                        </Text>
+
+                        <OTPBoxes
+                            value={otp}
+                            onChange={(v) => { setOtp(v); setError(''); }}
+                            length={6}
+                            editable={!loading}
+                        />
+
+                        <Pressable style={[styles.btn, { marginTop: 20 }, loading && { opacity: 0.7 }]} onPress={handleJoinExisting} disabled={loading}>
+                            {loading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.btnText}>Verify & Join Circle</Text>}
                         </Pressable>
                     </View>
                 )}
@@ -202,4 +302,8 @@ const styles = StyleSheet.create({
     btnText: { color: '#FFF', fontSize: 16, ...FONT.bold },
     errorBox: { backgroundColor: '#FEF2F2', padding: 12, borderRadius: 12, marginBottom: 20 },
     errorText: { color: C.danger, fontSize: 14, ...FONT.medium },
+    badgeBox: { backgroundColor: C.primarySoft, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, alignSelf: 'flex-start', marginBottom: 12 },
+    badgeText: { color: C.primaryDark, fontSize: 12, ...FONT.bold, textTransform: 'uppercase', letterSpacing: 0.5 },
+    successBadgeBox: { backgroundColor: C.successSoft, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, alignSelf: 'flex-start', marginBottom: 12 },
+    successBadgeText: { color: '#065F46', fontSize: 12, ...FONT.bold, textTransform: 'uppercase', letterSpacing: 0.5 },
 });
