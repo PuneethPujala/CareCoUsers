@@ -43,24 +43,30 @@ function buildSessionUser(subject, email, emailVerified) {
 }
 
 function resolveIdentity(patient, deactivated, profile, companion, requestedRole = null) {
-  // Priority 1: If companion exists in dedicated collection, it ALWAYS wins (to resolve companion identity and avoid duplicate patient onboarding)
-  if (companion) {
-    return { account: companion, isPatient: false, isCompanion: true };
-  }
-
-  // Priority 1b: Legacy fallback for companion role in profiles
-  if (profile && profile.role === 'companion') {
-    return { account: profile, isPatient: false };
-  }
-
-  // Priority 2: If a requestedRole was provided, let it guide the choice when both exist (supports standard staff vs patient separation)
+  // Priority 1: If a requestedRole was provided, let it guide the choice when matches exist (supports patient, companion, and staff separation)
   if (requestedRole) {
     if (requestedRole === 'patient' && patient) {
       return { account: patient, isPatient: true };
     }
-    if (requestedRole !== 'patient' && profile) {
+    if (requestedRole === 'companion' && companion) {
+      return { account: companion, isPatient: false, isCompanion: true };
+    }
+    if (requestedRole === 'companion' && profile && profile.role === 'companion') {
       return { account: profile, isPatient: false };
     }
+    if (requestedRole !== 'patient' && requestedRole !== 'companion' && profile) {
+      return { account: profile, isPatient: false };
+    }
+  }
+
+  // Priority 2: If companion exists in dedicated collection, it wins fallback
+  if (companion) {
+    return { account: companion, isPatient: false, isCompanion: true };
+  }
+
+  // Priority 2b: Legacy fallback for companion role in profiles
+  if (profile && profile.role === 'companion') {
+    return { account: profile, isPatient: false };
   }
 
   // Priority 3: Active (or reactivated) patient
@@ -224,8 +230,8 @@ async function registerPatient(body, req) {
   }
 
   // 2. Resolve conflicts / link OAuth for existing Profile (Legacy companion)
-  if (existingProfile) {
-    if (isOAuth && existingProfile.role === 'companion') {
+  if (existingProfile && existingProfile.role === 'companion') {
+    if (isOAuth) {
       // Overwrite Guard: if supabaseUid is already set, verify they match!
       const isPlaceholder = existingProfile.supabaseUid && existingProfile.supabaseUid.startsWith('cmp_');
       if (existingProfile.supabaseUid && existingProfile.supabaseUid !== supabaseUid && !isPlaceholder) {
@@ -855,15 +861,6 @@ async function createStaffUser(body, req, actorProfile) {
   if (existingProfile) {
     const err = new Error(`A user with the email "${email}" already exists.`);
     err.status = 400;
-    throw err;
-  }
-
-  // Cross-collection uniqueness: also check Patient collection
-  const existingPatient = await Patient.findOne({ email: emailNorm, is_active: true });
-  if (existingPatient) {
-    const err = new Error('This email is already associated with a patient account.');
-    err.status = 400;
-    err.code = 'EMAIL_ALREADY_EXISTS';
     throw err;
   }
 

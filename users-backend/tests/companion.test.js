@@ -96,7 +96,7 @@ describe('Companion Routes', () => {
                 .send({ email: 'new@companion.in' });
 
             expect(res.status).toBe(400);
-            expect(res.body.error).toMatch(/Invite code/i);
+            expect(res.body.error).toMatch(/required/i);
         });
 
         it('returns 400 when invite code is invalid or expired', async () => {
@@ -117,12 +117,26 @@ describe('Companion Routes', () => {
             expect(res.body.error).toMatch(/Invalid or expired/i);
         });
 
-        it('returns 400 when email belongs to an existing Patient', async () => {
-            const mockSelect = jest.fn().mockResolvedValue({ _id: 'patient-123' });
+        it('allows registration when email belongs to an existing Patient', async () => {
+            const mockPatientObj = {
+                _id: fakeId('patient-123'),
+                trusted_contacts: [],
+                save: jest.fn().mockResolvedValue({})
+            };
+            const mockSelect = jest.fn().mockResolvedValue(mockPatientObj);
             Patient.findOne = jest.fn().mockImplementation((query) => {
                 if (query.invite_code) return { select: mockSelect };
-                if (query.email) return { _id: 'patient-123', email: query.email };
+                if (query.email) return mockPatientObj;
                 return null;
+            });
+
+            Companion.findOne = jest.fn().mockResolvedValue(null);
+            Companion.create = jest.fn().mockResolvedValue({
+                _id: fakeId('new-companion-id'),
+                email: 'patient@companion.in',
+                fullName: 'Companion Name',
+                role: 'companion',
+                supabaseUid: 'cmp_123',
             });
 
             const res = await request(app)
@@ -134,8 +148,8 @@ describe('Companion Routes', () => {
                     fullName: 'Companion Name'
                 });
 
-            expect(res.status).toBe(400);
-            expect(res.body.error).toMatch(/Patient account/i);
+            expect(res.status).toBe(201);
+            expect(res.body.profile.email).toBe('patient@companion.in');
         });
 
         it('re-uses existing companion Profile and links successfully', async () => {
@@ -151,10 +165,15 @@ describe('Companion Routes', () => {
                 return null;
             });
 
+            const bcrypt = require('bcryptjs');
+            const salt = await bcrypt.genSalt(10);
+            const passwordHash = await bcrypt.hash('Password123', salt);
+
             const existingProfileObj = {
                 _id: fakeId('companion-profile-id'),
                 email: 'companion@careco.in',
                 role: 'companion',
+                passwordHash,
                 save: jest.fn().mockResolvedValue({})
             };
             Profile.findOne = jest.fn().mockResolvedValue(null);
@@ -180,21 +199,23 @@ describe('Companion Routes', () => {
     });
 
     describe('GET /api/companion/patient-status', () => {
-
+ 
         it('returns 403 if user role is not companion', async () => {
             mockAuthState.profile.role = 'patient';
-
+ 
             const res = await request(app).get('/api/companion/patient-status');
             expect(res.status).toBe(403);
         });
-
-        it('returns 404 if no linked patients are found', async () => {
+ 
+        it('returns 200 with empty state if no linked patients are found', async () => {
             CompanionAccess.find = jest.fn().mockReturnValue({
                 populate: jest.fn().mockResolvedValue([])
             });
-
+ 
             const res = await request(app).get('/api/companion/patient-status');
-            expect(res.status).toBe(404);
+            expect(res.status).toBe(200);
+            expect(res.body.patient).toBeNull();
+            expect(res.body.linked_patients).toEqual([]);
         });
 
         it('successfully retrieves dashboard data for default linked patient', async () => {

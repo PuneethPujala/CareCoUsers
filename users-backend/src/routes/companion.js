@@ -47,12 +47,6 @@ router.post('/join', async (req, res) => {
         // NOTE: We intentionally do NOT block patient emails here.
         // A patient can also be a companion (e.g., caring for an elderly parent).
 
-        // Check if there is an existing Staff Profile with this email
-        const existingStaff = await Profile.findOne({ email: emailNorm });
-        if (existingStaff) {
-            return res.status(400).json({ error: 'An account with this email already exists.' });
-        }
-
         let profile = await Companion.findOne({ email: emailNorm });
         let isExistingProfile = false;
 

@@ -52,6 +52,7 @@ jest.mock('@supabase/supabase-js', () => ({
 jest.mock('../src/models/Profile');
 jest.mock('../src/models/Patient');
 jest.mock('../src/models/Organization');
+jest.mock('../src/models/Companion');
 jest.mock('../src/models/AuditLog', () => ({
     createLog: jest.fn().mockResolvedValue(undefined),
 }));
@@ -124,6 +125,7 @@ const app          = require('../src/server');
 const Profile      = require('../src/models/Profile');
 const Patient      = require('../src/models/Patient');
 const Organization = require('../src/models/Organization');
+const Companion    = require('../src/models/Companion');
 const { logEvent, logSecurityEvent } = require('../src/services/auditService');
 const { sendTempPasswordEmail }      = require('../src/services/emailService');
 const tokenService = require('../src/services/tokenService');
@@ -168,6 +170,7 @@ describe('Auth Routes', () => {
     const originalProfileFindOne = Profile.findOne;
     const originalProfileFindById = Profile.findById;
     const originalProfileSave = Profile.prototype.save;
+    const originalCompanionFindOne = Companion.findOne;
     const originalOrgFindOne = Organization.findOne;
     const originalOrgFindById = Organization.findById;
     const originalOrgFindByIdAndUpdate = Organization.findByIdAndUpdate;
@@ -182,6 +185,8 @@ describe('Auth Routes', () => {
         Profile.findOne = originalProfileFindOne;
         Profile.findById = originalProfileFindById;
         Profile.prototype.save = originalProfileSave;
+        Companion.findOne = originalCompanionFindOne;
+        Companion.findOne = jest.fn().mockResolvedValue(null);
         Organization.findOne = originalOrgFindOne;
         Organization.findById = originalOrgFindById;
         Organization.findByIdAndUpdate = originalOrgFindByIdAndUpdate;
