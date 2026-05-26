@@ -54,6 +54,11 @@ class OfflineSyncService {
             const remainingQueue = [];
 
             for (const item of queue) {
+                if (item.nextRetryTime && Date.now() < item.nextRetryTime) {
+                    remainingQueue.push(item);
+                    continue;
+                }
+
                 let success = false;
                 try {
                     // Route the mutation to the correct API call
@@ -64,6 +69,10 @@ class OfflineSyncService {
                             break;
                         case 'MARK_SLOT_TAKEN':
                             await apiService.medicines.markSlotTaken(item.payload);
+                            success = true;
+                            break;
+                        case 'LOG_VITALS':
+                            await apiService.patients.logVitals(item.payload);
                             success = true;
                             break;
                         // Add more offline-capable mutations here in the future
@@ -79,7 +88,10 @@ class OfflineSyncService {
                         console.warn(`[OfflineSync] Dropping invalid mutation (4xx error):`, error.message);
                         success = true; // Drop it
                     } else {
-                        console.warn(`[OfflineSync] Sync failed, keeping in queue:`, error.message);
+                        item.retryCount = (item.retryCount || 0) + 1;
+                        const backoffMs = Math.min(1000 * Math.pow(2, item.retryCount), 3600000); // Max 1 hour
+                        item.nextRetryTime = Date.now() + backoffMs;
+                        console.warn(`[OfflineSync] Sync failed, backing off for ${backoffMs/1000}s. Error:`, error.message);
                         success = false; // Keep it
                     }
                 }

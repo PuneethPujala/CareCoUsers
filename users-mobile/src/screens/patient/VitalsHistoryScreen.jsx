@@ -19,6 +19,7 @@ import axiosInstance, { handleAxiosError } from '../../lib/axiosInstance';
 import { apiService } from '../../lib/api';
 import { colors, layout } from '../../theme';
 import SmartInput from '../../components/ui/SmartInput';
+import OfflineSyncService from '../../lib/OfflineSyncService';
 
 // ─── Skeleton Loader ──────────────────────────────────────────
 const SkeletonItem = ({ width, height, borderRadius = 8, style }) => {
@@ -272,17 +273,33 @@ export default function VitalsHistoryScreen({ navigation }) {
         if (!hr || !sys || !dia || !o2 || !hyd) { setFormError('All fields are required.'); return; }
         try {
             setLoading(true);
-            await apiService.patients.logVitals({
-                date: new Date().toISOString(),
+            const payload = {
+                date: new Date().toISOString(), // Preserves the exact moment of measurement
                 heart_rate: hr,
                 blood_pressure: { systolic: sys, diastolic: dia },
                 oxygen_saturation: o2,
                 hydration: hyd,
-            });
-            setIsLogging(false);
-            setFormValues({ heart_rate: '', systolic: '', diastolic: '', oxygen_saturation: '', hydration: '' });
-            DeviceEventEmitter.emit('VITALS_UPDATED');
-            fetchAllData();
+            };
+
+            if (isOffline) {
+                await OfflineSyncService.enqueueMutation({
+                    type: 'LOG_VITALS',
+                    payload
+                });
+                // Optimistically clear form and show success
+                setIsLogging(false);
+                setFormValues({ heart_rate: '', systolic: '', diastolic: '', oxygen_saturation: '', hydration: '' });
+                
+                // Add to local state optimistically
+                setVitals(prev => [payload, ...prev]);
+                
+            } else {
+                await apiService.patients.logVitals(payload);
+                setIsLogging(false);
+                setFormValues({ heart_rate: '', systolic: '', diastolic: '', oxygen_saturation: '', hydration: '' });
+                DeviceEventEmitter.emit('VITALS_UPDATED');
+                fetchAllData();
+            }
         } catch (err) {
             setFormError(handleAxiosError(err));
         } finally {
@@ -401,10 +418,17 @@ export default function VitalsHistoryScreen({ navigation }) {
                             <Text style={styles.heroEyebrow}>Latest Reading</Text>
                             <Text style={styles.heroDate}>{readingDate} · {readingTime}</Text>
                         </View>
-                        <View style={styles.heroLiveBadge}>
-                            <View style={styles.heroLiveDot} />
-                            <Text style={styles.heroLiveText}>Live</Text>
-                        </View>
+                        {!latest._id ? (
+                            <View style={[styles.heroLiveBadge, { backgroundColor: 'rgba(255,255,255,0.2)', borderColor: 'rgba(255,255,255,0.3)', opacity: 0.8 }]}>
+                                <Clock size={10} color="#FFFFFF" style={{ marginRight: 4 }} />
+                                <Text style={styles.heroLiveText}>Pending Sync</Text>
+                            </View>
+                        ) : (
+                            <View style={styles.heroLiveBadge}>
+                                <View style={styles.heroLiveDot} />
+                                <Text style={styles.heroLiveText}>Live</Text>
+                            </View>
+                        )}
                     </View>
                     <View style={styles.heroChipsRow}>
                         {METRIC_CHIPS.map(m => (
@@ -720,12 +744,14 @@ export default function VitalsHistoryScreen({ navigation }) {
 
     // ─── Render: Error Banner ────────────────────────────────────
     const renderErrorBanner = () => {
-        if (!error) return null;
+        if (!error && !isOffline) return null;
         return (
-            <View style={styles.errorBanner}>
-                {isOffline ? <WifiOff size={18} color="#DC2626" /> : <AlertTriangle size={18} color="#DC2626" />}
-                <Text style={styles.errorText}>{error}</Text>
-                {!isOffline && (
+            <View style={[styles.errorBanner, isOffline && { backgroundColor: '#FEF2F2', borderColor: '#FECACA' }]}>
+                {isOffline ? <Clock size={18} color="#DC2626" /> : <AlertTriangle size={18} color="#DC2626" />}
+                <Text style={styles.errorText}>
+                    {isOffline ? 'Offline Mode Active. Changes will sync automatically when connected.' : error}
+                </Text>
+                {!isOffline && error && (
                     <Pressable style={styles.retryBtn} onPress={fetchAllData}>
                         <RefreshCw size={13} color="#FFF" />
                         <Text style={styles.retryText}>Retry</Text>

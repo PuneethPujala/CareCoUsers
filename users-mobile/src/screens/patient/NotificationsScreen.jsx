@@ -6,9 +6,11 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import {
     X, Pill, Heart, Calendar, AlertCircle, MessageSquare,
-    BellOff, PhoneMissed, CheckCheck, Bell,
+    BellOff, PhoneMissed, CheckCheck, Bell, ShieldAlert,
 } from 'lucide-react-native';
 import { apiService } from '../../lib/api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as IntentLauncher from 'expo-intent-launcher';
 
 // ─── Skeleton Loader ──────────────────────────────────────────
 const SkeletonItem = ({ width, height, borderRadius = 8, style }) => {
@@ -57,6 +59,7 @@ export default function NotificationsScreen({ navigation }) {
     const [notifications, setNotifications] = useState([]);
     // Ref so we can check staleness inside async callbacks without stale closures
     const notificationsRef = useRef([]);
+    const [showBatteryPrompt, setShowBatteryPrompt] = useState(false);
 
     // ─── Fetch all notification data ─────────────────────────────────────────
     const fetchContext = useCallback(async () => {
@@ -272,11 +275,22 @@ export default function NotificationsScreen({ navigation }) {
         }
     }, []);
 
+    const checkBatteryPrompt = useCallback(async () => {
+        if (Platform.OS !== 'android') return;
+        try {
+            const dismissed = await AsyncStorage.getItem('@battery_prompt_dismissed');
+            if (!dismissed) {
+                setShowBatteryPrompt(true);
+            }
+        } catch (e) {}
+    }, []);
+
     // ─── Focus effect — stable, no infinite loop ──────────────────────────────
     useFocusEffect(
         useCallback(() => {
             fetchContext();
-        }, [fetchContext])
+            checkBatteryPrompt();
+        }, [fetchContext, checkBatteryPrompt])
     );
 
     // ─── Mark a single backend notification as read, then navigate ────────────
@@ -334,6 +348,22 @@ export default function NotificationsScreen({ navigation }) {
             setMarkingAll(false);
         }
     }, [notifications, markingAll]);
+
+    // ─── Battery Optimization Action ──────────────────────────────────────────
+    const handleBatteryAction = async () => {
+        try {
+            await IntentLauncher.startActivityAsync(IntentLauncher.ActivityAction.IGNORE_BATTERY_OPTIMIZATION_SETTINGS);
+        } catch (e) {
+            console.warn('Failed to open battery settings:', e);
+        }
+    };
+
+    const handleDismissBatteryPrompt = async () => {
+        setShowBatteryPrompt(false);
+        try {
+            await AsyncStorage.setItem('@battery_prompt_dismissed', 'true');
+        } catch (e) {}
+    };
 
     // ─── Derived data ─────────────────────────────────────────────────────────
     const unreadBackendCount = notifications.filter(n => n.isBackend && !n.isRead).length;
@@ -417,6 +447,27 @@ export default function NotificationsScreen({ navigation }) {
                 contentContainerStyle={s.listContent}
                 showsVerticalScrollIndicator={false}
             >
+                {/* ── Battery Optimization Banner (Android Only) ── */}
+                {showBatteryPrompt && (
+                    <View style={s.batteryBanner}>
+                        <View style={s.batteryBannerTop}>
+                            <View style={s.batteryIconWrap}>
+                                <ShieldAlert size={20} color="#EA580C" strokeWidth={2.5} />
+                            </View>
+                            <View style={{ flex: 1 }}>
+                                <Text style={s.batteryTitle}>Ensure Reminders Fire On Time</Text>
+                                <Text style={s.batteryDesc}>Android may delay or block your medication reminders to save battery. Tap below to disable battery optimization for CareMyMed.</Text>
+                            </View>
+                            <Pressable style={s.batteryClose} onPress={handleDismissBatteryPrompt} hitSlop={15}>
+                                <X size={16} color="#9A3412" />
+                            </Pressable>
+                        </View>
+                        <Pressable style={s.batteryBtn} onPress={handleBatteryAction}>
+                            <Text style={s.batteryBtnTxt}>Open Settings</Text>
+                        </Pressable>
+                    </View>
+                )}
+
                 {loading ? (
                     <View style={{ marginTop: 8 }}>
                         {[1, 2, 3, 4, 5].map(i => (
@@ -583,4 +634,34 @@ const s = StyleSheet.create({
     },
     emptyTitle: { fontSize: 18, fontWeight: '800', color: C.dark, marginBottom: 8, textAlign: 'center' },
     emptyBody: { fontSize: 14, fontWeight: '500', color: C.muted, textAlign: 'center', lineHeight: 22 },
+
+    // ── Battery Banner ──
+    batteryBanner: {
+        backgroundColor: '#FFF7ED',
+        borderRadius: 16,
+        padding: 16,
+        marginBottom: 20,
+        borderWidth: 1,
+        borderColor: '#FED7AA',
+    },
+    batteryBannerTop: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        marginBottom: 12,
+    },
+    batteryIconWrap: {
+        width: 36, height: 36, borderRadius: 10,
+        backgroundColor: '#FFEDD5', alignItems: 'center', justifyContent: 'center',
+        marginRight: 12,
+    },
+    batteryTitle: { fontSize: 14, fontWeight: '800', color: '#9A3412', marginBottom: 4 },
+    batteryDesc: { fontSize: 12, fontWeight: '500', color: '#C2410C', lineHeight: 18, paddingRight: 8 },
+    batteryClose: { padding: 4 },
+    batteryBtn: {
+        backgroundColor: '#EA580C',
+        paddingVertical: 10,
+        borderRadius: 10,
+        alignItems: 'center',
+    },
+    batteryBtnTxt: { fontSize: 13, fontWeight: '800', color: '#FFFFFF' },
 });
