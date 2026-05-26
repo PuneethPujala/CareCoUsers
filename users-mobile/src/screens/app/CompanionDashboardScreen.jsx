@@ -127,6 +127,44 @@ export default function CompanionDashboardScreen() {
 
     if (!data) return <View style={styles.container} />;
 
+    if (!data.patient) {
+        return (
+            <View style={styles.container}>
+                <View style={styles.header}>
+                    <View>
+                        <Text style={styles.headerSub}>Family Care Portal</Text>
+                        <Text style={styles.title}>Welcome!</Text>
+                    </View>
+                </View>
+                <View style={[styles.linkContainer, { marginTop: 40, marginHorizontal: 20 }]}>
+                    <Text style={styles.linkTitle}>Link New Patient</Text>
+                    <View style={styles.linkInputRow}>
+                        <TextInput
+                            style={styles.linkInput}
+                            placeholder="Enter 6-char Invite Code"
+                            placeholderTextColor={C.light}
+                            value={linkCode}
+                            onChangeText={(v) => setLinkCode(v.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6))}
+                            autoCapitalize="characters"
+                        />
+                        <Pressable 
+                            style={[styles.linkBtn, (!linkCode || linkCode.length < 6 || linking) && { opacity: 0.7 }]} 
+                            onPress={handleLinkPatient}
+                            disabled={!linkCode || linkCode.length < 6 || linking}
+                        >
+                            {linking ? <ActivityIndicator color="#FFF" size="small" /> : <Text style={styles.linkBtnText}>Link</Text>}
+                        </Pressable>
+                    </View>
+                </View>
+                <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 }}>
+                    <ShieldCheck size={64} color={C.primaryLight} style={{ marginBottom: 20 }} />
+                    <Text style={{ fontSize: 18, ...FONT.bold, color: C.dark, textAlign: 'center', marginBottom: 8 }}>No Patients Linked</Text>
+                    <Text style={{ fontSize: 14, ...FONT.medium, color: C.mid, textAlign: 'center', lineHeight: 22 }}>Enter an invite code above to start monitoring your loved one's health.</Text>
+                </View>
+            </View>
+        );
+    }
+
     const adherence = data.patient.adherence_rate !== null ? data.patient.adherence_rate : 0;
     
     // BP validation: handle empty BP readings gracefully

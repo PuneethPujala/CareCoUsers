@@ -378,7 +378,7 @@ router.get('/patient-status', authenticate, async (req, res) => {
         }).populate('patient_id', 'name email phone avatar_url healthScoreCache gamification');
         
         if (accesses.length === 0) {
-            return res.status(404).json({ error: 'No linked patients found or access revoked.' });
+            return res.status(200).json({ linked_patients: [], patient: null });
         }
 
         // Default to the first linked patient, or a specific patientId if requested
