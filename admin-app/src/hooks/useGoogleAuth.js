@@ -2,40 +2,40 @@ import { useState, useCallback, useMemo } from 'react';
 import * as WebBrowser from 'expo-web-browser';
 import { makeRedirectUri } from 'expo-auth-session';
 import { supabase } from '../lib/supabase';
-import { apiService } from '../lib/api';
+import { apiService, getApiBaseUrl } from '../lib/api';
 
-// Dismiss any lingering browser sessions
 WebBrowser.maybeCompleteAuthSession();
 
 /**
- * Google OAuth via Supabase (clean implementation).
+ * Google OAuth via Supabase.
  *
- * Uses expo-auth-session's makeRedirectUri to generate the correct
- * redirect URL for the current environment (Expo Go vs standalone APK).
- *
- * Flow:
- * 1. Generate redirect URI using makeRedirectUri (handles exp:// vs custom scheme)
- * 2. Ask Supabase for a Google OAuth URL with that redirect
- * 3. Open the browser for Google sign-in
- * 4. Browser redirects back to the app with tokens
- * 5. Extract tokens, set Supabase session, then validate with our backend
+ * For Expo Go: Uses backend HTTP trampoline because Supabase rejects exp:// URLs.
+ * For APK: Uses careco-admin:// direct redirect (no trampoline needed).
  */
 export default function useGoogleAuth() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
 
-    // Generate the redirect URI using expo-auth-session
-    // This automatically handles:
-    //   - Expo Go: exp://10.x.x.x:8081/--/auth/callback
-    //   - Standalone APK: careco-admin://auth/callback
-    const redirectUri = useMemo(() => {
-        const uri = makeRedirectUri({
-            scheme: 'careco-admin',
-            path: 'auth/callback',
-        });
-        console.log('[GoogleAuth] Redirect URI:', uri);
+    // The deep link the app listens for (exp:// in Expo Go, careco-admin:// in APK)
+    const appDeepLink = useMemo(() => {
+        const uri = makeRedirectUri({ path: 'auth/callback' });
+        console.log('[GoogleAuth] App deep link:', uri);
         return uri;
     }, []);
+
+    // What we tell Supabase to redirect to:
+    // - Expo Go (exp://): Supabase rejects this, so use backend HTTP trampoline
+    // - APK (careco-admin://): Supabase accepts this, redirect directly
+    const supabaseRedirectTo = useMemo(() => {
+        if (appDeepLink.startsWith('exp://')) {
+            const apiBase = getApiBaseUrl();
+            const url = `${apiBase}/auth/google-callback`;
+            console.log('[GoogleAuth] Expo Go mode → using trampoline:', url);
+            return url;
+        }
+        console.log('[GoogleAuth] Standalone mode → direct redirect:', appDeepLink);
+        return appDeepLink;
+    }, [appDeepLink]);
 
     const signInWithGoogle = useCallback(async () => {
         setLoading(true);
@@ -43,13 +43,12 @@ export default function useGoogleAuth() {
 
         try {
             console.log('[GoogleAuth] Starting sign-in...');
-            console.log('[GoogleAuth] Using redirectTo:', redirectUri);
+            console.log('[GoogleAuth] redirectTo:', supabaseRedirectTo);
 
-            // Step 1: Get the Google OAuth URL from Supabase
             const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
                 provider: 'google',
                 options: {
-                    redirectTo: redirectUri,
+                    redirectTo: supabaseRedirectTo,
                     skipBrowserRedirect: true,
                 },
             });
@@ -59,10 +58,8 @@ export default function useGoogleAuth() {
 
             console.log('[GoogleAuth] Opening browser...');
 
-            // Step 2: Open the browser for Google sign-in
-            // The second argument tells WebBrowser what URL pattern to watch for
-            // to know when to close the browser and return to the app
-            const result = await WebBrowser.openAuthSessionAsync(data.url, redirectUri);
+            // Always watch for the app deep link (exp:// or careco-admin://)
+            const result = await WebBrowser.openAuthSessionAsync(data.url, appDeepLink);
 
             console.log('[GoogleAuth] Browser result:', result.type);
 
@@ -74,24 +71,21 @@ export default function useGoogleAuth() {
                 throw new Error('Google sign-in was not completed.');
             }
 
-            // Step 3: Extract tokens from the redirect URL
+            // Extract tokens from the redirect URL
             const url = result.url;
             let access_token = null;
             let refresh_token = null;
 
-            // Hash fragment: #access_token=xxx&refresh_token=xxx
             if (url.includes('#')) {
                 const params = new URLSearchParams(url.split('#')[1]);
                 access_token = params.get('access_token');
                 refresh_token = params.get('refresh_token');
             }
 
-            // Fallback: query params
             if (!access_token && url.includes('?')) {
                 const params = new URLSearchParams(url.split('?')[1]?.split('#')[0]);
                 access_token = params.get('access_token');
                 refresh_token = params.get('refresh_token');
-
                 const errorDesc = params.get('error_description') || params.get('error');
                 if (errorDesc && !access_token) throw new Error(errorDesc);
             }
@@ -102,11 +96,8 @@ export default function useGoogleAuth() {
             }
 
             console.log('[GoogleAuth] Token received, setting session...');
-
-            // Step 4: Set Supabase session
             await supabase.auth.setSession({ access_token, refresh_token });
 
-            // Step 5: Get MongoDB profile from backend
             const backendRes = await apiService.auth.googleLogin({
                 access_token,
                 refresh_token,
@@ -123,7 +114,7 @@ export default function useGoogleAuth() {
         } finally {
             setLoading(false);
         }
-    }, [redirectUri]);
+    }, [supabaseRedirectTo, appDeepLink]);
 
     return { signInWithGoogle, loading, error };
 }
