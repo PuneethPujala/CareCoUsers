@@ -43,12 +43,9 @@ router.post('/join', async (req, res) => {
 
         // 2. Resolve or Create the Companion Profile
         const emailNorm = email.toLowerCase().trim();
-        
-        // Check if there is an existing Patient with this email
-        const existingPatient = await Patient.findOne({ email: emailNorm });
-        if (existingPatient) {
-            return res.status(400).json({ error: 'This email is registered to a Patient account. Companions must use a separate email.' });
-        }
+
+        // NOTE: We intentionally do NOT block patient emails here.
+        // A patient can also be a companion (e.g., caring for an elderly parent).
 
         // Check if there is an existing Staff Profile with this email
         const existingStaff = await Profile.findOne({ email: emailNorm });

@@ -77,35 +77,43 @@ function resolveIdentity(patient, deactivated, profile, companion, requestedRole
 }
 
 
-async function assertGlobalUniqueEmail(email, ignoreId = null, ignoreModel = null) {
+async function assertGlobalUniqueEmail(email, ignoreId = null, ignoreModel = null, skipModels = []) {
   const emailNorm = email.toLowerCase().trim();
 
   // 1. Check Patient collection
-  const patient = await Patient.findOne({ email: emailNorm });
-  if (patient && !(ignoreModel === 'Patient' && patient._id.equals(ignoreId))) {
-    const err = new Error(`An account with the email "${email}" already exists.`);
-    err.status = 400;
-    err.code = 'EMAIL_ALREADY_EXISTS';
-    throw err;
+  if (!skipModels.includes('Patient')) {
+    const patient = await Patient.findOne({ email: emailNorm });
+    if (patient && !(ignoreModel === 'Patient' && patient._id.equals(ignoreId))) {
+      const err = new Error(`An account with the email "${email}" already exists.`);
+      err.status = 400;
+      err.code = 'EMAIL_ALREADY_EXISTS';
+      throw err;
+    }
   }
 
-  // 2. Check Profile collection
-  const profile = await Profile.findOne({ email: emailNorm });
-  if (profile && !(ignoreModel === 'Profile' && profile._id.equals(ignoreId))) {
-    const err = new Error(`An account with the email "${email}" already exists.`);
-    err.status = 400;
-    err.code = 'EMAIL_ALREADY_EXISTS';
-    throw err;
+  // 2. Check Profile collection (staff accounts)
+  if (!skipModels.includes('Profile')) {
+    const profile = await Profile.findOne({ email: emailNorm });
+    if (profile && !(ignoreModel === 'Profile' && profile._id.equals(ignoreId))) {
+      const err = new Error(`An account with the email "${email}" already exists.`);
+      err.status = 400;
+      err.code = 'EMAIL_ALREADY_EXISTS';
+      throw err;
+    }
   }
 
   // 3. Check Companion collection
-  const Companion = require('../models/Companion');
-  const companion = await Companion.findOne({ email: emailNorm });
-  if (companion && !(ignoreModel === 'Companion' && companion._id.equals(ignoreId))) {
-    const err = new Error(`An account with the email "${email}" already exists.`);
-    err.status = 400;
-    err.code = 'EMAIL_ALREADY_EXISTS';
-    throw err;
+  // NOTE: Patients and Companions are allowed to share emails (dual-role users),
+  // so callers should pass skipModels: ['Companion'] when registering a Patient.
+  if (!skipModels.includes('Companion')) {
+    const Companion = require('../models/Companion');
+    const companion = await Companion.findOne({ email: emailNorm });
+    if (companion && !(ignoreModel === 'Companion' && companion._id.equals(ignoreId))) {
+      const err = new Error(`An account with the email "${email}" already exists.`);
+      err.status = 400;
+      err.code = 'EMAIL_ALREADY_EXISTS';
+      throw err;
+    }
   }
 }
 
@@ -166,57 +174,53 @@ async function registerPatient(body, req) {
   const Companion = require('../models/Companion');
   const existingCompanion = await Companion.findOne({ email: emailNorm });
 
-  // 1. Resolve conflicts / link OAuth for existing Companion (Priority)
-  if (existingCompanion) {
-    if (isOAuth) {
-      // Overwrite Guard: if supabaseUid is already set, verify they match!
-      const isPlaceholder = existingCompanion.supabaseUid && existingCompanion.supabaseUid.startsWith('cmp_');
-      if (existingCompanion.supabaseUid && existingCompanion.supabaseUid !== supabaseUid && !isPlaceholder) {
-        const err = new Error('This account is already linked to a different Google identity.');
-        err.status = 400;
-        err.code = 'OAUTH_LINK_CONFLICT';
-        throw err;
-      }
-
-      // Link Google OAuth to companion
-      existingCompanion.supabaseUid = supabaseUid;
-      if (fullName && !existingCompanion.fullName) existingCompanion.fullName = fullName;
-      await existingCompanion.save();
-
-      await logEvent(supabaseUid, 'companion_oauth_linked', 'companion', existingCompanion._id, req, {
-        email: emailNorm,
-      });
-
-      const tokens = await tokenService.issueTokenPair(
-        {
-          userId: existingCompanion._id,
-          userType: 'Companion',
-          subject: supabaseUid,
-          role: existingCompanion.role,
-          email: existingCompanion.email,
-          emailVerified: existingCompanion.emailVerified,
-        },
-        req
-      );
-
-      return {
-        message: 'Account linked successfully',
-        user: { id: supabaseUid, email: emailNorm },
-        session: {
-          access_token: tokens.access_token,
-          refresh_token: tokens.refresh_token,
-          expires_in: tokens.expires_in,
-          expires_at: tokens.expires_at,
-          user: buildSessionUser(supabaseUid, emailNorm, existingCompanion.emailVerified),
-        },
-        profile: buildLoginProfile(existingCompanion, false),
-      };
+  // 1. If the email belongs to an existing Companion and this is an OAuth request,
+  // link the OAuth identity to the companion account (backward compat).
+  // For non-OAuth, we simply allow the patient to register separately —
+  // a companion CAN also be a patient (e.g., caring for a parent while being a patient themselves).
+  if (existingCompanion && isOAuth) {
+    // Overwrite Guard: if supabaseUid is already set, verify they match!
+    const isPlaceholder = existingCompanion.supabaseUid && existingCompanion.supabaseUid.startsWith('cmp_');
+    if (existingCompanion.supabaseUid && existingCompanion.supabaseUid !== supabaseUid && !isPlaceholder) {
+      const err = new Error('This account is already linked to a different Google identity.');
+      err.status = 400;
+      err.code = 'OAUTH_LINK_CONFLICT';
+      throw err;
     }
 
-    const err = new Error(`An account with the email "${email}" already exists with a different role. Please log in instead.`);
-    err.status = 400;
-    err.code = 'EMAIL_ALREADY_EXISTS';
-    throw err;
+    // Link Google OAuth to companion
+    existingCompanion.supabaseUid = supabaseUid;
+    if (fullName && !existingCompanion.fullName) existingCompanion.fullName = fullName;
+    await existingCompanion.save();
+
+    await logEvent(supabaseUid, 'companion_oauth_linked', 'companion', existingCompanion._id, req, {
+      email: emailNorm,
+    });
+
+    const tokens = await tokenService.issueTokenPair(
+      {
+        userId: existingCompanion._id,
+        userType: 'Companion',
+        subject: supabaseUid,
+        role: existingCompanion.role,
+        email: existingCompanion.email,
+        emailVerified: existingCompanion.emailVerified,
+      },
+      req
+    );
+
+    return {
+      message: 'Account linked successfully',
+      user: { id: supabaseUid, email: emailNorm },
+      session: {
+        access_token: tokens.access_token,
+        refresh_token: tokens.refresh_token,
+        expires_in: tokens.expires_in,
+        expires_at: tokens.expires_at,
+        user: buildSessionUser(supabaseUid, emailNorm, existingCompanion.emailVerified),
+      },
+      profile: buildLoginProfile(existingCompanion, false),
+    };
   }
 
   // 2. Resolve conflicts / link OAuth for existing Profile (Legacy companion)
