@@ -1,120 +1,111 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import * as WebBrowser from 'expo-web-browser';
-import { makeRedirectUri } from 'expo-auth-session';
+import * as Google from 'expo-auth-session/providers/google';
 import { supabase } from '../lib/supabase';
-import { apiService, getApiBaseUrl } from '../lib/api';
+import { apiService } from '../lib/api';
 
+// Dismiss any lingering browser sessions
 WebBrowser.maybeCompleteAuthSession();
 
+const GOOGLE_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID;
+
 /**
- * Google OAuth via Supabase.
+ * Google OAuth using direct token exchange (NO Supabase OAuth redirect).
  *
- * For Expo Go: Uses backend HTTP trampoline because Supabase rejects exp:// URLs.
- * For APK: Uses careco-admin:// direct redirect (no trampoline needed).
+ * Flow:
+ * 1. expo-auth-session opens Google sign-in directly
+ * 2. Google returns an ID token
+ * 3. We pass the ID token to supabase.auth.signInWithIdToken()
+ * 4. Then validate with our backend /api/auth/google-login
+ *
+ * This completely bypasses Supabase's OAuth redirect URL validation,
+ * eliminating the "requested path is invalid" error.
  */
 export default function useGoogleAuth() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
 
-    // The deep link the app listens for (exp:// in Expo Go, careco-admin:// in APK)
-    const appDeepLink = useMemo(() => {
-        const uri = makeRedirectUri({ path: 'auth/callback' });
-        console.log('[GoogleAuth] App deep link:', uri);
-        return uri;
-    }, []);
+    // Configure Google Auth Request
+    const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
+        clientId: GOOGLE_CLIENT_ID,
+    });
 
-    // What we tell Supabase to redirect to:
-    // - Expo Go (exp://): Supabase rejects this, so use backend HTTP trampoline
-    // - APK (careco-admin://): Supabase accepts this, redirect directly
-    const supabaseRedirectTo = useMemo(() => {
-        if (appDeepLink.startsWith('exp://')) {
-            const apiBase = getApiBaseUrl();
-            const url = `${apiBase}/auth/google-callback`;
-            console.log('[GoogleAuth] Expo Go mode → using trampoline:', url);
-            return url;
+    // Handle the Google auth response
+    useEffect(() => {
+        if (response?.type === 'success') {
+            const { id_token } = response.params;
+            handleGoogleToken(id_token);
+        } else if (response?.type === 'error') {
+            console.error('[GoogleAuth] ❌ Error:', response.error);
+            setError(response.error?.message || 'Google sign-in failed.');
+            setLoading(false);
+        } else if (response?.type === 'dismiss' || response?.type === 'cancel') {
+            setLoading(false);
         }
-        console.log('[GoogleAuth] Standalone mode → direct redirect:', appDeepLink);
-        return appDeepLink;
-    }, [appDeepLink]);
+    }, [response]);
 
-    const signInWithGoogle = useCallback(async () => {
-        setLoading(true);
-        setError(null);
-
+    const handleGoogleToken = async (idToken) => {
         try {
-            console.log('[GoogleAuth] Starting sign-in...');
-            console.log('[GoogleAuth] redirectTo:', supabaseRedirectTo);
+            console.log('[GoogleAuth] ID token received, signing into Supabase...');
 
-            const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
+            // Sign into Supabase with the Google ID token (no redirect needed!)
+            const { data: sessionData, error: signInError } = await supabase.auth.signInWithIdToken({
                 provider: 'google',
-                options: {
-                    redirectTo: supabaseRedirectTo,
-                    skipBrowserRedirect: true,
-                },
+                token: idToken,
             });
 
-            if (oauthError) throw oauthError;
-            if (!data?.url) throw new Error('No OAuth URL returned.');
+            if (signInError) throw signInError;
 
-            console.log('[GoogleAuth] Opening browser...');
-
-            // Always watch for the app deep link (exp:// or careco-admin://)
-            const result = await WebBrowser.openAuthSessionAsync(data.url, appDeepLink);
-
-            console.log('[GoogleAuth] Browser result:', result.type);
-
-            if (result.type === 'cancel' || result.type === 'dismiss') {
-                return null;
-            }
-
-            if (result.type !== 'success' || !result.url) {
-                throw new Error('Google sign-in was not completed.');
-            }
-
-            // Extract tokens from the redirect URL
-            const url = result.url;
-            let access_token = null;
-            let refresh_token = null;
-
-            if (url.includes('#')) {
-                const params = new URLSearchParams(url.split('#')[1]);
-                access_token = params.get('access_token');
-                refresh_token = params.get('refresh_token');
-            }
-
-            if (!access_token && url.includes('?')) {
-                const params = new URLSearchParams(url.split('?')[1]?.split('#')[0]);
-                access_token = params.get('access_token');
-                refresh_token = params.get('refresh_token');
-                const errorDesc = params.get('error_description') || params.get('error');
-                if (errorDesc && !access_token) throw new Error(errorDesc);
-            }
+            const access_token = sessionData.session?.access_token;
+            const refresh_token = sessionData.session?.refresh_token;
 
             if (!access_token) {
-                console.error('[GoogleAuth] No token in URL:', url);
-                throw new Error('No access token received.');
+                throw new Error('No access token received from Supabase.');
             }
 
-            console.log('[GoogleAuth] Token received, setting session...');
-            await supabase.auth.setSession({ access_token, refresh_token });
+            console.log('[GoogleAuth] Supabase session set, validating with backend...');
 
+            // Validate with our backend (first-login check, role check, etc.)
             const backendRes = await apiService.auth.googleLogin({
                 access_token,
                 refresh_token,
             });
 
             console.log('[GoogleAuth] ✅ Login successful!');
+            setLoading(false);
             return backendRes.data;
 
         } catch (err) {
             const msg = err?.response?.data?.error || err?.message || 'Google sign-in failed.';
             console.error('[GoogleAuth] ❌ Error:', msg);
             setError(msg);
-            throw new Error(msg);
-        } finally {
             setLoading(false);
+            throw new Error(msg);
         }
-    }, [supabaseRedirectTo, appDeepLink]);
+    };
+
+    const signInWithGoogle = useCallback(async () => {
+        if (!request) {
+            setError('Google sign-in is not ready yet. Please wait a moment.');
+            return null;
+        }
+
+        setLoading(true);
+        setError(null);
+
+        console.log('[GoogleAuth] Starting sign-in...');
+        const result = await promptAsync();
+        console.log('[GoogleAuth] Prompt result:', result?.type);
+
+        // The actual token handling happens in the useEffect above
+        // If dismissed/cancelled, useEffect will set loading to false
+        if (result?.type === 'success') {
+            const { id_token } = result.params;
+            return await handleGoogleToken(id_token);
+        }
+
+        return null;
+    }, [request, promptAsync]);
 
     return { signInWithGoogle, loading, error };
 }
