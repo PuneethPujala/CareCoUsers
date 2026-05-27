@@ -483,7 +483,7 @@ export default function CompanionDashboardScreen() {
                         <View style={styles.emptyVitalsCard}>
                             <AlertCircle color={C.light} size={28} />
                             <Text style={styles.emptyVitalsText}>No BP logs recorded today</Text>
-                            <Text style={styles.emptyVitalsSub}>Vitals sync when Puneeth connects a BP monitor or logs manually.</Text>
+                            <Text style={styles.emptyVitalsSub}>Vitals sync when {data.patient.name.split(' ')[0]} connects a BP monitor or logs manually.</Text>
                             <Pressable style={styles.emptyVitalsButton} onPress={() => loadData()}>
                                 <Text style={styles.emptyVitalsButtonText}>Sync Now</Text>
                             </Pressable>
@@ -491,7 +491,7 @@ export default function CompanionDashboardScreen() {
                     )}
                 </View>
 
-                {/* 3b. Vitals 14-Day Analytics Trends Graph */}
+                {/* 3b. Vitals 7-Day Analytics Trends Graph */}
                 {data.vitals_history && data.vitals_history.length > 0 && (
                     <View style={styles.card}>
                         <View style={styles.cardHeader}>
@@ -499,7 +499,7 @@ export default function CompanionDashboardScreen() {
                                 <Activity color={C.primary} size={18} />
                             </View>
                             <View>
-                                <Text style={styles.cardTitle}>Vitals Analytics (14-Day Trend)</Text>
+                                <Text style={styles.cardTitle}>Vitals Analytics (7-Day Trend)</Text>
                                 <Text style={styles.cardSub}>Chronological health monitoring</Text>
                             </View>
                         </View>
@@ -507,32 +507,91 @@ export default function CompanionDashboardScreen() {
                         <View style={styles.chartContainer}>
                             <Text style={styles.chartTitle}>Heart Rate Trend (bpm)</Text>
                             <View style={styles.barChart}>
-                                {data.vitals_history.slice(-7).map((log, idx) => {
-                                    const rate = log.heart_rate || 72;
-                                    const pct = Math.min(100, Math.max(20, (rate / 120) * 100));
-                                    const dateStr = log.date ? new Date(log.date).toLocaleDateString(undefined, { weekday: 'narrow' }) : '';
-                                    return (
-                                        <View key={idx} style={styles.barWrapper}>
-                                            <View style={styles.barTrack}>
-                                                <View style={[
-                                                    styles.barFill, 
-                                                    { 
-                                                        height: `${pct}%`,
-                                                        backgroundColor: rate > 100 || rate < 50 ? C.danger : C.primary
-                                                    }
-                                                ]} />
+                                {(() => {
+                                    const daysToShow = 7;
+                                    const history = data.vitals_history || [];
+                                    const paddedLogs = [];
+                                    
+                                    const itemsToPad = Math.max(0, daysToShow - history.length);
+                                    for(let i = 0; i < itemsToPad; i++) {
+                                        paddedLogs.push({ isPadding: true });
+                                    }
+                                    paddedLogs.push(...history.slice(-daysToShow));
+
+                                    return paddedLogs.map((log, idx) => {
+                                        if (log.isPadding) {
+                                            return (
+                                                <View key={`pad-${idx}`} style={styles.barWrapper}>
+                                                    <View style={[styles.barTrack, { backgroundColor: 'transparent' }]} />
+                                                    <Text style={styles.barLabel}>-</Text>
+                                                </View>
+                                            );
+                                        }
+
+                                        const rate = log.heart_rate;
+                                        const dateStr = log.date ? new Date(log.date).toLocaleDateString(undefined, { weekday: 'narrow' }) : '';
+
+                                        if (!rate) {
+                                            return (
+                                                <View key={idx} style={styles.barWrapper}>
+                                                    <View style={styles.barTrack}>
+                                                        <View style={[styles.barFill, { height: `5%`, backgroundColor: C.light }]} />
+                                                    </View>
+                                                    <Text style={styles.barLabel}>{dateStr || idx}</Text>
+                                                </View>
+                                            );
+                                        }
+
+                                        const pct = Math.min(100, Math.max(20, (rate / 120) * 100));
+                                        return (
+                                            <View key={idx} style={styles.barWrapper}>
+                                                <View style={styles.barTrack}>
+                                                    <View style={[
+                                                        styles.barFill, 
+                                                        { 
+                                                            height: `${pct}%`,
+                                                            backgroundColor: rate > 100 || rate < 50 ? C.danger : C.primary
+                                                        }
+                                                    ]} />
+                                                </View>
+                                                <Text style={styles.barLabel}>{dateStr || idx}</Text>
                                             </View>
-                                            <Text style={styles.barLabel}>{dateStr || idx}</Text>
-                                        </View>
-                                    );
-                                })}
+                                        );
+                                    });
+                                })()}
                             </View>
-                            <View style={styles.vitalTrendSummary}>
-                                <ShieldCheck color={C.success} size={14} />
-                                <Text style={styles.vitalTrendSummaryText}>
-                                    Heart rate averaged {Math.round(data.vitals_history.reduce((acc, curr) => acc + (curr.heart_rate || 72), 0) / data.vitals_history.length)} bpm. Stable.
-                                </Text>
-                            </View>
+                            
+                            {(() => {
+                                const validLogs = data.vitals_history.filter(l => l.heart_rate);
+                                if (validLogs.length === 0) return null;
+                                
+                                const avg = Math.round(validLogs.reduce((acc, curr) => acc + curr.heart_rate, 0) / validLogs.length);
+                                let status = "Stable.";
+                                let statusColor = C.success;
+                                let statusBg = C.successLight;
+                                let Icon = ShieldCheck;
+                                
+                                if (avg > 100 || avg < 50) {
+                                    status = "Attention required.";
+                                    statusColor = C.danger;
+                                    statusBg = C.dangerLight;
+                                    Icon = AlertCircle;
+                                } else if (avg > 90 || avg < 60) {
+                                    status = "Monitor closely.";
+                                    statusColor = C.warning;
+                                    statusBg = C.warningLight;
+                                    Icon = AlertCircle;
+                                }
+
+                                return (
+                                    <View style={[styles.vitalTrendSummary, { backgroundColor: statusBg }]}>
+                                        <Icon color={statusColor} size={14} />
+                                        <Text style={[styles.vitalTrendSummaryText, { color: statusColor }]}>
+                                            Heart rate averaged {avg} bpm. {status}
+                                        </Text>
+                                    </View>
+                                );
+                            })()}
                         </View>
                     </View>
                 )}
@@ -1147,7 +1206,6 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         gap: 6,
-        backgroundColor: C.successLight,
         borderRadius: 16,
         paddingHorizontal: 14,
         paddingVertical: 8,
@@ -1156,7 +1214,6 @@ const styles = StyleSheet.create({
     vitalTrendSummaryText: {
         fontSize: 11,
         ...FONT.semibold,
-        color: C.success,
         flex: 1,
     },
 });
