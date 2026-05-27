@@ -21,6 +21,7 @@ const api = axios.create({
         'Content-Type': 'application/json',
         'x-app-name': 'CareMyMed',
         'x-app-platform': 'mobile',
+        'X-Requested-Role': 'patient',
     },
 });
 

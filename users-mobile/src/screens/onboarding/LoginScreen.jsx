@@ -377,7 +377,7 @@ export default function LoginScreen({ navigation }) {
                         await injectSession(regSession, regProfile);
                     } else if (regProfile) {
                         await injectSession(result.session, regProfile);
-                    } else if (result.existingProfile) {
+                    } else if (result.existingProfile && result.existingProfile.role === 'patient') {
                         await injectSession(result.session, result.existingProfile);
                     }
                 } catch (regError) {
@@ -385,7 +385,7 @@ export default function LoginScreen({ navigation }) {
                     const regSession = regError?.response?.data?.session;
                     if (regProfile && regSession) {
                         await injectSession(regSession, regProfile);
-                    } else if (result.existingProfile) {
+                    } else if (result.existingProfile && result.existingProfile.role === 'patient') {
                         // Fallback: use profile from getProfile check, Supabase session
                         await injectSession(result.session, result.existingProfile);
                     }

@@ -137,6 +137,8 @@ async function attachJwtUser(token, req) {
 
 /**
  * Supabase legacy: verify access token and load Mongo user.
+ * Respects `X-Requested-Role` header so the mobile patient app
+ * isn't accidentally resolved to a companion account sharing the same email/UID.
  */
 async function attachSupabaseUser(token, req) {
   const supabase = getSupabase();
@@ -160,6 +162,59 @@ async function attachSupabaseUser(token, req) {
     return false;
   }
 
+  const requestedRole = (req.headers['x-requested-role'] || '').toLowerCase().trim();
+
+  // ── If the caller explicitly wants 'patient', check Patient FIRST ──
+  if (requestedRole === 'patient') {
+    let patient = await Patient.findOne({ supabase_uid: user.id });
+    if (patient && !patient.is_active && patient.deactivated_reason === 'user_requested') {
+      patient.is_active = true;
+      patient.deactivated_at = undefined;
+      patient.deactivated_reason = undefined;
+      await patient.save();
+    }
+    if (patient && !patient.is_active) patient = null;
+
+    if (!patient && user.email) {
+      const emailPatient = await Patient.findOne({
+        email: user.email.toLowerCase().trim(),
+      });
+      if (emailPatient) {
+        if (!emailPatient.is_active && emailPatient.deactivated_reason === 'user_requested') {
+          emailPatient.is_active = true;
+          emailPatient.deactivated_at = undefined;
+          emailPatient.deactivated_reason = undefined;
+          await emailPatient.save();
+        }
+        if (emailPatient.is_active) {
+          emailPatient.supabase_uid = user.id;
+          await emailPatient.save();
+          patient = emailPatient;
+        }
+      }
+    }
+
+    if (patient) {
+      patient.organizationId = patient.organization_id;
+      req.auth = {
+        kind: 'supabase',
+        subject: user.id,
+        userId: patient._id,
+        userType: 'Patient',
+      };
+      req.user = {
+        id: user.id,
+        email: user.email,
+        email_confirmed_at: user.email_confirmed_at,
+        created_at: user.created_at,
+      };
+      req.profile = patient;
+      return true;
+    }
+    // Patient not found — fall through to default resolution below
+  }
+
+  // ── Default resolution: Profile → Companion → Patient ──
   let profile = await Profile.findOne({ supabaseUid: user.id, isActive: true }).populate(
     'organizationId',
     'name city'
@@ -200,7 +255,6 @@ async function attachSupabaseUser(token, req) {
       patient.deactivated_at = undefined;
       patient.deactivated_reason = undefined;
       await patient.save();
-      // Log reactivation
     }
     if (patient && !patient.is_active) patient = null;
 
