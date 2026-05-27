@@ -387,6 +387,7 @@ router.get('/patient-status', authenticate, async (req, res) => {
         const VitalLog = require('../models/VitalLog');
         const Alert = require('../models/Alert');
         const Medication = require('../models/Medication');
+        const { buildMergedMeds } = require('./users/medicines');
         
         const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
         const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
@@ -406,23 +407,23 @@ router.get('/patient-status', authenticate, async (req, res) => {
             MedicineLog.find({ patient_id: patient._id, date: { $gte: weekAgo } }).lean(),
             VitalLog.findOne({ patient_id: patient._id }).sort({ date: -1 }).lean(),
             Alert.find({ patient_id: patient._id, status: 'open', type: 'medication_missed' }).sort({ created_at: -1 }).limit(3).lean(),
-            Medication.find({ patientId: patient._id, isActive: true }).lean(),
+            buildMergedMeds(patient),
             VitalLog.find({ patient_id: patient._id, date: { $gte: fourteenDaysAgo } }).sort({ date: 1 }).lean(),
             MedicineLog.findOne({ patient_id: patient._id, date: { $gte: startOfToday, $lte: endOfToday } }).lean()
         ]);
 
         let adherenceRate = null;
-        if (logs.length > 0) {
-            let totalMeds = 0;
-            let takenMeds = 0;
-            for (const log of logs) {
-                const active = (log.medicines || []).filter(m => m.is_active !== false);
-                totalMeds += active.length;
-                takenMeds += active.filter(m => m.taken).length;
-            }
+        if (todayMedicineLog) {
+            const active = (todayMedicineLog.medicines || []).filter(m => m.is_active !== false);
+            const totalMeds = active.length;
+            const takenMeds = active.filter(m => m.taken).length;
             if (totalMeds > 0) {
                 adherenceRate = Math.round((takenMeds / totalMeds) * 100);
+            } else if (medications.length > 0) {
+                adherenceRate = 0;
             }
+        } else if (medications.length > 0) {
+            adherenceRate = 0;
         }
 
         // 1. Medication Schedule Daily Timeline

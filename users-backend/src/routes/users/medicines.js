@@ -105,8 +105,10 @@ async function buildMergedMeds(patient) {
             }
 
             allMedsRaw.push({
+                _id: extMed._id,
                 name: extMed.name,
                 dosage: extMed.dosage,
+                route: extMed.route,
                 instructions: extMed.instructions,
                 is_active: extMed.isActive,
                 times: mappedTimes,
