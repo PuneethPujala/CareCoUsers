@@ -753,11 +753,18 @@ router.post('/patients/:patientId/invite-code', authenticate, async (req, res) =
         // Generate a clean 6-char alphanumeric code (excluding confusing chars like 0/O, 1/I)
         const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
         let code = '';
-        for (let i = 0; i < 6; i++) {
-            code += chars.charAt(Math.floor(Math.random() * chars.length));
+        let isUnique = false;
+        
+        while (!isUnique) {
+            code = '';
+            for (let i = 0; i < 6; i++) {
+                code += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            const existing = await Patient.findOne({ invite_code: code, invite_code_expires_at: { $gt: new Date() } });
+            if (!existing) isUnique = true;
         }
 
-        const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+        const expiresAt = new Date(Date.now() + 2 * 60 * 60 * 1000); // 2 hours
 
         const Patient = require('../models/Patient');
         await Patient.updateOne(

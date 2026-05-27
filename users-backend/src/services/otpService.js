@@ -2,7 +2,7 @@ const redis = require('../lib/redis');
 const crypto = require('crypto');
 
 const OTP_PREFIX = 'otp:';
-const OTP_TTL_SECONDS = 600; // 10 minutes
+const OTP_TTL_SECONDS = 300; // 5 minutes
 
 /**
  * Generate a cryptographically secure 6-digit OTP
@@ -18,6 +18,17 @@ function generateOTP() {
  */
 async function createOTP(identifier) {
     const key = `${OTP_PREFIX}${identifier.toLowerCase().trim()}`;
+    
+    // Check if an OTP was recently generated (within the last 60 seconds)
+    const existing = await redis.get(key);
+    if (existing) {
+        const ttl = await redis.ttl(key);
+        if (ttl > OTP_TTL_SECONDS - 60) {
+            console.log(`🔐 Reusing recently created OTP for ${identifier}`);
+            return existing;
+        }
+    }
+
     const otp = generateOTP();
 
     // Delete any existing OTP first, then set the new one
