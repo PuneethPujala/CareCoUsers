@@ -186,20 +186,24 @@ export default function PatientProfileScreen({ navigation }) {
                 try {
                     const { data } = await apiService.patients.getMe();
                     setPatient(data.patient);
-                    if (data.patient?.emergency_contact) {
-                        setEcName(data.patient.emergency_contact.name || '');
-                        setEcPhone(data.patient.emergency_contact.phone || '');
-                        setEcRelation(data.patient.emergency_contact.relation || '');
+                    const emergencyContact = data.patient?.trusted_contacts?.find(c => c.is_emergency);
+                    if (emergencyContact) {
+                        setEcName(emergencyContact.name || '');
+                        const parsed = parsePhoneWithCode(emergencyContact.phone || '');
+                        setEcPhone(parsed.number || '');
+                        setEcPhoneCode(parsed.code || '+91');
+                        setEcRelation(emergencyContact.relation || '');
+                    } else {
+                        setEcName('');
+                        setEcPhone('');
+                        setEcPhoneCode('+91');
+                        setEcRelation('');
                     }
                     setEditName(data.patient?.name || displayName || '');
                     setEditCity(data.patient?.city || '');
                     const parsed = parsePhoneWithCode(data.patient?.phone || '');
                     setEditPhoneCode(parsed.code);
                     setEditPhone(parsed.number);
-                    if (data.patient?.emergency_contact?.phone) {
-                        const ecParsed = parsePhoneWithCode(data.patient.emergency_contact.phone);
-                        setEcPhoneCode(ecParsed.code);
-                    }
                     setSavedAddresses(data.patient?.saved_addresses || []);
                     if (data.patient?.language) setSelectedLang(data.patient.language);
                     if (data.patient?.date_of_birth) {
@@ -237,7 +241,10 @@ export default function PatientProfileScreen({ navigation }) {
         setSaving(true);
         try {
             await apiService.patients.updateEmergencyContact({ name: '', phone: '', relation: '' });
-            setPatient(prev => ({ ...prev, emergency_contact: {} }));
+            setPatient(prev => ({
+                ...prev,
+                trusted_contacts: prev?.trusted_contacts?.filter(c => !c.is_emergency) || []
+            }));
             setEcName(''); setEcPhone(''); setEcPhoneCode('+91'); setEcRelation('');
             setEcModalVisible(false);
             AlertManager.alert(t('common.success', { defaultValue: 'Success' }), t('profile.ec_removed', { defaultValue: 'Emergency contact removed.' }));
@@ -278,8 +285,14 @@ export default function PatientProfileScreen({ navigation }) {
         try {
             const res = await apiService.patients.verifyEcOTP({ otp: ecOTP, name: ecName, phone: fullEcPhone, relation: ecRelation });
             setPatient(res.data.patient);
-            const ec = res.data.patient?.emergency_contact;
-            if (ec) { setEcName(ec.name || ''); setEcPhone(ec.phone || ''); setEcRelation(ec.relation || ''); }
+            const ec = res.data.patient?.trusted_contacts?.find(c => c.is_emergency);
+            if (ec) {
+                setEcName(ec.name || '');
+                const parsed = parsePhoneWithCode(ec.phone || '');
+                setEcPhone(parsed.number || '');
+                setEcPhoneCode(parsed.code || '+91');
+                setEcRelation(ec.relation || '');
+            }
             setEcOTPModalVisible(false);
             AlertManager.alert(t('common.success', { defaultValue: 'Success' }), t('profile.ec_updated', { defaultValue: 'Emergency contact updated.' }));
         } catch (err) {
@@ -562,8 +575,11 @@ export default function PatientProfileScreen({ navigation }) {
     const dobStr = patient?.date_of_birth ? new Date(patient.date_of_birth).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : null;
     const genderStr = patient?.gender ? GENDER_LABELS[patient.gender] || patient.gender : null;
     const bloodStr = patient?.blood_type && patient.blood_type !== 'unknown' ? patient.blood_type : null;
-    const emergencyContact = patient?.trusted_contacts?.find(c => c.is_emergency);
-    const ecStr = emergencyContact?.name ? `${emergencyContact.name} (${emergencyContact.relation || 'N/A'})` : null;
+    const activeContact = patient?.trusted_contacts?.find(c => c.is_emergency) || patient?.trusted_contacts?.[0];
+    const contactLabel = activeContact ? (activeContact.is_emergency ? 'Emergency Contact' : 'Trusted Contact') : 'Emergency Contact';
+    const contactNameStr = activeContact ? `${activeContact.name}${activeContact.relation ? ` (${activeContact.relation})` : ''}` : 'Not Added';
+    const contactPhoneStr = activeContact?.phone || 'Not Added';
+    const ecStr = activeContact?.name ? `${activeContact.name} (${activeContact.relation || 'N/A'})` : null;
 
     /* ── Reusable Row ─────────────────────────── */
     const InfoRow = ({ icon: Icon, iconBg, iconColor, label, value, placeholder, onPress, rightElement, isLast }) => (
@@ -709,7 +725,7 @@ export default function PatientProfileScreen({ navigation }) {
                         <InfoRow icon={Calendar} iconBg="#EFF6FF" iconColor="#3B82F6" label={t('profile.dob', { defaultValue: 'Date of Birth' })} value={dobStr} placeholder={t('profile.add_dob', { defaultValue: 'Add DOB' })} onPress={() => setDobModalVisible(true)} />
                         <InfoRow icon={Users} iconBg="#EEF2FF" iconColor="#6366F1" label={t('profile.gender', { defaultValue: 'Gender' })} value={genderStr} placeholder={t('profile.not_specified', { defaultValue: 'Not specified' })} onPress={() => setGenderModalVisible(true)} />
                         <InfoRow icon={Droplets} iconBg="#FFF1F2" iconColor="#EF4444" label={t('profile.blood_group', { defaultValue: 'Blood Group' })} value={bloodStr} placeholder={t('profile.add_blood_group', { defaultValue: 'Add Blood Group' })} onPress={() => setBloodModalVisible(true)} />
-                        <InfoRow icon={Heart} iconBg="#F5F3FF" iconColor="#8B5CF6" label={t('profile.emergency_contact', { defaultValue: 'Emergency Contact' })} value={ecStr} placeholder={t('profile.add_emergency_contact', { defaultValue: 'Add Emergency Contact' })} onPress={() => setEcModalVisible(true)} isLast />
+                        <InfoRow icon={Heart} iconBg="#F5F3FF" iconColor="#8B5CF6" label={contactLabel} value={ecStr} placeholder={t('profile.add_emergency_contact', { defaultValue: 'Add Emergency Contact' })} onPress={() => setEcModalVisible(true)} isLast />
                     </View>
                 </Animated.View>
 
@@ -1063,7 +1079,7 @@ export default function PatientProfileScreen({ navigation }) {
                     <SmartInput value={ecPhone} onChangeText={(t) => setEcPhone(t.replace(/[^0-9]/g, ''))} placeholder={t('caller.phone_placeholder', { defaultValue: 'Phone number' })} keyboardType="phone-pad" maxLength={COUNTRY_CODES.find(c => c.code === ecPhoneCode)?.maxDigits || 12} style={{ flex: 1 }} />
                 </View>
                 <SmartInput label={t('caller.relation', { defaultValue: 'Relation' })} value={ecRelation} onChangeText={setEcRelation} placeholder={t('health_profile.relationship_placeholder', { defaultValue: 'e.g. Son, Daughter, Spouse' })} />
-                {patient?.emergency_contact?.name && (
+                {patient?.trusted_contacts?.some(c => c.is_emergency) && (
                     <Pressable style={[s.saveBtn, { backgroundColor: '#FEE2E2', marginTop: 12 }]} onPress={handleRemoveEC} disabled={saving}>
                         <Trash2 size={18} color="#EF4444" />
                         <Text style={[s.saveBtnTxt, { color: '#B91C1C' }]}>{saving ? t('profile.removing', { defaultValue: 'Removing...' }) : t('profile.remove_contact', { defaultValue: 'Remove Contact' })}</Text>
@@ -1526,9 +1542,9 @@ export default function PatientProfileScreen({ navigation }) {
                                 <View style={{ width: '45%', backgroundColor: 'rgba(255,255,255,0.03)', padding: 40, borderRadius: 32 }}>
                                     <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
                                         <Shield size={32} color="#94A3B8" style={{ marginRight: 16 }} />
-                                        <Text style={{ fontSize: 28, fontWeight: '700', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: 1 }}>Emergency Contact</Text>
+                                        <Text style={{ fontSize: 28, fontWeight: '700', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: 1 }}>{contactLabel}</Text>
                                     </View>
-                                    <Text style={{ fontSize: 40, fontWeight: '800', color: '#FFF' }}>{ecStr}</Text>
+                                    <Text style={{ fontSize: 40, fontWeight: '800', color: '#FFF' }}>{contactNameStr}</Text>
                                 </View>
                                 
                                 <View style={{ width: '45%', backgroundColor: 'rgba(255,255,255,0.03)', padding: 40, borderRadius: 32 }}>
@@ -1536,7 +1552,7 @@ export default function PatientProfileScreen({ navigation }) {
                                         <Phone size={32} color="#94A3B8" style={{ marginRight: 16 }} />
                                         <Text style={{ fontSize: 28, fontWeight: '700', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: 1 }}>Contact Phone</Text>
                                     </View>
-                                    <Text style={{ fontSize: 40, fontWeight: '800', color: '#FFF' }}>{emergencyContact?.phone || 'None'}</Text>
+                                    <Text style={{ fontSize: 40, fontWeight: '800', color: '#FFF' }}>{contactPhoneStr}</Text>
                                 </View>
                             </View>
 

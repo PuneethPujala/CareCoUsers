@@ -56,6 +56,9 @@ const sendEmail = async (to, subject, html, { textBody } = {}) => {
                 html,
                 text: textBody || html.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim().slice(0, 500),
             });
+            if (info.error) {
+                throw new Error(info.error.message);
+            }
             console.log(`📧 Email sent via Resend to ${to}: ${info.data?.id || info.id}`);
             return info;
         } catch (error) {
