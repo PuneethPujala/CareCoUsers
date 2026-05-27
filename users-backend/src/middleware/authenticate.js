@@ -211,7 +211,10 @@ async function attachSupabaseUser(token, req) {
       req.profile = patient;
       return true;
     }
-    // Patient not found — fall through to default resolution below
+    // Patient not found — no fallback, this is a patient-only app
+    req._authProfileMissing = true;
+    req._authMissingSubject = user.id;
+    return false;
   }
 
   // ── Default resolution: Profile → Companion → Patient ──
