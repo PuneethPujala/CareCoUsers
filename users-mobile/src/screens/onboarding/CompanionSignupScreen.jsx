@@ -63,8 +63,7 @@ export default function CompanionSignupScreen({ navigation }) {
         try {
             const res = await apiService.companion.checkEmail({ email: cleanEmail });
             if (res.data.exists) {
-                // User exists, send OTP so they can log in
-                await apiService.auth.sendOtp(cleanEmail, 'email');
+                // User exists, backend checkEmail endpoint has already sent the OTP.
                 setIsExisting(true);
             } else {
                 setIsExisting(false);
