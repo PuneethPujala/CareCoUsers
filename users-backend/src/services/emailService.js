@@ -45,7 +45,8 @@ const sendEmail = async (to, subject, html, { textBody } = {}) => {
     if (resend) {
         try {
             let resendFrom = fromEmail;
-            if (fromEmail.endsWith('@gmail.com') || fromEmail.endsWith('@yahoo.com') || fromEmail.endsWith('@outlook.com') || fromEmail.includes('noreply@CareMyMed.com')) {
+            const lowerFrom = fromEmail.toLowerCase();
+            if (lowerFrom.endsWith('@gmail.com') || lowerFrom.endsWith('@yahoo.com') || lowerFrom.endsWith('@outlook.com') || !process.env.FROM_EMAIL) {
                 resendFrom = 'onboarding@resend.dev';
             }
             const info = await resend.emails.send({
