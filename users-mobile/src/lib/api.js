@@ -176,6 +176,7 @@ api.interceptors.response.use(
 export const apiService = {
     auth: {
         login: (creds) => api.post('/auth/login', creds),
+        logout: () => api.post('/auth/logout'),
         register: (data) => api.post('/auth/register', data),
         refresh: (refreshToken) => api.post('/auth/refresh', { refresh_token: refreshToken }),
         getProfile: (config) => api.get('/auth/me', config),

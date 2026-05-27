@@ -743,6 +743,17 @@ async function logout(subject, userId, userType, req) {
     await tokenService.denylistAccessToken(token);
   }
   await tokenService.revokeAllForUser(userId, userType);
+
+  // Clear push token so logged out devices stop receiving notifications
+  if (userType === 'Patient') {
+    await Patient.findByIdAndUpdate(userId, { expo_push_token: null }).catch(() => {});
+  } else if (userType === 'Companion') {
+    const Companion = require('../models/Companion');
+    await Companion.findByIdAndUpdate(userId, { expo_push_token: null }).catch(() => {});
+  } else if (userType === 'Profile') {
+    await Profile.findByIdAndUpdate(userId, { expo_push_token: null }).catch(() => {});
+  }
+
   await logEvent(subject, 'logout', userType === 'Patient' ? 'patient' : 'profile', userId, req);
 }
 

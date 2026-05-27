@@ -129,6 +129,9 @@ export function AuthProvider({ children }) {
 
     const signOut = useCallback(async () => {
         try {
+            // Tell the backend to revoke sessions and clear push tokens BEFORE clearing local auth headers
+            try { await apiService.auth.logout(); } catch { }
+
             // Clear React state FIRST (atomically) so the navigator
             // immediately shows AuthStack — prevents the race where
             // profile/patient are null but user is still set, which
