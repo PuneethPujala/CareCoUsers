@@ -1,4 +1,12 @@
 const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
+
+// Initialize Resend client if API key is provided
+let resend;
+if (process.env.RESEND_API_KEY) {
+    resend = new Resend(process.env.RESEND_API_KEY);
+    console.log('✉️ Resend email service initialized successfully');
+}
 
 // Create reusable transporter
 let transporter;
@@ -32,8 +40,30 @@ const getTransporter = () => {
  * Send a generic email
  */
 const sendEmail = async (to, subject, html, { textBody } = {}) => {
-    const transport = getTransporter();
     const fromEmail = process.env.FROM_EMAIL || 'noreply@CareMyMed.com';
+
+    if (resend) {
+        try {
+            let resendFrom = fromEmail;
+            if (fromEmail.endsWith('@gmail.com') || fromEmail.endsWith('@yahoo.com') || fromEmail.endsWith('@outlook.com') || fromEmail.includes('noreply@CareMyMed.com')) {
+                resendFrom = 'onboarding@resend.dev';
+            }
+            const info = await resend.emails.send({
+                from: `CareMyMed Health <${resendFrom}>`,
+                to,
+                subject,
+                html,
+                text: textBody || html.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim().slice(0, 500),
+            });
+            console.log(`📧 Email sent via Resend to ${to}: ${info.data?.id || info.id}`);
+            return info;
+        } catch (error) {
+            console.error(`❌ Failed to send email via Resend to ${to}:`, error.message);
+            console.log('🔄 Falling back to standard SMTP...');
+        }
+    }
+
+    const transport = getTransporter();
 
     const mailOptions = {
         from: `"CareMyMed Health" <${fromEmail}>`,
