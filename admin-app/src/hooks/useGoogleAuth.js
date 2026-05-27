@@ -1,24 +1,22 @@
 import { useState, useCallback } from 'react';
-import * as WebBrowser from 'expo-web-browser';
-import * as Linking from 'expo-linking';
+import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 import { supabase } from '../lib/supabase';
 import { apiService } from '../lib/api';
 
-WebBrowser.maybeCompleteAuthSession();
+// Configure Google Sign-In on module load (same as Users App)
+GoogleSignin.configure({
+    webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+    offlineAccess: false,
+});
 
 /**
- * Google OAuth via Supabase.
- *
- * IMPORTANT: Google OAuth does NOT work in Expo Go (Google blocks exp:// redirects).
- * This flow only works in standalone APK/IPA builds where the custom scheme
- * (careco-admin://) is natively registered.
+ * Google Auth using Native Google Sign-In SDK.
+ * Identical approach to the Users App (no browser redirects needed).
  *
  * Flow:
- * 1. Ask Supabase for Google OAuth URL with redirectTo = careco-admin://auth/callback
- * 2. Open browser for Google sign-in
- * 3. After auth, Supabase redirects to careco-admin://auth/callback#access_token=...
- * 4. App catches the deep link, extracts tokens
- * 5. Validate with our backend (first-login check, role check, etc.)
+ * 1. GoogleSignin.signIn() opens native Google dialog → returns ID token
+ * 2. supabase.auth.signInWithIdToken() creates Supabase session
+ * 3. apiService.auth.googleLogin() validates with backend (role check, first-login check)
  */
 export default function useGoogleAuth() {
     const [loading, setLoading] = useState(false);
@@ -29,67 +27,42 @@ export default function useGoogleAuth() {
         setError(null);
 
         try {
-            // Use the app's native deep link as redirect target
-            const redirectUri = Linking.createURL('auth/callback');
-            console.log('[GoogleAuth] Redirect URI:', redirectUri);
-            console.log('[GoogleAuth] Starting sign-in...');
+            console.log('[GoogleAuth] Starting native Google sign-in...');
 
-            // Step 1: Get Google OAuth URL from Supabase
-            const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
+            // Step 1: Check Play Services
+            await GoogleSignin.hasPlayServices();
+
+            // Clear any stale Google session
+            try { await GoogleSignin.signOut(); } catch {}
+
+            // Step 2: Open native Google sign-in dialog
+            const signInResult = await GoogleSignin.signIn();
+            const idToken = signInResult?.data?.idToken;
+
+            if (!idToken) {
+                throw new Error('Failed to get Google ID token. Please try again.');
+            }
+
+            console.log('[GoogleAuth] ID token received, signing into Supabase...');
+
+            // Step 3: Sign into Supabase with the Google ID token (NO redirect needed!)
+            const { data, error: supaError } = await supabase.auth.signInWithIdToken({
                 provider: 'google',
-                options: {
-                    redirectTo: redirectUri,
-                    skipBrowserRedirect: true,
-                },
+                token: idToken,
             });
 
-            if (oauthError) throw oauthError;
-            if (!data?.url) throw new Error('No OAuth URL returned.');
+            if (supaError) throw supaError;
 
-            console.log('[GoogleAuth] Opening browser...');
-
-            // Step 2: Open browser and wait for redirect back to app
-            const result = await WebBrowser.openAuthSessionAsync(data.url, redirectUri);
-            console.log('[GoogleAuth] Browser result:', result.type);
-
-            if (result.type === 'cancel' || result.type === 'dismiss') {
-                return null;
-            }
-
-            if (result.type !== 'success' || !result.url) {
-                throw new Error('Google sign-in was not completed.');
-            }
-
-            // Step 3: Extract tokens from redirect URL
-            const url = result.url;
-            let access_token = null;
-            let refresh_token = null;
-
-            if (url.includes('#')) {
-                const params = new URLSearchParams(url.split('#')[1]);
-                access_token = params.get('access_token');
-                refresh_token = params.get('refresh_token');
-            }
-
-            if (!access_token && url.includes('?')) {
-                const params = new URLSearchParams(url.split('?')[1]?.split('#')[0]);
-                access_token = params.get('access_token');
-                refresh_token = params.get('refresh_token');
-                const errorDesc = params.get('error_description') || params.get('error');
-                if (errorDesc && !access_token) throw new Error(errorDesc);
-            }
+            const access_token = data.session?.access_token;
+            const refresh_token = data.session?.refresh_token;
 
             if (!access_token) {
-                console.error('[GoogleAuth] No token in URL:', url);
-                throw new Error('No access token received.');
+                throw new Error('No access token received from Supabase.');
             }
 
-            console.log('[GoogleAuth] Token received, setting session...');
+            console.log('[GoogleAuth] Supabase session set, validating with backend...');
 
-            // Step 4: Set Supabase session
-            await supabase.auth.setSession({ access_token, refresh_token });
-
-            // Step 5: Validate with backend (first-login check, role check)
+            // Step 4: Validate with our backend (first-login check, role check, etc.)
             const backendRes = await apiService.auth.googleLogin({
                 access_token,
                 refresh_token,
@@ -99,6 +72,26 @@ export default function useGoogleAuth() {
             return backendRes.data;
 
         } catch (err) {
+            // Clean up Google session on error
+            try { await GoogleSignin.signOut(); } catch {}
+
+            // Handle specific Google Sign-In errors
+            if (err?.code === statusCodes.SIGN_IN_CANCELLED) {
+                setLoading(false);
+                return null; // User cancelled, not an error
+            }
+            if (err?.code === statusCodes.IN_PROGRESS) {
+                setError('Sign-in already in progress.');
+                setLoading(false);
+                return null;
+            }
+            if (err?.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+                setError('Google Play Services not available. Please update.');
+                setLoading(false);
+                throw new Error('Google Play Services not available.');
+            }
+
+            // Backend or Supabase errors
             const msg = err?.response?.data?.error || err?.message || 'Google sign-in failed.';
             console.error('[GoogleAuth] ❌ Error:', msg);
             setError(msg);
