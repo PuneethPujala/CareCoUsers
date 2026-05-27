@@ -8,7 +8,7 @@ import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
-import apiService from '../../lib/apiService';
+import api from '../../lib/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function DeveloperObservabilityScreen({ navigation }) {
@@ -32,7 +32,7 @@ export default function DeveloperObservabilityScreen({ navigation }) {
         // 1. Fetch Backend API Health
         const start = Date.now();
         try {
-            const res = await apiService.api.get('/admin/observability/system-health');
+            const res = await api.get('/admin/observability/system-health');
             setBackendHealth(res.data);
             setPingLatency(Date.now() - start);
         } catch (err) {
