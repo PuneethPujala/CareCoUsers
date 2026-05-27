@@ -18,21 +18,20 @@ function generateOTP() {
  */
 async function createOTP(identifier) {
     const key = `${OTP_PREFIX}${identifier.toLowerCase().trim()}`;
+    const cooldownKey = `cooldown:${key}`;
     
-    // Check if an OTP was recently generated (within the last 60 seconds)
-    const existing = await redis.get(key);
-    if (existing) {
-        const ttl = await redis.ttl(key);
-        if (ttl > OTP_TTL_SECONDS - 60) {
-            console.log(`🔐 Reusing recently created OTP for ${identifier}`);
-            return existing;
-        }
+    // Attempt to acquire a 30-second atomic cooldown lock
+    const acquired = await redis.set(cooldownKey, '1', 'EX', 30, 'NX');
+    
+    if (!acquired) {
+        const err = new Error('Please wait 30 seconds before requesting a new code.');
+        err.status = 429;
+        throw err;
     }
 
     const otp = generateOTP();
 
-    // Delete any existing OTP first, then set the new one
-    await redis.del(key);
+    // Overwrite any existing OTP with the new one
     await redis.set(key, otp, 'EX', OTP_TTL_SECONDS);
 
     console.log(`🔐 OTP created securely (expires in ${OTP_TTL_SECONDS}s)`);
