@@ -2,9 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Switch, Share } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import { apiService } from '../../lib/api';
-import { LogOut, ShieldCheck, Heart, User, Settings, ArrowRight, UserCheck, Share2, Phone } from 'lucide-react-native';
+import { LogOut, ShieldCheck, Heart, User, Settings, ArrowRight, UserCheck, Share2, Phone, ChevronLeft } from 'lucide-react-native';
 import { layout } from '../../theme';
 import AlertManager from '../../utils/AlertManager';
+import { useNavigation } from '@react-navigation/native';
 
 const C = {
     bg: '#F8FAFC',
@@ -34,6 +35,7 @@ export default function CompanionProfileScreen() {
     const [generatingCode, setGeneratingCode] = useState(false);
     const [linkedPatients, setLinkedPatients] = useState([]);
     const [pushEnabled, setPushEnabled] = useState(true);
+    const navigation = useNavigation();
 
     const loadProfileData = async () => {
         try {
@@ -115,9 +117,14 @@ export default function CompanionProfileScreen() {
     return (
         <View style={styles.container}>
             <View style={styles.header}>
-                <View>
-                    <Text style={styles.headerSub}>Account Setting</Text>
-                    <Text style={styles.title}>Companion Profile</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                    <Pressable onPress={() => navigation.goBack()} style={{ padding: 4, marginLeft: -4 }}>
+                        <ChevronLeft color={C.dark} size={28} />
+                    </Pressable>
+                    <View>
+                        <Text style={styles.headerSub}>Account Setting</Text>
+                        <Text style={styles.title}>Companion Profile</Text>
+                    </View>
                 </View>
             </View>
 

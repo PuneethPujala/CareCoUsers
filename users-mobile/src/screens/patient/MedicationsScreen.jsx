@@ -484,7 +484,7 @@ export default function MedicationsScreen({ navigation }) {
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [showPrefModal, setShowPrefModal] = useState(false);
-    const [tempPrefs, setTempPrefs] = useState({ morning: '09:00', afternoon: '14:00', night: '20:00' });
+    const [tempPrefs, setTempPrefs] = useState({ morning: '09:00', afternoon: '14:00', evening: '17:00', night: '20:00' });
     const [savingPrefs, setSavingPrefs] = useState(false);
     const [activePicker, setActivePicker] = useState(null);
     const [toast, setToast] = useState({ visible: false, title: '', message: '' });
@@ -1115,7 +1115,7 @@ export default function MedicationsScreen({ navigation }) {
                 <Text style={styles.modalDesc}>
                     {t('medications.call_prefs_desc', { defaultValue: 'Set when your care team should call to check on your medications. We call within 30 min of this time.' })}
                 </Text>
-                {['morning', 'afternoon', 'night'].map(slot => {
+                {['morning', 'afternoon', 'evening', 'night'].map(slot => {
                     const cfg = SLOT_CONFIG[slot];
                     return (
                         <View key={slot} style={styles.prefRow}>

@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, RefreshControl, Pressable, Dimensions, Linking, TextInput, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, RefreshControl, Pressable, Dimensions, Linking, ActivityIndicator } from 'react-native';
 import { apiService } from '../../lib/api';
-import { HeartPulse, Activity, Bell, Phone, Send, ChevronRight, MessageSquare, ShieldCheck, AlertCircle } from 'lucide-react-native';
+import { HeartPulse, Activity, Bell, Phone, Send, ChevronRight, MessageSquare, ShieldCheck, AlertCircle, ChevronLeft } from 'lucide-react-native';
 import AlertManager from '../../utils/AlertManager';
 import { layout } from '../../theme';
+import usePatientStore from '../../store/usePatientStore';
+import { useNavigation } from '@react-navigation/native';
 
 const { width } = Dimensions.get('window');
 
@@ -34,10 +36,10 @@ const FONT = {
 
 export default function CompanionDashboardScreen() {
     const [data, setData] = useState(null);
-    const [selectedPatientId, setSelectedPatientId] = useState(null);
     const [refreshing, setRefreshing] = useState(false);
-    const [linkCode, setLinkCode] = useState('');
-    const [linking, setLinking] = useState(false);
+    
+    const selectedPatientId = usePatientStore(s => s.companionSelectedPatientId);
+    const navigation = useNavigation();
 
     // Mock weekly data to render a stunning micro-chart (since backend is real-time only)
     const mockWeeklyAdherence = [
@@ -50,14 +52,11 @@ export default function CompanionDashboardScreen() {
         { day: 'S', rate: 75 },
     ];
 
-    const loadData = async (patientId = null) => {
+    const loadData = async () => {
         try {
-            const activeId = patientId || selectedPatientId;
-            const res = await apiService.companion.getPatientStatus(activeId ? { patientId: activeId } : undefined);
+            if (!selectedPatientId) return;
+            const res = await apiService.companion.getPatientStatus({ patientId: selectedPatientId });
             setData(res.data);
-            if (res.data.patient && !selectedPatientId && !patientId) {
-                setSelectedPatientId(res.data.patient.id);
-            }
         } catch (err) {
             console.warn('Failed to load companion dashboard', err);
         }
@@ -65,17 +64,12 @@ export default function CompanionDashboardScreen() {
 
     useEffect(() => {
         loadData();
-    }, []);
+    }, [selectedPatientId]);
 
     const onRefresh = async () => {
         setRefreshing(true);
         await loadData();
         setRefreshing(false);
-    };
-
-    const handlePatientSwitch = async (patientId) => {
-        setSelectedPatientId(patientId);
-        await loadData(patientId);
     };
 
     const handleNudge = async () => {
@@ -107,63 +101,7 @@ export default function CompanionDashboardScreen() {
         }
     };
 
-    const handleLinkPatient = async () => {
-        if (!linkCode || linkCode.length < 6) {
-            AlertManager.alert('Invalid Code', 'Please enter a valid 6-character invite code.');
-            return;
-        }
-        setLinking(true);
-        try {
-            await apiService.companion.linkPatient({ invite_code: linkCode });
-            setLinkCode('');
-            AlertManager.alert('Success', 'Patient successfully linked to your care circle!');
-            await loadData();
-        } catch (err) {
-            AlertManager.alert('Link Failed', err.response?.data?.error || 'Failed to link patient. Please check the code.');
-        } finally {
-            setLinking(false);
-        }
-    };
-
-    if (!data) return <View style={styles.container} />;
-
-    if (!data.patient) {
-        return (
-            <View style={styles.container}>
-                <View style={styles.header}>
-                    <View>
-                        <Text style={styles.headerSub}>Family Care Portal</Text>
-                        <Text style={styles.title}>Welcome!</Text>
-                    </View>
-                </View>
-                <View style={[styles.linkContainer, { marginTop: 40, marginHorizontal: 20 }]}>
-                    <Text style={styles.linkTitle}>Link New Patient</Text>
-                    <View style={styles.linkInputRow}>
-                        <TextInput
-                            style={styles.linkInput}
-                            placeholder="Enter 6-char Invite Code"
-                            placeholderTextColor={C.light}
-                            value={linkCode}
-                            onChangeText={(v) => setLinkCode(v.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6))}
-                            autoCapitalize="characters"
-                        />
-                        <Pressable 
-                            style={[styles.linkBtn, (!linkCode || linkCode.length < 6 || linking) && { opacity: 0.7 }]} 
-                            onPress={handleLinkPatient}
-                            disabled={!linkCode || linkCode.length < 6 || linking}
-                        >
-                            {linking ? <ActivityIndicator color="#FFF" size="small" /> : <Text style={styles.linkBtnText}>Link</Text>}
-                        </Pressable>
-                    </View>
-                </View>
-                <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 }}>
-                    <ShieldCheck size={64} color={C.primaryLight} style={{ marginBottom: 20 }} />
-                    <Text style={{ fontSize: 18, ...FONT.bold, color: C.dark, textAlign: 'center', marginBottom: 8 }}>No Patients Linked</Text>
-                    <Text style={{ fontSize: 14, ...FONT.medium, color: C.mid, textAlign: 'center', lineHeight: 22 }}>Enter an invite code above to start monitoring your loved one's health.</Text>
-                </View>
-            </View>
-        );
-    }
+    if (!data || !data.patient) return <View style={styles.container} />;
 
     const adherence = data.patient.adherence_rate !== null ? data.patient.adherence_rate : 0;
     
@@ -175,93 +113,20 @@ export default function CompanionDashboardScreen() {
     return (
         <View style={styles.container}>
             <View style={styles.header}>
-                <View>
-                    <Text style={styles.headerSub}>Family Care Portal</Text>
-                    <Text style={styles.title}>{data.patient.name}'s Health</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                    <Pressable onPress={() => navigation.goBack()} style={{ padding: 4, marginLeft: -4 }}>
+                        <ChevronLeft color={C.dark} size={28} />
+                    </Pressable>
+                    <View>
+                        <Text style={styles.headerSub}>Family Care Portal</Text>
+                        <Text style={styles.title}>{data.patient.name}'s Health</Text>
+                    </View>
                 </View>
                 <Pressable style={styles.bellButton}>
                     <Bell color={C.dark} size={20} />
                     {data.recent_alerts?.length > 0 && <View style={styles.bellDot} />}
                 </Pressable>
             </View>
-
-            {/* Link New Patient Container */}
-            <View style={styles.linkContainer}>
-                <Text style={styles.linkTitle}>Link New Patient</Text>
-                <View style={styles.linkInputRow}>
-                    <TextInput
-                        style={styles.linkInput}
-                        placeholder="Enter 6-char Invite Code"
-                        placeholderTextColor={C.light}
-                        value={linkCode}
-                        onChangeText={(v) => setLinkCode(v.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6))}
-                        autoCapitalize="characters"
-                    />
-                    <Pressable 
-                        style={[styles.linkBtn, (!linkCode || linkCode.length < 6 || linking) && { opacity: 0.7 }]} 
-                        onPress={handleLinkPatient}
-                        disabled={!linkCode || linkCode.length < 6 || linking}
-                    >
-                        {linking ? <ActivityIndicator color="#FFF" size="small" /> : <Text style={styles.linkBtnText}>Link</Text>}
-                    </Pressable>
-                </View>
-            </View>
-
-            {/* Premium Horizontal Patient Switcher */}
-            {data.linked_patients?.length > 1 && (
-                <View style={styles.switcherContainer}>
-                    <ScrollView 
-                        horizontal 
-                        showsHorizontalScrollIndicator={false}
-                        contentContainerStyle={styles.switcherScroll}
-                    >
-                        {data.linked_patients.map((p) => {
-                            const isSelected = p.id === selectedPatientId;
-                            const initials = p.name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
-                            return (
-                                <Pressable
-                                    key={p.id}
-                                    onPress={() => handlePatientSwitch(p.id)}
-                                    style={[
-                                        styles.avatarWrapper,
-                                        isSelected && styles.activeAvatarWrapper
-                                    ]}
-                                >
-                                    <View style={[
-                                        styles.avatar,
-                                        isSelected && styles.activeAvatar
-                                    ]}>
-                                        <Text style={[
-                                            styles.avatarText,
-                                            isSelected && styles.activeAvatarText
-                                        ]}>
-                                            {initials}
-                                        </Text>
-                                        
-                                        {p.health_score !== undefined && (
-                                            <View style={[
-                                                styles.scoreBadge,
-                                                { backgroundColor: p.health_score > 70 ? C.success : C.warning }
-                                            ]}>
-                                                <Text style={styles.scoreText}>{p.health_score}</Text>
-                                            </View>
-                                        )}
-                                    </View>
-                                    <Text 
-                                        numberOfLines={1} 
-                                        style={[
-                                            styles.avatarName,
-                                            isSelected && styles.activeAvatarName
-                                        ]}
-                                    >
-                                        {p.name.split(' ')[0]}
-                                    </Text>
-                                </Pressable>
-                            );
-                        })}
-                    </ScrollView>
-                </View>
-            )}
 
             <ScrollView 
                 contentContainerStyle={styles.content}

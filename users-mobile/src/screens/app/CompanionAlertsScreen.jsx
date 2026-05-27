@@ -2,7 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, RefreshControl, Pressable } from 'react-native';
 import { apiService } from '../../lib/api';
 import { layout } from '../../theme';
-import { Bell, CheckCircle2, ShieldCheck, ShieldAlert, Phone, Clock, ChevronRight, Activity, Check } from 'lucide-react-native';
+import { Bell, CheckCircle2, ShieldCheck, ShieldAlert, Phone, Clock, ChevronRight, Activity, Check, ChevronLeft } from 'lucide-react-native';
+import usePatientStore from '../../store/usePatientStore';
+import { useNavigation } from '@react-navigation/native';
 
 const C = {
     bg: '#F8FAFC',
@@ -29,25 +31,17 @@ const FONT = {
 export default function CompanionAlertsScreen() {
     const [data, setData] = useState(null);
     const [alerts, setAlerts] = useState([]);
-    const [selectedPatientId, setSelectedPatientId] = useState(null);
     const [refreshing, setRefreshing] = useState(false);
 
-    // Mock resolved alerts history to populate the screen beautifully
-    const mockHistory = [
-        { id: '1', title: 'Adherence Met', desc: 'Mom completed 100% of yesterday\'s doses.', time: 'Yesterday' },
-        { id: '2', title: 'Vital Update', desc: 'BP reading recorded: 120/80 mmHg (Normal).', time: '2 days ago' },
-        { id: '3', title: 'System Restored', desc: 'Care circle invitation accepted successfully.', time: 'May 23' },
-    ];
+    const selectedPatientId = usePatientStore(s => s.companionSelectedPatientId);
+    const navigation = useNavigation();
 
-    const loadData = async (patientId = null) => {
+    const loadData = async () => {
         try {
-            const activeId = patientId || selectedPatientId;
-            const res = await apiService.companion.getPatientStatus(activeId ? { patientId: activeId } : undefined);
+            if (!selectedPatientId) return;
+            const res = await apiService.companion.getPatientStatus({ patientId: selectedPatientId });
             setData(res.data);
             setAlerts(res.data.recent_alerts || []);
-            if (res.data.patient && !selectedPatientId && !patientId) {
-                setSelectedPatientId(res.data.patient.id);
-            }
         } catch (err) {
             console.warn('Failed to load alerts data', err);
         }
@@ -55,17 +49,12 @@ export default function CompanionAlertsScreen() {
 
     useEffect(() => {
         loadData();
-    }, []);
+    }, [selectedPatientId]);
 
     const onRefresh = async () => {
         setRefreshing(true);
         await loadData();
         setRefreshing(false);
-    };
-
-    const handlePatientSwitch = async (patientId) => {
-        setSelectedPatientId(patientId);
-        await loadData(patientId);
     };
 
     const acknowledgeAlert = async (id) => {
@@ -77,14 +66,26 @@ export default function CompanionAlertsScreen() {
         }
     };
 
-    if (!data) return <View style={styles.container} />;
+    if (!data || !data.patient) return <View style={styles.container} />;
+
+    // Mock resolved alerts history to populate the screen beautifully
+    const mockHistory = [
+        { id: '1', title: 'Adherence Met', desc: `${data.patient.name.split(' ')[0]} completed 100% of yesterday's doses.`, time: 'Yesterday' },
+        { id: '2', title: 'Vital Update', desc: 'BP reading recorded: 120/80 mmHg (Normal).', time: '2 days ago' },
+        { id: '3', title: 'System Restored', desc: 'Care circle invitation accepted successfully.', time: 'May 23' },
+    ];
 
     return (
         <View style={styles.container}>
             <View style={styles.header}>
-                <View>
-                    <Text style={styles.headerSub}>Alert Center</Text>
-                    <Text style={styles.title}>{data.patient.name}'s Alerts</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                    <Pressable onPress={() => navigation.goBack()} style={{ padding: 4, marginLeft: -4 }}>
+                        <ChevronLeft color={C.dark} size={28} />
+                    </Pressable>
+                    <View>
+                        <Text style={styles.headerSub}>Alert Center</Text>
+                        <Text style={styles.title}>{data.patient.name}'s Alerts</Text>
+                    </View>
                 </View>
                 <View style={[
                     styles.badge, 
@@ -98,62 +99,6 @@ export default function CompanionAlertsScreen() {
                     </Text>
                 </View>
             </View>
-
-            {/* Horizontal Patient Switcher */}
-            {data.linked_patients?.length > 1 && (
-                <View style={styles.switcherContainer}>
-                    <ScrollView 
-                        horizontal 
-                        showsHorizontalScrollIndicator={false}
-                        contentContainerStyle={styles.switcherScroll}
-                    >
-                        {data.linked_patients.map((p) => {
-                            const isSelected = p.id === selectedPatientId;
-                            const initials = p.name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
-                            return (
-                                <Pressable
-                                    key={p.id}
-                                    onPress={() => handlePatientSwitch(p.id)}
-                                    style={[
-                                        styles.avatarWrapper,
-                                        isSelected && styles.activeAvatarWrapper
-                                    ]}
-                                >
-                                    <View style={[
-                                        styles.avatar,
-                                        isSelected && styles.activeAvatar
-                                    ]}>
-                                        <Text style={[
-                                            styles.avatarText,
-                                            isSelected && styles.activeAvatarText
-                                        ]}>
-                                            {initials}
-                                        </Text>
-                                        
-                                        {p.health_score !== undefined && (
-                                            <View style={[
-                                                styles.scoreBadge,
-                                                { backgroundColor: p.health_score > 70 ? C.success : C.warning }
-                                            ]}>
-                                                <Text style={styles.scoreText}>{p.health_score}</Text>
-                                            </View>
-                                        )}
-                                    </View>
-                                    <Text 
-                                        numberOfLines={1} 
-                                        style={[
-                                            styles.avatarName,
-                                            isSelected && styles.activeAvatarName
-                                        ]}
-                                    >
-                                        {p.name.split(' ')[0]}
-                                    </Text>
-                                </Pressable>
-                            );
-                        })}
-                    </ScrollView>
-                </View>
-            )}
 
             <ScrollView 
                 contentContainerStyle={styles.content}

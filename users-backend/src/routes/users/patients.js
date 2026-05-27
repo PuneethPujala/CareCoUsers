@@ -384,6 +384,7 @@ router.put('/me', authenticateSession, async (req, res) => {
             name, city, date_of_birth, phone, gender, blood_type, language,
             push_notifications_enabled, medication_reminders_enabled,
             expo_push_token, profile_complete,
+            device_platform, device_name, app_version
         } = req.body;
 
         const updates = {};
@@ -402,7 +403,13 @@ router.put('/me', authenticateSession, async (req, res) => {
         if (language !== undefined) updates.language = language;
         if (push_notifications_enabled !== undefined) updates.push_notifications_enabled = push_notifications_enabled;
         if (medication_reminders_enabled !== undefined) updates.medication_reminders_enabled = medication_reminders_enabled;
-        if (expo_push_token !== undefined) updates.expo_push_token = expo_push_token;
+        if (expo_push_token !== undefined) {
+            updates.expo_push_token = expo_push_token;
+            updates.last_token_update = new Date();
+        }
+        if (device_platform !== undefined) updates.device_platform = device_platform;
+        if (device_name !== undefined) updates.device_name = device_name;
+        if (app_version !== undefined) updates.app_version = app_version;
         if (profile_complete !== undefined) updates.profile_complete = profile_complete;
 
         const patient = await getOrCreatePatient(req, name);
@@ -934,9 +941,10 @@ router.put('/me/medications', authenticateSession, async (req, res) => {
 
         let scheduledTimes = [];
         if (times && times.length > 0) {
-            const prefs = patient.medication_call_preferences || { morning: '09:00', afternoon: '14:00', night: '20:00' };
+            const prefs = patient.medication_call_preferences || { morning: '09:00', afternoon: '14:00', evening: '17:00', night: '20:00' };
             if (times.includes('morning')) scheduledTimes.push(prefs.morning);
-            if (times.includes('afternoon') || times.includes('evening')) scheduledTimes.push(prefs.afternoon);
+            if (times.includes('afternoon')) scheduledTimes.push(prefs.afternoon);
+            if (times.includes('evening')) scheduledTimes.push(prefs.evening);
             if (times.includes('night')) scheduledTimes.push(prefs.night);
             scheduledTimes = [...new Set(scheduledTimes)].sort();
         }
@@ -975,12 +983,13 @@ router.put('/me/medications', authenticateSession, async (req, res) => {
 
 router.put('/me/call-preferences', authenticateSession, async (req, res) => {
     try {
-        const { morning, afternoon, night } = req.body;
+        const { morning, afternoon, evening, night } = req.body;
         const patient = await getOrCreatePatient(req);
 
         const newPrefs = {
             morning: morning || patient.medication_call_preferences?.morning || '09:00',
             afternoon: afternoon || patient.medication_call_preferences?.afternoon || '14:00',
+            evening: evening || patient.medication_call_preferences?.evening || '17:00',
             night: night || patient.medication_call_preferences?.night || '20:00',
         };
 
@@ -993,7 +1002,8 @@ router.put('/me/call-preferences', authenticateSession, async (req, res) => {
                 const prefs = freshPatient.medication_call_preferences;
                 if (med.times?.length > 0) {
                     if (med.times.includes('morning')) newScheduledTimes.push(prefs.morning);
-                    if (med.times.includes('afternoon') || med.times.includes('evening')) newScheduledTimes.push(prefs.afternoon);
+                    if (med.times.includes('afternoon')) newScheduledTimes.push(prefs.afternoon);
+                    if (med.times.includes('evening')) newScheduledTimes.push(prefs.evening);
                     if (med.times.includes('night')) newScheduledTimes.push(prefs.night);
                 }
                 return {
@@ -1315,7 +1325,7 @@ router.get('/me/dashboard', authenticateSession, async (req, res) => {
                 }
 
                 const logObj = log ? log.toObject() : { medicines: [], date: todayUtc };
-                const preferences = patient.medication_call_preferences || { morning: '09:00', afternoon: '14:00', night: '20:00' };
+                const preferences = patient.medication_call_preferences || { morning: '09:00', afternoon: '14:00', evening: '17:00', night: '20:00' };
                 if (logObj.medicines) {
                     logObj.medicines = logObj.medicines.filter(m => m.is_active !== false).map(m => {
                         const patMed = allMedsRaw.find(p => p.name === m.medicine_name);

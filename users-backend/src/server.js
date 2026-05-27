@@ -51,32 +51,13 @@ if (process.env.NODE_ENV !== 'test') {
   });
 
   // ── Job scheduling ────────────────────────────────────────────────
-  // Register repeatable BullMQ jobs (processed by worker.js).
-  // Falls back to in-process node-cron if Redis is unavailable.
+  // We explicitly start the in-process node-cron jobs here so they run
+  // directly on the Render Web Service dyno, avoiding the need for a separate Worker dyno.
   (async () => {
-    try {
-      const { medicationReminderQueue, aiNotificationQueue } = require('./jobs/jobQueues');
-
-      // Upsert repeatable schedules — idempotent, safe to call on every restart
-      await medicationReminderQueue.upsertJobScheduler(
-        'med-reminder-every-minute',
-        { pattern: '* * * * *' },    // every minute
-        { name: 'medication-scan' }
-      );
-
-      await aiNotificationQueue.upsertJobScheduler(
-        'ai-notif-every-hour',
-        { pattern: '0 * * * *' },    // top of every hour
-        { name: 'ai-notification-scan' }
-      );
-
-      console.log('📋 BullMQ repeatable jobs registered (processed by worker.js)');
-    } catch (err) {
-      console.warn('⚠️  BullMQ scheduling failed, falling back to in-process cron:', err.message);
-      require('./jobs/notificationJob').startNotificationCron();
-      require('./jobs/medicationReminderJob'); // Starts the 1-minute medication cron
-      require('./jobs/escalationJob'); // Starts the hourly escalation cron
-    }
+    console.log('⏰ Starting in-process cron jobs (Node-Cron)');
+    require('./jobs/notificationJob').startNotificationCron();
+    require('./jobs/medicationReminderJob').startMedicationCron();
+    require('./jobs/escalationJob').startEscalationCron();
   })();
 }
 
@@ -162,6 +143,10 @@ app.use('/api/chatbot', chatbotRoutes);
 // ─── OCR API ───────────────────────────────────
 const ocrRoutes = require('./routes/ocrRoutes');
 app.use('/api/ocr', ocrRoutes);
+
+// ─── Admin API ─────────────────────────────────
+const adminObservabilityRoutes = require('./routes/admin/observability');
+app.use('/api/admin/observability', adminObservabilityRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {

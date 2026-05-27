@@ -7,8 +7,9 @@ import * as ScreenCapture from 'expo-screen-capture';
 import * as SplashScreen from 'expo-splash-screen';
 import {
     View, Text, StyleSheet, Animated, ActivityIndicator,
-    TouchableOpacity, Pressable, Image,
+    TouchableOpacity, Pressable, Image, Platform
 } from "react-native";
+import Constants from 'expo-constants';
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { LayoutDashboard, Users, Pill, ShieldPlus, UserCircle, Bell, MessageSquare } from "lucide-react-native";
@@ -24,6 +25,7 @@ import usePatientStore from '../store/usePatientStore';
 import NetInfo from '@react-native-community/netinfo';
 import OfflineSyncService from '../lib/OfflineSyncService';
 import { navigate } from '../lib/navigationRef';
+import GlobalSyncBanner from '../components/ui/GlobalSyncBanner';
 
 import PatientSignupScreen from "../screens/onboarding/PatientSignupScreen";
 import LoginScreen from "../screens/onboarding/LoginScreen";
@@ -31,12 +33,14 @@ import ResetPasswordScreen from "../screens/onboarding/ResetPasswordScreen";
 import VerifyEmailScreen from "../screens/onboarding/VerifyEmailScreen";
 import MFAVerifyScreen from "../screens/auth/MFAVerifyScreen";
 import MFASetupScreen from "../screens/settings/MFASetupScreen";
+import DeveloperObservabilityScreen from "../screens/settings/DeveloperObservabilityScreen";
 import CompanionSignupScreen from '../screens/onboarding/CompanionSignupScreen';
 
-// Dummy screens for Companion Tab Navigator (will be created in next step)
+import CompanionHomeScreen from '../screens/app/CompanionHomeScreen';
 import CompanionDashboardScreen from '../screens/app/CompanionDashboardScreen';
 import CompanionAlertsScreen from '../screens/app/CompanionAlertsScreen';
 import CompanionProfileScreen from '../screens/app/CompanionProfileScreen';
+import CompanionChatListScreen from '../screens/app/CompanionChatListScreen';
 
 import PatientHomeScreen from "../screens/patient/HomeScreen";
 import MyCallerScreen from "../screens/patient/MyCallerScreen";
@@ -129,13 +133,21 @@ function PatientTabNavigator() {
 function CompanionTabNavigator() {
     return (
         <Tab.Navigator tabBar={(props) => <CustomTabBar {...props} />} screenOptions={{ headerShown: false }}>
-            <Tab.Screen name="CompanionHome" component={CompanionDashboardScreen} options={{ tabBarIconComponent: LayoutDashboard }} />
+            <Tab.Screen name="CompanionDashboard" component={CompanionDashboardScreen} options={{ tabBarIconComponent: LayoutDashboard }} />
             <Tab.Screen name="CompanionAlerts" component={CompanionAlertsScreen} options={{ tabBarIconComponent: Bell }} />
-            <Tab.Screen name="CompanionChat" component={ChatbotScreen} options={{ tabBarIconComponent: MessageSquare }} />
+            <Tab.Screen name="CompanionChatList" component={CompanionChatListScreen} options={{ tabBarIconComponent: MessageSquare }} />
             <Tab.Screen name="Profile" component={CompanionProfileScreen} options={{ tabBarIconComponent: UserCircle }} />
         </Tab.Navigator>
     );
 }
+
+const CompanionMainStack = () => (
+    <Stack.Navigator screenOptions={{ headerShown: false, animation: "fade" }}>
+        <Stack.Screen name="CompanionHome" component={CompanionHomeScreen} />
+        <Stack.Screen name="CompanionTabs" component={CompanionTabNavigator} />
+        <Stack.Screen name="Chatbot" component={ChatbotScreen} options={{ presentation: "modal", animation: "slide_from_bottom", headerShown: false }} />
+    </Stack.Navigator>
+);
 
 const AuthStack = () => (
     <Stack.Navigator screenOptions={{ headerShown: false, animation: "fade", animationDuration: 300 }} initialRouteName="Login">
@@ -169,6 +181,7 @@ const MainAppStack = () => (
         <Stack.Screen name="PremiumShowcase" component={PremiumShowcaseScreen} />
         <Stack.Screen name="WaitingRoom" component={WaitingScreen} />
         <Stack.Screen name="MFASetup" component={MFASetupScreen} options={{ presentation: "modal", animation: "slide_from_bottom" }} />
+        <Stack.Screen name="DeveloperObservability" component={DeveloperObservabilityScreen} options={{ presentation: "modal", animation: "slide_from_bottom" }} />
     </Stack.Navigator>
 );
 
@@ -260,9 +273,29 @@ export default function AppNavigator() {
             }
         });
 
+        // Handle token rotation (silent refresh by FCM/APNs)
+        const tokenListener = Notifications.addPushTokenListener(async (tokenData) => {
+            console.log('🔄 Push token rotated in background:', tokenData.data);
+            try {
+                const patientStore = usePatientStore.getState();
+                if (patientStore.patient?._id) {
+                    await apiService.patients.updateMe({
+                        expo_push_token: tokenData.data,
+                        device_platform: Platform.OS,
+                        device_name: Constants.deviceName,
+                        app_version: Constants.expoConfig?.version || '1.0.0'
+                    });
+                    console.log('✅ Rotated token successfully synced to backend');
+                }
+            } catch (err) {
+                console.error('❌ Failed to sync rotated token:', err);
+            }
+        });
+
         return () => {
             notificationListener.current?.remove();
             responseListener.current?.remove();
+            tokenListener?.remove();
         };
     }, []);
 
@@ -325,7 +358,7 @@ export default function AppNavigator() {
     if (profile?.role === 'companion') {
         return (
             <View style={{ flex: 1 }}>
-                <CompanionTabNavigator />
+                <CompanionMainStack />
                 <CustomAlert ref={alertRef} />
             </View>
         );
@@ -350,6 +383,7 @@ export default function AppNavigator() {
 
     return (
         <View style={{ flex: 1 }}>
+            <GlobalSyncBanner />
             <MainAppStack />
             <ChatFAB onPress={() => navigate('Chatbot')} />
             <CustomAlert ref={alertRef} />

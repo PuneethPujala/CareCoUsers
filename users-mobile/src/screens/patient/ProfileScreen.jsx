@@ -70,6 +70,7 @@ export default function PatientProfileScreen({ navigation }) {
     const [loading, setLoading] = useState(true);
     const [mfaEnabled, setMfaEnabled] = useState(false);
     const [accountActionLoading, setAccountActionLoading] = useState(false);
+    const [devTapCount, setDevTapCount] = useState(0);
     const [isSharing, setIsSharing] = useState(false);
     const shareCardRef = useRef(null);
 
@@ -996,7 +997,20 @@ export default function PatientProfileScreen({ navigation }) {
                             <ChevronRight size={18} color={C.light} />
                         </Pressable>
                     </View>
-                    <Text style={s.versionTxt}>v1.0.4 • Made with ♥ by CareMyMed</Text>
+                    <Pressable
+                        onPress={() => {
+                            setDevTapCount(prev => {
+                                const newCount = prev + 1;
+                                if (newCount >= 5) {
+                                    navigation.navigate('DeveloperObservability');
+                                    return 0; // reset
+                                }
+                                return newCount;
+                            });
+                        }}
+                    >
+                        <Text style={s.versionTxt}>v1.0.4 • Made with ♥ by CareMyMed</Text>
+                    </Pressable>
                 </Animated.View>
             </ScrollView>
 

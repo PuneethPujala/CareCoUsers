@@ -157,7 +157,7 @@ export default function NotificationsScreen({ navigation }) {
             // ── 3. Medication Alerts ──────────────────────────────────────
             const currentTime = new Date();
             const prefs = patient.medication_call_preferences || {
-                morning: '09:00', afternoon: '14:00', evening: '18:00', night: '20:00',
+                morning: '09:00', afternoon: '14:00', evening: '17:00', night: '20:00',
             };
 
             medicines.forEach(m => {
@@ -166,7 +166,7 @@ export default function NotificationsScreen({ navigation }) {
                     const timePref = prefs[timeKey] || (
                         timeKey === 'morning' ? '09:00' :
                         timeKey === 'afternoon' ? '14:00' :
-                        timeKey === 'evening' ? '18:00' : '20:00'
+                        timeKey === 'evening' ? '17:00' : '20:00'
                     );
                     const [h, min] = timePref.split(':').map(Number);
                     const medTime = new Date();

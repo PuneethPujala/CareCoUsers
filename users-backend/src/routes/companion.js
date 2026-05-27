@@ -785,7 +785,7 @@ router.post('/link-patient', authenticateSession, async (req, res) => {
             return res.status(400).json({ error: 'Invite code is required.' });
         }
 
-        if (req.user.role !== 'companion') {
+        if (req.auth?.userType !== 'Companion' && req.profile?.role !== 'companion') {
             return res.status(403).json({ error: 'Only companions can link patients.' });
         }
 

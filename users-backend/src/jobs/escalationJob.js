@@ -113,6 +113,15 @@ const runEscalationJob = async () => {
     }
 };
 
-cron.schedule('0 * * * *', runEscalationJob);
+let isEscalationCronStarted = false;
 
-module.exports = { runEscalationJob };
+const startEscalationCron = () => {
+    if (isEscalationCronStarted) {
+        console.warn('⚠️ Escalation cron already started. Skipping duplicate initialization.');
+        return;
+    }
+    cron.schedule('0 * * * *', runEscalationJob);
+    isEscalationCronStarted = true;
+};
+
+module.exports = { runEscalationJob, startEscalationCron };

@@ -44,6 +44,7 @@ function getTodayStringInTz(timezone) {
 
 const usePatientStore = create((set, get) => ({
     patient: null,
+    companionSelectedPatientId: null,
     vitals: null,
     vitalsHistory: [],
     aiPrediction: null,
@@ -52,13 +53,22 @@ const usePatientStore = create((set, get) => ({
     weeklyAdherence: [],
     adherenceDetails: null,
     adherenceRecap: null,
-    callPreferences: { morning: '09:00', afternoon: '14:00', night: '20:00' },
+    callPreferences: { morning: '09:00', afternoon: '14:00', evening: '17:00', night: '20:00' },
     loading: true,
     isCached: false,
     lastFetchTs: 0,
+    syncState: 'synced', // 'synced' | 'syncing' | 'failed' | 'offline'
+    pendingSyncCount: 0,
+    simulateOffline: false,
+    lastSyncTimestamp: null,
     _optimisticMeds: {},
 
     setPatient: (patient) => set({ patient }),
+    setCompanionSelectedPatientId: (id) => set({ companionSelectedPatientId: id }),
+    setSyncState: (state) => set({ syncState: state }),
+    setPendingSyncCount: (count) => set({ pendingSyncCount: count }),
+    setSimulateOffline: (simulate) => set({ simulateOffline: simulate }),
+    setLastSyncTimestamp: (ts) => set({ lastSyncTimestamp: ts }),
 
     fetchAdherenceDetails: async () => {
         try {
@@ -86,7 +96,7 @@ const usePatientStore = create((set, get) => ({
         try {
             const { data } = await apiService.patients.getMe();
             const patient = data.patient;
-            const prefs = patient?.medication_call_preferences || { morning: '09:00', afternoon: '14:00', night: '20:00' };
+            const prefs = patient?.medication_call_preferences || { morning: '09:00', afternoon: '14:00', evening: '17:00', night: '20:00' };
             if (patient?.language && i18n.language !== patient.language) {
                 i18n.changeLanguage(patient.language);
             }
@@ -127,7 +137,7 @@ const usePatientStore = create((set, get) => ({
                 // ── Fast path: aggregate response ───────────────────────
                 const freshPatient = dashData.patient;
                 const freshVitals = dashData.vitals;
-                const prefs = freshPatient?.medication_call_preferences || { morning: '09:00', afternoon: '14:00', night: '20:00' };
+                const prefs = freshPatient?.medication_call_preferences || { morning: '09:00', afternoon: '14:00', evening: '17:00', night: '20:00' };
 
                 if (freshPatient?.language && i18n.language !== freshPatient.language) {
                     i18n.changeLanguage(freshPatient.language);
@@ -213,7 +223,7 @@ const usePatientStore = create((set, get) => ({
             const freshPatient = pRes.data.patient;
             const todayVitals = vRes.data.vitals;
             const freshVitals = todayVitals?.length > 0 ? todayVitals[todayVitals.length - 1] : null;
-            const prefs = freshPatient?.medication_call_preferences || { morning: '09:00', afternoon: '14:00', night: '20:00' };
+            const prefs = freshPatient?.medication_call_preferences || { morning: '09:00', afternoon: '14:00', evening: '17:00', night: '20:00' };
 
             if (freshPatient?.language && i18n.language !== freshPatient.language) {
                 i18n.changeLanguage(freshPatient.language);
@@ -283,7 +293,7 @@ const usePatientStore = create((set, get) => ({
         try {
             const pRes = await apiService.patients.getMe();
             const freshPatient = pRes.data.patient;
-            const prefs = freshPatient?.medication_call_preferences || { morning: '09:00', afternoon: '14:00', night: '20:00' };
+            const prefs = freshPatient?.medication_call_preferences || { morning: '09:00', afternoon: '14:00', evening: '17:00', night: '20:00' };
 
             if (freshPatient?.subscription?.plan === 'free') {
                 set({ patient: freshPatient, callPreferences: prefs, loading: false });

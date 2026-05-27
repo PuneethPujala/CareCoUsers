@@ -106,6 +106,11 @@ const PatientSchema = new mongoose.Schema(
             type: String,
             trim: true,
         },
+        device_platform: { type: String, enum: ['ios', 'android', 'web'] },
+        device_name: { type: String, trim: true },
+        app_version: { type: String, trim: true },
+        last_token_update: { type: Date },
+        
         push_notifications_enabled: {
             type: Boolean,
             default: true,
@@ -183,6 +188,7 @@ const PatientSchema = new mongoose.Schema(
         medication_call_preferences: {
             morning: { type: String, default: '09:00' },
             afternoon: { type: String, default: '14:00' },
+            evening: { type: String, default: '17:00' },
             night: { type: String, default: '20:00' }
         },
         preferred_call_times: [

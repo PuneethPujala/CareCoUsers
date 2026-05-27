@@ -44,6 +44,10 @@ const NotificationSchema = new mongoose.Schema(
             streak_impact: String,
             rule_matched: String,
         },
+        dedupe_key: {
+            type: String,
+            trim: true,
+        },
     },
     {
         timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' },
@@ -55,6 +59,9 @@ const NotificationSchema = new mongoose.Schema(
 // Compound indexes for common query patterns
 NotificationSchema.index({ patient_id: 1, created_at: -1 }); // list notifications sorted by date
 NotificationSchema.index({ patient_id: 1, is_read: 1, created_at: -1 }); // unread count + filtered lists
+
+// Idempotency: Ensure no duplicate reminders are generated (sparse prevents errors if missing)
+NotificationSchema.index({ dedupe_key: 1 }, { unique: true, sparse: true });
 
 // Auto-delete backend notifications after 30 days to save space
 NotificationSchema.index({ created_at: 1 }, { expireAfterSeconds: 30 * 24 * 60 * 60 });

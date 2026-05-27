@@ -58,8 +58,8 @@ const runMedicationReminders = async () => {
                     // Case B: Med uses named buckets matched against patient preferences
                     { $and: [{ 'medications.times': 'morning' }, { 'medication_call_preferences.morning': targetTime }] },
                     { $and: [{ 'medications.times': 'afternoon' }, { 'medication_call_preferences.afternoon': targetTime }] },
+                    { $and: [{ 'medications.times': 'evening' }, { 'medication_call_preferences.evening': targetTime }] },
                     { $and: [{ 'medications.times': 'night' }, { 'medication_call_preferences.night': targetTime }] },
-                    { $and: [{ 'medications.times': 'evening' }, { 'medication_call_preferences.night': targetTime }] },
                 ],
             }).select('name medications medication_call_preferences expo_push_token');
 
@@ -83,8 +83,8 @@ const runMedicationReminders = async () => {
                     const prefs = patient.medication_call_preferences || {};
                     if (med.times?.includes('morning') && prefs.morning === targetTime) return true;
                     if (med.times?.includes('afternoon') && prefs.afternoon === targetTime) return true;
+                    if (med.times?.includes('evening') && prefs.evening === targetTime) return true;
                     if (med.times?.includes('night') && prefs.night === targetTime) return true;
-                    if (med.times?.includes('evening') && prefs.night === targetTime) return true;
 
                     return false;
                 });
@@ -101,26 +101,53 @@ const runMedicationReminders = async () => {
                     messageBody = `${medNames[0]}, ${medNames[1]} and ${medNames.length - 2} more — due in 15 minutes.`;
                 }
 
-                const pushDelivered = await NotificationService.sendPush(patient._id, {
-                    title: '💊 Medication Reminder',
-                    body: messageBody,
-                    data: {
-                        screen: 'Medications',
-                        type: 'medication_reminder',
-                        slot: dueMeds[0].times?.[0] || 'morning',
-                        medication_ids: dueMeds.map(m => m._id.toString()).join(','),
-                        categoryIdentifier: 'medication_reminder',
-                    },
-                });
+                const slotKey = dueMeds[0].times?.[0] || 'morning';
+                const dedupeKey = `med_reminder_${patient._id}_${slotKey}_${todayStr}`;
 
-                await Notification.create({
-                    patient_id: patient._id,
-                    type: 'reminders',
-                    title: '💊 Medication Reminder',
-                    message: messageBody,
-                    target_screen: 'Medications',
-                    push_delivered: pushDelivered,
-                });
+                let notificationRecord;
+                try {
+                    // 1. Insert Dedupe Record FIRST to prevent race conditions
+                    notificationRecord = await Notification.create({
+                        patient_id: patient._id,
+                        type: 'reminders',
+                        title: '💊 Medication Reminder',
+                        message: messageBody,
+                        target_screen: 'Medications',
+                        push_delivered: false, // Default to false until sent
+                        dedupe_key: dedupeKey,
+                    });
+                } catch (err) {
+                    if (err.code === 11000) {
+                        console.log(`[ReminderJob] Duplicate reminder blocked for ${patient._id} at ${slotKey}`);
+                        continue; // Skip, another process already handled this!
+                    }
+                    console.error(`[ReminderJob] Failed to insert dedupe record for ${patient._id}:`, err.message);
+                    continue; // Better safe than spamming
+                }
+
+                // 2. Send the Push Notification
+                try {
+                    const pushDelivered = await NotificationService.sendPush(patient._id, {
+                        title: '💊 Medication Reminder',
+                        body: messageBody,
+                        data: {
+                            screen: 'Medications',
+                            type: 'medication_reminder',
+                            slot: slotKey,
+                            medication_ids: dueMeds.map(m => m._id.toString()).join(','),
+                            categoryIdentifier: 'medication_reminder',
+                        },
+                    });
+
+                    // 3. Update the record to reflect successful delivery
+                    if (pushDelivered) {
+                        await Notification.updateOne({ _id: notificationRecord._id }, { $set: { push_delivered: true } });
+                    }
+                    
+                    console.log(`[ReminderJob] Sent notification to patient ${patient._id}`);
+                } catch (err) {
+                    console.error(`[ReminderJob] Failed to send notification to patient ${patient._id}:`, err.message);
+                }
             }
         }
     } catch (error) {
@@ -130,6 +157,15 @@ const runMedicationReminders = async () => {
     }
 };
 
-cron.schedule('* * * * *', runMedicationReminders);
+let isMedicationCronStarted = false;
 
-module.exports = { runMedicationReminders };
+const startMedicationCron = () => {
+    if (isMedicationCronStarted) {
+        console.warn('⚠️ Medication reminder cron already started. Skipping duplicate initialization.');
+        return;
+    }
+    cron.schedule('* * * * *', runMedicationReminders);
+    isMedicationCronStarted = true;
+};
+
+module.exports = { runMedicationReminders, startMedicationCron };

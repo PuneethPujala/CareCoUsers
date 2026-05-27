@@ -131,9 +131,6 @@ export default function ChatbotScreen({ navigation, route }) {
     const flatListRef = useRef(null);
     const xhrRef = useRef(null); // Track active SSE stream for abort/cancellation
 
-    const isCompanionChat = route?.name === 'CompanionChat';
-    const tabBottom = insets.bottom > 0 ? insets.bottom : 8;
-    const companionChatOffset = isCompanionChat ? (64 + tabBottom + 8) : 0;
     const [inputText, setInputText] = useState('');
     
     // UI Loading States
@@ -587,6 +584,15 @@ export default function ChatbotScreen({ navigation, route }) {
                     }
                     ListFooterComponent={
                         <>
+                            {messages.length <= 2 && (
+                                <View style={styles.suggestionsRow}>
+                                    {INITIAL_SUGGESTIONS.map((s, i) => (
+                                        <Pressable key={i} style={styles.suggestionChip} onPress={() => handleSend(s)}>
+                                            <Text style={styles.suggestionText}>{s}</Text>
+                                        </Pressable>
+                                    ))}
+                                </View>
+                            )}
                             {isTyping ? <TypingIndicator stage={typingStage} /> : null}
                             {!isTyping && followUpSuggestions.length > 0 ? (
                                 <FollowUpChips 
@@ -598,19 +604,8 @@ export default function ChatbotScreen({ navigation, route }) {
                     }
                 />
 
-                {/* ── Suggestion chips (shown when few messages) ── */}
-                {messages.length <= 2 && (
-                    <View style={styles.suggestionsRow}>
-                        {INITIAL_SUGGESTIONS.map((s, i) => (
-                            <Pressable key={i} style={styles.suggestionChip} onPress={() => handleSend(s)}>
-                                <Text style={styles.suggestionText}>{s}</Text>
-                            </Pressable>
-                        ))}
-                    </View>
-                )}
-
                 {/* ── Input bar ── */}
-                <View style={[styles.inputBar, { paddingBottom: Math.max(insets.bottom, 12), marginBottom: companionChatOffset }]}>
+                <View style={[styles.inputBar, { paddingBottom: Math.max(insets.bottom, 12) }]}>
                     {recordingMode === 'idle' ? (
                         <>
                             <Pressable style={styles.inputAction} onPress={handlePickImage}>
