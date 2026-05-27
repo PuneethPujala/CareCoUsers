@@ -215,7 +215,7 @@ router.post('/check-email', otpRateLimiter, async (req, res) => {
         res.json({ exists: false });
     } catch (err) {
         logger.error('Companion check-email error', { error: err.message });
-        res.status(500).json({ error: 'Failed to verify email.' });
+        res.status(err.status || 500).json({ error: err.message || 'Failed to verify email.' });
     }
 });
 
