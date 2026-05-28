@@ -100,8 +100,13 @@ export default function CompanionHomeScreen() {
                 {/* Link New Patient Container */}
                 <View style={styles.linkContainer}>
                     <View style={styles.linkHeader}>
-                        <UserPlus color={C.dark} size={18} />
-                        <Text style={styles.linkTitle}>Link New Patient</Text>
+                        <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', shadowColor: C.primary, shadowOpacity: 0.1, shadowRadius: 4, elevation: 1 }}>
+                            <UserPlus color={C.primary} size={16} />
+                        </View>
+                        <View>
+                            <Text style={styles.linkTitle}>Link a Patient</Text>
+                            <Text style={{ fontSize: 12, ...FONT.medium, color: C.mid, marginTop: 2 }}>Enter their 6-digit invite code</Text>
+                        </View>
                     </View>
                     <View style={styles.linkInputRow}>
                         <TextInput
@@ -133,7 +138,7 @@ export default function CompanionHomeScreen() {
                     </View>
                 ) : (
                     <View style={styles.patientsList}>
-                        {data.linked_patients.map((p) => {
+                        {[...data.linked_patients].sort((a, b) => a.name.localeCompare(b.name)).map((p) => {
                             const initials = p.name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
                             return (
                                 <Pressable
@@ -194,27 +199,27 @@ const styles = StyleSheet.create({
     
     // Link Container Styles
     linkContainer: {
-        backgroundColor: C.surface,
+        backgroundColor: '#F0F9FF', // C.primaryLight but softer
         borderRadius: 24,
         padding: 20,
         borderWidth: 1,
-        borderColor: C.border,
-        shadowColor: C.dark,
-        shadowOpacity: 0.02,
-        shadowRadius: 10,
-        shadowOffset: { width: 0, height: 4 },
-        elevation: 1,
+        borderColor: '#E0F2FE',
+        shadowColor: C.primary,
+        shadowOpacity: 0.04,
+        shadowRadius: 12,
+        shadowOffset: { width: 0, height: 6 },
+        elevation: 2,
     },
     linkHeader: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 8,
-        marginBottom: 16,
+        gap: 12,
+        marginBottom: 18,
     },
     linkTitle: {
         fontSize: 16,
-        ...FONT.bold,
-        color: C.dark,
+        ...FONT.heavy,
+        color: '#0369A1',
     },
     linkInputRow: {
         flexDirection: 'row',
@@ -222,23 +227,30 @@ const styles = StyleSheet.create({
     },
     linkInput: {
         flex: 1,
-        height: 48,
-        backgroundColor: '#F8FAFC',
-        borderRadius: 14,
+        height: 52,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 16,
         paddingHorizontal: 16,
-        fontSize: 14,
-        ...FONT.medium,
+        fontSize: 15,
+        ...FONT.bold,
         color: C.dark,
         borderWidth: 1,
-        borderColor: '#E2E8F0',
+        borderColor: '#BAE6FD',
+        letterSpacing: 2,
+        textAlign: 'center',
     },
     linkBtn: {
-        height: 48,
+        height: 52,
         backgroundColor: C.primary,
-        paddingHorizontal: 24,
-        borderRadius: 14,
+        paddingHorizontal: 28,
+        borderRadius: 16,
         alignItems: 'center',
         justifyContent: 'center',
+        shadowColor: C.primary,
+        shadowOpacity: 0.2,
+        shadowRadius: 6,
+        shadowOffset: { width: 0, height: 3 },
+        elevation: 2,
     },
     linkBtnText: {
         color: '#FFF',
