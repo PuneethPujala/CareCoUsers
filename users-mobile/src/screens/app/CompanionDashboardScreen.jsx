@@ -385,51 +385,54 @@ export default function CompanionDashboardScreen() {
                                 {(() => {
                                     const daysToShow = 7;
                                     const history = data.vitals_history || [];
-                                    const paddedLogs = [];
+                                    const last7Days = [];
+                                    const today = new Date();
                                     
-                                    const itemsToPad = Math.max(0, daysToShow - history.length);
-                                    for(let i = 0; i < itemsToPad; i++) {
-                                        paddedLogs.push({ isPadding: true });
+                                    for (let i = daysToShow - 1; i >= 0; i--) {
+                                        const d = new Date(today);
+                                        d.setDate(d.getDate() - i);
+                                        last7Days.push(d);
                                     }
-                                    paddedLogs.push(...history.slice(-daysToShow));
 
-                                    return paddedLogs.map((log, idx) => {
-                                        if (log.isPadding) {
+                                    const historyByDate = {};
+                                    history.forEach(log => {
+                                        if (log.date) {
+                                            const dStr = new Date(log.date).toISOString().slice(0, 10);
+                                            historyByDate[dStr] = log;
+                                        }
+                                    });
+
+                                    return last7Days.map((dateObj, idx) => {
+                                        const dStr = dateObj.toISOString().slice(0, 10);
+                                        const log = historyByDate[dStr];
+                                        const dayLabel = dateObj.toLocaleDateString(undefined, { weekday: 'narrow' });
+
+                                        if (!log || !log.heart_rate) {
                                             return (
-                                                <View key={`pad-${idx}`} style={styles.barWrapper}>
-                                                    <View style={[styles.barTrack, { backgroundColor: 'transparent' }]} />
-                                                    <Text style={styles.barLabel}>-</Text>
+                                                <View key={`empty-${idx}`} style={styles.barWrapper}>
+                                                    <View style={[styles.barTrack, { backgroundColor: '#F1F5F9' }]}>
+                                                        <View style={[styles.barFill, { height: '8%', backgroundColor: '#CBD5E1' }]} />
+                                                    </View>
+                                                    <Text style={[styles.barLabel, { color: C.light }]}>{dayLabel}</Text>
                                                 </View>
                                             );
                                         }
 
                                         const rate = log.heart_rate;
-                                        const dateStr = log.date ? new Date(log.date).toLocaleDateString(undefined, { weekday: 'narrow' }) : '';
-
-                                        if (!rate) {
-                                            return (
-                                                <View key={idx} style={styles.barWrapper}>
-                                                    <View style={styles.barTrack}>
-                                                        <View style={[styles.barFill, { height: `5%`, backgroundColor: C.light }]} />
-                                                    </View>
-                                                    <Text style={styles.barLabel}>{dateStr || idx}</Text>
-                                                </View>
-                                            );
-                                        }
-
                                         const pct = Math.min(100, Math.max(20, (rate / 120) * 100));
+                                        
                                         return (
                                             <View key={idx} style={styles.barWrapper}>
-                                                <View style={styles.barTrack}>
+                                                <View style={[styles.barTrack, { backgroundColor: '#E0F2FE' }]}>
                                                     <View style={[
                                                         styles.barFill, 
                                                         { 
                                                             height: `${pct}%`,
-                                                            backgroundColor: rate > 100 || rate < 50 ? C.danger : C.primary
+                                                            backgroundColor: rate > 100 || rate < 50 ? C.danger : C.primary 
                                                         }
                                                     ]} />
                                                 </View>
-                                                <Text style={styles.barLabel}>{dateStr || idx}</Text>
+                                                <Text style={[styles.barLabel, { color: C.dark, ...FONT.bold }]}>{dayLabel}</Text>
                                             </View>
                                         );
                                     });
@@ -795,15 +798,15 @@ const styles = StyleSheet.create({
         gap: 8,
     },
     barTrack: {
-        width: 12,
+        width: 14,
         height: 70,
         backgroundColor: '#F1F5F9',
-        borderRadius: 6,
+        borderRadius: 7,
         justifyContent: 'flex-end',
     },
     barFill: {
         width: '100%',
-        borderRadius: 6,
+        borderRadius: 7,
     },
     barLabel: {
         fontSize: 10,
@@ -1080,15 +1083,15 @@ const styles = StyleSheet.create({
     vitalTrendSummary: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 6,
+        justifyContent: 'center',
+        gap: 8,
         borderRadius: 16,
-        paddingHorizontal: 14,
-        paddingVertical: 8,
+        paddingHorizontal: 16,
+        paddingVertical: 12,
         marginTop: 16,
     },
     vitalTrendSummaryText: {
-        fontSize: 11,
+        fontSize: 12,
         ...FONT.semibold,
-        flex: 1,
     },
 });
