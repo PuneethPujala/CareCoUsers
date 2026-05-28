@@ -269,8 +269,17 @@ export default function CompanionDashboardScreen() {
                         </View>
 
                         <View style={styles.timelineContainer}>
-                            {data.medication_schedule.map((item, idx) => {
-                                const isLast = idx === data.medication_schedule.length - 1;
+                            {(() => {
+                                const SLOT_ORDER = { morning: 1, afternoon: 2, evening: 3, night: 4, as_needed: 5 };
+                                const sortedSchedule = [...data.medication_schedule].sort((a, b) => {
+                                    const aOrder = SLOT_ORDER[a.scheduled_time] || 99;
+                                    const bOrder = SLOT_ORDER[b.scheduled_time] || 99;
+                                    if (aOrder !== bOrder) return aOrder - bOrder;
+                                    return a.name.localeCompare(b.name);
+                                });
+                                
+                                return sortedSchedule.map((item, idx) => {
+                                    const isLast = idx === sortedSchedule.length - 1;
                                 return (
                                     <View key={idx} style={styles.timelineRow}>
                                         <View style={styles.timelineLeft}>
@@ -307,7 +316,8 @@ export default function CompanionDashboardScreen() {
                                         </Pressable>
                                     </View>
                                 );
-                            })}
+                                });
+                            })()}
                         </View>
                     </View>
                 )}
