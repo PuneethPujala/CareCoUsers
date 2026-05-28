@@ -13,6 +13,7 @@ import { Audio } from 'expo-av';
 import * as ImagePicker from 'expo-image-picker';
 import usePatientStore from '../../store/usePatientStore';
 import { getApiTokens } from '../../lib/tokenStorage';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const INITIAL_SUGGESTIONS = [
     '💊 What medications am I taking?',
@@ -175,6 +176,41 @@ export default function ChatbotScreen({ navigation, route }) {
     }, []);
 
     useEffect(() => { scrollToBottom(); }, [messages, isTyping]);
+
+    // Load Chat History from AsyncStorage
+    useEffect(() => {
+        const loadHistory = async () => {
+            if (!patient?._id) return;
+            try {
+                const stored = await AsyncStorage.getItem(`@caremymed_chatbot_messages_${patient._id}`);
+                if (stored) {
+                    const parsed = JSON.parse(stored);
+                    if (parsed && parsed.length > 0) {
+                        setMessages(parsed);
+                        setTimeout(() => scrollToBottom(), 300);
+                    }
+                }
+            } catch (err) {
+                console.log('Failed to load chat history', err);
+            }
+        };
+        loadHistory();
+    }, [patient?._id]);
+
+    // Save Chat History to AsyncStorage
+    useEffect(() => {
+        const saveHistory = async () => {
+            if (!patient?._id || messages.length <= 1) return;
+            try {
+                // Keep only the last 50 messages to avoid payload limits
+                const messagesToSave = messages.slice(-50);
+                await AsyncStorage.setItem(`@caremymed_chatbot_messages_${patient._id}`, JSON.stringify(messagesToSave));
+            } catch (err) {
+                console.log('Failed to save chat history', err);
+            }
+        };
+        saveHistory();
+    }, [messages, patient?._id]);
 
     // Cleanup audio and abort active stream on unmount
     useEffect(() => {

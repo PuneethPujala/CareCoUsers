@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { MessageSquare, Plus, ChevronRight, Bot, Sparkles } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { layout } from '../../theme';
 import usePatientStore from '../../store/usePatientStore';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const C = {
     bg: '#F8FAFC',
@@ -27,10 +28,50 @@ const FONT = {
 export default function CompanionChatListScreen() {
     const navigation = useNavigation();
     const selectedPatientId = usePatientStore(s => s.companionSelectedPatientId);
+    
+    const [recentMessages, setRecentMessages] = useState([]);
+
+    useFocusEffect(
+        useCallback(() => {
+            const loadChats = async () => {
+                if (!selectedPatientId) return;
+                try {
+                    const stored = await AsyncStorage.getItem(`@caremymed_chatbot_messages_${selectedPatientId}`);
+                    if (stored) {
+                        const parsed = JSON.parse(stored);
+                        if (parsed && parsed.length > 1) {
+                            setRecentMessages(parsed);
+                        } else {
+                            setRecentMessages([]);
+                        }
+                    }
+                } catch (err) {
+                    console.log('Failed to load chats list', err);
+                }
+            };
+            loadChats();
+        }, [selectedPatientId])
+    );
 
     const handleNewChat = () => {
         navigation.navigate('Chatbot');
     };
+
+    let previewText = 'Tap to continue your previous conversation...';
+    let previewTime = 'Today';
+    
+    if (recentMessages.length > 0) {
+        const lastMsg = recentMessages[recentMessages.length - 1];
+        if (lastMsg.text) previewText = lastMsg.text;
+        else if (lastMsg.audio) previewText = 'Voice Message';
+        else if (lastMsg.image) previewText = 'Image Attachment';
+        
+        const d = new Date(lastMsg.timestamp || Date.now());
+        const isToday = d.toDateString() === new Date().toDateString();
+        previewTime = isToday 
+            ? d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
+            : d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+    }
 
     return (
         <View style={styles.container}>
@@ -64,22 +105,27 @@ export default function CompanionChatListScreen() {
 
                 <Text style={styles.sectionTitle}>Recent Chats</Text>
                 
-                {/* Mock Chat History Item */}
-                <Pressable style={styles.chatRow} onPress={handleNewChat}>
-                    <View style={styles.avatarCircle}>
-                        <Bot size={22} color={C.primary} strokeWidth={2} />
-                    </View>
-                    <View style={styles.chatDetails}>
-                        <View style={styles.chatHeader}>
-                            <Text style={styles.chatTitle}>Care Assistant</Text>
-                            <Text style={styles.chatTime}>Today</Text>
+                {recentMessages.length > 0 ? (
+                    <Pressable style={styles.chatRow} onPress={handleNewChat}>
+                        <View style={styles.avatarCircle}>
+                            <Bot size={22} color={C.primary} strokeWidth={2} />
                         </View>
-                        <Text style={styles.chatPreview} numberOfLines={1}>
-                            Tap to continue your previous conversation...
-                        </Text>
-                    </View>
-                    <ChevronRight size={18} color={C.light} />
-                </Pressable>
+                        <View style={styles.chatDetails}>
+                            <View style={styles.chatHeader}>
+                                <Text style={styles.chatTitle}>Care Assistant</Text>
+                                <Text style={styles.chatTime}>{previewTime}</Text>
+                            </View>
+                            <Text style={styles.chatPreview} numberOfLines={1}>
+                                {previewText}
+                            </Text>
+                        </View>
+                        <ChevronRight size={18} color={C.light} />
+                    </Pressable>
+                ) : (
+                    <Text style={{ color: C.light, paddingLeft: 4, marginTop: 4, fontSize: 13, ...FONT.medium }}>
+                        No previous sessions found. Start a new session above!
+                    </Text>
+                )}
                 
             </ScrollView>
         </View>
