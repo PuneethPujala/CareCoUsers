@@ -40,6 +40,11 @@ const TempMedicationSchema = new mongoose.Schema(
             maxlength: 100,
             default: 'As needed',
         },
+        shift: {
+            type: String,
+            enum: ['morning', 'afternoon', 'night'],
+            required: true,
+        },
         reason: {
             type: String,
             trim: true,

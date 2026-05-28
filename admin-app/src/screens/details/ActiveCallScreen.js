@@ -81,10 +81,12 @@ export default function ActiveCallScreen({ navigation, route }) {
     const [checkedPrevMeds, setCheckedPrevMeds] = useState({});
     const [checkedTempMeds, setCheckedTempMeds] = useState({});
     
+    const currentShift = getCurrentShift();
+
     // Temporary / OTC Medicines
     const [tempMeds, setTempMeds] = useState([]);
     const [showAddTempMed, setShowAddTempMed] = useState(false);
-    const [tempMedForm, setTempMedForm] = useState({ name: '', dosage: '', frequency: 'As needed', reason: '' });
+    const [tempMedForm, setTempMedForm] = useState({ name: '', dosage: '', frequency: 'As needed', reason: '', shift: currentShift });
     const [tempMedAI, setTempMedAI] = useState(null);
     const [tempMedLoading, setTempMedLoading] = useState(false);
     const [aiLookupLoading, setAiLookupLoading] = useState(false);
@@ -96,7 +98,6 @@ export default function ActiveCallScreen({ navigation, route }) {
     
     const timerRef = useRef(null);
     const startedAtRef = useRef(new Date().toISOString());
-    const currentShift = getCurrentShift();
 
     const getMedKey = (med) => med._id || med.name || JSON.stringify(med);
     const getPrevMedKey = (med) => `${med._shift}_${getMedKey(med)}`;
@@ -107,6 +108,11 @@ export default function ActiveCallScreen({ navigation, route }) {
         if (currentShift === 'night') return ['morning', 'afternoon'];
         return [];
     };
+
+    // Filter temp meds based on shift
+    const shiftWeights = { morning: 1, afternoon: 2, night: 3 };
+    const currentShiftWeight = shiftWeights[currentShift];
+    const displayTempMeds = tempMeds.filter(tm => shiftWeights[tm.shift] <= currentShiftWeight);
 
     useEffect(() => {
         if (!patientId || patientId === 'mock') {
@@ -227,7 +233,7 @@ export default function ActiveCallScreen({ navigation, route }) {
         try {
             await apiService.caretaker.addTempMed(patientId, tempMedForm);
             setShowAddTempMed(false);
-            setTempMedForm({ name: '', dosage: '', frequency: 'As needed', reason: '' });
+            setTempMedForm({ name: '', dosage: '', frequency: 'As needed', reason: '', shift: currentShift });
             setTempMedAI(null);
             fetchTempMeds();
         } catch (err) {
@@ -529,9 +535,9 @@ export default function ActiveCallScreen({ navigation, route }) {
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                                 <Ionicons name="medkit" size={16} color="#8B5CF6" />
                                 <Text style={st.sectionTitle}>Temporary Medicines</Text>
-                                {tempMeds.length > 0 && (
+                                {displayTempMeds.length > 0 && (
                                     <View style={[st.medCountPill, { backgroundColor: '#F3E8FF', borderColor: '#DDD6FE' }]}>
-                                        <Text style={[st.medCountTxt, { color: '#7C3AED' }]}>{tempMeds.length}</Text>
+                                        <Text style={[st.medCountTxt, { color: '#7C3AED' }]}>{displayTempMeds.length}</Text>
                                     </View>
                                 )}
                             </View>
@@ -541,7 +547,7 @@ export default function ActiveCallScreen({ navigation, route }) {
                             </TouchableOpacity>
                         </View>
                         <View style={st.card}>
-                            {tempMeds.length === 0 ? (
+                            {displayTempMeds.length === 0 ? (
                                 <View style={st.emptyState}>
                                     <View style={[st.emptyIconWrap, { backgroundColor: '#F3E8FF' }]}>
                                         <Ionicons name="medkit-outline" size={24} color="#8B5CF6" />
@@ -550,7 +556,7 @@ export default function ActiveCallScreen({ navigation, route }) {
                                     <Text style={st.emptySub}>Tap + Add to add OTC / short-term medicines</Text>
                                 </View>
                             ) : (
-                                tempMeds.map((tm, i) => {
+                                displayTempMeds.map((tm, i) => {
                                     const isChecked = checkedTempMeds[tm._id];
                                     return (
                                         <React.Fragment key={tm._id || i}>
@@ -567,6 +573,13 @@ export default function ActiveCallScreen({ navigation, route }) {
                                                 <View style={st.medInfo}>
                                                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                                                         <Text style={[st.medName, isChecked && st.medDone]} numberOfLines={1}>{tm.name}</Text>
+                                                        
+                                                        {tm.shift && (
+                                                            <View style={st.shiftTag}>
+                                                                <Text style={st.shiftTagTxt}>{tm.shift}</Text>
+                                                            </View>
+                                                        )}
+
                                                         <View style={[st.riskPill, { backgroundColor: getRiskBg(tm.riskTier), borderColor: getRiskBorder(tm.riskTier) }]}>
                                                             <Text style={[st.riskPillTxt, { color: getRiskColor(tm.riskTier) }]}>
                                                                 {tm.riskTier === 'safe' ? '● Safe' : tm.riskTier === 'restricted' ? '● Restricted' : '● Caution'}
@@ -707,6 +720,14 @@ export default function ActiveCallScreen({ navigation, route }) {
 
                             <TextInput style={st.modalInput} placeholder="Medicine name (e.g. Dolo 650)" placeholderTextColor="#94A3B8" value={tempMedForm.name} onChangeText={v => { setTempMedForm(f => ({ ...f, name: v })); setTempMedAI(null); }} />
                             <TextInput style={st.modalInput} placeholder="Dosage (e.g. 1 tablet)" placeholderTextColor="#94A3B8" value={tempMedForm.dosage} onChangeText={v => setTempMedForm(f => ({ ...f, dosage: v }))} />
+
+                            <View style={st.freqRow}>
+                                {['morning', 'afternoon', 'night'].map(s => (
+                                    <TouchableOpacity key={s} style={[st.freqChip, tempMedForm.shift === s && st.freqChipActive, { backgroundColor: tempMedForm.shift === s ? '#EEF2FF' : '#F8FAFC', borderColor: tempMedForm.shift === s ? '#818CF8' : '#F1F5F9' }]} onPress={() => setTempMedForm(fm => ({ ...fm, shift: s }))}>
+                                        <Text style={[st.freqChipTxt, tempMedForm.shift === s && st.freqChipTxtActive, { color: tempMedForm.shift === s ? '#4F46E5' : '#64748B' }]}>{s.charAt(0).toUpperCase() + s.slice(1)}</Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
 
                             <View style={st.freqRow}>
                                 {['Once daily', 'Twice daily', 'Thrice daily', 'As needed'].map(f => (

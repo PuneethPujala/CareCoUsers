@@ -1899,10 +1899,15 @@ router.post('/patients/:id/temp-meds', async (req, res) => {
             return res.status(403).json({ error: 'You are not assigned to this patient.' });
         }
 
-        const { name, dosage, frequency, reason } = req.body;
+        const { name, dosage, frequency, reason, shift } = req.body;
 
         if (!name || !name.trim()) {
             return res.status(400).json({ error: 'Medicine name is required.' });
+        }
+
+        const validShifts = ['morning', 'afternoon', 'night'];
+        if (!validShifts.includes(shift)) {
+            return res.status(400).json({ error: 'Valid shift (morning, afternoon, night) is required.' });
         }
 
         // Get AI classification
@@ -1922,6 +1927,7 @@ router.post('/patients/:id/temp-meds', async (req, res) => {
             name: name.trim(),
             dosage: dosage?.trim() || '',
             frequency: frequency?.trim() || 'As needed',
+            shift,
             reason: reason?.trim() || '',
             addedBy: caretakerId,
             addedByRole: req.profile.role === 'patient' ? 'patient' : 'caller',
