@@ -412,19 +412,7 @@ router.get('/patient-status', authenticate, async (req, res) => {
             MedicineLog.findOne({ patient_id: patient._id, date: { $gte: startOfToday, $lte: endOfToday } }).lean()
         ]);
 
-        let adherenceRate = null;
-        if (todayMedicineLog) {
-            const active = (todayMedicineLog.medicines || []).filter(m => m.is_active !== false);
-            const totalMeds = active.length;
-            const takenMeds = active.filter(m => m.taken).length;
-            if (totalMeds > 0) {
-                adherenceRate = Math.round((takenMeds / totalMeds) * 100);
-            } else if (medications.length > 0) {
-                adherenceRate = 0;
-            }
-        } else if (medications.length > 0) {
-            adherenceRate = 0;
-        }
+        // adherenceRate is now computed AFTER medication_schedule is built
 
         // 1. Medication Schedule Daily Timeline
         const medication_schedule = [];
@@ -455,6 +443,16 @@ router.get('/patient-status', authenticate, async (req, res) => {
                     taken_at
                 });
             }
+        }
+
+        // Calculate accurate Adherence Rate for Today
+        let adherenceRate = null;
+        if (medication_schedule.length > 0) {
+            const totalDoses = medication_schedule.length;
+            const takenDoses = medication_schedule.filter(m => m.taken).length;
+            adherenceRate = Math.round((takenDoses / totalDoses) * 100);
+        } else {
+            adherenceRate = 0;
         }
 
         // 2. Refill & Low Stock alerts
