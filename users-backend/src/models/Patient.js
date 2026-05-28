@@ -516,6 +516,10 @@ PatientSchema.index({ risk_level: 1, is_active: 1 });
 PatientSchema.index({ 'subscription.status': 1 });
 PatientSchema.index({ 'subscription.status': 1, 'subscription.expires_at': 1 });
 
+// Observability Indexes
+PatientSchema.index({ expo_push_token: 1, last_token_update: 1 });
+PatientSchema.index({ device_platform: 1 });
+
 // ── Middleware ────────────────────────────────────
 // Clear TTL once the patient is a legitimate account.
 // Any of these conditions indicates a real user whose record must persist:

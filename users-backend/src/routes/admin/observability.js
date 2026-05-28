@@ -13,31 +13,35 @@ router.get('/system-health', async (req, res) => {
         const sevenDaysAgo = new Date();
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-        const totalSent = await Notification.countDocuments({ created_at: { $gte: sevenDaysAgo } });
-        const successfullyDelivered = await Notification.countDocuments({ created_at: { $gte: sevenDaysAgo }, push_delivered: true });
-        const failedDelivery = await Notification.countDocuments({ created_at: { $gte: sevenDaysAgo }, push_delivered: false });
-
-        // 2. Token Health
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-        const activeTokens = await Patient.countDocuments({ 
-            expo_push_token: { $exists: true, $ne: null },
-            last_token_update: { $gte: thirtyDaysAgo }
-        });
-
-        const staleTokens = await Patient.countDocuments({ 
-            expo_push_token: { $exists: true, $ne: null },
-            $or: [
-                { last_token_update: { $lt: thirtyDaysAgo } },
-                { last_token_update: { $exists: false } }
-            ]
-        });
-
-        // 3. Platform Breakdown
-        const platformStats = await Patient.aggregate([
-            { $match: { device_platform: { $exists: true } } },
-            { $group: { _id: "$device_platform", count: { $sum: 1 } } }
+        const [
+            totalSent,
+            successfullyDelivered,
+            failedDelivery,
+            activeTokens,
+            staleTokens,
+            platformStats
+        ] = await Promise.all([
+            Notification.countDocuments({ created_at: { $gte: sevenDaysAgo } }),
+            Notification.countDocuments({ created_at: { $gte: sevenDaysAgo }, push_delivered: true }),
+            Notification.countDocuments({ created_at: { $gte: sevenDaysAgo }, push_delivered: false }),
+            Patient.countDocuments({ 
+                expo_push_token: { $exists: true, $ne: null },
+                last_token_update: { $gte: thirtyDaysAgo }
+            }),
+            Patient.countDocuments({ 
+                expo_push_token: { $exists: true, $ne: null },
+                $or: [
+                    { last_token_update: { $lt: thirtyDaysAgo } },
+                    { last_token_update: { $exists: false } }
+                ]
+            }),
+            Patient.aggregate([
+                { $match: { device_platform: { $exists: true } } },
+                { $group: { _id: "$device_platform", count: { $sum: 1 } } }
+            ])
         ]);
 
         const response = {
