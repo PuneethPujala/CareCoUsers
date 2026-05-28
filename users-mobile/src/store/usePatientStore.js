@@ -395,16 +395,45 @@ const usePatientStore = create((set, get) => ({
         const newOpt = { ...state._optimisticMeds, [med.id]: Date.now() };
         set({ _optimisticMeds: newOpt });
 
-        set(s => ({
-            dashboardMeds: s.dashboardMeds.map(m =>
-                (m.name === med.name && m.type === med.type)
-                    ? { ...m, taken: targetState, marked_by: targetState ? 'patient' : null }
-                    : m
-            ),
-        }));
+        set(s => {
+            const schedule = { ...s.medicationSchedule };
+            
+            const mapMed = (m) => {
+                if (m.name === med.name && m.type === med.type) {
+                    let newRefillInfo = m.refillInfo ? { ...m.refillInfo } : null;
+                    if (newRefillInfo) {
+                        const diff = targetState ? -1 : 1;
+                        if (typeof newRefillInfo.remainingDoses === 'number') {
+                            newRefillInfo.remainingDoses = Math.max(0, newRefillInfo.remainingDoses + diff);
+                        } else if (typeof newRefillInfo.totalDoses === 'number') {
+                            newRefillInfo.totalDoses = Math.max(0, newRefillInfo.totalDoses + diff);
+                        }
+                    }
+                    return { ...m, taken: targetState, marked_by: targetState ? 'patient' : null, refillInfo: newRefillInfo };
+                }
+                return m;
+            };
 
+            Object.keys(schedule).forEach(slot => {
+                schedule[slot] = schedule[slot].map(mapMed);
+            });
+            
+            const dashboardMeds = s.dashboardMeds.map(mapMed);
+
+            const allMeds = Object.values(schedule).flat();
+            const totalCount = allMeds.length;
+            const takenCount = allMeds.filter(x => x.taken).length;
+            const newTodayP = totalCount > 0 ? Math.round((takenCount / totalCount) * 100) : 0;
+
+            const weeklyAdherence = s.weeklyAdherence.map(day => 
+                day.isToday ? { ...day, p: newTodayP } : day
+            );
+
+            return { dashboardMeds, medicationSchedule: schedule, weeklyAdherence };
+        });
+
+        const updatedMeds = get().dashboardMeds;
         if (targetState) {
-            const updatedMeds = get().dashboardMeds;
             const allDone = updatedMeds.length > 0 && updatedMeds.every(m => m.taken);
             if (allDone) {
                 HapticPatterns.allDone();
@@ -413,19 +442,7 @@ const usePatientStore = create((set, get) => ({
             }
         }
 
-        set(s => {
-            const schedule = { ...s.medicationSchedule };
-            Object.keys(schedule).forEach(slot => {
-                schedule[slot] = schedule[slot].map(m =>
-                    (m.name === med.name && m.type === med.type)
-                        ? { ...m, taken: targetState, marked_by: targetState ? 'patient' : null }
-                        : m
-                );
-            });
-            return { medicationSchedule: schedule };
-        });
-
-        WidgetBridge.updateAllWidgets({ meds: get().dashboardMeds, patient: get().patient, vitals: get().vitals });
+        WidgetBridge.updateAllWidgets({ meds: updatedMeds, patient: get().patient, vitals: get().vitals });
 
         try {
             await apiService.medicines.markMedicine({
@@ -468,6 +485,8 @@ const usePatientStore = create((set, get) => ({
                     schedule[slot] = schedule[slot].map(m =>
                         (m.name === med.name && m.type === med.type)
                             ? { ...m, taken: originalState, marked_by: originalState ? 'patient' : null }
+                            // Note: we don't strictly revert refillInfo/adherence here because fetchDashboard handles it,
+                            // but UI will correct itself immediately via the fetch.
                             : m
                     );
                 });
@@ -494,17 +513,39 @@ const usePatientStore = create((set, get) => ({
         const prevDashboardMeds = state.dashboardMeds;
         const prevSchedule = state.medicationSchedule;
 
-        set(s => ({
-            dashboardMeds: s.dashboardMeds.map(m =>
-                m.type === slot ? { ...m, taken: true, marked_by: 'patient' } : m
-            ),
-        }));
         set(s => {
+            const mapMed = (m) => {
+                if (m.type === slot && !m.taken) {
+                    let newRefillInfo = m.refillInfo ? { ...m.refillInfo } : null;
+                    if (newRefillInfo) {
+                        if (typeof newRefillInfo.remainingDoses === 'number') {
+                            newRefillInfo.remainingDoses = Math.max(0, newRefillInfo.remainingDoses - 1);
+                        } else if (typeof newRefillInfo.totalDoses === 'number') {
+                            newRefillInfo.totalDoses = Math.max(0, newRefillInfo.totalDoses - 1);
+                        }
+                    }
+                    return { ...m, taken: true, marked_by: 'patient', refillInfo: newRefillInfo };
+                }
+                return m;
+            };
+
+            const dashboardMeds = s.dashboardMeds.map(mapMed);
+            
             const schedule = { ...s.medicationSchedule };
             if (schedule[slot]) {
-                schedule[slot] = schedule[slot].map(m => ({ ...m, taken: true, marked_by: 'patient' }));
+                schedule[slot] = schedule[slot].map(mapMed);
             }
-            return { medicationSchedule: schedule };
+
+            const allMeds = Object.values(schedule).flat();
+            const totalCount = allMeds.length;
+            const takenCount = allMeds.filter(x => x.taken).length;
+            const newTodayP = totalCount > 0 ? Math.round((takenCount / totalCount) * 100) : 0;
+
+            const weeklyAdherence = s.weeklyAdherence.map(day => 
+                day.isToday ? { ...day, p: newTodayP } : day
+            );
+
+            return { dashboardMeds, medicationSchedule: schedule, weeklyAdherence };
         });
 
         const updatedMeds = get().dashboardMeds;
