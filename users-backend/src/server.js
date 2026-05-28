@@ -58,6 +58,7 @@ if (process.env.NODE_ENV !== 'test') {
     require('./jobs/notificationJob').startNotificationCron();
     require('./jobs/medicationReminderJob').startMedicationCron();
     require('./jobs/escalationJob').startEscalationCron();
+    require('./jobs/receiptPollingJob').startReceiptCron();
   })();
 }
 
@@ -99,6 +100,10 @@ const limiter = rateLimit({
   message: 'Too many requests from this IP, please try again later.',
 });
 app.use('/api/', limiter);
+
+// Clock drift observability check
+const checkClockDrift = require('./middleware/checkClockDrift');
+app.use('/api', checkClockDrift);
 
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));

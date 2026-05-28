@@ -17,13 +17,13 @@ jest.mock('../../src/screens/onboarding/LoginScreen', () => () => <mock-login />
 jest.mock('../../src/screens/onboarding/ResetPasswordScreen', () => () => <mock-reset />);
 jest.mock('../../src/screens/onboarding/VerifyEmailScreen', () => () => <mock-verify />);
 jest.mock('../../src/screens/patient/HomeScreen', () => () => <mock-home />);
+jest.mock('../../src/screens/patient/ChatbotScreen', () => () => <mock-chatbot />);
 jest.mock('../../src/screens/patient/MyCallerScreen', () => () => <mock-caller />);
 jest.mock('../../src/screens/patient/MedicationsScreen', () => () => <mock-medications />);
 jest.mock('../../src/screens/patient/HealthProfileScreen', () => () => <mock-profile />);
 jest.mock('../../src/screens/patient/NotificationsScreen', () => () => <mock-notifications />);
 jest.mock('../../src/screens/patient/ProfileScreen', () => () => <mock-patient-profile />);
-jest.mock('../../src/screens/patient/SubscribePlansScreen', () => () => <mock-subscribe />);
-jest.mock('../../src/screens/patient/PaymentScreen', () => () => <mock-payment />);
+jest.mock('../../src/screens/patient/PremiumShowcaseScreen', () => () => <mock-subscribe />);
 jest.mock('../../src/screens/patient/WaitingScreen', () => () => <mock-waiting />);
 jest.mock('../../src/screens/patient/VitalsHistoryScreen', () => () => <mock-vitals />);
 jest.mock('../../src/screens/patient/LocationSearchScreen', () => () => <mock-location />);
@@ -74,57 +74,57 @@ describe('Onboarding Step State Machine', () => {
 
         it('advances past 2 when patient has city', () => {
             const result = resolveOnboardingStep(
-                { city: 'Hyderabad', subscription: {} },
+                { phone: '123-456-7890', city: 'Hyderabad', subscription: {} },
                 { city: 'Hyderabad' }
             );
-            expect(result).toBe(3); // No plan yet
+            expect(result).toBe(4); // No plan yet (step 4)
         });
     });
 
-    describe('Step 3: Plan Selection & Payment', () => {
-        it('returns 3 when subscription plan is missing', () => {
+    describe('Step 4: Plan Selection & Payment', () => {
+        it('returns 4 when subscription plan is missing', () => {
             expect(
                 resolveOnboardingStep(
-                    { city: 'Mumbai', subscription: {} },
+                    { phone: '123-456-7890', city: 'Mumbai', subscription: {} },
                     { city: 'Mumbai' }
                 )
-            ).toBe(3);
+            ).toBe(4);
         });
 
-        it('returns 3 when subscription is null', () => {
+        it('returns 4 when subscription is null', () => {
             expect(
                 resolveOnboardingStep(
-                    { city: 'Mumbai', subscription: null },
+                    { phone: '123-456-7890', city: 'Mumbai', subscription: null },
                     { city: 'Mumbai' }
                 )
-            ).toBe(3);
+            ).toBe(4);
         });
 
-        it('returns 3 when plan exists but status is none (UNPAID)', () => {
+        it('returns 4 when plan exists but status is none (UNPAID)', () => {
             expect(
                 resolveOnboardingStep(
-                    { city: 'Mumbai', subscription: { plan: 'basic', status: 'none' } },
+                    { phone: '123-456-7890', city: 'Mumbai', subscription: { plan: 'basic', status: 'none' } },
                     { city: 'Mumbai' }
                 )
-            ).toBe(3);
+            ).toBe(4);
         });
 
-        it('returns 3 when plan exists but status is undefined (UNPAID)', () => {
+        it('returns 4 when plan exists but status is undefined (UNPAID)', () => {
             expect(
                 resolveOnboardingStep(
-                    { city: 'Mumbai', subscription: { plan: 'basic' } },
+                    { phone: '123-456-7890', city: 'Mumbai', subscription: { plan: 'basic' } },
                     { city: 'Mumbai' }
                 )
-            ).toBe(3);
+            ).toBe(4);
         });
 
-        it('returns 3 when plan exists but status is garbage string (UNPAID)', () => {
+        it('returns 4 when plan exists but status is garbage string (UNPAID)', () => {
             expect(
                 resolveOnboardingStep(
-                    { city: 'Mumbai', subscription: { plan: 'basic', status: 'pending_review' } },
+                    { phone: '123-456-7890', city: 'Mumbai', subscription: { plan: 'basic', status: 'pending_review' } },
                     { city: 'Mumbai' }
                 )
-            ).toBe(3);
+            ).toBe(4);
         });
     });
 
@@ -132,7 +132,7 @@ describe('Onboarding Step State Machine', () => {
         it('returns null when status is active', () => {
             expect(
                 resolveOnboardingStep(
-                    { city: 'Delhi', subscription: { plan: 'basic', status: 'active' } },
+                    { phone: '123-456-7890', city: 'Delhi', subscription: { plan: 'basic', status: 'active' }, profile_complete: true },
                     { city: 'Delhi' }
                 )
             ).toBeNull();
@@ -141,7 +141,7 @@ describe('Onboarding Step State Machine', () => {
         it('returns null when status is expired (renewal handled elsewhere)', () => {
             expect(
                 resolveOnboardingStep(
-                    { city: 'Delhi', subscription: { plan: 'premium', status: 'expired' } },
+                    { phone: '123-456-7890', city: 'Delhi', subscription: { plan: 'premium', status: 'expired' }, profile_complete: true },
                     { city: 'Delhi' }
                 )
             ).toBeNull();
@@ -150,7 +150,7 @@ describe('Onboarding Step State Machine', () => {
         it('returns null when status is past_due (treated as expired)', () => {
             expect(
                 resolveOnboardingStep(
-                    { city: 'Delhi', subscription: { plan: 'basic', status: 'past_due' } },
+                    { phone: '123-456-7890', city: 'Delhi', subscription: { plan: 'basic', status: 'past_due' }, profile_complete: true },
                     { city: 'Delhi' }
                 )
             ).toBeNull();
@@ -159,7 +159,7 @@ describe('Onboarding Step State Machine', () => {
         it('returns null when status is cancelled (treated as expired)', () => {
             expect(
                 resolveOnboardingStep(
-                    { city: 'Delhi', subscription: { plan: 'basic', status: 'cancelled' } },
+                    { phone: '123-456-7890', city: 'Delhi', subscription: { plan: 'basic', status: 'cancelled' }, profile_complete: true },
                     { city: 'Delhi' }
                 )
             ).toBeNull();

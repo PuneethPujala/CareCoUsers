@@ -90,8 +90,8 @@ VitalLogSchema.pre('validate', function (next) {
     next();
 });
 
-// Compound index for efficient patient + date range queries
-VitalLogSchema.index({ patient_id: 1, date: -1 });
+// Compound unique index for efficient patient + date range queries and database-level idempotency
+VitalLogSchema.index({ patient_id: 1, date: 1 }, { unique: true });
 
 // Deduplication index: prevent duplicate wearable readings for the same patient + timestamp + source
 VitalLogSchema.index(

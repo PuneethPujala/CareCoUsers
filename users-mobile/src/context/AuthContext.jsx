@@ -208,10 +208,12 @@ export function AuthProvider({ children }) {
                 if (apiTok?.access_token) {
                     if (__DEV__) console.log('[Auth] Fetching profile + patient...');
 
-                    const [profileRes] = await Promise.all([
-                        apiService.auth.getProfile().catch(() => ({ data: null })),
-                        fetchPatientData(),
-                    ]);
+                    const profileRes = await apiService.auth.getProfile().catch(() => ({ data: null }));
+                    const resolvedRole = profileRes?.data?.profile?.role;
+                    // Only fetch patient data for patient roles — companions get a 403 from /patients/me
+                    if (resolvedRole !== 'companion') {
+                        await fetchPatientData();
+                    }
 
                     const profileData = profileRes?.data?.profile;
                     const userData = profileRes?.data?.user;
@@ -224,7 +226,7 @@ export function AuthProvider({ children }) {
                         setUser(userData);
                         setSession({ access_token: apiTok.access_token, user: userData });
                         await setProfileAndCache(profileData);
-                        analytics.identify(userData.id, { role: 'patient' });
+                        analytics.identify(userData.id, { role: profileData.role });
                     } else {
                         // Network responded but returned no profile — serve cache.
                         const cached = await getCachedProfile();
@@ -251,16 +253,17 @@ export function AuthProvider({ children }) {
                         setUser(currentSession.user);
                         setSession(currentSession);
 
-                        const [profileRes] = await Promise.all([
-                            apiService.auth.getProfile().catch(() => ({ data: null })),
-                            fetchPatientData(),
-                        ]);
+                        const profileRes = await apiService.auth.getProfile().catch(() => ({ data: null }));
                         const profileData = profileRes?.data?.profile;
                         if (profileData) {
                             profileData.role = profileData.role || 'patient';
                             await setProfileAndCache(profileData);
+                            // Only fetch patient data for patient roles
+                            if (profileData.role !== 'companion') {
+                                await fetchPatientData();
+                            }
                         }
-                        analytics.identify(currentSession.user.id, { role: 'patient' });
+                        analytics.identify(currentSession.user.id, { role: profileData?.role || 'patient' });
                     }
                     // No session at all → user stays on the auth stack (initial state).
                 }
@@ -315,6 +318,19 @@ export function AuthProvider({ children }) {
                     setPatient(null);
                     profileRef.current = null;
                     usePatientStore.getState().setPatient(null);
+                    
+                    // CRITICAL SECURE HARDENING: Clear cached profiles, user caches,
+                    // onboarding progress, and widgets to prevent unauthorized offline ghost logins.
+                    try {
+                        await clearCachedProfile();
+                        await clearUserCache();
+                        await AsyncStorage.removeItem(ONBOARDING_STORAGE_KEY);
+                    } catch (e) {
+                        if (__DEV__) console.warn('[Auth] SIGNED_OUT cache cleardown error:', e.message);
+                    }
+                    setCacheUserId(null);
+                    WidgetBridge.clearWidget();
+                    analytics.reset();
                 }
                 return;
             }
@@ -405,11 +421,14 @@ export function AuthProvider({ children }) {
                 refresh_token: loginSession.refresh_token,
                 expires_at: loginSession.expires_at,
             });
-            await fetchPatientData();
+            // Only fetch patient data for patient roles — companions get 403 from /patients/me
+            if (profileData?.role !== 'companion') {
+                await fetchPatientData();
+            }
             skipNextSignedInRef.current = true; // A1 FIX
             setUser(loginSession.user);
             setSession(loginSession);
-            analytics.identify(loginSession.user.id, { role: 'patient' });
+            analytics.identify(loginSession.user.id, { role: profileData?.role || 'patient' });
             return response.data;
         } catch (error) {
             throw error;
@@ -427,11 +446,13 @@ export function AuthProvider({ children }) {
                 refresh_token: mfaSession.refresh_token,
                 expires_at: mfaSession.expires_at,
             });
-            await fetchPatientData();
+            if (profileData?.role !== 'companion') {
+                await fetchPatientData();
+            }
             skipNextSignedInRef.current = true; // A1 FIX
             setUser(mfaSession.user);
             setSession(mfaSession);
-            analytics.identify(mfaSession.user.id, { role: 'patient', mfa: true });
+            analytics.identify(mfaSession.user.id, { role: profileData?.role || 'patient', mfa: true });
         } catch (error) {
             throw error;
         }
@@ -511,7 +532,9 @@ export function AuthProvider({ children }) {
             refresh_token: newSession.refresh_token,
             expires_at: newSession.expires_at,
         });
-        await fetchPatientData();
+        if (newProfile?.role !== 'companion') {
+            await fetchPatientData();
+        }
         skipNextSignedInRef.current = true; // A1 FIX
         setUser(newSession.user);
         setSession(newSession);

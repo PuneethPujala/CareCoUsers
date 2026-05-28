@@ -9,13 +9,13 @@ jest.mock('../../src/screens/onboarding/LoginScreen', () => () => <mock-login />
 jest.mock('../../src/screens/onboarding/ResetPasswordScreen', () => () => <mock-reset />);
 jest.mock('../../src/screens/onboarding/VerifyEmailScreen', () => () => <mock-verify />);
 jest.mock('../../src/screens/patient/HomeScreen', () => () => <mock-home />);
+jest.mock('../../src/screens/patient/ChatbotScreen', () => () => <mock-chatbot />);
 jest.mock('../../src/screens/patient/MyCallerScreen', () => () => <mock-caller />);
 jest.mock('../../src/screens/patient/MedicationsScreen', () => () => <mock-medications />);
 jest.mock('../../src/screens/patient/HealthProfileScreen', () => () => <mock-profile />);
 jest.mock('../../src/screens/patient/NotificationsScreen', () => () => <mock-notifications />);
 jest.mock('../../src/screens/patient/ProfileScreen', () => () => <mock-patient-profile />);
-jest.mock('../../src/screens/patient/SubscribePlansScreen', () => () => <mock-subscribe />);
-jest.mock('../../src/screens/patient/PaymentScreen', () => () => <mock-payment />);
+jest.mock('../../src/screens/patient/PremiumShowcaseScreen', () => () => <mock-subscribe />);
 jest.mock('../../src/screens/patient/WaitingScreen', () => () => <mock-waiting />);
 jest.mock('../../src/screens/patient/VitalsHistoryScreen', () => () => <mock-vitals />);
 jest.mock('../../src/screens/patient/LocationSearchScreen', () => () => <mock-location />);

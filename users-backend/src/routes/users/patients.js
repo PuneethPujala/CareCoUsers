@@ -1100,6 +1100,17 @@ router.post('/me/vitals', authenticateSession, async (req, res) => {
     try {
         const patient = await getOrCreatePatient(req);
         const { date, heart_rate, blood_pressure, oxygen_saturation, hydration, source, temperature, notes } = req.body;
+
+        // Pre-save idempotency check: check if vitals for this patient at the exact timestamp already exist
+        if (date) {
+            const queryDate = new Date(date);
+            const existing = await VitalLog.findOne({ patient_id: patient._id, date: queryDate });
+            if (existing) {
+                logger.info('Duplicate vitals log ignored (idempotent check)', { patientId: patient._id });
+                return res.status(200).json({ message: 'Vitals logged successfully (duplicate ignored)', vitals: existing });
+            }
+        }
+
         const vitalLog = new VitalLog({
             patient_id: patient._id,
             date: date ? new Date(date) : new Date(),
@@ -1111,6 +1122,24 @@ router.post('/me/vitals', authenticateSession, async (req, res) => {
         res.status(201).json({ message: 'Vitals logged successfully', vitals: vitalLog });
     } catch (error) {
         logger.error('Log vitals error', { error: error.message, patientId: req.user?.id });
+        
+        // Handle duplicate key error gracefully to maintain idempotency
+        if (error.code === 11000) {
+            try {
+                const queryDate = req.body.date ? new Date(req.body.date) : null;
+                if (queryDate && req.user?.id) {
+                    const patient = await getOrCreatePatient(req);
+                    const existing = await VitalLog.findOne({ patient_id: patient._id, date: queryDate });
+                    if (existing) {
+                        logger.info('Duplicate vitals log caught via unique index constraint (idempotent fallback)', { patientId: patient._id });
+                        return res.status(200).json({ message: 'Vitals logged successfully (duplicate ignored)', vitals: existing });
+                    }
+                }
+            } catch (findError) {
+                logger.error('Error fetching existing vitals log after duplicate key catch', { error: findError.message });
+            }
+        }
+
         if (error.name === 'ValidationError') return res.status(400).json({ error: error.message });
         res.status(500).json({ error: 'Failed to log vitals' });
     }

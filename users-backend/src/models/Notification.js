@@ -39,6 +39,25 @@ const NotificationSchema = new mongoose.Schema(
             type: Boolean,
             default: false,
         },
+        expo_ticket_id: {
+            type: String,
+            index: true,
+        },
+        expo_receipt_status: {
+            type: String,
+            enum: ['pending', 'ok', 'error'],
+            default: 'pending',
+            index: true,
+        },
+        expo_receipt_error: {
+            type: String,
+        },
+        expo_push_token: {
+            type: String,
+        },
+        receipt_checked_at: {
+            type: Date,
+        },
         ai_context: {
             trigger: String,
             streak_impact: String,

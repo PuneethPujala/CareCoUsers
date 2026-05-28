@@ -157,7 +157,7 @@ describe('parseError', () => {
                 response: { status: 503, data: {} },
             };
             const result = parseError(error);
-            expect(result.general).toContain('unavailable');
+            expect(result.general).toContain('busy');
         });
 
         it('handles unknown HTTP status gracefully', () => {

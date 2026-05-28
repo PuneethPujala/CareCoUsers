@@ -36,6 +36,7 @@ const runMedicationReminders = async () => {
         for (const tz of timezones) {
             const localTime = nowUtc.clone().tz(tz);
             const hhmm = localTime.format('HH:mm');
+            const todayStr = localTime.format('YYYY-MM-DD');
 
             // We want to notify 15 minutes BEFORE the preferred time.
             // So we check: "which preferred time is 15 minutes from now?"
@@ -127,7 +128,7 @@ const runMedicationReminders = async () => {
 
                 // 2. Send the Push Notification
                 try {
-                    const pushDelivered = await NotificationService.sendPush(patient._id, {
+                    const pushResult = await NotificationService.sendPush(patient._id, {
                         title: '💊 Medication Reminder',
                         body: messageBody,
                         data: {
@@ -136,12 +137,18 @@ const runMedicationReminders = async () => {
                             slot: slotKey,
                             medication_ids: dueMeds.map(m => m._id.toString()).join(','),
                             categoryIdentifier: 'medication_reminder',
+                            notification_id: notificationRecord._id.toString(),
                         },
                     });
 
                     // 3. Update the record to reflect successful delivery
-                    if (pushDelivered) {
-                        await Notification.updateOne({ _id: notificationRecord._id }, { $set: { push_delivered: true } });
+                    if (pushResult.success) {
+                        const updateFields = { push_delivered: true };
+                        if (pushResult.ticketId) {
+                            updateFields.expo_ticket_id = pushResult.ticketId;
+                            updateFields.expo_push_token = patient.expo_push_token;
+                        }
+                        await Notification.updateOne({ _id: notificationRecord._id }, { $set: updateFields });
                     }
                     
                     console.log(`[ReminderJob] Sent notification to patient ${patient._id}`);

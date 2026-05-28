@@ -35,33 +35,38 @@ describe('Auth Utilities', () => {
             expect(resolveOnboardingStep(patient, null)).toBe(2);
         });
 
-        it('returns 3 if city exists but subscription plan is missing', () => {
+        it('returns 4 if city exists but subscription plan is missing', () => {
             const profile = { city: 'London' };
-            const patient = { city: 'London', subscription: {} };
-            expect(resolveOnboardingStep(patient, profile)).toBe(3);
+            const patient = { phone: '123-456-7890', city: 'London', subscription: {} };
+            expect(resolveOnboardingStep(patient, profile)).toBe(4);
         });
 
-        it('returns 3 (stays on payment screen) if plan exists but payment status is none', () => {
+        it('returns 4 (stays on payment screen) if plan exists but payment status is none', () => {
             const profile = { city: 'London' };
             const patient = { 
+                phone: '123-456-7890',
                 city: 'London', 
                 subscription: { plan: 'premium', status: 'none' } 
             };
-            expect(resolveOnboardingStep(patient, profile)).toBe(3);
+            expect(resolveOnboardingStep(patient, profile)).toBe(4);
         });
 
         it('returns null (Complete) if all steps are satisfied', () => {
             const profile = { city: 'London' };
             const patient = { 
+                phone: '123-456-7890',
                 city: 'London', 
-                subscription: { plan: 'premium', status: 'active' } 
+                subscription: { plan: 'premium', status: 'active' },
+                profile_complete: true
             };
             expect(resolveOnboardingStep(patient, profile)).toBeNull();
 
             // Expired users are legally complete with onboarding, AppNavigator handles paywall routing
             const patientExpired = { 
+                phone: '123-456-7890',
                 city: 'London', 
-                subscription: { plan: 'premium', status: 'expired' } 
+                subscription: { plan: 'premium', status: 'expired' },
+                profile_complete: true
             };
             expect(resolveOnboardingStep(patientExpired, profile)).toBeNull();
         });

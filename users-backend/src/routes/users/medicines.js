@@ -73,7 +73,11 @@ function mapTimeToLegacyBucket(timeStr) {
 async function buildMergedMeds(patient) {
     const searchIds = [patient._id];
     if (patient.profile_id) searchIds.push(patient.profile_id);
-    const externalMeds = await Medication.find({ patientId: { $in: searchIds }, isActive: true });
+    let query = Medication.find({ patientId: { $in: searchIds }, isActive: true });
+    if (query && typeof query.lean === 'function') {
+        query = query.lean();
+    }
+    const externalMeds = await query;
 
     // SYNC FIX: External Medication collection takes priority over embedded
     // patient.medications. When a caller updates a med (e.g., changes shifts

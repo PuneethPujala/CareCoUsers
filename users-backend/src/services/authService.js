@@ -686,8 +686,13 @@ async function refreshSession(rawRefresh, req) {
 
   let account;
   let isPatient = doc.userType === 'Patient';
+  let isCompanion = doc.userType === 'Companion';
+  
   if (isPatient) {
     account = await Patient.findById(doc.userId);
+  } else if (isCompanion) {
+    const Companion = require('../models/Companion');
+    account = await Companion.findById(doc.userId);
   } else {
     account = await Profile.findById(doc.userId).populate('organizationId', 'name city');
   }
@@ -714,7 +719,7 @@ async function refreshSession(rawRefresh, req) {
   const tokens = await tokenService.issueTokenPair(
     {
       userId: account._id,
-      userType: isPatient ? 'Patient' : 'Profile',
+      userType: isPatient ? 'Patient' : (isCompanion ? 'Companion' : 'Profile'),
       subject,
       role: isPatient ? 'patient' : account.role,
       email: account.email,
@@ -745,13 +750,17 @@ async function logout(subject, userId, userType, req) {
   await tokenService.revokeAllForUser(userId, userType);
 
   // Clear push token so logged out devices stop receiving notifications
-  if (userType === 'Patient') {
-    await Patient.findByIdAndUpdate(userId, { expo_push_token: null }).catch(() => {});
-  } else if (userType === 'Companion') {
-    const Companion = require('../models/Companion');
-    await Companion.findByIdAndUpdate(userId, { expo_push_token: null }).catch(() => {});
-  } else if (userType === 'Profile') {
-    await Profile.findByIdAndUpdate(userId, { expo_push_token: null }).catch(() => {});
+  try {
+    if (userType === 'Patient') {
+      await Patient.findByIdAndUpdate(userId, { expo_push_token: null });
+    } else if (userType === 'Companion') {
+      const Companion = require('../models/Companion');
+      await Companion.findByIdAndUpdate(userId, { expo_push_token: null });
+    } else if (userType === 'Profile') {
+      await Profile.findByIdAndUpdate(userId, { expo_push_token: null });
+    }
+  } catch (err) {
+    // ignore errors
   }
 
   await logEvent(subject, 'logout', userType === 'Patient' ? 'patient' : 'profile', userId, req);

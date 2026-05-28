@@ -50,14 +50,17 @@ class PushNotificationService {
       });
 
       const result = await response.json();
+      const rawResult = result.data;
+      const ticket = Array.isArray(rawResult) ? rawResult[0] : rawResult;
 
-      if (result.data?.status === 'error') {
-        console.error(`❌ Push notification failed:`, result.data.message);
-        return { success: false, reason: result.data.message, details: result.data.details };
+      if (ticket?.status === 'error') {
+        console.error(`❌ Push notification failed:`, ticket.message);
+        return { success: false, reason: ticket.message, details: ticket.details };
       }
 
+      const ticketId = ticket?.id;
       console.log(`✅ Push notification sent to token: ${expoPushToken.substring(0, 30)}...`);
-      return { success: true, ticketId: result.data?.id };
+      return { success: true, ticketId };
     } catch (error) {
       console.error('❌ Push notification network error:', error.message);
       return { success: false, reason: 'network_error', error: error.message };

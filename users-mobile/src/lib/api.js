@@ -1,6 +1,9 @@
 import axios from 'axios';
+import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
 import { supabase } from './supabase';
 import { getApiTokens, saveApiTokens, clearApiTokens } from './tokenStorage';
+import usePatientStore from '../store/usePatientStore';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000/api';
 
@@ -92,9 +95,60 @@ api.interceptors.request.use(async (config) => {
                 config.headers.Authorization = `Bearer ${token}`;
             }
         }
+
+        // Read cached profile from SecureStore to set the correct role header.
+        // This prevents identity leaks for dual-role users (e.g. same email as Patient + Companion).
+        try {
+            if (Platform.OS !== 'web') {
+                const profileStr = await SecureStore.getItemAsync('CareMyMed_user_profile');
+                if (profileStr) {
+                    const profile = JSON.parse(profileStr);
+                    if (profile?.role) {
+                        config.headers['X-Requested-Role'] = profile.role;
+                    }
+                }
+            }
+        } catch { }
+
+        // Apply chaos network simulation if configured (excluding critical authentication flows)
+        const isAuthRoute = config.url && (
+            config.url.includes('/auth/refresh') ||
+            config.url.includes('/auth/login') ||
+            config.url.includes('/auth/register') ||
+            config.url.includes('/auth/send-otp') ||
+            config.url.includes('/auth/verify-otp') ||
+            config.url.includes('/auth/logout')
+        );
+
+        if (!isAuthRoute) {
+            const simulationMode = usePatientStore.getState().networkSimulationMode;
+            if (simulationMode === 'offline') {
+                const error = new Error('Network Error');
+                error.isAxiosError = true;
+                error.config = config;
+                throw error;
+            } else if (simulationMode === 'flaky') {
+                // 50% random failure
+                if (Math.random() < 0.5) {
+                    console.warn(`[Chaos Interceptor] Simulated 50% flaky drop for ${config.url}`);
+                    const error = new Error('Network Error');
+                    error.isAxiosError = true;
+                    error.config = config;
+                    throw error;
+                }
+            } else if (simulationMode === 'slow') {
+                console.log(`[Chaos Interceptor] Simulated 3000ms delay for ${config.url}`);
+                await new Promise((resolve) => setTimeout(resolve, 3000));
+            }
+        }
+
         config.metadata = { startTime: new Date() };
         return config;
-    } catch {
+    } catch (err) {
+        // If it's a simulated network error, rethrow it so Axios cancels the request
+        if (err.message === 'Network Error') {
+            throw err;
+        }
         return config;
     }
 });

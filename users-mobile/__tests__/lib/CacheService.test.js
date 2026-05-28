@@ -176,23 +176,23 @@ describe('CacheService', () => {
         it('removes only keys belonging to the current user', async () => {
             setCacheUserId('user-CLEAR');
             AsyncStorage.getAllKeys.mockResolvedValue([
-                '@caremymed_cache:user-CLEAR:data1',
-                '@caremymed_cache:user-CLEAR:data2',
-                '@caremymed_cache:user-KEEP:safe_data',
+                '@CareMyMed_cache:user-CLEAR:data1',
+                '@CareMyMed_cache:user-CLEAR:data2',
+                '@CareMyMed_cache:user-KEEP:safe_data',
             ]);
 
             await clearUserCache();
 
             expect(AsyncStorage.multiRemove).toHaveBeenCalledWith([
-                '@caremymed_cache:user-CLEAR:data1',
-                '@caremymed_cache:user-CLEAR:data2',
+                '@CareMyMed_cache:user-CLEAR:data1',
+                '@CareMyMed_cache:user-CLEAR:data2',
             ]);
         });
 
         it('does nothing when no keys match', async () => {
             setCacheUserId('user-LONELY');
             AsyncStorage.getAllKeys.mockResolvedValue([
-                '@caremymed_cache:user-OTHER:data1',
+                '@CareMyMed_cache:user-OTHER:data1',
             ]);
 
             await clearUserCache();
@@ -202,13 +202,13 @@ describe('CacheService', () => {
         it('uses global prefix when no user ID set', async () => {
             setCacheUserId(null);
             AsyncStorage.getAllKeys.mockResolvedValue([
-                '@caremymed_cache:global:temp_data',
-                '@caremymed_cache:user-123:user_data',
+                '@CareMyMed_cache:global:temp_data',
+                '@CareMyMed_cache:user-123:user_data',
             ]);
 
             await clearUserCache();
             expect(AsyncStorage.multiRemove).toHaveBeenCalledWith([
-                '@caremymed_cache:global:temp_data',
+                '@CareMyMed_cache:global:temp_data',
             ]);
         });
     });

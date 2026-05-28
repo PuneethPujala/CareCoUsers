@@ -25,7 +25,6 @@ export const resolveOnboardingStep = (patient, profile) => {
     if (status === 'pending_payment') return 4;
     const norm = normaliseStatus(status);
     if (norm === 'none') return 4;
-    if (norm === 'expired') return 4;
 
     // Step 6 is final details (step 5 is payment-success, a transient screen)
     if (!patient?.profile_complete) return 6;

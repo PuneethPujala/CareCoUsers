@@ -106,6 +106,10 @@ const PatientSchema = new mongoose.Schema(
             type: String,
             trim: true,
         },
+        expo_push_token_failures: {
+            type: Number,
+            default: 0,
+        },
         device_platform: { type: String, enum: ['ios', 'android', 'web'] },
         device_name: { type: String, trim: true },
         app_version: { type: String, trim: true },
@@ -528,6 +532,10 @@ PatientSchema.index({ device_platform: 1 });
 //  - has a passwordHash (set via signup or Set Password)
 //  - email verified (completed OTP during signup)
 PatientSchema.pre('save', function (next) {
+    if (this.isModified('expo_push_token')) {
+        this.expo_push_token_failures = 0;
+    }
+
     const isLegitimate =
         (this.paid === 1 && this.profile_complete) ||
         this.subscription?.status === 'active' ||
@@ -538,6 +546,21 @@ PatientSchema.pre('save', function (next) {
     }
     next();
 });
+
+PatientSchema.pre('findOneAndUpdate', function (next) {
+    const update = this.getUpdate();
+    if (update) {
+        const hasTokenUpdate = 
+            update.expo_push_token !== undefined || 
+            (update.$set && update.$set.expo_push_token !== undefined);
+        if (hasTokenUpdate) {
+            if (!update.$set) update.$set = {};
+            update.$set.expo_push_token_failures = 0;
+        }
+    }
+    next();
+});
+
 
 // ── Virtuals ──────────────────────────────────────
 PatientSchema.virtual('isLocked').get(function () {

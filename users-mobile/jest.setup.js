@@ -10,6 +10,7 @@ jest.mock('expo-notifications', () => ({
   addNotificationReceivedListener: jest.fn().mockReturnValue({ remove: jest.fn() }),
   addNotificationResponseReceivedListener: jest.fn().mockReturnValue({ remove: jest.fn() }),
   getLastNotificationResponseAsync: jest.fn().mockResolvedValue(null),
+  addPushTokenListener: jest.fn().mockReturnValue({ remove: jest.fn() }),
 }));
 
 // react-native-reanimated
@@ -53,3 +54,30 @@ jest.mock('@react-native-google-signin/google-signin', () => ({
 }));
 
 // React Native Animated — jest-expo preset already handles this
+
+// @react-native-community/netinfo
+jest.mock('@react-native-community/netinfo', () => ({
+  addEventListener: jest.fn().mockReturnValue(jest.fn()),
+  fetch: jest.fn().mockResolvedValue({
+    isConnected: true,
+    isInternetReachable: true,
+  }),
+}));
+
+// react-native-safe-area-context
+jest.mock('react-native-safe-area-context', () => {
+  const inset = { top: 0, right: 0, bottom: 0, left: 0 };
+  const frame = { x: 0, y: 0, width: 390, height: 844 };
+  const actual = jest.requireActual('react-native-safe-area-context');
+  return {
+    ...actual,
+    SafeAreaProvider: ({ children }) => children,
+    SafeAreaView: ({ children }) => children,
+    useSafeAreaInsets: () => inset,
+    useSafeAreaFrame: () => frame,
+    initialWindowMetrics: {
+      frame,
+      insets: inset,
+    },
+  };
+});

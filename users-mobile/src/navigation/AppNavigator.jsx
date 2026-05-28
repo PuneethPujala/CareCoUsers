@@ -306,6 +306,8 @@ export default function AppNavigator() {
     useEffect(() => {
         const setupNotifications = async () => {
             if (!user || !onboardingComplete) return;
+            // Only register push tokens for patients — companions use a different API
+            if (profile?.role === 'companion') return;
             if (hasNotifiedForUserRef.current === user.id) return;
 
             hasNotifiedForUserRef.current = user.id;

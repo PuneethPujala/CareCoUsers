@@ -83,14 +83,18 @@ async function triggerAiNotification(trigger, patient, category = 'health_tips',
     });
 
     // 2. Dispatch Push
-    const pushDelivered = await NotificationService.sendPush(patient._id, {
+    const pushResult = await NotificationService.sendPush(patient._id, {
         title: 'CareMyMed Companion 🤖',
         body: messageBody,
         data: { screen: targetScreen, notification_id: notificationDoc._id.toString() },
     });
 
-    if (pushDelivered) {
+    if (pushResult.success) {
         notificationDoc.push_delivered = true;
+        if (pushResult.ticketId) {
+            notificationDoc.expo_ticket_id = pushResult.ticketId;
+            notificationDoc.expo_push_token = patient.expo_push_token;
+        }
         await notificationDoc.save();
     }
 

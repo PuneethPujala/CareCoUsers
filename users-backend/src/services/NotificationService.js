@@ -39,13 +39,13 @@ class NotificationService {
                 .select('expo_push_token push_notifications_enabled');
 
             if (!patient?.expo_push_token || !patient.push_notifications_enabled) {
-                return false;
+                return { success: false, reason: 'disabled_or_no_token' };
             }
 
             // Expo tokens: ExponentPushToken[...] or ExpoPushToken[...]
             if (!/^Expo(nent)?PushToken\[.+\]$/.test(patient.expo_push_token)) {
                 console.warn(`[NotificationService] Invalid token for ${patientId}: ${patient.expo_push_token}`);
-                return false;
+                return { success: false, reason: 'invalid_token' };
             }
 
             const message = {
@@ -61,7 +61,7 @@ class NotificationService {
                 channelId: 'meds',
             };
 
-            // FIX 1: Retry loop with exponential backoff
+            // Retry loop with exponential backoff
             let lastError;
             for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
                 try {
@@ -71,24 +71,40 @@ class NotificationService {
                             'Accept-encoding': 'gzip, deflate',
                             'Content-Type': 'application/json',
                         },
-                        timeout: 8000, // 8s — Expo is fast; hang longer than this = infra problem
+                        timeout: 8000, // 8s — Expo is fast
                     });
 
-                    const result = response.data?.data;
+                    const rawResult = response.data?.data;
+                    const ticket = Array.isArray(rawResult) ? rawResult[0] : rawResult;
 
-                    if (result?.status === 'error') {
-                        console.error(`❌ Push rejected for ${patientId}:`, result.message);
+                    if (ticket?.status === 'error') {
+                        console.error(`❌ Push rejected for ${patientId}:`, ticket.message);
 
-                        if (result.details?.error === 'DeviceNotRegistered') {
+                        if (ticket.details?.error === 'DeviceNotRegistered') {
                             // Token is permanently invalid — clear it so we stop wasting quota
                             await Patient.findByIdAndUpdate(patientId, { $set: { expo_push_token: null } });
                         }
                         // Application-level error: don't retry (Expo will give the same answer)
-                        return false;
+                        return { success: false, reason: ticket.message, details: ticket.details };
                     }
 
-                    console.log(`✅ Push sent to ${patientId} (ticket: ${result?.id})`);
-                    return true;
+                    const ticketId = ticket?.id;
+                    console.log(`✅ Push sent to ${patientId} (ticket: ${ticketId})`);
+
+                    // Update corresponding Notification document with ticket info if it exists
+                    const notificationId = data.notification_id || data.notificationId;
+                    if (notificationId && ticketId) {
+                        const Notification = require('../models/Notification');
+                        await Notification.findByIdAndUpdate(notificationId, {
+                            $set: {
+                                expo_ticket_id: ticketId,
+                                expo_push_token: patient.expo_push_token,
+                                push_delivered: true
+                            }
+                        });
+                    }
+
+                    return { success: true, ticketId };
                 } catch (err) {
                     lastError = err;
                     const isRetryable =
@@ -107,11 +123,11 @@ class NotificationService {
             }
 
             console.error(`❌ Push network error for ${patientId} after ${MAX_RETRIES} attempts:`, lastError?.message);
-            return false;
+            return { success: false, reason: 'network_error', error: lastError?.message };
         } catch (error) {
             // Outer catch: DB lookup failure or unexpected throw
             console.error(`❌ Unexpected error in sendPush for ${patientId}:`, error.message);
-            return false;
+            return { success: false, reason: 'unexpected_error', error: error.message };
         }
     }
 
@@ -132,7 +148,7 @@ class NotificationService {
         let sent = 0;
         let failed = 0;
         for (const r of results) {
-            if (r.status === 'fulfilled' && r.value === true) sent++;
+            if (r.status === 'fulfilled' && (r.value === true || r.value?.success === true)) sent++;
             else failed++;
         }
 

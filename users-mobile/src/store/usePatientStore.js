@@ -60,6 +60,7 @@ const usePatientStore = create((set, get) => ({
     syncState: 'synced', // 'synced' | 'syncing' | 'failed' | 'offline'
     pendingSyncCount: 0,
     simulateOffline: false,
+    networkSimulationMode: 'online', // 'online' | 'offline' | 'flaky' | 'slow'
     lastSyncTimestamp: null,
     _optimisticMeds: {},
 
@@ -68,6 +69,7 @@ const usePatientStore = create((set, get) => ({
     setSyncState: (state) => set({ syncState: state }),
     setPendingSyncCount: (count) => set({ pendingSyncCount: count }),
     setSimulateOffline: (simulate) => set({ simulateOffline: simulate }),
+    setNetworkSimulationMode: (mode) => set({ networkSimulationMode: mode }),
     setLastSyncTimestamp: (ts) => set({ lastSyncTimestamp: ts }),
 
     fetchAdherenceDetails: async () => {
@@ -391,6 +393,12 @@ const usePatientStore = create((set, get) => ({
      */
     optimisticToggleMed: async (med, targetState = true) => {
         const state = get();
+        const activeOptimistic = state._optimisticMeds[med.id];
+        if (activeOptimistic && Date.now() - activeOptimistic < 1500) {
+            console.warn('[Store] Ignored double-tap toggle spam for med:', med.id);
+            return;
+        }
+        
         const originalState = !targetState; // what we're reverting TO on failure
         const newOpt = { ...state._optimisticMeds, [med.id]: Date.now() };
         set({ _optimisticMeds: newOpt });

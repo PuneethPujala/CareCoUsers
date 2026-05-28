@@ -5,6 +5,7 @@ const FormData = require('form-data');
 const axios = require('axios');
 const { generatePoCResponse, streamPoCResponse } = require('../services/aiChatbotPoC');
 const { authenticate } = require('../middleware/authenticate'); 
+const { aiChatRateLimiter } = require('../middleware/rateLimiter');
 
 const PYTHON_API = process.env.PYTHON_API || 'http://localhost:8000';
 
@@ -45,7 +46,7 @@ function buildErrorResponse(stage, errorMsg) {
  *   { type: "done" }                                      — Stream complete
  *   { type: "error",       message: "..." }               — Error during stream
  */
-router.post('/chat', authenticate, upload.single('audio'), async (req, res) => {
+router.post('/chat', authenticate, aiChatRateLimiter, upload.single('audio'), async (req, res) => {
     try {
         const { targetLanguage, query, patientId: bodyPatientId } = req.body;
         
