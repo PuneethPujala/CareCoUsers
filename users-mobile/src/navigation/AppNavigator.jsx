@@ -120,13 +120,16 @@ function TabSlot({ focused, IconConfig }) {
 
 function PatientTabNavigator() {
     return (
-        <Tab.Navigator tabBar={(props) => <CustomTabBar {...props} />} screenOptions={{ headerShown: false }}>
-            <Tab.Screen name="PatientHome" component={PatientHomeScreen} options={{ tabBarIconComponent: LayoutDashboard }} />
-            <Tab.Screen name="MyCaller" component={MyCallerScreen} options={{ tabBarIconComponent: Users }} />
-            <Tab.Screen name="Medications" component={MedicationsScreen} options={{ tabBarIconComponent: Pill }} />
-            <Tab.Screen name="HealthProfile" component={HealthProfileScreen} options={{ tabBarIconComponent: ShieldPlus }} />
-            <Tab.Screen name="Profile" component={PatientProfileScreen} options={{ tabBarIconComponent: UserCircle }} />
-        </Tab.Navigator>
+        <View style={{ flex: 1 }}>
+            <Tab.Navigator tabBar={(props) => <CustomTabBar {...props} />} screenOptions={{ headerShown: false }}>
+                <Tab.Screen name="PatientHome" component={PatientHomeScreen} options={{ tabBarIconComponent: LayoutDashboard }} />
+                <Tab.Screen name="MyCaller" component={MyCallerScreen} options={{ tabBarIconComponent: Users }} />
+                <Tab.Screen name="Medications" component={MedicationsScreen} options={{ tabBarIconComponent: Pill }} />
+                <Tab.Screen name="HealthProfile" component={HealthProfileScreen} options={{ tabBarIconComponent: ShieldPlus }} />
+                <Tab.Screen name="Profile" component={PatientProfileScreen} options={{ tabBarIconComponent: UserCircle }} />
+            </Tab.Navigator>
+            <ChatFAB onPress={() => navigate('Chatbot')} />
+        </View>
     );
 }
 
@@ -385,7 +388,6 @@ export default function AppNavigator() {
         <View style={{ flex: 1 }}>
             <GlobalSyncBanner />
             <MainAppStack />
-            <ChatFAB onPress={() => navigate('Chatbot')} />
             <CustomAlert ref={alertRef} />
         </View>
     );
