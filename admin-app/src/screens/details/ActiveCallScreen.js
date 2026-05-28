@@ -79,6 +79,7 @@ export default function ActiveCallScreen({ navigation, route }) {
     // Track medication confirmations: { medId: boolean }
     const [checkedMeds, setCheckedMeds] = useState({});
     const [checkedPrevMeds, setCheckedPrevMeds] = useState({});
+    const [checkedTempMeds, setCheckedTempMeds] = useState({});
     
     // Temporary / OTC Medicines
     const [tempMeds, setTempMeds] = useState([]);
@@ -235,6 +236,14 @@ export default function ActiveCallScreen({ navigation, route }) {
     };
 
     const handleDeleteTempMed = (med) => {
+        if (Platform.OS === 'web') {
+            if (window.confirm(`Remove "${med.name}" from temporary medicines?`)) {
+                apiService.caretaker.deleteTempMed(patientId, med._id)
+                    .then(fetchTempMeds)
+                    .catch(e => alert('Failed to remove: ' + e.message));
+            }
+            return;
+        }
         Alert.alert('Remove Medicine', `Remove "${med.name}" from temporary medicines?`, [
             { text: 'Cancel', style: 'cancel' },
             { text: 'Remove', style: 'destructive', onPress: async () => {
@@ -268,6 +277,14 @@ export default function ActiveCallScreen({ navigation, route }) {
         }
         const key = getPrevMedKey(med);
         setCheckedPrevMeds(prev => ({ ...prev, [key]: !prev[key] }));
+    };
+
+    const toggleTempMed = (med) => {
+        if (outcome !== 'completed') {
+            Alert.alert('Cannot Mark Medications', 'You can only confirm medications when the call outcome is "Completed (Contact Made)".');
+            return;
+        }
+        setCheckedTempMeds(prev => ({ ...prev, [med._id]: !prev[med._id] }));
     };
 
     const handleEndCall = async () => {
@@ -325,9 +342,21 @@ export default function ActiveCallScreen({ navigation, route }) {
                         medicationId: med._id || null,
                         medicationName: med.name,
                         confirmed: true,
-                        scheduledShift: med._shift,
                         reason: '',
-                        notes: `Confirmed during ${currentShift} shift call`
+                        notes: `Confirmed missed dose from ${med._shift} shift.`
+                    });
+                }
+            });
+
+            // Temp meds confirmations
+            tempMeds.forEach(med => {
+                if (checkedTempMeds[med._id]) {
+                    medConfirmations.push({
+                        medicationId: null, // Don't link to main collection
+                        medicationName: med.name + ' (Temp)',
+                        confirmed: true,
+                        reason: '',
+                        notes: 'Temporary medicine confirmed.'
                     });
                 }
             });
@@ -523,6 +552,20 @@ export default function ActiveCallScreen({ navigation, route }) {
                                     <React.Fragment key={tm._id || i}>
                                         {i > 0 && <View style={st.divider} />}
                                         <View style={[st.tempMedRow, { borderLeftColor: getRiskColor(tm.riskTier) }]}>
+                                            <TouchableOpacity 
+                                                style={st.checkbox} 
+                                                onPress={() => toggleTempMed(tm)}
+                                                activeOpacity={0.7}
+                                            >
+                                                {checkedTempMeds[tm._id] ? (
+                                                    <View style={st.checkboxChecked}>
+                                                        <Feather name="check" size={14} color="#FFF" />
+                                                    </View>
+                                                ) : (
+                                                    <View style={st.checkboxUnchecked} />
+                                                )}
+                                            </TouchableOpacity>
+                                            
                                             <View style={st.tempMedInfo}>
                                                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                                                     <Text style={st.medName}>{tm.name}</Text>
