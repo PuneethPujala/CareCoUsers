@@ -1855,4 +1855,152 @@ router.get('/call-history', async (req, res) => {
     }
 });
 
+// ═══════════════════════════════════════════════════════════════
+// TEMPORARY / OTC MEDICINES
+// ═══════════════════════════════════════════════════════════════
+
+const TempMedication = require('../models/TempMedication');
+const { lookupMedicine } = require('../services/medicineAIService');
+
+// ── GET /api/caretaker/patients/:id/temp-meds ─────────────────
+// List all active temporary medicines for a patient
+router.get('/patients/:id/temp-meds', async (req, res) => {
+    try {
+        const patientId = req.params.id;
+        const caretakerId = req.profile._id;
+
+        // Verify assignment
+        const assigned = await isPatientAssigned(caretakerId, patientId, req.profile.role);
+        if (!assigned) {
+            return res.status(403).json({ error: 'You are not assigned to this patient.' });
+        }
+
+        const tempMeds = await TempMedication.find({ patientId, isActive: true })
+            .sort({ createdAt: -1 })
+            .lean();
+
+        res.json({ tempMedications: tempMeds });
+    } catch (error) {
+        console.error('[TempMeds] List error:', error);
+        res.status(500).json({ error: 'Failed to fetch temporary medicines.' });
+    }
+});
+
+// ── POST /api/caretaker/patients/:id/temp-meds ────────────────
+// Add a temporary medicine (triggers Groq AI classification)
+router.post('/patients/:id/temp-meds', async (req, res) => {
+    try {
+        const patientId = req.params.id;
+        const caretakerId = req.profile._id;
+
+        // Verify assignment
+        const assigned = await isPatientAssigned(caretakerId, patientId, req.profile.role);
+        if (!assigned) {
+            return res.status(403).json({ error: 'You are not assigned to this patient.' });
+        }
+
+        const { name, dosage, frequency, reason } = req.body;
+
+        if (!name || !name.trim()) {
+            return res.status(400).json({ error: 'Medicine name is required.' });
+        }
+
+        // Get AI classification
+        const aiResult = await lookupMedicine(name.trim());
+
+        // Get org ID
+        const callerProfile = await Profile.findById(caretakerId).select('organizationId fullName').lean();
+        const orgId = callerProfile?.organizationId;
+
+        if (!orgId) {
+            return res.status(400).json({ error: 'Could not determine organization.' });
+        }
+
+        const tempMed = new TempMedication({
+            patientId,
+            organizationId: orgId,
+            name: name.trim(),
+            dosage: dosage?.trim() || '',
+            frequency: frequency?.trim() || 'As needed',
+            reason: reason?.trim() || '',
+            addedBy: caretakerId,
+            addedByRole: req.profile.role === 'patient' ? 'patient' : 'caller',
+            addedByName: callerProfile?.fullName || 'Caller',
+            riskTier: aiResult.riskTier,
+            genericName: aiResult.genericName,
+            aiSummary: aiResult.aiSummary,
+            sideEffects: aiResult.sideEffects,
+            warnings: aiResult.warnings,
+            interactions: aiResult.interactions,
+        });
+
+        await tempMed.save();
+
+        console.log(`[TempMeds] Added "${name}" (${aiResult.riskTier}) for patient ${patientId} by ${callerProfile?.fullName}`);
+
+        res.status(201).json({
+            message: 'Temporary medicine added.',
+            tempMedication: tempMed.toObject(),
+        });
+    } catch (error) {
+        console.error('[TempMeds] Add error:', error);
+        res.status(500).json({ error: 'Failed to add temporary medicine.' });
+    }
+});
+
+// ── DELETE /api/caretaker/patients/:id/temp-meds/:medId ───────
+// Soft-delete a temporary medicine
+router.delete('/patients/:id/temp-meds/:medId', async (req, res) => {
+    try {
+        const { id: patientId, medId } = req.params;
+        const caretakerId = req.profile._id;
+
+        // Verify assignment
+        const assigned = await isPatientAssigned(caretakerId, patientId, req.profile.role);
+        if (!assigned) {
+            return res.status(403).json({ error: 'You are not assigned to this patient.' });
+        }
+
+        const tempMed = await TempMedication.findOne({ _id: medId, patientId, isActive: true });
+
+        if (!tempMed) {
+            return res.status(404).json({ error: 'Temporary medicine not found.' });
+        }
+
+        tempMed.isActive = false;
+        tempMed.deletedBy = caretakerId;
+        tempMed.deletedAt = new Date();
+        await tempMed.save();
+
+        console.log(`[TempMeds] Deleted "${tempMed.name}" for patient ${patientId}`);
+
+        res.json({ message: 'Temporary medicine removed.' });
+    } catch (error) {
+        console.error('[TempMeds] Delete error:', error);
+        res.status(500).json({ error: 'Failed to remove temporary medicine.' });
+    }
+});
+
+// ── GET /api/caretaker/medicine-info ──────────────────────────
+// Standalone AI lookup — caller checks a medicine before adding
+router.get('/medicine-info', async (req, res) => {
+    try {
+        const { name } = req.query;
+
+        if (!name || !name.trim()) {
+            return res.status(400).json({ error: 'Medicine name is required.' });
+        }
+
+        const result = await lookupMedicine(name.trim());
+
+        res.json({
+            name: name.trim(),
+            ...result,
+        });
+    } catch (error) {
+        console.error('[MedicineInfo] Lookup error:', error);
+        res.status(500).json({ error: 'Failed to look up medicine information.' });
+    }
+});
+
 module.exports = router;

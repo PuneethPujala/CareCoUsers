@@ -247,6 +247,12 @@ export const apiService = {
     addMedication: (patientId, data) => api.post(`/caretaker/patients/${patientId}/medications`, data),
     updateMedication: (patientId, medId, data) => api.put(`/caretaker/patients/${patientId}/medications/${medId}`, data),
     deleteMedication: (patientId, medId) => api.delete(`/caretaker/patients/${patientId}/medications/${medId}`),
+
+    // Temporary / OTC Medicines
+    getTempMeds: (patientId) => api.get(`/caretaker/patients/${patientId}/temp-meds`),
+    addTempMed: (patientId, data) => api.post(`/caretaker/patients/${patientId}/temp-meds`, data),
+    deleteTempMed: (patientId, medId) => api.delete(`/caretaker/patients/${patientId}/temp-meds/${medId}`),
+    getMedicineInfo: (name) => api.get('/caretaker/medicine-info', { params: { name } }),
   },
 
   // Mentor endpoints

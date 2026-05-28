@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, TextInput, StyleSheet, Alert, ActivityIndicator, StatusBar, Animated, BackHandler } from 'react-native';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, TextInput, StyleSheet, Alert, ActivityIndicator, StatusBar, Animated, BackHandler, Modal, KeyboardAvoidingView, Platform } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -79,6 +79,14 @@ export default function ActiveCallScreen({ navigation, route }) {
     // Track medication confirmations: { medId: boolean }
     const [checkedMeds, setCheckedMeds] = useState({});
     const [checkedPrevMeds, setCheckedPrevMeds] = useState({});
+    
+    // Temporary / OTC Medicines
+    const [tempMeds, setTempMeds] = useState([]);
+    const [showAddTempMed, setShowAddTempMed] = useState(false);
+    const [tempMedForm, setTempMedForm] = useState({ name: '', dosage: '', frequency: 'As needed', reason: '' });
+    const [tempMedAI, setTempMedAI] = useState(null);
+    const [tempMedLoading, setTempMedLoading] = useState(false);
+    const [aiLookupLoading, setAiLookupLoading] = useState(false);
     
     // Notes and mood
     const [notes, setNotes] = useState('');
@@ -179,6 +187,7 @@ export default function ActiveCallScreen({ navigation, route }) {
             }
         };
         fetchMeds();
+        fetchTempMeds();
         
         timerRef.current = setInterval(() => setSeconds(s => s + 1), 1000);
         return () => clearInterval(timerRef.current);
@@ -189,6 +198,58 @@ export default function ActiveCallScreen({ navigation, route }) {
         const handler = BackHandler.addEventListener('hardwareBackPress', () => true);
         return () => handler.remove();
     }, []);
+
+    // ── Temp Meds Helpers ──
+    const fetchTempMeds = useCallback(async () => {
+        if (!patientId || patientId === 'mock') return;
+        try {
+            const res = await apiService.caretaker.getTempMeds(patientId);
+            setTempMeds(res.data?.tempMedications || []);
+        } catch (err) {
+            console.warn('[ActiveCall] TempMeds fetch error:', err.message);
+        }
+    }, [patientId]);
+
+    const handleAILookup = async () => {
+        if (!tempMedForm.name.trim()) return;
+        setAiLookupLoading(true);
+        try {
+            const res = await apiService.caretaker.getMedicineInfo(tempMedForm.name.trim());
+            setTempMedAI(res.data);
+        } catch { setTempMedAI(null); }
+        finally { setAiLookupLoading(false); }
+    };
+
+    const handleAddTempMed = async () => {
+        if (!tempMedForm.name.trim()) return Alert.alert('Error', 'Medicine name is required.');
+        setTempMedLoading(true);
+        try {
+            await apiService.caretaker.addTempMed(patientId, tempMedForm);
+            setShowAddTempMed(false);
+            setTempMedForm({ name: '', dosage: '', frequency: 'As needed', reason: '' });
+            setTempMedAI(null);
+            fetchTempMeds();
+        } catch (err) {
+            Alert.alert('Error', err?.response?.data?.error || 'Failed to add medicine.');
+        } finally { setTempMedLoading(false); }
+    };
+
+    const handleDeleteTempMed = (med) => {
+        Alert.alert('Remove Medicine', `Remove "${med.name}" from temporary medicines?`, [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Remove', style: 'destructive', onPress: async () => {
+                try {
+                    await apiService.caretaker.deleteTempMed(patientId, med._id);
+                    fetchTempMeds();
+                } catch { Alert.alert('Error', 'Failed to remove.'); }
+            }},
+        ]);
+    };
+
+    const getRiskColor = (tier) => tier === 'safe' ? '#10B981' : tier === 'restricted' ? '#EF4444' : '#F59E0B';
+    const getRiskBg = (tier) => tier === 'safe' ? '#F0FDF4' : tier === 'restricted' ? '#FEF2F2' : '#FFFBEB';
+    const getRiskBorder = (tier) => tier === 'safe' ? '#BBF7D0' : tier === 'restricted' ? '#FECACA' : '#FDE68A';
+    const getRiskLabel = (tier) => tier === 'safe' ? 'OTC — Safe' : tier === 'restricted' ? 'Prescription Only — Verify with Doctor' : 'Use with Caution';
 
     const formatTime = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
     const toggleMed = (med) => {
@@ -434,6 +495,69 @@ export default function ActiveCallScreen({ navigation, route }) {
                             </>
                         )}
 
+                        {/* ═══ Temporary / OTC Medicines ═══ */}
+                        <View style={st.sectionHeader}>
+                            <Ionicons name="medkit" size={16} color="#8B5CF6" />
+                            <Text style={st.sectionTitle}>Temporary Medicines</Text>
+                            {tempMeds.length > 0 && (
+                                <View style={[st.medCountPill, { backgroundColor: '#F3E8FF', borderColor: '#DDD6FE' }]}>
+                                    <Text style={[st.medCountTxt, { color: '#7C3AED' }]}>{tempMeds.length}</Text>
+                                </View>
+                            )}
+                            <TouchableOpacity style={st.addTempBtn} onPress={() => setShowAddTempMed(true)} activeOpacity={0.7}>
+                                <Feather name="plus" size={14} color="#7C3AED" />
+                                <Text style={st.addTempBtnTxt}>Add</Text>
+                            </TouchableOpacity>
+                        </View>
+                        <View style={st.card}>
+                            {tempMeds.length === 0 ? (
+                                <View style={st.emptyState}>
+                                    <View style={[st.emptyIconWrap, { backgroundColor: '#F3E8FF' }]}>
+                                        <Ionicons name="medkit-outline" size={24} color="#8B5CF6" />
+                                    </View>
+                                    <Text style={st.emptyTitle}>No Temporary Medicines</Text>
+                                    <Text style={st.emptySub}>Tap + Add to add OTC / short-term medicines</Text>
+                                </View>
+                            ) : (
+                                tempMeds.map((tm, i) => (
+                                    <React.Fragment key={tm._id || i}>
+                                        {i > 0 && <View style={st.divider} />}
+                                        <View style={[st.tempMedRow, { borderLeftColor: getRiskColor(tm.riskTier) }]}>
+                                            <View style={st.tempMedInfo}>
+                                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                                                    <Text style={st.medName}>{tm.name}</Text>
+                                                    <View style={[st.riskPill, { backgroundColor: getRiskBg(tm.riskTier), borderColor: getRiskBorder(tm.riskTier) }]}>
+                                                        <Text style={[st.riskPillTxt, { color: getRiskColor(tm.riskTier) }]}>
+                                                            {tm.riskTier === 'safe' ? '● Safe' : tm.riskTier === 'restricted' ? '● Restricted' : '● Caution'}
+                                                        </Text>
+                                                    </View>
+                                                </View>
+                                                {(tm.dosage || tm.frequency) ? <Text style={st.medDetail}>{[tm.dosage, tm.frequency].filter(Boolean).join(' · ')}</Text> : null}
+                                                {tm.reason ? <Text style={[st.medDetail, { color: '#64748B' }]}>Reason: {tm.reason}</Text> : null}
+                                                {tm.aiSummary ? <Text style={[st.medDetail, { fontStyle: 'italic', color: '#6B7280', marginTop: 4 }]}>{tm.aiSummary}</Text> : null}
+                                                {tm.riskTier === 'restricted' && (
+                                                    <View style={st.restrictedBanner}>
+                                                        <Ionicons name="warning" size={13} color="#DC2626" />
+                                                        <Text style={st.restrictedTxt}>Do NOT remind without doctor approval</Text>
+                                                    </View>
+                                                )}
+                                                {tm.riskTier === 'caution' && tm.warnings?.length > 0 && (
+                                                    <View style={st.cautionBanner}>
+                                                        <Ionicons name="alert-circle" size={13} color="#D97706" />
+                                                        <Text style={st.cautionTxt}>{tm.warnings[0]}</Text>
+                                                    </View>
+                                                )}
+                                                <Text style={[st.medDetail, { fontSize: 10, color: '#94A3B8', marginTop: 4 }]}>Added by {tm.addedByName || tm.addedByRole}</Text>
+                                            </View>
+                                            <TouchableOpacity onPress={() => handleDeleteTempMed(tm)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                                                <Feather name="trash-2" size={16} color="#94A3B8" />
+                                            </TouchableOpacity>
+                                        </View>
+                                    </React.Fragment>
+                                ))
+                            )}
+                        </View>
+
                         {/* ═══ Patient Mood ═══ */}
                         <View style={st.sectionHeader}>
                             <Feather name="heart" size={15} color="#4F46E5" />
@@ -525,6 +649,58 @@ export default function ActiveCallScreen({ navigation, route }) {
                     </>
                 )}
             </ScrollView>
+
+            {/* ═══ Add Temp Medicine Modal ═══ */}
+            <Modal visible={showAddTempMed} animationType="slide" transparent onRequestClose={() => setShowAddTempMed(false)}>
+                <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+                    <TouchableOpacity style={st.modalOverlay} activeOpacity={1} onPress={() => setShowAddTempMed(false)}>
+                        <TouchableOpacity activeOpacity={1} onPress={e => e.stopPropagation()} style={st.modalSheet}>
+                            <View style={st.modalHandle} />
+                            <Text style={st.modalTitle}>Add Temporary Medicine</Text>
+                            <Text style={st.modalSub}>For OTC / short-term medicines only</Text>
+
+                            <TextInput style={st.modalInput} placeholder="Medicine name (e.g. Dolo 650)" placeholderTextColor="#94A3B8" value={tempMedForm.name} onChangeText={v => { setTempMedForm(f => ({ ...f, name: v })); setTempMedAI(null); }} />
+                            <TextInput style={st.modalInput} placeholder="Dosage (e.g. 1 tablet)" placeholderTextColor="#94A3B8" value={tempMedForm.dosage} onChangeText={v => setTempMedForm(f => ({ ...f, dosage: v }))} />
+
+                            <View style={st.freqRow}>
+                                {['Once daily', 'Twice daily', 'Thrice daily', 'As needed'].map(f => (
+                                    <TouchableOpacity key={f} style={[st.freqChip, tempMedForm.frequency === f && st.freqChipActive]} onPress={() => setTempMedForm(fm => ({ ...fm, frequency: f }))}>
+                                        <Text style={[st.freqChipTxt, tempMedForm.frequency === f && st.freqChipTxtActive]}>{f}</Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
+
+                            <TextInput style={st.modalInput} placeholder="Reason (e.g. Fever, Headache)" placeholderTextColor="#94A3B8" value={tempMedForm.reason} onChangeText={v => setTempMedForm(f => ({ ...f, reason: v }))} />
+
+                            {/* AI Lookup */}
+                            <TouchableOpacity style={st.aiLookupBtn} onPress={handleAILookup} disabled={aiLookupLoading || !tempMedForm.name.trim()}>
+                                {aiLookupLoading ? <ActivityIndicator size="small" color="#7C3AED" /> : (
+                                    <><Ionicons name="sparkles" size={16} color="#7C3AED" /><Text style={st.aiLookupTxt}>Check Medicine Safety</Text></>
+                                )}
+                            </TouchableOpacity>
+
+                            {tempMedAI && (
+                                <View style={[st.aiResultBox, { borderColor: getRiskBorder(tempMedAI.riskTier), backgroundColor: getRiskBg(tempMedAI.riskTier) }]}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                                        <View style={[st.riskPill, { backgroundColor: '#FFF', borderColor: getRiskBorder(tempMedAI.riskTier) }]}>
+                                            <Text style={[st.riskPillTxt, { color: getRiskColor(tempMedAI.riskTier) }]}>
+                                                {getRiskLabel(tempMedAI.riskTier)}
+                                            </Text>
+                                        </View>
+                                        {tempMedAI.genericName ? <Text style={{ fontSize: 12, color: '#64748B' }}>({tempMedAI.genericName})</Text> : null}
+                                    </View>
+                                    {tempMedAI.aiSummary ? <Text style={{ fontSize: 13, color: '#334155', lineHeight: 18, marginBottom: 4 }}>{tempMedAI.aiSummary}</Text> : null}
+                                    {tempMedAI.warnings?.length > 0 && <Text style={{ fontSize: 11, color: '#B45309', marginTop: 2 }}>⚠ {tempMedAI.warnings.join(' · ')}</Text>}
+                                </View>
+                            )}
+
+                            <TouchableOpacity style={[st.modalAddBtn, tempMedLoading && { opacity: 0.6 }]} onPress={handleAddTempMed} disabled={tempMedLoading}>
+                                {tempMedLoading ? <ActivityIndicator size="small" color="#FFF" /> : <Text style={st.modalAddBtnTxt}>Add Medicine</Text>}
+                            </TouchableOpacity>
+                        </TouchableOpacity>
+                    </TouchableOpacity>
+                </KeyboardAvoidingView>
+            </Modal>
         </View>
     );
 }
@@ -624,4 +800,34 @@ const st = StyleSheet.create({
     endBtnWrap: { marginTop: 36, borderRadius: 20, overflow: 'hidden', ...Theme.shadows.sharp, shadowColor: '#EF4444', shadowOpacity: 0.3, elevation: 4 },
     endBtnGrad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 19 },
     endBtnText: { fontSize: 17, fontWeight: '900', color: '#FFFFFF', letterSpacing: 0.3 },
+
+    // ── Temp Meds ──
+    addTempBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#F3E8FF', paddingHorizontal: 12, paddingVertical: 5, borderRadius: 12, borderWidth: 1, borderColor: '#DDD6FE' },
+    addTempBtnTxt: { fontSize: 12, fontWeight: '700', color: '#7C3AED' },
+    tempMedRow: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: 14, paddingHorizontal: 18, borderLeftWidth: 3 },
+    tempMedInfo: { flex: 1, marginRight: 10 },
+    riskPill: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, borderWidth: 1 },
+    riskPillTxt: { fontSize: 9, fontWeight: '800', letterSpacing: 0.3 },
+    restrictedBanner: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#FEF2F2', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, marginTop: 6, borderWidth: 1, borderColor: '#FECACA' },
+    restrictedTxt: { fontSize: 11, fontWeight: '700', color: '#DC2626', flex: 1 },
+    cautionBanner: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#FFFBEB', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, marginTop: 6, borderWidth: 1, borderColor: '#FDE68A' },
+    cautionTxt: { fontSize: 11, fontWeight: '600', color: '#B45309', flex: 1 },
+
+    // ── Add Temp Med Modal ──
+    modalOverlay: { flex: 1, backgroundColor: 'rgba(15,23,42,0.5)', justifyContent: 'flex-end' },
+    modalSheet: { backgroundColor: '#FFF', borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24, paddingBottom: 40, maxHeight: '85%' },
+    modalHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: '#E2E8F0', alignSelf: 'center', marginBottom: 16 },
+    modalTitle: { fontSize: 20, fontWeight: '900', color: '#0F172A', marginBottom: 4 },
+    modalSub: { fontSize: 13, fontWeight: '500', color: '#94A3B8', marginBottom: 20 },
+    modalInput: { backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 14, paddingHorizontal: 16, paddingVertical: 13, fontSize: 15, fontWeight: '500', color: '#0F172A', marginBottom: 12 },
+    freqRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
+    freqChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12, backgroundColor: '#F1F5F9', borderWidth: 1, borderColor: '#E2E8F0' },
+    freqChipActive: { backgroundColor: '#EEF2FF', borderColor: '#6366F1' },
+    freqChipTxt: { fontSize: 12, fontWeight: '600', color: '#64748B' },
+    freqChipTxtActive: { color: '#4F46E5' },
+    aiLookupBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 12, borderRadius: 14, borderWidth: 1.5, borderColor: '#DDD6FE', backgroundColor: '#FAFAFF', marginBottom: 12 },
+    aiLookupTxt: { fontSize: 14, fontWeight: '700', color: '#7C3AED' },
+    aiResultBox: { borderRadius: 14, borderWidth: 1, padding: 14, marginBottom: 16 },
+    modalAddBtn: { backgroundColor: '#6366F1', borderRadius: 16, paddingVertical: 16, alignItems: 'center', justifyContent: 'center' },
+    modalAddBtnTxt: { fontSize: 16, fontWeight: '900', color: '#FFF' },
 });
