@@ -525,14 +525,16 @@ export default function ActiveCallScreen({ navigation, route }) {
                         )}
 
                         {/* ═══ Temporary / OTC Medicines ═══ */}
-                        <View style={st.sectionHeader}>
-                            <Ionicons name="medkit" size={16} color="#8B5CF6" />
-                            <Text style={st.sectionTitle}>Temporary Medicines</Text>
-                            {tempMeds.length > 0 && (
-                                <View style={[st.medCountPill, { backgroundColor: '#F3E8FF', borderColor: '#DDD6FE' }]}>
-                                    <Text style={[st.medCountTxt, { color: '#7C3AED' }]}>{tempMeds.length}</Text>
-                                </View>
-                            )}
+                        <View style={[st.sectionHeader, { justifyContent: 'space-between' }]}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                <Ionicons name="medkit" size={16} color="#8B5CF6" />
+                                <Text style={st.sectionTitle}>Temporary Medicines</Text>
+                                {tempMeds.length > 0 && (
+                                    <View style={[st.medCountPill, { backgroundColor: '#F3E8FF', borderColor: '#DDD6FE' }]}>
+                                        <Text style={[st.medCountTxt, { color: '#7C3AED' }]}>{tempMeds.length}</Text>
+                                    </View>
+                                )}
+                            </View>
                             <TouchableOpacity style={st.addTempBtn} onPress={() => setShowAddTempMed(true)} activeOpacity={0.7}>
                                 <Feather name="plus" size={14} color="#7C3AED" />
                                 <Text style={st.addTempBtnTxt}>Add</Text>
@@ -548,56 +550,57 @@ export default function ActiveCallScreen({ navigation, route }) {
                                     <Text style={st.emptySub}>Tap + Add to add OTC / short-term medicines</Text>
                                 </View>
                             ) : (
-                                tempMeds.map((tm, i) => (
-                                    <React.Fragment key={tm._id || i}>
-                                        {i > 0 && <View style={st.divider} />}
-                                        <View style={[st.tempMedRow, { borderLeftColor: getRiskColor(tm.riskTier) }]}>
+                                tempMeds.map((tm, i) => {
+                                    const isChecked = checkedTempMeds[tm._id];
+                                    return (
+                                        <React.Fragment key={tm._id || i}>
+                                            {i > 0 && <View style={st.divider} />}
                                             <TouchableOpacity 
-                                                style={st.checkbox} 
-                                                onPress={() => toggleTempMed(tm)}
-                                                activeOpacity={0.7}
+                                                style={[st.medRow, { borderLeftWidth: 4, borderLeftColor: getRiskColor(tm.riskTier), paddingLeft: 14 }]} 
+                                                onPress={() => toggleTempMed(tm)} 
+                                                activeOpacity={0.65}
                                             >
-                                                {checkedTempMeds[tm._id] ? (
-                                                    <View style={st.checkboxChecked}>
-                                                        <Feather name="check" size={14} color="#FFF" />
-                                                    </View>
-                                                ) : (
-                                                    <View style={st.checkboxUnchecked} />
-                                                )}
-                                            </TouchableOpacity>
-                                            
-                                            <View style={st.tempMedInfo}>
-                                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                                                    <Text style={st.medName}>{tm.name}</Text>
-                                                    <View style={[st.riskPill, { backgroundColor: getRiskBg(tm.riskTier), borderColor: getRiskBorder(tm.riskTier) }]}>
-                                                        <Text style={[st.riskPillTxt, { color: getRiskColor(tm.riskTier) }]}>
-                                                            {tm.riskTier === 'safe' ? '● Safe' : tm.riskTier === 'restricted' ? '● Restricted' : '● Caution'}
-                                                        </Text>
-                                                    </View>
+                                                <View style={[st.medCheck, isChecked && st.medCheckDone]}>
+                                                    {isChecked && <Feather name="check" size={13} color="#FFF" />}
                                                 </View>
-                                                {(tm.dosage || tm.frequency) ? <Text style={st.medDetail}>{[tm.dosage, tm.frequency].filter(Boolean).join(' · ')}</Text> : null}
-                                                {tm.reason ? <Text style={[st.medDetail, { color: '#64748B' }]}>Reason: {tm.reason}</Text> : null}
-                                                {tm.aiSummary ? <Text style={[st.medDetail, { fontStyle: 'italic', color: '#6B7280', marginTop: 4 }]}>{tm.aiSummary}</Text> : null}
-                                                {tm.riskTier === 'restricted' && (
-                                                    <View style={st.restrictedBanner}>
-                                                        <Ionicons name="warning" size={13} color="#DC2626" />
-                                                        <Text style={st.restrictedTxt}>Do NOT remind without doctor approval</Text>
+                                                
+                                                <View style={st.medInfo}>
+                                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                                                        <Text style={[st.medName, isChecked && st.medDone]} numberOfLines={1}>{tm.name}</Text>
+                                                        <View style={[st.riskPill, { backgroundColor: getRiskBg(tm.riskTier), borderColor: getRiskBorder(tm.riskTier) }]}>
+                                                            <Text style={[st.riskPillTxt, { color: getRiskColor(tm.riskTier) }]}>
+                                                                {tm.riskTier === 'safe' ? '● Safe' : tm.riskTier === 'restricted' ? '● Restricted' : '● Caution'}
+                                                            </Text>
+                                                        </View>
                                                     </View>
-                                                )}
-                                                {tm.riskTier === 'caution' && tm.warnings?.length > 0 && (
-                                                    <View style={st.cautionBanner}>
-                                                        <Ionicons name="alert-circle" size={13} color="#D97706" />
-                                                        <Text style={st.cautionTxt}>{tm.warnings[0]}</Text>
-                                                    </View>
-                                                )}
-                                                <Text style={[st.medDetail, { fontSize: 10, color: '#94A3B8', marginTop: 4 }]}>Added by {tm.addedByName || tm.addedByRole}</Text>
-                                            </View>
-                                            <TouchableOpacity onPress={() => handleDeleteTempMed(tm)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                                                <Feather name="trash-2" size={16} color="#94A3B8" />
+                                                    {(tm.dosage || tm.frequency) ? <Text style={[st.medDetail, isChecked && st.medDone]}>{[tm.dosage, tm.frequency].filter(Boolean).join(' · ')}</Text> : null}
+                                                    {tm.reason ? <Text style={[st.medDetail, isChecked && st.medDone, { color: '#64748B' }]}>Reason: {tm.reason}</Text> : null}
+                                                    {tm.aiSummary ? <Text style={[st.medDetail, isChecked && st.medDone, { fontStyle: 'italic', color: '#6B7280', marginTop: 4 }]}>{tm.aiSummary}</Text> : null}
+                                                    {tm.riskTier === 'restricted' && !isChecked && (
+                                                        <View style={st.restrictedBanner}>
+                                                            <Ionicons name="warning" size={13} color="#DC2626" />
+                                                            <Text style={st.restrictedTxt}>Do NOT remind without doctor approval</Text>
+                                                        </View>
+                                                    )}
+                                                    {tm.riskTier === 'caution' && !isChecked && tm.warnings?.length > 0 && (
+                                                        <View style={st.cautionBanner}>
+                                                            <Ionicons name="alert-circle" size={13} color="#D97706" />
+                                                            <Text style={st.cautionTxt}>{tm.warnings[0]}</Text>
+                                                        </View>
+                                                    )}
+                                                    <Text style={[st.medDetail, { fontSize: 10, color: '#94A3B8', marginTop: 4 }]}>Added by {tm.addedByName || tm.addedByRole}</Text>
+                                                </View>
+                                                <TouchableOpacity 
+                                                    onPress={() => handleDeleteTempMed(tm)} 
+                                                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                                    style={{ padding: 6, marginLeft: 8 }}
+                                                >
+                                                    <Feather name="trash-2" size={18} color="#94A3B8" />
+                                                </TouchableOpacity>
                                             </TouchableOpacity>
-                                        </View>
-                                    </React.Fragment>
-                                ))
+                                        </React.Fragment>
+                                    );
+                                })
                             )}
                         </View>
 
