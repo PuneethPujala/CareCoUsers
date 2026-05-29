@@ -122,7 +122,10 @@ export default function CompanionDashboardScreen() {
                         <Text style={styles.title}>{data.patient.name}'s Health</Text>
                     </View>
                 </View>
-                <Pressable style={styles.bellButton}>
+                <Pressable 
+                    style={styles.bellButton}
+                    onPress={() => navigation.navigate('CompanionAlerts')}
+                >
                     <Bell color={C.dark} size={20} />
                     {data.recent_alerts?.length > 0 && <View style={styles.bellDot} />}
                 </Pressable>
