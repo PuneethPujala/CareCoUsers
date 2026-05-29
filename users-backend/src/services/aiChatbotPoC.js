@@ -11,6 +11,8 @@ const { ChromaClient } = require('chromadb');
 const { buildPatientContext } = require('./aiContextService');
 const AIChatLog = require('../models/AIChatLog');
 const { performance } = require('perf_hooks');
+const fs = require('fs');
+const path = require('path');
 
 const OLLAMA_URL = process.env.OLLAMA_URL || 'http://localhost:11434';
 const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'llama3:8b';
@@ -75,6 +77,39 @@ async function getQueryEmbedding(query) {
         prompt: query
     });
     return response.data.embedding;
+}
+
+let localGuidelinesMap = null;
+
+function getLocalGuidelinesMap() {
+    if (localGuidelinesMap) return localGuidelinesMap;
+    
+    localGuidelinesMap = new Map();
+    try {
+        const docPath = path.join(__dirname, '../../medical_guidelines.md');
+        if (fs.existsSync(docPath)) {
+            const content = fs.readFileSync(docPath, 'utf8');
+            const sections = content.split(/^## /m).filter(Boolean).map(c => '## ' + c.trim());
+            for (const chunkTextRaw of sections) {
+                let chunkText = chunkTextRaw;
+                if (chunkText.includes("*End of CareMyMed RAG Corpus")) {
+                    chunkText = chunkText.split("*End of CareMyMed")[0].trim();
+                }
+                const firstLine = chunkText.split('\n')[0].trim();
+                const chunkId = firstLine.replace(/[^a-zA-Z0-9-]/g, "_").toLowerCase();
+                
+                if (firstLine.includes("Drug:") || firstLine.includes("Vitals:") || firstLine.includes("General Drug Interaction Principles")) {
+                    localGuidelinesMap.set(chunkId, chunkText);
+                }
+            }
+            console.log(`[PoC] Loaded ${localGuidelinesMap.size} guidelines from local medical_guidelines.md for offline/Render fallback.`);
+        } else {
+            console.warn('[PoC] medical_guidelines.md not found at:', docPath);
+        }
+    } catch (err) {
+        console.error('[PoC] Failed to load local guidelines map:', err.message);
+    }
+    return localGuidelinesMap;
 }
 
 /**
@@ -189,17 +224,30 @@ async function buildRAGContext(patientId, userQuery, targetLanguage) {
         }
     }
 
-    if (keywordIdsToFetch.length > 0 && collection) {
-        try {
-            const keywordDocs = await collection.get({ ids: keywordIdsToFetch });
-            if (keywordDocs.documents && keywordDocs.documents.length > 0) {
-                for (let i = 0; i < keywordDocs.documents.length; i++) {
-                    matchedGuidelines.push(keywordDocs.documents[i]);
-                    console.log(`[PoC] Matched Keyword Chunk: ${keywordDocs.metadatas[i].title}`);
+    if (keywordIdsToFetch.length > 0) {
+        if (collection) {
+            try {
+                const keywordDocs = await collection.get({ ids: keywordIdsToFetch });
+                if (keywordDocs.documents && keywordDocs.documents.length > 0) {
+                    for (let i = 0; i < keywordDocs.documents.length; i++) {
+                        matchedGuidelines.push(keywordDocs.documents[i]);
+                        console.log(`[PoC] Matched Keyword Chunk (ChromaDB): ${keywordDocs.metadatas[i].title}`);
+                    }
+                }
+            } catch (err) {
+                console.error('[PoC] Error fetching keyword matching documents from ChromaDB:', err);
+            }
+        }
+
+        // Fallback to reading from local medical_guidelines.md map
+        if (matchedGuidelines.length === 0) {
+            const localMap = getLocalGuidelinesMap();
+            for (const docId of keywordIdsToFetch) {
+                if (localMap.has(docId)) {
+                    matchedGuidelines.push(localMap.get(docId));
+                    console.log(`[PoC] Matched Keyword Chunk (Local markdown file): ${docId}`);
                 }
             }
-        } catch (err) {
-            console.error('[PoC] Error fetching keyword matching documents:', err);
         }
     }
 
