@@ -54,12 +54,17 @@ describe('AI Latency Telemetry & Fallback Model Routing', () => {
 
         // Mock ChromaDB Client
         mockQuery = jest.fn().mockResolvedValue({
+            ids: [["id1", "id2"]],
             distances: [[0.2, 0.4]], // Cosine distance 0.2 -> 0.8 similarity, 0.4 -> 0.6 similarity (0.6 is below 0.75 threshold)
             documents: [["Strict Guideline 1", "Below Threshold Guideline 2"]],
             metadatas: [[{ title: "Strict Match" }, { title: "Weak Match" }]]
         });
         mockGetCollection = jest.fn().mockResolvedValue({
-            query: mockQuery
+            query: mockQuery,
+            get: jest.fn().mockResolvedValue({
+                documents: ["Mocked Guideline from get"],
+                metadatas: [{ title: "Mocked Title" }]
+            })
         });
         ChromaClient.prototype.getCollection = mockGetCollection;
 

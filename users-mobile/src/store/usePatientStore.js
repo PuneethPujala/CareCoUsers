@@ -168,6 +168,14 @@ const usePatientStore = create((set, get) => ({
                     };
                 });
 
+                const SLOT_ORDER = { morning: 1, afternoon: 2, evening: 3, night: 4, as_needed: 5 };
+                freshMeds.sort((a, b) => {
+                    const orderDiff = (SLOT_ORDER[a.type] || 99) - (SLOT_ORDER[b.type] || 99);
+                    if (orderDiff !== 0) return orderDiff;
+                    return a.name.localeCompare(b.name);
+                });
+
+
                 set({
                     patient: freshPatient,
                     vitals: freshVitals,
@@ -253,6 +261,14 @@ const usePatientStore = create((set, get) => ({
                     refillInfo: m.refillInfo || null,
                 };
             });
+
+            const SLOT_ORDER = { morning: 1, afternoon: 2, evening: 3, night: 4, as_needed: 5 };
+            freshMeds.sort((a, b) => {
+                const orderDiff = (SLOT_ORDER[a.type] || 99) - (SLOT_ORDER[b.type] || 99);
+                if (orderDiff !== 0) return orderDiff;
+                return a.name.localeCompare(b.name);
+            });
+
 
             set({
                 patient: freshPatient,

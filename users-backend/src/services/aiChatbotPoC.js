@@ -109,24 +109,105 @@ async function buildRAGContext(patientId, userQuery, targetLanguage) {
         nResults: 3
     });
 
-    // 3. Apply Strict Thresholding (Cosine Distance to Similarity)
-    // Chroma returns distance, where similarity = 1 - distance
-    let matchedGuidelines = [];
+    // 3. Hybrid Search: Extract entities/keywords to bypass semantic distance limits
+    const lowerQuery = userQuery.toLowerCase();
+    const keywordDocIds = {
+        'paracetamol': '___drug__paracetamol',
+        'crocin': '___drug__paracetamol',
+        'calpol': '___drug__paracetamol',
+        'cetirizine': '___drug__cetirizine',
+        'metformin': '___drug__metformin',
+        'glycomet': '___drug__metformin',
+        'pantoprazole': '___drug__pantoprazole',
+        'pan-d': '___drug__pantoprazole',
+        'amlodipine': '___drug__amlodipine',
+        'amoxicillin': '___drug__amoxicillin',
+        'telmisartan': '___drug__telmisartan',
+        'levothyroxine': '___drug__levothyroxine__thyroxine___t4_',
+        'thyroxine': '___drug__levothyroxine__thyroxine___t4_',
+        'thyronorm': '___drug__levothyroxine__thyroxine___t4_',
+        'eltroxin': '___drug__levothyroxine__thyroxine___t4_',
+        'atorvastatin': '___drug__atorvastatin',
+        'lipitor': '___drug__atorvastatin',
+        'rabeprazole': '___drug__rabeprazole',
+        'azithromycin': '___drug__azithromycin',
+        'diclofenac': '___drug__diclofenac',
+        'voveran': '___drug__diclofenac',
+        'losartan': '___drug__losartan',
+        'levocetirizine': '___drug__levocetirizine',
+        'glimepiride': '___drug__glimepiride',
+        'blood pressure': '___vitals__blood_pressure',
+        'bp': '___vitals__blood_pressure',
+        'hypertension': '___vitals__blood_pressure',
+        'hypotension': '___vitals__blood_pressure',
+        'heart rate': '___vitals__heart_rate__pulse_',
+        'pulse': '___vitals__heart_rate__pulse_',
+        'bradycardia': '___vitals__heart_rate__pulse_',
+        'tachycardia': '___vitals__heart_rate__pulse_',
+        'spo2': '___vitals__spo2__oxygen_saturation___pulse_oximetry_',
+        'oxygen': '___vitals__spo2__oxygen_saturation___pulse_oximetry_',
+        'saturation': '___vitals__spo2__oxygen_saturation___pulse_oximetry_',
+        'glucose': '___vitals__blood_glucose',
+        'sugar': '___vitals__blood_glucose',
+        'diabetes': '___vitals__blood_glucose',
+        'temperature': '___vitals__body_temperature',
+        'fever': '___vitals__body_temperature',
+        'temp': '___vitals__body_temperature',
+        'respiratory': '___vitals__respiratory_rate',
+        'breathing': '___vitals__respiratory_rate',
+        'interaction': '___general_drug_interaction_principles__indian_clinical_context_'
+    };
+
+    const matchedIds = new Set();
+    const matchedGuidelines = [];
     let similaritySum = 0;
     let matchedCount = 0;
-    if (results.distances && results.distances[0]) {
-        for (let i = 0; i < results.distances[0].length; i++) {
-            const similarity = 1 - results.distances[0][i];
-            if (similarity >= SIMILARITY_THRESHOLD) {
-                matchedGuidelines.push(results.documents[0][i]);
-                similaritySum += similarity;
-                matchedCount++;
-                console.log(`[PoC] Matched Chunk: ${results.metadatas[0][i].title} (Score: ${similarity.toFixed(2)})`);
-            } else {
-                console.log(`[PoC] Discarded Chunk: ${results.metadatas[0][i].title} (Score: ${similarity.toFixed(2)} - Below Threshold)`);
+
+    // Run keyword matching
+    const keywordIdsToFetch = [];
+    for (const [key, docId] of Object.entries(keywordDocIds)) {
+        const regex = new RegExp(`\\b${key}\\b`, 'i');
+        if (regex.test(lowerQuery)) {
+            if (!matchedIds.has(docId)) {
+                keywordIdsToFetch.push(docId);
+                matchedIds.add(docId);
             }
         }
     }
+
+    if (keywordIdsToFetch.length > 0) {
+        try {
+            const keywordDocs = await collection.get({ ids: keywordIdsToFetch });
+            if (keywordDocs.documents && keywordDocs.documents.length > 0) {
+                for (let i = 0; i < keywordDocs.documents.length; i++) {
+                    matchedGuidelines.push(keywordDocs.documents[i]);
+                    console.log(`[PoC] Matched Keyword Chunk: ${keywordDocs.metadatas[i].title}`);
+                }
+            }
+        } catch (err) {
+            console.error('[PoC] Error fetching keyword matching documents:', err);
+        }
+    }
+
+    // Apply strict thresholding on the remaining semantic query results
+    if (results.distances && results.distances[0]) {
+        for (let i = 0; i < results.distances[0].length; i++) {
+            const docId = (results.ids && results.ids[0]) ? results.ids[0][i] : `semantic_${i}`;
+            if (matchedIds.has(docId)) continue; // Skip since it's already fetched via keyword matching
+
+            const similarity = 1 - results.distances[0][i];
+            if (similarity >= SIMILARITY_THRESHOLD) {
+                matchedGuidelines.push(results.documents[0][i]);
+                matchedIds.add(docId);
+                similaritySum += similarity;
+                matchedCount++;
+                console.log(`[PoC] Matched Semantic Chunk: ${results.metadatas[0][i].title} (Score: ${similarity.toFixed(2)})`);
+            } else {
+                console.log(`[PoC] Discarded Semantic Chunk: ${results.metadatas[0][i].title} (Score: ${similarity.toFixed(2)} - Below Threshold)`);
+            }
+        }
+    }
+
     const retrievalLatency = Math.round(performance.now() - retrievalStart);
     const similarityAvg = matchedCount > 0 ? (similaritySum / matchedCount) : 0;
 
@@ -159,6 +240,7 @@ CRITICAL PERSONA & SAFETY RULES:
 12. Be streak-aware but not streak-obsessed. If the patient has a streak going, you may warmly reference it once (e.g., "You're on day 7 — nice rhythm.") but never guilt-trip about broken streaks. If streak is 0, ignore it entirely.
 13. Know today's schedule. Use today_status from PATIENT_LIVE_DATA to understand which specific medications the patient has taken or missed TODAY. Reference med names naturally when relevant (e.g., "Looks like your morning Metformin is already done — just Atorvastatin left tonight.").
 14. Understand Care Team Context. Check 'care_team' and 'latest_interaction' in PATIENT_LIVE_DATA. If 'care_team' is null, do NOT hallucinate a coordinator; you can simply say they haven't been assigned one yet. If it exists, naturally reference the coordinator's name when suggesting follow-ups (e.g. "I can flag this for Prakash"). If 'latest_interaction' exists, you may reference their last call (e.g. "I see you just spoke with Prakash yesterday").
+15. Focus strictly on their care plan, vitals monitoring, and medications. Do NOT answer non-clinical queries or speculate on health risks of personal activities (such as exercise, play, or intimate activities) not covered in the guidelines. If asked, calmly guide the patient back to their schedule or suggest discussing it with their care coordinator or doctor.
 
 You must ONLY use the provided [PATIENT_LIVE_DATA] and [MEDICAL_GUIDELINES] to answer the user's question. 
 If the answer is not contained within these two sources, decline calmly and suggest consulting their care team. Do NOT guess or hallucinate${languageInstruction}

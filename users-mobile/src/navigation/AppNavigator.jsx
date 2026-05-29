@@ -34,6 +34,7 @@ import VerifyEmailScreen from "../screens/onboarding/VerifyEmailScreen";
 import MFAVerifyScreen from "../screens/auth/MFAVerifyScreen";
 import MFASetupScreen from "../screens/settings/MFASetupScreen";
 import DeveloperObservabilityScreen from "../screens/settings/DeveloperObservabilityScreen";
+import PatientDiagnosticsScreen from "../screens/settings/PatientDiagnosticsScreen";
 import CompanionSignupScreen from '../screens/onboarding/CompanionSignupScreen';
 
 import CompanionHomeScreen from '../screens/app/CompanionHomeScreen';
@@ -185,6 +186,7 @@ const MainAppStack = () => (
         <Stack.Screen name="WaitingRoom" component={WaitingScreen} />
         <Stack.Screen name="MFASetup" component={MFASetupScreen} options={{ presentation: "modal", animation: "slide_from_bottom" }} />
         <Stack.Screen name="DeveloperObservability" component={DeveloperObservabilityScreen} options={{ presentation: "modal", animation: "slide_from_bottom" }} />
+        <Stack.Screen name="PatientDiagnostics" component={PatientDiagnosticsScreen} options={{ presentation: "modal", animation: "slide_from_bottom" }} />
     </Stack.Navigator>
 );
 

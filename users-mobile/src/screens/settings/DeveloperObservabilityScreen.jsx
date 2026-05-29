@@ -1,20 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, Alert, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { 
-    ArrowLeft, Activity, CloudOff, RefreshCw, Smartphone, 
-    CheckCircle, XCircle, Download, ChevronDown, ChevronUp, 
-    Cpu, Clock, AlertTriangle, Settings, HelpCircle 
+    ArrowLeft, CloudOff, RefreshCw, CheckCircle, XCircle, 
+    Download, ChevronDown, ChevronUp, Cpu, Clock, 
+    Settings, HelpCircle, Activity, ChevronRight
 } from 'lucide-react-native';
 import usePatientStore from '../../store/usePatientStore';
 import OfflineSyncService from '../../lib/OfflineSyncService';
-import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import * as Device from 'expo-device';
 import * as IntentLauncher from 'expo-intent-launcher';
-import api from '../../lib/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function DeveloperObservabilityScreen({ navigation }) {
@@ -25,74 +23,21 @@ export default function DeveloperObservabilityScreen({ navigation }) {
         networkSimulationMode, setNetworkSimulationMode 
     } = usePatientStore();
     
-    const [backendHealth, setBackendHealth] = useState(null);
-    const [loadingHealth, setLoadingHealth] = useState(true);
-    const [fcmToken, setFcmToken] = useState('Checking...');
-    const [notificationPermissions, setNotificationPermissions] = useState('Checking...');
-    const [pingLatency, setPingLatency] = useState(0);
-    const [offlineQueueRaw, setOfflineQueueRaw] = useState([]);
-    const [clockDrift, setClockDrift] = useState(null);
     const [replayHistory, setReplayHistory] = useState([]);
-    const [lifecycleHistory, setLifecycleHistory] = useState([]);
     const [showOemGuide, setShowOemGuide] = useState(false);
 
     useEffect(() => {
-        fetchDiagnostics();
+        fetchDeveloperData();
     }, []);
 
-    const fetchDiagnostics = async () => {
-        setLoadingHealth(true);
-        
-        // 1. Fetch Backend API Health
-        const start = Date.now();
+    const fetchDeveloperData = async () => {
         try {
-            const res = await api.get('/admin/observability/system-health');
-            setBackendHealth(res.data);
-            const end = Date.now();
-            setPingLatency(end - start);
-            
-            // Calculate clock drift relative to server time (using roundtrip midpoint estimation)
-            if (res.data && res.data.timestamp) {
-                const serverTime = new Date(res.data.timestamp).getTime();
-                const clientMidpoint = start + ((end - start) / 2);
-                const drift = Math.abs(serverTime - clientMidpoint);
-                setClockDrift(drift);
-            }
-        } catch (err) {
-            console.error('Failed to fetch observability stats:', err);
-            setBackendHealth(null);
-            setClockDrift(null);
-        }
-
-        // 2. Fetch Notifications Status
-        try {
-            const { status } = await Notifications.getPermissionsAsync();
-            setNotificationPermissions(status);
-            const token = await Notifications.getExpoPushTokenAsync({
-                projectId: Constants.expoConfig?.extra?.eas?.projectId || "eb48e026-64fa-4fc6-b63e-ab4cc8630713"
-            });
-            setFcmToken(token.data);
-        } catch (e) {
-            setFcmToken('Failed to retrieve');
-        }
-
-        // 3. Fetch Raw Queue & History Timelines
-        try {
-            const queueStr = await AsyncStorage.getItem('offline_mutation_queue');
-            setOfflineQueueRaw(queueStr ? JSON.parse(queueStr) : []);
-
             const replayStr = await AsyncStorage.getItem('offline_replay_history');
             setReplayHistory(replayStr ? JSON.parse(replayStr) : []);
-
-            const lifecycleStr = await AsyncStorage.getItem('app_lifecycle_history');
-            setLifecycleHistory(lifecycleStr ? JSON.parse(lifecycleStr) : []);
         } catch (e) {}
-
-        setLoadingHealth(false);
     };
 
     const handleForceSync = () => {
-        // Turn off offline simulations
         setNetworkSimulationMode('online');
         setSimulateOffline(false);
         OfflineSyncService.flushQueue();
@@ -101,10 +46,8 @@ export default function DeveloperObservabilityScreen({ navigation }) {
     const handleOpenBatterySettings = async () => {
         if (Platform.OS === 'android') {
             try {
-                // Try direct battery optimization ignore intent
                 await IntentLauncher.startActivityAsync('android.settings.IGNORE_BATTERY_OPTIMIZATION_SETTINGS');
             } catch (e) {
-                // Fallback to application details setting page
                 try {
                     await IntentLauncher.startActivityAsync('android.settings.APPLICATION_DETAILS_SETTINGS', {
                         data: `package:${Constants.expoConfig?.android?.package || 'com.caremymed.users'}`
@@ -137,17 +80,10 @@ export default function DeveloperObservabilityScreen({ navigation }) {
                     simulateOffline,
                     lastSyncTimestamp,
                 },
-                notifications: {
-                    permission: notificationPermissions,
-                    hasToken: fcmToken !== 'Checking...' && fcmToken !== 'Failed to retrieve',
-                },
-                backendHealth,
-                rawQueue: offlineQueueRaw,
-                replayHistory,
-                lifecycleHistory
+                replayHistory
             };
 
-            const fileUri = `${FileSystem.documentDirectory}diagnostics_${Date.now()}.json`;
+            const fileUri = `${FileSystem.documentDirectory}dev_observability_${Date.now()}.json`;
             await FileSystem.writeAsStringAsync(fileUri, JSON.stringify(diagnostics, null, 2));
 
             if (await Sharing.isAvailableAsync()) {
@@ -166,7 +102,6 @@ export default function DeveloperObservabilityScreen({ navigation }) {
             await AsyncStorage.removeItem('offline_replay_history');
             await AsyncStorage.removeItem('app_lifecycle_history');
             setReplayHistory([]);
-            setLifecycleHistory([]);
             Alert.alert("Success", "Diagnostic history logs cleared.");
         } catch (e) {
             Alert.alert("Error", "Failed to clear logs.");
@@ -300,7 +235,7 @@ export default function DeveloperObservabilityScreen({ navigation }) {
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
                     <ArrowLeft size={24} color="#0F172A" />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>System Observability</Text>
+                <Text style={styles.headerTitle}>Developer Observability</Text>
                 <TouchableOpacity onPress={handleExportDiagnostics} style={styles.exportButton}>
                     <Download size={20} color="#2563EB" />
                 </TouchableOpacity>
@@ -308,6 +243,21 @@ export default function DeveloperObservabilityScreen({ navigation }) {
 
             <ScrollView contentContainerStyle={styles.scrollContent}>
                 
+                {/* ─── Patient Diagnostics Navigation Card ───────────────── */}
+                <TouchableOpacity 
+                    style={[styles.card, styles.navCard]} 
+                    onPress={() => navigation.navigate('PatientDiagnostics')}
+                >
+                    <View style={styles.navCardHeader}>
+                        <Activity size={24} color="#2563EB" />
+                        <View style={styles.navCardTitleContainer}>
+                            <Text style={styles.navCardTitle}>Patient Diagnostics</Text>
+                            <Text style={styles.navCardDesc}>Device token health, queue state, sync status, clock drift, session validity</Text>
+                        </View>
+                        <ChevronRight size={20} color="#64748B" />
+                    </View>
+                </TouchableOpacity>
+
                 {/* ─── Network Simulation Chaos Settings ───────────────── */}
                 <View style={styles.card}>
                     <View style={styles.cardHeader}>
@@ -409,7 +359,7 @@ export default function DeveloperObservabilityScreen({ navigation }) {
                             <Text style={styles.clearBtnText}>Clear</Text>
                         </TouchableOpacity>
                     </View>
-                    <Text style={styles.sectionDesc}>
+                    <Text style={sectionDescStyle(replayHistory)}>
                         Chronological record of processed offline mutations.
                     </Text>
 
@@ -444,72 +394,20 @@ export default function DeveloperObservabilityScreen({ navigation }) {
                     )}
                 </View>
 
-                {/* ─── API Health ───────────────────────────────────────── */}
-                <View style={styles.card}>
-                    <View style={styles.cardHeader}>
-                        <Activity size={20} color="#059669" />
-                        <Text style={styles.cardTitle}>Backend API Health</Text>
-                    </View>
-                    <StatRow label="Ping Latency" value={`${pingLatency}ms`} status={pingLatency < 500 ? 'good' : 'bad'} />
-                    {loadingHealth ? (
-                        <Text style={styles.loadingText}>Fetching backend stats...</Text>
-                    ) : backendHealth ? (
-                        <>
-                            <StatRow label={backendHealth.is_patient_scoped ? "Patient Notifications (7d)" : "Notifications (7d)"} value={`${backendHealth.notifications_7d?.delivered} Delivered / ${backendHealth.notifications_7d?.failed} Failed`} />
-                            <StatRow 
-                                label={backendHealth.is_patient_scoped ? "Patient Delivery Rate" : "Global Delivery Rate"} 
-                                value={backendHealth.notifications_7d?.success_rate} 
-                                status={
-                                    backendHealth.notifications_7d?.total_attempted === 0 
-                                        ? 'neutral' 
-                                        : (parseFloat(backendHealth.notifications_7d?.success_rate) > 95 ? 'good' : 'bad')
-                                } 
-                            />
-                            <StatRow label={backendHealth.is_patient_scoped ? "Device Active Token" : "Active Tokens"} value={backendHealth.tokens?.active} />
-                            <StatRow 
-                                label={backendHealth.is_patient_scoped ? "Device Stale Token" : "Stale Tokens"} 
-                                value={backendHealth.tokens?.stale} 
-                                status={
-                                    backendHealth.is_patient_scoped
-                                        ? (backendHealth.tokens?.stale > 0 ? 'bad' : 'good') // if specific to this device, stale is bad, 0 is good
-                                        : (backendHealth.tokens?.stale > 0 ? 'bad' : 'good')
-                                } 
-                            />
-                        </>
-                    ) : (
-                        <Text style={styles.errorText}>Could not reach backend.</Text>
-                    )}
-                    <TouchableOpacity style={styles.secondaryButton} onPress={fetchDiagnostics}>
-                        <Text style={styles.secondaryButtonText}>Refresh Diagnostics</Text>
-                    </TouchableOpacity>
-                </View>
-
-                {/* ─── Device Diagnostics ───────────────────────────────── */}
-                <View style={styles.card}>
-                    <View style={styles.cardHeader}>
-                        <Smartphone size={20} color="#7C3AED" />
-                        <Text style={styles.cardTitle}>Device Diagnostics</Text>
-                    </View>
-                    <StatRow label="Platform" value={`${Platform.OS} ${Platform.Version}`} />
-                    <StatRow label="Device Model" value={Constants.deviceName} />
-                    <StatRow label="App Version" value={Constants.expoConfig?.version || '1.0.0'} />
-                    <View style={styles.divider} />
-                    <StatRow label="Device Time" value={new Date().toLocaleTimeString()} />
-                    <StatRow label="Device Timezone" value={Intl.DateTimeFormat().resolvedOptions().timeZone || 'unknown'} />
-                    <StatRow 
-                        label="Clock Drift" 
-                        value={clockDrift !== null ? `${(clockDrift / 1000).toFixed(2)}s` : 'Measuring...'} 
-                        status={clockDrift !== null && clockDrift < 5000 ? 'good' : (clockDrift !== null ? 'bad' : 'neutral')} 
-                    />
-                    <View style={styles.divider} />
-                    <StatRow label="Push Permissions" value={notificationPermissions} status={notificationPermissions === 'granted' ? 'good' : 'bad'} />
-                    <StatRow label="FCM Token" value={fcmToken.length > 20 ? `${fcmToken.substring(0, 15)}...` : fcmToken} />
-                </View>
-
             </ScrollView>
         </View>
     );
 }
+
+// Clean helper style function
+const sectionDescStyle = (history) => {
+    return {
+        fontSize: 13, 
+        color: '#64748B', 
+        marginBottom: history.length === 0 ? 0 : 16, 
+        lineHeight: 18 
+    };
+};
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#F8FAFC' },
@@ -528,6 +426,33 @@ const styles = StyleSheet.create({
         marginBottom: 16,
         shadowColor: '#64748B', shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.05, shadowRadius: 12, elevation: 2,
+    },
+    navCard: {
+        borderWidth: 1.5,
+        borderColor: '#E2E8F0',
+        backgroundColor: '#F8FAFC',
+        paddingVertical: 20
+    },
+    navCardHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between'
+    },
+    navCardTitleContainer: {
+        flex: 1,
+        marginLeft: 12,
+        marginRight: 8
+    },
+    navCardTitle: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: '#1E293B'
+    },
+    navCardDesc: {
+        fontSize: 12,
+        color: '#64748B',
+        marginTop: 4,
+        lineHeight: 16
     },
     cardHeader: { flexDirection: 'row', alignItems: 'center' },
     cardHeaderJustified: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
@@ -586,14 +511,5 @@ const styles = StyleSheet.create({
         backgroundColor: '#2563EB', borderRadius: 12, padding: 12,
         alignItems: 'center', marginTop: 12,
     },
-    primaryButtonText: { color: '#FFFFFF', fontWeight: '600', fontSize: 14 },
-    
-    secondaryButton: {
-        backgroundColor: '#F1F5F9', borderRadius: 12, padding: 12,
-        alignItems: 'center', marginTop: 12,
-    },
-    secondaryButtonText: { color: '#475569', fontWeight: '600', fontSize: 14 },
-    
-    loadingText: { color: '#64748B', fontSize: 14, fontStyle: 'italic', marginVertical: 8 },
-    errorText: { color: '#DC2626', fontSize: 14, fontWeight: '500', marginVertical: 8 },
+    primaryButtonText: { color: '#FFFFFF', fontWeight: '600', fontSize: 14 }
 });
