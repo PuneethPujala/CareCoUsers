@@ -402,14 +402,16 @@ router.get('/patient-status', authenticate, async (req, res) => {
             recentAlerts,
             medications,
             vitalsHistory,
-            todayMedicineLog
+            todayMedicineLog,
+            allAlerts
         ] = await Promise.all([
             MedicineLog.find({ patient_id: patient._id, date: { $gte: weekAgo } }).lean(),
             VitalLog.findOne({ patient_id: patient._id }).sort({ date: -1 }).lean(),
-            Alert.find({ patient_id: patient._id, status: 'open', type: 'medication_missed' }).sort({ created_at: -1 }).limit(3).lean(),
+            Alert.find({ patient_id: patient._id, status: 'open' }).sort({ created_at: -1 }).limit(5).lean(),
             buildMergedMeds(patient),
             VitalLog.find({ patient_id: patient._id, date: { $gte: fourteenDaysAgo } }).sort({ date: 1 }).lean(),
-            MedicineLog.findOne({ patient_id: patient._id, date: { $gte: startOfToday, $lte: endOfToday } }).lean()
+            MedicineLog.findOne({ patient_id: patient._id, date: { $gte: startOfToday, $lte: endOfToday } }).lean(),
+            Alert.find({ patient_id: patient._id }).sort({ created_at: -1 }).limit(10).lean()
         ]);
 
         // adherenceRate is now computed AFTER medication_schedule is built
@@ -514,6 +516,68 @@ router.get('/patient-status', authenticate, async (req, res) => {
             });
         }
 
+        // 4. Construct a rich, dynamic activity logs history timeline
+        const activity_logs = [];
+
+        // Add alerts (both open and actioned/resolved)
+        for (const alert of allAlerts) {
+            let title = 'Alert Triggered';
+            if (alert.type === 'missed_call') title = 'Missed Call';
+            else if (alert.type === 'medicine_refusal') title = 'Medicine Refused';
+            else if (alert.type === 'medication_modification') title = 'Schedule Modified';
+            else if (alert.type === 'unresponsive_7days') title = 'Unresponsive Alert';
+            else if (alert.type === 'medication_missed') title = 'Schedule Missed';
+            else if (alert.type === 'team_lead_recommended') title = 'Care Circle Alert';
+            
+            const isResolved = alert.status === 'resolved' || alert.status === 'actioned';
+            activity_logs.push({
+                id: `alert-${alert._id}`,
+                title: isResolved ? `${title} (Resolved)` : title,
+                desc: alert.description || 'System warning updated.',
+                date: alert.created_at || new Date(),
+                category: 'alert',
+                status: alert.status
+            });
+        }
+
+        // Add vital logs
+        for (const vital of vitalsHistory) {
+            let details = [];
+            if (vital.blood_pressure) details.push(`BP: ${vital.blood_pressure.systolic}/${vital.blood_pressure.diastolic} mmHg`);
+            if (vital.heart_rate) details.push(`HR: ${vital.heart_rate} bpm`);
+            if (vital.oxygen_saturation) details.push(`SpO2: ${vital.oxygen_saturation}%`);
+            if (vital.hydration) details.push(`Hydration: ${vital.hydration} oz`);
+            
+            activity_logs.push({
+                id: `vital-${vital._id}`,
+                title: 'Vitals Recorded',
+                desc: details.join(', ') || 'Vital stats logged.',
+                date: vital.date || vital.created_at || new Date(),
+                category: 'vital'
+            });
+        }
+
+        // Add medicine logs
+        for (const medLog of logs) {
+            if (medLog.medicines && medLog.medicines.length > 0) {
+                const takenCount = medLog.medicines.filter(m => m.taken).length;
+                const totalCount = medLog.medicines.length;
+                const percent = totalCount > 0 ? Math.round((takenCount / totalCount) * 100) : 100;
+                
+                activity_logs.push({
+                    id: `med-${medLog._id}`,
+                    title: percent === 100 ? 'Adherence Met' : 'Adherence Logged',
+                    desc: `${patient.name.split(' ')[0]} completed ${takenCount}/${totalCount} (${percent}%) of doses for the day.`,
+                    date: medLog.date || new Date(),
+                    category: 'medicine'
+                });
+            }
+        }
+
+        // Sort descending by date and limit to top 8 items
+        activity_logs.sort((a, b) => new Date(b.date) - new Date(a.date));
+        const final_activity_logs = activity_logs.slice(0, 8);
+
         // Log the activity
         await logEvent(req.user.id, 'companion_viewed_dashboard', 'profile', req.profile._id, req, { patientId: patient._id });
 
@@ -526,6 +590,7 @@ router.get('/patient-status', authenticate, async (req, res) => {
                 health_score: patient.healthScoreCache,
                 adherence_rate: adherenceRate,
                 current_streak: patient.gamification?.current_streak || 0,
+                trusted_contacts: patient.trusted_contacts || [],
             },
             latest_vital: latestVital,
             recent_alerts: recentAlerts,
@@ -533,6 +598,7 @@ router.get('/patient-status', authenticate, async (req, res) => {
             vitals_history: vitalsHistory,
             refill_alerts,
             weekly_adherence,
+            activity_logs: final_activity_logs,
             linked_patients: accesses
                 .filter(a => a.patient_id)
                 .map(a => ({

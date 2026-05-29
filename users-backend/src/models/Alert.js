@@ -15,6 +15,7 @@ const AlertSchema = new mongoose.Schema(
                 'team_lead_recommended',
                 'general',
                 'other',
+                'medication_missed',
             ],
             required: true,
             index: true,

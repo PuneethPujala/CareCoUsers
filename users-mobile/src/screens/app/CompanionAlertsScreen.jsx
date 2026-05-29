@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, RefreshControl, Pressable } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, RefreshControl, Pressable, Linking } from 'react-native';
 import { apiService } from '../../lib/api';
 import { layout } from '../../theme';
 import { Bell, CheckCircle2, ShieldCheck, ShieldAlert, Phone, Clock, ChevronRight, Activity, Check, ChevronLeft } from 'lucide-react-native';
 import usePatientStore from '../../store/usePatientStore';
 import { useNavigation } from '@react-navigation/native';
+import AlertManager from '../../utils/AlertManager';
 
 const C = {
     bg: '#F8FAFC',
@@ -66,14 +67,71 @@ export default function CompanionAlertsScreen() {
         }
     };
 
+    const handleCall = () => {
+        const phone = data?.patient?.phone;
+        if (phone) {
+            Linking.openURL(`tel:${phone}`);
+        } else {
+            AlertManager.alert('No Phone Number', `${data?.patient?.name || 'The patient'} does not have a phone number configured.`);
+        }
+    };
+
+    const formatRelativeTime = (dateInput) => {
+        if (!dateInput) return '';
+        const date = new Date(dateInput);
+        const now = new Date();
+        const diffMs = now - date;
+        const diffMins = Math.floor(diffMs / (1000 * 60));
+        const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+        if (diffMins < 1) return 'Just now';
+        if (diffMins < 60) return `${diffMins}m ago`;
+        if (diffHours < 24) return `${diffHours}h ago`;
+        if (diffDays === 1) return 'Yesterday';
+        if (diffDays < 7) return `${diffDays} days ago`;
+        
+        return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    };
+
+    const getActivityIcon = (category) => {
+        switch (category) {
+            case 'alert':
+                return <ShieldAlert color={C.danger} size={16} />;
+            case 'vital':
+                return <Activity color={C.primary} size={16} />;
+            case 'medicine':
+                return <Check color={C.success} size={16} />;
+            default:
+                return <Clock color={C.mid} size={16} />;
+        }
+    };
+
+    const getActivityIconBg = (category) => {
+        switch (category) {
+            case 'alert':
+                return '#FEE2E2';
+            case 'vital':
+                return '#E0F2FE';
+            case 'medicine':
+                return '#D1FAE5';
+            default:
+                return '#F8FAFC';
+        }
+    };
+
     if (!data || !data.patient) return <View style={styles.container} />;
 
-    // Mock resolved alerts history to populate the screen beautifully
+    // Mock resolved alerts history to populate the screen beautifully if activity_logs is empty
     const mockHistory = [
-        { id: '1', title: 'Adherence Met', desc: `${data.patient.name.split(' ')[0]} completed 100% of yesterday's doses.`, time: 'Yesterday' },
-        { id: '2', title: 'Vital Update', desc: 'BP reading recorded: 120/80 mmHg (Normal).', time: '2 days ago' },
-        { id: '3', title: 'System Restored', desc: 'Care circle invitation accepted successfully.', time: 'May 23' },
+        { id: '1', title: 'Adherence Met', desc: `${data.patient.name.split(' ')[0]} completed 100% of yesterday's doses.`, time: 'Yesterday', category: 'medicine' },
+        { id: '2', title: 'Vital Update', desc: 'BP reading recorded: 120/80 mmHg (Normal).', time: '2 days ago', category: 'vital' },
+        { id: '3', title: 'System Restored', desc: 'Care circle invitation accepted successfully.', time: 'May 23', category: 'alert' },
     ];
+
+    const activityLogs = (data.activity_logs && data.activity_logs.length > 0)
+        ? data.activity_logs
+        : mockHistory;
 
     return (
         <View style={styles.container}>
@@ -115,8 +173,8 @@ export default function CompanionAlertsScreen() {
                                     <Text style={styles.alertTitle}>Schedule Missed</Text>
                                 </View>
                                 <Text style={styles.alertDesc}>{a.description}</Text>
-                                <View style={styles.alertFooter}>
-                                    <Pressable style={styles.callQuickBtn}>
+                                 <View style={styles.alertFooter}>
+                                    <Pressable style={styles.callQuickBtn} onPress={handleCall}>
                                         <Phone color={C.dark} size={16} />
                                         <Text style={styles.callQuickText}>Call Now</Text>
                                     </Pressable>
@@ -145,29 +203,60 @@ export default function CompanionAlertsScreen() {
                 <View style={styles.card}>
                     <Text style={styles.cardHeaderTitle}>Security Checkup</Text>
                     <View style={styles.checklist}>
-                        <View style={styles.checkItem}>
-                            <View style={styles.checkedCircle}>
-                                <Check color={C.success} size={14} />
-                            </View>
-                            <Text style={styles.checkLabel}>Real-time Adherence Tracking</Text>
-                            <Text style={styles.checkStatus}>Active</Text>
-                        </View>
+                        {/* Check 1: Adherence Tracking */}
+                        {(() => {
+                            const active = data.medication_schedule && data.medication_schedule.length > 0;
+                            return (
+                                <View style={styles.checkItem}>
+                                    <View style={[styles.checkedCircle, !active && { backgroundColor: '#F1F5F9' }]}>
+                                        <Check color={active ? C.success : C.light} size={14} />
+                                    </View>
+                                    <Text style={[styles.checkLabel, !active && { color: C.light }]}>
+                                        {active ? `Real-time Adherence Tracking (${data.medication_schedule.length} meds)` : 'Real-time Adherence Tracking'}
+                                    </Text>
+                                    <Text style={[styles.checkStatus, { color: active ? C.success : C.light }]}>
+                                        {active ? 'Active' : 'Inactive'}
+                                    </Text>
+                                </View>
+                            );
+                        })()}
                         
-                        <View style={styles.checkItem}>
-                            <View style={styles.checkedCircle}>
-                                <Check color={C.success} size={14} />
-                            </View>
-                            <Text style={styles.checkLabel}>Twilio SMS Notifications</Text>
-                            <Text style={styles.checkStatus}>Active</Text>
-                        </View>
+                        {/* Check 2: Twilio SMS */}
+                        {(() => {
+                            const active = !!data.patient.phone;
+                            return (
+                                <View style={styles.checkItem}>
+                                    <View style={[styles.checkedCircle, !active && { backgroundColor: '#F1F5F9' }]}>
+                                        <Check color={active ? C.success : C.light} size={14} />
+                                    </View>
+                                    <Text style={[styles.checkLabel, !active && { color: C.light }]}>
+                                        {active ? `Twilio SMS Notifications (...${data.patient.phone.slice(-4)})` : 'Twilio SMS Notifications'}
+                                    </Text>
+                                    <Text style={[styles.checkStatus, { color: active ? C.success : C.light }]}>
+                                        {active ? 'Active' : 'Inactive'}
+                                    </Text>
+                                </View>
+                            );
+                        })()}
 
-                        <View style={styles.checkItem}>
-                            <View style={styles.checkedCircle}>
-                                <Check color={C.success} size={14} />
-                            </View>
-                            <Text style={styles.checkLabel}>Emergency Contact Guard</Text>
-                            <Text style={styles.checkStatus}>Active</Text>
-                        </View>
+                        {/* Check 3: Emergency Guard */}
+                        {(() => {
+                            const contactCount = data.patient.trusted_contacts ? data.patient.trusted_contacts.length : 0;
+                            const active = contactCount > 0;
+                            return (
+                                <View style={styles.checkItem}>
+                                    <View style={[styles.checkedCircle, !active && { backgroundColor: '#F1F5F9' }]}>
+                                        <Check color={active ? C.success : C.light} size={14} />
+                                    </View>
+                                    <Text style={[styles.checkLabel, !active && { color: C.light }]}>
+                                        {active ? `Emergency Contact Guard (${contactCount} linked)` : 'Emergency Contact Guard'}
+                                    </Text>
+                                    <Text style={[styles.checkStatus, { color: active ? C.success : C.light }]}>
+                                        {active ? 'Active' : 'Inactive'}
+                                    </Text>
+                                </View>
+                            );
+                        })()}
                     </View>
                 </View>
 
@@ -175,16 +264,18 @@ export default function CompanionAlertsScreen() {
                 <View style={styles.historySection}>
                     <Text style={styles.sectionTitle}>Activity & Logs History</Text>
                     <View style={styles.historyList}>
-                        {mockHistory.map(h => (
-                            <View key={h.id} style={styles.historyItem}>
-                                <View style={styles.historyIconBox}>
-                                    <Clock color={C.mid} size={16} />
+                        {activityLogs.map(h => (
+                            <View key={h.id || h._id} style={styles.historyItem}>
+                                <View style={[styles.historyIconBox, { backgroundColor: getActivityIconBg(h.category) }]}>
+                                    {getActivityIcon(h.category)}
                                 </View>
                                 <View style={{ flex: 1 }}>
                                     <Text style={styles.historyItemTitle}>{h.title}</Text>
                                     <Text style={styles.historyItemDesc}>{h.desc}</Text>
                                 </View>
-                                <Text style={styles.historyItemTime}>{h.time}</Text>
+                                <Text style={styles.historyItemTime}>
+                                    {h.time || formatRelativeTime(h.date)}
+                                </Text>
                             </View>
                         ))}
                     </View>
