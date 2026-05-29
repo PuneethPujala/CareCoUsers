@@ -411,7 +411,7 @@ router.get('/patient-status', authenticate, async (req, res) => {
             buildMergedMeds(patient),
             VitalLog.find({ patient_id: patient._id, date: { $gte: fourteenDaysAgo } }).sort({ date: 1 }).lean(),
             MedicineLog.findOne({ patient_id: patient._id, date: { $gte: startOfToday, $lte: endOfToday } }).lean(),
-            Alert.find({ patient_id: patient._id }).sort({ created_at: -1 }).limit(10).lean()
+            Alert.find({ patient_id: patient._id }).populate('acknowledged_by').sort({ created_at: -1 }).limit(10).lean()
         ]);
 
         // adherenceRate is now computed AFTER medication_schedule is built
@@ -519,7 +519,7 @@ router.get('/patient-status', authenticate, async (req, res) => {
         // 4. Construct a rich, dynamic activity logs history timeline
         const activity_logs = [];
 
-        // Add alerts (both open and actioned/resolved)
+        // Add alerts (both open, acknowledged, and actioned/resolved)
         for (const alert of allAlerts) {
             let title = 'Alert Triggered';
             if (alert.type === 'missed_call') title = 'Missed Call';
@@ -529,12 +529,22 @@ router.get('/patient-status', authenticate, async (req, res) => {
             else if (alert.type === 'medication_missed') title = 'Schedule Missed';
             else if (alert.type === 'team_lead_recommended') title = 'Care Circle Alert';
             
-            const isResolved = alert.status === 'resolved' || alert.status === 'actioned';
+            let statusText = '';
+            let desc = alert.description || 'System warning updated.';
+            
+            if (alert.status === 'acknowledged') {
+                const companionName = alert.acknowledged_by?.fullName || 'Companion';
+                statusText = ' (Acknowledged)';
+                desc = `${desc} - Dismissed by ${companionName}.`;
+            } else if (alert.status === 'resolved' || alert.status === 'actioned') {
+                statusText = ` (${alert.status.charAt(0).toUpperCase() + alert.status.slice(1)})`;
+            }
+            
             activity_logs.push({
                 id: `alert-${alert._id}`,
-                title: isResolved ? `${title} (Resolved)` : title,
-                desc: alert.description || 'System warning updated.',
-                date: alert.created_at || new Date(),
+                title: `${title}${statusText}`,
+                desc: desc,
+                date: alert.acknowledged_at || alert.created_at || new Date(),
                 category: 'alert',
                 status: alert.status
             });

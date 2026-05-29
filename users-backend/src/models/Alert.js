@@ -42,7 +42,7 @@ const AlertSchema = new mongoose.Schema(
         },
         status: {
             type: String,
-            enum: ['open', 'actioned', 'resolved'],
+            enum: ['open', 'actioned', 'resolved', 'acknowledged'],
             default: 'open',
             index: true,
         },
@@ -53,6 +53,11 @@ const AlertSchema = new mongoose.Schema(
         action_taken: String,
         description: String,
         resolved_at: Date,
+        acknowledged_by: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Profile',
+        },
+        acknowledged_at: Date,
     },
     {
         timestamps: { createdAt: 'created_at' },

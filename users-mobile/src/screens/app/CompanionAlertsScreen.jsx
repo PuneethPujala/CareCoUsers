@@ -61,7 +61,7 @@ export default function CompanionAlertsScreen() {
     const acknowledgeAlert = async (id) => {
         try {
             await apiService.companion.acknowledgeAlert(id);
-            setAlerts(alerts.filter(a => a._id !== id));
+            await loadData();
         } catch (err) {
             console.warn('Failed to acknowledge alert', err);
         }

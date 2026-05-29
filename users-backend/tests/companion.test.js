@@ -248,11 +248,10 @@ describe('Companion Routes', () => {
                 })
             });
             Alert.find = jest.fn().mockReturnValue({
-                sort: jest.fn().mockReturnValue({
-                    limit: jest.fn().mockReturnValue({
-                        lean: jest.fn().mockResolvedValue([])
-                    })
-                })
+                populate: jest.fn().mockReturnThis(),
+                sort: jest.fn().mockReturnThis(),
+                limit: jest.fn().mockReturnThis(),
+                lean: jest.fn().mockResolvedValue([])
             });
             Medication.find = jest.fn().mockReturnValue({
                 lean: jest.fn().mockResolvedValue([
@@ -296,7 +295,12 @@ describe('Companion Routes', () => {
             Patient.findById = jest.fn().mockResolvedValue(mockPatient2);
             MedicineLog.find = jest.fn().mockReturnValue({ lean: jest.fn().mockResolvedValue([]) });
             VitalLog.findOne = jest.fn().mockReturnValue({ sort: jest.fn().mockReturnValue({ lean: jest.fn().mockResolvedValue(null) }) });
-            Alert.find = jest.fn().mockReturnValue({ sort: jest.fn().mockReturnValue({ limit: jest.fn().mockReturnValue({ lean: jest.fn().mockResolvedValue([]) }) }) });
+            Alert.find = jest.fn().mockReturnValue({
+                populate: jest.fn().mockReturnThis(),
+                sort: jest.fn().mockReturnThis(),
+                limit: jest.fn().mockReturnThis(),
+                lean: jest.fn().mockResolvedValue([])
+            });
             Medication.find = jest.fn().mockReturnValue({
                 lean: jest.fn().mockResolvedValue([])
             });
