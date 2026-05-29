@@ -10,7 +10,6 @@
 
 const MedicineCache = require('../models/MedicineCache');
 
-const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const GROQ_MODEL = 'llama-3.3-70b-versatile';
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 
@@ -41,7 +40,11 @@ Respond ONLY with the JSON. No other text.`;
  * @returns {Promise<object>} { riskTier, genericName, aiSummary, sideEffects, warnings, interactions }
  */
 async function lookupMedicine(medicineName) {
+    console.log(`[MedicineAI] lookupMedicine invoked for: "${medicineName}"`);
+    console.log(`[MedicineAI] Current API Key:`, process.env.GROQ_API_KEY ? 'SET' : 'NOT SET');
+    
     if (!medicineName || typeof medicineName !== 'string') {
+        console.log(`[MedicineAI] Invalid medicineName provided`);
         return getDefaultResult(medicineName);
     }
 
@@ -68,7 +71,8 @@ async function lookupMedicine(medicineName) {
     }
 
     // 2. Call Groq API
-    if (!GROQ_API_KEY) {
+    const apiKey = process.env.GROQ_API_KEY;
+    if (!apiKey) {
         console.warn('[MedicineAI] No GROQ_API_KEY set, returning default caution');
         return getDefaultResult(medicineName);
     }
@@ -80,7 +84,7 @@ async function lookupMedicine(medicineName) {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${GROQ_API_KEY}`,
+                'Authorization': `Bearer ${apiKey}`,
             },
             body: JSON.stringify({
                 model: GROQ_MODEL,

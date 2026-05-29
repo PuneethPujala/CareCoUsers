@@ -4,9 +4,13 @@ import { supabase } from '../lib/supabase';
 import { apiService } from '../lib/api';
 
 // Configure Google Sign-In on module load (same as Users App)
+const WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '374987128995-d9rf99m6fn844nvhiij8tpu5haml9rau.apps.googleusercontent.com';
+console.log('[GoogleAuth] Configuring with webClientId:', WEB_CLIENT_ID?.substring(0, 20) + '...');
+
 GoogleSignin.configure({
-    webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
-    offlineAccess: false,
+    webClientId: WEB_CLIENT_ID,
+    offlineAccess: true,
+    scopes: ['email', 'profile'],
 });
 
 /**
@@ -37,9 +41,19 @@ export default function useGoogleAuth() {
 
             // Step 2: Open native Google sign-in dialog
             const signInResult = await GoogleSignin.signIn();
-            const idToken = signInResult?.data?.idToken;
+            console.log('[GoogleAuth] signIn result type:', signInResult?.type);
+            console.log('[GoogleAuth] signIn result keys:', JSON.stringify(Object.keys(signInResult || {})));
+
+            // v16+ returns { type: 'success', data: { idToken, user } }
+            // v12+ returns { idToken, user, ... }
+            // v10  returns { idToken, user, ... }
+            const idToken = signInResult?.data?.idToken 
+                || signInResult?.idToken 
+                || signInResult?.data?.serverAuthCode
+                || null;
 
             if (!idToken) {
+                console.error('[GoogleAuth] Full result:', JSON.stringify(signInResult));
                 throw new Error('Failed to get Google ID token. Please try again.');
             }
 

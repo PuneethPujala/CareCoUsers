@@ -5,6 +5,7 @@ import { Feather, Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Theme } from '../../theme/theme';
 import { apiService } from '../../lib/api';
+import { createAgoraRtcEngine, ChannelProfileType, ClientRoleType } from 'react-native-agora';
 
 // ── Shift helper ──
 function getCurrentShift() {
@@ -96,6 +97,14 @@ export default function ActiveCallScreen({ navigation, route }) {
     const [mood, setMood] = useState('neutral');
     const [outcome, setOutcome] = useState('completed');
     
+    // Agora State
+    const [agoraEngine, setAgoraEngine] = useState(null);
+    const [isJoined, setIsJoined] = useState(false);
+    const [remoteUid, setRemoteUid] = useState(null);
+    const [isMuted, setIsMuted] = useState(false);
+    const [isSpeaker, setIsSpeaker] = useState(true);
+    const [agoraError, setAgoraError] = useState(null);
+
     const timerRef = useRef(null);
     const startedAtRef = useRef(new Date().toISOString());
 
@@ -216,6 +225,70 @@ export default function ActiveCallScreen({ navigation, route }) {
             console.warn('[ActiveCall] TempMeds fetch error:', err.message);
         }
     }, [patientId]);
+
+    // ── Agora Call Management ──
+    const initAgora = async () => {
+        try {
+            // Fetch token from backend
+            const tokenRes = await apiService.caretaker.getAgoraToken(patientId);
+            const { token, appId } = tokenRes.data;
+
+            if (!appId || appId === 'mock-app-id') {
+                setAgoraError('Missing backend credentials (mock mode)');
+                return;
+            }
+
+            const engine = createAgoraRtcEngine();
+            engine.initialize({ appId });
+            engine.setChannelProfile(ChannelProfileType.ChannelProfileCommunication);
+            
+            engine.enableAudio();
+            engine.setEnableSpeakerphone(isSpeaker);
+
+            engine.addListener('onJoinChannelSuccess', () => setIsJoined(true));
+            engine.addListener('onUserJoined', (conn, uid) => setRemoteUid(uid));
+            engine.addListener('onUserOffline', () => setRemoteUid(null));
+            engine.addListener('onError', (err, msg) => setAgoraError(`Error: ${msg}`));
+
+            setAgoraEngine(engine);
+            engine.joinChannel(token, patientId, 0, {
+                clientRoleType: ClientRoleType.ClientRoleBroadcaster,
+            });
+        } catch (e) {
+            console.error('[Agora] init failed:', e);
+            setAgoraError('Failed to initialize call');
+        }
+    };
+
+    const toggleMute = () => {
+        if (agoraEngine) {
+            agoraEngine.muteLocalAudioStream(!isMuted);
+            setIsMuted(!isMuted);
+        }
+    };
+
+    const toggleSpeaker = () => {
+        if (agoraEngine) {
+            agoraEngine.setEnableSpeakerphone(!isSpeaker);
+            setIsSpeaker(!isSpeaker);
+        }
+    };
+
+    const cleanupAgora = () => {
+        if (agoraEngine) {
+            try {
+                agoraEngine.leaveChannel();
+                agoraEngine.removeAllListeners();
+                agoraEngine.release();
+            } catch (e) {}
+            setAgoraEngine(null);
+        }
+    };
+
+    useEffect(() => {
+        return () => cleanupAgora();
+    }, [agoraEngine]);
+
 
     const handleAILookup = async () => {
         if (!tempMedForm.name.trim()) return;
@@ -433,6 +506,32 @@ export default function ActiveCallScreen({ navigation, route }) {
                         </View>
                     </View>
                     <Text style={st.patientNameText} numberOfLines={1}>{patientName || 'Patient'}</Text>
+
+                    {/* Agora Controls */}
+                    <View style={st.agoraControls}>
+                        <TouchableOpacity style={[st.controlBtn, isMuted && st.controlBtnActive]} onPress={toggleMute}>
+                            <Ionicons name={isMuted ? "mic-off" : "mic"} size={22} color={isMuted ? "#EF4444" : "#64748B"} />
+                        </TouchableOpacity>
+                        <TouchableOpacity style={[st.controlBtn, isSpeaker && st.controlBtnActive]} onPress={toggleSpeaker}>
+                            <Ionicons name={isSpeaker ? "volume-high" : "volume-medium"} size={22} color={isSpeaker ? "#6366F1" : "#64748B"} />
+                        </TouchableOpacity>
+                    </View>
+
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 8 }}>
+                        {agoraError ? (
+                            <Text style={{ fontSize: 12, color: '#EF4444', fontWeight: '500' }}>{agoraError}</Text>
+                        ) : remoteUid ? (
+                            <>
+                                <View style={[st.statusDot, { backgroundColor: '#10B981' }]} />
+                                <Text style={{ fontSize: 13, color: '#10B981', fontWeight: '600' }}>Patient Connected</Text>
+                            </>
+                        ) : (
+                            <>
+                                <ActivityIndicator size="small" color="#6366F1" />
+                                <Text style={{ fontSize: 13, color: '#6366F1', fontWeight: '500' }}>Calling patient...</Text>
+                            </>
+                        )}
+                    </View>
                 </View>
             </LinearGradient>
 
@@ -814,6 +913,12 @@ const st = StyleSheet.create({
     // Card
     card: { backgroundColor: '#FFFFFF', borderRadius: 22, borderWidth: 1, borderColor: '#F1F5F9', overflow: 'hidden', ...Theme.shadows.sharp, elevation: 2 },
     divider: { height: StyleSheet.hairlineWidth, backgroundColor: '#E2E8F0', marginLeft: 58 },
+
+    // Agora Controls
+    agoraControls: { flexDirection: 'row', justifyContent: 'center', gap: 16, marginTop: 16 },
+    controlBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', justifyContent: 'center', alignItems: 'center' },
+    controlBtnActive: { backgroundColor: '#FEE2E2', borderColor: '#FECACA' },
+    statusDot: { width: 8, height: 8, borderRadius: 4 },
 
     // Empty State
     emptyState: { paddingVertical: 40, alignItems: 'center' },

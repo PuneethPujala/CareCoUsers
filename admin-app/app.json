@@ -14,7 +14,10 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.caremymed.admin"
+      "bundleIdentifier": "com.caremymed.admin",
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "This app requires microphone access to conduct calls with patients."
+      }
     },
     "android": {
       "googleServicesFile": "./google-services.json",
@@ -23,7 +26,11 @@
         "monochromeImage": "./assets/android-icon-monochrome.png",
         "backgroundColor": "#0A2463"
       },
-      "package": "com.caremymed.admin"
+      "package": "com.caremymed.admin",
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -38,6 +45,16 @@
         {
           "icon": "./assets/icon.png",
           "color": "#6366F1"
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "minSdkVersion": 24,
+            "compileSdkVersion": 34,
+            "targetSdkVersion": 34
+          }
         }
       ]
     ],

@@ -243,6 +243,7 @@ export const apiService = {
     getMyPatients: (params) => api.get('/caretaker/patients', { params }),
     getPerformance: (params) => api.get('/caretaker/performance', { params }),
     getPatientMeds: (patientId, params) => api.get(`/caretaker/patients/${patientId}/meds`, { params }),
+    getAgoraToken: (channelName) => api.get('/caretaker/calls/agora-token', { params: { channelName } }),
     logCall: (data) => api.post('/caretaker/calls', data),
     addMedication: (patientId, data) => api.post(`/caretaker/patients/${patientId}/medications`, data),
     updateMedication: (patientId, medId, data) => api.put(`/caretaker/patients/${patientId}/medications/${medId}`, data),

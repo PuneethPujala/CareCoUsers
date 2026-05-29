@@ -1886,6 +1886,49 @@ router.get('/patients/:id/temp-meds', async (req, res) => {
     }
 });
 
+// ── GET /api/caretaker/calls/agora-token ─────────────────────
+// Generate Agora RTC Token for active calls
+router.get('/calls/agora-token', async (req, res) => {
+    try {
+        const { channelName } = req.query;
+        if (!channelName) {
+            return res.status(400).json({ error: 'channelName is required' });
+        }
+
+        const appId = process.env.AGORA_APP_ID;
+        const appCertificate = process.env.AGORA_APP_CERTIFICATE;
+
+        if (!appId || !appCertificate) {
+            console.warn('[Agora] Missing credentials, returning mock token.');
+            return res.json({ token: 'mock-token', uid: 0, appId: 'mock-app-id' });
+        }
+
+        // We use agora-token for generation
+        const { RtcTokenBuilder, RtcRole } = require('agora-token');
+
+        const uid = 0; // 0 means Agora assigns the UID
+        const role = RtcRole.PUBLISHER;
+        const expirationTimeInSeconds = 3600; // 1 hour
+        const currentTimestamp = Math.floor(Date.now() / 1000);
+        const privilegeExpiredTs = currentTimestamp + expirationTimeInSeconds;
+
+        const token = RtcTokenBuilder.buildTokenWithUid(
+            appId,
+            appCertificate,
+            channelName,
+            uid,
+            role,
+            expirationTimeInSeconds,
+            privilegeExpiredTs
+        );
+
+        res.json({ token, uid, appId });
+    } catch (error) {
+        console.error('[Agora] Token generation error:', error);
+        res.status(500).json({ error: 'Failed to generate token' });
+    }
+});
+
 // ── POST /api/caretaker/patients/:id/temp-meds ────────────────
 // Add a temporary medicine (triggers Groq AI classification)
 router.post('/patients/:id/temp-meds', async (req, res) => {
