@@ -455,10 +455,26 @@ export default function DeveloperObservabilityScreen({ navigation }) {
                         <Text style={styles.loadingText}>Fetching backend stats...</Text>
                     ) : backendHealth ? (
                         <>
-                            <StatRow label="Notifications (7d)" value={`${backendHealth.notifications_7d?.delivered} Delivered / ${backendHealth.notifications_7d?.failed} Failed`} />
-                            <StatRow label="Global Delivery Rate" value={backendHealth.notifications_7d?.success_rate} status={parseFloat(backendHealth.notifications_7d?.success_rate) > 95 ? 'good' : 'bad'} />
-                            <StatRow label="Active Tokens" value={backendHealth.tokens?.active} />
-                            <StatRow label="Stale Tokens" value={backendHealth.tokens?.stale} status={backendHealth.tokens?.stale > 0 ? 'bad' : 'good'} />
+                            <StatRow label={backendHealth.is_patient_scoped ? "Patient Notifications (7d)" : "Notifications (7d)"} value={`${backendHealth.notifications_7d?.delivered} Delivered / ${backendHealth.notifications_7d?.failed} Failed`} />
+                            <StatRow 
+                                label={backendHealth.is_patient_scoped ? "Patient Delivery Rate" : "Global Delivery Rate"} 
+                                value={backendHealth.notifications_7d?.success_rate} 
+                                status={
+                                    backendHealth.notifications_7d?.total_attempted === 0 
+                                        ? 'neutral' 
+                                        : (parseFloat(backendHealth.notifications_7d?.success_rate) > 95 ? 'good' : 'bad')
+                                } 
+                            />
+                            <StatRow label={backendHealth.is_patient_scoped ? "Device Active Token" : "Active Tokens"} value={backendHealth.tokens?.active} />
+                            <StatRow 
+                                label={backendHealth.is_patient_scoped ? "Device Stale Token" : "Stale Tokens"} 
+                                value={backendHealth.tokens?.stale} 
+                                status={
+                                    backendHealth.is_patient_scoped
+                                        ? (backendHealth.tokens?.stale > 0 ? 'bad' : 'good') // if specific to this device, stale is bad, 0 is good
+                                        : (backendHealth.tokens?.stale > 0 ? 'bad' : 'good')
+                                } 
+                            />
                         </>
                     ) : (
                         <Text style={styles.errorText}>Could not reach backend.</Text>

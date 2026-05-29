@@ -3,11 +3,10 @@ const router = express.Router();
 const Patient = require('../../models/Patient');
 const Notification = require('../../models/Notification');
 const logger = require('../../utils/logger');
-// Optional: import an admin authentication middleware if you have one. 
-// For this developer observability endpoint, we can use a basic secret key check for now or just allow it if it's hitting /api/admin/observability
+const { authenticate } = require('../../middleware/authenticate');
 
 // ── GET /api/admin/observability/system-health ──────────────────────
-router.get('/system-health', async (req, res) => {
+router.get('/system-health', authenticate, async (req, res) => {
     try {
         // 1. Notification Delivery Stats (last 7 days)
         const sevenDaysAgo = new Date();
@@ -16,37 +15,74 @@ router.get('/system-health', async (req, res) => {
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-        const [
-            totalSent,
-            successfullyDelivered,
-            failedDelivery,
-            activeTokens,
-            staleTokens,
-            platformStats
-        ] = await Promise.all([
-            Notification.countDocuments({ created_at: { $gte: sevenDaysAgo } }),
-            Notification.countDocuments({ created_at: { $gte: sevenDaysAgo }, push_delivered: true }),
-            Notification.countDocuments({ created_at: { $gte: sevenDaysAgo }, push_delivered: false }),
-            Patient.countDocuments({ 
-                expo_push_token: { $exists: true, $ne: null },
-                last_token_update: { $gte: thirtyDaysAgo }
-            }),
-            Patient.countDocuments({ 
-                expo_push_token: { $exists: true, $ne: null },
-                $or: [
-                    { last_token_update: { $lt: thirtyDaysAgo } },
-                    { last_token_update: { $exists: false } }
-                ]
-            }),
-            Patient.aggregate([
-                { $match: { device_platform: { $exists: true } } },
-                { $group: { _id: "$device_platform", count: { $sum: 1 } } }
-            ])
-        ]);
+        let totalSent, successfullyDelivered, failedDelivery, activeTokens, staleTokens;
+        let platformStats = [];
+
+        // Check if the request is from a Patient or has a patient_id query param
+        const isPatient = req.auth && req.auth.userType === 'Patient';
+        const targetPatientId = isPatient ? req.profile._id : (req.query.patient_id || null);
+
+        if (targetPatientId) {
+            // Patient-specific metrics
+            [
+                totalSent,
+                successfullyDelivered,
+                failedDelivery,
+                activeTokens,
+                staleTokens
+            ] = await Promise.all([
+                Notification.countDocuments({ patient_id: targetPatientId, created_at: { $gte: sevenDaysAgo } }),
+                Notification.countDocuments({ patient_id: targetPatientId, created_at: { $gte: sevenDaysAgo }, push_delivered: true }),
+                Notification.countDocuments({ patient_id: targetPatientId, created_at: { $gte: sevenDaysAgo }, push_delivered: false }),
+                Patient.countDocuments({ 
+                    _id: targetPatientId,
+                    expo_push_token: { $exists: true, $ne: null },
+                    last_token_update: { $gte: thirtyDaysAgo }
+                }),
+                Patient.countDocuments({ 
+                    _id: targetPatientId,
+                    expo_push_token: { $exists: true, $ne: null },
+                    $or: [
+                        { last_token_update: { $lt: thirtyDaysAgo } },
+                        { last_token_update: { $exists: false } }
+                    ]
+                })
+            ]);
+        } else {
+            // Global/System-wide metrics
+            [
+                totalSent,
+                successfullyDelivered,
+                failedDelivery,
+                activeTokens,
+                staleTokens,
+                platformStats
+            ] = await Promise.all([
+                Notification.countDocuments({ created_at: { $gte: sevenDaysAgo } }),
+                Notification.countDocuments({ created_at: { $gte: sevenDaysAgo }, push_delivered: true }),
+                Notification.countDocuments({ created_at: { $gte: sevenDaysAgo }, push_delivered: false }),
+                Patient.countDocuments({ 
+                    expo_push_token: { $exists: true, $ne: null },
+                    last_token_update: { $gte: thirtyDaysAgo }
+                }),
+                Patient.countDocuments({ 
+                    expo_push_token: { $exists: true, $ne: null },
+                    $or: [
+                        { last_token_update: { $lt: thirtyDaysAgo } },
+                        { last_token_update: { $exists: false } }
+                    ]
+                }),
+                Patient.aggregate([
+                    { $match: { device_platform: { $exists: true } } },
+                    { $group: { _id: "$device_platform", count: { $sum: 1 } } }
+                ])
+            ]);
+        }
 
         const response = {
             status: 'healthy',
             timestamp: new Date().toISOString(),
+            is_patient_scoped: !!targetPatientId,
             notifications_7d: {
                 total_attempted: totalSent,
                 delivered: successfullyDelivered,
