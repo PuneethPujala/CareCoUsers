@@ -31,6 +31,10 @@ function ChatBubble({ message, isUser }) {
         Animated.timing(fadeAnim, { toValue: 1, duration: 300, useNativeDriver: true }).start();
     }, []);
 
+    if (!message.text && !message.image && !message.audio) {
+        return null;
+    }
+
     return (
         <Animated.View style={[styles.bubbleRow, isUser && styles.bubbleRowUser, { opacity: fadeAnim, transform: [{ translateY: fadeAnim.interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) }] }]}>
             {!isUser && (
@@ -291,6 +295,12 @@ export default function ChatbotScreen({ navigation, route }) {
                 // Use XMLHttpRequest for streaming in React Native
                 const xhr = new XMLHttpRequest();
                 xhrRef.current = xhr;
+                let wasAborted = false;
+                const originalAbort = xhr.abort.bind(xhr);
+                xhr.abort = () => {
+                    wasAborted = true;
+                    originalAbort();
+                };
                 let lastIndex = 0; // Track how much of responseText we've processed
 
                 xhr.open('POST', url, true);
@@ -354,8 +364,11 @@ export default function ChatbotScreen({ navigation, route }) {
                         if (xhr.status >= 200 && xhr.status < 300) {
                             resolve();
                         } else if (xhr.status === 0) {
-                            // Aborted — don't reject
-                            resolve();
+                            if (wasAborted) {
+                                resolve();
+                            } else {
+                                reject(new Error('Cannot connect to chatbot server. Please check your internet connection or try again later.'));
+                            }
                         } else {
                             // Non-SSE error (auth failure, validation, etc.)
                             try {

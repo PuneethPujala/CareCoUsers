@@ -96,18 +96,32 @@ async function buildRAGContext(patientId, userQuery, targetLanguage) {
     const retrievalStart = performance.now();
     
     // 2. Semantic Search in ChromaDB
-    const chroma = new ChromaClient({ path: process.env.CHROMA_URL || "http://localhost:8001" });
-    // Provide a dummy embedding function since we pass embeddings manually to silence the warning
-    const collection = await chroma.getCollection({ 
-        name: "medical_guidelines",
-        embeddingFunction: { generate: () => [] }
-    });
-    const queryEmbedding = await getQueryEmbedding(userQuery);
+    let collection = null;
+    let queryEmbedding = null;
+    let results = { distances: [], documents: [], metadatas: [], ids: [] };
 
-    const results = await collection.query({
-        queryEmbeddings: [queryEmbedding],
-        nResults: 3
-    });
+    try {
+        const chroma = new ChromaClient({ path: process.env.CHROMA_URL || "http://localhost:8001" });
+        // Provide a dummy embedding function since we pass embeddings manually to silence the warning
+        collection = await chroma.getCollection({ 
+            name: "medical_guidelines",
+            embeddingFunction: { generate: () => [] }
+        });
+        
+        try {
+            queryEmbedding = await getQueryEmbedding(userQuery);
+            if (queryEmbedding) {
+                results = await collection.query({
+                    queryEmbeddings: [queryEmbedding],
+                    nResults: 3
+                });
+            }
+        } catch (embedErr) {
+            console.warn('[PoC] Embedding or ChromaDB query failed, proceeding with keyword-only or empty guidelines:', embedErr.message);
+        }
+    } catch (chromaErr) {
+        console.warn('[PoC] ChromaDB collection fetch failed, proceeding with keyword-only or empty guidelines:', chromaErr.message);
+    }
 
     // 3. Hybrid Search: Extract entities/keywords to bypass semantic distance limits
     const lowerQuery = userQuery.toLowerCase();
@@ -175,7 +189,7 @@ async function buildRAGContext(patientId, userQuery, targetLanguage) {
         }
     }
 
-    if (keywordIdsToFetch.length > 0) {
+    if (keywordIdsToFetch.length > 0 && collection) {
         try {
             const keywordDocs = await collection.get({ ids: keywordIdsToFetch });
             if (keywordDocs.documents && keywordDocs.documents.length > 0) {
