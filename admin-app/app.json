@@ -52,8 +52,6 @@
         {
           "android": {
             "minSdkVersion": 24,
-            "compileSdkVersion": 34,
-            "targetSdkVersion": 34,
             "packagingOptions": {
               "pickFirst": [
                 "lib/x86/libc++_shared.so",
