@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
     View, Text, StyleSheet, Platform, Pressable, Animated, ActivityIndicator,
-    ScrollView, Linking,
+    ScrollView, Linking, TextInput,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
     Watch, Heart, Wind, Moon, ShieldCheck, ChevronLeft,
-    CheckCircle2, XCircle, Smartphone, ArrowRight, Activity,
+    CheckCircle2, XCircle, Smartphone, ArrowRight, Activity, Cpu, Sliders, RefreshCw,
 } from 'lucide-react-native';
 import {
     initializeHealthPlatform,
@@ -15,6 +15,7 @@ import {
     isHealthSupported,
 } from '../../lib/healthIntegration';
 import HealthSyncService from '../../services/HealthSyncService';
+import { apiService } from '../../lib/api';
 import { colors } from '../../theme';
 
 import AlertManager from '../../utils/AlertManager';
@@ -58,6 +59,103 @@ export default function HealthConnectSetupScreen({ navigation }) {
     const [loading, setLoading] = useState(false);
     const fadeAnim = useRef(new Animated.Value(0)).current;
     const slideAnims = useRef(FEATURES.map(() => new Animated.Value(0))).current;
+
+    // Simulation & Manual Logging States
+    const [virtualWatchEnabled, setVirtualWatchEnabled] = useState(false);
+    const [syncingVirtual, setSyncingVirtual] = useState(false);
+    const [manualHeartRate, setManualHeartRate] = useState('75');
+    const [manualSystolic, setManualSystolic] = useState('120');
+    const [manualDiastolic, setManualDiastolic] = useState('80');
+    const [manualSpO2, setManualSpO2] = useState('98');
+    const [manualLogging, setManualLogging] = useState(false);
+
+    const handleVirtualSync = async () => {
+        setSyncingVirtual(true);
+        try {
+            const hr = Math.floor(Math.random() * (90 - 70 + 1)) + 70;
+            const spo2 = Math.floor(Math.random() * (100 - 96 + 1)) + 96;
+            const systolic = Math.floor(Math.random() * (135 - 115 + 1)) + 115;
+            const diastolic = Math.floor(Math.random() * (88 - 74 + 1)) + 74;
+            const hydration = Math.floor(Math.random() * (85 - 65 + 1)) + 65;
+
+            const response = await apiService.patients.logVitals({
+                date: new Date().toISOString(),
+                heart_rate: hr,
+                blood_pressure: { systolic, diastolic },
+                oxygen_saturation: spo2,
+                hydration,
+                source: 'virtual_watch',
+                notes: 'Simulated passive vital sync from CareMyMed Virtual Watch.'
+            });
+
+            if (response.status === 201 || response.status === 200) {
+                AlertManager.alert(
+                    '⌚ Sync Complete!',
+                    `Simulated smartwatch readings synced successfully:\n\n• Heart Rate: ${hr} BPM\n• BP: ${systolic}/${diastolic} mmHg\n• SpO₂: ${spo2}%\n\nThese will reflect on your Home Dashboard.`,
+                    [{ text: 'Great!' }]
+                );
+            } else {
+                AlertManager.alert('Sync Failed', 'Could not record virtual watch telemetry.');
+            }
+        } catch (err) {
+            console.error('Virtual sync failed:', err);
+            AlertManager.alert('Error', 'Unable to complete virtual watch simulation.');
+        } finally {
+            setSyncingVirtual(false);
+        }
+    };
+
+    const handleManualLog = async () => {
+        const hr = parseInt(manualHeartRate, 10);
+        const spo2 = parseInt(manualSpO2, 10);
+        const sys = parseInt(manualSystolic, 10);
+        const dia = parseInt(manualDiastolic, 10);
+
+        if (isNaN(hr) || hr < 30 || hr > 250) {
+            AlertManager.alert('Invalid Entry', 'Heart rate must be between 30 and 250 BPM.');
+            return;
+        }
+        if (isNaN(spo2) || spo2 < 50 || spo2 > 100) {
+            AlertManager.alert('Invalid Entry', 'SpO₂ level must be between 50% and 100%.');
+            return;
+        }
+        if (isNaN(sys) || sys < 60 || sys > 250) {
+            AlertManager.alert('Invalid Entry', 'Systolic pressure must be between 60 and 250 mmHg.');
+            return;
+        }
+        if (isNaN(dia) || dia < 40 || dia > 150) {
+            AlertManager.alert('Invalid Entry', 'Diastolic pressure must be between 40 and 150 mmHg.');
+            return;
+        }
+
+        setManualLogging(true);
+        try {
+            const response = await apiService.patients.logVitals({
+                date: new Date().toISOString(),
+                heart_rate: hr,
+                blood_pressure: { systolic: sys, diastolic: dia },
+                oxygen_saturation: spo2,
+                hydration: 80,
+                source: 'manual',
+                notes: 'Manual vital log entry.'
+            });
+
+            if (response.status === 201 || response.status === 200) {
+                AlertManager.alert(
+                    '✅ Vitals Saved',
+                    'Your manual vitals have been logged successfully.',
+                    [{ text: 'OK' }]
+                );
+            } else {
+                AlertManager.alert('Failed', 'Could not record manual vitals.');
+            }
+        } catch (err) {
+            console.error('Manual vital log failed:', err);
+            AlertManager.alert('Error', 'Unable to save vitals. Please check connection.');
+        } finally {
+            setManualLogging(false);
+        }
+    };
 
     useEffect(() => {
         checkCurrentStatus();
@@ -153,6 +251,8 @@ export default function HealthConnectSetupScreen({ navigation }) {
 
     const platformName = Platform.OS === 'ios' ? 'Apple HealthKit' : 'Google Health Connect';
     const isConnected = status === 'granted';
+    const isVirtual = virtualWatchEnabled;
+    const isAnyConnected = isConnected || isVirtual;
 
     return (
         <LinearGradient colors={['#F8FAFC', '#EEF2FF']} style={styles.container}>
@@ -169,43 +269,185 @@ export default function HealthConnectSetupScreen({ navigation }) {
                 {/* ── Hero Card ──────────────────────────────────── */}
                 <Animated.View style={[styles.heroCard, { opacity: fadeAnim }]}>
                     <LinearGradient
-                        colors={isConnected ? ['#059669', '#10B981'] : ['#1E40AF', '#3B82F6']}
+                        colors={isAnyConnected ? (isVirtual ? ['#6366F1', '#4F46E5'] : ['#059669', '#10B981']) : ['#1E40AF', '#3B82F6']}
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 1 }}
                         style={styles.heroGradient}
                     >
                         <View style={styles.heroIconContainer}>
-                            {isConnected ? (
+                            {isAnyConnected ? (
                                 <ShieldCheck size={48} color="#FFFFFF" strokeWidth={1.5} />
                             ) : (
                                 <Watch size={48} color="#FFFFFF" strokeWidth={1.5} />
                             )}
                         </View>
                         <Text style={styles.heroTitle}>
-                            {isConnected ? 'Wearable Connected' : 'Connect Your Wearable'}
+                            {isConnected ? 'Wearable Connected' : isVirtual ? 'Virtual Smartwatch Connected' : 'Connect Your Wearable'}
                         </Text>
                         <Text style={styles.heroDesc}>
                             {isConnected
                                 ? `CareMyMed is actively syncing vitals from ${platformName}. Your health data is being monitored in real-time.`
-                                : `Link your smartwatch via ${platformName} for automatic, passive health monitoring. No manual logging needed.`
+                                : isVirtual
+                                    ? `Simulating active passive vitals sync. Press the button below to stream simulated watch readings.`
+                                    : `Link your smartwatch via ${platformName} for automatic, passive health monitoring. No manual logging needed.`
                             }
                         </Text>
 
                         {/* Status Badge */}
-                        <View style={[styles.statusPill, isConnected ? styles.statusPillGreen : styles.statusPillBlue]}>
-                            {isConnected
+                        <View style={[styles.statusPill, isAnyConnected ? styles.statusPillGreen : styles.statusPillBlue]}>
+                            {isAnyConnected
                                 ? <CheckCircle2 size={14} color="#FFFFFF" />
                                 : <Smartphone size={14} color="#FFFFFF" />
                             }
                             <Text style={styles.statusPillText}>
                                 {status === 'checking' ? 'Checking...' :
                                     status === 'unavailable' ? 'Not Available' :
-                                        status === 'denied' ? 'Not Connected' :
-                                            'Active & Syncing'}
+                                        isVirtual ? 'Simulating Active' :
+                                            status === 'denied' ? 'Not Connected' :
+                                                'Active & Syncing'}
                             </Text>
                         </View>
                     </LinearGradient>
                 </Animated.View>
+
+                {/* ── Virtual Smartwatch Simulation Card ─────────────────────────── */}
+                {!isConnected && (
+                    <View style={styles.simCard}>
+                        <View style={styles.simHeader}>
+                            <View style={[styles.simIconBg, { backgroundColor: '#EEF2FF' }]}>
+                                <Cpu size={20} color="#4F46E5" />
+                            </View>
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.simTitle}>Virtual Watch Simulator</Text>
+                                <Text style={styles.simSubtitle}>For demoing passive tracking without a smartwatch</Text>
+                            </View>
+                            <Pressable 
+                                onPress={() => setVirtualWatchEnabled(!virtualWatchEnabled)}
+                                style={styles.toggleBtn}
+                            >
+                                <View style={[
+                                    styles.toggleTrack,
+                                    virtualWatchEnabled ? styles.toggleTrackActive : styles.toggleTrackInactive
+                                ]}>
+                                    <View style={[
+                                        styles.toggleThumb,
+                                        virtualWatchEnabled ? styles.toggleThumbActive : styles.toggleThumbInactive
+                                    ]} />
+                                </View>
+                            </Pressable>
+                        </View>
+
+                        {virtualWatchEnabled && (
+                            <View style={styles.simBody}>
+                                <Text style={styles.simBodyText}>
+                                    Simulates real-time vital telemetry streams from a virtual watch directly to CareMyMed.
+                                </Text>
+                                <Pressable
+                                    style={[styles.simSyncBtn, syncingVirtual && styles.simSyncBtnDisabled]}
+                                    onPress={handleVirtualSync}
+                                    disabled={syncingVirtual}
+                                >
+                                    {syncingVirtual ? (
+                                        <ActivityIndicator color="#FFFFFF" size="small" />
+                                    ) : (
+                                        <>
+                                            <RefreshCw size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
+                                            <Text style={styles.simSyncBtnText}>Simulate Passive Sync</Text>
+                                        </>
+                                    )}
+                                </Pressable>
+                            </View>
+                        )}
+                    </View>
+                )}
+
+                {/* ── Manual Logging Card ────────────────────────────────────────── */}
+                {!isConnected && !virtualWatchEnabled && (
+                    <View style={styles.manualCard}>
+                        <View style={styles.manualHeader}>
+                            <View style={[styles.simIconBg, { backgroundColor: '#FDF2F8' }]}>
+                                <Sliders size={20} color="#DB2777" />
+                            </View>
+                            <Text style={styles.manualTitle}>Log Vitals Manually</Text>
+                        </View>
+                        
+                        <Text style={styles.manualDesc}>
+                            Don't have a smartwatch? Type your latest measurements below to record them immediately.
+                        </Text>
+
+                        <View style={styles.manualRow}>
+                            <View style={styles.inputContainer}>
+                                <Text style={styles.inputLabel}>Heart Rate</Text>
+                                <View style={styles.inputWrapper}>
+                                    <TextInput
+                                        style={styles.textInput}
+                                        value={manualHeartRate}
+                                        onChangeText={setManualHeartRate}
+                                        keyboardType="numeric"
+                                        maxLength={3}
+                                    />
+                                    <Text style={styles.inputUnit}>BPM</Text>
+                                </View>
+                            </View>
+
+                            <View style={styles.inputContainer}>
+                                <Text style={styles.inputLabel}>SpO₂ Level</Text>
+                                <View style={styles.inputWrapper}>
+                                    <TextInput
+                                        style={styles.textInput}
+                                        value={manualSpO2}
+                                        onChangeText={setManualSpO2}
+                                        keyboardType="numeric"
+                                        maxLength={3}
+                                    />
+                                    <Text style={styles.inputUnit}>%</Text>
+                                </View>
+                            </View>
+                        </View>
+
+                        <View style={styles.manualRow}>
+                            <View style={styles.inputContainer}>
+                                <Text style={styles.inputLabel}>Sys Pressure</Text>
+                                <View style={styles.inputWrapper}>
+                                    <TextInput
+                                        style={styles.textInput}
+                                        value={manualSystolic}
+                                        onChangeText={setManualSystolic}
+                                        keyboardType="numeric"
+                                        maxLength={3}
+                                    />
+                                    <Text style={styles.inputUnit}>mmHg</Text>
+                                </View>
+                            </View>
+
+                            <View style={styles.inputContainer}>
+                                <Text style={styles.inputLabel}>Dia Pressure</Text>
+                                <View style={styles.inputWrapper}>
+                                    <TextInput
+                                        style={styles.textInput}
+                                        value={manualDiastolic}
+                                        onChangeText={setManualDiastolic}
+                                        keyboardType="numeric"
+                                        maxLength={3}
+                                    />
+                                    <Text style={styles.inputUnit}>mmHg</Text>
+                                </View>
+                            </View>
+                        </View>
+
+                        <Pressable
+                            style={[styles.manualSubmitBtn, manualLogging && styles.manualSubmitBtnDisabled]}
+                            onPress={handleManualLog}
+                            disabled={manualLogging}
+                        >
+                            {manualLogging ? (
+                                <ActivityIndicator color="#FFFFFF" size="small" />
+                            ) : (
+                                <Text style={styles.manualSubmitBtnText}>Log Vitals Now</Text>
+                            )}
+                        </Pressable>
+                    </View>
+                )}
 
                 {/* ── Data Types ─────────────────────────────────── */}
                 <Text style={styles.sectionLabel}>WHAT CareMyMed READS</Text>
@@ -232,7 +474,7 @@ export default function HealthConnectSetupScreen({ navigation }) {
                             <Text style={styles.featureTitle}>{feature.title}</Text>
                             <Text style={styles.featureDesc}>{feature.desc}</Text>
                         </View>
-                        {isConnected && (
+                        {isAnyConnected && (
                             <CheckCircle2 size={20} color="#22C55E" />
                         )}
                     </Animated.View>
@@ -316,6 +558,119 @@ export default function HealthConnectSetupScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
+    // ── Simulator Card ────────────────────────────
+    simCard: {
+        backgroundColor: '#FFFFFF', borderRadius: 24, padding: 20,
+        marginBottom: 20, borderWidth: 1, borderColor: '#EEF2FF',
+        shadowColor: '#4F46E5', shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.05, shadowRadius: 12, elevation: 3,
+    },
+    simHeader: {
+        flexDirection: 'row', alignItems: 'center', gap: 12,
+    },
+    simIconBg: {
+        width: 40, height: 40, borderRadius: 12,
+        alignItems: 'center', justifyContent: 'center',
+    },
+    simTitle: {
+        fontSize: 16, fontWeight: '700', color: '#1E293B',
+    },
+    simSubtitle: {
+        fontSize: 12, color: '#64748B', marginTop: 1,
+    },
+    toggleBtn: {
+        padding: 4,
+    },
+    toggleTrack: {
+        width: 46, height: 26, borderRadius: 13,
+        padding: 2, justifyContent: 'center',
+    },
+    toggleTrackActive: {
+        backgroundColor: '#4F46E5',
+    },
+    toggleTrackInactive: {
+        backgroundColor: '#E2E8F0',
+    },
+    toggleThumb: {
+        width: 22, height: 22, borderRadius: 11,
+        backgroundColor: '#FFFFFF',
+        shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.15, shadowRadius: 2, elevation: 2,
+    },
+    toggleThumbActive: {
+        alignSelf: 'flex-end',
+    },
+    toggleThumbInactive: {
+        alignSelf: 'flex-start',
+    },
+    simBody: {
+        marginTop: 16, paddingTop: 16,
+        borderTopWidth: 1, borderTopColor: '#F1F5F9',
+    },
+    simBodyText: {
+        fontSize: 13, color: '#475569', lineHeight: 18, marginBottom: 16,
+    },
+    simSyncBtn: {
+        flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+        backgroundColor: '#4F46E5', borderRadius: 14, paddingVertical: 14,
+    },
+    simSyncBtnDisabled: {
+        backgroundColor: '#94A3B8',
+    },
+    simSyncBtnText: {
+        fontSize: 14, fontWeight: '700', color: '#FFFFFF',
+    },
+
+    // ── Manual Logging Card ───────────────────────
+    manualCard: {
+        backgroundColor: '#FFFFFF', borderRadius: 24, padding: 20,
+        marginBottom: 20, borderWidth: 1, borderColor: '#FDF2F8',
+        shadowColor: '#DB2777', shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.04, shadowRadius: 12, elevation: 3,
+    },
+    manualHeader: {
+        flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12,
+    },
+    manualTitle: {
+        fontSize: 16, fontWeight: '700', color: '#1E293B',
+    },
+    manualDesc: {
+        fontSize: 13, color: '#64748B', lineHeight: 18, marginBottom: 16,
+    },
+    manualRow: {
+        flexDirection: 'row', justifyContent: 'space-between', gap: 12,
+        marginBottom: 12,
+    },
+    inputContainer: {
+        flex: 1,
+    },
+    inputLabel: {
+        fontSize: 11, fontWeight: '700', color: '#94A3B8',
+        textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6,
+    },
+    inputWrapper: {
+        flexDirection: 'row', alignItems: 'center',
+        backgroundColor: '#F8FAFC', borderRadius: 12,
+        borderWidth: 1, borderColor: '#E2E8F0', paddingHorizontal: 12,
+    },
+    textInput: {
+        flex: 1, height: 44, fontSize: 15, fontWeight: '600', color: '#1E293B',
+        padding: 0,
+    },
+    inputUnit: {
+        fontSize: 12, fontWeight: '600', color: '#64748B', marginLeft: 4,
+    },
+    manualSubmitBtn: {
+        backgroundColor: '#DB2777', borderRadius: 14, paddingVertical: 14,
+        alignItems: 'center', justifyContent: 'center', marginTop: 8,
+    },
+    manualSubmitBtnDisabled: {
+        backgroundColor: '#94A3B8',
+    },
+    manualSubmitBtnText: {
+        fontSize: 14, fontWeight: '700', color: '#FFFFFF',
+    },
+
     container: { flex: 1 },
     header: {
         flexDirection: 'row',
