@@ -6,7 +6,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import {
     Watch, Heart, Wind, Moon, ShieldCheck, ChevronLeft,
-    CheckCircle2, XCircle, Smartphone, ArrowRight, Activity, Cpu, Sliders, RefreshCw,
+    CheckCircle2, XCircle, Smartphone, ArrowRight, Activity, Sliders,
 } from 'lucide-react-native';
 import {
     initializeHealthPlatform,
@@ -60,50 +60,12 @@ export default function HealthConnectSetupScreen({ navigation }) {
     const fadeAnim = useRef(new Animated.Value(0)).current;
     const slideAnims = useRef(FEATURES.map(() => new Animated.Value(0))).current;
 
-    // Simulation & Manual Logging States
-    const [virtualWatchEnabled, setVirtualWatchEnabled] = useState(false);
-    const [syncingVirtual, setSyncingVirtual] = useState(false);
-    const [manualHeartRate, setManualHeartRate] = useState('75');
-    const [manualSystolic, setManualSystolic] = useState('120');
-    const [manualDiastolic, setManualDiastolic] = useState('80');
-    const [manualSpO2, setManualSpO2] = useState('98');
+    // Manual Logging States (real readings from the user)
+    const [manualHeartRate, setManualHeartRate] = useState('');
+    const [manualSystolic, setManualSystolic] = useState('');
+    const [manualDiastolic, setManualDiastolic] = useState('');
+    const [manualSpO2, setManualSpO2] = useState('');
     const [manualLogging, setManualLogging] = useState(false);
-
-    const handleVirtualSync = async () => {
-        setSyncingVirtual(true);
-        try {
-            const hr = Math.floor(Math.random() * (90 - 70 + 1)) + 70;
-            const spo2 = Math.floor(Math.random() * (100 - 96 + 1)) + 96;
-            const systolic = Math.floor(Math.random() * (135 - 115 + 1)) + 115;
-            const diastolic = Math.floor(Math.random() * (88 - 74 + 1)) + 74;
-            const hydration = Math.floor(Math.random() * (85 - 65 + 1)) + 65;
-
-            const response = await apiService.patients.logVitals({
-                date: new Date().toISOString(),
-                heart_rate: hr,
-                blood_pressure: { systolic, diastolic },
-                oxygen_saturation: spo2,
-                hydration,
-                source: 'virtual_watch',
-                notes: 'Simulated passive vital sync from CareMyMed Virtual Watch.'
-            });
-
-            if (response.status === 201 || response.status === 200) {
-                AlertManager.alert(
-                    '⌚ Sync Complete!',
-                    `Simulated smartwatch readings synced successfully:\n\n• Heart Rate: ${hr} BPM\n• BP: ${systolic}/${diastolic} mmHg\n• SpO₂: ${spo2}%\n\nThese will reflect on your Home Dashboard.`,
-                    [{ text: 'Great!' }]
-                );
-            } else {
-                AlertManager.alert('Sync Failed', 'Could not record virtual watch telemetry.');
-            }
-        } catch (err) {
-            console.error('Virtual sync failed:', err);
-            AlertManager.alert('Error', 'Unable to complete virtual watch simulation.');
-        } finally {
-            setSyncingVirtual(false);
-        }
-    };
 
     const handleManualLog = async () => {
         const hr = parseInt(manualHeartRate, 10);
@@ -146,6 +108,11 @@ export default function HealthConnectSetupScreen({ navigation }) {
                     'Your manual vitals have been logged successfully.',
                     [{ text: 'OK' }]
                 );
+                // Clear fields on success so they are ready for next entry
+                setManualHeartRate('');
+                setManualSpO2('');
+                setManualSystolic('');
+                setManualDiastolic('');
             } else {
                 AlertManager.alert('Failed', 'Could not record manual vitals.');
             }
@@ -251,8 +218,6 @@ export default function HealthConnectSetupScreen({ navigation }) {
 
     const platformName = Platform.OS === 'ios' ? 'Apple HealthKit' : 'Google Health Connect';
     const isConnected = status === 'granted';
-    const isVirtual = virtualWatchEnabled;
-    const isAnyConnected = isConnected || isVirtual;
 
     return (
         <LinearGradient colors={['#F8FAFC', '#EEF2FF']} style={styles.container}>
@@ -269,100 +234,46 @@ export default function HealthConnectSetupScreen({ navigation }) {
                 {/* ── Hero Card ──────────────────────────────────── */}
                 <Animated.View style={[styles.heroCard, { opacity: fadeAnim }]}>
                     <LinearGradient
-                        colors={isAnyConnected ? (isVirtual ? ['#6366F1', '#4F46E5'] : ['#059669', '#10B981']) : ['#1E40AF', '#3B82F6']}
+                        colors={isConnected ? ['#059669', '#10B981'] : ['#1E40AF', '#3B82F6']}
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 1 }}
                         style={styles.heroGradient}
                     >
                         <View style={styles.heroIconContainer}>
-                            {isAnyConnected ? (
+                            {isConnected ? (
                                 <ShieldCheck size={48} color="#FFFFFF" strokeWidth={1.5} />
                             ) : (
                                 <Watch size={48} color="#FFFFFF" strokeWidth={1.5} />
                             )}
                         </View>
                         <Text style={styles.heroTitle}>
-                            {isConnected ? 'Wearable Connected' : isVirtual ? 'Virtual Smartwatch Connected' : 'Connect Your Wearable'}
+                            {isConnected ? 'Wearable Connected' : 'Connect Your Wearable'}
                         </Text>
                         <Text style={styles.heroDesc}>
                             {isConnected
                                 ? `CareMyMed is actively syncing vitals from ${platformName}. Your health data is being monitored in real-time.`
-                                : isVirtual
-                                    ? `Simulating active passive vitals sync. Press the button below to stream simulated watch readings.`
-                                    : `Link your smartwatch via ${platformName} for automatic, passive health monitoring. No manual logging needed.`
+                                : `Link your smartwatch via ${platformName} for automatic, passive health monitoring. No manual logging needed.`
                             }
                         </Text>
 
                         {/* Status Badge */}
-                        <View style={[styles.statusPill, isAnyConnected ? styles.statusPillGreen : styles.statusPillBlue]}>
-                            {isAnyConnected
+                        <View style={[styles.statusPill, isConnected ? styles.statusPillGreen : styles.statusPillBlue]}>
+                            {isConnected
                                 ? <CheckCircle2 size={14} color="#FFFFFF" />
                                 : <Smartphone size={14} color="#FFFFFF" />
                             }
                             <Text style={styles.statusPillText}>
                                 {status === 'checking' ? 'Checking...' :
                                     status === 'unavailable' ? 'Not Available' :
-                                        isVirtual ? 'Simulating Active' :
-                                            status === 'denied' ? 'Not Connected' :
-                                                'Active & Syncing'}
+                                        status === 'denied' ? 'Not Connected' :
+                                            'Active & Syncing'}
                             </Text>
                         </View>
                     </LinearGradient>
                 </Animated.View>
 
-                {/* ── Virtual Smartwatch Simulation Card ─────────────────────────── */}
-                {!isConnected && (
-                    <View style={styles.simCard}>
-                        <View style={styles.simHeader}>
-                            <View style={[styles.simIconBg, { backgroundColor: '#EEF2FF' }]}>
-                                <Cpu size={20} color="#4F46E5" />
-                            </View>
-                            <View style={{ flex: 1 }}>
-                                <Text style={styles.simTitle}>Virtual Watch Simulator</Text>
-                                <Text style={styles.simSubtitle}>For demoing passive tracking without a smartwatch</Text>
-                            </View>
-                            <Pressable 
-                                onPress={() => setVirtualWatchEnabled(!virtualWatchEnabled)}
-                                style={styles.toggleBtn}
-                            >
-                                <View style={[
-                                    styles.toggleTrack,
-                                    virtualWatchEnabled ? styles.toggleTrackActive : styles.toggleTrackInactive
-                                ]}>
-                                    <View style={[
-                                        styles.toggleThumb,
-                                        virtualWatchEnabled ? styles.toggleThumbActive : styles.toggleThumbInactive
-                                    ]} />
-                                </View>
-                            </Pressable>
-                        </View>
-
-                        {virtualWatchEnabled && (
-                            <View style={styles.simBody}>
-                                <Text style={styles.simBodyText}>
-                                    Simulates real-time vital telemetry streams from a virtual watch directly to CareMyMed.
-                                </Text>
-                                <Pressable
-                                    style={[styles.simSyncBtn, syncingVirtual && styles.simSyncBtnDisabled]}
-                                    onPress={handleVirtualSync}
-                                    disabled={syncingVirtual}
-                                >
-                                    {syncingVirtual ? (
-                                        <ActivityIndicator color="#FFFFFF" size="small" />
-                                    ) : (
-                                        <>
-                                            <RefreshCw size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
-                                            <Text style={styles.simSyncBtnText}>Simulate Passive Sync</Text>
-                                        </>
-                                    )}
-                                </Pressable>
-                            </View>
-                        )}
-                    </View>
-                )}
-
                 {/* ── Manual Logging Card ────────────────────────────────────────── */}
-                {!isConnected && !virtualWatchEnabled && (
+                {!isConnected && (
                     <View style={styles.manualCard}>
                         <View style={styles.manualHeader}>
                             <View style={[styles.simIconBg, { backgroundColor: '#FDF2F8' }]}>
@@ -385,6 +296,8 @@ export default function HealthConnectSetupScreen({ navigation }) {
                                         onChangeText={setManualHeartRate}
                                         keyboardType="numeric"
                                         maxLength={3}
+                                        placeholder="e.g. 72"
+                                        placeholderTextColor="#94A3B8"
                                     />
                                     <Text style={styles.inputUnit}>BPM</Text>
                                 </View>
@@ -399,6 +312,8 @@ export default function HealthConnectSetupScreen({ navigation }) {
                                         onChangeText={setManualSpO2}
                                         keyboardType="numeric"
                                         maxLength={3}
+                                        placeholder="e.g. 98"
+                                        placeholderTextColor="#94A3B8"
                                     />
                                     <Text style={styles.inputUnit}>%</Text>
                                 </View>
@@ -415,6 +330,8 @@ export default function HealthConnectSetupScreen({ navigation }) {
                                         onChangeText={setManualSystolic}
                                         keyboardType="numeric"
                                         maxLength={3}
+                                        placeholder="e.g. 120"
+                                        placeholderTextColor="#94A3B8"
                                     />
                                     <Text style={styles.inputUnit}>mmHg</Text>
                                 </View>
@@ -429,6 +346,8 @@ export default function HealthConnectSetupScreen({ navigation }) {
                                         onChangeText={setManualDiastolic}
                                         keyboardType="numeric"
                                         maxLength={3}
+                                        placeholder="e.g. 80"
+                                        placeholderTextColor="#94A3B8"
                                     />
                                     <Text style={styles.inputUnit}>mmHg</Text>
                                 </View>
@@ -474,7 +393,7 @@ export default function HealthConnectSetupScreen({ navigation }) {
                             <Text style={styles.featureTitle}>{feature.title}</Text>
                             <Text style={styles.featureDesc}>{feature.desc}</Text>
                         </View>
-                        {isAnyConnected && (
+                        {isConnected && (
                             <CheckCircle2 size={20} color="#22C55E" />
                         )}
                     </Animated.View>
