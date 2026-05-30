@@ -1035,6 +1035,7 @@ export default function MedicationsScreen({ navigation }) {
                                         ))}
                                     </View>
                                 );
+                            })}
                         </Animated.View>
 
                         {/* ── TEMPORARY MEDICATIONS ── */}
