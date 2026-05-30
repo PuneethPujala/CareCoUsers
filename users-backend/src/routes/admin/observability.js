@@ -31,9 +31,9 @@ router.get('/system-health', authenticate, async (req, res) => {
                 activeTokens,
                 staleTokens
             ] = await Promise.all([
-                Notification.countDocuments({ patient_id: targetPatientId, created_at: { $gte: sevenDaysAgo } }),
-                Notification.countDocuments({ patient_id: targetPatientId, created_at: { $gte: sevenDaysAgo }, push_delivered: true }),
-                Notification.countDocuments({ patient_id: targetPatientId, created_at: { $gte: sevenDaysAgo }, push_delivered: false }),
+                Notification.countDocuments({ patient_id: targetPatientId, created_at: { $gte: sevenDaysAgo }, expo_push_token: { $exists: true, $ne: null, $ne: '' } }),
+                Notification.countDocuments({ patient_id: targetPatientId, created_at: { $gte: sevenDaysAgo }, expo_push_token: { $exists: true, $ne: null, $ne: '' }, push_delivered: true }),
+                Notification.countDocuments({ patient_id: targetPatientId, created_at: { $gte: sevenDaysAgo }, expo_push_token: { $exists: true, $ne: null, $ne: '' }, push_delivered: false }),
                 Patient.countDocuments({ 
                     _id: targetPatientId,
                     expo_push_token: { $exists: true, $ne: null },
@@ -58,9 +58,9 @@ router.get('/system-health', authenticate, async (req, res) => {
                 staleTokens,
                 platformStats
             ] = await Promise.all([
-                Notification.countDocuments({ created_at: { $gte: sevenDaysAgo } }),
-                Notification.countDocuments({ created_at: { $gte: sevenDaysAgo }, push_delivered: true }),
-                Notification.countDocuments({ created_at: { $gte: sevenDaysAgo }, push_delivered: false }),
+                Notification.countDocuments({ created_at: { $gte: sevenDaysAgo }, expo_push_token: { $exists: true, $ne: null, $ne: '' } }),
+                Notification.countDocuments({ created_at: { $gte: sevenDaysAgo }, expo_push_token: { $exists: true, $ne: null, $ne: '' }, push_delivered: true }),
+                Notification.countDocuments({ created_at: { $gte: sevenDaysAgo }, expo_push_token: { $exists: true, $ne: null, $ne: '' }, push_delivered: false }),
                 Patient.countDocuments({ 
                     expo_push_token: { $exists: true, $ne: null },
                     last_token_update: { $gte: thirtyDaysAgo }

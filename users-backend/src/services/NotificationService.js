@@ -84,6 +84,19 @@ class NotificationService {
                             // Token is permanently invalid — clear it so we stop wasting quota
                             await Patient.findByIdAndUpdate(patientId, { $set: { expo_push_token: null } });
                         }
+                        
+                        const notificationId = data.notification_id || data.notificationId;
+                        if (notificationId) {
+                            const Notification = require('../models/Notification');
+                            await Notification.findByIdAndUpdate(notificationId, {
+                                $set: {
+                                    expo_push_token: patient.expo_push_token,
+                                    push_delivered: false,
+                                    expo_receipt_status: 'error',
+                                    expo_receipt_error: ticket.message
+                                }
+                            });
+                        }
                         // Application-level error: don't retry (Expo will give the same answer)
                         return { success: false, reason: ticket.message, details: ticket.details };
                     }
@@ -123,10 +136,36 @@ class NotificationService {
             }
 
             console.error(`❌ Push network error for ${patientId} after ${MAX_RETRIES} attempts:`, lastError?.message);
+            
+            const notificationId = data.notification_id || data.notificationId;
+            if (notificationId) {
+                const Notification = require('../models/Notification');
+                await Notification.findByIdAndUpdate(notificationId, {
+                    $set: {
+                        expo_push_token: patient.expo_push_token,
+                        push_delivered: false,
+                        expo_receipt_status: 'error',
+                        expo_receipt_error: lastError?.message || 'max_retries_exceeded'
+                    }
+                });
+            }
             return { success: false, reason: 'network_error', error: lastError?.message };
         } catch (error) {
             // Outer catch: DB lookup failure or unexpected throw
             console.error(`❌ Unexpected error in sendPush for ${patientId}:`, error.message);
+            const notificationId = data.notification_id || data.notificationId;
+            if (notificationId) {
+                try {
+                    const Notification = require('../models/Notification');
+                    await Notification.findByIdAndUpdate(notificationId, {
+                        $set: {
+                            push_delivered: false,
+                            expo_receipt_status: 'error',
+                            expo_receipt_error: error.message
+                        }
+                    });
+                } catch (_) {}
+            }
             return { success: false, reason: 'unexpected_error', error: error.message };
         }
     }

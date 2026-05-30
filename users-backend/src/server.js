@@ -115,7 +115,7 @@ if (process.env.NODE_ENV !== 'test') {
 }
 
 // Health check endpoints
-app.get(['/', '/health'], (req, res) => {
+app.get(['/', '/health', '/api/health'], (req, res) => {
   res.status(200).json({
     status: 'OK',
     timestamp: new Date().toISOString(),

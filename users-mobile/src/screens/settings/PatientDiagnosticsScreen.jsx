@@ -65,15 +65,30 @@ export default function PatientDiagnosticsScreen({ navigation }) {
         }
 
         // 2. Fetch Backend API Health & Clock Drift
+        let computedPing = 0;
         try {
+            const pingStart = Date.now();
+            await api.get('/health');
+            const pingEnd = Date.now();
+            computedPing = pingEnd - pingStart;
+            setPingLatency(computedPing);
+        } catch (err) {
+            console.warn('Diagnostics ping failed:', err.message);
+        }
+
+        try {
+            const dbStart = Date.now();
             const res = await api.get('/admin/observability/system-health');
             setBackendHealth(res.data);
-            const end = Date.now();
-            setPingLatency(end - start);
+            const dbEnd = Date.now();
+
+            if (computedPing === 0) {
+                setPingLatency(dbEnd - dbStart);
+            }
             
             if (res.data && res.data.timestamp) {
                 const serverTime = new Date(res.data.timestamp).getTime();
-                const clientMidpoint = start + ((end - start) / 2);
+                const clientMidpoint = dbStart + ((dbEnd - dbStart) / 2);
                 const drift = Math.abs(serverTime - clientMidpoint);
                 setClockDrift(drift);
             }

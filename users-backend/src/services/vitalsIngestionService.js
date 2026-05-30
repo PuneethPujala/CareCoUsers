@@ -183,6 +183,7 @@ class VitalsIngestionService {
             message: `Your wearable detected concerning readings: ${message}`,
             type: 'alert',
             target_screen: 'VitalsScreen',
+            expo_push_token: patient.expo_push_token || undefined,
         });
 
         // 2. Send push notification

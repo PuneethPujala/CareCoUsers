@@ -115,6 +115,7 @@ const runMedicationReminders = async () => {
                         message: messageBody,
                         target_screen: 'Medications',
                         push_delivered: false, // Default to false until sent
+                        expo_push_token: patient.expo_push_token || undefined,
                         dedupe_key: dedupeKey,
                     });
                 } catch (err) {

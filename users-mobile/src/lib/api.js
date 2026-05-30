@@ -15,7 +15,7 @@ const rawApi = axios.create({
 });
 
 // Public endpoints that don't need auth headers
-const PUBLIC_ENDPOINTS = ['/users/patients/cities', '/users/patients/location/reverse'];
+const PUBLIC_ENDPOINTS = ['/users/patients/cities', '/users/patients/location/reverse', '/health'];
 
 const api = axios.create({
     baseURL: API_BASE_URL,

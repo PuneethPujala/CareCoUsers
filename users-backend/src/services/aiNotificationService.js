@@ -77,6 +77,7 @@ async function triggerAiNotification(trigger, patient, category = 'health_tips',
         message: messageBody,
         target_screen: targetScreen,
         push_delivered: false,
+        expo_push_token: patient.expo_push_token || undefined,
         ai_context: {
             trigger: trigger,
         }

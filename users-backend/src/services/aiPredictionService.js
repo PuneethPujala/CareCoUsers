@@ -155,6 +155,7 @@ class AIPredictionService {
         message: alertMessage,
         type: 'alert',
         target_screen: 'VitalsScreen',
+        expo_push_token: patient.expo_push_token || undefined,
       });
 
       // 2. Send Expo push notification to the patient
