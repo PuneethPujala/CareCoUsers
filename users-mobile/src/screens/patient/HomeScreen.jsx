@@ -11,7 +11,7 @@ import {
     AlertTriangle, WifiOff, Flame, Zap, Watch, Shield,
 } from 'lucide-react-native';
 import { handleAxiosError } from '../../lib/axiosInstance';
-import { colors } from '../../theme';
+import { colors, layout } from '../../theme';
 import { useAuth } from '../../context/AuthContext';
 import { apiService } from '../../lib/api';
 import { useFocusEffect } from '@react-navigation/native';
@@ -161,6 +161,7 @@ export default function PatientHomeScreen({ navigation }) {
     const { t } = useTranslation();
     const { displayName, profile } = useAuth();
     const scrollViewRef = useRef(null);
+    const heartRateInputRef = useRef(null);
 
     const patient = usePatientStore((s) => s.patient);
     const vitals = usePatientStore((s) => s.vitals);
@@ -494,7 +495,7 @@ export default function PatientHomeScreen({ navigation }) {
                 )}
                 <View style={styles.formRow}>
                     <View style={{ flex: 1 }}>
-                        <SmartInput label={t('home.heart_rate_label', { defaultValue: 'Heart Rate (bpm)' })} keyboardType="numeric" placeholder="72"
+                        <SmartInput ref={isInline ? heartRateInputRef : undefined} label={t('home.heart_rate_label', { defaultValue: 'Heart Rate (bpm)' })} keyboardType="numeric" placeholder="72"
                             value={formValues.heart_rate} onChangeText={(text) => setFormValues(p => ({ ...p, heart_rate: text }))} />
                     </View>
                     <View style={{ flex: 1 }}>
@@ -961,7 +962,10 @@ export default function PatientHomeScreen({ navigation }) {
                                                         gap: 6
                                                     }}
                                                     onPress={() => {
-                                                        scrollViewRef.current?.scrollToEnd({ animated: true });
+                                                        scrollViewRef.current?.scrollTo({ y: 120, animated: true });
+                                                        setTimeout(() => {
+                                                            heartRateInputRef.current?.focus();
+                                                        }, 350);
                                                     }}
                                                 >
                                                     <Activity size={14} color="#FFF" />
@@ -1076,7 +1080,7 @@ const styles = StyleSheet.create({
     statChipIcon: { width: 28, height: 28, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginBottom: 2 },
     statChipValue: { fontSize: 16, fontWeight: '900', letterSpacing: -0.5 },
     statChipLabel: { fontSize: 9, color: '#94A3B8', fontWeight: '700', letterSpacing: 0.3, textTransform: 'uppercase', textAlign: 'center' },
-    scrollContent: { paddingHorizontal: 20, paddingTop: 4, paddingBottom: 140 },
+    scrollContent: { paddingHorizontal: 20, paddingTop: 4, paddingBottom: layout.TAB_BAR_CLEARANCE },
 
     // ── Offline banner ──
     offlineBanner: {

@@ -20,7 +20,7 @@
  *     variant="default"
  *   />
  */
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, forwardRef } from 'react';
 import { View, Text, TextInput, Animated, StyleSheet, Platform } from 'react-native';
 
 const COLORS = {
@@ -38,7 +38,7 @@ const COLORS = {
   errorText: '#DC2626',
 };
 
-export default function SmartInput({
+const SmartInput = forwardRef(function SmartInput({
   label,
   value,
   onChangeText,
@@ -58,7 +58,7 @@ export default function SmartInput({
   leftAccessory,
   rightAccessory,
   ...rest
-}) {
+}, ref) {
   const [isFocused, setIsFocused] = useState(false);
   const borderAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(1)).current;
@@ -139,6 +139,7 @@ export default function SmartInput({
       >
         {leftAccessory}
         <TextInput
+          ref={ref}
           style={[
             styles.input,
             isMultiline && styles.inputMultiline,
@@ -168,7 +169,7 @@ export default function SmartInput({
       )}
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {
@@ -219,3 +220,5 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
 });
+
+export default SmartInput;

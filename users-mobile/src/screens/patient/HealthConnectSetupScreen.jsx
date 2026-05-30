@@ -60,69 +60,7 @@ export default function HealthConnectSetupScreen({ navigation }) {
     const fadeAnim = useRef(new Animated.Value(0)).current;
     const slideAnims = useRef(FEATURES.map(() => new Animated.Value(0))).current;
 
-    // Manual Logging States (real readings from the user)
-    const [manualHeartRate, setManualHeartRate] = useState('');
-    const [manualSystolic, setManualSystolic] = useState('');
-    const [manualDiastolic, setManualDiastolic] = useState('');
-    const [manualSpO2, setManualSpO2] = useState('');
-    const [manualLogging, setManualLogging] = useState(false);
 
-    const handleManualLog = async () => {
-        const hr = parseInt(manualHeartRate, 10);
-        const spo2 = parseInt(manualSpO2, 10);
-        const sys = parseInt(manualSystolic, 10);
-        const dia = parseInt(manualDiastolic, 10);
-
-        if (isNaN(hr) || hr < 30 || hr > 250) {
-            AlertManager.alert('Invalid Entry', 'Heart rate must be between 30 and 250 BPM.');
-            return;
-        }
-        if (isNaN(spo2) || spo2 < 50 || spo2 > 100) {
-            AlertManager.alert('Invalid Entry', 'SpO₂ level must be between 50% and 100%.');
-            return;
-        }
-        if (isNaN(sys) || sys < 60 || sys > 250) {
-            AlertManager.alert('Invalid Entry', 'Systolic pressure must be between 60 and 250 mmHg.');
-            return;
-        }
-        if (isNaN(dia) || dia < 40 || dia > 150) {
-            AlertManager.alert('Invalid Entry', 'Diastolic pressure must be between 40 and 150 mmHg.');
-            return;
-        }
-
-        setManualLogging(true);
-        try {
-            const response = await apiService.patients.logVitals({
-                date: new Date().toISOString(),
-                heart_rate: hr,
-                blood_pressure: { systolic: sys, diastolic: dia },
-                oxygen_saturation: spo2,
-                hydration: 80,
-                source: 'manual',
-                notes: 'Manual vital log entry.'
-            });
-
-            if (response.status === 201 || response.status === 200) {
-                AlertManager.alert(
-                    '✅ Vitals Saved',
-                    'Your manual vitals have been logged successfully.',
-                    [{ text: 'OK' }]
-                );
-                // Clear fields on success so they are ready for next entry
-                setManualHeartRate('');
-                setManualSpO2('');
-                setManualSystolic('');
-                setManualDiastolic('');
-            } else {
-                AlertManager.alert('Failed', 'Could not record manual vitals.');
-            }
-        } catch (err) {
-            console.error('Manual vital log failed:', err);
-            AlertManager.alert('Error', 'Unable to save vitals. Please check connection.');
-        } finally {
-            setManualLogging(false);
-        }
-    };
 
     useEffect(() => {
         checkCurrentStatus();
@@ -272,101 +210,7 @@ export default function HealthConnectSetupScreen({ navigation }) {
                     </LinearGradient>
                 </Animated.View>
 
-                {/* ── Manual Logging Card ────────────────────────────────────────── */}
-                {!isConnected && (
-                    <View style={styles.manualCard}>
-                        <View style={styles.manualHeader}>
-                            <View style={[styles.simIconBg, { backgroundColor: '#FDF2F8' }]}>
-                                <Sliders size={20} color="#DB2777" />
-                            </View>
-                            <Text style={styles.manualTitle}>Log Vitals Manually</Text>
-                        </View>
-                        
-                        <Text style={styles.manualDesc}>
-                            Don't have a smartwatch? Type your latest measurements below to record them immediately.
-                        </Text>
 
-                        <View style={styles.manualRow}>
-                            <View style={styles.inputContainer}>
-                                <Text style={styles.inputLabel}>Heart Rate</Text>
-                                <View style={styles.inputWrapper}>
-                                    <TextInput
-                                        style={styles.textInput}
-                                        value={manualHeartRate}
-                                        onChangeText={setManualHeartRate}
-                                        keyboardType="numeric"
-                                        maxLength={3}
-                                        placeholder="e.g. 72"
-                                        placeholderTextColor="#94A3B8"
-                                    />
-                                    <Text style={styles.inputUnit}>BPM</Text>
-                                </View>
-                            </View>
-
-                            <View style={styles.inputContainer}>
-                                <Text style={styles.inputLabel}>SpO₂ Level</Text>
-                                <View style={styles.inputWrapper}>
-                                    <TextInput
-                                        style={styles.textInput}
-                                        value={manualSpO2}
-                                        onChangeText={setManualSpO2}
-                                        keyboardType="numeric"
-                                        maxLength={3}
-                                        placeholder="e.g. 98"
-                                        placeholderTextColor="#94A3B8"
-                                    />
-                                    <Text style={styles.inputUnit}>%</Text>
-                                </View>
-                            </View>
-                        </View>
-
-                        <View style={styles.manualRow}>
-                            <View style={styles.inputContainer}>
-                                <Text style={styles.inputLabel}>Sys Pressure</Text>
-                                <View style={styles.inputWrapper}>
-                                    <TextInput
-                                        style={styles.textInput}
-                                        value={manualSystolic}
-                                        onChangeText={setManualSystolic}
-                                        keyboardType="numeric"
-                                        maxLength={3}
-                                        placeholder="e.g. 120"
-                                        placeholderTextColor="#94A3B8"
-                                    />
-                                    <Text style={styles.inputUnit}>mmHg</Text>
-                                </View>
-                            </View>
-
-                            <View style={styles.inputContainer}>
-                                <Text style={styles.inputLabel}>Dia Pressure</Text>
-                                <View style={styles.inputWrapper}>
-                                    <TextInput
-                                        style={styles.textInput}
-                                        value={manualDiastolic}
-                                        onChangeText={setManualDiastolic}
-                                        keyboardType="numeric"
-                                        maxLength={3}
-                                        placeholder="e.g. 80"
-                                        placeholderTextColor="#94A3B8"
-                                    />
-                                    <Text style={styles.inputUnit}>mmHg</Text>
-                                </View>
-                            </View>
-                        </View>
-
-                        <Pressable
-                            style={[styles.manualSubmitBtn, manualLogging && styles.manualSubmitBtnDisabled]}
-                            onPress={handleManualLog}
-                            disabled={manualLogging}
-                        >
-                            {manualLogging ? (
-                                <ActivityIndicator color="#FFFFFF" size="small" />
-                            ) : (
-                                <Text style={styles.manualSubmitBtnText}>Log Vitals Now</Text>
-                            )}
-                        </Pressable>
-                    </View>
-                )}
 
                 {/* ── Data Types ─────────────────────────────────── */}
                 <Text style={styles.sectionLabel}>WHAT CareMyMed READS</Text>
@@ -540,55 +384,7 @@ const styles = StyleSheet.create({
         fontSize: 14, fontWeight: '700', color: '#FFFFFF',
     },
 
-    // ── Manual Logging Card ───────────────────────
-    manualCard: {
-        backgroundColor: '#FFFFFF', borderRadius: 24, padding: 20,
-        marginBottom: 20, borderWidth: 1, borderColor: '#FDF2F8',
-        shadowColor: '#DB2777', shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.04, shadowRadius: 12, elevation: 3,
-    },
-    manualHeader: {
-        flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12,
-    },
-    manualTitle: {
-        fontSize: 16, fontWeight: '700', color: '#1E293B',
-    },
-    manualDesc: {
-        fontSize: 13, color: '#64748B', lineHeight: 18, marginBottom: 16,
-    },
-    manualRow: {
-        flexDirection: 'row', justifyContent: 'space-between', gap: 12,
-        marginBottom: 12,
-    },
-    inputContainer: {
-        flex: 1,
-    },
-    inputLabel: {
-        fontSize: 11, fontWeight: '700', color: '#94A3B8',
-        textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6,
-    },
-    inputWrapper: {
-        flexDirection: 'row', alignItems: 'center',
-        backgroundColor: '#F8FAFC', borderRadius: 12,
-        borderWidth: 1, borderColor: '#E2E8F0', paddingHorizontal: 12,
-    },
-    textInput: {
-        flex: 1, height: 44, fontSize: 15, fontWeight: '600', color: '#1E293B',
-        padding: 0,
-    },
-    inputUnit: {
-        fontSize: 12, fontWeight: '600', color: '#64748B', marginLeft: 4,
-    },
-    manualSubmitBtn: {
-        backgroundColor: '#DB2777', borderRadius: 14, paddingVertical: 14,
-        alignItems: 'center', justifyContent: 'center', marginTop: 8,
-    },
-    manualSubmitBtnDisabled: {
-        backgroundColor: '#94A3B8',
-    },
-    manualSubmitBtnText: {
-        fontSize: 14, fontWeight: '700', color: '#FFFFFF',
-    },
+
 
     container: { flex: 1 },
     header: {
