@@ -32,6 +32,17 @@ jest.mock('../../src/models/Patient');
 jest.mock('../../src/models/MedicineLog');
 jest.mock('../../src/models/Medication');
 jest.mock('../../src/models/Notification');
+jest.mock('../../src/models/TempMedication');
+jest.mock('../../src/services/medicineAIService', () => ({
+    lookupMedicine: jest.fn().mockResolvedValue({
+        riskTier: 'safe',
+        genericName: 'Paracetamol',
+        aiSummary: 'Safe OTC medicine.',
+        sideEffects: [],
+        warnings: [],
+        interactions: [],
+    }),
+}));
 
 // ─── Imports ──────────────────────────────────────────────────────────────────
 
@@ -41,6 +52,8 @@ const Patient    = require('../../src/models/Patient');
 const MedicineLog = require('../../src/models/MedicineLog');
 const Medication = require('../../src/models/Medication');
 const Notification = require('../../src/models/Notification');
+const TempMedication = require('../../src/models/TempMedication');
+const { lookupMedicine } = require('../../src/services/medicineAIService');
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -339,6 +352,74 @@ describe('User Medicines Routes', () => {
 
             expect(res.status).toBe(500);
             expect(res.body.error).toBe('Failed to get monthly adherence');
+        });
+    });
+
+    // ── Temporary Medications ──────────────────────────────────────────────────
+
+    describe('Temporary Medications Routes', () => {
+        beforeEach(() => {
+            const mockPatientObj = makePatient({ organization_id: 'mock-org-id', name: 'Mock Patient' });
+            Patient.findOne = jest.fn().mockResolvedValue(mockPatientObj);
+        });
+
+        describe('GET /api/users/medicines/temp-meds', () => {
+            it('returns active temporary medications', async () => {
+                const mockMeds = [
+                    { _id: 'med1', name: 'Paracetamol', shift: 'morning', isActive: true },
+                ];
+                TempMedication.find = jest.fn().mockReturnValue({
+                    sort: jest.fn().mockReturnValue({
+                        lean: jest.fn().mockResolvedValue(mockMeds),
+                    }),
+                });
+
+                const res = await request(app).get('/api/users/medicines/temp-meds');
+
+                expect(res.status).toBe(200);
+                expect(res.body.tempMedications).toEqual(mockMeds);
+            });
+        });
+
+        describe('POST /api/users/medicines/temp-meds', () => {
+            it('creates a new temporary medication', async () => {
+                const mockSave = jest.fn().mockResolvedValue(true);
+                TempMedication.mockImplementation(() => ({
+                    save: mockSave,
+                    toObject: () => ({ name: 'Paracetamol', shift: 'morning' }),
+                }));
+
+                const res = await request(app)
+                    .post('/api/users/medicines/temp-meds')
+                    .send({ name: 'Paracetamol', dosage: '500mg', frequency: 'As needed', reason: 'Fever', shift: 'morning' });
+
+                expect(res.status).toBe(201);
+                expect(mockSave).toHaveBeenCalled();
+            });
+
+            it('returns 400 if name is missing', async () => {
+                const res = await request(app)
+                    .post('/api/users/medicines/temp-meds')
+                    .send({ shift: 'morning' });
+
+                expect(res.status).toBe(400);
+            });
+        });
+
+        describe('DELETE /api/users/medicines/temp-meds/:medId', () => {
+            it('soft deletes the temporary medication', async () => {
+                const mockSave = jest.fn().mockResolvedValue(true);
+                TempMedication.findOne = jest.fn().mockResolvedValue({
+                    _id: 'med1',
+                    isActive: true,
+                    save: mockSave,
+                });
+
+                const res = await request(app).delete('/api/users/medicines/temp-meds/med1');
+
+                expect(res.status).toBe(200);
+                expect(mockSave).toHaveBeenCalled();
+            });
         });
     });
 });

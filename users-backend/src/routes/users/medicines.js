@@ -1211,6 +1211,123 @@ router.get('/adherence/recap', authenticateSession, async (req, res) => {
     }
 });
 
+const TempMedication = require('../../models/TempMedication');
+const { lookupMedicine } = require('../../services/medicineAIService');
+
+/**
+ * GET /api/users/medicines/temp-meds
+ * Fetches active temporary medications for the authenticated patient.
+ */
+router.get('/temp-meds', authenticateSession, async (req, res) => {
+    try {
+        const patient = await getOrCreatePatient(req);
+        const searchIds = [patient._id];
+        if (patient.profile_id) searchIds.push(patient.profile_id);
+
+        const tempMeds = await TempMedication.find({
+            patientId: { $in: searchIds },
+            isActive: true
+        }).sort({ createdAt: -1 }).lean();
+
+        res.json({ tempMedications: tempMeds });
+    } catch (error) {
+        logger.error('Fetch temp-meds error', { error: error.message, patientId: req.user?.id });
+        res.status(500).json({ error: 'Failed to fetch temporary medications' });
+    }
+});
+
+/**
+ * POST /api/users/medicines/temp-meds
+ * Adds a temporary medication for the patient.
+ */
+router.post('/temp-meds', authenticateSession, async (req, res) => {
+    try {
+        const patient = await getOrCreatePatient(req);
+        const { name, dosage, frequency, reason, shift } = req.body;
+
+        if (!name || !name.trim()) {
+            return res.status(400).json({ error: 'Medicine name is required.' });
+        }
+
+        const validShifts = ['morning', 'afternoon', 'night'];
+        if (!validShifts.includes(shift)) {
+            return res.status(400).json({ error: 'Valid shift (morning, afternoon, night) is required.' });
+        }
+
+        // Get AI classification
+        const aiResult = await lookupMedicine(name.trim());
+
+        const targetPatientId = patient.profile_id || patient._id;
+        const orgId = patient.organization_id;
+
+        if (!orgId) {
+            return res.status(400).json({ error: 'Could not determine organization.' });
+        }
+
+        const tempMed = new TempMedication({
+            patientId: targetPatientId,
+            organizationId: orgId,
+            name: name.trim(),
+            dosage: dosage?.trim() || '',
+            frequency: frequency?.trim() || 'As needed',
+            shift,
+            reason: reason?.trim() || '',
+            addedBy: targetPatientId,
+            addedByRole: 'patient',
+            addedByName: patient.name || 'Patient',
+            riskTier: aiResult.riskTier,
+            genericName: aiResult.genericName,
+            aiSummary: aiResult.aiSummary,
+            sideEffects: aiResult.sideEffects,
+            warnings: aiResult.warnings,
+            interactions: aiResult.interactions,
+        });
+
+        await tempMed.save();
+
+        res.status(201).json({
+            message: 'Temporary medicine added.',
+            tempMedication: tempMed.toObject(),
+        });
+    } catch (error) {
+        logger.error('Add temp-med error', { error: error.message, patientId: req.user?.id });
+        res.status(500).json({ error: 'Failed to add temporary medication.' });
+    }
+});
+
+/**
+ * DELETE /api/users/medicines/temp-meds/:medId
+ * Soft-deletes a temporary medication for the patient.
+ */
+router.delete('/temp-meds/:medId', authenticateSession, async (req, res) => {
+    try {
+        const patient = await getOrCreatePatient(req);
+        const { medId } = req.params;
+        const searchIds = [patient._id];
+        if (patient.profile_id) searchIds.push(patient.profile_id);
+
+        const tempMed = await TempMedication.findOne({
+            _id: medId,
+            patientId: { $in: searchIds },
+            isActive: true
+        });
+
+        if (!tempMed) {
+            return res.status(404).json({ error: 'Temporary medicine not found.' });
+        }
+
+        tempMed.isActive = false;
+        tempMed.deletedBy = patient.profile_id || patient._id;
+        tempMed.deletedAt = new Date();
+        await tempMed.save();
+
+        res.json({ message: 'Temporary medicine removed.' });
+    } catch (error) {
+        logger.error('Delete temp-med error', { error: error.message, patientId: req.user?.id });
+        res.status(500).json({ error: 'Failed to remove temporary medication.' });
+    }
+});
+
 module.exports = router;
 module.exports.buildMergedMeds = buildMergedMeds;
 module.exports.computeCurrentStreak = computeCurrentStreak;

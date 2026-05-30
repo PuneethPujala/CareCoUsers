@@ -316,6 +316,7 @@ export const apiService = {
 
     companion: {
         join: (data) => api.post('/companion/join', data),
+        updateProfile: (data) => api.put('/companion/profile', data),
         checkEmail: (data) => api.post('/companion/check-email', data),
         joinOtp: (data) => api.post('/companion/join-otp', data),
         linkPatient: (data) => api.post('/companion/link-patient', data),
@@ -345,6 +346,9 @@ export const apiService = {
         getAdherenceRecap: (period) => api.get('/users/medicines/adherence/recap', { params: { period } }),
         refill: (name, newTotal) => api.post(`/users/medicines/${encodeURIComponent(name)}/refill`, { newTotal }),
         getWeeklySummary: () => api.get('/users/medicines/adherence/weekly-summary'),
+        getTempMeds: () => api.get('/users/medicines/temp-meds'),
+        addTempMed: (data) => api.post('/users/medicines/temp-meds', data),
+        deleteTempMed: (medId) => api.delete(`/users/medicines/temp-meds/${medId}`),
     },
 };
 

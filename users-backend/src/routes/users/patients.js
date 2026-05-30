@@ -384,7 +384,8 @@ router.put('/me', authenticateSession, async (req, res) => {
             name, city, date_of_birth, phone, gender, blood_type, language,
             push_notifications_enabled, medication_reminders_enabled,
             expo_push_token, profile_complete,
-            device_platform, device_name, app_version
+            device_platform, device_name, app_version,
+            acceptedTermsVersion, acceptedPrivacyVersion, acceptedAt
         } = req.body;
 
         const updates = {};
@@ -411,6 +412,9 @@ router.put('/me', authenticateSession, async (req, res) => {
         if (device_name !== undefined) updates.device_name = device_name;
         if (app_version !== undefined) updates.app_version = app_version;
         if (profile_complete !== undefined) updates.profile_complete = profile_complete;
+        if (acceptedTermsVersion !== undefined) updates.acceptedTermsVersion = acceptedTermsVersion;
+        if (acceptedPrivacyVersion !== undefined) updates.acceptedPrivacyVersion = acceptedPrivacyVersion;
+        if (acceptedAt !== undefined) updates.acceptedAt = acceptedAt;
 
         const patient = await getOrCreatePatient(req, name);
         await Patient.updateOne({ _id: patient._id }, { $set: updates });

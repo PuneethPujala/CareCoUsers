@@ -412,7 +412,11 @@ export default function PatientSignupScreen({ navigation, route }) {
         try {
             const cleanEmail = form.email.trim().toLowerCase();
             await clearProgress();
-            await signUp(cleanEmail, form.password, form.fullName.trim(), 'patient');
+            await signUp(cleanEmail, form.password, form.fullName.trim(), 'patient', {
+                acceptedTermsVersion: '1.0',
+                acceptedPrivacyVersion: '1.0',
+                acceptedAt: new Date().toISOString()
+            });
             analytics.signupSuccess(cleanEmail);
         } catch (error) {
             const { general, fields } = parseError(error);

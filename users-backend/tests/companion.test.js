@@ -196,6 +196,46 @@ describe('Companion Routes', () => {
             expect(CompanionAccess.create).toHaveBeenCalled();
             expect(Companion.prototype.save).not.toHaveBeenCalled();
         });
+
+        it('saves compliance versions and acceptance timestamp when creating companion', async () => {
+            const mockPatientObj = {
+                _id: fakeId('patient-123'),
+                trusted_contacts: [],
+                save: jest.fn().mockResolvedValue({})
+            };
+            const mockSelect = jest.fn().mockResolvedValue(mockPatientObj);
+            Patient.findOne = jest.fn().mockImplementation((query) => {
+                if (query.invite_code) return { select: mockSelect };
+                return null;
+            });
+
+            Companion.findOne = jest.fn().mockResolvedValue(null);
+            Companion.create = jest.fn().mockResolvedValue({
+                _id: fakeId('new-companion-id'),
+                email: 'test@companion.in',
+                fullName: 'Companion Name',
+                role: 'companion',
+                supabaseUid: 'cmp_123',
+            });
+
+            await request(app)
+                .post('/api/companion/join')
+                .send({
+                    invite_code: 'VALIDCODE',
+                    email: 'test@companion.in',
+                    password: 'Password123',
+                    fullName: 'Companion Name',
+                    acceptedTermsVersion: '1.0',
+                    acceptedPrivacyVersion: '1.0',
+                    acceptedAt: '2026-05-30T12:00:00.000Z'
+                });
+
+            expect(Companion.create).toHaveBeenCalledWith(expect.objectContaining({
+                acceptedTermsVersion: '1.0',
+                acceptedPrivacyVersion: '1.0',
+                acceptedAt: '2026-05-30T12:00:00.000Z'
+            }));
+        });
     });
 
     describe('GET /api/companion/patient-status', () => {
@@ -451,6 +491,51 @@ describe('Companion Routes', () => {
                 type: 'reminders',
                 title: expect.stringMatching(/Blood Pressure Request/i)
             }));
+        });
+    });
+
+    describe('PUT /api/companion/profile', () => {
+        it('returns 403 if user role is not companion', async () => {
+            mockAuthState.profile.role = 'patient';
+
+            const res = await request(app)
+                .put('/api/companion/profile')
+                .send({ fullName: 'Updated Companion' });
+
+            expect(res.status).toBe(403);
+        });
+
+        it('successfully updates companion profile fields and compliance', async () => {
+            Companion.updateOne = jest.fn().mockResolvedValue({ nModified: 1 });
+            Companion.findById = jest.fn().mockResolvedValue({
+                _id: mockAuthState.profile._id,
+                fullName: 'Updated Companion',
+                acceptedTermsVersion: '1.1'
+            });
+
+            const res = await request(app)
+                .put('/api/companion/profile')
+                .send({
+                    fullName: 'Updated Companion',
+                    acceptedTermsVersion: '1.1',
+                    acceptedPrivacyVersion: '1.1',
+                    acceptedAt: '2026-05-30T13:00:00.000Z'
+                });
+
+            expect(res.status).toBe(200);
+            expect(res.body.message).toMatch(/updated successfully/i);
+            expect(Companion.updateOne).toHaveBeenCalledWith(
+                { _id: mockAuthState.profile._id },
+                {
+                    $set: {
+                        fullName: 'Updated Companion',
+                        acceptedTermsVersion: '1.1',
+                        acceptedPrivacyVersion: '1.1',
+                        acceptedAt: '2026-05-30T13:00:00.000Z'
+                    }
+                }
+            );
+            expect(res.body.profile.fullName).toBe('Updated Companion');
         });
     });
 });

@@ -100,6 +100,15 @@ const PatientSchema = new mongoose.Schema(
             type: Boolean,
             default: true,
         },
+        acceptedTermsVersion: {
+            type: String,
+        },
+        acceptedPrivacyVersion: {
+            type: String,
+        },
+        acceptedAt: {
+            type: Date,
+        },
 
         // ── Notifications ─────────────────────────────
         expo_push_token: {

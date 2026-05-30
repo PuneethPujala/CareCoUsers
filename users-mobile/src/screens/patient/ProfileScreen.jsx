@@ -20,7 +20,7 @@ import { registerForPushNotificationsAsync } from '../../utils/notifications';
 import * as Notifications from 'expo-notifications';
 import { Linking } from 'react-native';
 import { Lock as LockIcon } from 'lucide-react-native';
-import * as WebBrowser from 'expo-web-browser';
+import LegalModal from '../../components/ui/LegalModal';
 import usePatientStore from '../../store/usePatientStore';
 import * as Sharing from 'expo-sharing';
 import ViewShot from 'react-native-view-shot';
@@ -91,6 +91,8 @@ export default function PatientProfileScreen({ navigation }) {
     const [familyModalVisible, setFamilyModalVisible] = useState(false);
     const [addAddressModalVisible, setAddAddressModalVisible] = useState(false);
     const [setPassModalVisible, setSetPassModalVisible] = useState(false);
+    const [legalVisible, setLegalVisible] = useState(false);
+    const [legalType, setLegalType] = useState('terms');
 
     // Notification Prefs
     const [pushEnabled, setPushEnabled] = useState(true);
@@ -793,8 +795,8 @@ export default function PatientProfileScreen({ navigation }) {
                             />
                         </View>
                         <InfoRow icon={Globe} iconBg="#EFF6FF" iconColor="#3B82F6" label={t('profile.language', { defaultValue: 'Language' })} value={LANGUAGES.find(l => l.code === selectedLang)?.label || 'English (India)'} placeholder="" onPress={() => setLanguageModalVisible(true)} />
-                        <InfoRow icon={Shield} iconBg="#F0FDF4" iconColor="#16A34A" label={t('profile.privacy_policy', { defaultValue: 'Privacy Policy' })} value={null} placeholder={t('profile.read_policy', { defaultValue: 'Read our policy' })} onPress={() => WebBrowser.openBrowserAsync('https://CareMyMed.com/privacy-policy')} />
-                        <InfoRow icon={FileText} iconBg="#FEF3C7" iconColor="#D97706" label={t('profile.terms_conditions', { defaultValue: 'Terms & Conditions' })} value={null} placeholder={t('profile.read_terms', { defaultValue: 'Read our terms' })} onPress={() => WebBrowser.openBrowserAsync('https://caremymed.com/terms-conditions')} isLast />
+                        <InfoRow icon={Shield} iconBg="#F0FDF4" iconColor="#16A34A" label={t('profile.privacy_policy', { defaultValue: 'Privacy Policy' })} value={null} placeholder={t('profile.read_policy', { defaultValue: 'Read our policy' })} onPress={() => { setLegalType('privacy'); setLegalVisible(true); }} />
+                        <InfoRow icon={FileText} iconBg="#FEF3C7" iconColor="#D97706" label={t('profile.terms_conditions', { defaultValue: 'Terms & Conditions' })} value={null} placeholder={t('profile.read_terms', { defaultValue: 'Read our terms' })} onPress={() => { setLegalType('terms'); setLegalVisible(true); }} isLast />
                     </View>
                 </Animated.View>
 
@@ -1014,6 +1016,12 @@ export default function PatientProfileScreen({ navigation }) {
                     </Pressable>
                 </Animated.View>
             </ScrollView>
+
+            <LegalModal
+                visible={legalVisible}
+                type={legalType}
+                onClose={() => setLegalVisible(false)}
+            />
 
             {/* ════════════════════  MODALS  ════════════════════ */}
 

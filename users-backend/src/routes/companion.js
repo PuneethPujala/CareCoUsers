@@ -22,7 +22,7 @@ const { sendOTPEmail } = require('../services/emailService');
  */
 router.post('/join', async (req, res) => {
     try {
-        const { invite_code, email, password, fullName, phone } = req.body;
+        const { invite_code, email, password, fullName, phone, acceptedTermsVersion, acceptedPrivacyVersion, acceptedAt } = req.body;
         
         if (!email || !password || !fullName) {
             return res.status(400).json({ error: 'Email, password, and full name are required.' });
@@ -93,7 +93,10 @@ router.post('/join', async (req, res) => {
                 fullName,
                 phone,
                 role: 'companion',
-                emailVerified: true // Assume verified if they have the code, or require OTP later
+                emailVerified: true, // Assume verified if they have the code, or require OTP later
+                acceptedTermsVersion,
+                acceptedPrivacyVersion,
+                acceptedAt
             });
         }
 
@@ -938,4 +941,34 @@ router.post('/link-patient', authenticateSession, async (req, res) => {
         res.status(500).json({ error: 'Failed to link patient.' });
     }
 });
+
+/**
+ * PUT /api/companion/profile
+ * Update companion profile details, including compliance terms.
+ */
+router.put('/profile', authenticate, async (req, res) => {
+    try {
+        if (!req.profile || req.profile.role !== 'companion') {
+            return res.status(403).json({ error: 'Access denied.' });
+        }
+
+        const { fullName, phone, acceptedTermsVersion, acceptedPrivacyVersion, acceptedAt } = req.body;
+        const updates = {};
+        if (fullName !== undefined) updates.fullName = fullName;
+        if (phone !== undefined) updates.phone = phone;
+        if (acceptedTermsVersion !== undefined) updates.acceptedTermsVersion = acceptedTermsVersion;
+        if (acceptedPrivacyVersion !== undefined) updates.acceptedPrivacyVersion = acceptedPrivacyVersion;
+        if (acceptedAt !== undefined) updates.acceptedAt = acceptedAt;
+
+        await Companion.updateOne({ _id: req.profile._id }, { $set: updates });
+        const updated = await Companion.findById(req.profile._id);
+
+        res.json({ message: 'Profile updated successfully', profile: updated });
+    } catch (err) {
+        logger.error('Update companion profile error', { error: err.message });
+        res.status(500).json({ error: 'Failed to update profile.' });
+    }
+});
+
+module.exports = router;
 

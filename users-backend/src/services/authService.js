@@ -144,7 +144,7 @@ function buildLoginProfile(account, isPatient) {
 }
 
 async function registerPatient(body, req) {
-  const { email, password, fullName, city, organizationId, phone, supabaseUid } = body;
+  const { email, password, fullName, city, organizationId, phone, supabaseUid, acceptedTermsVersion, acceptedPrivacyVersion, acceptedAt } = body;
   if (!email || !fullName) {
     const err = new Error('Missing required fields: email, fullName');
     err.status = 400;
@@ -398,6 +398,9 @@ async function registerPatient(body, req) {
     phone: phone || null,
     role: 'patient',
     emailVerified: true,
+    acceptedTermsVersion,
+    acceptedPrivacyVersion,
+    acceptedAt,
   };
   if (passwordHash) patientData.passwordHash = passwordHash;
 

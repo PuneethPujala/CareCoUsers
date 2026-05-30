@@ -4,7 +4,7 @@ import { ChevronLeft, Key, User, Mail, Lock, ShieldCheck, CheckCircle2 } from 'l
 import SmartInput from '../../components/ui/SmartInput';
 import { apiService } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
-import * as WebBrowser from 'expo-web-browser';
+import LegalModal from '../../components/ui/LegalModal';
 
 import { OTPBoxes } from './components';
 import { parseError } from '../../utils/parseError';
@@ -51,6 +51,8 @@ export default function CompanionSignupScreen({ navigation }) {
     
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [legalVisible, setLegalVisible] = useState(false);
+    const [legalType, setLegalType] = useState('terms');
 
     const handleNextStep1 = async () => {
         const cleanEmail = email.trim().toLowerCase();
@@ -96,7 +98,10 @@ export default function CompanionSignupScreen({ navigation }) {
                 email: email.trim().toLowerCase(),
                 password,
                 fullName,
-                phone
+                phone,
+                acceptedTermsVersion: '1.0',
+                acceptedPrivacyVersion: '1.0',
+                acceptedAt: new Date().toISOString()
             });
             
             if (res.data.session && res.data.profile) {
@@ -266,7 +271,8 @@ export default function CompanionSignupScreen({ navigation }) {
                                     }}
                                     onPress={(e) => {
                                         e.stopPropagation();
-                                        WebBrowser.openBrowserAsync('https://caremymed.com/terms-conditions');
+                                        setLegalType('terms');
+                                        setLegalVisible(true);
                                     }}
                                 >
                                     Terms & Conditions
@@ -280,7 +286,8 @@ export default function CompanionSignupScreen({ navigation }) {
                                     }}
                                     onPress={(e) => {
                                         e.stopPropagation();
-                                        WebBrowser.openBrowserAsync('https://caremymed.com/privacy-policy');
+                                        setLegalType('privacy');
+                                        setLegalVisible(true);
                                     }}
                                 >
                                     Privacy Policy
@@ -317,6 +324,12 @@ export default function CompanionSignupScreen({ navigation }) {
                     </View>
                 )}
             </ScrollView>
+
+            <LegalModal
+                visible={legalVisible}
+                type={legalType}
+                onClose={() => setLegalVisible(false)}
+            />
         </KeyboardAvoidingView>
     );
 }

@@ -4,7 +4,7 @@ import { User, Mail, Lock, Eye, EyeOff, CheckCircle2, AlertCircle } from 'lucide
 import { useFormContext, Controller } from 'react-hook-form';
 import { IconInput, PasswordStrength } from './SignupUI';
 import { styles, FONT, C } from './SignupStyles';
-import * as WebBrowser from 'expo-web-browser';
+import LegalModal from '../../../components/ui/LegalModal';
 
 const Step1Profile = ({
     googleLoading, handleGooglePress,
@@ -17,6 +17,9 @@ const Step1Profile = ({
     const { control, formState: { errors }, watch } = useFormContext();
     const formValues = watch();
     const passwordsMatch = formValues.confirmPassword?.length > 0 && formValues.password === formValues.confirmPassword;
+
+    const [legalVisible, setLegalVisible] = React.useState(false);
+    const [legalType, setLegalType] = React.useState('terms');
 
     const emailLabel = useMemo(() => (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 8 }}>
@@ -244,7 +247,8 @@ const Step1Profile = ({
                                     }}
                                     onPress={(e) => {
                                         e.stopPropagation();
-                                        WebBrowser.openBrowserAsync('https://caremymed.com/terms-conditions');
+                                        setLegalType('terms');
+                                        setLegalVisible(true);
                                     }}
                                 >
                                     Terms & Conditions
@@ -258,7 +262,8 @@ const Step1Profile = ({
                                     }}
                                     onPress={(e) => {
                                         e.stopPropagation();
-                                        WebBrowser.openBrowserAsync('https://caremymed.com/privacy-policy');
+                                        setLegalType('privacy');
+                                        setLegalVisible(true);
                                     }}
                                 >
                                     Privacy Policy
@@ -298,6 +303,12 @@ const Step1Profile = ({
                     )}
                 </View>
             </Pressable>
+
+            <LegalModal
+                visible={legalVisible}
+                type={legalType}
+                onClose={() => setLegalVisible(false)}
+            />
         </View>
     );
 };

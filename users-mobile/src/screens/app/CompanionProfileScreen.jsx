@@ -6,7 +6,7 @@ import { LogOut, ShieldCheck, Heart, User, Settings, ArrowRight, UserCheck, Shar
 import { layout } from '../../theme';
 import AlertManager from '../../utils/AlertManager';
 import { useNavigation } from '@react-navigation/native';
-import * as WebBrowser from 'expo-web-browser';
+import LegalModal from '../../components/ui/LegalModal';
 
 const C = {
     bg: '#F8FAFC',
@@ -36,6 +36,8 @@ export default function CompanionProfileScreen() {
     const [generatingCode, setGeneratingCode] = useState(false);
     const [linkedPatients, setLinkedPatients] = useState([]);
     const [pushEnabled, setPushEnabled] = useState(true);
+    const [legalVisible, setLegalVisible] = useState(false);
+    const [legalType, setLegalType] = useState('terms');
     const navigation = useNavigation();
 
     const loadProfileData = async () => {
@@ -221,7 +223,7 @@ export default function CompanionProfileScreen() {
                         </View>
                     </View>
 
-                    <Pressable style={styles.actionRow} onPress={() => WebBrowser.openBrowserAsync('https://caremymed.com/privacy-policy')}>
+                    <Pressable style={styles.actionRow} onPress={() => { setLegalType('privacy'); setLegalVisible(true); }}>
                         <View style={{ flex: 1 }}>
                             <Text style={styles.actionLabel}>Privacy Policy</Text>
                             <Text style={styles.actionDesc}>Read our privacy policy</Text>
@@ -229,7 +231,7 @@ export default function CompanionProfileScreen() {
                         <ArrowRight size={18} color={C.light} />
                     </Pressable>
 
-                    <Pressable style={[styles.actionRow, { borderBottomWidth: 0 }]} onPress={() => WebBrowser.openBrowserAsync('https://caremymed.com/terms-conditions')}>
+                    <Pressable style={[styles.actionRow, { borderBottomWidth: 0 }]} onPress={() => { setLegalType('terms'); setLegalVisible(true); }}>
                         <View style={{ flex: 1 }}>
                             <Text style={styles.actionLabel}>Terms & Conditions</Text>
                             <Text style={styles.actionDesc}>Read our terms and conditions</Text>
@@ -246,6 +248,12 @@ export default function CompanionProfileScreen() {
 
                 <Text style={styles.versionText}>CareMyMed Companion App • Version 1.0.0 (Prod)</Text>
             </ScrollView>
+
+            <LegalModal
+                visible={legalVisible}
+                type={legalType}
+                onClose={() => setLegalVisible(false)}
+            />
         </View>
     );
 }

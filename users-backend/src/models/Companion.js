@@ -75,6 +75,15 @@ const CompanionSchema = new mongoose.Schema(
     accountLockedUntil: {
       type: Date,
     },
+    acceptedTermsVersion: {
+      type: String,
+    },
+    acceptedPrivacyVersion: {
+      type: String,
+    },
+    acceptedAt: {
+      type: Date,
+    },
   },
   {
     timestamps: true,

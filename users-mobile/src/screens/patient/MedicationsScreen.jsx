@@ -11,7 +11,7 @@ import PremiumFormModal from '../../components/ui/PremiumFormModal';
 import {
     Pill, Sunrise, Sun, Sunset, Moon, CheckCircle2, Bell, Plus,
     AlertCircle, Calendar, Pencil, Clock, X, MessageCircle,
-    ChevronDown, ChevronUp, Info, Upload, Shield, TrendingUp, Zap,
+    ChevronDown, ChevronUp, Info, Upload, Shield, TrendingUp, Zap, Trash2,
 } from 'lucide-react-native';
 import { Swipeable } from 'react-native-gesture-handler';
 import Svg, { Circle as SvgCircle, Defs, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg';
@@ -496,6 +496,11 @@ export default function MedicationsScreen({ navigation }) {
     const [weeklySummary, setWeeklySummary] = useState(null);
     const [refillModal, setRefillModal] = useState({ visible: false, med: null, count: '' });
 
+    const [tempMeds, setTempMeds] = useState([]);
+    const [showAddTempMedModal, setShowAddTempMedModal] = useState(false);
+    const [tempMedForm, setTempMedForm] = useState({ name: '', dosage: '', frequency: 'As needed', reason: '', shift: 'morning' });
+    const [addingTempMed, setAddingTempMed] = useState(false);
+
     const staggerAnims = useRef([...Array(10)].map(() => new Animated.Value(0))).current;
     const hasAnimated = useRef(false);
     const toastAnim = useRef(new Animated.Value(0)).current;
@@ -521,6 +526,13 @@ export default function MedicationsScreen({ navigation }) {
         try {
             await storeFetchMedications();
             
+            try {
+                const tempRes = await apiService.medicines.getTempMeds();
+                setTempMeds(tempRes.data?.tempMedications || []);
+            } catch (tempErr) {
+                console.warn('Failed to fetch temporary medications:', tempErr.message);
+            }
+
             try {
                 const { data } = await apiService.medicines.getWeeklySummary();
                 if (data?.summary) {
@@ -588,6 +600,50 @@ export default function MedicationsScreen({ navigation }) {
         } catch (err) {
             console.warn('[Toggle] Failed:', err.message);
             showToast(t('common.sync_failed', { defaultValue: 'Sync Failed' }), t('common.check_connection', { defaultValue: 'Check your connection and try again.' }));
+        }
+    };
+
+    const handleDeleteTempMed = async (med) => {
+        AlertManager.alert(
+            'Remove Medicine',
+            `Are you sure you want to remove "${med.name}" from your temporary medications?`,
+            [
+                { text: 'Cancel', style: 'cancel' },
+                { 
+                    text: 'Remove', 
+                    style: 'destructive', 
+                    onPress: async () => {
+                        try {
+                            await apiService.medicines.deleteTempMed(med._id);
+                            showToast(t('common.success', { defaultValue: 'Success' }), 'Temporary medicine removed.');
+                            load(true);
+                        } catch (err) {
+                            console.warn('Delete temp-med failed:', err.message);
+                            showToast(t('common.error', { defaultValue: 'Error' }), 'Failed to remove medicine.');
+                        }
+                    }
+                }
+            ]
+        );
+    };
+
+    const submitAddTempMed = async () => {
+        if (!tempMedForm.name || !tempMedForm.name.trim()) {
+            AlertManager.alert('Validation Error', 'Medicine name is required.');
+            return;
+        }
+
+        setAddingTempMed(true);
+        try {
+            await apiService.medicines.addTempMed(tempMedForm);
+            showToast(t('common.success', { defaultValue: 'Success' }), 'Temporary medicine added.');
+            setShowAddTempMedModal(false);
+            load(true);
+        } catch (err) {
+            console.warn('Add temp-med failed:', err.message);
+            showToast(t('common.error', { defaultValue: 'Error' }), err.response?.data?.error || 'Failed to add medicine.');
+        } finally {
+            setAddingTempMed(false);
         }
     };
 
@@ -979,7 +1035,99 @@ export default function MedicationsScreen({ navigation }) {
                                         ))}
                                     </View>
                                 );
-                            })}
+                        </Animated.View>
+
+                        {/* ── TEMPORARY MEDICATIONS ── */}
+                        <Animated.View style={anim(3)}>
+                            <View style={{ backgroundColor: '#FFFFFF', borderRadius: 24, padding: 18, marginBottom: 16, borderWidth: 1, borderColor: '#E2E8F0', shadowColor: '#1E293B', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 12, elevation: 3 }}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                        <View style={{ width: 28, height: 28, borderRadius: 8, backgroundColor: '#FAF5FF', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#E9D5FF' }}>
+                                            <Pill size={14} color="#A855F7" strokeWidth={2.5} />
+                                        </View>
+                                        <Text style={{ fontSize: 14, fontWeight: '800', color: '#0F172A', letterSpacing: 0.3 }}>
+                                            Temporary Medications
+                                        </Text>
+                                        {tempMeds.length > 0 && (
+                                            <View style={{ backgroundColor: '#FAF5FF', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 8, borderWidth: 1, borderColor: '#E9D5FF' }}>
+                                                <Text style={{ fontSize: 11, fontWeight: '700', color: '#A855F7' }}>{tempMeds.length}</Text>
+                                            </View>
+                                        )}
+                                    </View>
+                                    <Pressable 
+                                        onPress={() => {
+                                            setTempMedForm({ name: '', dosage: '', frequency: 'As needed', reason: '', shift: 'morning' });
+                                            setShowAddTempMedModal(true);
+                                        }} 
+                                        style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 6, paddingHorizontal: 12, backgroundColor: '#FAF5FF', borderRadius: 10, borderWidth: 1, borderColor: '#E9D5FF' }}
+                                    >
+                                        <Plus size={14} color="#A855F7" strokeWidth={2.5} />
+                                        <Text style={{ fontSize: 12, fontWeight: '700', color: '#A855F7' }}>Add</Text>
+                                    </Pressable>
+                                </View>
+
+                                {tempMeds.length === 0 ? (
+                                    <View style={{ alignItems: 'center', paddingVertical: 20 }}>
+                                        <Text style={{ fontSize: 13, color: '#64748B', textAlign: 'center' }}>
+                                            No temporary medications. Add any short-term or OTC medicines you are currently taking.
+                                        </Text>
+                                    </View>
+                                ) : (
+                                    tempMeds.map((tm, idx) => {
+                                        const riskColors = { safe: '#10B981', caution: '#F59E0B', restricted: '#EF4444' };
+                                        const riskColor = riskColors[tm.riskTier] || '#64748B';
+                                        return (
+                                            <View key={tm._id || idx} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, borderTopWidth: idx > 0 ? 1 : 0, borderColor: '#F1F5F9', borderLeftWidth: 3, borderLeftColor: riskColor, paddingLeft: 10, marginBottom: idx < tempMeds.length - 1 ? 6 : 0 }}>
+                                                <View style={{ flex: 1, gap: 2 }}>
+                                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                                                        <Text style={{ fontSize: 14, fontWeight: '700', color: '#0F172A' }}>{tm.name}</Text>
+                                                        {tm.shift && (
+                                                            <View style={{ backgroundColor: '#F1F5F9', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
+                                                                <Text style={{ fontSize: 10, fontWeight: '700', color: '#475569', textTransform: 'capitalize' }}>{tm.shift}</Text>
+                                                            </View>
+                                                        )}
+                                                        <View style={{ backgroundColor: tm.riskTier === 'safe' ? '#ECFDF5' : tm.riskTier === 'restricted' ? '#FEF2F2' : '#FFFBEB', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, borderWidth: 1, borderColor: tm.riskTier === 'safe' ? '#A7F3D0' : tm.riskTier === 'restricted' ? '#FECACA' : '#FDE68A' }}>
+                                                            <Text style={{ fontSize: 9, fontWeight: '800', color: riskColor, textTransform: 'uppercase' }}>
+                                                                {tm.riskTier === 'safe' ? 'Safe' : tm.riskTier === 'restricted' ? 'Restricted' : 'Caution'}
+                                                            </Text>
+                                                        </View>
+                                                    </View>
+                                                    {(tm.dosage || tm.frequency) ? (
+                                                        <Text style={{ fontSize: 12, color: '#64748B', fontWeight: '500' }}>
+                                                            {[tm.dosage, tm.frequency].filter(Boolean).join(' · ')}
+                                                        </Text>
+                                                    ) : null}
+                                                    {tm.reason ? (
+                                                        <Text style={{ fontSize: 12, color: '#64748B' }}>
+                                                            Reason: {tm.reason}
+                                                        </Text>
+                                                    ) : null}
+                                                    {tm.aiSummary ? (
+                                                        <Text style={{ fontSize: 11, fontStyle: 'italic', color: '#6B7280', marginTop: 2 }}>
+                                                            {tm.aiSummary}
+                                                        </Text>
+                                                    ) : null}
+                                                    {tm.riskTier === 'restricted' && (
+                                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4, backgroundColor: '#FEF2F2', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 }}>
+                                                            <AlertCircle size={10} color="#DC2626" />
+                                                            <Text style={{ fontSize: 10, fontWeight: '700', color: '#DC2626' }}>Do NOT take without doctor approval</Text>
+                                                        </View>
+                                                    )}
+                                                    <Text style={{ fontSize: 9, color: '#94A3B8', marginTop: 2 }}>
+                                                        Added by {tm.addedByName || tm.addedByRole}
+                                                    </Text>
+                                                </View>
+                                                <Pressable 
+                                                    onPress={() => handleDeleteTempMed(tm)}
+                                                    style={{ padding: 6 }}
+                                                >
+                                                    <Trash2 size={16} color="#94A3B8" />
+                                                </Pressable>
+                                            </View>
+                                        );
+                                    })
+                                )}
+                            </View>
                         </Animated.View>
 
                         {/* ── MEDICATION SUPPLY ── */}
@@ -1234,6 +1382,102 @@ export default function MedicationsScreen({ navigation }) {
                     </View>
                 </Animated.View>
             )}
+
+            {/* ── ADD TEMPORARY MEDICATION MODAL ── */}
+            <Modal visible={showAddTempMedModal} transparent animationType="slide">
+                <View style={styles.confirmOverlay}>
+                    <Pressable style={{ flex: 1 }} onPress={() => setShowAddTempMedModal(false)} />
+                    <View style={styles.confirmSheet}>
+                        <View style={styles.sheetHandle} />
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                            <Text style={{ fontSize: 20, fontWeight: '900', color: '#0F172A' }}>Add Temporary Medication</Text>
+                            <Pressable onPress={() => setShowAddTempMedModal(false)}>
+                                <X color="#64748B" size={20} />
+                            </Pressable>
+                        </View>
+
+                        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 14, paddingBottom: Platform.OS === 'ios' ? 40 : 20 }}>
+                            <View style={{ gap: 6 }}>
+                                <Text style={{ fontSize: 13, fontWeight: '700', color: '#475569' }}>Medicine Name *</Text>
+                                <TextInput
+                                    style={{ backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12, padding: 12, fontSize: 15, color: '#0F172A' }}
+                                    placeholder="e.g. Paracetamol, Dolo 650"
+                                    placeholderTextColor="#94A3B8"
+                                    value={tempMedForm.name}
+                                    onChangeText={text => setTempMedForm(prev => ({ ...prev, name: text }))}
+                                />
+                            </View>
+
+                            <View style={{ flexDirection: 'row', gap: 12 }}>
+                                <View style={{ flex: 1, gap: 6 }}>
+                                    <Text style={{ fontSize: 13, fontWeight: '700', color: '#475569' }}>Dosage</Text>
+                                    <TextInput
+                                        style={{ backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12, padding: 12, fontSize: 15, color: '#0F172A' }}
+                                        placeholder="e.g. 650 mg, 1 tablet"
+                                        placeholderTextColor="#94A3B8"
+                                        value={tempMedForm.dosage}
+                                        onChangeText={text => setTempMedForm(prev => ({ ...prev, dosage: text }))}
+                                    />
+                                </View>
+                                <View style={{ flex: 1, gap: 6 }}>
+                                    <Text style={{ fontSize: 13, fontWeight: '700', color: '#475569' }}>Frequency</Text>
+                                    <TextInput
+                                        style={{ backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12, padding: 12, fontSize: 15, color: '#0F172A' }}
+                                        placeholder="e.g. As needed, Twice daily"
+                                        placeholderTextColor="#94A3B8"
+                                        value={tempMedForm.frequency}
+                                        onChangeText={text => setTempMedForm(prev => ({ ...prev, frequency: text }))}
+                                    />
+                                </View>
+                            </View>
+
+                            <View style={{ gap: 6 }}>
+                                <Text style={{ fontSize: 13, fontWeight: '700', color: '#475569' }}>Preferred Shift *</Text>
+                                <View style={{ flexDirection: 'row', backgroundColor: '#F1F5F9', borderRadius: 12, padding: 4, gap: 4 }}>
+                                    {['morning', 'afternoon', 'night'].map(shift => {
+                                        const active = tempMedForm.shift === shift;
+                                        return (
+                                            <Pressable 
+                                                key={shift}
+                                                onPress={() => setTempMedForm(prev => ({ ...prev, shift }))}
+                                                style={{ flex: 1, paddingVertical: 10, borderRadius: 10, alignItems: 'center', backgroundColor: active ? '#FFFFFF' : 'transparent', shadowColor: active ? '#000' : 'transparent', shadowOffset: { width: 0, height: 1 }, shadowOpacity: active ? 0.1 : 0, shadowRadius: 2, elevation: active ? 1 : 0 }}
+                                            >
+                                                <Text style={{ fontSize: 13, fontWeight: '700', color: active ? '#0F172A' : '#64748B', textTransform: 'capitalize' }}>{shift}</Text>
+                                            </Pressable>
+                                        );
+                                    })}
+                                </View>
+                            </View>
+
+                            <View style={{ gap: 6 }}>
+                                <Text style={{ fontSize: 13, fontWeight: '700', color: '#475569' }}>Reason</Text>
+                                <TextInput
+                                    style={{ backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12, padding: 12, fontSize: 15, color: '#0F172A' }}
+                                    placeholder="e.g. Headache, Fever"
+                                    placeholderTextColor="#94A3B8"
+                                    value={tempMedForm.reason}
+                                    onChangeText={text => setTempMedForm(prev => ({ ...prev, reason: text }))}
+                                />
+                            </View>
+
+                            <Pressable 
+                                onPress={submitAddTempMed}
+                                disabled={addingTempMed}
+                                style={{ backgroundColor: '#7C3AED', paddingVertical: 15, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginTop: 10, flexDirection: 'row', gap: 8 }}
+                            >
+                                {addingTempMed ? (
+                                    <ActivityIndicator size="small" color="#FFFFFF" />
+                                ) : (
+                                    <>
+                                        <Plus size={18} color="#FFFFFF" strokeWidth={2.5} />
+                                        <Text style={{ color: '#FFF', fontSize: 16, fontWeight: '700' }}>Add Medicine</Text>
+                                    </>
+                                )}
+                            </Pressable>
+                        </ScrollView>
+                    </View>
+                </View>
+            </Modal>
         </View>
     );
 }
