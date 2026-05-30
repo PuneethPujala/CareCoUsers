@@ -423,7 +423,7 @@ const usePatientStore = create((set, get) => ({
             const schedule = { ...s.medicationSchedule };
             
             const mapMed = (m) => {
-                if (m.name === med.name && m.type === med.type) {
+                if (m.name === med.name) {
                     let newRefillInfo = m.refillInfo ? { ...m.refillInfo } : null;
                     if (newRefillInfo) {
                         const diff = targetState ? -1 : 1;
@@ -433,7 +433,10 @@ const usePatientStore = create((set, get) => ({
                             newRefillInfo.totalDoses = Math.max(0, newRefillInfo.totalDoses + diff);
                         }
                     }
-                    return { ...m, taken: targetState, marked_by: targetState ? 'patient' : null, refillInfo: newRefillInfo };
+                    if (m.type === med.type) {
+                        return { ...m, taken: targetState, marked_by: targetState ? 'patient' : null, refillInfo: newRefillInfo };
+                    }
+                    return { ...m, refillInfo: newRefillInfo };
                 }
                 return m;
             };
@@ -532,6 +535,7 @@ const usePatientStore = create((set, get) => ({
         const state = get();
         const medsToMark = state.medicationSchedule[slot]?.filter(m => !m.taken) || [];
         if (medsToMark.length === 0) return;
+        const namesToDecrement = medsToMark.map(m => m.name);
 
         // Snapshot pre-optimistic state for revert
         const prevDashboardMeds = state.dashboardMeds;
@@ -539,26 +543,26 @@ const usePatientStore = create((set, get) => ({
 
         set(s => {
             const mapMed = (m) => {
-                if (m.type === slot && !m.taken) {
-                    let newRefillInfo = m.refillInfo ? { ...m.refillInfo } : null;
-                    if (newRefillInfo) {
-                        if (typeof newRefillInfo.remainingDoses === 'number') {
-                            newRefillInfo.remainingDoses = Math.max(0, newRefillInfo.remainingDoses - 1);
-                        } else if (typeof newRefillInfo.totalDoses === 'number') {
-                            newRefillInfo.totalDoses = Math.max(0, newRefillInfo.totalDoses - 1);
-                        }
+                let newRefillInfo = m.refillInfo ? { ...m.refillInfo } : null;
+                if (namesToDecrement.includes(m.name) && newRefillInfo) {
+                    if (typeof newRefillInfo.remainingDoses === 'number') {
+                        newRefillInfo.remainingDoses = Math.max(0, newRefillInfo.remainingDoses - 1);
+                    } else if (typeof newRefillInfo.totalDoses === 'number') {
+                        newRefillInfo.totalDoses = Math.max(0, newRefillInfo.totalDoses - 1);
                     }
+                }
+                if (m.type === slot && !m.taken) {
                     return { ...m, taken: true, marked_by: 'patient', refillInfo: newRefillInfo };
                 }
-                return m;
+                return newRefillInfo ? { ...m, refillInfo: newRefillInfo } : m;
             };
 
             const dashboardMeds = s.dashboardMeds.map(mapMed);
             
             const schedule = { ...s.medicationSchedule };
-            if (schedule[slot]) {
-                schedule[slot] = schedule[slot].map(mapMed);
-            }
+            Object.keys(schedule).forEach(k => {
+                schedule[k] = schedule[k].map(mapMed);
+            });
 
             const allMeds = Object.values(schedule).flat();
             const totalCount = allMeds.length;
