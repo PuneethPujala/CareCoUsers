@@ -25,6 +25,7 @@ import { useTranslation } from 'react-i18next';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { HapticPatterns } from '../../utils/haptics';
 import PremiumFormModal from '../../components/ui/PremiumFormModal';
+import Svg, { Path, Defs, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg';
 
 const { width: SW } = Dimensions.get('window');
 
@@ -122,12 +123,44 @@ const MedicationCard = ({ med, onPress }) => {
     );
 };
 
+// ── Pulse wave illustration for AI onboarding preview ───────────────────────
+const PulseIllustration = () => {
+    return (
+        <View style={{ height: 100, width: '100%', justifyContent: 'center', alignItems: 'center', marginVertical: 8, overflow: 'hidden' }}>
+            <Svg height="100" width="320" viewBox="0 0 320 100">
+                <Defs>
+                    <SvgLinearGradient id="pulseGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <Stop offset="0%" stopColor="#A855F7" stopOpacity="0.1" />
+                        <Stop offset="15%" stopColor="#818CF8" stopOpacity="0.4" />
+                        <Stop offset="50%" stopColor="#6366F1" stopOpacity="1" />
+                        <Stop offset="85%" stopColor="#818CF8" stopOpacity="0.4" />
+                        <Stop offset="100%" stopColor="#A855F7" stopOpacity="0.1" />
+                    </SvgLinearGradient>
+                </Defs>
+                <Path d="M 0 50 L 320 50" stroke="#F1F5F9" strokeWidth="1.5" strokeDasharray="6,6" />
+                <Path d="M 0 25 L 320 25" stroke="#F1F5F9" strokeWidth="0.75" strokeDasharray="4,4" />
+                <Path d="M 0 75 L 320 75" stroke="#F1F5F9" strokeWidth="0.75" strokeDasharray="4,4" />
+                
+                <Path
+                    d="M 10 50 Q 50 50 80 50 T 110 50 T 130 50 L 140 50 L 144 32 L 149 68 L 154 10 L 160 90 L 165 50 L 170 42 L 175 55 L 180 50 H 200 T 230 50 T 260 50 Q 290 50 310 50"
+                    fill="none"
+                    stroke="url(#pulseGrad)"
+                    strokeWidth="3.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                />
+            </Svg>
+        </View>
+    );
+};
+
 // ══════════════════════════════════════════════════════════════════════════════
 // ══ MAIN SCREEN ══════════════════════════════════════════════════════════════
 // ══════════════════════════════════════════════════════════════════════════════
 export default function PatientHomeScreen({ navigation }) {
     const { t } = useTranslation();
     const { displayName, profile } = useAuth();
+    const scrollViewRef = useRef(null);
 
     const patient = usePatientStore((s) => s.patient);
     const vitals = usePatientStore((s) => s.vitals);
@@ -433,6 +466,66 @@ export default function PatientHomeScreen({ navigation }) {
         },
     ];
 
+    const loggedDaysCount = (() => {
+        if (!vitalsHistory || vitalsHistory.length === 0) return 0;
+        const uniqueDates = new Set();
+        vitalsHistory.forEach(v => {
+            if (v.date) {
+                try {
+                    const dateStr = new Date(v.date).toISOString().split('T')[0];
+                    uniqueDates.add(dateStr);
+                } catch {
+                    const dateStr = new Date(v.date).toDateString();
+                    uniqueDates.add(dateStr);
+                }
+            }
+        });
+        return Math.min(3, uniqueDates.size);
+    })();
+
+    const renderVitalsForm = (isInline) => {
+        return (
+            <View style={{ marginTop: isInline ? 0 : 20 }}>
+                {formError && (
+                    <View style={styles.errorBanner}>
+                        <AlertTriangle size={15} color="#DC2626" />
+                        <Text style={styles.errorText}>{formError}</Text>
+                    </View>
+                )}
+                <View style={styles.formRow}>
+                    <View style={{ flex: 1 }}>
+                        <SmartInput label={t('home.heart_rate_label', { defaultValue: 'Heart Rate (bpm)' })} keyboardType="numeric" placeholder="72"
+                            value={formValues.heart_rate} onChangeText={(text) => setFormValues(p => ({ ...p, heart_rate: text }))} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                        <SmartInput label={t('home.o2_label', { defaultValue: 'O₂ Saturation (%)' })} keyboardType="numeric" placeholder="98"
+                            value={formValues.oxygen_saturation} onChangeText={(text) => setFormValues(p => ({ ...p, oxygen_saturation: text }))} />
+                    </View>
+                </View>
+                <Text style={styles.formLabel}>{t('home.bp_label', { defaultValue: 'Blood Pressure (mmHg)' })}</Text>
+                <View style={styles.formRow}>
+                    <View style={{ flex: 1 }}>
+                        <SmartInput keyboardType="numeric" placeholder={t('home.systolic', { defaultValue: 'Systolic (120)' })}
+                            value={formValues.systolic} onChangeText={(text) => setFormValues(p => ({ ...p, systolic: text }))} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                        <SmartInput keyboardType="numeric" placeholder={t('home.diastolic', { defaultValue: 'Diastolic (80)' })}
+                            value={formValues.diastolic} onChangeText={(text) => setFormValues(p => ({ ...p, diastolic: text }))} />
+                    </View>
+                </View>
+                <SmartInput label={t('home.hydration_label', { defaultValue: 'Hydration (%)' })} keyboardType="numeric" placeholder="65"
+                    value={formValues.hydration} onChangeText={(text) => setFormValues(p => ({ ...p, hydration: text }))} />
+                <Pressable style={styles.submitBtn} onPress={handleLogVitals} disabled={submitLoading}>
+                    <LinearGradient colors={['#818CF8', '#4F46E5']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} />
+                    {submitLoading
+                        ? <ActivityIndicator color="#FFF" />
+                        : <Text style={styles.submitBtnText}>{t('home.save_record', { defaultValue: 'Save Record' })}</Text>
+                    }
+                </Pressable>
+            </View>
+        );
+    };
+
     // ── Loading skeleton ───────────────────────────────────────────────────
     if (loading) {
         return (
@@ -486,6 +579,7 @@ export default function PatientHomeScreen({ navigation }) {
 
                 {/* ── ALL SCROLLABLE CONTENT ── */}
                 <ScrollView
+                    ref={scrollViewRef}
                     showsVerticalScrollIndicator={false}
                     contentContainerStyle={styles.scrollContent}
                     keyboardShouldPersistTaps="handled"
@@ -722,7 +816,7 @@ export default function PatientHomeScreen({ navigation }) {
                                     <ChevronRight size={18} color={syncStatus.connected ? colors.success : '#CBD5E1'} />
                                 </Pressable>
 
-                                {/* Vitals cards row */}
+                                {/* Vitals cards row or today's check-in */}
                                 {hasVitalsToday ? (
                                     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingRight: 4, marginBottom: 16 }}>
                                         <VitalsCard label={t('home.heart_rate', { defaultValue: 'Heart Rate' })} value={vitals?.heart_rate || '—'} unit="bpm" icon={Heart} color="#EF4444" status={vitals?.heart_rate ? 'Recorded' : 'Not Logged'} />
@@ -731,15 +825,16 @@ export default function PatientHomeScreen({ navigation }) {
                                         <VitalsCard label={t('home.hydration', { defaultValue: 'Hydration' })} value={vitals?.hydration != null ? vitals.hydration : '—'} unit="%" icon={Droplets} color="#06B6D4" status={vitals?.hydration != null ? 'Recorded' : 'Not Logged'} />
                                     </ScrollView>
                                 ) : (
-                                    <View style={[styles.emptyCard, { marginBottom: 16 }]}>
-                                        <View style={styles.emptyIconBox}><Activity size={28} color="#CBD5E1" strokeWidth={1.5} /></View>
-                                        <Text style={styles.emptyTitle}>{t('common.no_vitals_recorded', { defaultValue: 'No vitals recorded' })}</Text>
-                                        <Text style={styles.emptySub}>{t('common.vitals_empty_desc', { defaultValue: "We're ready to track your vitals whenever you are. Start with whatever feels easiest." })}</Text>
+                                    <View style={[styles.card, { marginBottom: 16 }]}>
+                                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                                            <Text style={styles.cardTitle}>{t('common.today_s_check_in', { defaultValue: "Today's Check-In" })}</Text>
+                                        </View>
+                                        {renderVitalsForm(true)}
                                     </View>
                                 )}
 
-                                {/* AI Outlook */}
-                                {(aiPrediction || vitalsHistory.length > 0) ? (
+                                {/* AI Health Outlook or Forecast Training Progress */}
+                                {loggedDaysCount >= 3 ? (
                                     <View style={styles.card}>
                                         <View style={styles.cardHeaderRow}>
                                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
@@ -767,17 +862,16 @@ export default function PatientHomeScreen({ navigation }) {
                                             )}
                                         </View>
                                         <Text style={styles.aiDesc}>{t('home.ai_desc', { defaultValue: 'Our AI analyzes your vitals history to forecast trends and flag potential concerns.' })}</Text>
-                                        {vitalsHistory.length > 0 && (
-                                            <View style={{ marginTop: 10 }}>
-                                                {daysPremiumRemaining <= 0 && (
-                                                    <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(255,255,255,0.75)', zIndex: 10, alignItems: 'center', justifyContent: 'center', borderRadius: 16, marginTop: -10 }]}>
-                                                        <Pressable onPress={() => openPremium()} style={{ backgroundColor: '#FFF', paddingHorizontal: 16, paddingVertical: 12, borderRadius: 24, shadowColor: '#A855F7', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 12, elevation: 6, flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderColor: '#F3E8FF' }}>
-                                                            <Sparkles size={16} color="#A855F7" />
-                                                            <Text style={{ fontSize: 13, fontWeight: '800', color: '#6B21A8' }}>Renew to continue personalized AI analysis</Text>
-                                                        </Pressable>
-                                                    </View>
-                                                )}
-                                                <AIPredictionChart
+                                        <View style={{ marginTop: 10 }}>
+                                            {daysPremiumRemaining <= 0 && (
+                                                <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(255,255,255,0.75)', zIndex: 10, alignItems: 'center', justifyContent: 'center', borderRadius: 16, marginTop: -10 }]}>
+                                                    <Pressable onPress={() => openPremium()} style={{ backgroundColor: '#FFF', paddingHorizontal: 16, paddingVertical: 12, borderRadius: 24, shadowColor: '#A855F7', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 12, elevation: 6, flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderColor: '#F3E8FF' }}>
+                                                        <Sparkles size={16} color="#A855F7" />
+                                                        <Text style={{ fontSize: 13, fontWeight: '800', color: '#6B21A8' }}>Renew to continue personalized AI analysis</Text>
+                                                    </Pressable>
+                                                </View>
+                                            )}
+                                            <AIPredictionChart
                                                 metricName="Heart Rate"
                                                 unit="bpm"
                                                 vitalsHistory={vitalsHistory.map(v => ({
@@ -788,84 +882,115 @@ export default function PatientHomeScreen({ navigation }) {
                                                     label: new Date(p.date).toLocaleDateString([], { month: 'short', day: 'numeric' }),
                                                     value: p.heart_rate,
                                                 })) : null}
-                                                />
-                                            </View>
-                                        )}
+                                            />
+                                        </View>
                                     </View>
                                 ) : (
                                     <View style={styles.card}>
                                         <View style={styles.cardHeaderRow}>
                                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                                                <LinearGradient colors={['#EEF2FF', '#C7D2FE']} style={styles.aiIconBox}>
-                                                    <Sparkles size={16} color="#6366F1" />
+                                                <LinearGradient colors={['#F5F3FF', '#EDE9FE']} style={[styles.aiIconBox, { backgroundColor: '#F5F3FF' }]}>
+                                                    <Sparkles size={16} color="#8B5CF6" />
                                                 </LinearGradient>
                                                 <Text style={styles.cardTitle}>{t('common.ai_health_outlook', { defaultValue: 'AI Health Outlook' })}</Text>
                                             </View>
-                                        </View>
-                                        <View style={[styles.emptyCard, { marginTop: 16, backgroundColor: '#FAF5FF', borderColor: '#F3E8FF' }]}>
-                                            <View style={[styles.emptyIconBox, { backgroundColor: '#E9D5FF' }]}>
-                                                <Sparkles size={28} color="#A855F7" strokeWidth={1.5} />
+                                            <View style={[styles.aiBadge, { backgroundColor: '#F3E8FF', borderColor: '#E9D5FF', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 }]}>
+                                                <Text style={[styles.aiBadgeText, { color: '#7C3AED', fontSize: 11, fontWeight: '700' }]}>
+                                                    {t('home.forecast_preview', { defaultValue: 'Forecast Preview' })}
+                                                </Text>
                                             </View>
-                                            <Text style={[styles.emptyTitle, { color: '#6B21A8' }]}>No data available</Text>
-                                            <Text style={[styles.emptySub, { color: '#9333EA' }]}>Your personalized insights will grow here as you log your routine. We're already paying attention.</Text>
+                                        </View>
+
+                                        {/* Custom ECG Pulse illustration */}
+                                        <PulseIllustration />
+
+                                        <View style={{ marginTop: 8, paddingHorizontal: 4 }}>
+                                            <Text style={{ fontSize: 15, fontWeight: '700', color: '#1E293B', marginBottom: 12 }}>
+                                                {t('home.forecast_training_progress', { defaultValue: 'Forecast Training Progress' })}
+                                            </Text>
+                                            
+                                            {/* Progress Circles */}
+                                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+                                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                                    <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: loggedDaysCount >= 1 ? '#8B5CF6' : '#F1F5F9', alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: loggedDaysCount >= 1 ? '#8B5CF6' : '#CBD5E1' }}>
+                                                        {loggedDaysCount >= 1 ? <CheckCircle2 size={12} color="#FFF" strokeWidth={3} /> : <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#94A3B8' }} />}
+                                                    </View>
+                                                    <Text style={{ fontSize: 13, fontWeight: '600', color: loggedDaysCount >= 1 ? '#1E293B' : '#64748B' }}>Day 1</Text>
+                                                </View>
+                                                
+                                                <View style={{ width: 16, height: 1, backgroundColor: '#E2E8F0' }} />
+
+                                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                                    <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: loggedDaysCount >= 2 ? '#8B5CF6' : '#F1F5F9', alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: loggedDaysCount >= 2 ? '#8B5CF6' : '#CBD5E1' }}>
+                                                        {loggedDaysCount >= 2 ? <CheckCircle2 size={12} color="#FFF" strokeWidth={3} /> : <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#94A3B8' }} />}
+                                                    </View>
+                                                    <Text style={{ fontSize: 13, fontWeight: '600', color: loggedDaysCount >= 2 ? '#1E293B' : '#64748B' }}>Day 2</Text>
+                                                </View>
+                                                
+                                                <View style={{ width: 16, height: 1, backgroundColor: '#E2E8F0' }} />
+
+                                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                                    <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: loggedDaysCount >= 3 ? '#8B5CF6' : '#F1F5F9', alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: loggedDaysCount >= 3 ? '#8B5CF6' : '#CBD5E1' }}>
+                                                        {loggedDaysCount >= 3 ? <CheckCircle2 size={12} color="#FFF" strokeWidth={3} /> : <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#94A3B8' }} />}
+                                                    </View>
+                                                    <Text style={{ fontSize: 13, fontWeight: '600', color: loggedDaysCount >= 3 ? '#1E293B' : '#64748B' }}>Day 3</Text>
+                                                </View>
+                                            </View>
+
+                                            <Text style={{ fontSize: 13, color: '#475569', lineHeight: 20, marginBottom: 14 }}>
+                                                {loggedDaysCount === 0 && t('home.days_required_3', { defaultValue: '3 more days of health data required to generate a personalized forecast.' })}
+                                                {loggedDaysCount === 1 && t('home.days_required_2', { defaultValue: '2 more days of health data required to generate a personalized forecast.' })}
+                                                {loggedDaysCount === 2 && t('home.days_required_1', { defaultValue: '1 more day of health data required to generate a personalized forecast.' })}
+                                            </Text>
+
+                                            <View style={{ backgroundColor: '#F8FAFC', borderRadius: 14, padding: 12, borderWidth: 1, borderColor: '#F1F5F9', marginBottom: 16 }}>
+                                                <Text style={{ fontSize: 12, color: '#64748B', lineHeight: 18 }}>
+                                                    💡 <Text style={{ fontWeight: '600' }}>Smartwatch path:</Text> Log vitals manually for 3 days or connect your smartwatch to activate forecasting sooner.
+                                                </Text>
+                                            </View>
+
+                                            {!hasVitalsToday && (
+                                                <Pressable
+                                                    style={{
+                                                        backgroundColor: '#6366F1',
+                                                        borderRadius: 20,
+                                                        paddingVertical: 10,
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                        flexDirection: 'row',
+                                                        gap: 6
+                                                    }}
+                                                    onPress={() => {
+                                                        scrollViewRef.current?.scrollToEnd({ animated: true });
+                                                    }}
+                                                >
+                                                    <Activity size={14} color="#FFF" />
+                                                    <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '700' }}>
+                                                        {t('home.log_today_s_vitals', { defaultValue: "Log Today's Vitals" })}
+                                                    </Text>
+                                                </Pressable>
+                                            )}
                                         </View>
                                     </View>
                                 )}
 
-                                {/* Log vitals */}
-                                <View style={[styles.card, { marginTop: 14 }]}>
-                                    <Pressable
-                                        style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}
-                                        onPress={() => { setIsLogging(!isLogging); setFormError(null); }}
-                                    >
-                                        <Text style={styles.cardTitle}>{t('common.log_today_s_vitals', { defaultValue: "Log Today's Vitals" })}</Text>
-                                        <View style={[styles.toggleBadge, isLogging && styles.toggleBadgeCancel]}>
-                                            <Text style={[styles.toggleBadgeText, isLogging && { color: '#EF4444' }]}>
-                                                {isLogging ? t('common.cancel', { defaultValue: 'Cancel' }) : t('home.add_entry', { defaultValue: '+ Add Entry' })}
-                                            </Text>
-                                        </View>
-                                    </Pressable>
-                                    {isLogging && (
-                                        <View style={{ marginTop: 20 }}>
-                                            {formError && (
-                                                <View style={styles.errorBanner}>
-                                                    <AlertTriangle size={15} color="#DC2626" />
-                                                    <Text style={styles.errorText}>{formError}</Text>
-                                                </View>
-                                            )}
-                                            <View style={styles.formRow}>
-                                                <View style={{ flex: 1 }}>
-                                                    <SmartInput label={t('home.heart_rate_label', { defaultValue: 'Heart Rate (bpm)' })} keyboardType="numeric" placeholder="72"
-                                                        value={formValues.heart_rate} onChangeText={(t) => setFormValues(p => ({ ...p, heart_rate: t }))} />
-                                                </View>
-                                                <View style={{ flex: 1 }}>
-                                                    <SmartInput label={t('home.o2_label', { defaultValue: 'O₂ Saturation (%)' })} keyboardType="numeric" placeholder="98"
-                                                        value={formValues.oxygen_saturation} onChangeText={(t) => setFormValues(p => ({ ...p, oxygen_saturation: t }))} />
-                                                </View>
+                                {/* Collapsible log vitals row (only shown if they already logged today) */}
+                                {hasVitalsToday && (
+                                    <View style={[styles.card, { marginTop: 14 }]}>
+                                        <Pressable
+                                            style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}
+                                            onPress={() => { setIsLogging(!isLogging); setFormError(null); }}
+                                        >
+                                            <Text style={styles.cardTitle}>{t('common.log_today_s_vitals', { defaultValue: "Log Today's Vitals" })}</Text>
+                                            <View style={[styles.toggleBadge, isLogging && styles.toggleBadgeCancel]}>
+                                                <Text style={[styles.toggleBadgeText, isLogging && { color: '#EF4444' }]}>
+                                                    {isLogging ? t('common.cancel', { defaultValue: 'Cancel' }) : t('home.add_entry', { defaultValue: '+ Add Entry' })}
+                                                </Text>
                                             </View>
-                                            <Text style={styles.formLabel}>{t('home.bp_label', { defaultValue: 'Blood Pressure (mmHg)' })}</Text>
-                                            <View style={styles.formRow}>
-                                                <View style={{ flex: 1 }}>
-                                                    <SmartInput keyboardType="numeric" placeholder={t('home.systolic', { defaultValue: 'Systolic (120)' })}
-                                                        value={formValues.systolic} onChangeText={(t) => setFormValues(p => ({ ...p, systolic: t }))} />
-                                                </View>
-                                                <View style={{ flex: 1 }}>
-                                                    <SmartInput keyboardType="numeric" placeholder={t('home.diastolic', { defaultValue: 'Diastolic (80)' })}
-                                                        value={formValues.diastolic} onChangeText={(t) => setFormValues(p => ({ ...p, diastolic: t }))} />
-                                                </View>
-                                            </View>
-                                            <SmartInput label={t('home.hydration_label', { defaultValue: 'Hydration (%)' })} keyboardType="numeric" placeholder="65"
-                                                value={formValues.hydration} onChangeText={(t) => setFormValues(p => ({ ...p, hydration: t }))} />
-                                            <Pressable style={styles.submitBtn} onPress={handleLogVitals} disabled={submitLoading}>
-                                                <LinearGradient colors={['#818CF8', '#4F46E5']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} />
-                                                {submitLoading
-                                                    ? <ActivityIndicator color="#FFF" />
-                                                    : <Text style={styles.submitBtnText}>{t('home.save_record', { defaultValue: 'Save Record' })}</Text>
-                                                }
-                                            </Pressable>
-                                        </View>
-                                    )}
-                                </View>
+                                        </Pressable>
+                                        {isLogging && renderVitalsForm(false)}
+                                    </View>
+                                )}
                             </View>
                         </Animated.View>
 
@@ -951,7 +1076,7 @@ const styles = StyleSheet.create({
     statChipIcon: { width: 28, height: 28, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginBottom: 2 },
     statChipValue: { fontSize: 16, fontWeight: '900', letterSpacing: -0.5 },
     statChipLabel: { fontSize: 9, color: '#94A3B8', fontWeight: '700', letterSpacing: 0.3, textTransform: 'uppercase', textAlign: 'center' },
-    scrollContent: { paddingHorizontal: 20, paddingTop: 4, paddingBottom: 120 },
+    scrollContent: { paddingHorizontal: 20, paddingTop: 4, paddingBottom: 140 },
 
     // ── Offline banner ──
     offlineBanner: {
