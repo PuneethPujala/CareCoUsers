@@ -65,6 +65,7 @@ export default function PatientSignupScreen({ navigation, route }) {
             fullName: '', email: '', phoneNumber: '', city: '',
             password: '', confirmPassword: '', age: '', gender: '',
             selectedPlanId: 'basic',
+            termsAccepted: false,
         },
         mode: 'onChange',
     });
@@ -535,7 +536,7 @@ export default function PatientSignupScreen({ navigation, route }) {
     // ── Step handlers ──────────────────────────────────────────────────────────
 
     const handleStep1Submit = useCallback(async () => {
-        const isValid = await methods.trigger(['fullName', 'email', 'password', 'confirmPassword']);
+        const isValid = await methods.trigger(['fullName', 'email', 'password', 'confirmPassword', 'termsAccepted']);
         if (!isValid) return;
         if (isSubmittingRef.current) return;
         if (!isEmailVerified) { handleVerifyPress('email'); return; }

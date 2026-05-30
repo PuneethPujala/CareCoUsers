@@ -10,7 +10,7 @@ import { z } from 'zod';
  * FIX: Removed .intersection() on the combined schema — Zod .refine() does not
  *      compose safely through z.intersection(). Combined schema uses z.object merge instead.
  */
-export const step1Schema = z.object({
+export const step1BaseSchema = z.object({
     fullName: z
         .string()
         .trim()
@@ -31,7 +31,12 @@ export const step1Schema = z.object({
     confirmPassword: z.string(),
     // Included so the shared resolver doesn't reject it as an unknown key
     selectedPlanId: z.string().optional(),
-}).refine((data) => data.password === data.confirmPassword, {
+    termsAccepted: z.boolean().refine((val) => val === true, {
+        message: 'You must accept the Terms & Conditions and Privacy Policy',
+    }),
+});
+
+export const step1Schema = step1BaseSchema.refine((data) => data.password === data.confirmPassword, {
     message: 'Passwords do not match',
     path: ['confirmPassword'],
 });
@@ -89,15 +94,16 @@ export const step5Schema = z.object({
  */
 export const signupSchema = z
     .object({
-        fullName: step1Schema.shape.fullName,
-        email: step1Schema.shape.email,
-        password: step1Schema.shape.password,
-        confirmPassword: step1Schema.shape.confirmPassword,
+        fullName: step1BaseSchema.shape.fullName,
+        email: step1BaseSchema.shape.email,
+        password: step1BaseSchema.shape.password,
+        confirmPassword: step1BaseSchema.shape.confirmPassword,
         phoneNumber: stepPhoneSchema.shape.phoneNumber,
         selectedPlanId: step3Schema.shape.selectedPlanId,
         city: step2Schema.shape.city,
         age: step5Schema.shape.age,
         gender: step5Schema.shape.gender,
+        termsAccepted: step1BaseSchema.shape.termsAccepted,
     })
     .refine((data) => data.password === data.confirmPassword, {
         message: 'Passwords do not match',

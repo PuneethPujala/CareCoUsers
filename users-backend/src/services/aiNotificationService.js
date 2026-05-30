@@ -57,6 +57,19 @@ async function triggerAiNotification(trigger, patient, category = 'health_tips',
             console.log(`[AI-Notification] Suppressed ${trigger} for ${patient.email} (Limit reached or disabled)`);
             return null;
         }
+
+        // Deduplication check: only one notification of this trigger type per patient per day
+        const tz = patient.timezone || 'UTC';
+        const startOfTodayLocal = moment().tz(tz).startOf('day');
+        const existing = await Notification.findOne({
+            patient_id: patient._id,
+            'ai_context.trigger': trigger,
+            created_at: { $gte: startOfTodayLocal.toDate() }
+        });
+        if (existing) {
+            console.log(`[AI-Notification] Suppressed duplicate trigger "${trigger}" for ${patient.email} (Already sent today)`);
+            return null;
+        }
     }
 
     const messageBody = generateMessage(trigger, patient, customVars);

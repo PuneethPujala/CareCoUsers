@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Pressable, KeyboardAvoidingView, ScrollView, Platform, ActivityIndicator } from 'react-native';
-import { ChevronLeft, Key, User, Mail, Lock, ShieldCheck } from 'lucide-react-native';
+import { ChevronLeft, Key, User, Mail, Lock, ShieldCheck, CheckCircle2 } from 'lucide-react-native';
 import SmartInput from '../../components/ui/SmartInput';
 import { apiService } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
+import * as WebBrowser from 'expo-web-browser';
 
 import { OTPBoxes } from './components';
 import { parseError } from '../../utils/parseError';
@@ -43,6 +44,7 @@ export default function CompanionSignupScreen({ navigation }) {
     const [fullName, setFullName] = useState('');
     const [phone, setPhone] = useState('');
     const [password, setPassword] = useState('');
+    const [termsAccepted, setTermsAccepted] = useState(false);
 
     // Step 2B (Existing User)
     const [otp, setOtp] = useState('');
@@ -79,6 +81,10 @@ export default function CompanionSignupScreen({ navigation }) {
     const handleJoinNew = async () => {
         if (!fullName || !password) {
             setError('Please provide your name and a strong password.');
+            return;
+        }
+        if (!termsAccepted) {
+            setError('You must accept the Terms & Conditions and Privacy Policy.');
             return;
         }
         
@@ -204,8 +210,84 @@ export default function CompanionSignupScreen({ navigation }) {
                             onChangeText={setPassword}
                             secureTextEntry
                             leftAccessory={<Lock size={18} color={C.muted} style={{ marginRight: 8 }} />}
-                            style={{ marginBottom: 24 }}
+                            style={{ marginBottom: 20 }}
                         />
+
+                        {/* Terms & Conditions Checkbox */}
+                        <Pressable
+                            style={{
+                                flexDirection: 'row',
+                                alignItems: 'flex-start',
+                                gap: 10,
+                                paddingVertical: 8,
+                                marginBottom: 16,
+                            }}
+                            onPress={() => {
+                                setTermsAccepted(!termsAccepted);
+                                setError('');
+                            }}
+                        >
+                            <View style={{ marginTop: 2 }}>
+                                {termsAccepted ? (
+                                    <View style={{
+                                        width: 18,
+                                        height: 18,
+                                        borderRadius: 5,
+                                        backgroundColor: C.primary,
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                    }}>
+                                        <CheckCircle2 size={13} color="#FFF" />
+                                    </View>
+                                ) : (
+                                    <View style={{
+                                        width: 18,
+                                        height: 18,
+                                        borderRadius: 5,
+                                        borderWidth: 1.5,
+                                        borderColor: error && !termsAccepted ? C.danger : C.muted,
+                                        backgroundColor: '#FAFBFF',
+                                    }} />
+                                )}
+                            </View>
+                            <Text style={{
+                                fontSize: 13,
+                                ...FONT.medium,
+                                color: C.mid,
+                                flex: 1,
+                                lineHeight: 18,
+                            }}>
+                                I have read and agree to the{' '}
+                                <Text
+                                    style={{
+                                        color: C.primary,
+                                        ...FONT.bold,
+                                        textDecorationLine: 'underline',
+                                    }}
+                                    onPress={(e) => {
+                                        e.stopPropagation();
+                                        WebBrowser.openBrowserAsync('https://caremymed.com/terms-conditions');
+                                    }}
+                                >
+                                    Terms & Conditions
+                                </Text>
+                                {' '}and{' '}
+                                <Text
+                                    style={{
+                                        color: C.primary,
+                                        ...FONT.bold,
+                                        textDecorationLine: 'underline',
+                                    }}
+                                    onPress={(e) => {
+                                        e.stopPropagation();
+                                        WebBrowser.openBrowserAsync('https://caremymed.com/privacy-policy');
+                                    }}
+                                >
+                                    Privacy Policy
+                                </Text>
+                                .
+                            </Text>
+                        </Pressable>
 
                         <Pressable style={[styles.btn, loading && { opacity: 0.7 }]} onPress={handleJoinNew} disabled={loading}>
                             {loading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.btnText}>Create Account</Text>}

@@ -4,6 +4,7 @@ import { User, Mail, Lock, Eye, EyeOff, CheckCircle2, AlertCircle } from 'lucide
 import { useFormContext, Controller } from 'react-hook-form';
 import { IconInput, PasswordStrength } from './SignupUI';
 import { styles, FONT, C } from './SignupStyles';
+import * as WebBrowser from 'expo-web-browser';
 
 const Step1Profile = ({
     googleLoading, handleGooglePress,
@@ -188,6 +189,97 @@ const Step1Profile = ({
                     We'll send a one-time code to verify your email before creating your account.
                 </Text>
             </View>
+
+            {/* Terms & Conditions and Privacy Policy Checkbox */}
+            <Controller
+                control={control}
+                name="termsAccepted"
+                render={({ field: { onChange, value } }) => (
+                    <View style={{ marginBottom: 8, marginTop: 12 }}>
+                        <Pressable
+                            style={{
+                                flexDirection: 'row',
+                                alignItems: 'flex-start',
+                                gap: 10,
+                                paddingVertical: 8,
+                            }}
+                            onPress={() => onChange(!value)}
+                        >
+                            <View style={{ marginTop: 2 }}>
+                                {value ? (
+                                    <View style={{
+                                        width: 18,
+                                        height: 18,
+                                        borderRadius: 5,
+                                        backgroundColor: C.primary,
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                    }}>
+                                        <CheckCircle2 size={13} color="#FFF" />
+                                    </View>
+                                ) : (
+                                    <View style={{
+                                        width: 18,
+                                        height: 18,
+                                        borderRadius: 5,
+                                        borderWidth: 1.5,
+                                        borderColor: errors.termsAccepted ? C.danger : C.muted,
+                                        backgroundColor: C.inputBg,
+                                    }} />
+                                )}
+                            </View>
+                            <Text style={{
+                                fontSize: 13,
+                                ...FONT.medium,
+                                color: C.mid,
+                                flex: 1,
+                                lineHeight: 18,
+                            }}>
+                                I have read and agree to the{' '}
+                                <Text
+                                    style={{
+                                        color: C.primary,
+                                        ...FONT.bold,
+                                        textDecorationLine: 'underline',
+                                    }}
+                                    onPress={(e) => {
+                                        e.stopPropagation();
+                                        WebBrowser.openBrowserAsync('https://caremymed.com/terms-conditions');
+                                    }}
+                                >
+                                    Terms & Conditions
+                                </Text>
+                                {' '}and{' '}
+                                <Text
+                                    style={{
+                                        color: C.primary,
+                                        ...FONT.bold,
+                                        textDecorationLine: 'underline',
+                                    }}
+                                    onPress={(e) => {
+                                        e.stopPropagation();
+                                        WebBrowser.openBrowserAsync('https://caremymed.com/privacy-policy');
+                                    }}
+                                >
+                                    Privacy Policy
+                                </Text>
+                                .
+                            </Text>
+                        </Pressable>
+                        {errors.termsAccepted && (
+                            <Text style={{
+                                fontSize: 12,
+                                ...FONT.medium,
+                                color: C.danger,
+                                marginTop: 4,
+                                marginLeft: 28,
+                            }}>
+                                {errors.termsAccepted.message}
+                            </Text>
+                        )}
+                    </View>
+                )}
+            />
 
             {/* Continue button */}
             <Pressable

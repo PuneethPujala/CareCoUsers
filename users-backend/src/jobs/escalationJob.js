@@ -3,6 +3,7 @@ const moment = require('moment-timezone');
 const Patient = require('../models/Patient');
 const MedicineLog = require('../models/MedicineLog');
 const CompanionAccess = require('../models/CompanionAccess');
+const Notification = require('../models/Notification');
 const NotificationService = require('../services/NotificationService');
 const logger = require('../utils/logger');
 
@@ -66,20 +67,80 @@ const runEscalationJob = async () => {
 
                 // ── Escalate based on missedCount ──
                 if (missedCount === 1) {
-                    // Local patient reminder
-                    if (patient.expo_push_token && patient.push_notifications_enabled) {
-                        await NotificationService.sendPush(patient._id, {
+                    const tz = patient.timezone || 'UTC';
+                    const startOfTodayLocal = moment().tz(tz).startOf('day');
+                    const existing = await Notification.findOne({
+                        patient_id: patient._id,
+                        'ai_context.trigger': 'missed_dose_1',
+                        created_at: { $gte: startOfTodayLocal.toDate() }
+                    });
+
+                    if (!existing && patient.expo_push_token && patient.push_notifications_enabled) {
+                        const notificationDoc = await Notification.create({
+                            patient_id: patient._id,
+                            type: 'reminders',
+                            title: '💊 Missed Dose',
+                            message: 'You missed your last medication. Please take it as soon as possible.',
+                            target_screen: 'HomeScreen',
+                            push_delivered: false,
+                            expo_push_token: patient.expo_push_token || undefined,
+                            ai_context: {
+                                trigger: 'missed_dose_1'
+                            }
+                        });
+
+                        const pushResult = await NotificationService.sendPush(patient._id, {
                             title: '💊 Missed Dose',
                             body: 'You missed your last medication. Please take it as soon as possible.',
+                            data: { screen: 'HomeScreen', notification_id: notificationDoc._id.toString() }
                         });
+
+                        if (pushResult.success) {
+                            notificationDoc.push_delivered = true;
+                            if (pushResult.ticketId) {
+                                notificationDoc.expo_ticket_id = pushResult.ticketId;
+                                notificationDoc.expo_push_token = patient.expo_push_token;
+                            }
+                            await notificationDoc.save();
+                        }
                     }
                 } else if (missedCount === 2) {
-                    // Stronger patient reminder
-                    if (patient.expo_push_token && patient.push_notifications_enabled) {
-                        await NotificationService.sendPush(patient._id, {
+                    const tz = patient.timezone || 'UTC';
+                    const startOfTodayLocal = moment().tz(tz).startOf('day');
+                    const existing = await Notification.findOne({
+                        patient_id: patient._id,
+                        'ai_context.trigger': 'missed_dose_2',
+                        created_at: { $gte: startOfTodayLocal.toDate() }
+                    });
+
+                    if (!existing && patient.expo_push_token && patient.push_notifications_enabled) {
+                        const notificationDoc = await Notification.create({
+                            patient_id: patient._id,
+                            type: 'reminders',
+                            title: '⚠️ Missed Multiple Doses',
+                            message: 'You have missed 2 doses in a row. It is very important to stay on track!',
+                            target_screen: 'HomeScreen',
+                            push_delivered: false,
+                            expo_push_token: patient.expo_push_token || undefined,
+                            ai_context: {
+                                trigger: 'missed_dose_2'
+                            }
+                        });
+
+                        const pushResult = await NotificationService.sendPush(patient._id, {
                             title: '⚠️ Missed Multiple Doses',
                             body: 'You have missed 2 doses in a row. It is very important to stay on track!',
+                            data: { screen: 'HomeScreen', notification_id: notificationDoc._id.toString() }
                         });
+
+                        if (pushResult.success) {
+                            notificationDoc.push_delivered = true;
+                            if (pushResult.ticketId) {
+                                notificationDoc.expo_ticket_id = pushResult.ticketId;
+                                notificationDoc.expo_push_token = patient.expo_push_token;
+                            }
+                            await notificationDoc.save();
+                        }
                     }
                 } else if (missedCount >= 3) {
                     // Query only active companion linkages for this specific patient

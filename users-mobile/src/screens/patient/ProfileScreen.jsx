@@ -793,7 +793,8 @@ export default function PatientProfileScreen({ navigation }) {
                             />
                         </View>
                         <InfoRow icon={Globe} iconBg="#EFF6FF" iconColor="#3B82F6" label={t('profile.language', { defaultValue: 'Language' })} value={LANGUAGES.find(l => l.code === selectedLang)?.label || 'English (India)'} placeholder="" onPress={() => setLanguageModalVisible(true)} />
-                        <InfoRow icon={Shield} iconBg="#F0FDF4" iconColor="#16A34A" label={t('profile.privacy_policy', { defaultValue: 'Privacy Policy' })} value={null} placeholder={t('profile.read_policy', { defaultValue: 'Read our policy' })} onPress={() => WebBrowser.openBrowserAsync('https://CareMyMed.com/privacy-policy')} isLast />
+                        <InfoRow icon={Shield} iconBg="#F0FDF4" iconColor="#16A34A" label={t('profile.privacy_policy', { defaultValue: 'Privacy Policy' })} value={null} placeholder={t('profile.read_policy', { defaultValue: 'Read our policy' })} onPress={() => WebBrowser.openBrowserAsync('https://CareMyMed.com/privacy-policy')} />
+                        <InfoRow icon={FileText} iconBg="#FEF3C7" iconColor="#D97706" label={t('profile.terms_conditions', { defaultValue: 'Terms & Conditions' })} value={null} placeholder={t('profile.read_terms', { defaultValue: 'Read our terms' })} onPress={() => WebBrowser.openBrowserAsync('https://caremymed.com/terms-conditions')} isLast />
                     </View>
                 </Animated.View>
 

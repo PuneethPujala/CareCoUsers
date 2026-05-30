@@ -6,6 +6,7 @@ import { LogOut, ShieldCheck, Heart, User, Settings, ArrowRight, UserCheck, Shar
 import { layout } from '../../theme';
 import AlertManager from '../../utils/AlertManager';
 import { useNavigation } from '@react-navigation/native';
+import * as WebBrowser from 'expo-web-browser';
 
 const C = {
     bg: '#F8FAFC',
@@ -210,7 +211,7 @@ export default function CompanionProfileScreen() {
                         <Share2 size={18} color={C.light} />
                     </Pressable>
 
-                    <View style={[styles.settingRow, { borderBottomWidth: 0 }]}>
+                    <View style={styles.settingRow}>
                         <View style={styles.settingTextCol}>
                             <Text style={styles.settingLabel}>Real-time Dashboard Sync</Text>
                             <Text style={styles.settingDesc}>Updates metrics every 30 seconds</Text>
@@ -219,6 +220,22 @@ export default function CompanionProfileScreen() {
                             <Text style={styles.statusPillText}>Operational</Text>
                         </View>
                     </View>
+
+                    <Pressable style={styles.actionRow} onPress={() => WebBrowser.openBrowserAsync('https://caremymed.com/privacy-policy')}>
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.actionLabel}>Privacy Policy</Text>
+                            <Text style={styles.actionDesc}>Read our privacy policy</Text>
+                        </View>
+                        <ArrowRight size={18} color={C.light} />
+                    </Pressable>
+
+                    <Pressable style={[styles.actionRow, { borderBottomWidth: 0 }]} onPress={() => WebBrowser.openBrowserAsync('https://caremymed.com/terms-conditions')}>
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.actionLabel}>Terms & Conditions</Text>
+                            <Text style={styles.actionDesc}>Read our terms and conditions</Text>
+                        </View>
+                        <ArrowRight size={18} color={C.light} />
+                    </Pressable>
                 </View>
 
                 {/* 4. Logout Button */}
