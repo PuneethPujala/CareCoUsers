@@ -62,7 +62,9 @@
     "o2_label": "O₂ செறிவு (%)",
     "bp_label": "இரத்த அழுத்தம் (mmHg)",
     "systolic": "சிஸ்டாலிக் (120)",
+    "systolic_label": "சிஸ்டாலிக் (mmHg)",
     "diastolic": "டயஸ்டாலிக் (80)",
+    "diastolic_label": "டயஸ்டாலிக் (mmHg)",
     "hydration_label": "நீரேற்றம் (%)",
     "save_record": "பதிவை சேமிக்கவும்",
     "daily_health_tip": "தினசரி சுகாதார உதவிக்குறிப்பு"

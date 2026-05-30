@@ -62,7 +62,9 @@
     "o2_label": "O₂ संतृप्ति (%)",
     "bp_label": "रक्तचाप (एमएमएचजी)",
     "systolic": "सिस्टोलिक (120)",
+    "systolic_label": "सिस्टोलिक (mmHg)",
     "diastolic": "डायस्टोलिक (80)",
+    "diastolic_label": "डायस्टोलिक (mmHg)",
     "hydration_label": "जलयोजन (%)",
     "save_record": "रिकॉर्ड सहेजें",
     "daily_health_tip": "दैनिक स्वास्थ्य टिप"

@@ -62,7 +62,9 @@
     "o2_label": "O₂ సంతృప్తత (%)",
     "bp_label": "రక్తపోటు (mmHg)",
     "systolic": "సిస్టోలిక్ (120)",
+    "systolic_label": "సిస్టోలిక్ (mmHg)",
     "diastolic": "డయాస్టోలిక్ (80)",
+    "diastolic_label": "డయాస్టోలిక్ (mmHg)",
     "hydration_label": "హైడ్రేషన్ (%)",
     "save_record": "రికార్డును సేవ్ చేయండి",
     "daily_health_tip": "రోజువారీ ఆరోగ్య చిట్కా"

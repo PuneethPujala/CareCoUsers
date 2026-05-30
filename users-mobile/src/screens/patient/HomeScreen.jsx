@@ -503,14 +503,13 @@ export default function PatientHomeScreen({ navigation }) {
                             value={formValues.oxygen_saturation} onChangeText={(text) => setFormValues(p => ({ ...p, oxygen_saturation: text }))} />
                     </View>
                 </View>
-                <Text style={styles.formLabel}>{t('home.bp_label', { defaultValue: 'Blood Pressure (mmHg)' })}</Text>
                 <View style={styles.formRow}>
                     <View style={{ flex: 1 }}>
-                        <SmartInput keyboardType="numeric" placeholder={t('home.systolic', { defaultValue: 'Systolic (120)' })}
+                        <SmartInput label={t('home.systolic_label', { defaultValue: 'Systolic (mmHg)' })} keyboardType="numeric" placeholder="120"
                             value={formValues.systolic} onChangeText={(text) => setFormValues(p => ({ ...p, systolic: text }))} />
                     </View>
                     <View style={{ flex: 1 }}>
-                        <SmartInput keyboardType="numeric" placeholder={t('home.diastolic', { defaultValue: 'Diastolic (80)' })}
+                        <SmartInput label={t('home.diastolic_label', { defaultValue: 'Diastolic (mmHg)' })} keyboardType="numeric" placeholder="80"
                             value={formValues.diastolic} onChangeText={(text) => setFormValues(p => ({ ...p, diastolic: text }))} />
                     </View>
                 </View>
@@ -838,11 +837,11 @@ export default function PatientHomeScreen({ navigation }) {
                                 {loggedDaysCount >= 3 ? (
                                     <View style={styles.card}>
                                         <View style={styles.cardHeaderRow}>
-                                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, marginRight: 8 }}>
                                                 <LinearGradient colors={['#EEF2FF', '#C7D2FE']} style={styles.aiIconBox}>
                                                     <Sparkles size={16} color="#6366F1" />
                                                 </LinearGradient>
-                                                <Text style={styles.cardTitle}>{t('common.ai_health_outlook', { defaultValue: 'AI Health Outlook' })}</Text>
+                                                <Text style={[styles.cardTitle, { flexShrink: 1 }]} numberOfLines={1}>{t('common.ai_health_outlook', { defaultValue: 'AI Health Outlook' })}</Text>
                                             </View>
                                             {aiPrediction && (
                                                 <View style={[
@@ -889,11 +888,11 @@ export default function PatientHomeScreen({ navigation }) {
                                 ) : (
                                     <View style={styles.card}>
                                         <View style={styles.cardHeaderRow}>
-                                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, marginRight: 8 }}>
                                                 <LinearGradient colors={['#F5F3FF', '#EDE9FE']} style={[styles.aiIconBox, { backgroundColor: '#F5F3FF' }]}>
                                                     <Sparkles size={16} color="#8B5CF6" />
                                                 </LinearGradient>
-                                                <Text style={styles.cardTitle}>{t('common.ai_health_outlook', { defaultValue: 'AI Health Outlook' })}</Text>
+                                                <Text style={[styles.cardTitle, { flexShrink: 1 }]} numberOfLines={1}>{t('common.ai_health_outlook', { defaultValue: 'AI Health Outlook' })}</Text>
                                             </View>
                                             <View style={[styles.aiBadge, { backgroundColor: '#F3E8FF', borderColor: '#E9D5FF', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 }]}>
                                                 <Text style={[styles.aiBadgeText, { color: '#7C3AED', fontSize: 11, fontWeight: '700' }]}>

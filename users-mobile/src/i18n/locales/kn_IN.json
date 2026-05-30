@@ -62,7 +62,9 @@
     "o2_label": "O₂ ಶುದ್ಧತ್ವ (%)",
     "bp_label": "ರಕ್ತದೊತ್ತಡ (mmHg)",
     "systolic": "ಸಿಸ್ಟೊಲಿಕ್ (120)",
+    "systolic_label": "ಸಿಸ್ಟೊಲಿಕ್ (mmHg)",
     "diastolic": "ಡಯಾಸ್ಟೊಲಿಕ್ (80)",
+    "diastolic_label": "ಡಯಾಸ್ಟೊಲಿಕ್ (mmHg)",
     "hydration_label": "ಜಲಸಂಚಯನ (%)",
     "save_record": "ದಾಖಲೆ ಉಳಿಸಿ",
     "daily_health_tip": "ದೈನಂದಿನ ಆರೋಗ್ಯ ಸಲಹೆ"

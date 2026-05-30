@@ -62,7 +62,9 @@
     "o2_label": "O₂ संपृक्तता (%)",
     "bp_label": "रक्तदाब (mmHg)",
     "systolic": "सिस्टोलिक (१२०)",
+    "systolic_label": "सिस्टोलिक (mmHg)",
     "diastolic": "डायस्टोलिक (८०)",
+    "diastolic_label": "डायस्टोलिक (mmHg)",
     "hydration_label": "हायड्रेशन (%)",
     "save_record": "रेकॉर्ड जतन करा",
     "daily_health_tip": "रोजची आरोग्य टीप"

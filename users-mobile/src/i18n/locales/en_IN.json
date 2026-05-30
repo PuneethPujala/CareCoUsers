@@ -62,7 +62,9 @@
     "o2_label": "O₂ Saturation (%)",
     "bp_label": "Blood Pressure (mmHg)",
     "systolic": "Systolic (120)",
+    "systolic_label": "Systolic (mmHg)",
     "diastolic": "Diastolic (80)",
+    "diastolic_label": "Diastolic (mmHg)",
     "hydration_label": "Hydration (%)",
     "save_record": "Save Record",
     "daily_health_tip": "DAILY HEALTH TIP"
