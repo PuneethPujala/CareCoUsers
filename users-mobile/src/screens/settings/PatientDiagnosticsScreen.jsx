@@ -4,15 +4,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { 
     ArrowLeft, Activity, CloudOff, RefreshCw, Smartphone, 
-    CheckCircle, XCircle, Download, Clock, AlertTriangle, 
+    CheckCircle, XCircle, Clock, AlertTriangle, 
     Shield, ShieldAlert, Key, Heart
 } from 'lucide-react-native';
 import usePatientStore from '../../store/usePatientStore';
 import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
-import * as FileSystem from 'expo-file-system';
-import * as Sharing from 'expo-sharing';
-import * as Device from 'expo-device';
 import api, { getApiTokens } from '../../lib/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../../context/AuthContext';
@@ -191,49 +188,6 @@ export default function PatientDiagnosticsScreen({ navigation }) {
         scoreLabel = '🟡 Needs Attention';
     }
 
-    const handleExportDiagnostics = async () => {
-        try {
-            const diagnostics = {
-                timestamp: new Date().toISOString(),
-                device: {
-                    os: Platform.OS,
-                    version: Platform.Version,
-                    model: Constants.deviceName,
-                    app_version: Constants.expoConfig?.version,
-                    manufacturer: Device.manufacturer,
-                    brand: Device.brand,
-                },
-                healthScore: score,
-                session: sessionHealth,
-                syncState,
-                pendingSyncCount,
-                lastSyncTimestamp,
-                notifications: {
-                    permission: notificationPermissions,
-                    token: fcmToken,
-                    backendStats: backendHealth?.notifications_7d
-                },
-                clockDrift,
-                pingLatency,
-                offlineQueue,
-                replayHistory,
-                lifecycleHistory
-            };
-
-            const fileUri = `${FileSystem.documentDirectory}diagnostics_${Date.now()}.json`;
-            await FileSystem.writeAsStringAsync(fileUri, JSON.stringify(diagnostics, null, 2));
-
-            if (await Sharing.isAvailableAsync()) {
-                await Sharing.shareAsync(fileUri);
-            } else {
-                Alert.alert("Export Error", "Sharing is not available on this device.");
-            }
-        } catch (err) {
-            Alert.alert("Export Error", "Failed to export diagnostics.");
-            console.error(err);
-        }
-    };
-
     const StatRow = ({ label, value, status = 'neutral' }) => (
         <View style={styles.statRow}>
             <Text style={styles.statLabel}>{label}</Text>
@@ -260,9 +214,7 @@ export default function PatientDiagnosticsScreen({ navigation }) {
                     <ArrowLeft size={24} color="#0F172A" />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Device Health Check</Text>
-                <TouchableOpacity onPress={handleExportDiagnostics} style={styles.exportButton}>
-                    <Download size={20} color="#2563EB" />
-                </TouchableOpacity>
+                <View style={{ width: 40 }} />
             </View>
 
             <ScrollView 
@@ -429,7 +381,6 @@ const styles = StyleSheet.create({
         borderBottomWidth: 1, borderBottomColor: '#E2E8F0',
     },
     backButton: { padding: 8, marginLeft: -8 },
-    exportButton: { padding: 8, marginRight: -8, backgroundColor: '#EFF6FF', borderRadius: 8 },
     headerTitle: { fontSize: 18, fontWeight: '700', color: '#0F172A' },
     scrollContent: { padding: 16, paddingBottom: 40 },
     
