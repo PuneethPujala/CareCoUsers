@@ -67,7 +67,19 @@
     "diastolic_label": "Diastolic (mmHg)",
     "hydration_label": "Hydration (%)",
     "save_record": "Save Record",
-    "daily_health_tip": "DAILY HEALTH TIP"
+    "daily_health_tip": "DAILY HEALTH TIP",
+    "forecast_preview": "Forecast Preview",
+    "forecast_training_progress": "Forecast Training Progress",
+    "day_1": "Day 1",
+    "day_2": "Day 2",
+    "day_3": "Day 3",
+    "days_required_3": "3 more days of health data required to generate a personalized forecast.",
+    "days_required_2": "2 more days of health data required to generate a personalized forecast.",
+    "days_required_1": "1 more day of health data required to generate a personalized forecast.",
+    "smartwatch_path_label": "Smartwatch path:",
+    "smartwatch_path_text": "Log vitals manually for 3 days or connect your smartwatch to activate forecasting sooner.",
+    "renew_personalized_ai": "Renew to continue personalized AI analysis",
+    "log_today_s_vitals": "Log Today's Vitals"
   },
   "time_slots": {
     "morning": "Morning",
@@ -346,7 +358,8 @@
     "postcode": "Postcode",
     "no_family_profiles_yet": "No family profiles yet",
     "unlocked": "Unlocked",
-    "locked": "Locked"
+    "locked": "Locked",
+    "today_s_check_in": "Today's Check-In"
   },
   "health": {
     "integration_unavailable": "Health integration is not available on this device.",

@@ -873,7 +873,7 @@ export default function PatientHomeScreen({ navigation }) {
                                                 <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(255,255,255,0.75)', zIndex: 10, alignItems: 'center', justifyContent: 'center', borderRadius: 16, marginTop: -10 }]}>
                                                     <Pressable onPress={() => openPremium()} style={{ backgroundColor: '#FFF', paddingHorizontal: 16, paddingVertical: 12, borderRadius: 24, shadowColor: '#A855F7', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 12, elevation: 6, flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderColor: '#F3E8FF' }}>
                                                         <Sparkles size={16} color="#A855F7" />
-                                                        <Text style={{ fontSize: 13, fontWeight: '800', color: '#6B21A8' }}>Renew to continue personalized AI analysis</Text>
+                                                        <Text style={{ fontSize: 13, fontWeight: '800', color: '#6B21A8' }}>{t('home.renew_personalized_ai', { defaultValue: 'Renew to continue personalized AI analysis' })}</Text>
                                                     </Pressable>
                                                 </View>
                                             )}
@@ -921,7 +921,7 @@ export default function PatientHomeScreen({ navigation }) {
                                                     <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: loggedDaysCount >= 1 ? '#8B5CF6' : '#F1F5F9', alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: loggedDaysCount >= 1 ? '#8B5CF6' : '#CBD5E1' }}>
                                                         {loggedDaysCount >= 1 ? <CheckCircle2 size={12} color="#FFF" strokeWidth={3} /> : <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#94A3B8' }} />}
                                                     </View>
-                                                    <Text style={{ fontSize: 13, fontWeight: '600', color: loggedDaysCount >= 1 ? '#1E293B' : '#64748B' }}>Day 1</Text>
+                                                    <Text style={{ fontSize: 13, fontWeight: '600', color: loggedDaysCount >= 1 ? '#1E293B' : '#64748B' }}>{t('home.day_1', { defaultValue: 'Day 1' })}</Text>
                                                 </View>
                                                 
                                                 <View style={{ width: 16, height: 1, backgroundColor: '#E2E8F0' }} />
@@ -930,7 +930,7 @@ export default function PatientHomeScreen({ navigation }) {
                                                     <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: loggedDaysCount >= 2 ? '#8B5CF6' : '#F1F5F9', alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: loggedDaysCount >= 2 ? '#8B5CF6' : '#CBD5E1' }}>
                                                         {loggedDaysCount >= 2 ? <CheckCircle2 size={12} color="#FFF" strokeWidth={3} /> : <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#94A3B8' }} />}
                                                     </View>
-                                                    <Text style={{ fontSize: 13, fontWeight: '600', color: loggedDaysCount >= 2 ? '#1E293B' : '#64748B' }}>Day 2</Text>
+                                                    <Text style={{ fontSize: 13, fontWeight: '600', color: loggedDaysCount >= 2 ? '#1E293B' : '#64748B' }}>{t('home.day_2', { defaultValue: 'Day 2' })}</Text>
                                                 </View>
                                                 
                                                 <View style={{ width: 16, height: 1, backgroundColor: '#E2E8F0' }} />
@@ -939,7 +939,7 @@ export default function PatientHomeScreen({ navigation }) {
                                                     <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: loggedDaysCount >= 3 ? '#8B5CF6' : '#F1F5F9', alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: loggedDaysCount >= 3 ? '#8B5CF6' : '#CBD5E1' }}>
                                                         {loggedDaysCount >= 3 ? <CheckCircle2 size={12} color="#FFF" strokeWidth={3} /> : <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#94A3B8' }} />}
                                                     </View>
-                                                    <Text style={{ fontSize: 13, fontWeight: '600', color: loggedDaysCount >= 3 ? '#1E293B' : '#64748B' }}>Day 3</Text>
+                                                    <Text style={{ fontSize: 13, fontWeight: '600', color: loggedDaysCount >= 3 ? '#1E293B' : '#64748B' }}>{t('home.day_3', { defaultValue: 'Day 3' })}</Text>
                                                 </View>
                                             </View>
 
@@ -951,7 +951,7 @@ export default function PatientHomeScreen({ navigation }) {
 
                                             <View style={{ backgroundColor: '#F8FAFC', borderRadius: 14, padding: 12, borderWidth: 1, borderColor: '#F1F5F9', marginBottom: 16 }}>
                                                 <Text style={{ fontSize: 12, color: '#64748B', lineHeight: 18 }}>
-                                                    💡 <Text style={{ fontWeight: '600' }}>Smartwatch path:</Text> Log vitals manually for 3 days or connect your smartwatch to activate forecasting sooner.
+                                                    💡 <Text style={{ fontWeight: '600' }}>{t('home.smartwatch_path_label', { defaultValue: 'Smartwatch path:' })}</Text> {t('home.smartwatch_path_text', { defaultValue: 'Log vitals manually for 3 days or connect your smartwatch to activate forecasting sooner.' })}
                                                 </Text>
                                             </View>
 
