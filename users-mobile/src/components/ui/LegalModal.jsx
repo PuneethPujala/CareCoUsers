@@ -13,7 +13,7 @@ import {
     UIManager
 } from 'react-native';
 import { X, ChevronDown, ChevronUp, AlertCircle, Shield } from 'lucide-react-native';
-import { TERMS_CONTENT, PRIVACY_CONTENT } from '../../constants/legalContent';
+import { TERMS_CONTENT, PRIVACY_CONTENT, TERMS_VERSION, PRIVACY_VERSION } from '../../constants/legalContent';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -29,6 +29,8 @@ export default function LegalModal({ visible, type, onClose }) {
 
     const sections = type === 'terms' ? TERMS_CONTENT : PRIVACY_CONTENT;
     const title = type === 'terms' ? 'Terms & Conditions' : 'Privacy Policy';
+    const version = type === 'terms' ? TERMS_VERSION : PRIVACY_VERSION;
+    const lastUpdated = type === 'terms' ? 'April 24, 2026' : 'May 27, 2026';
 
     useEffect(() => {
         if (visible) {
@@ -135,6 +137,13 @@ export default function LegalModal({ visible, type, onClose }) {
                         contentContainerStyle={styles.scrollContent}
                         showsVerticalScrollIndicator={false}
                     >
+                        {/* Document Version and Date Metadata */}
+                        <View style={styles.metaContainer}>
+                            <Text style={styles.metaText}>Version {version}</Text>
+                            <Text style={styles.metaDivider}>•</Text>
+                            <Text style={styles.metaText}>Last Updated: {lastUpdated}</Text>
+                        </View>
+
                         {/* Medical Advice Disclaimer Card */}
                         <View style={styles.disclaimerCard}>
                             <AlertCircle size={20} color="#D97706" style={styles.disclaimerIcon} />
@@ -245,6 +254,22 @@ const styles = StyleSheet.create({
     },
     scrollContent: {
         padding: 24,
+    },
+    metaContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 16,
+    },
+    metaText: {
+        fontSize: 12,
+        fontFamily: 'Inter_500Medium',
+        color: '#64748B',
+    },
+    metaDivider: {
+        fontSize: 12,
+        fontFamily: 'Inter_500Medium',
+        color: '#94A3B8',
+        marginHorizontal: 8,
     },
     disclaimerCard: {
         flexDirection: 'row',

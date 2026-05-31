@@ -18,6 +18,7 @@ import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-si
 import * as Location from 'expo-location';
 import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { TERMS_VERSION, PRIVACY_VERSION } from '../../constants/legalContent';
 import { step1Schema, stepPhoneSchema, step2Schema, step3Schema, step5Schema } from './signupSchema';
 
 import { OTPModal } from './components';
@@ -413,8 +414,10 @@ export default function PatientSignupScreen({ navigation, route }) {
             const cleanEmail = form.email.trim().toLowerCase();
             await clearProgress();
             await signUp(cleanEmail, form.password, form.fullName.trim(), 'patient', {
-                acceptedTermsVersion: '1.0',
-                acceptedPrivacyVersion: '1.0',
+                acceptedTermsVersion: TERMS_VERSION,
+                acceptedTermsAt: new Date().toISOString(),
+                acceptedPrivacyVersion: PRIVACY_VERSION,
+                acceptedPrivacyAt: new Date().toISOString(),
                 acceptedAt: new Date().toISOString()
             });
             analytics.signupSuccess(cleanEmail);

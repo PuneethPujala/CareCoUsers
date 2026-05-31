@@ -5,6 +5,7 @@ import SmartInput from '../../components/ui/SmartInput';
 import { apiService } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 import LegalModal from '../../components/ui/LegalModal';
+import { TERMS_VERSION, PRIVACY_VERSION } from '../../constants/legalContent';
 
 import { OTPBoxes } from './components';
 import { parseError } from '../../utils/parseError';
@@ -99,8 +100,10 @@ export default function CompanionSignupScreen({ navigation }) {
                 password,
                 fullName,
                 phone,
-                acceptedTermsVersion: '1.0',
-                acceptedPrivacyVersion: '1.0',
+                acceptedTermsVersion: TERMS_VERSION,
+                acceptedTermsAt: new Date().toISOString(),
+                acceptedPrivacyVersion: PRIVACY_VERSION,
+                acceptedPrivacyAt: new Date().toISOString(),
                 acceptedAt: new Date().toISOString()
             });
             

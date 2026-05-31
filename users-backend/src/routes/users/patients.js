@@ -421,7 +421,9 @@ router.put('/me', authenticateSession, async (req, res) => {
         req.patient = await Patient.findById(patient._id);
         logger.info('Profile updated', { patientId: patient._id, body: req.body });
 
-        if (expo_push_token && patient.expo_push_token !== expo_push_token) {
+        // Only send the connection success notification if the patient did not have a token previously.
+        // This prevents spamming the user on daily app launches, preview updates, or normal token rotations.
+        if (expo_push_token && !patient.expo_push_token) {
             const PushNotificationService = require('../../utils/pushNotifications');
             PushNotificationService.sendPush(
                 expo_push_token,

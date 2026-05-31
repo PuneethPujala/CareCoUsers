@@ -162,6 +162,7 @@ export default function PatientHomeScreen({ navigation }) {
     const { displayName, profile } = useAuth();
     const scrollViewRef = useRef(null);
     const heartRateInputRef = useRef(null);
+    const vitalsSectionY = useRef(0);
 
     const patient = usePatientStore((s) => s.patient);
     const vitals = usePatientStore((s) => s.vitals);
@@ -772,7 +773,12 @@ export default function PatientHomeScreen({ navigation }) {
                         </Animated.View>
 
                         {/* ── MY VITALS ── */}
-                        <Animated.View style={anim(4)}>
+                        <Animated.View
+                            style={anim(4)}
+                            onLayout={(e) => {
+                                vitalsSectionY.current = e.nativeEvent.layout.y;
+                            }}
+                        >
                             <View style={styles.section}>
                                 <View style={styles.sectionTitleRow}>
                                     <Text style={styles.sectionTitle}>{t('home.vitals', { defaultValue: 'MY VITALS' })}</Text>
@@ -961,7 +967,7 @@ export default function PatientHomeScreen({ navigation }) {
                                                         gap: 6
                                                     }}
                                                     onPress={() => {
-                                                        scrollViewRef.current?.scrollTo({ y: 120, animated: true });
+                                                        scrollViewRef.current?.scrollTo({ y: vitalsSectionY.current + 110, animated: true });
                                                         setTimeout(() => {
                                                             heartRateInputRef.current?.focus();
                                                         }, 350);

@@ -613,12 +613,20 @@ export default function MedicationsScreen({ navigation }) {
                     text: 'Remove', 
                     style: 'destructive', 
                     onPress: async () => {
+                        const previousMeds = tempMeds;
+                        // Optimistically remove from state immediately
+                        setTempMeds(prev => prev.filter(m => m._id !== med._id));
+                        showToast(t('common.success', { defaultValue: 'Success' }), 'Temporary medicine removed.');
+                        
                         try {
                             await apiService.medicines.deleteTempMed(med._id);
-                            showToast(t('common.success', { defaultValue: 'Success' }), 'Temporary medicine removed.');
-                            load(true);
+                            // Background refetch to ensure alignment
+                            const tempRes = await apiService.medicines.getTempMeds();
+                            setTempMeds(tempRes.data?.tempMedications || []);
                         } catch (err) {
                             console.warn('Delete temp-med failed:', err.message);
+                            // Rollback state on error
+                            setTempMeds(previousMeds);
                             showToast(t('common.error', { defaultValue: 'Error' }), 'Failed to remove medicine.');
                         }
                     }
@@ -633,14 +641,41 @@ export default function MedicationsScreen({ navigation }) {
             return;
         }
 
+        const tempId = 'temp_' + Date.now();
+        const optimisticMed = {
+            _id: tempId,
+            name: tempMedForm.name.trim(),
+            dosage: tempMedForm.dosage?.trim() || '',
+            frequency: tempMedForm.frequency?.trim() || 'As needed',
+            reason: tempMedForm.reason?.trim() || '',
+            shift: tempMedForm.shift,
+            riskTier: 'safe', // default placeholder
+            addedByName: patient?.name || 'Patient',
+            addedByRole: 'patient',
+            createdAt: new Date().toISOString()
+        };
+
+        const previousMeds = tempMeds;
+        // Optimistically prepend the new med to state immediately
+        setTempMeds(prev => [optimisticMed, ...prev]);
+        setShowAddTempMedModal(false);
+        showToast(t('common.success', { defaultValue: 'Success' }), 'Temporary medicine added.');
+
         setAddingTempMed(true);
         try {
-            await apiService.medicines.addTempMed(tempMedForm);
-            showToast(t('common.success', { defaultValue: 'Success' }), 'Temporary medicine added.');
-            setShowAddTempMedModal(false);
-            load(true);
+            const res = await apiService.medicines.addTempMed(tempMedForm);
+            const savedMed = res.data?.tempMedication;
+            if (savedMed) {
+                // Swap the temp ID with the database item containing real ID and risk details
+                setTempMeds(prev => prev.map(m => m._id === tempId ? savedMed : m));
+            } else {
+                const tempRes = await apiService.medicines.getTempMeds();
+                setTempMeds(tempRes.data?.tempMedications || []);
+            }
         } catch (err) {
             console.warn('Add temp-med failed:', err.message);
+            // Rollback on error
+            setTempMeds(previousMeds);
             showToast(t('common.error', { defaultValue: 'Error' }), err.response?.data?.error || 'Failed to add medicine.');
         } finally {
             setAddingTempMed(false);
