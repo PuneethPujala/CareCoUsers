@@ -24,18 +24,20 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 
 export default function LegalModal({ visible, type, onClose }) {
     const [expandedSections, setExpandedSections] = useState({});
+    const [activeTab, setActiveTab] = useState(type || 'terms');
     const slideAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
     const fadeAnim = useRef(new Animated.Value(0)).current;
 
-    const sections = type === 'terms' ? TERMS_CONTENT : PRIVACY_CONTENT;
-    const title = type === 'terms' ? 'Terms & Conditions' : 'Privacy Policy';
-    const version = type === 'terms' ? TERMS_VERSION : PRIVACY_VERSION;
-    const lastUpdated = type === 'terms' ? 'April 24, 2026' : 'May 27, 2026';
+    const sections = activeTab === 'terms' ? TERMS_CONTENT : PRIVACY_CONTENT;
+    const title = activeTab === 'terms' ? 'Terms & Conditions' : 'Privacy Policy';
+    const version = activeTab === 'terms' ? TERMS_VERSION : PRIVACY_VERSION;
+    const lastUpdated = activeTab === 'terms' ? 'April 24, 2026' : 'May 27, 2026';
 
     useEffect(() => {
         if (visible) {
             // Reset expansions
             setExpandedSections({});
+            setActiveTab(type || 'terms');
             Animated.parallel([
                 Animated.timing(fadeAnim, {
                     toValue: 1,
@@ -63,7 +65,7 @@ export default function LegalModal({ visible, type, onClose }) {
                 })
             ]).start();
         }
-    }, [visible]);
+    }, [visible, type]);
 
     const toggleSection = (index) => {
         LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -128,6 +130,34 @@ export default function LegalModal({ visible, type, onClose }) {
                         </View>
                         <Pressable style={styles.closeButton} onPress={handleClose} hitSlop={10}>
                             <X size={20} color="#64748B" />
+                        </Pressable>
+                    </View>
+
+                    {/* Tab Switcher */}
+                    <View style={styles.tabBar}>
+                        <Pressable 
+                            style={[styles.tabButton, activeTab === 'terms' && styles.activeTabButton]}
+                            onPress={() => {
+                                LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                                setActiveTab('terms');
+                                setExpandedSections({});
+                            }}
+                        >
+                            <Text style={[styles.tabText, activeTab === 'terms' && styles.activeTabText]}>
+                                Terms of Service
+                            </Text>
+                        </Pressable>
+                        <Pressable 
+                            style={[styles.tabButton, activeTab === 'privacy' && styles.activeTabButton]}
+                            onPress={() => {
+                                LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                                setActiveTab('privacy');
+                                setExpandedSections({});
+                            }}
+                        >
+                            <Text style={[styles.tabText, activeTab === 'privacy' && styles.activeTabText]}>
+                                Privacy Policy
+                            </Text>
                         </Pressable>
                     </View>
 
@@ -248,6 +278,40 @@ const styles = StyleSheet.create({
         padding: 6,
         borderRadius: 20,
         backgroundColor: '#F1F5F9',
+    },
+    tabBar: {
+        flexDirection: 'row',
+        paddingHorizontal: 24,
+        paddingVertical: 10,
+        backgroundColor: '#F8FAFC',
+        borderBottomWidth: 1,
+        borderBottomColor: '#F1F5F9',
+        gap: 8,
+    },
+    tabButton: {
+        flex: 1,
+        paddingVertical: 8,
+        borderRadius: 8,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: 'transparent',
+    },
+    activeTabButton: {
+        backgroundColor: '#FFFFFF',
+        shadowColor: '#0F172A',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 4,
+        elevation: 2,
+    },
+    tabText: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: '#64748B',
+    },
+    activeTabText: {
+        color: '#4F46E5',
+        fontWeight: '700',
     },
     scroll: {
         flex: 1,
