@@ -43,7 +43,7 @@ export default function LegalModal({ visible, type, onClose }) {
                     useNativeDriver: true,
                 }),
                 Animated.spring(slideAnim, {
-                    toValue: SCREEN_HEIGHT * 0.15, // Slide up to show 85% of screen height
+                    toValue: 0, // Slide up to resting position (85% of screen height)
                     tension: 50,
                     friction: 9,
                     useNativeDriver: true,

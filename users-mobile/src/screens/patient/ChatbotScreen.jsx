@@ -374,7 +374,7 @@ function WelcomeSnapshotCard({ firstName, medsCount, takenCount, vitals, streak 
                 </View>
                 
                 <Image 
-                    source={require('../../../assets/assistant_robot_3d.png')} 
+                    source={require('../../../assets/doctor_mascot.jpg')} 
                     style={styles.robotMascot} 
                     resizeMode="contain"
                 />
