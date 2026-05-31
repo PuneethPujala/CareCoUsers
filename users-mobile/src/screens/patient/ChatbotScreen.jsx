@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ArrowLeft, Send, Sparkles, Bot, User, Mic, Paperclip, Trash2, Pill, Flame, TrendingUp, CheckCircle2, Activity, Heart, Wind, Calendar } from 'lucide-react-native';
+import { ArrowLeft, Send, Sparkles, Bot, User, Mic, Paperclip, Trash2, Pill, Flame, TrendingUp, CheckCircle2, Activity, Heart, Wind, Calendar, Shield } from 'lucide-react-native';
 import { colors } from '../../theme';
 import { useAuth } from '../../context/AuthContext';
 import { useTranslation } from 'react-i18next';
@@ -232,8 +232,8 @@ function ChatBubble({ message, isUser }) {
     return (
         <Animated.View style={[styles.bubbleRow, isUser && styles.bubbleRowUser, { opacity: fadeAnim, transform: [{ translateY: fadeAnim.interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) }] }]}>
             {!isUser && (
-                <LinearGradient colors={['#EEF2FF', '#E0E7FF']} style={styles.avatarCircle}>
-                    <Bot size={16} color="#6366F1" strokeWidth={2.5} />
+                <LinearGradient colors={['#6366F1', '#4F46E5']} style={styles.avatarCircle}>
+                    <Sparkles size={14} color="#FFFFFF" strokeWidth={2.5} />
                 </LinearGradient>
             )}
             <View style={[styles.bubble, isUser ? styles.bubbleUser : styles.bubbleBot, message.image && styles.bubbleImageContainer, message.audio && styles.bubbleAudioContainer]}>
@@ -310,14 +310,158 @@ function TypingIndicator({ stage }) {
 
     return (
         <View style={[styles.bubbleRow]}>
-            <LinearGradient colors={['#EEF2FF', '#E0E7FF']} style={styles.avatarCircle}>
-                <Bot size={16} color="#6366F1" strokeWidth={2.5} />
+            <LinearGradient colors={['#6366F1', '#4F46E5']} style={styles.avatarCircle}>
+                <Sparkles size={14} color="#FFFFFF" strokeWidth={2.5} />
             </LinearGradient>
             <View style={[styles.bubble, styles.bubbleBot, styles.typingBubble, { flexDirection: 'row', alignItems: 'center' }]}>
                 {stage && <Text style={{ color: '#6B7280', marginRight: 8, fontSize: 13, fontWeight: '500' }}>{stage}</Text>}
                 {dots.map((dot, i) => (
                     <Animated.View key={i} style={[styles.typingDot, { opacity: dot.interpolate({ inputRange: [0, 1], outputRange: [0.3, 1] }), transform: [{ scale: dot.interpolate({ inputRange: [0, 1], outputRange: [0.8, 1.2] }) }] }]} />
                 ))}
+            </View>
+        </View>
+    );
+}
+
+// ── Welcome Snapshot Card ───────────────────────────────────────────────────
+function WelcomeSnapshotCard({ firstName, medsCount, takenCount, vitals, streak }) {
+    const remaining = medsCount - takenCount;
+    
+    // Determine BP text
+    let bpText = 'BP not logged';
+    if (vitals) {
+        if (vitals.systolic && vitals.diastolic) {
+            bpText = `BP stable ${vitals.systolic}/${vitals.diastolic} mmHg`;
+        } else if (vitals.blood_pressure) {
+            bpText = `BP stable ${vitals.blood_pressure.systolic}/${vitals.blood_pressure.diastolic} mmHg`;
+        }
+    }
+    
+    // Determine greeting based on time of day
+    const hr = new Date().getHours();
+    const greeting = hr < 12 ? 'Good morning' : hr < 17 ? 'Good afternoon' : 'Good evening';
+    
+    return (
+        <View style={styles.welcomeCard}>
+            <LinearGradient 
+                colors={['#EEF2FF', '#E0E7FF']} 
+                start={{ x: 0, y: 0 }} 
+                end={{ x: 1, y: 1 }} 
+                style={styles.welcomeGradient}
+            >
+                <View style={styles.welcomeContent}>
+                    <Text style={styles.welcomeTitle}>{greeting}, <Text style={{ fontWeight: '800', color: '#4F46E5' }}>{firstName}!</Text> 👋</Text>
+                    <Text style={styles.welcomeSub}>Here's your health snapshot for today.</Text>
+                    
+                    <View style={styles.snapshotRow}>
+                        <View style={styles.snapshotBadge}>
+                            <CheckCircle2 size={12} color="#22C55E" />
+                            <Text style={styles.snapshotBadgeText}>
+                                {remaining === 0 ? 'All meds taken' : `${remaining} med${remaining > 1 ? 's' : ''} left`}
+                            </Text>
+                        </View>
+                        
+                        <View style={styles.snapshotBadge}>
+                            <Heart size={12} color="#EF4444" fill="#EF4444" />
+                            <Text style={styles.snapshotBadgeText}>{bpText}</Text>
+                        </View>
+                        
+                        <View style={styles.snapshotBadge}>
+                            <Flame size={12} color="#F97316" fill="#F97316" />
+                            <Text style={styles.snapshotBadgeText}>{streak} day streak</Text>
+                        </View>
+                    </View>
+                </View>
+                
+                <Image 
+                    source={require('../../../assets/assistant_robot_3d.png')} 
+                    style={styles.robotMascot} 
+                    resizeMode="contain"
+                />
+            </LinearGradient>
+        </View>
+    );
+}
+
+// ── Quick Actions Dashboard ────────────────────────────────────────────────
+function QuickActionsDashboard({ onPress }) {
+    return (
+        <View style={styles.actionsDashboard}>
+            <View style={styles.actionsHeader}>
+                <Sparkles size={16} color="#6366F1" strokeWidth={2.5} />
+                <Text style={styles.actionsHeaderText}>How can I help you today?</Text>
+            </View>
+            
+            <View style={styles.actionsGrid}>
+                {/* Row 1 */}
+                <View style={styles.actionsGridRow}>
+                    <Pressable style={styles.actionGridCard} onPress={() => onPress('📋 What should I do today?')}>
+                        <View style={[styles.actionIconBox, { backgroundColor: '#FFF7ED' }]}>
+                            <Calendar size={18} color="#EA580C" />
+                        </View>
+                        <View style={styles.actionCardContent}>
+                            <Text style={styles.actionCardTitle}>What should I do today?</Text>
+                            <Text style={styles.actionCardSub}>See today's plan</Text>
+                        </View>
+                    </Pressable>
+                    
+                    <Pressable style={styles.actionGridCard} onPress={() => onPress('📊 Weekly Health Summary')}>
+                        <View style={[styles.actionIconBox, { backgroundColor: '#ECFDF5' }]}>
+                            <TrendingUp size={18} color="#059669" />
+                        </View>
+                        <View style={styles.actionCardContent}>
+                            <Text style={styles.actionCardTitle}>Weekly Health Summary</Text>
+                            <Text style={styles.actionCardSub}>Your progress this week</Text>
+                        </View>
+                    </Pressable>
+                </View>
+                
+                {/* Row 2 */}
+                <View style={styles.actionsGridRow}>
+                    <Pressable style={styles.actionGridCard} onPress={() => onPress('💊 My medications list')}>
+                        <View style={[styles.actionIconBox, { backgroundColor: '#EEF2FF' }]}>
+                            <Pill size={18} color="#4F46E5" />
+                        </View>
+                        <View style={styles.actionCardContent}>
+                            <Text style={styles.actionCardTitle}>My medications list</Text>
+                            <Text style={styles.actionCardSub}>View all your meds</Text>
+                        </View>
+                    </Pressable>
+                    
+                    <Pressable style={styles.actionGridCard} onPress={() => onPress('📈 My adherence streak')}>
+                        <View style={[styles.actionIconBox, { backgroundColor: '#FFF1F2' }]}>
+                            <Flame size={18} color="#E11D48" />
+                        </View>
+                        <View style={styles.actionCardContent}>
+                            <Text style={styles.actionCardTitle}>My adherence streak</Text>
+                            <Text style={styles.actionCardSub}>Track your consistency</Text>
+                        </View>
+                    </Pressable>
+                </View>
+            </View>
+            
+            {/* Center Card 5 */}
+            <Pressable style={styles.actionCardCenter} onPress={() => onPress('🩺 View vitals status')}>
+                <View style={[styles.actionIconBox, { backgroundColor: '#F0FDF4' }]}>
+                    <Activity size={18} color="#16A34A" />
+                </View>
+                <View style={styles.actionCardContent}>
+                    <Text style={styles.actionCardTitle}>View vitals status</Text>
+                    <Text style={styles.actionCardSub}>Check BP, HR & more</Text>
+                </View>
+            </Pressable>
+            
+            {/* Privacy / Security Banner */}
+            <View style={styles.privacyBanner}>
+                <View style={styles.privacyIconBox}>
+                    <Shield size={18} color="#4F46E5" />
+                </View>
+                <Text style={styles.privacyText}>
+                    Your health data is private, secure, and used only to support your care.
+                </Text>
+                <Pressable style={styles.privacyLearnBtn}>
+                    <Text style={styles.privacyLearnText}>Learn more</Text>
+                </Pressable>
             </View>
         </View>
     );
@@ -330,6 +474,11 @@ export default function ChatbotScreen({ navigation, route }) {
     const { t } = useTranslation();
     const { displayName, user } = useAuth();
     const patient = usePatientStore(state => state.patient);
+    const dashboardMeds = usePatientStore(state => state.dashboardMeds || []);
+    const medsCount = dashboardMeds.length;
+    const takenCount = dashboardMeds.filter(m => m.taken).length;
+    const vitals = usePatientStore(state => state.vitals);
+    const adherenceDetails = usePatientStore(state => state.adherenceDetails);
     const insets = useSafeAreaInsets();
     const flatListRef = useRef(null);
     const xhrRef = useRef(null); // Track active SSE stream for abort/cancellation
@@ -871,28 +1020,18 @@ export default function ChatbotScreen({ navigation, route }) {
                     contentContainerStyle={styles.messageList}
                     showsVerticalScrollIndicator={false}
                     ListHeaderComponent={
-                        <View style={styles.welcomeCard}>
-                            <LinearGradient colors={['#EEF2FF', '#E0E7FF']} style={styles.welcomeGradient}>
-                                <LinearGradient colors={['#818CF8', '#6366F1']} style={styles.welcomeIconBox}>
-                                    <Sparkles size={20} color="#FFF" />
-                                </LinearGradient>
-                                <Text style={styles.welcomeTitle}>Talk to Care Assistant</Text>
-                                <Text style={styles.welcomeSub}>
-                                    Ask me about medications, vitals, health tips, and more. I'm here to help you stay on top of your health.
-                                </Text>
-                            </LinearGradient>
-                        </View>
+                        <WelcomeSnapshotCard
+                            firstName={patient?.first_name || displayName || 'there'}
+                            medsCount={medsCount}
+                            takenCount={takenCount}
+                            vitals={vitals}
+                            streak={adherenceDetails?.streak || 0}
+                        />
                     }
                     ListFooterComponent={
                         <>
                             {messages.length <= 2 && (
-                                <View style={styles.suggestionsRow}>
-                                    {INITIAL_SUGGESTIONS.map((s, i) => (
-                                        <Pressable key={i} style={styles.suggestionChip} onPress={() => handleSend(s)}>
-                                            <Text style={styles.suggestionText}>{s}</Text>
-                                        </Pressable>
-                                    ))}
-                                </View>
+                                <QuickActionsDashboard onPress={(s) => handleSend(s)} />
                             )}
                             {isTyping ? <TypingIndicator stage={typingStage} /> : null}
                             {!isTyping && followUpSuggestions.length > 0 ? (
@@ -998,8 +1137,8 @@ const styles = StyleSheet.create({
         backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#F1F5F9',
         shadowColor: '#0A2463', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 8, elevation: 3,
     },
-    backBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center' },
-    clearBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#FEF2F2', alignItems: 'center', justifyContent: 'center' },
+    backBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 6, elevation: 2 },
+    clearBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#FEE2E2', alignItems: 'center', justifyContent: 'center' },
     headerCenter: { flexDirection: 'row', alignItems: 'center', gap: 10 },
     headerAvatar: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
     headerTitle: { fontSize: 16, fontWeight: '800', color: '#0F172A', letterSpacing: -0.3 },
@@ -1008,11 +1147,200 @@ const styles = StyleSheet.create({
     onlineText: { fontSize: 11, fontWeight: '600', color: '#22C55E' },
 
     // ── Welcome card ──
-    welcomeCard: { marginHorizontal: 16, marginTop: 16, marginBottom: 8, borderRadius: 20, overflow: 'hidden' },
-    welcomeGradient: { padding: 20, alignItems: 'center', borderRadius: 20, borderWidth: 1, borderColor: '#C7D2FE' },
-    welcomeIconBox: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
-    welcomeTitle: { fontSize: 16, fontWeight: '800', color: '#312E81', marginBottom: 4 },
-    welcomeSub: { fontSize: 13, color: '#4338CA', textAlign: 'center', lineHeight: 19, fontWeight: '500' },
+    welcomeCard: {
+        marginHorizontal: 16,
+        marginTop: 16,
+        marginBottom: 8,
+        borderRadius: 24,
+        overflow: 'hidden',
+        backgroundColor: '#FFFFFF',
+        shadowColor: '#6366F1',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.08,
+        shadowRadius: 16,
+        elevation: 4,
+    },
+    welcomeGradient: {
+        padding: 20,
+        borderRadius: 24,
+        flexDirection: 'row',
+        position: 'relative',
+        minHeight: 140,
+        overflow: 'hidden',
+    },
+    welcomeContent: {
+        flex: 1,
+        paddingRight: 80,
+        justifyContent: 'center',
+    },
+    welcomeTitle: {
+        fontSize: 18,
+        fontWeight: '700',
+        color: '#1E293B',
+        marginBottom: 4,
+    },
+    welcomeSub: {
+        fontSize: 12,
+        color: '#64748B',
+        fontWeight: '500',
+        marginBottom: 12,
+    },
+    snapshotRow: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 6,
+    },
+    snapshotBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 16,
+        paddingHorizontal: 8,
+        paddingVertical: 5,
+        borderWidth: 0.5,
+        borderColor: '#E2E8F0',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.02,
+        shadowRadius: 2,
+        elevation: 1,
+    },
+    snapshotBadgeText: {
+        fontSize: 10,
+        fontWeight: '700',
+        color: '#4F46E5',
+    },
+    robotMascot: {
+        position: 'absolute',
+        right: -10,
+        bottom: -10,
+        width: 120,
+        height: 140,
+    },
+
+    // ── Suggestions Dashboard ──
+    actionsDashboard: {
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        gap: 12,
+    },
+    actionsHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        justifyContent: 'center',
+        marginVertical: 4,
+    },
+    actionsHeaderText: {
+        fontSize: 14,
+        fontWeight: '700',
+        color: '#4F46E5',
+    },
+    actionsGrid: {
+        gap: 8,
+    },
+    actionsGridRow: {
+        flexDirection: 'row',
+        gap: 8,
+    },
+    actionGridCard: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FFFFFF',
+        borderRadius: 18,
+        padding: 10,
+        borderWidth: 1,
+        borderColor: '#F1F5F9',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.02,
+        shadowRadius: 4,
+        elevation: 1,
+        gap: 8,
+    },
+    actionCardCenter: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        alignSelf: 'center',
+        backgroundColor: '#FFFFFF',
+        borderRadius: 18,
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        borderWidth: 1,
+        borderColor: '#F1F5F9',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.02,
+        shadowRadius: 4,
+        elevation: 1,
+        gap: 8,
+        width: '70%',
+    },
+    actionIconBox: {
+        width: 32,
+        height: 32,
+        borderRadius: 10,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    actionCardContent: {
+        flex: 1,
+    },
+    actionCardTitle: {
+        fontSize: 11,
+        fontWeight: '700',
+        color: '#4338CA',
+    },
+    actionCardSub: {
+        fontSize: 9,
+        color: '#94A3B8',
+        fontWeight: '500',
+        marginTop: 1,
+    },
+
+    // ── Privacy banner ──
+    privacyBanner: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#EEF2FF',
+        borderRadius: 18,
+        paddingHorizontal: 14,
+        paddingVertical: 12,
+        borderWidth: 0.5,
+        borderColor: '#C7D2FE',
+        gap: 10,
+        marginTop: 12,
+    },
+    privacyIconBox: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: '#E0E7FF',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    privacyText: {
+        flex: 1,
+        fontSize: 10,
+        color: '#4338CA',
+        lineHeight: 14,
+        fontWeight: '600',
+    },
+    privacyLearnBtn: {
+        backgroundColor: '#FFFFFF',
+        borderWidth: 1,
+        borderColor: '#C7D2FE',
+        borderRadius: 12,
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+    },
+    privacyLearnText: {
+        fontSize: 10,
+        color: '#4F46E5',
+        fontWeight: '700',
+    },
 
     // ── Messages ──
     messageList: { paddingBottom: 8 },
