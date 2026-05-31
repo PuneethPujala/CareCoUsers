@@ -122,7 +122,7 @@ router.post('/chat', authenticate, aiChatRateLimiter, upload.single('audio'), as
 
         // Handle client disconnect (abort / cancellation)
         let clientDisconnected = false;
-        req.on('close', () => {
+        res.on('close', () => {
             clientDisconnected = true;
             console.log('[ChatbotRoute] Client disconnected, aborting stream.');
         });

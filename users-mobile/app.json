@@ -93,7 +93,8 @@
           ]
         }
       ],
-      "./plugins/withAndroidWidget.js"
+      "./plugins/withAndroidWidget.js",
+      "expo-localization"
     ],
     "extra": {
       "eas": {
