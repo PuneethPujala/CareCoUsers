@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Platform, RefreshControl,
   Pressable, ActivityIndicator, Linking, Animated,
-  Modal, TouchableOpacity, TouchableWithoutFeedback, TextInput, Keyboard, KeyboardAvoidingView, FlatList, Switch
+  Modal, TouchableOpacity, TouchableWithoutFeedback, TextInput, Keyboard, KeyboardAvoidingView, FlatList, Switch, Image
 } from 'react-native';
 import SmartInput from '../../components/ui/SmartInput';
 import PremiumFormModal from '../../components/ui/PremiumFormModal';
@@ -370,9 +370,13 @@ export default function MyCallerScreen({ navigation }) {
                   {/* Avatar */}
                   <View style={s.heroAvatarWrap}>
                     <View style={s.heroAvatarRing}>
-                      <LinearGradient colors={['#818CF8', '#C7D2FE']} style={s.heroAvatar}>
-                        <Text style={s.heroAvatarLetter}>{caller.name?.charAt(0)}</Text>
-                      </LinearGradient>
+                      {caller.profile_photo_url ? (
+                        <Image source={{ uri: caller.profile_photo_url }} style={s.heroAvatarImg} />
+                      ) : (
+                        <LinearGradient colors={['#818CF8', '#C7D2FE']} style={s.heroAvatar}>
+                          <Text style={s.heroAvatarLetter}>{caller.name?.charAt(0)}</Text>
+                        </LinearGradient>
+                      )}
                     </View>
                     <View style={s.heroOnlineDot} />
                   </View>
@@ -464,9 +468,13 @@ export default function MyCallerScreen({ navigation }) {
           {manager ? (
             <Pressable onPress={() => openModal({ ...manager, isManager: true })} style={({ pressed }) => [s.managerCard, pressed && { opacity: 0.97 }]}>
               <View style={s.managerLeft}>
-                <LinearGradient colors={['#475569', '#334155']} style={s.managerAvatar}>
-                  <Text style={s.managerAvatarText}>{manager.fullName?.charAt(0) || 'M'}</Text>
-                </LinearGradient>
+                {manager.avatarUrl ? (
+                  <Image source={{ uri: manager.avatarUrl }} style={s.managerAvatarImg} />
+                ) : (
+                  <LinearGradient colors={['#475569', '#334155']} style={s.managerAvatar}>
+                    <Text style={s.managerAvatarText}>{manager.fullName?.charAt(0) || 'M'}</Text>
+                  </LinearGradient>
+                )}
                 <View style={s.managerInfo}>
                   <Text style={s.managerName}>{manager.fullName || t('caller.manager_default', { defaultValue: 'Manager' })}</Text>
                   <View style={s.managerRoleRow}>
@@ -526,9 +534,19 @@ export default function MyCallerScreen({ navigation }) {
               return (
                 <View key={contact._id} style={s.contactCard}>
                   <View style={[s.contactAccent, { backgroundColor: accentColor }]} />
-                  <View style={[s.contactAvatar, { backgroundColor: avatarBg }]}>
-                    <Text style={[s.contactAvatarTxt, { color: accentColor }]}>{contact.name.charAt(0)}</Text>
-                  </View>
+                  {(() => {
+                    const matchedCompanion = (patient?.companions || []).find(
+                      comp => comp.profile_id?.email?.toLowerCase() === contact.email?.toLowerCase()
+                    );
+                    const companionAvatar = matchedCompanion?.profile_id?.avatarUrl;
+                    return companionAvatar ? (
+                      <Image source={{ uri: companionAvatar }} style={s.contactAvatarImg} />
+                    ) : (
+                      <View style={[s.contactAvatar, { backgroundColor: avatarBg }]}>
+                        <Text style={[s.contactAvatarTxt, { color: accentColor }]}>{contact.name.charAt(0)}</Text>
+                      </View>
+                    );
+                  })()}
                   <View style={s.contactInfo}>
                     <View style={s.contactNameRow}>
                       <Text style={s.contactName} numberOfLines={1}>{contact.name}</Text>
@@ -639,9 +657,15 @@ export default function MyCallerScreen({ navigation }) {
                     <LinearGradient colors={gradientColors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.sheetHero}>
                       <View style={s.sheetHeroInner}>
                         <View style={s.sheetAvatarWrap}>
-                          <LinearGradient colors={isManager ? ['#6B7280', '#9CA3AF'] : ['#818CF8', '#C7D2FE']} style={s.sheetAvatar}>
-                            <Text style={s.sheetAvatarLetter}>{profileName.charAt(0)}</Text>
-                          </LinearGradient>
+                          {isManager && selectedProfile?.avatarUrl ? (
+                            <Image source={{ uri: selectedProfile.avatarUrl }} style={s.sheetAvatarImg} />
+                          ) : (!isManager && selectedProfile?.profile_photo_url) ? (
+                            <Image source={{ uri: selectedProfile.profile_photo_url }} style={s.sheetAvatarImg} />
+                          ) : (
+                            <LinearGradient colors={isManager ? ['#6B7280', '#9CA3AF'] : ['#818CF8', '#C7D2FE']} style={s.sheetAvatar}>
+                              <Text style={s.sheetAvatarLetter}>{profileName.charAt(0)}</Text>
+                            </LinearGradient>
+                          )}
                           <View style={s.sheetOnlineDot} />
                         </View>
                         <View style={s.sheetHeroInfo}>
@@ -971,6 +995,7 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   heroAvatar: { width: 66, height: 66, borderRadius: 33, alignItems: 'center', justifyContent: 'center' },
+  heroAvatarImg: { width: 66, height: 66, borderRadius: 33 },
   heroAvatarLetter: { fontSize: 28, fontWeight: '800', color: C.primaryDark },
   heroOnlineDot: {
     position: 'absolute', bottom: 2, right: 2,
@@ -1025,6 +1050,7 @@ const s = StyleSheet.create({
   },
   managerLeft:   { flexDirection: 'row', alignItems: 'center', gap: 14, flex: 1 },
   managerAvatar: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
+  managerAvatarImg: { width: 48, height: 48, borderRadius: 24 },
   managerAvatarText: { fontSize: 20, fontWeight: '800', color: '#FFF' },
   managerInfo: { flex: 1 },
   managerName: { fontSize: 16, fontWeight: '700', color: C.dark, marginBottom: 4 },
@@ -1062,6 +1088,7 @@ const s = StyleSheet.create({
   },
   contactAccent: { width: 4, height: '100%', position: 'absolute', left: 0, top: 0, borderTopLeftRadius: 18, borderBottomLeftRadius: 18 },
   contactAvatar: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', marginLeft: 10, marginRight: 12 },
+  contactAvatarImg: { width: 44, height: 44, borderRadius: 22, marginLeft: 10, marginRight: 12 },
   contactAvatarTxt: { fontSize: 18, fontWeight: '800' },
   contactInfo: { flex: 1 },
   contactNameRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 3 },
@@ -1120,6 +1147,7 @@ const s = StyleSheet.create({
   sheetHeroInner: { flexDirection: 'row', alignItems: 'center', gap: 16 },
   sheetAvatarWrap: { position: 'relative' },
   sheetAvatar: { width: 68, height: 68, borderRadius: 34, alignItems: 'center', justifyContent: 'center' },
+  sheetAvatarImg: { width: 68, height: 68, borderRadius: 34 },
   sheetAvatarLetter: { fontSize: 28, fontWeight: '800', color: C.primaryDark },
   sheetOnlineDot: {
     position: 'absolute', bottom: 2, right: 2,

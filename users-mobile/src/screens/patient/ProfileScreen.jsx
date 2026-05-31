@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import {
     View, Text, StyleSheet, ScrollView, Platform, Pressable, Modal,
-    TextInput, Switch, Animated, StatusBar, FlatList, KeyboardAvoidingView, Alert, Share,
+    TextInput, Switch, Animated, StatusBar, FlatList, KeyboardAvoidingView, Alert, Share, Image,
 } from 'react-native';
 import SmartInput from '../../components/ui/SmartInput';
 import PremiumFormModal from '../../components/ui/PremiumFormModal';
@@ -25,6 +25,7 @@ import usePatientStore from '../../store/usePatientStore';
 import * as Sharing from 'expo-sharing';
 import ViewShot from 'react-native-view-shot';
 import { LinearGradient } from 'expo-linear-gradient';
+import { showAvatarActionSheet, handleAvatarPicker, deleteOldAvatar } from '../../utils/avatarHelper';
 const C = {
     primary: '#6366F1', primarySoft: '#EEF2FF', dark: '#0F172A', mid: '#334155',
     muted: '#94A3B8', light: '#CBD5E1', border: '#F1F5F9', pageBg: '#F8FAFC',
@@ -240,6 +241,40 @@ export default function PatientProfileScreen({ navigation }) {
     );
 
     /* ── Handlers ─────────────────────────────── */
+    const handleRemoveAvatar = async () => {
+        try {
+            if (patient?.avatar_url) {
+                await deleteOldAvatar(patient.avatar_url, 'avatars');
+                const res = await apiService.patients.updateMe({ avatar_url: '' });
+                setPatient(res.data.patient);
+                usePatientStore.getState().setPatient(res.data.patient);
+                AlertManager.alert(t('common.success', { defaultValue: 'Success' }), t('profile.picture_removed', { defaultValue: 'Profile picture removed.' }));
+            }
+        } catch (err) {
+            AlertManager.alert(t('common.error', { defaultValue: 'Error' }), t('profile.picture_remove_error', { defaultValue: 'Failed to remove profile picture.' }));
+        }
+    };
+
+    const handleAvatarPress = () => {
+        showAvatarActionSheet(
+            patient?.avatar_url,
+            async (sourceType) => {
+                const publicUrl = await handleAvatarPicker(sourceType, patient?._id || 'unknown', patient?.avatar_url, 'avatars');
+                if (publicUrl) {
+                    try {
+                        const res = await apiService.patients.updateMe({ avatar_url: publicUrl });
+                        setPatient(res.data.patient);
+                        usePatientStore.getState().setPatient(res.data.patient);
+                        AlertManager.alert(t('common.success', { defaultValue: 'Success' }), t('profile.picture_updated', { defaultValue: 'Profile picture updated successfully.' }));
+                    } catch (err) {
+                        AlertManager.alert(t('common.error', { defaultValue: 'Error' }), t('profile.picture_update_error', { defaultValue: 'Failed to save profile picture.' }));
+                    }
+                }
+            },
+            handleRemoveAvatar
+        );
+    };
+
     const handleRemoveEC = async () => {
         setSaving(true);
         try {
@@ -687,10 +722,14 @@ export default function PatientProfileScreen({ navigation }) {
                 <Animated.View style={anim(1)}>
                     <View style={s.profileCard}>
                         <View style={s.profileMain}>
-                            <View style={s.avatar}>
-                                <Text style={s.avatarTxt}>{patient?.name?.charAt(0) || displayName?.charAt(0) || 'U'}</Text>
+                            <Pressable style={s.avatar} onPress={handleAvatarPress}>
+                                {patient?.avatar_url ? (
+                                    <Image source={{ uri: patient.avatar_url }} style={s.avatarImg} />
+                                ) : (
+                                    <Text style={s.avatarTxt}>{patient?.name?.charAt(0) || displayName?.charAt(0) || 'U'}</Text>
+                                )}
                                 <View style={s.editBadge}><Settings size={12} color="#FFF" /></View>
-                            </View>
+                            </Pressable>
                             <View style={s.profileInfo}>
                                 <Text style={s.profileName}>{patient?.name || displayName || 'User'}</Text>
                                 <Text style={s.profileEmail}>{userEmail || 'patient@CareMyMed.com'}</Text>
@@ -1535,9 +1574,13 @@ export default function PatientProfileScreen({ navigation }) {
                             
                             {/* Patient Name Area */}
                             <View style={{ alignItems: 'center', marginBottom: 80, paddingBottom: 60, borderBottomWidth: 2, borderBottomColor: 'rgba(255,255,255,0.05)' }}>
-                                <View style={{ width: 160, height: 160, borderRadius: 80, backgroundColor: 'rgba(99,102,241,0.2)', alignItems: 'center', justifyContent: 'center', marginBottom: 30 }}>
-                                    <User size={80} color="#818CF8" />
-                                </View>
+                                {patient?.avatar_url ? (
+                                    <Image source={{ uri: patient.avatar_url }} style={{ width: 160, height: 160, borderRadius: 80, marginBottom: 30 }} />
+                                ) : (
+                                    <View style={{ width: 160, height: 160, borderRadius: 80, backgroundColor: 'rgba(99,102,241,0.2)', alignItems: 'center', justifyContent: 'center', marginBottom: 30 }}>
+                                        <User size={80} color="#818CF8" />
+                                    </View>
+                                )}
                                 <Text style={{ fontSize: 32, fontWeight: '700', color: '#818CF8', textTransform: 'uppercase', letterSpacing: 3, marginBottom: 16 }}>Health Profile</Text>
                                 <Text style={{ fontSize: 90, fontWeight: '900', color: '#FFF', letterSpacing: -2, textAlign: 'center' }}>
                                     {patient?.name || displayName}
@@ -1635,6 +1678,7 @@ const s = StyleSheet.create({
     profileCard: { backgroundColor: C.white, borderRadius: 24, padding: 20, marginBottom: 24, shadowColor: '#4361EE', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.06, shadowRadius: 16, elevation: 4 },
     profileMain: { flexDirection: 'row', alignItems: 'center' },
     avatar: { width: 64, height: 64, borderRadius: 32, backgroundColor: C.primarySoft, alignItems: 'center', justifyContent: 'center', borderWidth: 2.5, borderColor: 'rgba(99,102,241,0.1)' },
+    avatarImg: { width: 59, height: 59, borderRadius: 29.5 },
     avatarTxt: { fontSize: 26, fontWeight: '800', color: C.primary },
     editBadge: { position: 'absolute', bottom: -2, right: -2, width: 22, height: 22, borderRadius: 11, backgroundColor: C.primary, alignItems: 'center', justifyContent: 'center', borderWidth: 2.5, borderColor: '#FFF' },
     profileInfo: { flex: 1, marginLeft: 16 },

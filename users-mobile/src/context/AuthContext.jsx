@@ -564,13 +564,28 @@ export function AuthProvider({ children }) {
     const displayName = profile?.fullName || user?.user_metadata?.full_name || 'User';
     const userRole = profile?.role;
 
+    const refreshProfile = useCallback(async () => {
+        try {
+            const response = await apiService.auth.getProfile();
+            const pd = response?.data?.profile;
+            if (pd) {
+                pd.role = pd.role || 'patient';
+                await setProfileAndCache(pd);
+            }
+            return pd || null;
+        } catch (err) {
+            if (__DEV__) console.warn('[Auth] refreshProfile failed:', err.message);
+            return null;
+        }
+    }, [setProfileAndCache]);
+
     const value = {
         user, session, profile, patient, loading,
         isBootstrapping, onboardingComplete, subscriptionStatus, recoverySessionAt,
         displayName, userRole, userEmail: user?.email,
         signIn, signUp, signOut, resetPassword, signInWithGoogle,
         completeSignUp, injectSession, completeMfaLogin,
-        sendOtp, verifyOtp, refreshPatient: fetchPatientData,
+        sendOtp, verifyOtp, refreshPatient: fetchPatientData, refreshProfile,
     };
 
     return (

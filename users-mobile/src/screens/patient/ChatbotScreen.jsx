@@ -218,6 +218,60 @@ function RenderMessageCards({ cards }) {
     );
 }
 
+// ── Helper to dynamically resolve mascot pose based on message content ──────
+const getMascotForMessage = (text) => {
+    if (!text) return require('../../../assets/doctor_mascot.jpg');
+    const lower = text.toLowerCase();
+    
+    // Concern/warning keywords (English, Spanish, Hindi)
+    if (
+        lower.includes('high bp') || lower.includes('alert') || lower.includes('danger') || lower.includes('concerned') || lower.includes('warning') || lower.includes('missed several') || lower.includes('overdue') || lower.includes('urgent') ||
+        lower.includes('peligro') || lower.includes('alerta') || lower.includes('preocupado') || lower.includes('urgente') || lower.includes('presión alta') || lower.includes('omitido') ||
+        lower.includes('खतरा') || lower.includes('चेतावनी') || lower.includes('चिंता') || lower.includes('आपातकाल') || lower.includes('उच्च रक्तचाप')
+    ) {
+        return require('../../../assets/doctor_mascot_concerned.jpg');
+    }
+    
+    // Success/congratulations keywords
+    if (
+        lower.includes('streak') || lower.includes('congrats') || lower.includes('awesome') || lower.includes('great job') || lower.includes('success') || lower.includes('unlocked') || lower.includes('perfect') || lower.includes('celebrate') || lower.includes('completed') || lower.includes('excellent') ||
+        lower.includes('racha') || lower.includes('felicidades') || lower.includes('excelente') || lower.includes('éxito') || lower.includes('celebrar') || lower.includes('completado') ||
+        lower.includes('बधाई') || lower.includes('सफलता') || lower.includes('बहुत बढ़िया') || lower.includes('शानदार') || lower.includes('पूरा')
+    ) {
+        return require('../../../assets/doctor_mascot_celebration.jpg');
+    }
+    
+    // Caring/reminders/medications/health tips keywords
+    if (
+        lower.includes('take') || lower.includes('medication') || lower.includes('medicine') || lower.includes('remind') || lower.includes('health tip') || lower.includes('please drink') || lower.includes('hydration') || lower.includes('care') || lower.includes('pills') ||
+        lower.includes('tomar') || lower.includes('medicamento') || lower.includes('medicina') || lower.includes('recordar') || lower.includes('hidratación') || lower.includes('cuidado') ||
+        lower.includes('दवा') || lower.includes('याद दिलाएं') || lower.includes('पानी') || lower.includes('देखभाल')
+    ) {
+        return require('../../../assets/doctor_mascot_caring.jpg');
+    }
+    
+    // Insights/analysis/weekly summary keywords
+    if (
+        lower.includes('insight') || lower.includes('summary') || lower.includes('trend') || lower.includes('analysis') || lower.includes('report') || lower.includes('fact') ||
+        lower.includes('resumen') || lower.includes('análisis') || lower.includes('tendencia') || lower.includes('informe') ||
+        lower.includes('सारांश') || lower.includes('विश्लेषण') || lower.includes('रिपोर्ट')
+    ) {
+        return require('../../../assets/doctor_mascot_insights.jpg');
+    }
+    
+    // Thinking/analyzing
+    if (
+        lower.includes('thinking') || lower.includes('analyzing') || lower.includes('checking') || lower.includes('one moment') ||
+        lower.includes('pensando') || lower.includes('analizando') ||
+        lower.includes('सोच') || lower.includes('विश्लेषण कर')
+    ) {
+        return require('../../../assets/doctor_mascot_thinking.jpg');
+    }
+    
+    // Default welcome/greeting mascot
+    return require('../../../assets/doctor_mascot.jpg');
+};
+
 // ── Single chat bubble ─────────────────────────────────────────────────────
 function ChatBubble({ message, isUser }) {
     const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -232,9 +286,10 @@ function ChatBubble({ message, isUser }) {
     return (
         <Animated.View style={[styles.bubbleRow, isUser && styles.bubbleRowUser, { opacity: fadeAnim, transform: [{ translateY: fadeAnim.interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) }] }]}>
             {!isUser && (
-                <LinearGradient colors={['#6366F1', '#4F46E5']} style={styles.avatarCircle}>
-                    <Sparkles size={14} color="#FFFFFF" strokeWidth={2.5} />
-                </LinearGradient>
+                <Image 
+                    source={getMascotForMessage(message.text)} 
+                    style={styles.botAvatarCircle} 
+                />
             )}
             <View style={[styles.bubble, isUser ? styles.bubbleUser : styles.bubbleBot, message.image && styles.bubbleImageContainer, message.audio && styles.bubbleAudioContainer]}>
                 {isUser && !message.image && !message.audio ? (
@@ -310,9 +365,10 @@ function TypingIndicator({ stage }) {
 
     return (
         <View style={[styles.bubbleRow]}>
-            <LinearGradient colors={['#6366F1', '#4F46E5']} style={styles.avatarCircle}>
-                <Sparkles size={14} color="#FFFFFF" strokeWidth={2.5} />
-            </LinearGradient>
+            <Image 
+                source={require('../../../assets/doctor_mascot_thinking.jpg')} 
+                style={styles.botAvatarCircle} 
+            />
             <View style={[styles.bubble, styles.bubbleBot, styles.typingBubble, { flexDirection: 'row', alignItems: 'center' }]}>
                 {stage && <Text style={{ color: '#6B7280', marginRight: 8, fontSize: 13, fontWeight: '500' }}>{stage}</Text>}
                 {dots.map((dot, i) => (
@@ -983,9 +1039,10 @@ export default function ChatbotScreen({ navigation, route }) {
                     <ArrowLeft size={22} color="#0F172A" strokeWidth={2.5} />
                 </Pressable>
                 <View style={styles.headerCenter}>
-                    <LinearGradient colors={['#6366F1', '#4F46E5']} style={styles.headerAvatar}>
-                        <Sparkles size={18} color="#FFF" strokeWidth={2.5} />
-                    </LinearGradient>
+                    <Image 
+                        source={require('../../../assets/doctor_mascot.jpg')} 
+                        style={styles.headerMascotAvatar} 
+                    />
                     <View>
                         <Text style={styles.headerTitle}>Care Assistant</Text>
                         <View style={styles.onlineRow}>
@@ -1141,6 +1198,7 @@ const styles = StyleSheet.create({
     clearBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#FEE2E2', alignItems: 'center', justifyContent: 'center' },
     headerCenter: { flexDirection: 'row', alignItems: 'center', gap: 10 },
     headerAvatar: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+    headerMascotAvatar: { width: 40, height: 40, borderRadius: 20 },
     headerTitle: { fontSize: 16, fontWeight: '800', color: '#0F172A', letterSpacing: -0.3 },
     onlineRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 1 },
     onlineDot: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: '#22C55E' },
@@ -1217,7 +1275,7 @@ const styles = StyleSheet.create({
         bottom: 20,
         width: 100,
         height: 100,
-        borderRadius: 20,
+        borderRadius: 50,
         borderWidth: 1,
         borderColor: '#E2E8F0',
         overflow: 'hidden',
@@ -1351,6 +1409,7 @@ const styles = StyleSheet.create({
     bubbleRow: { flexDirection: 'row', alignItems: 'flex-end', paddingHorizontal: 12, marginVertical: 4, gap: 8 },
     bubbleRowUser: { flexDirection: 'row', justifyContent: 'flex-end' },
     avatarCircle: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', marginBottom: 2 },
+    botAvatarCircle: { width: 30, height: 30, borderRadius: 15, marginBottom: 2 },
     avatarCircleUser: { width: 30, height: 30, borderRadius: 15, backgroundColor: '#6366F1', alignItems: 'center', justifyContent: 'center', marginBottom: 2 },
     bubble: { maxWidth: '75%', borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10, overflow: 'hidden' },
     bubbleImageContainer: { paddingHorizontal: 4, paddingVertical: 4, backgroundColor: 'transparent' },

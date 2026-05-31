@@ -94,7 +94,14 @@
         }
       ],
       "./plugins/withAndroidWidget.js",
-      "expo-localization"
+      "expo-localization",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "The app accesses your photos to let you choose a profile picture.",
+          "cameraPermission": "The app accesses your camera to let you take a profile picture."
+        }
+      ]
     ],
     "extra": {
       "eas": {

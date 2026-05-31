@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Switch, Share } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Switch, Share, Image } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import { apiService } from '../../lib/api';
 import { LogOut, ShieldCheck, Heart, User, Settings, ArrowRight, UserCheck, Share2, Phone, ChevronLeft } from 'lucide-react-native';
+import { showAvatarActionSheet, handleAvatarPicker, deleteOldAvatar } from '../../utils/avatarHelper';
 import { layout } from '../../theme';
 import AlertManager from '../../utils/AlertManager';
 import { useNavigation } from '@react-navigation/native';
@@ -31,8 +32,40 @@ const FONT = {
 };
 
 export default function CompanionProfileScreen() {
-    const { signOut, user, profile } = useAuth();
+    const { signOut, user, profile, refreshProfile } = useAuth();
     const [loading, setLoading] = useState(true);
+
+    const handleRemoveAvatar = async () => {
+        try {
+            if (profile?.avatarUrl) {
+                await deleteOldAvatar(profile.avatarUrl, 'avatars');
+                await apiService.auth.updateProfile({ avatarUrl: '' });
+                await refreshProfile();
+                AlertManager.alert('Success', 'Profile picture removed.');
+            }
+        } catch (err) {
+            AlertManager.alert('Error', 'Failed to remove profile picture.');
+        }
+    };
+
+    const handleAvatarPress = () => {
+        showAvatarActionSheet(
+            profile?.avatarUrl,
+            async (sourceType) => {
+                const publicUrl = await handleAvatarPicker(sourceType, profile?._id || 'unknown', profile?.avatarUrl, 'avatars');
+                if (publicUrl) {
+                    try {
+                        await apiService.auth.updateProfile({ avatarUrl: publicUrl });
+                        await refreshProfile();
+                        AlertManager.alert('Success', 'Profile picture updated successfully.');
+                    } catch (err) {
+                        AlertManager.alert('Error', 'Failed to save profile picture.');
+                    }
+                }
+            },
+            handleRemoveAvatar
+        );
+    };
     const [generatingCode, setGeneratingCode] = useState(false);
     const [linkedPatients, setLinkedPatients] = useState([]);
     const [pushEnabled, setPushEnabled] = useState(true);
@@ -134,12 +167,16 @@ export default function CompanionProfileScreen() {
             <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
                 {/* 1. Profile Identity Card */}
                 <View style={styles.profileCard}>
-                    <View style={styles.avatar}>
-                        <Text style={styles.avatarText}>{initials}</Text>
+                    <Pressable style={styles.avatar} onPress={handleAvatarPress}>
+                        {profile?.avatarUrl ? (
+                            <Image source={{ uri: profile.avatarUrl }} style={styles.avatarImg} />
+                        ) : (
+                            <Text style={styles.avatarText}>{initials}</Text>
+                        )}
                         <View style={styles.badgeIcon}>
                             <UserCheck size={12} color="#FFF" strokeWidth={2.5} />
                         </View>
-                    </View>
+                    </Pressable>
                     <View style={styles.profileDetails}>
                         <Text style={styles.companionName}>{companionName}</Text>
                         <Text style={styles.companionEmail}>{user?.email}</Text>
@@ -159,7 +196,11 @@ export default function CompanionProfileScreen() {
                             return (
                                 <View key={p.id} style={[styles.patientItem, idx === linkedPatients.length - 1 && { borderBottomWidth: 0 }]}>
                                     <View style={styles.patientAvatar}>
-                                        <Text style={styles.patientAvatarText}>{pInitials}</Text>
+                                        {p.avatar_url ? (
+                                            <Image source={{ uri: p.avatar_url }} style={styles.patientAvatarImg} />
+                                        ) : (
+                                            <Text style={styles.patientAvatarText}>{pInitials}</Text>
+                                        )}
                                     </View>
                                     <View style={{ flex: 1 }}>
                                         <Text style={styles.patientName}>{p.name}</Text>
@@ -300,6 +341,16 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         position: 'relative',
+    },
+    avatarImg: {
+        width: 72,
+        height: 72,
+        borderRadius: 36,
+    },
+    patientAvatarImg: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
     },
     avatarText: {
         fontSize: 22,

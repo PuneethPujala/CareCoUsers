@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ScrollView, Image } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { MessageSquare, Plus, ChevronRight, Bot, Sparkles } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -107,9 +107,7 @@ export default function CompanionChatListScreen() {
                 
                 {recentMessages.length > 0 ? (
                     <Pressable style={styles.chatRow} onPress={handleNewChat}>
-                        <View style={styles.avatarCircle}>
-                            <Bot size={22} color={C.primary} strokeWidth={2} />
-                        </View>
+                        <Image source={require('../../../assets/doctor_mascot.jpg')} style={styles.chatMascotAvatar} />
                         <View style={styles.chatDetails}>
                             <View style={styles.chatHeader}>
                                 <Text style={styles.chatTitle}>Care Assistant</Text>
@@ -214,6 +212,9 @@ const styles = StyleSheet.create({
         width: 48, height: 48, borderRadius: 24,
         backgroundColor: C.primaryLight,
         alignItems: 'center', justifyContent: 'center',
+    },
+    chatMascotAvatar: {
+        width: 48, height: 48, borderRadius: 24,
     },
     chatDetails: {
         flex: 1,
