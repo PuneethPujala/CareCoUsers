@@ -1170,7 +1170,7 @@ const styles = StyleSheet.create({
     },
     welcomeContent: {
         flex: 1,
-        paddingRight: 80,
+        paddingRight: 110,
         justifyContent: 'center',
     },
     welcomeTitle: {
@@ -1213,10 +1213,14 @@ const styles = StyleSheet.create({
     },
     robotMascot: {
         position: 'absolute',
-        right: -10,
-        bottom: -10,
-        width: 120,
-        height: 140,
+        right: 12,
+        bottom: 20,
+        width: 100,
+        height: 100,
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
+        overflow: 'hidden',
     },
 
     // ── Suggestions Dashboard ──
