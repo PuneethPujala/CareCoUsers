@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ArrowLeft, Send, Sparkles, Bot, User, Mic, Paperclip, Trash2 } from 'lucide-react-native';
+import { ArrowLeft, Send, Sparkles, Bot, User, Mic, Paperclip, Trash2, Pill, Flame, TrendingUp, CheckCircle2, Activity, Heart, Wind, Calendar } from 'lucide-react-native';
 import { colors } from '../../theme';
 import { useAuth } from '../../context/AuthContext';
 import { useTranslation } from 'react-i18next';
@@ -16,13 +16,207 @@ import { getApiTokens } from '../../lib/tokenStorage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const INITIAL_SUGGESTIONS = [
-    '💊 What medications am I taking?',
-    '📊 Show my vitals summary',
-    '🩺 Health tips for today',
-    '⏰ When is my next dose?',
-    '📈 How is my adherence?',
-    '💉 Any drug interactions?',
+    '📋 What should I do today?',
+    '📊 Weekly Health Summary',
+    '💊 My medications list',
+    '📈 My adherence streak',
+    '🩺 View vitals status',
 ];
+
+function generateDynamicGreeting(firstName) {
+    const store = usePatientStore.getState();
+    const medsCount = store.dashboardMeds?.length || 0;
+    const takenCount = store.dashboardMeds?.filter(m => m.taken).length || 0;
+    const streak = store.adherenceDetails?.streak || 0;
+    
+    if (medsCount > 0 && takenCount === medsCount) {
+        return `Hi ${firstName}! 🎉 You have taken all ${medsCount} medications scheduled for today. Outstanding job! How can I assist you with your health details right now?`;
+    }
+    
+    if (streak >= 7) {
+        return `Hello ${firstName}! 👋 You are on a strong ${streak}-day medication streak! Let's keep it going today. How can I help you?`;
+    }
+    
+    if (medsCount > 0 && takenCount < medsCount) {
+        const remaining = medsCount - takenCount;
+        return `Hi ${firstName}! 👋 Just a quick check-in: you have ${remaining} medication${remaining > 1 ? 's' : ''} left to take today. I'm here if you have any questions about them, or if you'd like to check your vitals.`;
+    }
+    
+    return `Hi ${firstName}! 👋 I'm your Conversational Care Assistant. I can help you check your medications list, log vitals, view your weekly summary, or coordinate with your care team. How can I help you today?`;
+}
+
+function AdherenceCard({ rate, streak, level }) {
+    return (
+        <View style={styles.cardContainer}>
+            <LinearGradient colors={['#F0FDF4', '#FFFFFF']} style={styles.cardGradient}>
+                <View style={styles.cardHeader}>
+                    <TrendingUp size={16} color="#16A34A" />
+                    <Text style={styles.cardTitle}>Medication Adherence</Text>
+                </View>
+                
+                <View style={styles.cardRow}>
+                    <View style={styles.cardMetricCol}>
+                        <Text style={styles.cardMetricValue}>{rate}%</Text>
+                        <Text style={styles.cardMetricLabel}>Adherence Rate</Text>
+                    </View>
+                    
+                    <View style={styles.cardDivider} />
+                    
+                    <View style={styles.cardMetricCol}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                            <Flame size={18} color="#F97316" fill="#F97316" />
+                            <Text style={styles.cardMetricValue}>{streak}</Text>
+                        </View>
+                        <Text style={styles.cardMetricLabel}>Current Streak</Text>
+                    </View>
+                </View>
+                
+                <View style={[styles.cardBadge, { backgroundColor: rate >= 80 ? '#DCFCE7' : '#FEF3C7' }]}>
+                    <Text style={[styles.cardBadgeText, { color: rate >= 80 ? '#15803D' : '#92400E' }]}>
+                        Status: {level}
+                    </Text>
+                </View>
+            </LinearGradient>
+        </View>
+    );
+}
+
+function MedicationsCard({ taken, remaining }) {
+    return (
+        <View style={styles.cardContainer}>
+            <LinearGradient colors={['#EEF2FF', '#FFFFFF']} style={styles.cardGradient}>
+                <View style={styles.cardHeader}>
+                    <Pill size={16} color="#4F46E5" />
+                    <Text style={styles.cardTitle}>Today's Schedule</Text>
+                </View>
+                
+                <View style={{ marginTop: 8, gap: 8 }}>
+                    {remaining.length === 0 && taken.length === 0 ? (
+                        <Text style={styles.cardEmptyText}>No medications scheduled for today.</Text>
+                    ) : null}
+                    
+                    {remaining.map((med, i) => (
+                        <View key={`rem-${i}`} style={styles.medCheckRow}>
+                            <View style={styles.medCheckIconPending}>
+                                <View style={styles.medCheckIconInner} />
+                            </View>
+                            <Text style={styles.medCheckTextPending}>{med}</Text>
+                        </View>
+                    ))}
+                    
+                    {taken.map((med, i) => (
+                        <View key={`taken-${i}`} style={styles.medCheckRow}>
+                            <CheckCircle2 size={16} color="#16A34A" strokeWidth={2.5} />
+                            <Text style={styles.medCheckTextTaken}>{med}</Text>
+                        </View>
+                    ))}
+                </View>
+            </LinearGradient>
+        </View>
+    );
+}
+
+function VitalsCard({ systolic, diastolic, heartRate, spo2 }) {
+    return (
+        <View style={styles.cardContainer}>
+            <LinearGradient colors={['#FFF1F2', '#FFFFFF']} style={styles.cardGradient}>
+                <View style={styles.cardHeader}>
+                    <Activity size={16} color="#E11D48" />
+                    <Text style={styles.cardTitle}>Vitals Status</Text>
+                </View>
+                
+                <View style={styles.vitalsGrid}>
+                    <View style={styles.vitalGridItem}>
+                        <Heart size={14} color="#E11D48" />
+                        <View>
+                            <Text style={styles.vitalGridValue}>{systolic}/{diastolic}</Text>
+                            <Text style={styles.vitalGridUnit}>BP mmHg</Text>
+                        </View>
+                    </View>
+                    
+                    <View style={styles.vitalGridItem}>
+                        <Activity size={14} color="#4F46E5" />
+                        <View>
+                            <Text style={styles.vitalGridValue}>{heartRate}</Text>
+                            <Text style={styles.vitalGridUnit}>HR bpm</Text>
+                        </View>
+                    </View>
+                    
+                    <View style={styles.vitalGridItem}>
+                        <Wind size={14} color="#0EA5E9" />
+                        <View>
+                            <Text style={styles.vitalGridValue}>{spo2}%</Text>
+                            <Text style={styles.vitalGridUnit}>SpO₂</Text>
+                        </View>
+                    </View>
+                </View>
+            </LinearGradient>
+        </View>
+    );
+}
+
+function SummaryCard({ adherenceRate, vitalsLoggedDays, missedDoses, currentStreak }) {
+    return (
+        <View style={styles.cardContainer}>
+            <LinearGradient colors={['#FDF4FF', '#FFFFFF']} style={styles.cardGradient}>
+                <View style={styles.cardHeader}>
+                    <Calendar size={16} color="#C084FC" />
+                    <Text style={styles.cardTitle}>Weekly Summary</Text>
+                </View>
+                
+                <View style={styles.summaryList}>
+                    <View style={styles.summaryRowItem}>
+                        <Text style={styles.summaryRowLabel}>Adherence Rate</Text>
+                        <Text style={[styles.summaryRowValue, { color: adherenceRate >= 80 ? '#16A34A' : '#D97706' }]}>{adherenceRate}%</Text>
+                    </View>
+                    <View style={styles.summaryRowItem}>
+                        <Text style={styles.summaryRowLabel}>Vitals Logged</Text>
+                        <Text style={styles.summaryRowValue}>{vitalsLoggedDays} days</Text>
+                    </View>
+                    <View style={styles.summaryRowItem}>
+                        <Text style={styles.summaryRowLabel}>Missed Doses</Text>
+                        <Text style={[styles.summaryRowValue, { color: missedDoses > 0 ? '#DC2626' : '#16A34A' }]}>{missedDoses}</Text>
+                    </View>
+                    <View style={styles.summaryRowItem}>
+                        <Text style={styles.summaryRowLabel}>Current Streak</Text>
+                        <Text style={styles.summaryRowValue}>{currentStreak} days</Text>
+                    </View>
+                </View>
+            </LinearGradient>
+        </View>
+    );
+}
+
+function RenderMessageCards({ cards }) {
+    if (!cards || cards.length === 0) return null;
+    return (
+        <View style={styles.cardsWrapper}>
+            {cards.map((card, i) => {
+                if (card.type === 'adherence') {
+                    return <AdherenceCard key={i} rate={card.rate} streak={card.streak} level={card.level} />;
+                }
+                if (card.type === 'medications') {
+                    return <MedicationsCard key={i} taken={card.taken || []} remaining={card.remaining || []} />;
+                }
+                if (card.type === 'vitals') {
+                    return <VitalsCard key={i} systolic={card.systolic} diastolic={card.diastolic} heartRate={card.heartRate} spo2={card.spo2} />;
+                }
+                if (card.type === 'summary') {
+                    return (
+                        <SummaryCard 
+                            key={i} 
+                            adherenceRate={card.adherenceRate} 
+                            vitalsLoggedDays={card.vitalsLoggedDays} 
+                            missedDoses={card.missedDoses} 
+                            currentStreak={card.currentStreak} 
+                        />
+                    );
+                }
+                return null;
+            })}
+        </View>
+    );
+}
 
 // ── Single chat bubble ─────────────────────────────────────────────────────
 function ChatBubble({ message, isUser }) {
@@ -31,7 +225,7 @@ function ChatBubble({ message, isUser }) {
         Animated.timing(fadeAnim, { toValue: 1, duration: 300, useNativeDriver: true }).start();
     }, []);
 
-    if (!message.text && !message.image && !message.audio) {
+    if (!message.text && !message.image && !message.audio && (!message.cards || message.cards.length === 0)) {
         return null;
     }
 
@@ -60,6 +254,10 @@ function ChatBubble({ message, isUser }) {
 
                 {message.text ? (
                     <Text style={[styles.bubbleText, isUser && !message.image && !message.audio && styles.bubbleTextUser]}>{message.text}</Text>
+                ) : null}
+                
+                {!isUser && message.cards && message.cards.length > 0 ? (
+                    <RenderMessageCards cards={message.cards} />
                 ) : null}
                 
                 <Text style={[styles.bubbleTime, isUser && !message.image && !message.audio && styles.bubbleTimeUser]}>
@@ -166,14 +364,20 @@ export default function ChatbotScreen({ navigation, route }) {
 
     const firstName = displayName?.split(' ')[0] || 'there';
 
-    const [messages, setMessages] = useState([
-        {
-            id: '1',
-            text: `Hi ${firstName}! 👋 I'm your Conversational Care Assistant. I can help you with medication info, vitals, health tips, and more. How can I help you today?`,
-            isUser: false,
-            timestamp: Date.now(),
-        },
-    ]);
+    const [messages, setMessages] = useState([]);
+
+    useEffect(() => {
+        if (messages.length === 0) {
+            setMessages([
+                {
+                    id: '1',
+                    text: generateDynamicGreeting(firstName),
+                    isUser: false,
+                    timestamp: Date.now(),
+                }
+            ]);
+        }
+    }, [messages.length, firstName]);
 
     const scrollToBottom = useCallback(() => {
         setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
@@ -335,6 +539,16 @@ export default function ChatbotScreen({ navigation, route }) {
                                     );
                                 }
 
+                                if (event.type === 'cards' && event.items) {
+                                    setMessages(prev =>
+                                        prev.map(m =>
+                                            m.id === botMessageId
+                                                ? { ...m, cards: event.items }
+                                                : m
+                                        )
+                                    );
+                                }
+
                                 if (event.type === 'suggestions' && event.items) {
                                     setFollowUpSuggestions(event.items.slice(0, 3));
                                 }
@@ -471,13 +685,7 @@ export default function ChatbotScreen({ navigation, route }) {
                     style: 'destructive',
                     onPress: async () => {
                         try {
-                            const initialMsg = {
-                                id: '1',
-                                text: `Hi ${firstName}! 👋 I'm your Conversational Care Assistant. I can help you with medication info, vitals, health tips, and more. How can I help you today?`,
-                                isUser: false,
-                                timestamp: Date.now(),
-                            };
-                            setMessages([initialMsg]);
+                            setMessages([]);
                             setFollowUpSuggestions([]);
                             if (patient?._id) {
                                 await AsyncStorage.removeItem(`@caremymed_chatbot_messages_${patient._id}`);
@@ -873,4 +1081,42 @@ const styles = StyleSheet.create({
     sendBtn: { width: 40, height: 40, borderRadius: 20, overflow: 'hidden' },
     sendBtnDisabled: { opacity: 0.6 },
     sendGradient: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+
+    // ── Structured Cards ──
+    cardsWrapper: { marginTop: 8, gap: 10, width: '100%' },
+    cardContainer: {
+        width: '100%', borderRadius: 16, overflow: 'hidden',
+        borderWidth: 1, borderColor: '#E2E8F0',
+        backgroundColor: '#FFFFFF',
+        shadowColor: '#0A2463', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 6, elevation: 1,
+    },
+    cardGradient: { padding: 14 },
+    cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
+    cardTitle: { fontSize: 13, fontWeight: '700', color: '#1E293B' },
+    cardRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around', marginVertical: 8 },
+    cardMetricCol: { alignItems: 'center' },
+    cardMetricValue: { fontSize: 20, fontWeight: '800', color: '#0F172A' },
+    cardMetricLabel: { fontSize: 10, fontWeight: '600', color: '#64748B', marginTop: 2 },
+    cardBadge: { paddingVertical: 4, paddingHorizontal: 10, borderRadius: 12, alignSelf: 'flex-start', marginTop: 4 },
+    cardBadgeText: { fontSize: 11, fontWeight: '700' },
+    
+    // Medications Card
+    medCheckRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 4 },
+    medCheckIconPending: { width: 16, height: 16, borderRadius: 8, borderWidth: 1.5, borderColor: '#6366F1', alignItems: 'center', justifyContent: 'center' },
+    medCheckIconInner: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#6366F1' },
+    medCheckTextPending: { fontSize: 13, fontWeight: '600', color: '#334155' },
+    medCheckTextTaken: { fontSize: 13, fontWeight: '500', color: '#94A3B8', textDecorationLine: 'line-through' },
+    cardEmptyText: { fontSize: 12, color: '#64748B', fontStyle: 'italic', paddingVertical: 4 },
+    
+    // Vitals Grid
+    vitalsGrid: { flexDirection: 'row', justifyContent: 'space-between', gap: 6, marginTop: 4 },
+    vitalGridItem: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#F8FAFC', padding: 8, borderRadius: 10, borderWidth: 0.5, borderColor: '#E2E8F0' },
+    vitalGridValue: { fontSize: 13, fontWeight: '700', color: '#1E293B' },
+    vitalGridUnit: { fontSize: 9, fontWeight: '600', color: '#64748B' },
+    
+    // Summary Card
+    summaryList: { gap: 6 },
+    summaryRowItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 4, borderBottomWidth: 0.5, borderBottomColor: '#F1F5F9' },
+    summaryRowLabel: { fontSize: 12, fontWeight: '500', color: '#475569' },
+    summaryRowValue: { fontSize: 13, fontWeight: '700', color: '#0F172A' },
 });

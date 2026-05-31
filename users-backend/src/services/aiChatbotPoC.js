@@ -112,6 +112,117 @@ function getLocalGuidelinesMap() {
     return localGuidelinesMap;
 }
 
+function classifyIntent(query) {
+    if (!query) return null;
+    const q = query.toLowerCase();
+    
+    if (q.includes("what should i do") || q.includes("do today") || q.includes("today's focus") || q.includes("today focus") || q.includes("schedule today") || q.includes("plan for today") || q.includes("todo today") || q.includes("what to do today")) {
+        return 'action_plan';
+    }
+    
+    if (q.includes("weekly") || q.includes("summary") || q.includes("how have i been doing") || q.includes("timeline") || q.includes("this week") || q.includes("monthly") || q.includes("progress report") || q.includes("briefing")) {
+        return 'summary';
+    }
+
+    if (q.includes("adherence") || q.includes("streak") || q.includes("missed") || q.includes("progress") || q.includes("taken") || q.includes("log rate")) {
+        return 'adherence';
+    }
+    
+    if (q.includes("medicine") || q.includes("meds") || q.includes("pills") || q.includes("tablets") || q.includes("dosage") || q.includes("metformin") || q.includes("atorvastatin") || q.includes("amlodipine") || q.includes("dose")) {
+        return 'medications';
+    }
+    
+    if (q.includes("bp") || q.includes("blood pressure") || q.includes("pressure") || q.includes("heart rate") || q.includes("pulse") || q.includes("spo2") || q.includes("oxygen") || q.includes("sugar") || q.includes("glucose") || q.includes("vitals")) {
+        return 'vitals';
+    }
+    
+    return null;
+}
+
+function generateStructuredCards(intent, patientContext) {
+    if (!intent || !patientContext) return [];
+    
+    const cards = [];
+    
+    if (intent === 'action_plan') {
+        const remaining = (patientContext.today_status?.medicines || [])
+            .filter(m => !m.taken)
+            .map(m => `${m.name} (${m.time_slot})`);
+        const taken = (patientContext.today_status?.medicines || [])
+            .filter(m => m.taken)
+            .map(m => m.name);
+            
+        cards.push({
+            type: 'medications',
+            taken: taken,
+            remaining: remaining
+        });
+    }
+    
+    if (intent === 'adherence') {
+        const rate = parseInt(patientContext.recent_adherence?.rate) || 0;
+        const streak = patientContext.streak?.current || 0;
+        let level = 'Good';
+        if (rate >= 90) level = 'Excellent';
+        else if (rate < 60) level = 'Needs Focus';
+        
+        cards.push({
+            type: 'adherence',
+            rate: rate,
+            streak: streak,
+            level: level
+        });
+    }
+    
+    if (intent === 'medications') {
+        const remaining = (patientContext.today_status?.medicines || [])
+            .filter(m => !m.taken)
+            .map(m => `${m.name} (${m.time_slot})`);
+        const taken = (patientContext.today_status?.medicines || [])
+            .filter(m => m.taken)
+            .map(m => m.name);
+            
+        cards.push({
+            type: 'medications',
+            taken: taken,
+            remaining: remaining
+        });
+    }
+    
+    if (intent === 'vitals') {
+        const rv = patientContext.recent_vitals;
+        const systolic = rv?.blood_pressure?.sys_avg || 120;
+        const diastolic = rv?.blood_pressure?.dia_avg || 80;
+        const heartRate = rv?.heart_rate?.avg || 72;
+        const spo2 = rv?.spo2_avg || 98;
+        
+        cards.push({
+            type: 'vitals',
+            systolic,
+            diastolic,
+            heartRate,
+            spo2
+        });
+    }
+    
+    if (intent === 'summary') {
+        const rate = parseInt(patientContext.recent_adherence?.rate) || 0;
+        const daysLogged = patientContext.recent_vitals?.days_logged || 0;
+        const missedDoses = patientContext.recent_adherence?.missed || 0;
+        const currentStreak = patientContext.streak?.current || 0;
+        
+        cards.push({
+            type: 'summary',
+            adherenceRate: rate,
+            vitalsLoggedDays: daysLogged,
+            missedDoses: missedDoses,
+            currentStreak: currentStreak
+        });
+    }
+    
+    return cards;
+}
+
 /**
  * Builds the system prompt by fetching patient context and running ChromaDB RAG.
  * Shared by both streaming and non-streaming paths.
@@ -296,13 +407,14 @@ CRITICAL PERSONA & SAFETY RULES:
 6. No guilt framing — ever. If a patient misses a dose, do not say "You missed your dose." Instead, focus on the next step (e.g., "Your next dose is at [Time] — want a reminder set?").
 7. Lead with the human, not the data. Always prioritize human well-being (e.g., "Your BP reading looks good") before citing raw data.
 8. Uncertainty is honest, not alarming. Never use words like "WARNING" or "abnormal". Say "This looks a little elevated — worth mentioning to your doctor."
-9. Short by default, detailed on request. Your first response must be a calm, concise summary (2-4 sentences max). Do not over-explain.
+9. Short by default. Your response must be extremely concise and be a maximum of 4-5 sentences unless the user explicitly asks for more detail. Focus purely on answering, the action to take, and the next step. Do not over-explain.
 10. Never simulate urgency that isn't real. Do not say "Act now" or "Don't forget" unless genuinely time-sensitive.
-11. Acknowledge quietly and move forward. Do not over-celebrate wins.
+11. Acknowledge quietly and move forward. Do not over-celebrate wins. Never be overly cheerful (do not use exclamation marks or Duolingo/social-app style hype), never use excessive emojis, and never guilt-trip patients (focus on next actions).
 12. Be streak-aware but not streak-obsessed. If the patient has a streak going, you may warmly reference it once (e.g., "You're on day 7 — nice rhythm.") but never guilt-trip about broken streaks. If streak is 0, ignore it entirely.
 13. Know today's schedule. Use today_status from PATIENT_LIVE_DATA to understand which specific medications the patient has taken or missed TODAY. Reference med names naturally when relevant (e.g., "Looks like your morning Metformin is already done — just Atorvastatin left tonight.").
 14. Understand Care Team Context. Check 'care_team' and 'latest_interaction' in PATIENT_LIVE_DATA. If 'care_team' is null, do NOT hallucinate a coordinator; you can simply say they haven't been assigned one yet. If it exists, naturally reference the coordinator's name when suggesting follow-ups (e.g. "I can flag this for Prakash"). If 'latest_interaction' exists, you may reference their last call (e.g. "I see you just spoke with Prakash yesterday").
 15. Focus strictly on their care plan, vitals monitoring, and medications. Do NOT answer non-clinical queries or speculate on health risks of personal activities (such as exercise, play, or intimate activities) not covered in the guidelines. If asked, calmly guide the patient back to their schedule or suggest discussing it with their care coordinator or doctor.
+16. Proactive Insights: You have access to 'proactive_insights' in the PATIENT_LIVE_DATA. Do NOT volunteer or mention these insights to the patient unless they are high-priority (dangerous vitals) OR if the user explicitly asks how they are doing (e.g. "How am I doing?", "Any concerns?", "Are there any issues?"). Otherwise, keep them strictly in the background.
 
 You must ONLY use the provided [PATIENT_LIVE_DATA] and [MEDICAL_GUIDELINES] to answer the user's question. 
 If the answer is not contained within these two sources, decline calmly and suggest consulting their care team. Do NOT guess or hallucinate${languageInstruction}
@@ -330,7 +442,8 @@ ${JSON.stringify(patientContext, null, 2)}
         matchedGuidelines, 
         retrievalLatency, 
         matchedCount, 
-        similarityAvg 
+        similarityAvg,
+        patientContext: patientContext
     };
 }
 
@@ -423,6 +536,12 @@ async function streamPoCResponse(patientId, userQuery, targetLanguage, res, tran
         retrievalLatency = context.retrievalLatency || 0;
         retrievedChunksCount = context.matchedCount || 0;
         retrievalSimilarityAvg = context.similarityAvg || 0;
+
+        const intent = classifyIntent(userQuery);
+        const cards = generateStructuredCards(intent, context.patientContext);
+        if (cards && cards.length > 0) {
+            sendEvent('cards', { items: cards });
+        }
 
         llmStart = performance.now();
         const groqKey = process.env.GROQ_API_KEY;
@@ -737,10 +856,12 @@ async function generatePoCResponse(patientId, userQuery, targetLanguage) {
     let llmLatency = 0;
     let reply = '';
     let suggestions = [];
+    let patientContext = null;
 
     try {
         const context = await buildRAGContext(patientId, userQuery, targetLanguage);
         const { messages } = context;
+        patientContext = context.patientContext;
         matchedGuidelines = context.matchedGuidelines || [];
         retrievalLatency = context.retrievalLatency || 0;
         retrievedChunksCount = context.matchedCount || 0;
@@ -782,6 +903,7 @@ async function generatePoCResponse(patientId, userQuery, targetLanguage) {
         try {
             const context = await buildRAGContext(patientId, userQuery, targetLanguage);
             const { messages } = context;
+            patientContext = context.patientContext;
             matchedGuidelines = context.matchedGuidelines || [];
             retrievalLatency = context.retrievalLatency || 0;
             retrievedChunksCount = context.matchedCount || 0;
@@ -878,12 +1000,16 @@ async function generatePoCResponse(patientId, userQuery, targetLanguage) {
         console.error('[PoC] Successful chat log error:', logErr.message);
     }
 
+    const intent = classifyIntent(userQuery);
+    const cards = generateStructuredCards(intent, patientContext);
+
     return {
         success: true,
         model: modelUsed,
         response: reply,
         suggestions,
-        contextTokensEstimate: totalTokens
+        contextTokensEstimate: totalTokens,
+        cards
     };
 }
 

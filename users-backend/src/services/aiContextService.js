@@ -62,11 +62,13 @@ async function buildPatientContext(patientId) {
         }
     }
 
-    // 3. Adherence (Last 3 Days) — query by `date` field (UTC midnight dates)
-    const logs = await MedicineLog.find({
+    // 3. Adherence (Last 7 Days)
+    const sevenDaysLogs = await MedicineLog.find({
         patient_id: patient._id,
-        date: { $gte: threeDaysAgoDate }
+        date: { $gte: sevenDaysAgoDate }
     }).sort({ date: -1 });
+
+    const logs = sevenDaysLogs.filter(log => new Date(log.date) >= threeDaysAgoDate);
     
     let takenMeds = 0;
     let totalMeds = 0;
@@ -108,7 +110,61 @@ async function buildPatientContext(patientId) {
     const vitals = await VitalLog.find({
         patient_id: patient._id,
         date: { $gte: sevenDaysAgoDate }
-    }).select('heart_rate blood_pressure oxygen_saturation hydration');
+    }).select('heart_rate blood_pressure oxygen_saturation hydration date createdAt');
+
+    // Compute Proactive Insights
+    const proactive_insights = [];
+
+    // Check rising blood pressure trend
+    if (vitals.length >= 3) {
+        const sortedVitals = [...vitals].sort((a, b) => new Date(a.date || a.createdAt) - new Date(b.date || b.createdAt));
+        const sysVals = sortedVitals.map(v => v.blood_pressure?.systolic).filter(Boolean);
+        if (sysVals.length >= 3) {
+            const last = sysVals[sysVals.length - 1];
+            const prev1 = sysVals[sysVals.length - 2];
+            const prev2 = sysVals[sysVals.length - 3];
+            if (last > prev1 && prev1 > prev2) {
+                proactive_insights.push({
+                    type: 'blood_pressure_trend',
+                    priority: 'medium',
+                    message: 'I noticed your blood pressure has increased slightly over the last three readings.'
+                });
+            }
+        }
+    }
+
+    // Check missed medications pattern (morning/evening) in last 7 days
+    let missedMorningCount = 0;
+    let missedEveningCount = 0;
+    sevenDaysLogs.forEach(log => {
+        if (log.medicines) {
+            log.medicines.forEach(m => {
+                if (!m.taken && m.is_active !== false) {
+                    const slot = (m.scheduled_time || '').toLowerCase();
+                    if (slot.includes('am') || slot.includes('morning') || slot.includes('8:') || slot.includes('9:')) {
+                        missedMorningCount++;
+                    } else if (slot.includes('pm') || slot.includes('evening') || slot.includes('night') || slot.includes('20:') || slot.includes('21:')) {
+                        missedEveningCount++;
+                    }
+                }
+            });
+        }
+    });
+
+    if (missedMorningCount >= 2) {
+        proactive_insights.push({
+            type: 'missed_meds_morning',
+            priority: 'medium',
+            message: 'You missed your morning medication twice this week. Need help setting stronger reminders?'
+        });
+    }
+    if (missedEveningCount >= 2) {
+        proactive_insights.push({
+            type: 'missed_meds_evening',
+            priority: 'medium',
+            message: 'You missed your evening medication twice this week. Need help setting stronger reminders?'
+        });
+    }
 
     let vitalsSummary = 'No vitals logged in last 7 days';
     if (vitals.length > 0) {
@@ -188,7 +244,8 @@ async function buildPatientContext(patientId) {
             missed: missedMeds,
             rate: totalMeds > 0 ? Math.round((takenMeds / totalMeds) * 100) + '%' : 'N/A'
         },
-        recent_vitals: vitalsSummary
+        recent_vitals: vitalsSummary,
+        proactive_insights: proactive_insights
     };
 
     return payload;
