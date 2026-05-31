@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ArrowLeft, Send, Sparkles, Bot, User, Mic, Paperclip } from 'lucide-react-native';
+import { ArrowLeft, Send, Sparkles, Bot, User, Mic, Paperclip, Trash2 } from 'lucide-react-native';
 import { colors } from '../../theme';
 import { useAuth } from '../../context/AuthContext';
 import { useTranslation } from 'react-i18next';
@@ -460,6 +460,37 @@ export default function ChatbotScreen({ navigation, route }) {
         }
     }, [inputText, recording, user, patient]);
 
+    const handleClearChat = () => {
+        Alert.alert(
+            'Clear Conversation',
+            'Are you sure you want to delete all messages? This cannot be undone.',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                { 
+                    text: 'Clear', 
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            const initialMsg = {
+                                id: '1',
+                                text: `Hi ${firstName}! 👋 I'm your Conversational Care Assistant. I can help you with medication info, vitals, health tips, and more. How can I help you today?`,
+                                isUser: false,
+                                timestamp: Date.now(),
+                            };
+                            setMessages([initialMsg]);
+                            setFollowUpSuggestions([]);
+                            if (patient?._id) {
+                                await AsyncStorage.removeItem(`@caremymed_chatbot_messages_${patient._id}`);
+                            }
+                        } catch (err) {
+                            console.log('Failed to clear chat history', err);
+                        }
+                    }
+                }
+            ]
+        );
+    };
+
     const handlePickImage = async () => {
         try {
             const result = await ImagePicker.launchImageLibraryAsync({
@@ -606,7 +637,16 @@ export default function ChatbotScreen({ navigation, route }) {
                         </View>
                     </View>
                 </View>
-                <View style={{ width: 42 }} />
+                <Pressable 
+                    onPress={handleClearChat} 
+                    style={({ pressed }) => [
+                        styles.clearBtn,
+                        pressed && { opacity: 0.7 }
+                    ]}
+                    hitSlop={12}
+                >
+                    <Trash2 size={20} color="#EF4444" strokeWidth={2} />
+                </Pressable>
             </View>
 
             {/* ── Messages ── */}
@@ -747,6 +787,7 @@ const styles = StyleSheet.create({
         shadowColor: '#0A2463', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 8, elevation: 3,
     },
     backBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center' },
+    clearBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#FEF2F2', alignItems: 'center', justifyContent: 'center' },
     headerCenter: { flexDirection: 'row', alignItems: 'center', gap: 10 },
     headerAvatar: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
     headerTitle: { fontSize: 16, fontWeight: '800', color: '#0F172A', letterSpacing: -0.3 },
