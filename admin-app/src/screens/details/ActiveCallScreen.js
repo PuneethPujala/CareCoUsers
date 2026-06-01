@@ -3,6 +3,7 @@ import { View, Text, ScrollView, TouchableOpacity, TextInput, StyleSheet, Alert,
 import Svg, { Circle } from 'react-native-svg';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as Haptics from 'expo-haptics';
 import { Theme } from '../../theme/theme';
 import { apiService } from '../../lib/api';
 import { createAgoraRtcEngine, ChannelProfileType, ClientRoleType } from 'react-native-agora';
@@ -342,32 +343,39 @@ export default function ActiveCallScreen({ navigation, route }) {
     const formatTime = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
     const toggleMed = (med) => {
         if (outcome !== 'completed') {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
             Alert.alert('Cannot Mark Medications', 'You can only confirm medications when the call outcome is "Completed (Contact Made)".');
             return;
         }
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         const key = getMedKey(med);
         setCheckedMeds(prev => ({ ...prev, [key]: !prev[key] }));
     };
 
     const togglePrevMed = (med) => {
         if (outcome !== 'completed') {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
             Alert.alert('Cannot Mark Medications', 'You can only confirm medications when the call outcome is "Completed (Contact Made)".');
             return;
         }
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         const key = getPrevMedKey(med);
         setCheckedPrevMeds(prev => ({ ...prev, [key]: !prev[key] }));
     };
 
     const toggleTempMed = (med) => {
         if (outcome !== 'completed') {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
             Alert.alert('Cannot Mark Medications', 'You can only confirm medications when the call outcome is "Completed (Contact Made)".');
             return;
         }
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         setCheckedTempMeds(prev => ({ ...prev, [med._id]: !prev[med._id] }));
     };
 
     const handleEndCall = async () => {
         if (!outcome) {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
             Alert.alert('Select Outcome', 'Please select a call outcome before ending the call.');
             return;
         }
@@ -382,6 +390,7 @@ export default function ActiveCallScreen({ navigation, route }) {
         if (outcome === 'completed' && medications.length > 0) {
             const allChecked = medications.every(m => checkedMeds[getMedKey(m)]);
             if (!allChecked) {
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
                 const cc = medications.filter(m => checkedMeds[getMedKey(m)]).length;
                 Alert.alert(
                     'Incomplete Medication Review',
@@ -459,9 +468,11 @@ export default function ActiveCallScreen({ navigation, route }) {
 
         try {
             await apiService.caretaker.logCall(payload);
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             navigation.goBack();
         } catch (err) {
             console.error('[ActiveCall] End call error:', err);
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
             Alert.alert('Error', 'Failed to save call log data. Please ensure you are online.');
             setSaving(false);
             timerRef.current = setInterval(() => setSeconds(s => s + 1), 1000);
@@ -729,7 +740,15 @@ export default function ActiveCallScreen({ navigation, route }) {
                             ].map(opt => {
                                 const active = mood === opt.id;
                                 return (
-                                    <TouchableOpacity key={opt.id} style={[st.moodCard, active && { borderColor: opt.color }]} activeOpacity={0.75} onPress={() => setMood(opt.id)}>
+                                    <TouchableOpacity 
+                                        key={opt.id} 
+                                        style={[st.moodCard, active && { borderColor: opt.color }]} 
+                                        activeOpacity={0.75} 
+                                        onPress={() => {
+                                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                                            setMood(opt.id);
+                                        }}
+                                    >
                                         <View style={[st.moodIconWrap, active && { backgroundColor: opt.color + '18' }]}>
                                             <Ionicons name={opt.icon} size={26} color={active ? opt.color : '#94A3B8'} />
                                         </View>
@@ -755,7 +774,14 @@ export default function ActiveCallScreen({ navigation, route }) {
                                 return (
                                     <React.Fragment key={item.id}>
                                         {i > 0 && <View style={st.divider} />}
-                                        <TouchableOpacity style={st.outcomeRow} activeOpacity={0.7} onPress={() => setOutcome(item.id)}>
+                                        <TouchableOpacity 
+                                            style={st.outcomeRow} 
+                                            activeOpacity={0.7} 
+                                            onPress={() => {
+                                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                                                setOutcome(item.id);
+                                            }}
+                                        >
                                             <View style={[st.outcomeIconWrap, active && { backgroundColor: item.color + '15' }]}>
                                                 <Ionicons name={item.icon} size={20} color={active ? item.color : '#CBD5E1'} />
                                             </View>
