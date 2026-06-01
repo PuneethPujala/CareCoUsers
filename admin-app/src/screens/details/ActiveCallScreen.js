@@ -998,14 +998,14 @@ export default function ActiveCallScreen({ navigation, route }) {
 // PREMIUM STYLES
 // ═══════════════════════════════════════════
 const createStyles = (tc) => StyleSheet.create({
-    root: { flex: 1, backgroundColor: 'tc.background.primary' },
+    root: { flex: 1, backgroundColor: tc.background.primary },
 
     // ── Header ──
     header: { paddingTop: 54, paddingBottom: 24, borderBottomLeftRadius: 32, borderBottomRightRadius: 32, ...Theme.shadows.sharp, shadowColor: '#6366F1', shadowOpacity: 0.06 },
     headerTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 20, gap: 10 },
     livePill: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#EF4444', paddingHorizontal: 12, paddingVertical: 5, borderRadius: 20, gap: 6 },
-    liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'tc.background.card' },
-    liveTxt: { fontSize: 10, fontWeight: '900', color: 'tc.background.card', letterSpacing: 0.8 },
+    liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: tc.background.card },
+    liveTxt: { fontSize: 10, fontWeight: '900', color: tc.background.card, letterSpacing: 0.8 },
     shiftPill: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFBEB', paddingHorizontal: 12, paddingVertical: 5, borderRadius: 20, gap: 5, borderWidth: 1, borderColor: '#FDE68A' },
     shiftTxt: { fontSize: 11, fontWeight: '700', color: '#D97706' },
 
@@ -1014,13 +1014,13 @@ const createStyles = (tc) => StyleSheet.create({
     timerRingWrap: { width: 150, height: 150, justifyContent: 'center', alignItems: 'center' },
     timerInner: {
         width: 126, height: 126, borderRadius: 63,
-        backgroundColor: 'tc.background.card',
+        backgroundColor: tc.background.card,
         justifyContent: 'center', alignItems: 'center',
         ...Theme.shadows.sharp, shadowColor: '#6366F1', shadowOpacity: 0.1,
     },
-    timerText: { fontSize: 38, fontWeight: '900', color: 'tc.text.primary', letterSpacing: 2, fontVariant: ['tabular-nums'] },
-    timerSec: { fontSize: 10, fontWeight: '600', color: 'tc.text.tertiary', letterSpacing: 1, textTransform: 'uppercase', marginTop: 2 },
-    patientNameText: { fontSize: 18, fontWeight: '800', color: 'tc.text.primary', marginTop: 14, paddingHorizontal: 40 },
+    timerText: { fontSize: 38, fontWeight: '900', color: tc.text.primary, letterSpacing: 2, fontVariant: ['tabular-nums'] },
+    timerSec: { fontSize: 10, fontWeight: '600', color: tc.text.tertiary, letterSpacing: 1, textTransform: 'uppercase', marginTop: 2 },
+    patientNameText: { fontSize: 18, fontWeight: '800', color: tc.text.primary, marginTop: 14, paddingHorizontal: 40 },
 
     // ── Scrollable ──
     scroll: { flex: 1 },
@@ -1029,33 +1029,33 @@ const createStyles = (tc) => StyleSheet.create({
 
     // Section
     sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 28, marginBottom: 14, paddingHorizontal: 2 },
-    sectionTitle: { fontSize: 16, fontWeight: '800', color: 'tc.text.primary', flex: 1, letterSpacing: -0.2 },
+    sectionTitle: { fontSize: 16, fontWeight: '800', color: tc.text.primary, flex: 1, letterSpacing: -0.2 },
     medCountPill: { backgroundColor: '#EEF2FF', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12, borderWidth: 1, borderColor: '#E0E7FF' },
     medCountTxt: { fontSize: 12, fontWeight: '800', color: '#4F46E5' },
 
     // Card
-    card: { backgroundColor: 'tc.background.card', borderRadius: 22, borderWidth: 1, borderColor: 'tc.background.hover', overflow: 'hidden', ...Theme.shadows.sharp, elevation: 2 },
-    divider: { height: StyleSheet.hairlineWidth, backgroundColor: 'tc.border', marginLeft: 58 },
+    card: { backgroundColor: tc.background.card, borderRadius: 22, borderWidth: 1, borderColor: tc.background.hover, overflow: 'hidden', ...Theme.shadows.sharp, elevation: 2 },
+    divider: { height: StyleSheet.hairlineWidth, backgroundColor: tc.border, marginLeft: 58 },
 
     // Agora Controls
     agoraControls: { flexDirection: 'row', justifyContent: 'center', gap: 16, marginTop: 16 },
-    controlBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'tc.background.primary', borderWidth: 1, borderColor: 'tc.border', justifyContent: 'center', alignItems: 'center' },
+    controlBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: tc.background.primary, borderWidth: 1, borderColor: tc.border, justifyContent: 'center', alignItems: 'center' },
     controlBtnActive: { backgroundColor: '#FEE2E2', borderColor: '#FECACA' },
     statusDot: { width: 8, height: 8, borderRadius: 4 },
 
     // Empty State
     emptyState: { paddingVertical: 40, alignItems: 'center' },
     emptyIconWrap: { width: 56, height: 56, borderRadius: 18, backgroundColor: '#F0FDF4', justifyContent: 'center', alignItems: 'center', marginBottom: 14 },
-    emptyTitle: { fontSize: 17, fontWeight: '800', color: 'tc.text.primary', marginBottom: 4 },
-    emptySub: { fontSize: 13, fontWeight: '500', color: 'tc.text.tertiary' },
+    emptyTitle: { fontSize: 17, fontWeight: '800', color: tc.text.primary, marginBottom: 4 },
+    emptySub: { fontSize: 13, fontWeight: '500', color: tc.text.tertiary },
 
     // Medication Row
     medRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 15, paddingHorizontal: 18 },
     medCheck: { width: 28, height: 28, borderRadius: 10, borderWidth: 2.5, borderColor: '#D1D5DB', justifyContent: 'center', alignItems: 'center' },
     medCheckDone: { backgroundColor: '#10B981', borderColor: '#10B981' },
     medInfo: { flex: 1, marginLeft: 14 },
-    medName: { fontSize: 15, fontWeight: '700', color: 'tc.text.primary' },
-    medDetail: { fontSize: 12, fontWeight: '500', color: 'tc.text.tertiary', marginTop: 3 },
+    medName: { fontSize: 15, fontWeight: '700', color: tc.text.primary },
+    medDetail: { fontSize: 12, fontWeight: '500', color: tc.text.tertiary, marginTop: 3 },
     medDone: { textDecorationLine: 'line-through', color: '#B0B8C4' },
     medStatusPill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
     medStatusPending: { backgroundColor: '#FFF7ED' },
@@ -1072,24 +1072,24 @@ const createStyles = (tc) => StyleSheet.create({
     moodRow: { flexDirection: 'row', gap: 10 },
     moodCard: {
         flex: 1, alignItems: 'center', paddingVertical: 18, borderRadius: 20,
-        backgroundColor: 'tc.background.card', borderWidth: 1.5, borderColor: 'tc.background.hover',
+        backgroundColor: tc.background.card, borderWidth: 1.5, borderColor: tc.background.hover,
         ...Theme.shadows.sharp, elevation: 2,
     },
-    moodIconWrap: { width: 48, height: 48, borderRadius: 16, justifyContent: 'center', alignItems: 'center', backgroundColor: 'tc.background.primary' },
-    moodLabel: { fontSize: 13, fontWeight: '700', color: 'tc.text.tertiary', marginTop: 10 },
+    moodIconWrap: { width: 48, height: 48, borderRadius: 16, justifyContent: 'center', alignItems: 'center', backgroundColor: tc.background.primary },
+    moodLabel: { fontSize: 13, fontWeight: '700', color: tc.text.tertiary, marginTop: 10 },
     moodDot: { width: 6, height: 6, borderRadius: 3, marginTop: 8 },
 
     // Outcome
     outcomeRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 16, paddingHorizontal: 18 },
-    outcomeIconWrap: { width: 42, height: 42, borderRadius: 14, backgroundColor: 'tc.background.primary', justifyContent: 'center', alignItems: 'center', marginRight: 14 },
+    outcomeIconWrap: { width: 42, height: 42, borderRadius: 14, backgroundColor: tc.background.primary, justifyContent: 'center', alignItems: 'center', marginRight: 14 },
     outcomeInfo: { flex: 1 },
     outcomeLabel: { fontSize: 15, fontWeight: '700', color: '#64748B' },
-    outcomeSub: { fontSize: 12, fontWeight: '500', color: 'tc.text.tertiary', marginTop: 2 },
+    outcomeSub: { fontSize: 12, fontWeight: '500', color: tc.text.tertiary, marginTop: 2 },
     radioOuter: { width: 24, height: 24, borderRadius: 12, borderWidth: 2.5, borderColor: '#D1D5DB', justifyContent: 'center', alignItems: 'center' },
     radioInner: { width: 12, height: 12, borderRadius: 6 },
 
     // Notes
-    notesInput: { fontSize: 15, fontWeight: '500', color: 'tc.text.primary', minHeight: 110, padding: 18, lineHeight: 22 },
+    notesInput: { fontSize: 15, fontWeight: '500', color: tc.text.primary, minHeight: 110, padding: 18, lineHeight: 22 },
     dictationBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#F3E8FF', paddingHorizontal: 12, paddingVertical: 5, borderRadius: 12, borderWidth: 1, borderColor: '#DDD6FE' },
     dictationBtnTxt: { fontSize: 12, fontWeight: '700', color: '#7C3AED' },
     dictationBtnActive: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#FEF2F2', paddingHorizontal: 12, paddingVertical: 5, borderRadius: 12, borderWidth: 1, borderColor: '#FECACA' },
@@ -1101,7 +1101,7 @@ const createStyles = (tc) => StyleSheet.create({
     // End Button
     endBtnWrap: { marginTop: 36, borderRadius: 20, overflow: 'hidden', ...Theme.shadows.sharp, shadowColor: '#EF4444', shadowOpacity: 0.3, elevation: 4 },
     endBtnGrad: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 19 },
-    endBtnText: { fontSize: 17, fontWeight: '900', color: 'tc.background.card', letterSpacing: 0.3 },
+    endBtnText: { fontSize: 17, fontWeight: '900', color: tc.background.card, letterSpacing: 0.3 },
 
     // ── Temp Meds ──
     addTempBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#F3E8FF', paddingHorizontal: 12, paddingVertical: 5, borderRadius: 12, borderWidth: 1, borderColor: '#DDD6FE' },
@@ -1118,12 +1118,12 @@ const createStyles = (tc) => StyleSheet.create({
     // ── Add Temp Med Modal ──
     modalOverlay: { flex: 1, backgroundColor: 'rgba(15,23,42,0.5)', justifyContent: 'flex-end' },
     modalSheet: { backgroundColor: '#FFF', borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24, paddingBottom: 40, maxHeight: '85%' },
-    modalHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: 'tc.border', alignSelf: 'center', marginBottom: 16 },
-    modalTitle: { fontSize: 20, fontWeight: '900', color: 'tc.text.primary', marginBottom: 4 },
-    modalSub: { fontSize: 13, fontWeight: '500', color: 'tc.text.tertiary', marginBottom: 20 },
-    modalInput: { backgroundColor: 'tc.background.primary', borderWidth: 1, borderColor: 'tc.border', borderRadius: 14, paddingHorizontal: 16, paddingVertical: 13, fontSize: 15, fontWeight: '500', color: 'tc.text.primary', marginBottom: 12 },
+    modalHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: tc.border, alignSelf: 'center', marginBottom: 16 },
+    modalTitle: { fontSize: 20, fontWeight: '900', color: tc.text.primary, marginBottom: 4 },
+    modalSub: { fontSize: 13, fontWeight: '500', color: tc.text.tertiary, marginBottom: 20 },
+    modalInput: { backgroundColor: tc.background.primary, borderWidth: 1, borderColor: tc.border, borderRadius: 14, paddingHorizontal: 16, paddingVertical: 13, fontSize: 15, fontWeight: '500', color: tc.text.primary, marginBottom: 12 },
     freqRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
-    freqChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12, backgroundColor: 'tc.background.hover', borderWidth: 1, borderColor: 'tc.border' },
+    freqChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12, backgroundColor: tc.background.hover, borderWidth: 1, borderColor: tc.border },
     freqChipActive: { backgroundColor: '#EEF2FF', borderColor: '#6366F1' },
     freqChipTxt: { fontSize: 12, fontWeight: '600', color: '#64748B' },
     freqChipTxtActive: { color: '#4F46E5' },
