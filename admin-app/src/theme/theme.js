@@ -25,6 +25,30 @@ export const Theme = {
             inverse: '#FFFFFF',    // White text on dark accents
         },
     },
+    darkColors: {
+        background: {
+            primary: '#0F172A',    // Deep Slate background
+            secondary: '#1E293B',  // Elevated Slate for cards
+            card: '#1E293B',
+            hover: '#334155',      // Slate 700
+        },
+        border: 'rgba(51, 65, 85, 0.8)', // Slate 700 border
+        glass: 'rgba(15, 23, 42, 0.9)',  // Dark glass
+        accents: {
+            primary: ['#818CF8', '#6366F1'], // Lighter Indigo for dark mode
+            secondary: ['#A855F7', '#9333EA'], // Lighter Purple
+            success: ['#34D399', '#10B981'], // Lighter Emerald
+            warning: ['#FBBF24', '#F59E0B'], // Lighter Amber
+            danger: ['#F87171', '#EF4444'],  // Lighter Red
+            info: ['#60A5FA', '#3B82F6'],    // Lighter Blue
+        },
+        text: {
+            primary: '#F8FAFC',    // Slate 50 (High contrast text)
+            secondary: '#CBD5E1',  // Slate 300 (Soft contrast text)
+            tertiary: '#94A3B8',   // Slate 400 (Metadata/Icons)
+            inverse: '#0F172A',    // Dark text on light accents
+        },
+    },
     typography: {
         fontFamily: 'Inter',
         display: {
