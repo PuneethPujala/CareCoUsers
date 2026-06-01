@@ -245,6 +245,7 @@ export const apiService = {
     getPatientMeds: (patientId, params) => api.get(`/caretaker/patients/${patientId}/meds`, { params }),
     getAgoraToken: (channelName) => api.get('/caretaker/calls/agora-token', { params: { channelName } }),
     logCall: (data) => api.post('/caretaker/calls', data),
+    dictate: (audioFormData) => api.post('/caretaker/dictate', audioFormData, { headers: { 'Content-Type': 'multipart/form-data' } }),
     addMedication: (patientId, data) => api.post(`/caretaker/patients/${patientId}/medications`, data),
     updateMedication: (patientId, medId, data) => api.put(`/caretaker/patients/${patientId}/medications/${medId}`, data),
     deleteMedication: (patientId, medId) => api.delete(`/caretaker/patients/${patientId}/medications/${medId}`),

@@ -10,6 +10,12 @@ const AuditLog = require('../models/AuditLog');
 const CaretakerPatient = require('../models/CaretakerPatient');
 const MedicineLog = require('../models/MedicineLog');
 const { authenticate, requireRole } = require('../middleware/authenticate');
+const multer = require('multer');
+const axios = require('axios');
+const FormData = require('form-data');
+const fs = require('fs');
+
+const upload = multer({ dest: 'uploads/' });
 
 const router = express.Router();
 
@@ -1548,6 +1554,77 @@ const syncMedicineLogHelper = async (pId, d, exactTimeStr, bucketIdentifier, mNa
         console.error('MedicineLog sync error during toggle:', syncLogErr);
     }
 };
+// ---------------------------------------------------------
+
+// ── POST /api/caretaker/dictate ──────────────────────────
+// Proxy for Groq Whisper AI (Transcribe + Translate if needed)
+router.post('/dictate', upload.single('audio'), async (req, res) => {
+    if (!req.file) {
+        return res.status(400).json({ success: false, message: 'No audio file uploaded.' });
+    }
+
+    if (!process.env.GROQ_API_KEY) {
+        fs.unlinkSync(req.file.path);
+        return res.status(500).json({ success: false, message: 'GROQ_API_KEY is not configured on the server.' });
+    }
+
+    try {
+        const apiKey = process.env.GROQ_API_KEY;
+        const filePath = req.file.path;
+
+        // Step 1: Transcribe the original audio and detect language
+        const transcribeForm = new FormData();
+        transcribeForm.append('file', fs.createReadStream(filePath), { filename: 'audio.m4a' });
+        transcribeForm.append('model', 'whisper-large-v3');
+        transcribeForm.append('response_format', 'verbose_json'); // Need verbose_json to get the language
+
+        const transcribeRes = await axios.post('https://api.groq.com/openai/v1/audio/transcriptions', transcribeForm, {
+            headers: {
+                ...transcribeForm.getHeaders(),
+                'Authorization': `Bearer ${apiKey}`
+            }
+        });
+
+        const originalText = transcribeRes.data.text;
+        const language = transcribeRes.data.language; // e.g., 'en', 'te', 'hi'
+
+        let translatedText = originalText;
+
+        // Step 2: If the language is not English, translate it to English
+        if (language && language.toLowerCase() !== 'en' && language.toLowerCase() !== 'english') {
+            const translateForm = new FormData();
+            translateForm.append('file', fs.createReadStream(filePath), { filename: 'audio.m4a' });
+            translateForm.append('model', 'whisper-large-v3');
+
+            const translateRes = await axios.post('https://api.groq.com/openai/v1/audio/translations', translateForm, {
+                headers: {
+                    ...translateForm.getHeaders(),
+                    'Authorization': `Bearer ${apiKey}`
+                }
+            });
+
+            translatedText = translateRes.data.text;
+        }
+
+        // Clean up the temp file
+        fs.unlinkSync(filePath);
+
+        res.json({
+            success: true,
+            data: {
+                originalText,
+                translatedText,
+                language
+            }
+        });
+
+    } catch (error) {
+        console.error('[Dictation Error]:', error?.response?.data || error.message);
+        // Ensure cleanup on error
+        if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+        res.status(500).json({ success: false, message: 'Failed to process dictation.' });
+    }
+});
 // ---------------------------------------------------------
 
 router.post('/calls', async (req, res) => {

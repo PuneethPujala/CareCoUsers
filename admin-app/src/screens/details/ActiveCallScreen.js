@@ -4,6 +4,7 @@ import Svg, { Circle } from 'react-native-svg';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
+import { Audio } from 'expo-av';
 import { Theme } from '../../theme/theme';
 import { apiService } from '../../lib/api';
 import { createAgoraRtcEngine, ChannelProfileType, ClientRoleType } from 'react-native-agora';
@@ -105,6 +106,12 @@ export default function ActiveCallScreen({ navigation, route }) {
     const [isMuted, setIsMuted] = useState(false);
     const [isSpeaker, setIsSpeaker] = useState(true);
     const [agoraError, setAgoraError] = useState(null);
+
+    // Dictation State
+    const [recording, setRecording] = useState(null);
+    const [isDictating, setIsDictating] = useState(false);
+    const [dictationTime, setDictationTime] = useState(0);
+    const dictationTimerRef = useRef(null);
 
     const timerRef = useRef(null);
     const startedAtRef = useRef(new Date().toISOString());
@@ -371,6 +378,73 @@ export default function ActiveCallScreen({ navigation, route }) {
         }
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         setCheckedTempMeds(prev => ({ ...prev, [med._id]: !prev[med._id] }));
+    };
+
+    // ── Dictation Logic ──
+    const startDictation = async () => {
+        try {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            const permission = await Audio.requestPermissionsAsync();
+            if (permission.status !== 'granted') {
+                Alert.alert('Permission required', 'Please grant microphone access to use voice dictation.');
+                return;
+            }
+            await Audio.setAudioModeAsync({
+                allowsRecordingIOS: true,
+                playsInSilentModeIOS: true,
+            });
+            const { recording } = await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
+            setRecording(recording);
+            setDictationTime(0);
+            dictationTimerRef.current = setInterval(() => {
+                setDictationTime(t => t + 1);
+            }, 1000);
+        } catch (err) {
+            console.error('Failed to start recording', err);
+            Alert.alert('Error', 'Could not start recording.');
+        }
+    };
+
+    const stopDictation = async () => {
+        try {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            if (!recording) return;
+            setIsDictating(true);
+            setRecording(null);
+            clearInterval(dictationTimerRef.current);
+            await recording.stopAndUnloadAsync();
+            
+            const uri = recording.getURI();
+            
+            // Format for FormData
+            const formData = new FormData();
+            formData.append('audio', {
+                uri,
+                name: 'dictation.m4a',
+                type: 'audio/m4a'
+            });
+
+            const res = await apiService.caretaker.dictate(formData);
+            if (res.data?.success && res.data?.data) {
+                const { originalText, translatedText, language } = res.data.data;
+                let newNote = '';
+                
+                if (language && language.toLowerCase() !== 'en' && language.toLowerCase() !== 'english' && originalText !== translatedText) {
+                    newNote = `[Original - ${language}]: ${originalText}\n[Translation]: ${translatedText}\n\n`;
+                } else {
+                    newNote = `${translatedText}\n\n`;
+                }
+
+                setNotes(prev => (prev ? prev + '\n\n' + newNote : newNote).trim());
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            }
+        } catch (err) {
+            console.error('Dictation error:', err);
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+            Alert.alert('Dictation Failed', 'Could not process the audio. Please try again.');
+        } finally {
+            setIsDictating(false);
+        }
     };
 
     const handleEndCall = async () => {
@@ -799,9 +873,29 @@ export default function ActiveCallScreen({ navigation, route }) {
                         </View>
 
                         {/* ═══ Notes ═══ */}
-                        <View style={st.sectionHeader}>
-                            <Feather name="edit-3" size={15} color="#4F46E5" />
-                            <Text style={st.sectionTitle}>Notes</Text>
+                        <View style={[st.sectionHeader, { justifyContent: 'space-between' }]}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                <Feather name="edit-3" size={15} color="#4F46E5" />
+                                <Text style={st.sectionTitle}>Notes</Text>
+                            </View>
+                            
+                            {/* Dictation Button */}
+                            {isDictating ? (
+                                <View style={st.dictationLoader}>
+                                    <ActivityIndicator size="small" color="#7C3AED" />
+                                    <Text style={st.dictationText}>Transcribing...</Text>
+                                </View>
+                            ) : recording ? (
+                                <TouchableOpacity style={st.dictationBtnActive} onPress={stopDictation} activeOpacity={0.7}>
+                                    <View style={st.recordingDot} />
+                                    <Text style={st.dictationBtnActiveTxt}>{formatTime(dictationTime)} • Stop</Text>
+                                </TouchableOpacity>
+                            ) : (
+                                <TouchableOpacity style={st.dictationBtn} onPress={startDictation} activeOpacity={0.7}>
+                                    <Ionicons name="mic" size={14} color="#7C3AED" />
+                                    <Text style={st.dictationBtnTxt}>Dictate</Text>
+                                </TouchableOpacity>
+                            )}
                         </View>
                         <View style={st.card}>
                             <TextInput
@@ -993,6 +1087,13 @@ const st = StyleSheet.create({
 
     // Notes
     notesInput: { fontSize: 15, fontWeight: '500', color: '#0F172A', minHeight: 110, padding: 18, lineHeight: 22 },
+    dictationBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#F3E8FF', paddingHorizontal: 12, paddingVertical: 5, borderRadius: 12, borderWidth: 1, borderColor: '#DDD6FE' },
+    dictationBtnTxt: { fontSize: 12, fontWeight: '700', color: '#7C3AED' },
+    dictationBtnActive: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#FEF2F2', paddingHorizontal: 12, paddingVertical: 5, borderRadius: 12, borderWidth: 1, borderColor: '#FECACA' },
+    dictationBtnActiveTxt: { fontSize: 12, fontWeight: '800', color: '#DC2626', fontVariant: ['tabular-nums'] },
+    recordingDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#EF4444' },
+    dictationLoader: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    dictationText: { fontSize: 12, fontWeight: '600', color: '#7C3AED' },
 
     // End Button
     endBtnWrap: { marginTop: 36, borderRadius: 20, overflow: 'hidden', ...Theme.shadows.sharp, shadowColor: '#EF4444', shadowOpacity: 0.3, elevation: 4 },
