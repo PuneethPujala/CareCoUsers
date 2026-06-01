@@ -631,9 +631,9 @@ export default function ActiveCallScreen({ navigation, route }) {
 
                         {/* ═══ Temporary / OTC Medicines ═══ */}
                         <View style={[st.sectionHeader, { justifyContent: 'space-between' }]}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1, paddingRight: 10 }}>
                                 <Ionicons name="medkit" size={16} color="#8B5CF6" />
-                                <Text style={st.sectionTitle}>Temporary Medicines</Text>
+                                <Text style={st.sectionTitle} numberOfLines={1}>Temporary Medicines</Text>
                                 {displayTempMeds.length > 0 && (
                                     <View style={[st.medCountPill, { backgroundColor: '#F3E8FF', borderColor: '#DDD6FE' }]}>
                                         <Text style={[st.medCountTxt, { color: '#7C3AED' }]}>{displayTempMeds.length}</Text>
