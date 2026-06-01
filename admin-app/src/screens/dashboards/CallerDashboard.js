@@ -10,6 +10,9 @@ import { useFocusEffect } from '@react-navigation/native';
 import GradientHeader from '../../components/common/GradientHeader';
 import SkeletonLoader from '../../components/common/SkeletonLoader';
 import { apiService } from '../../lib/api';
+import ConfettiCannon from 'react-native-confetti-cannon';
+
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 export default function CallerDashboard({ navigation }) {
     const { user } = useAuth();
@@ -21,6 +24,13 @@ export default function CallerDashboard({ navigation }) {
     const [confirmModal, setConfirmModal] = useState({ visible: false, callId: null, patientId: null, patientName: '', scheduledTime: null, attempts: 0 });
     const modalScaleAnim = useRef(new Animated.Value(0)).current;
     const modalOpacityAnim = useRef(new Animated.Value(0)).current;
+    const [showConfetti, setShowConfetti] = useState(false);
+    
+    // SVG Donut Constants
+    const size = 120;
+    const strokeWidth = 12;
+    const radius = (size - strokeWidth) / 2;
+    const circumference = 2 * Math.PI * radius;
 
     // Animations
     const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -42,6 +52,10 @@ export default function CallerDashboard({ navigation }) {
             const callsTotal = dashRes.data?.stats?.calls?.today?.total || 0;
             const callsCompleted = dashRes.data?.stats?.calls?.today?.completed || 0;
             const computedProgress = callsTotal === 0 ? 0 : (callsCompleted / callsTotal) * 100;
+            
+            if (computedProgress === 100 && callsTotal > 0 && !showConfetti) {
+                setShowConfetti(true);
+            }
             
             // Format calls for the queue
             const callsData = (queueRes.data?.calls || []).map(call => ({
@@ -135,6 +149,13 @@ export default function CallerDashboard({ navigation }) {
     return (
         <View style={s.root}>
             <StatusBar barStyle="light-content" />
+            
+            {showConfetti && (
+                <View style={[StyleSheet.absoluteFill, { zIndex: 9999 }]} pointerEvents="none">
+                    <ConfettiCannon count={150} origin={{x: Dimensions.get('window').width / 2, y: -20}} fadeOut={true} fallSpeed={2500} />
+                </View>
+            )}
+
             <GradientHeader 
                 title="Caller Dashboard" 
                 subtitle="Daily Telemetry & Routing" 
@@ -192,30 +213,49 @@ export default function CallerDashboard({ navigation }) {
                             </View>
                         </View>
 
-                        {/* ── Daily Routing Progress ── */}
+                        {/* ── Daily Routing Progress (Circular) ── */}
                         <View style={s.progressCard}>
-                            <View style={s.progressHeader}>
-                                <View style={s.progressLabelBox}>
-                                    <View style={s.progressDot} />
-                                    <Text style={s.progressTitle}>SHIFT ROUTING COMPLETION</Text>
+                            <View style={s.progressRow}>
+                                <View style={s.progressInfo}>
+                                    <View style={s.progressLabelBox}>
+                                        <View style={s.progressDot} />
+                                        <Text style={s.progressTitle}>SHIFT COMPLETION</Text>
+                                    </View>
+                                    <Text style={s.progressPercent}>{Math.round((stats?.calls?.today?.completed || 0) / Math.max((stats?.calls?.today?.total || 1), 1) * 100)}%</Text>
+                                    <Text style={s.progressSubtext}>
+                                        {stats?.calls?.today?.completed || 0} of {stats?.calls?.today?.total || 0} calls completed
+                                    </Text>
                                 </View>
-                                <Text style={s.progressPercent}>{Math.round((stats?.calls?.today?.completed || 0) / Math.max((stats?.calls?.today?.total || 1), 1) * 100)}%</Text>
+                                
+                                <View style={s.progressRingWrap}>
+                                    <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+                                        <Circle
+                                            cx={size / 2} cy={size / 2} r={radius}
+                                            stroke="#EEF2FF" strokeWidth={strokeWidth} fill="none"
+                                        />
+                                        {/* Animated Foreground Circle */}
+                                        <AnimatedCircle
+                                            cx={size / 2} cy={size / 2} r={radius}
+                                            stroke="#4F46E5" strokeWidth={strokeWidth} fill="none"
+                                            strokeDasharray={circumference}
+                                            strokeDashoffset={progressAnim.interpolate({
+                                                inputRange: [0, 100],
+                                                outputRange: [circumference, 0],
+                                                extrapolate: 'clamp'
+                                            })}
+                                            strokeLinecap="round"
+                                            transform={`rotate(-90 ${size / 2} ${size / 2})`}
+                                        />
+                                    </Svg>
+                                    <View style={s.progressRingCenter}>
+                                        {stats?.calls?.today?.completed === stats?.calls?.today?.total && stats?.calls?.today?.total > 0 ? (
+                                            <Feather name="award" size={24} color="#10B981" />
+                                        ) : (
+                                            <Feather name="trending-up" size={24} color="#4F46E5" />
+                                        )}
+                                    </View>
+                                </View>
                             </View>
-                            <View style={s.progressTrack}>
-                                <Animated.View 
-                                    style={[
-                                        s.progressFill, 
-                                        { 
-                                            width: progressAnim.interpolate({ inputRange: [0, 100], outputRange: ['0%', '100%'] }) 
-                                        }
-                                    ]} 
-                                >
-                                    <LinearGradient colors={['#3B82F6', '#2563EB']} style={StyleSheet.absoluteFill} start={{x:0, y:0}} end={{x:1, y:0}} />
-                                </Animated.View>
-                            </View>
-                            <Text style={s.progressSubtext}>
-                                {stats?.calls?.today?.completed || 0} of {stats?.calls?.today?.total || 0} calls completed this shift
-                            </Text>
                         </View>
 
                         {/* ── Performance Twin Card ── */}
@@ -572,17 +612,18 @@ const s = StyleSheet.create({
 
     // Progress Bar
     progressCard: {
-        backgroundColor: '#FFFFFF', borderRadius: 24, padding: 20,
+        backgroundColor: '#FFFFFF', borderRadius: 24, padding: 24,
         borderWidth: 1, borderColor: '#F1F5F9', ...Shadows.md, marginBottom: 24
     },
-    progressHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 12 },
-    progressLabelBox: { flexDirection: 'row', alignItems: 'center' },
-    progressDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#2563EB', marginRight: 8 },
-    progressTitle: { fontSize: 12, fontWeight: '800', color: '#64748B', letterSpacing: 0.5 },
-    progressPercent: { fontSize: 28, fontWeight: '900', color: '#0F172A', letterSpacing: -1, lineHeight: 30 },
-    progressTrack: { height: 16, backgroundColor: '#EEF2FF', borderRadius: 8, overflow: 'hidden', marginBottom: 16 },
-    progressFill: { height: '100%', borderRadius: 8 },
+    progressRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    progressInfo: { flex: 1, paddingRight: 16 },
+    progressLabelBox: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
+    progressDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#4F46E5', marginRight: 8 },
+    progressTitle: { fontSize: 11, fontWeight: '800', color: '#64748B', letterSpacing: 0.5 },
+    progressPercent: { fontSize: 32, fontWeight: '900', color: '#0F172A', letterSpacing: -1, lineHeight: 36, marginBottom: 4 },
     progressSubtext: { fontSize: 13, fontWeight: '600', color: '#94A3B8' },
+    progressRingWrap: { width: 120, height: 120, justifyContent: 'center', alignItems: 'center' },
+    progressRingCenter: { position: 'absolute', width: 60, height: 60, borderRadius: 30, backgroundColor: '#EEF2FF', justifyContent: 'center', alignItems: 'center', ...Shadows.sm },
 
     // Twin Card
     twinCard: {
