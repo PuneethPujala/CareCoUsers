@@ -59,7 +59,7 @@ const VitalLogSchema = new mongoose.Schema(
         },
         source: {
             type: String,
-            enum: ['manual', 'health_connect', 'healthkit'],
+            enum: ['manual', 'health_connect', 'healthkit', 'fitbit', 'garmin'],
             default: 'manual',
         },
     },

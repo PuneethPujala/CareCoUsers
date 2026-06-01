@@ -71,6 +71,31 @@ async function clearCachedProfile() {
     } catch { }
 }
 
+const PATIENT_SECURE_KEY = 'CareMyMed_patient_profile';
+
+// ─── Patient SecureStore helpers ──────────────────────────────────────────────
+
+async function cachePatient(patientData) {
+    try {
+        await SecureStore.setItemAsync(PATIENT_SECURE_KEY, JSON.stringify(patientData));
+    } catch { }
+}
+
+async function getCachedPatient() {
+    try {
+        const raw = await SecureStore.getItemAsync(PATIENT_SECURE_KEY);
+        return raw ? JSON.parse(raw) : null;
+    } catch {
+        return null;
+    }
+}
+
+async function clearCachedPatient() {
+    try {
+        await SecureStore.deleteItemAsync(PATIENT_SECURE_KEY);
+    } catch { }
+}
+
 // ─── Provider ─────────────────────────────────────────────────────────────────
 
 export function AuthProvider({ children }) {
@@ -108,11 +133,12 @@ export function AuthProvider({ children }) {
             return patientFetchPromiseRef.current;
         }
         const promise = apiService.patients.getMe()
-            .then(res => {
+            .then(async res => {
                 const p = res.data?.patient;
                 if (p) {
                     setPatient(p);
                     usePatientStore.getState().setPatient(p);
+                    await cachePatient(p);
                 }
                 return p || null;
             })
@@ -149,6 +175,7 @@ export function AuthProvider({ children }) {
             try { await auth.signOut(); } catch { }
             try { await GoogleSignin.signOut(); } catch { }
             await clearCachedProfile();
+            await clearCachedPatient();
             await clearUserCache();
             await clearApiTokens();
             try { await AsyncStorage.removeItem(ONBOARDING_STORAGE_KEY); } catch { }
@@ -185,6 +212,7 @@ export function AuthProvider({ children }) {
                         if (__DEV__) console.log('[Auth] Ghost login detected from previous install. Wiping SecureStore...');
                         await clearApiTokens();
                         await clearCachedProfile();
+                        await clearCachedPatient();
                         try { await auth.signOut(); } catch { }
                         await SecureStore.deleteItemAsync('CareMyMed_install_id').catch(() => {});
                     }
@@ -238,6 +266,12 @@ export function AuthProvider({ children }) {
                             setSession({ user: { id } });
                             setProfile(cached);
                             profileRef.current = cached;
+                            // Load cached patient
+                            const cachedPat = await getCachedPatient();
+                            if (cachedPat) {
+                                setPatient(cachedPat);
+                                usePatientStore.getState().setPatient(cachedPat);
+                            }
                         } else {
                             await signOut();
                         }
@@ -262,6 +296,18 @@ export function AuthProvider({ children }) {
                             if (profileData.role !== 'companion') {
                                 await fetchPatientData();
                             }
+                        } else {
+                            const cached = await getCachedProfile();
+                            if (cached) {
+                                cached.role = cached.role || 'patient';
+                                setProfile(cached);
+                                profileRef.current = cached;
+                                const cachedPat = await getCachedPatient();
+                                if (cachedPat) {
+                                    setPatient(cachedPat);
+                                    usePatientStore.getState().setPatient(cachedPat);
+                                }
+                            }
                         }
                         analytics.identify(currentSession.user.id, { role: profileData?.role || 'patient' });
                     }
@@ -285,6 +331,11 @@ export function AuthProvider({ children }) {
                         setSession({ user: { id } });
                         setProfile(cached);
                         profileRef.current = cached;
+                        const cachedPat = await getCachedPatient();
+                        if (cachedPat) {
+                            setPatient(cachedPat);
+                            usePatientStore.getState().setPatient(cachedPat);
+                        }
                     }
                 }
             } finally {
@@ -323,6 +374,7 @@ export function AuthProvider({ children }) {
                     // onboarding progress, and widgets to prevent unauthorized offline ghost logins.
                     try {
                         await clearCachedProfile();
+                        await clearCachedPatient();
                         await clearUserCache();
                         await AsyncStorage.removeItem(ONBOARDING_STORAGE_KEY);
                     } catch (e) {

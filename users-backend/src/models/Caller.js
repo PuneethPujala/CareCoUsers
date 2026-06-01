@@ -57,6 +57,14 @@ const CallerSchema = new mongoose.Schema(
             adherence_rate: { type: Number, default: 0 },
             escalations: { type: Number, default: 0 },
         },
+        last_active_at: {
+            type: Date,
+            default: Date.now,
+        },
+        current_call_id: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'CallSession',
+        },
         is_active: {
             type: Boolean,
             default: true,

@@ -12,7 +12,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import {
     ChevronLeft, ChevronRight, Heart, Activity, Wind, Droplets,
     AlertTriangle, WifiOff, RefreshCw, Calendar, Clock, Sparkles,
-    Maximize2, X, Plus, Zap
+    Maximize2, X, Plus, Zap, Watch, CheckCircle2, AlertCircle
 } from 'lucide-react-native';
 import Svg, { Line, Path, Circle } from 'react-native-svg';
 import axiosInstance, { handleAxiosError } from '../../lib/axiosInstance';
@@ -20,6 +20,8 @@ import { apiService } from '../../lib/api';
 import { colors, layout } from '../../theme';
 import SmartInput from '../../components/ui/SmartInput';
 import OfflineSyncService from '../../lib/OfflineSyncService';
+import HealthSyncService from '../../services/HealthSyncService';
+import usePatientStore from '../../store/usePatientStore';
 
 // ─── Skeleton Loader ──────────────────────────────────────────
 const SkeletonItem = ({ width, height, borderRadius = 8, style }) => {
@@ -165,6 +167,179 @@ export default function VitalsHistoryScreen({ navigation }) {
     const [formError, setFormError] = useState(null);
     const [activeMetricId, setActiveMetricId] = useState('heart_rate');
 
+    // Smartwatch Synchronization States & Diagnostics
+    const [syncStatus, setSyncStatus] = useState({
+        enabled: false,
+        connected: false,
+        permissionStatus: 'unavailable',
+        lastSync: null,
+        readingsToday: 0,
+        syncing: false,
+        latestSource: 'health_connect',
+    });
+
+    const fetchSyncStatus = useCallback(async () => {
+        try {
+            const status = await HealthSyncService.getStatus();
+            const res = await apiService.patients.getSyncStatus().catch(() => null);
+            if (res?.data) {
+                setSyncStatus(prev => ({
+                    ...prev,
+                    ...status,
+                    lastSync: res.data.last_sync ? new Date(res.data.last_sync) : status.lastSync,
+                    readingsToday: res.data.readings_today ?? status.readingsToday,
+                    connected: res.data.connected ?? status.connected,
+                    latestSource: res.data.source || status.source || 'health_connect',
+                }));
+            } else {
+                setSyncStatus(prev => ({ ...prev, ...status }));
+            }
+        } catch (err) {
+            console.warn('Failed to fetch sync status:', err.message);
+        }
+    }, []);
+
+    // 7-Day Data Coverage calculation
+    const coverageMetrics = useMemo(() => {
+        const last7Days = [...Array(7)].map((_, i) => {
+            const d = new Date();
+            d.setDate(d.getDate() - i);
+            return d.toISOString().slice(0, 10);
+        });
+
+        let hrCount = 0;
+        let bpCount = 0;
+        let spo2Count = 0;
+
+        last7Days.forEach(dateStr => {
+            const hasHr = vitals.some(v => v.date && v.date.slice(0, 10) === dateStr && v.heart_rate != null);
+            const hasBp = vitals.some(v => v.date && v.date.slice(0, 10) === dateStr && v.blood_pressure?.systolic != null);
+            const hasSpo2 = vitals.some(v => v.date && v.date.slice(0, 10) === dateStr && v.oxygen_saturation != null);
+
+            if (hasHr) hrCount++;
+            if (hasBp) bpCount++;
+            if (hasSpo2) spo2Count++;
+        });
+
+        return {
+            heartRate: Math.round((hrCount / 7) * 100),
+            bloodPressure: Math.round((bpCount / 7) * 100),
+            oxygenSaturation: Math.round((spo2Count / 7) * 100),
+        };
+    }, [vitals]);
+
+    // 🧠 AI Trend Insights Synthesis Engine
+    const trendInsights = useMemo(() => {
+        if (!vitals || vitals.length === 0) return null;
+
+        // 1. Filter records from the last 7 days
+        const oneDayMs = 24 * 60 * 60 * 1000;
+        const nowMs = Date.now();
+        const logs7Days = vitals.filter(v => {
+            const timeDiff = nowMs - new Date(v.date).getTime();
+            return timeDiff <= 7 * oneDayMs;
+        });
+
+        const total7DayLogs = logs7Days.length;
+        if (total7DayLogs === 0) return null;
+
+        // Source awareness percentages
+        const wearable7DayLogs = logs7Days.filter(v => v.source && v.source !== 'manual').length;
+        const wearablePct = Math.round((wearable7DayLogs / total7DayLogs) * 100);
+        const manualPct = 100 - wearablePct;
+
+        // Partition dates: Recent (last 3 days) vs Baseline (previous 4 days)
+        const recentLogs = logs7Days.filter(v => {
+            const timeDiff = nowMs - new Date(v.date).getTime();
+            return timeDiff <= 3 * oneDayMs;
+        });
+        const baselineLogs = logs7Days.filter(v => {
+            const timeDiff = nowMs - new Date(v.date).getTime();
+            return timeDiff > 3 * oneDayMs && timeDiff <= 7 * oneDayMs;
+        });
+
+        // --- HEART RATE TREND ---
+        const hrRecent = recentLogs.map(v => v.heart_rate).filter(h => h > 0);
+        const hrBaseline = baselineLogs.map(v => v.heart_rate).filter(h => h > 0);
+        const hrCount = logs7Days.filter(v => v.heart_rate > 0).length;
+
+        let hrLabel = 'Stable';
+        let hrColor = '#10B981'; // Green
+        let hrThemeKey = 'stable';
+        if (hrRecent.length > 0 && hrBaseline.length > 0) {
+            const hrRecentAvg = hrRecent.reduce((a, b) => a + b, 0) / hrRecent.length;
+            const hrBaselineAvg = hrBaseline.reduce((a, b) => a + b, 0) / hrBaseline.length;
+            const diff = hrRecentAvg - hrBaselineAvg;
+            if (diff >= 5) {
+                hrLabel = 'Slightly Higher';
+                hrColor = '#F59E0B'; // Orange
+                hrThemeKey = 'warning';
+            } else if (diff <= -5) {
+                hrLabel = 'Slightly Lower';
+                hrColor = '#6366F1'; // Indigo
+                hrThemeKey = 'stable';
+            }
+        }
+
+        let hrConfidence = 'Low';
+        if (hrCount >= 14) hrConfidence = 'High';
+        else if (hrCount >= 6) hrConfidence = 'Medium';
+
+        // --- BLOOD PRESSURE TREND ---
+        const bpRecent = recentLogs.map(v => v.blood_pressure?.systolic).filter(s => s > 0);
+        const bpBaseline = baselineLogs.map(v => v.blood_pressure?.systolic).filter(s => s > 0);
+        const bpCount = logs7Days.filter(v => v.blood_pressure?.systolic > 0).length;
+
+        let bpLabel = 'Stable';
+        let bpColor = '#10B981';
+        let bpThemeKey = 'stable';
+        if (bpRecent.length > 0 && bpBaseline.length > 0) {
+            const bpRecentAvg = bpRecent.reduce((a, b) => a + b, 0) / bpRecent.length;
+            const bpBaselineAvg = bpBaseline.reduce((a, b) => a + b, 0) / bpBaseline.length;
+            const diff = bpRecentAvg - bpBaselineAvg;
+            if (diff >= 8) {
+                bpLabel = 'Trending Up';
+                bpColor = '#F59E0B';
+                bpThemeKey = 'warning';
+            } else if (diff <= -8) {
+                bpLabel = 'Improving';
+                bpColor = '#10B981';
+                bpThemeKey = 'improving';
+            }
+        }
+
+        let bpConfidence = 'Low';
+        if (bpCount >= 14) bpConfidence = 'High';
+        else if (bpCount >= 6) bpConfidence = 'Medium';
+
+        // --- OXYGEN SATURATION (SpO₂) ---
+        const spo2Logs = logs7Days.map(v => v.oxygen_saturation).filter(o => o > 0);
+        const spo2Count = spo2Logs.length;
+        const lowestSpo2 = spo2Logs.length > 0 ? Math.min(...spo2Logs) : 100;
+        const avgSpo2 = spo2Logs.length > 0 ? Math.round(spo2Logs.reduce((a, b) => a + b, 0) / spo2Logs.length) : 0;
+
+        let spo2Label = 'Normal Range';
+        let spo2Desc = `Oxygen readings remain within normal range, averaging ${avgSpo2}%.`;
+        let spo2ThemeKey = 'normal';
+        if (lowestSpo2 < 95 && spo2Count > 0) {
+            spo2Label = 'Occasional Dips';
+            spo2Desc = 'Recent oxygen readings have occasionally fallen below your usual range.';
+            spo2ThemeKey = 'dips';
+        }
+
+        let spo2Confidence = 'Low';
+        if (spo2Count >= 14) spo2Confidence = 'High';
+        else if (spo2Count >= 6) spo2Confidence = 'Medium';
+
+        return {
+            wearablePct,
+            manualPct,
+            heartRate: { label: hrLabel, color: hrColor, confidence: hrConfidence, readings: hrCount, theme: hrThemeKey },
+            bloodPressure: { label: bpLabel, color: bpColor, confidence: bpConfidence, readings: bpCount, theme: bpThemeKey },
+            oxygen: { label: spo2Label, desc: spo2Desc, confidence: spo2Confidence, readings: spo2Count, theme: spo2ThemeKey }
+        };
+    }, [vitals]);
+
     const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0, visible: false, value: 0, label: '' });
     const tooltipFade = useRef(new Animated.Value(0)).current;
     const scrollY = useRef(new Animated.Value(0)).current;
@@ -245,12 +420,25 @@ export default function VitalsHistoryScreen({ navigation }) {
     }, [fetchAllData]);
 
     useEffect(() => {
-        const sub = DeviceEventEmitter.addListener('VITALS_UPDATED', () => {
+        fetchSyncStatus();
+    }, [fetchSyncStatus]);
+
+    useEffect(() => {
+        const sub1 = DeviceEventEmitter.addListener('VITALS_UPDATED', () => {
             lastRequestRef.current = 0;
             fetchAllData();
+            fetchSyncStatus();
         });
-        return () => sub.remove();
-    }, [fetchAllData]);
+        const sub2 = DeviceEventEmitter.addListener('VITALS_SYNCED', () => {
+            lastRequestRef.current = 0;
+            fetchAllData();
+            fetchSyncStatus();
+        });
+        return () => {
+            sub1.remove();
+            sub2.remove();
+        };
+    }, [fetchAllData, fetchSyncStatus]);
 
     // ─── Chart labels (unchanged) ────────────────────────────────
     const chartLabels = useMemo(() => {
@@ -384,6 +572,171 @@ export default function VitalsHistoryScreen({ navigation }) {
         };
     };
 
+    // ─── Manual Sync Trigger & Animation ────────────────────────
+    const [manualSyncing, setManualSyncing] = useState(false);
+    const syncRotateAnim = useRef(new Animated.Value(0)).current;
+
+    const handleManualSync = async () => {
+        if (manualSyncing) return;
+        setManualSyncing(true);
+        Animated.loop(
+            Animated.timing(syncRotateAnim, { toValue: 1, duration: 1000, useNativeDriver: true })
+        ).start();
+
+        try {
+            await HealthSyncService.syncNow();
+            await fetchSyncStatus();
+            lastRequestRef.current = 0;
+            await fetchAllData();
+        } catch (err) {
+            console.error('Manual sync failed:', err);
+        } finally {
+            syncRotateAnim.stopAnimation();
+            syncRotateAnim.setValue(0);
+            setManualSyncing(false);
+        }
+    };
+
+    // ─── Render: Wearable Status Widget ──────────────────────────
+    const renderWearableWidget = () => {
+        const lastSyncText = syncStatus.lastSync
+            ? `Synced ${Math.round((Date.now() - new Date(syncStatus.lastSync)) / 60000)}m ago`
+            : 'Never synced';
+        
+        const lastSyncDiffHours = syncStatus.lastSync
+            ? (Date.now() - new Date(syncStatus.lastSync)) / (60000 * 60)
+            : 999;
+
+        // Determine status
+        let statusColor = '#EF4444';
+        let statusLabel = 'Attention Needed';
+        let reasons = [];
+
+        if (syncStatus.permissionStatus !== 'granted') {
+            reasons.push('Permission revoked/not granted');
+        }
+        if (!syncStatus.lastSync) {
+            reasons.push('No sync data imported yet');
+        }
+
+        if (syncStatus.connected && syncStatus.permissionStatus === 'granted') {
+            if (lastSyncDiffHours < 1) {
+                statusColor = '#10B981';
+                statusLabel = 'Healthy';
+            } else if (lastSyncDiffHours < 24) {
+                statusColor = '#F59E0B';
+                statusLabel = 'Delayed';
+                reasons.push(`Last sync was ${Math.round(lastSyncDiffHours)} hours ago`);
+            } else {
+                statusColor = '#EF4444';
+                statusLabel = 'Attention Needed';
+                reasons.push('Last sync was more than 24 hours ago');
+            }
+        }
+
+        const spin = syncRotateAnim.interpolate({
+            inputRange: [0, 1],
+            outputRange: ['0deg', '360deg'],
+        });
+
+        return (
+            <Animated.View style={[{ opacity: staggerAnims[0], transform: [{ translateY: staggerAnims[0].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }, styles.wearableCard]}>
+                <View style={styles.wearableTop}>
+                    <View style={styles.wearableTitleRow}>
+                        <View style={styles.watchIconContainer}>
+                            <Watch size={20} color="#6366F1" />
+                        </View>
+                        <View>
+                            <Text style={styles.wearableTitle}>Smartwatch Sync</Text>
+                            <Text style={styles.wearableSub}>
+                                {syncStatus.latestSource === 'healthkit' ? 'Linked to Apple Health' : 'Linked to Health Connect'}
+                            </Text>
+                        </View>
+                    </View>
+                    <Pressable
+                        style={[styles.syncNowBtn, manualSyncing && styles.syncNowBtnDisabled]}
+                        onPress={handleManualSync}
+                        disabled={manualSyncing}
+                    >
+                        <Animated.View style={{ transform: [{ rotate: spin }] }}>
+                            <RefreshCw size={14} color="#6366F1" strokeWidth={2.5} />
+                        </Animated.View>
+                        <Text style={styles.syncNowTxt}>{manualSyncing ? 'Syncing...' : 'Sync Now'}</Text>
+                    </Pressable>
+                </View>
+
+                {/* Sync statistics grid */}
+                <View style={styles.syncStatsGrid}>
+                    <View style={styles.syncStatCell}>
+                        <Text style={styles.syncStatLabel}>Status</Text>
+                        <View style={styles.syncStatusBadgeInline}>
+                            <View style={[styles.syncStatusDotInline, { backgroundColor: statusColor }]} />
+                            <Text style={[styles.syncStatusTextInline, { color: statusColor }]}>{statusLabel}</Text>
+                        </View>
+                    </View>
+                    <View style={styles.syncStatCell}>
+                        <Text style={styles.syncStatLabel}>Last Sync</Text>
+                        <Text style={styles.syncStatVal}>{lastSyncText}</Text>
+                    </View>
+                    <View style={styles.syncStatCell}>
+                        <Text style={styles.syncStatLabel}>Imported Today</Text>
+                        <Text style={styles.syncStatVal}>{syncStatus.readingsToday} records</Text>
+                    </View>
+                </View>
+
+                {/* Attention Needed Diagnostics */}
+                {statusLabel === 'Attention Needed' && (
+                    <View style={styles.diagnosticsBox}>
+                        <Text style={styles.diagnosticsTitle}>Connection Diagnostics:</Text>
+                        {reasons.map((r, i) => (
+                            <Text key={i} style={styles.diagnosticsReason}>• {r}</Text>
+                        ))}
+                        <Pressable
+                            style={styles.fixConnectionBtn}
+                            onPress={() => navigation.navigate('HealthConnectSetup')}
+                        >
+                            <Text style={styles.fixConnectionTxt}>Fix Connection</Text>
+                        </Pressable>
+                    </View>
+                )}
+            </Animated.View>
+        );
+    };
+
+    // ─── Render: Data Coverage Widget ──────────────────────────
+    const renderDataCoverageWidget = () => {
+        const metrics = [
+            { label: 'Heart Rate', key: 'heartRate', pct: coverageMetrics.heartRate, icon: Heart, color: '#CC5B31' },
+            { label: 'Blood Pressure', key: 'bloodPressure', pct: coverageMetrics.bloodPressure, icon: Activity, color: '#4B88D6' },
+            { label: 'SpO₂', key: 'oxygenSaturation', pct: coverageMetrics.oxygenSaturation, icon: Wind, color: '#4DA379' },
+        ];
+
+        return (
+            <Animated.View style={[{ opacity: staggerAnims[0], transform: [{ translateY: staggerAnims[0].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }, styles.coverageCard]}>
+                <View style={styles.coverageHeader}>
+                    <Text style={styles.coverageTitle}>7-Day Data Coverage</Text>
+                    <Text style={styles.coverageSub}>passively logged telemetry density</Text>
+                </View>
+                <View style={styles.coverageBarsList}>
+                    {metrics.map(m => (
+                        <View key={m.key} style={m.key !== 'heartRate' && { marginTop: 12 }}>
+                            <View style={styles.coverageBarTop}>
+                                <View style={styles.coverageLabelRow}>
+                                    <m.icon size={12} color={m.color} style={{ marginRight: 6 }} />
+                                    <Text style={styles.coverageBarLabel}>{m.label}</Text>
+                                </View>
+                                <Text style={[styles.coverageBarPct, { color: m.color }]}>{m.pct}%</Text>
+                            </View>
+                            <View style={styles.coverageTrack}>
+                                <View style={[styles.coverageProgress, { width: `${m.pct}%`, backgroundColor: m.color }]} />
+                            </View>
+                        </View>
+                    ))}
+                </View>
+            </Animated.View>
+        );
+    };
+
     // ─── Render: Header ──────────────────────────────────────────
     const renderHeader = () => {
         const headerOpacity = scrollY.interpolate({ inputRange: [0, 50], outputRange: [0, 1], extrapolate: 'clamp' });
@@ -417,6 +770,20 @@ export default function VitalsHistoryScreen({ navigation }) {
                         <View>
                             <Text style={styles.heroEyebrow}>Latest Reading</Text>
                             <Text style={styles.heroDate}>{readingDate} · {readingTime}</Text>
+                            
+                            {/* Hero Lineage Badge */}
+                            {latest.source && latest.source !== 'manual' ? (
+                                <View style={styles.heroSourceBadge}>
+                                    <Watch size={10} color="#FFFFFF" style={{ marginRight: 4 }} />
+                                    <Text style={styles.heroSourceBadgeText}>
+                                        Synced: {latest.source === 'health_connect' ? 'Health Connect' : latest.source === 'healthkit' ? 'Apple Health' : latest.source}
+                                    </Text>
+                                </View>
+                            ) : (
+                                <View style={[styles.heroSourceBadge, { backgroundColor: 'rgba(255, 255, 255, 0.1)' }]}>
+                                    <Text style={styles.heroSourceBadgeText}>✍️ Manual Entry</Text>
+                                </View>
+                            )}
                         </View>
                         {!latest._id ? (
                             <View style={[styles.heroLiveBadge, { backgroundColor: 'rgba(255,255,255,0.2)', borderColor: 'rgba(255,255,255,0.3)', opacity: 0.8 }]}>
@@ -730,6 +1097,143 @@ export default function VitalsHistoryScreen({ navigation }) {
         );
     };
 
+    // ─── Render: AI Trend Insights ──────────────────────────────
+    const renderTrendInsights = () => {
+        if (!trendInsights) {
+            return (
+                <Animated.View style={[{ opacity: staggerAnims[0], transform: [{ translateY: staggerAnims[0].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }, styles.insightCardContainer]}>
+                    <View style={styles.insightHeader}>
+                        <View style={styles.insightTitleLeft}>
+                            <Sparkles size={16} color="#6366F1" />
+                            <Text style={styles.insightMainTitle}>AI Trend Insights</Text>
+                        </View>
+                    </View>
+                    <View style={styles.insightEmptyBox}>
+                        <Activity size={20} color="#94A3B8" style={{ marginBottom: 6 }} />
+                        <Text style={styles.insightEmptyTxt}>
+                            Awaiting telemetry data to construct your 7-day trend analysis.
+                        </Text>
+                    </View>
+                </Animated.View>
+            );
+        }
+
+        const themes = {
+            stable: { bg: '#ECFDF5', border: '#A7F3D0', text: '#065F46' },
+            improving: { bg: '#ECFDF5', border: '#A7F3D0', text: '#065F46' },
+            warning: { bg: '#FFFBEB', border: '#FDE68A', text: '#92400E' },
+            normal: { bg: '#F0FDF4', border: '#BBF7D0', text: '#166534' },
+            dips: { bg: '#FEF2F2', border: '#FCA5A5', text: '#991B1B' }
+        };
+
+        const getTheme = (key) => themes[key] || themes.stable;
+
+        // Fetch medication adherence from Zustand store for the observational correlation
+        const adherenceDetails = usePatientStore.getState().adherenceDetails;
+        const isAdherenceHigh = adherenceDetails?.rate >= 80 || adherenceDetails?.streak >= 3;
+
+        return (
+            <Animated.View style={[{ opacity: staggerAnims[0], transform: [{ translateY: staggerAnims[0].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }, styles.insightCardContainer]}>
+                <View style={styles.insightHeader}>
+                    <View style={styles.insightTitleLeft}>
+                        <Sparkles size={16} color="#6366F1" />
+                        <Text style={styles.insightMainTitle}>AI Trend Insights</Text>
+                    </View>
+                    <View style={styles.sourceAwareBadge}>
+                        <Text style={styles.sourceAwareText}>
+                            {trendInsights.wearablePct}% Wearable · {trendInsights.manualPct}% Manual
+                        </Text>
+                    </View>
+                </View>
+
+                {/* Insight metrics list */}
+                <View style={styles.insightsList}>
+                    {/* Heart Rate Insight */}
+                    <View style={styles.insightListItem}>
+                        <View style={styles.insightListLeft}>
+                            <View style={[styles.insightIconBoxMini, { backgroundColor: '#FEE2E2' }]}>
+                                <Heart size={14} color="#EF4444" fill="#EF4444" />
+                            </View>
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.insightMetricName}>Heart Rate</Text>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                                    <View style={[styles.inlineStatusBadge, { backgroundColor: getTheme(trendInsights.heartRate.theme).bg, borderColor: getTheme(trendInsights.heartRate.theme).border }]}>
+                                        <Text style={[styles.inlineStatusTxt, { color: getTheme(trendInsights.heartRate.theme).text }]}>
+                                            {trendInsights.heartRate.label}
+                                        </Text>
+                                    </View>
+                                    <Text style={styles.insightReadingsCount}>
+                                        Confidence: {trendInsights.heartRate.confidence} ({trendInsights.heartRate.readings} logs)
+                                    </Text>
+                                </View>
+                            </View>
+                        </View>
+                    </View>
+
+                    {/* Blood Pressure Insight */}
+                    <View style={[styles.insightListItem, { borderTopWidth: 1, borderTopColor: '#F1F5F9', paddingTop: 12, marginTop: 12 }]}>
+                        <View style={styles.insightListLeft}>
+                            <View style={[styles.insightIconBoxMini, { backgroundColor: '#E0F2FE' }]}>
+                                <Activity size={14} color="#0EA5E9" />
+                            </View>
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.insightMetricName}>Blood Pressure</Text>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                                    <View style={[styles.inlineStatusBadge, { backgroundColor: getTheme(trendInsights.bloodPressure.theme).bg, borderColor: getTheme(trendInsights.bloodPressure.theme).border }]}>
+                                        <Text style={[styles.inlineStatusTxt, { color: getTheme(trendInsights.bloodPressure.theme).text }]}>
+                                            {trendInsights.bloodPressure.label}
+                                        </Text>
+                                    </View>
+                                    <Text style={styles.insightReadingsCount}>
+                                        Confidence: {trendInsights.bloodPressure.confidence} ({trendInsights.bloodPressure.readings} logs)
+                                    </Text>
+                                </View>
+                            </View>
+                        </View>
+                    </View>
+
+                    {/* Oxygen Insight */}
+                    <View style={[styles.insightListItem, { borderTopWidth: 1, borderTopColor: '#F1F5F9', paddingTop: 12, marginTop: 12 }]}>
+                        <View style={styles.insightListLeft}>
+                            <View style={[styles.insightIconBoxMini, { backgroundColor: '#ECFDF5' }]}>
+                                <Wind size={14} color="#10B981" />
+                            </View>
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.insightMetricName}>Oxygen Saturation (SpO₂)</Text>
+                                <Text style={styles.insightOxygenDesc}>
+                                    {trendInsights.oxygen.desc}
+                                </Text>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                                    <View style={[styles.inlineStatusBadge, { backgroundColor: getTheme(trendInsights.oxygen.theme).bg, borderColor: getTheme(trendInsights.oxygen.theme).border }]}>
+                                        <Text style={[styles.inlineStatusTxt, { color: getTheme(trendInsights.oxygen.theme).text }]}>
+                                            {trendInsights.oxygen.label}
+                                        </Text>
+                                    </View>
+                                    <Text style={styles.insightReadingsCount}>
+                                        Confidence: {trendInsights.oxygen.confidence} ({trendInsights.oxygen.readings} logs)
+                                    </Text>
+                                </View>
+                            </View>
+                        </View>
+                    </View>
+                </View>
+
+                {/* Medication Adherence Correlation Block */}
+                <View style={styles.correlationBlock}>
+                    <View style={styles.correlationHeader}>
+                        <CheckCircle2 size={13} color="#6366F1" style={{ marginRight: 5 }} />
+                        <Text style={styles.correlationTitle}>Medication Adherence Observation</Text>
+                    </View>
+                    <Text style={styles.correlationDesc}>
+                        {isAdherenceHigh
+                            ? "Excellent medication adherence this week has matched stable vital telemetry trends."
+                            : "Improving medication consistency is recommended to help maintain stable vital trends."}
+                    </Text>
+                </View>
+            </Animated.View>
+        );
+    };
+
     // ─── Render: Skeleton ────────────────────────────────────────
     const renderSkeleton = () => (
         <View style={{ gap: 20 }}>
@@ -778,6 +1282,15 @@ export default function VitalsHistoryScreen({ navigation }) {
                 >
                     {initialLoading ? renderSkeleton() : (
                         <>
+                            {/* ── Wearable Status Widget ────────── */}
+                            {renderWearableWidget()}
+
+                            {/* ── Data Coverage Widget ──────────── */}
+                            {renderDataCoverageWidget()}
+
+                            {/* ── AI Trend Insights Widget ──────── */}
+                            {renderTrendInsights()}
+
                             {/* ── Hero Summary Card ───────────── */}
                             {renderHeroCard()}
 
@@ -967,6 +1480,19 @@ export default function VitalsHistoryScreen({ navigation }) {
                                                     <Text style={styles.historyTime}>
                                                         {new Date(log.date).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }).toLowerCase()}
                                                     </Text>
+                                                    {/* Smartwatch / Manual Source Lineage Badge */}
+                                                    {log.source && log.source !== 'manual' ? (
+                                                        <View style={[styles.sourceBadge, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]}>
+                                                            <Watch size={10} color="#3B82F6" style={{ marginRight: 3 }} />
+                                                            <Text style={[styles.sourceBadgeText, { color: '#2563EB' }]}>
+                                                                {log.source === 'health_connect' ? 'Health Connect' : log.source === 'healthkit' ? 'Apple Health' : log.source}
+                                                            </Text>
+                                                        </View>
+                                                    ) : (
+                                                        <View style={[styles.sourceBadge, { backgroundColor: '#F8FAFC', borderColor: '#E2E8F0' }]}>
+                                                            <Text style={[styles.sourceBadgeText, { color: '#64748B' }]}>✍️ Manual</Text>
+                                                        </View>
+                                                    )}
                                                 </View>
                                                 <View style={styles.historyEntryBadge}>
                                                     <Text style={styles.historyEntryNum}>#{historyLogs.length - idx}</Text>
@@ -1182,4 +1708,81 @@ const styles = StyleSheet.create({
     landscapeSubtitle: { fontSize: 12, fontWeight: '700', color: '#64748B', marginTop: 2, textTransform: 'uppercase', letterSpacing: 0.5 },
     landscapeChart: { borderRadius: 20, alignSelf: 'center' },
     closeFullscreenBtn: { position: 'absolute', top: 20, right: 20, zIndex: 1000, backgroundColor: '#F1F5F9', width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.12, shadowRadius: 8, elevation: 6 },
+
+    /* Wearable Card */
+    wearableCard: {
+        backgroundColor: '#FFFFFF', borderRadius: 24, padding: 20, marginBottom: 20,
+        borderWidth: 1, borderColor: '#F1F5F9',
+        shadowColor: '#6366F1', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.05, shadowRadius: 16, elevation: 4,
+    },
+    wearableTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 },
+    wearableTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+    watchIconContainer: { width: 42, height: 42, borderRadius: 14, backgroundColor: '#EEF2FF', alignItems: 'center', justifyContent: 'center' },
+    wearableTitle: { fontSize: 16, fontWeight: '900', color: '#0F172A' },
+    wearableSub: { fontSize: 12, fontWeight: '600', color: '#64748B', marginTop: 2 },
+    syncNowBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#EEF2FF', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: '#C7D2FE' },
+    syncNowBtnDisabled: { opacity: 0.6 },
+    syncNowTxt: { fontSize: 13, fontWeight: '800', color: '#6366F1' },
+    syncStatsGrid: { flexDirection: 'row', gap: 10, borderTopWidth: 1, borderTopColor: '#F1F5F9', paddingTop: 16 },
+    syncStatCell: { flex: 1, backgroundColor: '#F8FAFC', borderRadius: 14, padding: 12, borderWidth: 1, borderColor: '#F1F5F9' },
+    syncStatLabel: { fontSize: 10, fontWeight: '800', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 },
+    syncStatusBadgeInline: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+    syncStatusDotInline: { width: 6, height: 6, borderRadius: 3 },
+    syncStatusTextInline: { fontSize: 11, fontWeight: '800' },
+    syncStatVal: { fontSize: 12, fontWeight: '800', color: '#1E293B' },
+    diagnosticsBox: { marginTop: 16, backgroundColor: '#FEF2F2', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: '#FCA5A5' },
+    diagnosticsTitle: { fontSize: 12, fontWeight: '800', color: '#991B1B', marginBottom: 6 },
+    diagnosticsReason: { fontSize: 11, fontWeight: '600', color: '#B91C1C', lineHeight: 16, marginBottom: 2 },
+    fixConnectionBtn: { marginTop: 10, backgroundColor: '#EF4444', borderRadius: 10, paddingVertical: 8, paddingHorizontal: 12, alignSelf: 'flex-start' },
+    fixConnectionTxt: { fontSize: 11, fontWeight: '800', color: '#FFFFFF' },
+
+    /* Coverage Card */
+    coverageCard: {
+        backgroundColor: '#FFFFFF', borderRadius: 24, padding: 20, marginBottom: 20,
+        borderWidth: 1, borderColor: '#F1F5F9',
+        shadowColor: '#0F172A', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.03, shadowRadius: 16, elevation: 3,
+    },
+    coverageHeader: { marginBottom: 16 },
+    coverageTitle: { fontSize: 15, fontWeight: '900', color: '#0F172A' },
+    coverageSub: { fontSize: 11, fontWeight: '600', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 3 },
+    coverageBarsList: {},
+    coverageBarTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
+    coverageLabelRow: { flexDirection: 'row', alignItems: 'center' },
+    coverageBarLabel: { fontSize: 12, fontWeight: '800', color: '#475569' },
+    coverageBarPct: { fontSize: 13, fontWeight: '900' },
+    coverageTrack: { height: 7, backgroundColor: '#F1F5F9', borderRadius: 4, overflow: 'hidden' },
+    coverageProgress: { height: '100%', borderRadius: 4 },
+
+    /* Source badges */
+    heroSourceBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255, 255, 255, 0.18)', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, alignSelf: 'flex-start', marginTop: 6 },
+    heroSourceBadgeText: { fontSize: 10, fontWeight: '800', color: '#FFFFFF' },
+    sourceBadge: { flexDirection: 'row', alignItems: 'center', borderRadius: 8, borderWidth: 1, paddingHorizontal: 6, paddingVertical: 2, marginLeft: 8 },
+    sourceBadgeText: { fontSize: 9, fontWeight: '800' },
+
+    /* AI Trend Insights Widget Styles */
+    insightCardContainer: {
+        backgroundColor: '#FFFFFF', borderRadius: 24, padding: 20, marginBottom: 20,
+        borderWidth: 1, borderColor: '#F1F5F9',
+        shadowColor: '#6366F1', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.05, shadowRadius: 16, elevation: 4,
+    },
+    insightHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+    insightTitleLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    insightMainTitle: { fontSize: 15, fontWeight: '900', color: '#0F172A' },
+    sourceAwareBadge: { backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
+    sourceAwareText: { fontSize: 10, fontWeight: '700', color: '#64748B' },
+    insightEmptyBox: { alignItems: 'center', justifyContent: 'center', paddingVertical: 24, backgroundColor: '#F8FAFC', borderRadius: 16, borderStyle: 'dashed', borderWidth: 1.5, borderColor: '#CBD5E1' },
+    insightEmptyTxt: { fontSize: 12, color: '#64748B', fontWeight: '600', textAlign: 'center', marginHorizontal: 20, lineHeight: 18 },
+    insightsList: { gap: 12 },
+    insightListItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    insightListLeft: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
+    insightIconBoxMini: { width: 30, height: 30, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+    insightMetricName: { fontSize: 12, fontWeight: '800', color: '#0F172A' },
+    inlineStatusBadge: { borderWidth: 1, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, alignSelf: 'flex-start' },
+    inlineStatusTxt: { fontSize: 9, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.3 },
+    insightReadingsCount: { fontSize: 10, fontWeight: '600', color: '#94A3B8' },
+    insightOxygenDesc: { fontSize: 11, fontWeight: '500', color: '#475569', lineHeight: 16, marginTop: 2, marginBottom: 2 },
+    correlationBlock: { marginTop: 18, backgroundColor: '#EEF2FF', borderLeftWidth: 3, borderLeftColor: '#6366F1', padding: 12, borderRadius: 12 },
+    correlationHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
+    correlationTitle: { fontSize: 11, fontWeight: '800', color: '#3730A3', textTransform: 'uppercase', letterSpacing: 0.5 },
+    correlationDesc: { fontSize: 11, color: '#312E81', lineHeight: 16, fontWeight: '600' },
 });

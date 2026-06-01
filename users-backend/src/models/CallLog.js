@@ -29,7 +29,7 @@ const CallLogSchema = new mongoose.Schema(
         },
         status: {
             type: String,
-            enum: ['completed', 'missed', 'refused', 'escalated', 'attempted', 'pending'],
+            enum: ['completed', 'missed', 'refused', 'escalated', 'attempted', 'pending', 'rejected', 'callback_requested', 'secure_message_left'],
             index: true,
         },
         priority: {

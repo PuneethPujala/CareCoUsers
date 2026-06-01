@@ -268,10 +268,28 @@ const MedCard = ({ med, onToggle, onSnooze, onRefill }) => {
                                     </View>
                                 )}
                             </View>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 2 }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 2 }}>
                                 <Text style={styles.medDose}>
                                     {med.preferred_time ? `${med.preferred_time} · ` : ''}{med.dosage}
                                 </Text>
+                                {hasRefillInfo && (
+                                    <View style={{ 
+                                        flexDirection: 'row', alignItems: 'center', gap: 4, 
+                                        paddingHorizontal: 8, paddingVertical: 2.5, borderRadius: 8, 
+                                        backgroundColor: isLowSupply ? '#FEF2F2' : '#F1F5F9',
+                                        borderWidth: 1,
+                                        borderColor: isLowSupply ? '#FECACA' : '#E2E8F0',
+                                    }}>
+                                        {isLowSupply && <AlertCircle size={10} color="#EF4444" strokeWidth={3} />}
+                                        <Text style={{ 
+                                            fontSize: 9, fontWeight: '800', 
+                                            color: isLowSupply ? '#EF4444' : '#64748B', 
+                                            letterSpacing: 0.3, textTransform: 'uppercase'
+                                        }}>
+                                            {displayDoses} {isLowSupply ? 'Left (Refill)' : 'Supply Left'}
+                                        </Text>
+                                    </View>
+                                )}
                             </View>
                         </View>
 
@@ -305,29 +323,6 @@ const MedCard = ({ med, onToggle, onSnooze, onRefill }) => {
                     )}
                 </Pressable>
             </Swipeable>
-
-            {/* Supply Info - Rendered OUTSIDE the container to prevent congestion */}
-            {hasRefillInfo && (
-                <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: -20, marginRight: 24, zIndex: -1, elevation: -1 }}>
-                    <View style={{ 
-                        flexDirection: 'row', alignItems: 'center', gap: 6, 
-                        paddingHorizontal: 16, paddingVertical: 6, paddingTop: 26, 
-                        borderBottomLeftRadius: 14, borderBottomRightRadius: 14, 
-                        backgroundColor: isLowSupply ? '#FEF2F2' : '#F1F5F9',
-                        borderWidth: 1.5, borderTopWidth: 0,
-                        borderColor: isLowSupply ? '#FECACA' : '#E2E8F0',
-                    }}>
-                        {isLowSupply ? <AlertCircle size={12} color="#EF4444" strokeWidth={3} /> : <CheckCircle2 size={12} color="#64748B" strokeWidth={3} />}
-                        <Text style={{ 
-                            fontSize: 10, fontWeight: '900', 
-                            color: isLowSupply ? '#EF4444' : '#64748B', 
-                            letterSpacing: 0.8, textTransform: 'uppercase'
-                        }}>
-                            {displayDoses} {isLowSupply ? 'Left • Refill' : 'Supply Left'}
-                        </Text>
-                    </View>
-                </View>
-            )}
         </View>
     );
 };
@@ -487,7 +482,7 @@ export default function MedicationsScreen({ navigation }) {
     const [tempPrefs, setTempPrefs] = useState({ morning: '09:00', afternoon: '14:00', evening: '17:00', night: '20:00' });
     const [savingPrefs, setSavingPrefs] = useState(false);
     const [activePicker, setActivePicker] = useState(null);
-    const [toast, setToast] = useState({ visible: false, title: '', message: '' });
+    const [toast, setToast] = useState({ visible: false, title: '', message: '', type: 'success' });
     const [confirmingMed, setConfirmingMed] = useState(null);
     const [isConfirmVisible, setIsConfirmVisible] = useState(false);
     const [requestingMod, setRequestingMod] = useState(false);
@@ -505,15 +500,15 @@ export default function MedicationsScreen({ navigation }) {
     const hasAnimated = useRef(false);
     const toastAnim = useRef(new Animated.Value(0)).current;
 
-    const showToast = (title, message) => {
-        setToast({ visible: true, title, message });
+    const showToast = useCallback((title, message, type = 'success') => {
+        setToast({ visible: true, title, message, type });
         toastAnim.setValue(0);
         Animated.sequence([
-            Animated.spring(toastAnim, { toValue: 1, friction: 7, useNativeDriver: true }),
-            Animated.delay(2400),
+            Animated.spring(toastAnim, { toValue: 1, friction: 8, tension: 40, useNativeDriver: true }),
+            Animated.delay(2800),
             Animated.timing(toastAnim, { toValue: 0, duration: 300, useNativeDriver: true }),
-        ]).start(() => setToast({ visible: false, title: '', message: '' }));
-    };
+        ]).start(() => setToast({ visible: false, title: '', message: '', type: 'success' }));
+    }, [toastAnim]);
 
     const runAnimations = useCallback(() => {
         staggerAnims.forEach(a => a.setValue(0));
@@ -599,11 +594,14 @@ export default function MedicationsScreen({ navigation }) {
             await storeOptimisticToggle(med, true);
         } catch (err) {
             console.warn('[Toggle] Failed:', err.message);
-            showToast(t('common.sync_failed', { defaultValue: 'Sync Failed' }), t('common.check_connection', { defaultValue: 'Check your connection and try again.' }));
+            showToast(t('common.sync_failed', { defaultValue: 'Sync Failed' }), t('common.check_connection', { defaultValue: 'Check your connection and try again.' }), 'error');
         }
     };
 
     const handleDeleteTempMed = async (med) => {
+        if (!med._id || String(med._id).startsWith('temp_')) {
+            return; // Safety guard: ignore deleting pending optimistic items
+        }
         AlertManager.alert(
             'Remove Medicine',
             `Are you sure you want to remove "${med.name}" from your temporary medications?`,
@@ -616,10 +614,10 @@ export default function MedicationsScreen({ navigation }) {
                         const previousMeds = tempMeds;
                         // Optimistically remove from state immediately
                         setTempMeds(prev => prev.filter(m => m._id !== med._id));
-                        showToast(t('common.success', { defaultValue: 'Success' }), 'Temporary medicine removed.');
                         
                         try {
                             await apiService.medicines.deleteTempMed(med._id);
+                            showToast(t('common.success', { defaultValue: 'Success' }), 'Temporary medicine removed.', 'success');
                             // Background refetch to ensure alignment
                             const tempRes = await apiService.medicines.getTempMeds();
                             setTempMeds(tempRes.data?.tempMedications || []);
@@ -627,7 +625,7 @@ export default function MedicationsScreen({ navigation }) {
                             console.warn('Delete temp-med failed:', err.message);
                             // Rollback state on error
                             setTempMeds(previousMeds);
-                            showToast(t('common.error', { defaultValue: 'Error' }), 'Failed to remove medicine.');
+                            showToast(t('common.error', { defaultValue: 'Error' }), 'Failed to remove medicine.', 'error');
                         }
                     }
                 }
@@ -659,7 +657,7 @@ export default function MedicationsScreen({ navigation }) {
         // Optimistically prepend the new med to state immediately
         setTempMeds(prev => [optimisticMed, ...prev]);
         setShowAddTempMedModal(false);
-        showToast(t('common.success', { defaultValue: 'Success' }), 'Temporary medicine added.');
+        showToast(t('common.success', { defaultValue: 'Success' }), 'Temporary medicine added.', 'success');
 
         setAddingTempMed(true);
         try {
@@ -668,6 +666,7 @@ export default function MedicationsScreen({ navigation }) {
             if (savedMed) {
                 // Swap the temp ID with the database item containing real ID and risk details
                 setTempMeds(prev => prev.map(m => m._id === tempId ? savedMed : m));
+                setTempMedForm({ name: '', dosage: '', frequency: 'As needed', reason: '', shift: 'morning' });
             } else {
                 const tempRes = await apiService.medicines.getTempMeds();
                 setTempMeds(tempRes.data?.tempMedications || []);
@@ -676,7 +675,7 @@ export default function MedicationsScreen({ navigation }) {
             console.warn('Add temp-med failed:', err.message);
             // Rollback on error
             setTempMeds(previousMeds);
-            showToast(t('common.error', { defaultValue: 'Error' }), err.response?.data?.error || 'Failed to add medicine.');
+            showToast(t('common.error', { defaultValue: 'Error' }), err.response?.data?.error || 'Failed to add medicine.', 'error');
         } finally {
             setAddingTempMed(false);
         }
@@ -705,7 +704,7 @@ export default function MedicationsScreen({ navigation }) {
                 },
                 trigger: { type: 'timeInterval', seconds: 30 * 60, channelId: 'meds' },
             });
-            showToast(t('medications.snoozed', { defaultValue: 'Snoozed 30 min' }), `${t('medications.remind_you_about', { defaultValue: "We'll remind you about" })} ${med.name}.`);
+            showToast(t('medications.snoozed', { defaultValue: 'Snoozed 30 min' }), `${t('medications.remind_you_about', { defaultValue: "We'll remind you about" })} ${med.name}.`, 'info');
         } catch (err) {
             console.warn('Snooze failed:', err.message);
         }
@@ -717,7 +716,7 @@ export default function MedicationsScreen({ navigation }) {
             await storeSavePrefs(tempPrefs);
             setShowPrefModal(false);
         } catch {
-            showToast(t('common.error', { defaultValue: 'Error' }), t('medications.save_prefs_failed', { defaultValue: 'Failed to save preferences.' }));
+            showToast(t('common.error', { defaultValue: 'Error' }), t('medications.save_prefs_failed', { defaultValue: 'Failed to save preferences.' }), 'error');
         } finally {
             setSavingPrefs(false);
         }
@@ -741,12 +740,12 @@ export default function MedicationsScreen({ navigation }) {
 
         try {
             await apiService.medicines.refill(refillModal.med.name, newCount);
-            showToast(t('common.success', { defaultValue: 'Success' }), t('medications.refill_success', { defaultValue: 'Medication supply refilled!' }));
+            showToast(t('common.success', { defaultValue: 'Success' }), t('medications.refill_success', { defaultValue: 'Medication supply refilled!' }), 'success');
             setRefillModal({ visible: false, med: null, count: '' });
             load(true);
         } catch (err) {
             console.warn('Refill failed:', err.message);
-            showToast(t('common.error', { defaultValue: 'Error' }), t('medications.refill_failed', { defaultValue: 'Failed to refill medication.' }));
+            showToast(t('common.error', { defaultValue: 'Error' }), t('medications.refill_failed', { defaultValue: 'Failed to refill medication.' }), 'error');
         }
     };
 
@@ -754,7 +753,7 @@ export default function MedicationsScreen({ navigation }) {
         try {
             const { status } = await ImagePicker.requestCameraPermissionsAsync();
             if (status !== 'granted') { 
-                showToast(t('common.permission_needed', { defaultValue: 'Permission needed' }), t('medications.camera_req', { defaultValue: 'Camera access required.' })); 
+                showToast(t('common.permission_needed', { defaultValue: 'Permission needed' }), t('medications.camera_req', { defaultValue: 'Camera access required.' }), 'error'); 
                 return; 
             }
             
@@ -785,7 +784,7 @@ export default function MedicationsScreen({ navigation }) {
                 ]
             );
         } catch (error) {
-            showToast(t('common.error', { defaultValue: 'Error' }), error.message);
+            showToast(t('common.error', { defaultValue: 'Error' }), error.message, 'error');
         }
     };
 
@@ -806,7 +805,7 @@ export default function MedicationsScreen({ navigation }) {
                     imageUri: manipResult.uri
                 });
             } catch (error) {
-                showToast('Image Error', 'Could not process the selected image.');
+                showToast('Image Error', 'Could not process the selected image.', 'error');
             } finally {
                 setUploadingImage(false);
             }
@@ -903,7 +902,8 @@ export default function MedicationsScreen({ navigation }) {
                         <Text style={styles.headerTitle}>{t('common.medications', { defaultValue: 'Medications' })}</Text>
                     </View>
                     <Pressable style={styles.headerBtn} onPress={() => navigation.navigate('Notifications')}>
-                        <Bell size={20} color="#0F172A" strokeWidth={2.5} />
+                        <Bell size={20} color="#0F172A" strokeWidth={2.2} />
+                        <View style={{ position: 'absolute', top: 11, right: 12, width: 8, height: 8, borderRadius: 4, backgroundColor: '#EF4444', borderWidth: 1.5, borderColor: '#FFFFFF' }} />
                     </Pressable>
                 </View>
             </View>
@@ -978,8 +978,8 @@ export default function MedicationsScreen({ navigation }) {
                                     try {
                                         await apiService.patients.requestMedicationModification({ description: 'Patient requests caller to add/review medications.' });
                                         setModRequested(true);
-                                        showToast(t('medications.request_sent_toast', { defaultValue: 'Request Sent ✓' }), t('medications.caregiver_discuss', { defaultValue: 'Your caregiver will discuss meds on your next call.' }));
-                                    } catch { showToast(t('common.error', { defaultValue: 'Error' }), t('common.could_not_send', { defaultValue: 'Could not send. Try again.' })); }
+                                        showToast(t('medications.request_sent_toast', { defaultValue: 'Request Sent ✓' }), t('medications.caregiver_discuss', { defaultValue: 'Your caregiver will discuss meds on your next call.' }), 'success');
+                                    } catch { showToast(t('common.error', { defaultValue: 'Error' }), t('common.could_not_send', { defaultValue: 'Could not send. Try again.' }), 'error'); }
                                     finally { setRequestingMod(false); }
                                 }}
                             >
@@ -1112,53 +1112,94 @@ export default function MedicationsScreen({ navigation }) {
                                     tempMeds.map((tm, idx) => {
                                         const riskColors = { safe: '#10B981', caution: '#F59E0B', restricted: '#EF4444' };
                                         const riskColor = riskColors[tm.riskTier] || '#64748B';
+                                        
+                                        // Shift config for beautiful micro-details
+                                        const shiftStyles = {
+                                            morning: { bg: '#FFF7ED', txt: '#C2410C', label: 'Morning' },
+                                            afternoon: { bg: '#F0F9FF', txt: '#0369A1', label: 'Afternoon' },
+                                            night: { bg: '#EEF2FF', txt: '#4338CA', label: 'Night' },
+                                        };
+                                        const shiftCfg = shiftStyles[tm.shift] || { bg: '#F1F5F9', txt: '#475569', label: tm.shift };
+
                                         return (
-                                            <View key={tm._id || idx} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, borderTopWidth: idx > 0 ? 1 : 0, borderColor: '#F1F5F9', borderLeftWidth: 3, borderLeftColor: riskColor, paddingLeft: 10, marginBottom: idx < tempMeds.length - 1 ? 6 : 0 }}>
-                                                <View style={{ flex: 1, gap: 2 }}>
+                                            <View 
+                                                key={tm._id || idx} 
+                                                style={{ 
+                                                    flexDirection: 'row', 
+                                                    alignItems: 'center', 
+                                                    gap: 12, 
+                                                    padding: 14, 
+                                                    backgroundColor: '#F8FAFC',
+                                                    borderRadius: 16,
+                                                    borderWidth: 1,
+                                                    borderColor: '#E2E8F0',
+                                                    borderLeftWidth: 4,
+                                                    borderLeftColor: riskColor,
+                                                    marginBottom: idx < tempMeds.length - 1 ? 12 : 0,
+                                                    shadowColor: '#6366F1',
+                                                    shadowOffset: { width: 0, height: 2 },
+                                                    shadowOpacity: 0.02,
+                                                    shadowRadius: 6,
+                                                    elevation: 1
+                                                }}
+                                            >
+                                                <View style={{ flex: 1, gap: 4 }}>
                                                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                                                        <Text style={{ fontSize: 14, fontWeight: '700', color: '#0F172A' }}>{tm.name}</Text>
+                                                        <Text style={{ fontSize: 15, fontWeight: '800', color: '#0F172A', letterSpacing: -0.2 }}>{tm.name}</Text>
                                                         {tm.shift && (
-                                                            <View style={{ backgroundColor: '#F1F5F9', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
-                                                                <Text style={{ fontSize: 10, fontWeight: '700', color: '#475569', textTransform: 'capitalize' }}>{tm.shift}</Text>
+                                                            <View style={{ backgroundColor: shiftCfg.bg, paddingHorizontal: 7, paddingVertical: 2.5, borderRadius: 8 }}>
+                                                                <Text style={{ fontSize: 9, fontWeight: '800', color: shiftCfg.txt, textTransform: 'uppercase', letterSpacing: 0.3 }}>{shiftCfg.label}</Text>
                                                             </View>
                                                         )}
-                                                        <View style={{ backgroundColor: tm.riskTier === 'safe' ? '#ECFDF5' : tm.riskTier === 'restricted' ? '#FEF2F2' : '#FFFBEB', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, borderWidth: 1, borderColor: tm.riskTier === 'safe' ? '#A7F3D0' : tm.riskTier === 'restricted' ? '#FECACA' : '#FDE68A' }}>
-                                                            <Text style={{ fontSize: 9, fontWeight: '800', color: riskColor, textTransform: 'uppercase' }}>
+                                                        <View style={{ backgroundColor: tm.riskTier === 'safe' ? '#ECFDF5' : tm.riskTier === 'restricted' ? '#FEF2F2' : '#FFFBEB', paddingHorizontal: 7, paddingVertical: 2.5, borderRadius: 8, borderWidth: 1, borderColor: tm.riskTier === 'safe' ? '#A7F3D0' : tm.riskTier === 'restricted' ? '#FECACA' : '#FDE68A' }}>
+                                                            <Text style={{ fontSize: 9, fontWeight: '900', color: riskColor, textTransform: 'uppercase', letterSpacing: 0.3 }}>
                                                                 {tm.riskTier === 'safe' ? 'Safe' : tm.riskTier === 'restricted' ? 'Restricted' : 'Caution'}
                                                             </Text>
                                                         </View>
                                                     </View>
+
                                                     {(tm.dosage || tm.frequency) ? (
-                                                        <Text style={{ fontSize: 12, color: '#64748B', fontWeight: '500' }}>
+                                                        <Text style={{ fontSize: 13, color: '#475569', fontWeight: '600' }}>
                                                             {[tm.dosage, tm.frequency].filter(Boolean).join(' · ')}
                                                         </Text>
                                                     ) : null}
-                                                    {tm.reason ? (
-                                                        <Text style={{ fontSize: 12, color: '#64748B' }}>
-                                                            Reason: {tm.reason}
-                                                        </Text>
-                                                    ) : null}
+
                                                     {tm.aiSummary ? (
-                                                        <Text style={{ fontSize: 11, fontStyle: 'italic', color: '#6B7280', marginTop: 2 }}>
+                                                        <Text style={{ fontSize: 12, color: '#64748B', lineHeight: 17, marginTop: 2 }}>
                                                             {tm.aiSummary}
                                                         </Text>
                                                     ) : null}
+
+                                                    {tm.reason ? (
+                                                        <Text style={{ fontSize: 11, color: '#94A3B8', fontWeight: '500', marginTop: 1 }}>
+                                                            Reason: {tm.reason}
+                                                        </Text>
+                                                    ) : null}
+
                                                     {tm.riskTier === 'restricted' && (
-                                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4, backgroundColor: '#FEF2F2', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 }}>
-                                                            <AlertCircle size={10} color="#DC2626" />
-                                                            <Text style={{ fontSize: 10, fontWeight: '700', color: '#DC2626' }}>Do NOT take without doctor approval</Text>
+                                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6, backgroundColor: '#FEF2F2', paddingHorizontal: 8, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: '#FCA5A5' }}>
+                                                            <AlertCircle size={11} color="#DC2626" strokeWidth={2.5} />
+                                                            <Text style={{ fontSize: 10, fontWeight: '800', color: '#DC2626', letterSpacing: 0.2 }}>Do NOT take without doctor approval</Text>
                                                         </View>
                                                     )}
-                                                    <Text style={{ fontSize: 9, color: '#94A3B8', marginTop: 2 }}>
+
+                                                    <Text style={{ fontSize: 10, color: '#94A3B8', fontWeight: '500', marginTop: 2 }}>
                                                         Added by {tm.addedByName || tm.addedByRole}
                                                     </Text>
                                                 </View>
-                                                <Pressable 
-                                                    onPress={() => handleDeleteTempMed(tm)}
-                                                    style={{ padding: 6 }}
-                                                >
-                                                    <Trash2 size={16} color="#94A3B8" />
-                                                </Pressable>
+
+                                                {tm._id && String(tm._id).startsWith('temp_') ? (
+                                                    <View style={{ padding: 8 }}>
+                                                        <ActivityIndicator size="small" color="#A855F7" />
+                                                    </View>
+                                                ) : (
+                                                    <Pressable 
+                                                        onPress={() => handleDeleteTempMed(tm)}
+                                                        style={({ pressed }) => [{ padding: 8, borderRadius: 10, backgroundColor: '#F1F5F9', opacity: pressed ? 0.6 : 1 }]}
+                                                    >
+                                                        <Trash2 size={15} color="#94A3B8" />
+                                                    </Pressable>
+                                                )}
                                             </View>
                                         );
                                     })
@@ -1187,9 +1228,9 @@ export default function MedicationsScreen({ navigation }) {
                             if (supplyMeds.length === 0) return null;
                             return (
                                 <Animated.View style={anim(3)}>
-                                    <View style={{ backgroundColor: '#FFFFFF', borderRadius: 20, padding: 18, marginBottom: 16, borderWidth: 1, borderColor: '#E2E8F0' }}>
+                                    <View style={{ backgroundColor: '#FFFFFF', borderRadius: 24, padding: 18, marginBottom: 16, borderWidth: 1, borderColor: '#E2E8F0', shadowColor: '#1E293B', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 12, elevation: 3 }}>
                                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-                                            <View style={{ width: 28, height: 28, borderRadius: 8, backgroundColor: '#EEF2FF', alignItems: 'center', justifyContent: 'center' }}>
+                                            <View style={{ width: 28, height: 28, borderRadius: 8, backgroundColor: '#EEF2FF', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#C7D2FE' }}>
                                                 <Pill size={14} color="#6366F1" strokeWidth={2.5} />
                                             </View>
                                             <Text style={{ fontSize: 14, fontWeight: '800', color: '#0F172A', letterSpacing: 0.3 }}>
@@ -1199,19 +1240,29 @@ export default function MedicationsScreen({ navigation }) {
                                         {supplyMeds.map(sm => {
                                             const pct = sm.total > 0 ? Math.min((sm.remaining / sm.total) * 100, 100) : 0;
                                             return (
-                                                <View key={sm.name} style={{ marginBottom: 12 }}>
+                                                <View key={sm.name} style={{ marginBottom: 14 }}>
                                                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                                                        <Text style={{ fontSize: 13, fontWeight: '700', color: '#334155' }}>{sm.name}</Text>
-                                                        <Text style={{ fontSize: 12, fontWeight: '700', color: sm.isLow ? '#EF4444' : '#64748B' }}>
-                                                            {sm.remaining} / {sm.total} {t('medications.left', { defaultValue: 'left' })}
-                                                        </Text>
+                                                        <Text style={{ fontSize: 13, fontWeight: '800', color: '#1E293B', letterSpacing: -0.1 }}>{sm.name}</Text>
+                                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                                                            {sm.isLow && <AlertCircle size={10} color="#EF4444" strokeWidth={3} />}
+                                                            <Text style={{ fontSize: 12, fontWeight: '800', color: sm.isLow ? '#EF4444' : '#64748B' }}>
+                                                                {sm.remaining} / {sm.total} {t('medications.left', { defaultValue: 'left' })}
+                                                            </Text>
+                                                        </View>
                                                     </View>
-                                                    <View style={{ height: 6, backgroundColor: '#F1F5F9', borderRadius: 3, overflow: 'hidden' }}>
+                                                    <View style={{ height: 8, backgroundColor: '#F1F5F9', borderRadius: 4, overflow: 'hidden' }}>
                                                         <View style={{
-                                                            height: 6, borderRadius: 3,
+                                                            height: 8, borderRadius: 4,
                                                             width: `${Math.max(pct, 2)}%`,
-                                                            backgroundColor: sm.isLow ? '#EF4444' : pct > 50 ? '#10B981' : '#F59E0B',
-                                                        }} />
+                                                            overflow: 'hidden'
+                                                        }}>
+                                                            <LinearGradient 
+                                                                colors={sm.isLow ? ['#EF4444', '#F87171'] : pct > 50 ? ['#10B981', '#34D399'] : ['#F59E0B', '#FBBF24']} 
+                                                                start={{ x: 0, y: 0 }} 
+                                                                end={{ x: 1, y: 0 }} 
+                                                                style={{ flex: 1 }} 
+                                                            />
+                                                        </View>
                                                     </View>
                                                 </View>
                                             );
@@ -1231,8 +1282,8 @@ export default function MedicationsScreen({ navigation }) {
                                     try {
                                         await apiService.patients.requestMedicationModification({ description: 'Patient requests medication review/modification.' });
                                         setModRequested(true);
-                                        showToast(t('medications.request_sent_toast', { defaultValue: 'Request Sent ✓' }), t('medications.caregiver_review_next_call', { defaultValue: 'Your caregiver will review your meds on the next call.' }));
-                                    } catch { showToast(t('common.error', { defaultValue: 'Error' }), t('common.could_not_send', { defaultValue: 'Could not send. Try again.' })); }
+                                        showToast(t('medications.request_sent_toast', { defaultValue: 'Request Sent ✓' }), t('medications.caregiver_review_next_call', { defaultValue: 'Your caregiver will review your meds on the next call.' }), 'success');
+                                    } catch { showToast(t('common.error', { defaultValue: 'Error' }), t('common.could_not_send', { defaultValue: 'Could not send. Try again.' }), 'error'); }
                                     finally { setRequestingMod(false); }
                                 }}
                             >
@@ -1402,22 +1453,49 @@ export default function MedicationsScreen({ navigation }) {
             </Modal>
 
             {/* ── TOAST ── */}
-            {toast.visible && (
-                <Animated.View style={[styles.toast, {
-                    opacity: toastAnim,
-                    transform: [{ translateY: toastAnim.interpolate({ inputRange: [0, 1], outputRange: [16, 0] }) }],
-                }]}>
-                    <View style={styles.toastInner}>
-                        <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: '#DCFCE7', alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
-                            <CheckCircle2 size={20} color="#16A34A" />
+            {toast.visible && (() => {
+                const toastConfigs = {
+                    success: {
+                        bg: '#ECFDF5',
+                        border: '#A7F3D0',
+                        iconBg: '#D1FAE5',
+                        iconColor: '#10B981',
+                        Icon: CheckCircle2,
+                    },
+                    error: {
+                        bg: '#FEF2F2',
+                        border: '#FECACA',
+                        iconBg: '#FEE2E2',
+                        iconColor: '#EF4444',
+                        Icon: AlertCircle,
+                    },
+                    info: {
+                        bg: '#EFF6FF',
+                        border: '#BFDBFE',
+                        iconBg: '#DBEAFE',
+                        iconColor: '#3B82F6',
+                        Icon: Info,
+                    },
+                };
+                const cfg = toastConfigs[toast.type || 'success'] || toastConfigs.success;
+                const IconComponent = cfg.Icon;
+                return (
+                    <Animated.View style={[styles.toast, {
+                        opacity: toastAnim,
+                        transform: [{ translateY: toastAnim.interpolate({ inputRange: [0, 1], outputRange: [-24, 0] }) }],
+                    }]}>
+                        <View style={[styles.toastInner, { backgroundColor: cfg.bg, borderColor: cfg.border }]}>
+                            <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: cfg.iconBg, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+                                <IconComponent size={20} color={cfg.iconColor} />
+                            </View>
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.toastTitle}>{toast.title}</Text>
+                                <Text style={styles.toastMsg}>{toast.message}</Text>
+                            </View>
                         </View>
-                        <View style={{ flex: 1 }}>
-                            <Text style={styles.toastTitle}>{toast.title}</Text>
-                            <Text style={styles.toastMsg}>{toast.message}</Text>
-                        </View>
-                    </View>
-                </Animated.View>
-            )}
+                    </Animated.View>
+                );
+            })()}
 
             {/* ── ADD TEMPORARY MEDICATION MODAL ── */}
             <Modal visible={showAddTempMedModal} transparent animationType="slide">
@@ -1749,8 +1827,8 @@ const styles = StyleSheet.create({
     // ── Toast ──
     toast: {
         position: 'absolute',
-        bottom: Platform.OS === 'ios' ? 114 : 90,
-        left: 20, right: 20, zIndex: 999,
+        top: Platform.OS === 'ios' ? 60 : 48,
+        left: 20, right: 20, zIndex: 9999,
     },
     toastInner: {
         flexDirection: 'row', alignItems: 'center',

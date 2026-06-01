@@ -312,6 +312,17 @@ export const apiService = {
 
         requestEcOTP: () => api.post('/users/patients/me/security/emergency-contact/request-otp'),
         verifyEcOTP: (data) => api.post('/users/patients/me/security/emergency-contact/verify', data),
+
+        // Telehealth Calling & Sessions
+        getAgoraToken: () => api.get('/users/patients/me/agora-token'),
+        initiateCall: () => api.post('/users/patients/me/calls/initiate'),
+        getCallSessionStatus: (sid) => api.get(`/users/patients/me/calls/${sid}/status`),
+        acceptCallSim: (sid) => api.post(`/users/patients/me/calls/${sid}/accept`),
+        rejectCallSim: (sid) => api.post(`/users/patients/me/calls/${sid}/reject`),
+        endCall: (sid) => api.post(`/users/patients/me/calls/${sid}/end`),
+        requestCallback: (sid) => api.post(`/users/patients/me/calls/${sid}/callback-request`),
+        sendSecureMessageFallback: (sid, text, priority) => api.post(`/users/patients/me/calls/${sid}/secure-message`, { text, priority }),
+        submitFeedback: (sid, rating, notes) => api.post(`/users/patients/me/calls/${sid}/feedback`, { rating, notes }),
     },
 
     companion: {

@@ -120,6 +120,9 @@ function TabSlot({ focused, IconConfig }) {
 }
 
 function PatientTabNavigator() {
+    const insets = useSafeAreaInsets();
+    const dynamicBottom = insets.bottom > 0 ? insets.bottom : layout.TAB_BAR_BOTTOM;
+    const fabBottom = dynamicBottom + layout.TAB_BAR_HEIGHT + 16;
     return (
         <View style={{ flex: 1 }}>
             <Tab.Navigator tabBar={(props) => <CustomTabBar {...props} />} screenOptions={{ headerShown: false }}>
@@ -129,7 +132,7 @@ function PatientTabNavigator() {
                 <Tab.Screen name="HealthProfile" component={HealthProfileScreen} options={{ tabBarIconComponent: ShieldPlus }} />
                 <Tab.Screen name="Profile" component={PatientProfileScreen} options={{ tabBarIconComponent: UserCircle }} />
             </Tab.Navigator>
-            <ChatFAB onPress={() => navigate('Chatbot')} />
+            <ChatFAB onPress={() => navigate('Chatbot')} bottomOffset={fabBottom} />
         </View>
     );
 }

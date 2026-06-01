@@ -43,7 +43,30 @@ async function authenticatePatient(req, res, next) {
         }
 
         const token = authHeader.split(' ')[1];
+
+        // 1. Try to verify as primary CareMyMed JWT
+        const tokenService = require('../services/tokenService');
+        try {
+            const payload = tokenService.verifyAccessToken(token);
+            const isValid = await tokenService.checkRedisSessionValidity(token, payload);
+            if (isValid && payload.sub && payload.typ === 'patient') {
+                const patient = await Patient.findOne({ supabase_uid: payload.sub }).select('_id name');
+                if (patient) {
+                    req.patientId = patient._id.toString();
+                    req.patientName = patient.name;
+                    return next();
+                }
+            }
+        } catch (jwtErr) {
+            // Not a valid CareMyMed JWT or expired, fallback to Supabase check
+        }
+
+        // 2. Fallback to Supabase legacy auth
         const supabase = getSupabase();
+        if (!supabase) {
+            return res.status(401).json({ error: 'Unauthorized: Invalid token' });
+        }
+
         const { data: { user }, error } = await supabase.auth.getUser(token);
 
         if (error || !user) {
@@ -79,8 +102,8 @@ const syncValidators = [
         .withMessage('heart_rate must be 30–250 bpm'),
     body('source')
         .optional()
-        .isIn(['health_connect', 'healthkit'])
-        .withMessage('source must be health_connect or healthkit'),
+        .isIn(['manual', 'health_connect', 'healthkit', 'fitbit', 'garmin'])
+        .withMessage('source must be manual, health_connect, healthkit, fitbit, or garmin'),
 ];
 
 const validate = (req, res, next) => {

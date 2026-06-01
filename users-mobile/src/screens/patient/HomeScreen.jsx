@@ -867,6 +867,28 @@ export default function PatientHomeScreen({ navigation }) {
                                                 </View>
                                             )}
                                         </View>
+
+                                        {/* AI Forecast Confidence Score */}
+                                        <View style={styles.confidenceRow}>
+                                            <Text style={styles.confidenceLabel}>Forecast Reliability:</Text>
+                                            {vitalsHistory && vitalsHistory.length >= 14 ? (
+                                                <View style={[styles.confidenceBadge, { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' }]}>
+                                                    <View style={[styles.confidenceDot, { backgroundColor: '#10B981' }]} />
+                                                    <Text style={[styles.confidenceText, { color: '#047857' }]}>High</Text>
+                                                </View>
+                                            ) : vitalsHistory && vitalsHistory.length >= 6 ? (
+                                                <View style={[styles.confidenceBadge, { backgroundColor: '#FFFBEB', borderColor: '#FDE68A' }]}>
+                                                    <View style={[styles.confidenceDot, { backgroundColor: '#F59E0B' }]} />
+                                                    <Text style={[styles.confidenceText, { color: '#B45309' }]}>Medium</Text>
+                                                </View>
+                                            ) : (
+                                                <View style={[styles.confidenceBadge, { backgroundColor: '#FEF2F2', borderColor: '#FCA5A5' }]}>
+                                                    <View style={[styles.confidenceDot, { backgroundColor: '#EF4444' }]} />
+                                                    <Text style={[styles.confidenceText, { color: '#B91C1C' }]}>Low</Text>
+                                                </View>
+                                            )}
+                                        </View>
+
                                         <Text style={styles.aiDesc}>{t('home.ai_desc', { defaultValue: 'Our AI analyzes your vitals history to forecast trends and flag potential concerns.' })}</Text>
                                         <View style={{ marginTop: 10 }}>
                                             {daysPremiumRemaining <= 0 && (
@@ -1209,6 +1231,11 @@ const styles = StyleSheet.create({
     aiBadgeGreen: { backgroundColor: '#F0FDF4', borderColor: '#BBF7D0' },
     aiBadgeOrange: { backgroundColor: '#FFFBEB', borderColor: '#FDE68A' },
     aiBadgeRed: { backgroundColor: '#FEF2F2', borderColor: '#FECACA' },
+    confidenceRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12 },
+    confidenceLabel: { fontSize: 11, fontWeight: '700', color: '#64748B' },
+    confidenceBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, borderWidth: 1 },
+    confidenceDot: { width: 5, height: 5, borderRadius: 2.5 },
+    confidenceText: { fontSize: 10, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.3 },
     toggleBadge: { backgroundColor: 'rgba(99,102,241,0.1)', paddingHorizontal: 14, paddingVertical: 7, borderRadius: 10 },
     toggleBadgeCancel: { backgroundColor: 'rgba(239,68,68,0.08)' },
     toggleBadgeText: { color: '#6366F1', fontSize: 13, fontWeight: '700' },

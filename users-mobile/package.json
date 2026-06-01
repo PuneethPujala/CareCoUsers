@@ -58,6 +58,7 @@
     "jest-expo": "~54.0.17",
     "lucide-react-native": "^0.564.0",
     "motion": "^12.38.0",
+    "react-native-agora": "^4.5.4",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-hook-form": "^7.74.0",

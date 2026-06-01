@@ -1,5 +1,9 @@
 // jest.setup.js — Global test configuration and native module mocks
 
+// Mock Supabase environment variables for testing
+process.env.EXPO_PUBLIC_SUPABASE_URL = 'https://mock-supabase-url.com';
+process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY = 'mock-anon-key';
+
 // --- MOCK NATIVE MODULES ---
 
 // expo-notifications

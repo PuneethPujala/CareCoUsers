@@ -863,7 +863,7 @@ router.get('/me/caller', authenticateSession, async (req, res) => {
 
         if (patient.assigned_caller_id) {
             caller = await Caller.findById(patient.assigned_caller_id)
-                .select('name employee_id profile_photo_url languages_spoken experience_years phone city');
+                .select('name employee_id profile_photo_url languages_spoken experience_years phone city last_active_at current_call_id');
         }
 
         // Populate manager data if assigned
@@ -876,7 +876,7 @@ router.get('/me/caller', authenticateSession, async (req, res) => {
 
         if (!caller) {
             caller = await Caller.findOne({ patient_ids: patient._id, is_active: true })
-                .select('name employee_id profile_photo_url languages_spoken experience_years phone city');
+                .select('name employee_id profile_photo_url languages_spoken experience_years phone city last_active_at current_call_id');
             if (caller) {
                 await Patient.updateOne({ _id: patient._id }, { $set: { assigned_caller_id: caller._id } });
                 req.patient = await Patient.findById(patient._id);
@@ -884,7 +884,33 @@ router.get('/me/caller', authenticateSession, async (req, res) => {
             }
         }
 
-        res.json({ caller: caller || null, manager: manager || null });
+        const getDerivedAvailability = (c) => {
+            if (!c) return 'offline';
+            const now = new Date();
+            const activeThreshold = 2 * 60 * 1000; // 2 minutes
+            const awayThreshold = 10 * 60 * 1000; // 10 minutes
+
+            const diff = now - (c.last_active_at || 0);
+
+            if (c.current_call_id) {
+                return 'busy';
+            }
+            if (diff < activeThreshold) {
+                return 'available';
+            }
+            if (diff < awayThreshold) {
+                return 'away';
+            }
+            return 'offline';
+        };
+
+        let mappedCaller = null;
+        if (caller) {
+            mappedCaller = caller.toJSON();
+            mappedCaller.availability = getDerivedAvailability(caller);
+        }
+
+        res.json({ caller: mappedCaller || null, manager: manager || null });
     } catch (error) {
         logger.error('Get assigned caller error', { error: error.message, patientId: req.user?.id });
         res.status(500).json({ error: 'Failed to get assigned caller' });
@@ -934,6 +960,371 @@ router.get('/me/calls', authenticateSession, async (req, res) => {
     } catch (error) {
         logger.error('Get patient calls error', { error: error.message, patientId: req.user?.id });
         res.status(500).json({ error: 'Failed to get call history' });
+    }
+});
+
+// ─── Telehealth Calling & Sessions ──────────────────────────────────────────────
+
+/**
+ * GET /api/users/patients/me/agora-token
+ * Dynamic Agora token builder with 503 production protection
+ */
+router.get('/me/agora-token', authenticateSession, async (req, res) => {
+    try {
+        const patient = await getOrCreatePatient(req);
+        if (!patient) {
+            return res.status(404).json({ error: 'Patient profile not found' });
+        }
+
+        // Verify paid subscription
+        if (patient.subscription_status !== 'active' && patient.subscription_tier === 'free') {
+            return res.status(403).json({ error: 'Voice calling is a premium feature. Please upgrade your subscription.' });
+        }
+
+        const appId = process.env.AGORA_APP_ID;
+        const appCertificate = process.env.AGORA_APP_CERTIFICATE;
+
+        if (!appId || !appCertificate) {
+            if (process.env.NODE_ENV === 'development') {
+                logger.warn('[Agora] Missing credentials, returning mock credentials in development.');
+                return res.json({ token: 'mock-token', uid: 0, appId: 'mock-app-id' });
+            } else {
+                logger.warn('[Agora] Credentials missing in production. Disabling calling.');
+                return res.status(503).json({
+                    voice_calling_enabled: false,
+                    reason: 'service_unavailable'
+                });
+            }
+        }
+
+        // We use agora-token for generation
+        const { RtcTokenBuilder, RtcRole } = require('agora-token');
+        const channelName = patient._id.toString();
+        const uid = 0; // 0 means Agora assigns the UID
+        const role = RtcRole.PUBLISHER;
+        const expirationTimeInSeconds = 3600; // 1 hour
+        const currentTimestamp = Math.floor(Date.now() / 1000);
+        const privilegeExpiredTs = currentTimestamp + expirationTimeInSeconds;
+
+        const token = RtcTokenBuilder.buildTokenWithUid(
+            appId,
+            appCertificate,
+            channelName,
+            uid,
+            role,
+            expirationTimeInSeconds,
+            privilegeExpiredTs
+        );
+
+        res.json({ token, uid, appId, channelName });
+    } catch (error) {
+        logger.error('[Agora] Token generation error:', error);
+        res.status(500).json({ error: 'Failed to generate token' });
+    }
+});
+
+/**
+ * POST /api/users/patients/me/calls/initiate
+ * Initiate a stateful CallSession in ringing state
+ */
+router.post('/me/calls/initiate', authenticateSession, async (req, res) => {
+    try {
+        const patient = await getOrCreatePatient(req);
+        if (!patient) return res.status(404).json({ error: 'Patient not found' });
+
+        // Ensure caregiver is assigned
+        let caretakerId = patient.assigned_caller_id;
+        if (!caretakerId) {
+            const assignedCaller = await Caller.findOne({ patient_ids: patient._id, is_active: true });
+            if (!assignedCaller) {
+                return res.status(400).json({ error: 'No coordinator is currently assigned to your account.' });
+            }
+            caretakerId = assignedCaller._id;
+        }
+
+        const CallSession = require('../../models/CallSession');
+        
+        // TTL expires in 15 minutes if unanswered
+        const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+
+        const session = new CallSession({
+            patientId: patient._id,
+            caretakerId,
+            status: 'ringing',
+            channelName: patient._id.toString(),
+            expiresAt
+        });
+        await session.save();
+
+        // Update Caller current call session
+        await Caller.updateOne({ _id: caretakerId }, { $set: { current_call_id: session._id } });
+
+        // Log initiation in AuditTrail
+        const AuditLog = require('../../models/AuditLog');
+        await AuditLog.createLog({
+            supabaseUid: req.user.id,
+            action: 'call_initiated',
+            resourceType: 'patient',
+            resourceId: patient._id,
+            outcome: 'success',
+            details: { sessionId: session._id, caretakerId }
+        });
+
+        res.status(201).json({ session });
+    } catch (error) {
+        logger.error('Initiate call error:', error);
+        res.status(500).json({ error: 'Failed to initiate call session' });
+    }
+});
+
+/**
+ * GET /api/users/patients/me/calls/:sessionId/status
+ * Get the current real-time status of a call session
+ */
+router.get('/me/calls/:sessionId/status', authenticateSession, async (req, res) => {
+    try {
+        const CallSession = require('../../models/CallSession');
+        const session = await CallSession.findById(req.params.sessionId);
+        if (!session) {
+            return res.status(404).json({ error: 'Call session not found or expired' });
+        }
+        res.json({ status: session.status, durationSeconds: session.durationSeconds });
+    } catch (error) {
+        logger.error('Get call status error:', error);
+        res.status(500).json({ error: 'Failed to get call status' });
+    }
+});
+
+/**
+ * POST /api/users/patients/me/calls/:sessionId/accept
+ * Simulate caretaker accepting the call (useful for dev testing / callbacks)
+ */
+router.post('/me/calls/:sessionId/accept', authenticateSession, async (req, res) => {
+    try {
+        const CallSession = require('../../models/CallSession');
+        const session = await CallSession.findById(req.params.sessionId);
+        if (!session) return res.status(404).json({ error: 'Session not found' });
+
+        session.status = 'accepted';
+        session.startedAt = new Date();
+        await session.save();
+
+        res.json({ success: true, session });
+    } catch (error) {
+        logger.error('Accept call error:', error);
+        res.status(500).json({ error: 'Failed to accept call session' });
+    }
+});
+
+/**
+ * POST /api/users/patients/me/calls/:sessionId/reject
+ * Simulate caretaker rejecting the call
+ */
+router.post('/me/calls/:sessionId/reject', authenticateSession, async (req, res) => {
+    try {
+        const CallSession = require('../../models/CallSession');
+        const session = await CallSession.findById(req.params.sessionId);
+        if (!session) return res.status(404).json({ error: 'Session not found' });
+
+        session.status = 'rejected';
+        session.endedAt = new Date();
+        await session.save();
+
+        // Clear caller active call
+        await Caller.updateOne({ _id: session.caretakerId }, { $unset: { current_call_id: '' } });
+
+        // Save CallLog
+        const callLog = new CallLog({
+            patientId: session.patientId,
+            caretakerId: session.caretakerId,
+            scheduledTime: new Date(),
+            duration: 0,
+            status: 'rejected'
+        });
+        await callLog.save();
+
+        res.json({ success: true, session });
+    } catch (error) {
+        logger.error('Reject call error:', error);
+        res.status(500).json({ error: 'Failed to reject call session' });
+    }
+});
+
+/**
+ * POST /api/users/patients/me/calls/:sessionId/end
+ * End an active CallSession, compute duration, and save a persistent CallLog
+ */
+router.post('/me/calls/:sessionId/end', authenticateSession, async (req, res) => {
+    try {
+        const CallSession = require('../../models/CallSession');
+        const session = await CallSession.findById(req.params.sessionId);
+        if (!session) return res.status(404).json({ error: 'Call session not found' });
+
+        session.status = 'completed';
+        session.endedAt = new Date();
+        
+        const durationMs = session.endedAt - (session.startedAt || new Date());
+        session.durationSeconds = Math.max(0, Math.floor(durationMs / 1000));
+        await session.save();
+
+        // Clear caller current session
+        await Caller.updateOne({ _id: session.caretakerId }, { $unset: { current_call_id: '' } });
+
+        // Persist persistent historical CallLog
+        const callLog = new CallLog({
+            patientId: session.patientId,
+            caretakerId: session.caretakerId,
+            scheduledTime: session.startedAt || new Date(),
+            duration: session.durationSeconds,
+            status: 'completed',
+            outcome: 'completed'
+        });
+        await callLog.save();
+
+        res.json({ success: true, session, logId: callLog._id });
+    } catch (error) {
+        logger.error('End call error:', error);
+        res.status(500).json({ error: 'Failed to end call session' });
+    }
+});
+
+/**
+ * POST /api/users/patients/me/calls/:sessionId/callback-request
+ * Create a missed/callback request CallLog and trigger notification
+ */
+router.post('/me/calls/:sessionId/callback-request', authenticateSession, async (req, res) => {
+    try {
+        const CallSession = require('../../models/CallSession');
+        const session = await CallSession.findById(req.params.sessionId);
+        if (!session) return res.status(404).json({ error: 'Call session not found' });
+
+        session.status = 'missed';
+        await session.save();
+
+        // Clear active session
+        await Caller.updateOne({ _id: session.caretakerId }, { $unset: { current_call_id: '' } });
+
+        // Save historical CallLog with outcome callback_requested
+        const callLog = new CallLog({
+            patientId: session.patientId,
+            caretakerId: session.caretakerId,
+            scheduledTime: new Date(),
+            duration: 0,
+            status: 'callback_requested',
+            outcome: 'callback_requested'
+        });
+        await callLog.save();
+
+        // Log compliance audit trail
+        const AuditLog = require('../../models/AuditLog');
+        await AuditLog.createLog({
+            supabaseUid: req.user.id,
+            action: 'callback_request_created',
+            resourceType: 'call_log',
+            resourceId: callLog._id,
+            outcome: 'success',
+            details: { sessionId: session._id }
+        });
+
+        res.json({ success: true, message: 'Callback request registered successfully.' });
+    } catch (error) {
+        logger.error('Callback request error:', error);
+        res.status(500).json({ error: 'Failed to register callback request' });
+    }
+});
+
+/**
+ * POST /api/users/patients/me/calls/:sessionId/secure-message
+ * Missed Call Recovery: leave a prioritized secure message for the caretaker
+ */
+router.post('/me/calls/:sessionId/secure-message', authenticateSession, async (req, res) => {
+    try {
+        const { text, priority } = req.body; // priority: 'Routine' | 'Important' | 'Urgent'
+        if (!text) {
+            return res.status(400).json({ error: 'Message text is required' });
+        }
+
+        const CallSession = require('../../models/CallSession');
+        const session = await CallSession.findById(req.params.sessionId);
+        if (!session) return res.status(404).json({ error: 'Call session not found' });
+
+        session.status = 'missed';
+        await session.save();
+
+        // Clear active session
+        await Caller.updateOne({ _id: session.caretakerId }, { $unset: { current_call_id: '' } });
+
+        // Save CallLog
+        const callLog = new CallLog({
+            patientId: session.patientId,
+            caretakerId: session.caretakerId,
+            scheduledTime: new Date(),
+            duration: 0,
+            status: 'secure_message_left',
+            outcome: 'secure_message_left',
+            notes: `[Priority: ${priority || 'Routine'}] ${text}`
+        });
+        await callLog.save();
+
+        // Create Caregiver Alert notification
+        const AlertModel = require('../../models/Alert');
+        const alert = new AlertModel({
+            type: 'missed_call',
+            patient_id: session.patientId,
+            caller_id: session.caretakerId,
+            organization_id: session.patientId.organizationId,
+            description: `[Priority: ${priority || 'Routine'}] Patient left secure callback message: "${text}"`
+        });
+        await alert.save();
+
+        // Log compliance audit trail
+        const AuditLog = require('../../models/AuditLog');
+        await AuditLog.createLog({
+            supabaseUid: req.user.id,
+            action: 'secure_message_sent',
+            resourceType: 'call_log',
+            resourceId: callLog._id,
+            outcome: 'success',
+            details: { sessionId: session._id, priority }
+        });
+
+        res.json({ success: true, message: 'Secure callback message saved successfully.' });
+    } catch (error) {
+        logger.error('Secure message fallback error:', error);
+        res.status(500).json({ error: 'Failed to save secure message' });
+    }
+});
+
+/**
+ * POST /api/users/patients/me/calls/:sessionId/feedback
+ * Submit star rating and notes for the call
+ */
+router.post('/me/calls/:sessionId/feedback', authenticateSession, async (req, res) => {
+    try {
+        const { rating, notes } = req.body;
+        const CallSession = require('../../models/CallSession');
+        const session = await CallSession.findById(req.params.sessionId);
+        if (!session) return res.status(404).json({ error: 'Call session not found' });
+
+        // Find the matched CallLog of the ended session
+        const matchingLog = await CallLog.findOne({
+            patientId: session.patientId,
+            caretakerId: session.caretakerId,
+            scheduledTime: { $gte: session.startedAt || new Date(Date.now() - 10000) }
+        }).sort({ scheduledTime: -1 });
+
+        if (matchingLog) {
+            matchingLog.callQuality = { rating };
+            if (notes) {
+                matchingLog.notes = notes;
+            }
+            await matchingLog.save();
+        }
+
+        res.json({ success: true, message: 'Feedback logged successfully.' });
+    } catch (error) {
+        logger.error('Submit feedback error:', error);
+        res.status(500).json({ error: 'Failed to log feedback' });
     }
 });
 

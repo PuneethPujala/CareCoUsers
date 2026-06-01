@@ -823,6 +823,39 @@ export default function ChatbotScreen({ navigation, route }) {
         const msg = (text || inputText).trim();
         if (!msg && !imageUri && !audioUri && !recording) return;
 
+        // Zero-latency Client-side Emergency Interception
+        const lowerText = msg.toLowerCase();
+        const emergencyKeywords = [
+            'chest pain', 'heart attack', 'stroke symptoms', 'difficulty breathing', 
+            'shortness of breath', 'uncontrolled bleeding', 'severe dizziness', 
+            'fainting', 'seizure', 'loss of consciousness', 'fainted', 'seizures'
+        ];
+        const isEmergency = emergencyKeywords.some(keyword => lowerText.includes(keyword));
+
+        if (isEmergency && !imageUri && !audioUri) {
+            const userMessage = { 
+                id: Date.now().toString(), 
+                text: msg, 
+                isUser: true, 
+                timestamp: Date.now() 
+            };
+            
+            const botMessageId = (Date.now() + 1).toString();
+            const botEmergencyResponse = {
+                id: botMessageId,
+                text: "⚠️ CLINICAL WARNING: You have entered symptoms that may indicate a serious, acute medical emergency. Please dial emergency services (911) immediately, or connect with your care coordinator immediately using the Voice Call button on the Caller tab.",
+                isUser: false,
+                isWarning: true,
+                timestamp: Date.now(),
+            };
+
+            setMessages(prev => [...prev, userMessage, botEmergencyResponse]);
+            setInputText('');
+            setIsTyping(false);
+            setTypingStage('');
+            return;
+        }
+
         const isAudioMsg = recordingModeRef.current !== 'idle' || !!audioUri;
         const currentRecordingUri = isAudioMsg ? (audioUri || recording?.getURI()) : null;
 

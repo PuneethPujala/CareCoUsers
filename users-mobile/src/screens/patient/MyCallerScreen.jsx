@@ -18,6 +18,7 @@ import { COUNTRY_CODES, parsePhoneWithCode, validatePhone } from '../../utils/ph
 import { useTranslation } from 'react-i18next';
 import AlertManager from '../../utils/AlertManager';
 import { HapticPatterns } from '../../utils/haptics';
+import PatientActiveCallModal from './PatientActiveCallModal';
 
 // ── Skeleton ────────────────────────────────────────────────────────────────
 const SkeletonItem = ({ width, height, borderRadius = 8, style }) => {
@@ -89,6 +90,7 @@ export default function MyCallerScreen({ navigation }) {
   const [countryCodeModal,   setCountryCodeModal]     = useState(false);
   const [manager,            setManager]              = useState(null);
   const [refreshing,         setRefreshing]           = useState(false);
+  const [callModalVisible,   setCallModalVisible]     = useState(false);
 
   const contactModalAnim = useRef(new Animated.Value(0)).current;
   const staggerAnims     = useRef([...Array(20)].map(() => new Animated.Value(0))).current;
@@ -384,7 +386,32 @@ export default function MyCallerScreen({ navigation }) {
                   {/* Info */}
                   <View style={s.heroInfo}>
                     <Text style={s.heroName} numberOfLines={1}>{caller.name}</Text>
-                    <Text style={s.heroId}>ID: {caller.employee_id}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginVertical: 4 }}>
+                      <Text style={s.heroId}>ID: {caller.employee_id}</Text>
+                      <View style={{ 
+                        flexDirection: 'row', 
+                        alignItems: 'center', 
+                        backgroundColor: caller.availability === 'available' ? '#D1FAE5' : caller.availability === 'away' ? '#FEF3C7' : '#F1F5F9',
+                        paddingHorizontal: 8,
+                        paddingVertical: 2,
+                        borderRadius: 8,
+                      }}>
+                        <View style={{ 
+                          width: 6, 
+                          height: 6, 
+                          borderRadius: 3, 
+                          backgroundColor: caller.availability === 'available' ? '#10B981' : caller.availability === 'away' ? '#F59E0B' : '#64748B',
+                          marginRight: 4 
+                        }} />
+                        <Text style={{ 
+                          fontSize: 10, 
+                          fontWeight: '700', 
+                          color: caller.availability === 'available' ? '#065F46' : caller.availability === 'away' ? '#92400E' : '#475569' 
+                        }}>
+                          {caller.availability === 'available' ? '🟢 Available' : caller.availability === 'away' ? '🟡 Away' : '🔴 Offline'}
+                        </Text>
+                      </View>
+                    </View>
 
                     {/* Mini stats chips */}
                     <View style={s.heroChips}>
@@ -434,7 +461,7 @@ export default function MyCallerScreen({ navigation }) {
                 {/* Call button */}
                 <Pressable
                   style={({ pressed }) => [s.heroCallBtn, pressed && { opacity: 0.9 }]}
-                  onPress={(e) => { e.stopPropagation?.(); caller?.phone && Linking.openURL(`tel:${caller.phone}`); }}
+                  onPress={(e) => { e.stopPropagation?.(); setCallModalVisible(true); }}
                 >
                   <Phone size={17} color={C.primaryDark} strokeWidth={2.5} />
                   <Text style={s.heroCallBtnText}>{t('common.call_now', { defaultValue: 'Call Now' })}</Text>
@@ -932,6 +959,13 @@ export default function MyCallerScreen({ navigation }) {
           </Pressable>
         </Pressable>
       </Modal>
+
+      <PatientActiveCallModal
+        visible={callModalVisible}
+        onClose={() => { setCallModalVisible(false); loadData(); }}
+        callerName={caller?.name || 'Your Care Coordinator'}
+        phoneFallbackNumber={caller?.phone}
+      />
     </View>
   );
 }

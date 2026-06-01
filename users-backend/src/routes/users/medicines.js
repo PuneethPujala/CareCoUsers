@@ -1303,6 +1303,12 @@ router.delete('/temp-meds/:medId', authenticateSession, async (req, res) => {
     try {
         const patient = await getOrCreatePatient(req);
         const { medId } = req.params;
+        
+        const mongoose = require('mongoose');
+        if (!mongoose.Types.ObjectId.isValid(medId)) {
+            return res.status(400).json({ error: 'Invalid temporary medicine ID format.' });
+        }
+
         const searchIds = [patient._id];
         if (patient.profile_id) searchIds.push(patient.profile_id);
 

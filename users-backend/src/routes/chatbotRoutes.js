@@ -6,6 +6,8 @@ const axios = require('axios');
 const { generatePoCResponse, streamPoCResponse } = require('../services/aiChatbotPoC');
 const { authenticate } = require('../middleware/authenticate'); 
 const { aiChatRateLimiter } = require('../middleware/rateLimiter');
+const AuditLog = require('../models/AuditLog');
+const emergencyConfig = require('../config/emergency_phrases.json');
 
 const PYTHON_API = process.env.PYTHON_API || 'http://localhost:8000';
 
@@ -109,6 +111,51 @@ router.post('/chat', authenticate, aiChatRateLimiter, upload.single('audio'), as
         // 2. Validate query
         if (!extractedQuery) {
             return res.status(400).json(buildErrorResponse('validation', 'Neither audio nor text query was provided.'));
+        }
+
+        // Server-Side Emergency Filter
+        const lowercaseQuery = extractedQuery.toLowerCase();
+        const matchedPhrase = emergencyConfig.emergency_phrases.find(phrase => lowercaseQuery.includes(phrase));
+        if (matchedPhrase) {
+            console.warn(`[ChatbotRoute] Emergency detected (matched phrase: "${matchedPhrase}"). Intercepting and alerting.`);
+
+            // Log security and safety incident to AuditLog
+            try {
+                const mongoose = require('mongoose');
+                await AuditLog.createLog({
+                    supabaseUid: req.auth?.userId || 'unknown_patient',
+                    action: 'emergency_warning_triggered',
+                    resourceType: 'patient',
+                    resourceId: patientId ? new mongoose.Types.ObjectId(patientId) : undefined,
+                    outcome: 'success',
+                    dataClassification: 'restricted',
+                    ipAddress: req.ip,
+                    userAgent: req.headers['user-agent'],
+                    details: {
+                        query: extractedQuery,
+                        matchedPhrase
+                    }
+                });
+            } catch (auditError) {
+                console.error('[ChatbotRoute] Failed to write emergency audit log:', auditError.message);
+            }
+
+            // Immediately start SSE and write emergency response
+            res.setHeader('Content-Type', 'text/event-stream');
+            res.setHeader('Cache-Control', 'no-cache');
+            res.setHeader('Connection', 'keep-alive');
+            res.setHeader('X-Accel-Buffering', 'no');
+            res.flushHeaders();
+
+            if (transcribedText) {
+                res.write(`data: ${JSON.stringify({ type: 'meta', transcribedText })}\n\n`);
+            }
+
+            const warningMsg = "🚨 **Emergency Alert**\n\nIf you are experiencing severe symptoms like **chest pain, severe dizziness, loss of consciousness, fainting, stroke symptoms, seizure, uncontrolled bleeding, difficulty breathing, or a hypertensive crisis**, please call emergency services immediately.\n\nOur CareMyMed coordinators are dedicated to regular health check-ins and care plans, but **they are not emergency first responders**.";
+            res.write(`data: ${JSON.stringify({ type: 'chunk', text: warningMsg })}\n\n`);
+            res.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
+            res.end();
+            return;
         }
 
         console.log(`[ChatbotRoute] Streaming RAG pipeline for query: "${extractedQuery}"`);

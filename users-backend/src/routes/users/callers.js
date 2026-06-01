@@ -342,4 +342,25 @@ router.get('/me/stats', authenticate, async (req, res) => {
     }
 });
 
+/**
+ * POST /api/users/callers/me/heartbeat
+ * Update caller's last active heartbeat timestamp
+ */
+router.post('/me/heartbeat', authenticate, async (req, res) => {
+    try {
+        const caller = await Caller.findOneAndUpdate(
+            { supabase_uid: req.user.id },
+            { $set: { last_active_at: new Date() } },
+            { new: true }
+        );
+        if (!caller) {
+            return res.status(404).json({ error: 'Caller profile not found' });
+        }
+        res.json({ success: true, last_active_at: caller.last_active_at });
+    } catch (error) {
+        console.error('Caller heartbeat error:', error);
+        res.status(500).json({ error: 'Failed to update heartbeat' });
+    }
+});
+
 module.exports = router;

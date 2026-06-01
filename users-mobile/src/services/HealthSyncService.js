@@ -1,4 +1,4 @@
-import { Platform, AppState } from 'react-native';
+import { Platform, AppState, DeviceEventEmitter } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
     initializeHealthPlatform,
@@ -237,6 +237,7 @@ class HealthSyncService {
 
             console.log(`✅ Health sync complete: ${totalAccepted} accepted, ${totalDuplicates} duplicates, ${anomaliesDetected} anomalies`);
             this._notifyListeners(result);
+            DeviceEventEmitter.emit('VITALS_SYNCED', result);
             return result;
 
         } catch (err) {
