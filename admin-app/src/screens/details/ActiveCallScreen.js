@@ -565,10 +565,10 @@ export default function ActiveCallScreen({ navigation, route }) {
 
     return (
         <View style={st.root}>
-            <StatusBar barStyle="dark-content" />
+            <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
             
-            {/* ═══ Premium Light Header ═══ */}
-            <LinearGradient colors={['#EEF2FF', '#F5F3FF', '#F8FAFC']} style={st.header}>
+            {/* ═══ Premium Header ═══ */}
+            <LinearGradient colors={isDark ? ['#1E293B', '#0F172A', '#0F172A'] : ['#EEF2FF', '#F5F3FF', '#F8FAFC']} style={st.header}>
                 {/* Top badges — centered */}
                 <View style={st.headerTopRow}>
                     <View style={st.livePill}>
@@ -585,8 +585,8 @@ export default function ActiveCallScreen({ navigation, route }) {
                 <View style={st.timerBlock}>
                     <View style={st.timerRingWrap}>
                         <Svg width={ringSize} height={ringSize} style={{ position: 'absolute' }}>
-                            <Circle cx={ringSize/2} cy={ringSize/2} r={ringRadius} fill="none" stroke="#E2E8F0" strokeWidth={ringStroke} />
-                            <Circle cx={ringSize/2} cy={ringSize/2} r={ringRadius} fill="none" stroke="#6366F1" strokeWidth={ringStroke} strokeLinecap="round" strokeDasharray={ringCircum} strokeDashoffset={ringProgress} transform={`rotate(-90 ${ringSize/2} ${ringSize/2})`} />
+                            <Circle cx={ringSize/2} cy={ringSize/2} r={ringRadius} fill="none" stroke={tc.border} strokeWidth={ringStroke} />
+                            <Circle cx={ringSize/2} cy={ringSize/2} r={ringRadius} fill="none" stroke={tc.accents.primary[0]} strokeWidth={ringStroke} strokeLinecap="round" strokeDasharray={ringCircum} strokeDashoffset={ringProgress} transform={`rotate(-90 ${ringSize/2} ${ringSize/2})`} />
                         </Svg>
                         <View style={st.timerInner}>
                             <Text style={st.timerText}>{formatTime(seconds)}</Text>
