@@ -357,7 +357,7 @@ export default function ActiveCallScreen({ navigation, route }) {
             Alert.alert('Cannot Mark Medications', 'You can only confirm medications when the call outcome is "Completed (Contact Made)".');
             return;
         }
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
         const key = getMedKey(med);
         setCheckedMeds(prev => ({ ...prev, [key]: !prev[key] }));
     };
@@ -368,7 +368,7 @@ export default function ActiveCallScreen({ navigation, route }) {
             Alert.alert('Cannot Mark Medications', 'You can only confirm medications when the call outcome is "Completed (Contact Made)".');
             return;
         }
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
         const key = getPrevMedKey(med);
         setCheckedPrevMeds(prev => ({ ...prev, [key]: !prev[key] }));
     };
@@ -379,14 +379,14 @@ export default function ActiveCallScreen({ navigation, route }) {
             Alert.alert('Cannot Mark Medications', 'You can only confirm medications when the call outcome is "Completed (Contact Made)".');
             return;
         }
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
         setCheckedTempMeds(prev => ({ ...prev, [med._id]: !prev[med._id] }));
     };
 
     // ── Dictation Logic ──
     const startDictation = async () => {
         try {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
             const permission = await Audio.requestPermissionsAsync();
             if (permission.status !== 'granted') {
                 Alert.alert('Permission required', 'Please grant microphone access to use voice dictation.');
@@ -410,7 +410,7 @@ export default function ActiveCallScreen({ navigation, route }) {
 
     const stopDictation = async () => {
         try {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
             if (!recording) return;
             setIsDictating(true);
             setRecording(null);
@@ -696,7 +696,7 @@ export default function ActiveCallScreen({ navigation, route }) {
                                                         {isChecked && <Feather name="check" size={13} color="#FFF" />}
                                                     </View>
                                                     <View style={st.medInfo}>
-                                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
                                                             <Text style={[st.medName, isChecked && st.medDone]} numberOfLines={1}>{m.name}</Text>
                                                             <View style={st.shiftTag}>
                                                                 <Text style={st.shiftTagTxt}>{getShiftLabel(m._shift)}</Text>
@@ -822,7 +822,7 @@ export default function ActiveCallScreen({ navigation, route }) {
                                         style={[st.moodCard, active && { borderColor: opt.color }]} 
                                         activeOpacity={0.75} 
                                         onPress={() => {
-                                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
                                             setMood(opt.id);
                                         }}
                                     >
@@ -855,7 +855,7 @@ export default function ActiveCallScreen({ navigation, route }) {
                                             style={st.outcomeRow} 
                                             activeOpacity={0.7} 
                                             onPress={() => {
-                                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
                                                 setOutcome(item.id);
                                             }}
                                         >
