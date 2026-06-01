@@ -1059,13 +1059,27 @@ router.post('/forgot-password/send-otp', async (req, res) => {
       expiresAt: new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000),
     });
 
-    // Send email
-    await sendOtpEmail(normalizedEmail, profile.fullName, otpPlain);
+    // Send email (non-blocking — don't let SMTP issues hang the response)
+    // The OTP is already saved to MongoDB, so even if email is slow, client can proceed
+    let emailSent = false;
+    try {
+      const emailResult = await Promise.race([
+        sendOtpEmail(normalizedEmail, profile.fullName, otpPlain),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Email send timeout')), 12000))
+      ]);
+      emailSent = !!emailResult;
+    } catch (emailErr) {
+      console.error(`⚠️ OTP email delivery failed for ${normalizedEmail}:`, emailErr.message);
+      emailSent = false;
+    }
 
-    console.log(`[Forgot Password] OTP sent to ${normalizedEmail}`);
+    console.log(`[Forgot Password] OTP ${emailSent ? 'sent' : 'generated (email may be delayed)'} for ${normalizedEmail}`);
 
     res.json({
-      message: `A 6-digit OTP has been sent to ${normalizedEmail}. It is valid for ${OTP_EXPIRY_MINUTES} minutes.`,
+      message: emailSent
+        ? `A 6-digit OTP has been sent to ${normalizedEmail}. It is valid for ${OTP_EXPIRY_MINUTES} minutes.`
+        : `OTP generated for ${normalizedEmail}. Email delivery may be delayed — please check your inbox shortly. Valid for ${OTP_EXPIRY_MINUTES} minutes.`,
+      emailSent,
     });
 
   } catch (error) {
@@ -1229,8 +1243,10 @@ router.post('/forgot-password/reset', async (req, res) => {
     profile.passwordChangedAt = new Date();
     await profile.save();
 
-    // Send confirmation email
-    await sendPasswordChangedEmail(normalizedEmail, profile.fullName);
+    // Send confirmation email (non-blocking — don't let SMTP issues delay the response)
+    sendPasswordChangedEmail(normalizedEmail, profile.fullName).catch(err =>
+      console.error('⚠️ Password-changed confirmation email failed:', err.message)
+    );
 
     // Audit log
     await logEvent(profile.supabaseUid, 'password_reset', 'profile', profile._id, req, {

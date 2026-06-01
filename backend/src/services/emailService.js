@@ -15,6 +15,10 @@ const getTransporter = () => {
       user: process.env.SMTP_USER,
       pass: process.env.SMTP_PASS,
     },
+    // Timeouts to prevent hanging on cloud hosts that block SMTP ports
+    connectionTimeout: 10000, // 10s to establish TCP connection
+    greetingTimeout: 10000,   // 10s to receive SMTP greeting
+    socketTimeout: 15000,     // 15s for socket inactivity
   });
 
   return transporter;
@@ -40,6 +44,10 @@ const sendEmail = async (to, subject, html) => {
     return info;
   } catch (error) {
     console.error(`❌ Failed to send email to ${to}:`, error.message);
+    // Reset transporter on connection errors so next attempt creates a fresh one
+    if (error.code === 'ETIMEDOUT' || error.code === 'ESOCKET' || error.code === 'ECONNECTION') {
+      transporter = null;
+    }
     // Don't throw — email failure should not block account creation
     return null;
   }

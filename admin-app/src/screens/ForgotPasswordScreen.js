@@ -30,6 +30,7 @@ export default function ForgotPasswordScreen({ navigation }) {
     const [showConfirmPw, setShowConfirmPw] = useState(false);
     const [cooldown, setCooldown] = useState(0);
     const [fieldError, setFieldError] = useState('');
+    const [successMsg, setSuccessMsg] = useState('');
     const cooldownRef = useRef(null);
 
     // ─── Animations ───
@@ -71,21 +72,36 @@ export default function ForgotPasswordScreen({ navigation }) {
         if (!email.trim()) { setFieldError('Email address is required.'); return; }
         if (!isValidEmail(email.trim())) { setFieldError('Please enter a valid email (e.g. name@domain.com).'); return; }
         setFieldError('');
+        setSuccessMsg('');
         setLoading(true);
         try {
             const res = await apiService.auth.sendResetOtp({ email: email.trim().toLowerCase() });
+            const emailDelivered = res?.data?.emailSent !== false;
+            if (emailDelivered) {
+                setSuccessMsg('OTP sent! Check your email inbox.');
+            } else {
+                setSuccessMsg('OTP generated. Email may be delayed — check your inbox shortly.');
+            }
             setStep('otp');
             setCooldown(60);
         } catch (err) {
-            setFieldError(err?.response?.data?.error || 'Failed to send OTP. Try again.');
+            if (err?.code === 'ECONNABORTED' || err?.message?.includes('timeout')) {
+                setFieldError('Request timed out. Please check your internet connection and try again.');
+            } else {
+                setFieldError(err?.response?.data?.error || 'Failed to send OTP. Please try again.');
+            }
         } finally { setLoading(false); }
     };
 
     const handleResendOtp = async () => {
         if (cooldown > 0) return;
+        setFieldError('');
+        setSuccessMsg('');
         setLoading(true);
         try {
-            await apiService.auth.sendResetOtp({ email: email.trim().toLowerCase() });
+            const res = await apiService.auth.sendResetOtp({ email: email.trim().toLowerCase() });
+            const emailDelivered = res?.data?.emailSent !== false;
+            setSuccessMsg(emailDelivered ? 'New OTP sent! Check your email.' : 'New OTP generated. Email may be delayed.');
             setCooldown(60);
         } catch (err) {
             setFieldError(err?.response?.data?.error || 'Failed to resend OTP.');
@@ -96,15 +112,17 @@ export default function ForgotPasswordScreen({ navigation }) {
         if (!otp || otp.length !== 6) { setFieldError('Please enter the complete 6-digit code.'); return; }
         if (!/^\d{6}$/.test(otp)) { setFieldError('OTP must contain only numbers.'); return; }
         setFieldError('');
+        setSuccessMsg('');
         setLoading(true);
         try {
             await apiService.auth.verifyResetOtp({ email: email.trim().toLowerCase(), otp });
+            setSuccessMsg('Code verified! Set your new password.');
             setStep('password');
         } catch (err) {
             const code = err?.response?.data?.code;
             if (code === 'OTP_EXPIRED' || code === 'OTP_MAX_ATTEMPTS') {
                 setFieldError(err?.response?.data?.error || 'OTP expired. Please request a new one.');
-                setTimeout(() => { setOtp(''); setStep('email'); }, 2000);
+                setTimeout(() => { setOtp(''); setFieldError(''); setStep('email'); }, 3000);
             } else {
                 setFieldError(err?.response?.data?.error || 'Invalid OTP. Please try again.');
             }
@@ -118,12 +136,21 @@ export default function ForgotPasswordScreen({ navigation }) {
         if (!confirmPassword) { setFieldError('Please confirm your password.'); return; }
         if (newPassword !== confirmPassword) { setFieldError('Passwords do not match.'); return; }
         setFieldError('');
+        setSuccessMsg('');
         setLoading(true);
         try {
-            const res = await apiService.auth.resetPasswordWithOtp({ email: email.trim().toLowerCase(), otp, newPassword });
-            Alert.alert('Success', 'Password has been reset securely.', [{ text: 'Sign In', onPress: () => navigation.navigate('Login') }]);
+            await apiService.auth.resetPasswordWithOtp({ email: email.trim().toLowerCase(), otp, newPassword });
+            Alert.alert(
+                '✅ Password Reset',
+                'Your password has been updated successfully. You can now sign in with your new password.',
+                [{ text: 'Sign In', onPress: () => navigation.replace('Login') }]
+            );
         } catch (err) {
-            setFieldError(err?.response?.data?.error || 'Failed to reset password.');
+            if (err?.code === 'ECONNABORTED' || err?.message?.includes('timeout')) {
+                setFieldError('Request timed out. Please check your connection and try again.');
+            } else {
+                setFieldError(err?.response?.data?.error || 'Failed to reset password. Please try again.');
+            }
         } finally { setLoading(false); }
     };
 
@@ -191,6 +218,25 @@ export default function ForgotPasswordScreen({ navigation }) {
 
                         {/* White Form Card */}
                         <Animated.View style={[s.card, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
+
+                            {/* ─── Error Banner ─── */}
+                            {!!fieldError && (
+                                <View style={s.errorBanner}>
+                                    <Feather name="alert-circle" size={16} color="#DC2626" />
+                                    <Text style={s.errorBannerText}>{fieldError}</Text>
+                                    <TouchableOpacity onPress={() => setFieldError('')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                                        <Feather name="x" size={16} color="#DC2626" />
+                                    </TouchableOpacity>
+                                </View>
+                            )}
+
+                            {/* ─── Success Banner ─── */}
+                            {!!successMsg && !fieldError && (
+                                <View style={s.successBanner}>
+                                    <Feather name="check-circle" size={16} color="#059669" />
+                                    <Text style={s.successBannerText}>{successMsg}</Text>
+                                </View>
+                            )}
                             
                             {/* Step 1: Email */}
                             {step === 'email' && (
@@ -201,7 +247,7 @@ export default function ForgotPasswordScreen({ navigation }) {
                                             icon={<Feather name="mail" size={18} color="#94A3B8" />}
                                             placeholder="director@caremymednnect.io"
                                             value={email}
-                                            onChangeText={setEmail}
+                                            onChangeText={(t) => { setEmail(t); setFieldError(''); }}
                                             autoCapitalize="none"
                                             keyboardType="email-address"
                                             editable={!loading}
@@ -210,8 +256,13 @@ export default function ForgotPasswordScreen({ navigation }) {
                                     
                                     <TouchableOpacity onPress={handleSendOtp} disabled={loading} activeOpacity={0.8} style={s.btnShadow}>
                                         <View style={s.btnPrimary}>
-                                            {loading ? <ActivityIndicator color="#fff" /> : (
-                                                <Text style={s.btnPrimaryText}>Send Reset Link</Text>
+                                            {loading ? (
+                                                <View style={s.btnInnerRow}>
+                                                    <ActivityIndicator color="#fff" size="small" />
+                                                    <Text style={s.btnPrimaryText}>Sending OTP...</Text>
+                                                </View>
+                                            ) : (
+                                                <Text style={s.btnPrimaryText}>Send Reset Code</Text>
                                             )}
                                         </View>
                                     </TouchableOpacity>
@@ -227,7 +278,7 @@ export default function ForgotPasswordScreen({ navigation }) {
                                             icon={<Feather name="shield" size={18} color="#94A3B8" />}
                                             placeholder="Enter verification code"
                                             value={otp}
-                                            onChangeText={setOtp}
+                                            onChangeText={(t) => { setOtp(t); setFieldError(''); }}
                                             keyboardType="number-pad"
                                             maxLength={6}
                                             editable={!loading}
@@ -236,14 +287,19 @@ export default function ForgotPasswordScreen({ navigation }) {
                                     
                                     <TouchableOpacity onPress={handleVerifyOtp} disabled={loading} activeOpacity={0.8} style={s.btnShadow}>
                                         <View style={s.btnPrimary}>
-                                            {loading ? <ActivityIndicator color="#fff" /> : (
+                                            {loading ? (
+                                                <View style={s.btnInnerRow}>
+                                                    <ActivityIndicator color="#fff" size="small" />
+                                                    <Text style={s.btnPrimaryText}>Verifying...</Text>
+                                                </View>
+                                            ) : (
                                                 <Text style={s.btnPrimaryText}>Verify Code</Text>
                                             )}
                                         </View>
                                     </TouchableOpacity>
                                     
                                     <View style={s.otpExtraRow}>
-                                        <TouchableOpacity onPress={handleResendOtp} disabled={cooldown > 0} style={s.resendWrap}>
+                                        <TouchableOpacity onPress={handleResendOtp} disabled={cooldown > 0 || loading} style={s.resendWrap}>
                                             <Feather name="refresh-cw" size={14} color={cooldown > 0 ? '#94A3B8' : '#6366F1'} />
                                             <Text style={[s.resendText, cooldown > 0 && { color: '#94A3B8' }]}>
                                                 {cooldown > 0 ? `Resend in ${cooldown}s` : 'Resend Code'}
@@ -262,7 +318,7 @@ export default function ForgotPasswordScreen({ navigation }) {
                                             icon={<Feather name="lock" size={18} color="#94A3B8" />}
                                             placeholder="Create new password"
                                             value={newPassword}
-                                            onChangeText={setNewPassword}
+                                            onChangeText={(t) => { setNewPassword(t); setFieldError(''); }}
                                             secureTextEntry={!showNewPw}
                                             editable={!loading}
                                             rightElement={
@@ -279,7 +335,7 @@ export default function ForgotPasswordScreen({ navigation }) {
                                             icon={<Feather name="check-circle" size={18} color="#94A3B8" />}
                                             placeholder="Confirm new password"
                                             value={confirmPassword}
-                                            onChangeText={setConfirmPassword}
+                                            onChangeText={(t) => { setConfirmPassword(t); setFieldError(''); }}
                                             secureTextEntry={!showConfirmPw}
                                             editable={!loading}
                                             rightElement={
@@ -292,7 +348,12 @@ export default function ForgotPasswordScreen({ navigation }) {
 
                                     <TouchableOpacity onPress={handleResetPassword} disabled={loading} activeOpacity={0.8} style={[s.btnShadow, { marginTop: 8 }]}>
                                         <View style={[s.btnPrimary, { backgroundColor: '#0F172A' }]}>
-                                            {loading ? <ActivityIndicator color="#fff" /> : (
+                                            {loading ? (
+                                                <View style={s.btnInnerRow}>
+                                                    <ActivityIndicator color="#fff" size="small" />
+                                                    <Text style={s.btnPrimaryText}>Updating...</Text>
+                                                </View>
+                                            ) : (
                                                 <View style={s.btnInnerRow}>
                                                     <Feather name="check" size={20} color="#FFF" />
                                                     <Text style={s.btnPrimaryText}>Update Password</Text>
@@ -394,6 +455,20 @@ const s = StyleSheet.create({
     btnPrimary: { height: 64, backgroundColor: '#0F172A', borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
     btnInnerRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
     btnPrimaryText: { fontSize: 17, fontWeight: '800', color: '#FFFFFF', letterSpacing: 0.5 },
+
+    // Error & Success Banners
+    errorBanner: {
+        flexDirection: 'row', alignItems: 'center', gap: 10,
+        backgroundColor: '#FEF2F2', borderWidth: 1, borderColor: '#FECACA',
+        borderRadius: 16, padding: 14, marginBottom: 20,
+    },
+    errorBannerText: { flex: 1, fontSize: 13, fontWeight: '600', color: '#DC2626', lineHeight: 18 },
+    successBanner: {
+        flexDirection: 'row', alignItems: 'center', gap: 10,
+        backgroundColor: '#ECFDF5', borderWidth: 1, borderColor: '#A7F3D0',
+        borderRadius: 16, padding: 14, marginBottom: 20,
+    },
+    successBannerText: { flex: 1, fontSize: 13, fontWeight: '600', color: '#059669', lineHeight: 18 },
 
     otpExtraRow: { flexDirection: 'row', justifyContent: 'center', marginTop: 24 },
     resendWrap: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#F8FAFC', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 20, borderWidth: 1, borderColor: '#F1F5F9' },
