@@ -155,6 +155,8 @@ export default function ActiveCallScreen({ navigation, route }) {
     }, [recording, waveAnim1, waveAnim2, waveAnim3]);
 
     // Swipe-to-Complete Logic
+    const onSwipeComplete = useRef(null);
+
     const slidePanResponder = useRef(
         PanResponder.create({
             onStartShouldSetPanResponder: () => true,
@@ -172,12 +174,12 @@ export default function ActiveCallScreen({ navigation, route }) {
                 }
             },
             onPanResponderRelease: (_, gestureState) => {
-                const thumbWidth = 64;
+                const thumbWidth = 60;
                 const maxSlide = sliderWidth - thumbWidth - 8;
                 if (gestureState.dx > maxSlide * 0.85) {
                     Animated.spring(slideAnim, { toValue: { x: maxSlide, y: 0 }, useNativeDriver: false }).start(() => {
                         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                        handleEndCall();
+                        if (onSwipeComplete.current) onSwipeComplete.current();
                     });
                 } else {
                     Animated.spring(slideAnim, { toValue: { x: 0, y: 0 }, useNativeDriver: false }).start(() => {
@@ -956,7 +958,7 @@ export default function ActiveCallScreen({ navigation, route }) {
 
                         {/* ═══ Notes ═══ */}
                         <View style={[st.sectionHeader, { justifyContent: 'space-between' }]}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
                                 <Feather name="edit-3" size={15} color="#4F46E5" />
                                 <Text style={st.sectionTitle}>Notes</Text>
                             </View>
@@ -997,23 +999,23 @@ export default function ActiveCallScreen({ navigation, route }) {
 
                         {/* ═══ End Call Button ═══ */}
                         <View 
-                            style={[st.endBtnWrap, { opacity: saving ? 0.6 : 1, backgroundColor: '#FEE2E2', borderWidth: 1, borderColor: '#FECACA' }]}
+                            style={[st.endBtnWrap, { height: 60, opacity: saving ? 0.6 : 1, backgroundColor: '#FEE2E2', borderWidth: 1, borderColor: '#FECACA', justifyContent: 'center' }]}
                             onLayout={(e) => setSliderWidth(e.nativeEvent.layout.width)}
                         >
                             {/* Background Text */}
-                            <View style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, justifyContent: 'center', alignItems: 'center' }}>
-                                <Text style={{ fontSize: 16, fontWeight: '800', color: '#EF4444', letterSpacing: 0.5, opacity: 0.7 }}>
-                                    {saving ? 'Saving...' : 'Swipe to Complete ⭢'}
-                                </Text>
-                            </View>
+                            <Text style={{ position: 'absolute', width: '100%', textAlign: 'center', fontSize: 16, fontWeight: '800', color: '#EF4444', letterSpacing: 0.5, opacity: 0.7 }}>
+                                {saving ? 'Saving...' : 'Swipe to Complete ⭢'}
+                            </Text>
                             
                             {/* Interactive Draggable Thumb */}
                             {!saving && (
                                 <Animated.View 
                                     {...slidePanResponder.panHandlers}
                                     style={{
-                                        width: 64, 
-                                        height: '100%', 
+                                        width: 60, 
+                                        height: 58, 
+                                        position: 'absolute',
+                                        left: 0,
                                         backgroundColor: '#EF4444', 
                                         borderRadius: 18, 
                                         justifyContent: 'center', 
@@ -1027,7 +1029,7 @@ export default function ActiveCallScreen({ navigation, route }) {
                             )}
                             {/* Static view for when disabled/saving */}
                             {saving && (
-                                <View style={{ width: 64, height: '100%', backgroundColor: '#FCA5A5', borderRadius: 18, justifyContent: 'center', alignItems: 'center' }}>
+                                <View style={{ width: 60, height: 58, position: 'absolute', left: 0, backgroundColor: '#FCA5A5', borderRadius: 18, justifyContent: 'center', alignItems: 'center' }}>
                                     <ActivityIndicator size="small" color="#FFF" animating={saving} />
                                 </View>
                             )}
