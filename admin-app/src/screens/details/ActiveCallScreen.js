@@ -156,6 +156,7 @@ export default function ActiveCallScreen({ navigation, route }) {
 
     // Swipe-to-Complete Logic
     const onSwipeComplete = useRef(null);
+    const THUMB_WIDTH = 60;
 
     const slidePanResponder = useRef(
         PanResponder.create({
@@ -165,8 +166,7 @@ export default function ActiveCallScreen({ navigation, route }) {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             },
             onPanResponderMove: (_, gestureState) => {
-                const thumbWidth = 64;
-                const maxSlide = sliderWidth - thumbWidth - 8;
+                const maxSlide = sliderWidth - THUMB_WIDTH - 8;
                 if (gestureState.dx > 0 && gestureState.dx < maxSlide) {
                     slideAnim.setValue({ x: gestureState.dx, y: 0 });
                 } else if (gestureState.dx >= maxSlide) {
@@ -174,8 +174,7 @@ export default function ActiveCallScreen({ navigation, route }) {
                 }
             },
             onPanResponderRelease: (_, gestureState) => {
-                const thumbWidth = 60;
-                const maxSlide = sliderWidth - thumbWidth - 8;
+                const maxSlide = sliderWidth - THUMB_WIDTH - 8;
                 if (gestureState.dx > maxSlide * 0.85) {
                     Animated.spring(slideAnim, { toValue: { x: maxSlide, y: 0 }, useNativeDriver: false }).start(() => {
                         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -521,10 +520,15 @@ export default function ActiveCallScreen({ navigation, route }) {
         }
     };
 
+    const resetSlider = () => {
+        Animated.spring(slideAnim, { toValue: { x: 0, y: 0 }, useNativeDriver: false }).start();
+    };
+
     const handleEndCall = async () => {
         if (!outcome) {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
             Alert.alert('Select Outcome', 'Please select a call outcome before ending the call.');
+            resetSlider();
             return;
         }
 
@@ -544,7 +548,7 @@ export default function ActiveCallScreen({ navigation, route }) {
                     'Incomplete Medication Review',
                     `Only ${cc} of ${medications.length} medications are confirmed. The patient will remain PENDING in your queue until all medications are verified.\n\nDo you want to proceed?`,
                     [
-                        { text: 'Go Back', style: 'cancel' },
+                        { text: 'Go Back', style: 'cancel', onPress: () => resetSlider() },
                         { text: 'Submit Anyway', style: 'destructive', onPress: () => submitCall() },
                     ]
                 );
@@ -623,6 +627,7 @@ export default function ActiveCallScreen({ navigation, route }) {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
             Alert.alert('Error', 'Failed to save call log data. Please ensure you are online.');
             setSaving(false);
+            resetSlider();
             timerRef.current = setInterval(() => setSeconds(s => s + 1), 1000);
         }
     };
@@ -633,6 +638,9 @@ export default function ActiveCallScreen({ navigation, route }) {
     const ringRadius = (ringSize - ringStroke) / 2;
     const ringCircum = 2 * Math.PI * ringRadius;
     const ringProgress = ringCircum - (ringCircum * (seconds % 60)) / 60;
+
+    // Keep the swipe ref pointing at the latest handleEndCall closure
+    onSwipeComplete.current = handleEndCall;
 
     return (
         <View style={st.root}>
