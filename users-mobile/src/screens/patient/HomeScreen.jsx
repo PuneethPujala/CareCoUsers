@@ -2,8 +2,9 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
     View, Text, StyleSheet, ScrollView, Platform, Pressable, Animated,
     ActivityIndicator, KeyboardAvoidingView, TouchableOpacity,
-    DeviceEventEmitter, InteractionManager, Dimensions, StatusBar, AppState, RefreshControl
+    DeviceEventEmitter, InteractionManager, Dimensions, StatusBar, AppState, RefreshControl, Image
 } from 'react-native';
+import { getCompanionState } from '../../utils/companionHelper';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
     Pill, Package, Sparkles, ChevronRight, TrendingUp, Activity,
@@ -433,7 +434,8 @@ export default function PatientHomeScreen({ navigation }) {
             onPress: () => navigation.navigate('AdherenceDetails'),
         },
         {
-            Icon: Flame, value: streakValue, label: streakLabel,
+            isCompanion: true,
+            value: streakValue, label: streakLabel,
             iconColor: medicationStreak > 0 ? '#F97316' : '#D4A574', bg: medicationStreak > 0 ? ['#FFF7ED', '#FEF3C7'] : ['#FFFBF5', '#FFF7ED'], iconBg: medicationStreak > 0 ? '#FED7AA' : '#FDE8D0',
             onPress: () => navigation.navigate('AdherenceDetails'),
         },
@@ -619,11 +621,15 @@ export default function PatientHomeScreen({ navigation }) {
 
                     {/* Stats strip */}
                     <Animated.View style={[styles.statsStrip, anim(1)]}>
-                        {STATS.map(({ Icon: StatIcon, value, label, iconColor, bg, iconBg, onPress: statPress }, i) => (
+                        {STATS.map(({ Icon: StatIcon, isCompanion, value, label, iconColor, bg, iconBg, onPress: statPress }, i) => (
                             <Pressable key={i} style={{ flex: 1 }} onPress={statPress || undefined}>
                                 <LinearGradient colors={bg} style={styles.statChip}>
                                     <View style={[styles.statChipIcon, { backgroundColor: iconBg }]}>
-                                        <StatIcon size={14} color={iconColor} strokeWidth={2.5} />
+                                        {isCompanion ? (
+                                            <Image source={getCompanionState(medicationStreak, adherenceDetails?.daily_log).image} style={{ width: 22, height: 22 }} resizeMode="contain" />
+                                        ) : (
+                                            <StatIcon size={14} color={iconColor} strokeWidth={2.5} />
+                                        )}
                                     </View>
                                     <Text style={[styles.statChipValue, { color: iconColor }]}>{value}</Text>
                                     <Text style={styles.statChipLabel}>{label}</Text>
@@ -634,40 +640,46 @@ export default function PatientHomeScreen({ navigation }) {
 
                     {/* ── STREAK / PRESENCE CARD ── */}
                     {/* Seam 5: Warm messaging for zero-streak (new AND returning users) */}
-                    {medicationStreak === 0 && totalMeds > 0 && (
-                        <Animated.View style={[anim(2), { marginHorizontal: 20, marginBottom: 20 }]}>
-                            <View style={[styles.emptyCard, { backgroundColor: '#FFFBF5', borderColor: '#FEF3C7', marginHorizontal: 0, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 16 }]}>
-                                <View style={[styles.emptyIconBox, { backgroundColor: '#FFEDD5', marginBottom: 0, width: 48, height: 48, borderRadius: 24 }]}>
-                                    <Flame size={24} color="#D4A574" strokeWidth={2.5} />
+                    {medicationStreak === 0 && totalMeds > 0 && (() => {
+                        const companion = getCompanionState(medicationStreak, adherenceDetails?.daily_log);
+                        return (
+                            <Animated.View style={[anim(2), { marginHorizontal: 20, marginBottom: 20 }]}>
+                                <View style={[styles.emptyCard, { backgroundColor: '#FFFBF5', borderColor: '#FEF3C7', marginHorizontal: 0, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 16 }]}>
+                                    <View style={[styles.emptyIconBox, { backgroundColor: '#FFEDD5', marginBottom: 0, width: 56, height: 56, borderRadius: 16, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }]}>
+                                        <Image source={companion.image} style={{ width: 44, height: 44 }} resizeMode="contain" />
+                                    </View>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={[styles.emptyTitle, { color: '#92400E', textAlign: 'left', marginBottom: 4 }]}>
+                                            {companion.label}
+                                        </Text>
+                                        <Text style={[styles.emptySub, { textAlign: 'left', marginTop: 0 }]}>
+                                            {companion.subtitle}
+                                        </Text>
+                                    </View>
                                 </View>
-                                <View style={{ flex: 1 }}>
-                                    <Text style={[styles.emptyTitle, { color: '#92400E', textAlign: 'left', marginBottom: 4 }]}>
-                                        {t('home.streak_paused', { defaultValue: "Today's a new start" })}
-                                    </Text>
-                                    <Text style={[styles.emptySub, { textAlign: 'left', marginTop: 0 }]}>
-                                        {t('home.streak_paused_sub', { defaultValue: 'Your streak begins with your next log. No rush.' })}
-                                    </Text>
+                            </Animated.View>
+                        );
+                    })()}
+                    {isNewUser && medicationStreak === 0 && (() => {
+                        const companion = getCompanionState(0, []); // fresh start
+                        return (
+                            <Animated.View style={[anim(2), { marginHorizontal: 20, marginBottom: 20 }]}>
+                                <View style={[styles.emptyCard, { backgroundColor: '#FFF7ED', borderColor: '#FEF3C7', marginHorizontal: 0, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 16 }]}>
+                                    <View style={[styles.emptyIconBox, { backgroundColor: '#FFEDD5', marginBottom: 0, width: 56, height: 56, borderRadius: 16, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }]}>
+                                        <Image source={companion.image} style={{ width: 44, height: 44 }} resizeMode="contain" />
+                                    </View>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={[styles.emptyTitle, { color: '#C2410C', textAlign: 'left', marginBottom: 4 }]}>
+                                            {t('home.streak_welcome', { defaultValue: 'Every great routine starts today' })}
+                                        </Text>
+                                        <Text style={[styles.emptySub, { textAlign: 'left', marginTop: 0 }]}>
+                                            {t('home.streak_welcome_sub', { defaultValue: 'Your streak begins with your first log.' })}
+                                        </Text>
+                                    </View>
                                 </View>
-                            </View>
-                        </Animated.View>
-                    )}
-                    {isNewUser && medicationStreak === 0 && (
-                        <Animated.View style={[anim(2), { marginHorizontal: 20, marginBottom: 20 }]}>
-                            <View style={[styles.emptyCard, { backgroundColor: '#FFF7ED', borderColor: '#FEF3C7', marginHorizontal: 0, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 16 }]}>
-                                <View style={[styles.emptyIconBox, { backgroundColor: '#FFEDD5', marginBottom: 0, width: 48, height: 48, borderRadius: 24 }]}>
-                                    <Flame size={24} color="#F97316" strokeWidth={2.5} />
-                                </View>
-                                <View style={{ flex: 1 }}>
-                                    <Text style={[styles.emptyTitle, { color: '#C2410C', textAlign: 'left', marginBottom: 4 }]}>
-                                        {t('home.streak_welcome', { defaultValue: 'Every great routine starts today' })}
-                                    </Text>
-                                    <Text style={[styles.emptySub, { textAlign: 'left', marginTop: 0 }]}>
-                                        {t('home.streak_welcome_sub', { defaultValue: 'Your streak begins with your first log.' })}
-                                    </Text>
-                                </View>
-                            </View>
-                        </Animated.View>
-                    )}
+                            </Animated.View>
+                        );
+                    })()}
                     {/* Seam 1: Presence hand-off — warm contextual layer during first week */}
                     {isFirstWeek && !isNewUser && (
                         <Animated.View style={[anim(2), { marginHorizontal: 20, marginBottom: 16 }]}>

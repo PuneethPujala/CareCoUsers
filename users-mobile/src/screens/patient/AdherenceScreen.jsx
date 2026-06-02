@@ -2,8 +2,9 @@ import React, { useEffect, useRef, useMemo, useCallback, useState } from 'react'
 import { useTranslation } from 'react-i18next';
 import {
     View, Text, StyleSheet, Animated, Pressable, ScrollView, SafeAreaView,
-    Platform, Dimensions, Easing, RefreshControl, Modal, Alert,
+    Platform, Dimensions, Easing, RefreshControl, Modal, Alert, Image,
 } from 'react-native';
+import { getCompanionState } from '../../utils/companionHelper';
 import { LinearGradient } from 'expo-linear-gradient';
 import { LineChart } from 'react-native-chart-kit';
 import {
@@ -551,32 +552,35 @@ export default function AdherenceScreen({ navigation }) {
                         </LinearGradient>
                     </Animated.View>
 
-                    {/* ── [1] Streak Banner ── */}
+                    {/* ── [1] Streak Banner with Companion ── */}
                     <Animated.View style={anim(1)}>
-                        <LinearGradient
-                            colors={streak >= 7 ? ['#F97316', '#EF4444'] : streak >= 3 ? ['#F59E0B', '#F97316'] : ['#64748B', '#475569']}
-                            start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-                            style={styles.streakCard}
-                        >
-                            <View style={styles.streakLeft}>
-                                <Flame size={36} color="#FFF" fill={streak > 0 ? '#FFF' : 'transparent'} />
-                                <View>
-                                    <Text style={styles.streakNum}>{t('adherence.streak_days', { defaultValue: '{{streak}} Day Streak', streak })}</Text>
-                                    <Text style={styles.streakSub}>
-                                        {streak >= 7 ? t('adherence.streak_fire', { defaultValue: "You're on fire! Keep it up 🔥" }) :
-                                            streak >= 3 ? t('adherence.streak_momentum', { defaultValue: 'Building momentum! 💪' }) :
-                                                streak > 0 ? t('adherence.streak_great_start', { defaultValue: 'Great start! Keep going 🌱' }) :
-                                                    t('adherence.streak_take_meds', { defaultValue: 'Take your meds to start your streak' })}
-                                    </Text>
-                                </View>
-                            </View>
-                            {streak > 0 && (
-                                <View style={styles.streakBadge}>
-                                    <Text style={styles.streakBadgeNum}>{streak}</Text>
-                                    <Text style={styles.streakBadgeLabel}>{t('adherence.days', { defaultValue: 'DAYS' })}</Text>
-                                </View>
-                            )}
-                        </LinearGradient>
+                        {(() => {
+                            const companion = getCompanionState(streak);
+                            return (
+                                <LinearGradient
+                                    colors={streak >= 7 ? ['#F97316', '#EF4444'] : streak >= 3 ? ['#F59E0B', '#F97316'] : streak > 0 ? ['#22C55E', '#16A34A'] : ['#64748B', '#475569']}
+                                    start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                                    style={styles.streakCard}
+                                >
+                                    <View style={styles.streakLeft}>
+                                        <View style={styles.companionImageWrap}>
+                                            <Image source={companion.image} style={styles.companionImage} resizeMode="contain" />
+                                        </View>
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={styles.streakNum}>{t('adherence.streak_days', { defaultValue: '{{streak}} Day Streak', streak })}</Text>
+                                            <Text style={styles.companionLabel}>{companion.label}</Text>
+                                            <Text style={styles.streakSub}>{companion.subtitle}</Text>
+                                        </View>
+                                    </View>
+                                    {streak > 0 && (
+                                        <View style={styles.streakBadge}>
+                                            <Text style={styles.streakBadgeNum}>{streak}</Text>
+                                            <Text style={styles.streakBadgeLabel}>{t('adherence.days', { defaultValue: 'DAYS' })}</Text>
+                                        </View>
+                                    )}
+                                </LinearGradient>
+                            );
+                        })()}
                     </Animated.View>
 
                     {/* ── [2] Recap Stats ── */}
@@ -1019,6 +1023,14 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.3, shadowRadius: 14, elevation: 8,
     },
     streakLeft: { flexDirection: 'row', alignItems: 'center', gap: 14, flex: 1 },
+    companionImageWrap: {
+        width: 56, height: 56, borderRadius: 16,
+        backgroundColor: 'rgba(255,255,255,0.2)',
+        alignItems: 'center', justifyContent: 'center',
+        overflow: 'hidden',
+    },
+    companionImage: { width: 48, height: 48 },
+    companionLabel: { fontSize: 11, fontWeight: '800', color: 'rgba(255,255,255,0.9)', letterSpacing: 0.5, textTransform: 'uppercase', marginTop: 1 },
     streakNum: { fontSize: 20, fontWeight: '900', color: '#FFF', letterSpacing: -0.5 },
     streakSub: { fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.75)', marginTop: 2 },
     streakBadge: {
