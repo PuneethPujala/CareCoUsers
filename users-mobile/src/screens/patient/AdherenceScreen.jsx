@@ -5,6 +5,7 @@ import {
     Platform, Dimensions, Easing, RefreshControl, Modal, Alert, Image,
 } from 'react-native';
 import { getStreakState } from '../../utils/streakHelper';
+import StreakCompanion from '../../components/ui/StreakCompanion';
 import { LinearGradient } from 'expo-linear-gradient';
 import { LineChart } from 'react-native-chart-kit';
 import {
@@ -555,7 +556,7 @@ export default function AdherenceScreen({ navigation }) {
                     {/* ── [1] Streak Banner with Companion ── */}
                     <Animated.View style={anim(1)}>
                         {(() => {
-                            const companion = getStreakState(streak);
+                            const companion = getStreakState(streak, dailyLog);
                             return (
                                 <LinearGradient
                                     colors={streak >= 7 ? ['#F97316', '#EF4444'] : streak >= 3 ? ['#F59E0B', '#F97316'] : streak > 0 ? ['#22C55E', '#16A34A'] : ['#64748B', '#475569']}
@@ -564,7 +565,7 @@ export default function AdherenceScreen({ navigation }) {
                                 >
                                     <View style={styles.streakLeft}>
                                         <View style={styles.companionImageWrap}>
-                                            <Image source={companion.image} style={styles.companionImage} resizeMode="contain" />
+                                            <StreakCompanion streak={streak} dailyLog={dailyLog} size={48} />
                                         </View>
                                         <View style={{ flex: 1 }}>
                                             <Text style={styles.streakNum}>{t('adherence.streak_days', { defaultValue: '{{streak}} Day Streak', streak })}</Text>

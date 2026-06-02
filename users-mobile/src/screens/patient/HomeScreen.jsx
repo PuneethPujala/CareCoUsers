@@ -5,6 +5,7 @@ import {
     DeviceEventEmitter, InteractionManager, Dimensions, StatusBar, AppState, RefreshControl, Image
 } from 'react-native';
 import { getStreakState } from '../../utils/streakHelper';
+import StreakCompanion from '../../components/ui/StreakCompanion';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
     Pill, Package, Sparkles, ChevronRight, TrendingUp, Activity,
@@ -626,7 +627,7 @@ export default function PatientHomeScreen({ navigation }) {
                                 <LinearGradient colors={bg} style={styles.statChip}>
                                     <View style={[styles.statChipIcon, { backgroundColor: iconBg }]}>
                                         {isCompanion ? (
-                                            <Image source={getStreakState(medicationStreak, adherenceDetails?.daily_log).image} style={{ width: 22, height: 22 }} resizeMode="contain" />
+                                            <StreakCompanion streak={medicationStreak} dailyLog={adherenceDetails?.daily_log} size={22} showEffects={false} />
                                         ) : (
                                             <StatIcon size={14} color={iconColor} strokeWidth={2.5} />
                                         )}
@@ -646,7 +647,7 @@ export default function PatientHomeScreen({ navigation }) {
                             <Animated.View style={[anim(2), { marginHorizontal: 20, marginBottom: 20 }]}>
                                 <View style={[styles.emptyCard, { backgroundColor: '#FFFBF5', borderColor: '#FEF3C7', marginHorizontal: 0, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 16 }]}>
                                     <View style={[styles.emptyIconBox, { backgroundColor: '#FFEDD5', marginBottom: 0, width: 56, height: 56, borderRadius: 16, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }]}>
-                                        <Image source={companion.image} style={{ width: 44, height: 44 }} resizeMode="contain" />
+                                        <StreakCompanion streak={medicationStreak} dailyLog={adherenceDetails?.daily_log} size={44} />
                                     </View>
                                     <View style={{ flex: 1 }}>
                                         <Text style={[styles.emptyTitle, { color: '#92400E', textAlign: 'left', marginBottom: 4 }]}>
@@ -666,7 +667,7 @@ export default function PatientHomeScreen({ navigation }) {
                             <Animated.View style={[anim(2), { marginHorizontal: 20, marginBottom: 20 }]}>
                                 <View style={[styles.emptyCard, { backgroundColor: '#FFF7ED', borderColor: '#FEF3C7', marginHorizontal: 0, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 16 }]}>
                                     <View style={[styles.emptyIconBox, { backgroundColor: '#FFEDD5', marginBottom: 0, width: 56, height: 56, borderRadius: 16, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }]}>
-                                        <Image source={companion.image} style={{ width: 44, height: 44 }} resizeMode="contain" />
+                                        <StreakCompanion streak={0} dailyLog={[]} size={44} />
                                     </View>
                                     <View style={{ flex: 1 }}>
                                         <Text style={[styles.emptyTitle, { color: '#C2410C', textAlign: 'left', marginBottom: 4 }]}>
