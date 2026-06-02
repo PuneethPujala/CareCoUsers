@@ -1764,7 +1764,13 @@ router.get('/me/dashboard', authenticateSession, async (req, res) => {
                 if (logObj.medicines) {
                     logObj.medicines = logObj.medicines.filter(m => m.is_active !== false).map(m => {
                         const patMed = allMedsRaw.find(p => p.name === m.medicine_name);
-                        return { ...m, dosage: patMed?.dosage || '', instructions: patMed?.instructions || '', preferred_time: preferences[m.scheduled_time] || '' };
+                        return { 
+                            ...m, 
+                            dosage: patMed?.dosage || '', 
+                            instructions: patMed?.instructions || '', 
+                            preferred_time: preferences[m.scheduled_time] || '',
+                            refillInfo: patMed?.refillInfo || null
+                        };
                     });
                 }
                 return { log: logObj, preferences };
