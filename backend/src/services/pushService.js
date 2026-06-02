@@ -40,10 +40,12 @@ async function sendPush(recipientId, { title, body, type, priority, data }) {
             data: {
                 notificationId: notification._id.toString(),
                 type: type || 'system_announcement',
+                urgency: priority === 'urgent' ? 'high' : 'normal',
                 ...(data || {}),
             },
-            priority: priority === 'urgent' ? 'high' : 'default',
+            priority: (priority === 'urgent' || data?.urgency === 'high' || data?.urgency === 'critical') ? 'high' : 'default',
             channelId: 'caller-notifications',
+            categoryId: data?.categoryId || undefined,
         }));
 
         // 4. Send via Expo Push API

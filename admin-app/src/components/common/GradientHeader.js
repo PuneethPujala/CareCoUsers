@@ -10,6 +10,7 @@ import { Theme } from '../../theme/theme';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
 import { apiService } from '../../lib/api';
+import { useNotificationStore } from '../../store/useNotificationStore';
 
 export default function GradientHeader({
     title, subtitle, onBack,
@@ -18,6 +19,7 @@ export default function GradientHeader({
 }) {
     const navigation = useNavigation();
     const { user, profile } = useAuth();
+    const { unreadCount } = useNotificationStore();
 
     const [greeting, setGreeting] = useState('Good Morning,');
     const [currentDate, setCurrentDate] = useState('');
@@ -199,7 +201,7 @@ export default function GradientHeader({
                     <View style={styles.actionsRow}>
                         <TouchableOpacity style={styles.iconBtn} activeOpacity={0.7} onPress={() => navigation.navigate('Notifications')}>
                             <Feather name="bell" size={18} color="#0F172A" />
-                            <View style={styles.notifDot} />
+                            {unreadCount > 0 && <View style={styles.notifDot} />}
                         </TouchableOpacity>
                         <TouchableOpacity style={styles.avatarBtn} activeOpacity={0.7} onPress={() => navigation.navigate('Profile')}>
                             <LinearGradient colors={Theme.colors.accents.primary} style={styles.avatarGrad}>

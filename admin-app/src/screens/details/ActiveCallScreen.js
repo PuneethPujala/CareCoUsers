@@ -997,7 +997,7 @@ export default function ActiveCallScreen({ navigation, route }) {
 
                         {/* ═══ End Call Button ═══ */}
                         <View 
-                            style={[st.endBtnWrap, { opacity: (saving || !isCallMade) ? 0.6 : 1, backgroundColor: '#FEE2E2', borderWidth: 1, borderColor: '#FECACA' }]}
+                            style={[st.endBtnWrap, { opacity: saving ? 0.6 : 1, backgroundColor: '#FEE2E2', borderWidth: 1, borderColor: '#FECACA' }]}
                             onLayout={(e) => setSliderWidth(e.nativeEvent.layout.width)}
                         >
                             {/* Background Text */}
@@ -1008,7 +1008,7 @@ export default function ActiveCallScreen({ navigation, route }) {
                             </View>
                             
                             {/* Interactive Draggable Thumb */}
-                            {!saving && isCallMade && (
+                            {!saving && (
                                 <Animated.View 
                                     {...slidePanResponder.panHandlers}
                                     style={{
@@ -1026,7 +1026,7 @@ export default function ActiveCallScreen({ navigation, route }) {
                                 </Animated.View>
                             )}
                             {/* Static view for when disabled/saving */}
-                            {(saving || !isCallMade) && (
+                            {saving && (
                                 <View style={{ width: 64, height: '100%', backgroundColor: '#FCA5A5', borderRadius: 18, justifyContent: 'center', alignItems: 'center' }}>
                                     <ActivityIndicator size="small" color="#FFF" animating={saving} />
                                 </View>

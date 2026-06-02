@@ -31,7 +31,7 @@ import CallerDetailScreen from '../screens/details/CallerDetailScreen';
 import OrgDetailScreen from '../screens/details/OrgDetailScreen';
 import ManagerDetailScreen from '../screens/details/ManagerDetailScreen';
 import ActiveCallScreen from '../screens/details/ActiveCallScreen';
-import NotificationsScreen from '../screens/details/NotificationsScreen';
+import NotificationsScreen from '../screens/NotificationsScreen';
 import EmergencyScreen from '../screens/details/EmergencyScreen';
 import OrgAdminDetailScreen from '../screens/details/OrgAdminDetailScreen';
 
