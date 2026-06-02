@@ -114,10 +114,23 @@ export default function PrescriptionVerificationScreen({ navigation, route }) {
         try {
             // Filter out empty ones
             const validMeds = medications.filter(m => m.name.trim() !== '');
-            
-            // In a real scenario, this would post to apiService.patients.updateMedications(validMeds)
-            // But since this is a new feature flow, we will simulate the save and ask for the Care Assistant.
-            await new Promise(r => setTimeout(r, 1000));
+            const medNames = validMeds.map(m => m.name.trim()).join(', ');
+
+            // 1. Upload prescription to database
+            await apiService.patients.uploadPrescription({
+                file_base64: imageBase64,
+                content_type: 'image/jpeg'
+            });
+
+            // 2. Submit the modification request
+            await apiService.patients.requestMedicationModification({
+                description: `Patient requested medication review. Extracted medicines: ${medNames || 'none'}`
+            });
+
+            // 3. Trigger refresh callback if provided
+            if (route.params.onVerifySave) {
+                route.params.onVerifySave();
+            }
             
             AlertManager.alert(
                 'Prescription Saved',
@@ -139,6 +152,7 @@ export default function PrescriptionVerificationScreen({ navigation, route }) {
                 ]
             );
         } catch (error) {
+            console.error('Failed to save prescription and request review:', error);
             AlertManager.alert('Error', 'Failed to save medications.');
         } finally {
             setIsSaving(false);

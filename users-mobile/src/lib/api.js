@@ -251,6 +251,7 @@ export const apiService = {
         mfaVerify: (mfa_token, code) => api.post('/auth/mfa/verify', { mfa_token, code }),
         mfaDisable: (password) => api.post('/auth/mfa/disable', { password }),
         mfaStatus: () => api.get('/auth/mfa/status'),
+        uploadAvatar: (data) => api.post('/auth/me/avatar', data),
     },
 
     patients: {
@@ -277,6 +278,7 @@ export const apiService = {
         updateCallPreferences: (data) => api.put('/users/patients/me/call-preferences', data),
         extractOCR: (imageBase64) => api.post('/ocr/extract', { imageBase64 }),
         updateMe: (data) => api.put('/users/patients/me', data),
+        uploadAvatar: (data) => api.post('/users/patients/me/avatar', data),
         subscribe: (data) => api.post('/users/patients/subscribe', data),
         updateEmergencyContact: (data) => api.put('/users/patients/me/emergency-contact', data),
         getMyCaller: () => api.get('/users/patients/me/caller'),

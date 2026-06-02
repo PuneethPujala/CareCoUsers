@@ -1,10 +1,13 @@
-import { Alert, Platform } from 'react-native';
+import { Platform } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { supabase } from '../lib/supabase';
+import { apiService } from '../lib/api';
+import AlertManager from './AlertManager';
 
 /**
  * Shows a clean options dialog for profile pictures.
+ * Deprecated: Use AvatarSelectModal instead for a premium bottom-sheet UI.
  */
 export const showAvatarActionSheet = (currentAvatarUrl, onSelectSource, onRemove) => {
     const options = [
@@ -18,11 +21,10 @@ export const showAvatarActionSheet = (currentAvatarUrl, onSelectSource, onRemove
 
     options.push({ text: 'Cancel', style: 'cancel' });
 
-    Alert.alert(
+    AlertManager.alert(
         'Profile Picture',
         'Upload a profile photo to make your care account recognizable.',
-        options,
-        { cancelable: true }
+        options
     );
 };
 
@@ -50,19 +52,19 @@ export const deleteOldAvatar = async (url, bucketName = 'avatars') => {
  * Handles picking an image from camera/library, manipulating it, and uploading it to Supabase.
  * Returns the public URL, or null if cancelled/failed.
  */
-export const handleAvatarPicker = async (sourceType, userId, currentAvatarUrl, bucketName = 'avatars') => {
+export const handleAvatarPicker = async (sourceType, userId, currentAvatarUrl, bucketName = 'avatars', isPatient = true) => {
     try {
         // 1. Request appropriate permission
         if (sourceType === 'camera') {
             const { status } = await ImagePicker.requestCameraPermissionsAsync();
             if (status !== 'granted') {
-                Alert.alert('Permission Denied', 'Camera permission is required to take a photo.');
+                AlertManager.alert('Permission Denied', 'Camera permission is required to take a photo.');
                 return null;
             }
         } else {
             const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
             if (status !== 'granted') {
-                Alert.alert('Permission Denied', 'Library permission is required to choose a photo.');
+                AlertManager.alert('Permission Denied', 'Library permission is required to choose a photo.');
                 return null;
             }
         }
@@ -85,46 +87,37 @@ export const handleAvatarPicker = async (sourceType, userId, currentAvatarUrl, b
 
         const selectedUri = result.assets[0].uri;
 
-        // 3. Compress and resize using expo-image-manipulator to 512x512 @ 0.7 quality
+        // 3. Compress and resize using expo-image-manipulator to 512x512 @ 0.7 quality with base64 export
         const manipulated = await ImageManipulator.manipulateAsync(
             selectedUri,
             [{ resize: { width: 512, height: 512 } }],
-            { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG }
+            { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG, base64: true }
         );
 
-        // 4. Fetch the file blob
-        const response = await fetch(manipulated.uri);
-        const blob = await response.blob();
-
-        // 5. Generate secure unique path: avatars/{userId}/{timestamp}.jpg
-        const fileName = `${userId}/${Date.now()}.jpg`;
-
-        // 6. Upload to Supabase bucket
-        const { error: uploadError } = await supabase.storage
-            .from(bucketName)
-            .upload(fileName, blob, {
-                contentType: 'image/jpeg',
-                upsert: true,
-            });
-
-        if (uploadError) {
-            throw uploadError;
+        if (!manipulated.base64) {
+            throw new Error('Failed to extract base64 from image');
         }
 
-        // 7. Get Public URL
-        const { data: { publicUrl } } = supabase.storage
-            .from(bucketName)
-            .getPublicUrl(fileName);
-
-        // 8. Delete old avatar if present
-        if (currentAvatarUrl) {
-            await deleteOldAvatar(currentAvatarUrl, bucketName);
+        // 4. Send base64 to server-side secure upload endpoint
+        let publicUrl = null;
+        if (isPatient) {
+            const uploadRes = await apiService.patients.uploadAvatar({
+                file_base64: manipulated.base64,
+                content_type: 'image/jpeg'
+            });
+            publicUrl = uploadRes.data.avatar_url;
+        } else {
+            const uploadRes = await apiService.auth.uploadAvatar({
+                file_base64: manipulated.base64,
+                content_type: 'image/jpeg'
+            });
+            publicUrl = uploadRes.data.avatarUrl;
         }
 
         return publicUrl;
     } catch (error) {
         console.error('Avatar upload pipeline failed:', error);
-        Alert.alert('Upload Failed', 'An error occurred while uploading your profile picture.');
+        AlertManager.alert('Upload Failed', 'An error occurred while uploading your profile picture.');
         return null;
     }
 };

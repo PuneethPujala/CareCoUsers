@@ -3,7 +3,8 @@ import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Switc
 import { useAuth } from '../../context/AuthContext';
 import { apiService } from '../../lib/api';
 import { LogOut, ShieldCheck, Heart, User, Settings, ArrowRight, UserCheck, Share2, Phone, ChevronLeft } from 'lucide-react-native';
-import { showAvatarActionSheet, handleAvatarPicker, deleteOldAvatar } from '../../utils/avatarHelper';
+import { handleAvatarPicker, deleteOldAvatar } from '../../utils/avatarHelper';
+import AvatarSelectModal from '../../components/ui/AvatarSelectModal';
 import { layout } from '../../theme';
 import AlertManager from '../../utils/AlertManager';
 import { useNavigation } from '@react-navigation/native';
@@ -34,6 +35,7 @@ const FONT = {
 export default function CompanionProfileScreen() {
     const { signOut, user, profile, refreshProfile } = useAuth();
     const [loading, setLoading] = useState(true);
+    const [avatarModalVisible, setAvatarModalVisible] = useState(false);
 
     const handleRemoveAvatar = async () => {
         try {
@@ -49,22 +51,7 @@ export default function CompanionProfileScreen() {
     };
 
     const handleAvatarPress = () => {
-        showAvatarActionSheet(
-            profile?.avatarUrl,
-            async (sourceType) => {
-                const publicUrl = await handleAvatarPicker(sourceType, profile?._id || 'unknown', profile?.avatarUrl, 'avatars');
-                if (publicUrl) {
-                    try {
-                        await apiService.auth.updateProfile({ avatarUrl: publicUrl });
-                        await refreshProfile();
-                        AlertManager.alert('Success', 'Profile picture updated successfully.');
-                    } catch (err) {
-                        AlertManager.alert('Error', 'Failed to save profile picture.');
-                    }
-                }
-            },
-            handleRemoveAvatar
-        );
+        setAvatarModalVisible(true);
     };
     const [generatingCode, setGeneratingCode] = useState(false);
     const [linkedPatients, setLinkedPatients] = useState([]);
@@ -294,6 +281,25 @@ export default function CompanionProfileScreen() {
                 visible={legalVisible}
                 type={legalType}
                 onClose={() => setLegalVisible(false)}
+            />
+
+            <AvatarSelectModal
+                visible={avatarModalVisible}
+                onClose={() => setAvatarModalVisible(false)}
+                onSelectSource={async (sourceType) => {
+                    const publicUrl = await handleAvatarPicker(sourceType, profile?._id || 'unknown', profile?.avatarUrl, 'avatars', false);
+                    if (publicUrl) {
+                        try {
+                            await apiService.auth.updateProfile({ avatarUrl: publicUrl });
+                            await refreshProfile();
+                            AlertManager.alert('Success', 'Profile picture updated successfully.');
+                        } catch (err) {
+                            AlertManager.alert('Error', 'Failed to save profile picture.');
+                        }
+                    }
+                }}
+                onRemove={handleRemoveAvatar}
+                currentAvatarUrl={profile?.avatarUrl}
             />
         </View>
     );

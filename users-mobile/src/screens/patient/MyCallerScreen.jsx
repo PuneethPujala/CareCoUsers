@@ -439,20 +439,26 @@ export default function MyCallerScreen({ navigation }) {
                 {/* Stats row */}
                 <View style={s.heroStatsRow}>
                   <View style={s.heroStat}>
-                    <Text style={s.heroStatVal}>{calls.length}</Text>
+                    <Text style={s.heroStatVal}>
+                      {caller?.stats ? caller.stats.totalCalls : calls.length}
+                    </Text>
                     <Text style={s.heroStatLabel}>Total Calls</Text>
                   </View>
                   <View style={s.heroStatSep} />
                   <View style={s.heroStat}>
                     <Text style={s.heroStatVal}>
-                      {calls.length > 0 ? (formatDuration(Math.round(calls.reduce((a, c) => a + (c.call_duration_seconds || 0), 0) / calls.length)) || '0s') : '—'}
+                      {caller?.stats
+                        ? (formatDuration(caller.stats.avgDuration) || '—')
+                        : (calls.length > 0 ? (formatDuration(Math.round(calls.reduce((a, c) => a + (c.call_duration_seconds || 0), 0) / calls.length)) || '0s') : '—')}
                     </Text>
                     <Text style={s.heroStatLabel}>Avg Duration</Text>
                   </View>
                   <View style={s.heroStatSep} />
                   <View style={s.heroStat}>
                     <Text style={s.heroStatVal}>
-                      {calls.length > 0 ? `${Math.round((calls.filter(c => c.status === 'completed').length / calls.length) * 100)}%` : '—'}
+                      {caller?.stats
+                        ? `${caller.stats.answeredPercent}%`
+                        : (calls.length > 0 ? `${Math.round((calls.filter(c => c.status === 'completed').length / calls.length) * 100)}%` : '—')}
                     </Text>
                     <Text style={s.heroStatLabel}>Answered</Text>
                   </View>

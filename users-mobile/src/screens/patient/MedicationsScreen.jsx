@@ -799,10 +799,14 @@ export default function MedicationsScreen({ navigation }) {
                 );
                 if (!manipResult.base64) throw new Error('Failed to process image.');
                 
-                // Navigate to the verification screen, passing the image
+                // Navigate to the verification screen, passing the image and refresh callback
                 navigation.navigate('PrescriptionVerification', { 
                     imageBase64: manipResult.base64,
-                    imageUri: manipResult.uri
+                    imageUri: manipResult.uri,
+                    onVerifySave: () => {
+                        setModRequested(true);
+                        load(true);
+                    }
                 });
             } catch (error) {
                 showToast('Image Error', 'Could not process the selected image.', 'error');
@@ -972,25 +976,12 @@ export default function MedicationsScreen({ navigation }) {
                         <View style={styles.actionGroup}>
                             <Pressable
                                 style={[styles.outlineBtn, modRequested && { borderColor: '#86EFAC', backgroundColor: '#F0FDF4' }]}
-                                disabled={requestingMod || modRequested}
-                                onPress={async () => {
-                                    setRequestingMod(true);
-                                    try {
-                                        await apiService.patients.requestMedicationModification({ description: 'Patient requests caller to add/review medications.' });
-                                        setModRequested(true);
-                                        showToast(t('medications.request_sent_toast', { defaultValue: 'Request Sent ✓' }), t('medications.caregiver_discuss', { defaultValue: 'Your caregiver will discuss meds on your next call.' }), 'success');
-                                    } catch { showToast(t('common.error', { defaultValue: 'Error' }), t('common.could_not_send', { defaultValue: 'Could not send. Try again.' }), 'error'); }
-                                    finally { setRequestingMod(false); }
-                                }}
+                                disabled={uploadingImage || modRequested}
+                                onPress={handleUploadPrescription}
                             >
-                                {requestingMod ? <ActivityIndicator size="small" color="#6366F1" /> :
+                                {uploadingImage ? <ActivityIndicator size="small" color="#6366F1" /> :
                                     modRequested ? <><CheckCircle2 size={18} color="#16A34A" /><Text style={[styles.outlineBtnTxt, { color: '#16A34A' }]}>{t('medications.request_sent', { defaultValue: 'Request Sent!' })}</Text></> :
                                         <><MessageCircle size={18} color="#6366F1" /><Text style={styles.outlineBtnTxt}>{t('medications.request_caregiver_review', { defaultValue: 'Request Caregiver Review' })}</Text></>
-                                }
-                            </Pressable>
-                            <Pressable style={[styles.outlineBtn, { borderColor: '#D1FAE5' }]} disabled={uploadingImage} onPress={handleUploadPrescription}>
-                                {uploadingImage ? <ActivityIndicator size="small" color="#10B981" /> :
-                                    <><Upload size={18} color="#10B981" /><Text style={[styles.outlineBtnTxt, { color: '#10B981' }]}>{t('medications.upload_prescription', { defaultValue: 'Upload Prescription' })}</Text></>
                                 }
                             </Pressable>
                         </View>
@@ -1276,25 +1267,12 @@ export default function MedicationsScreen({ navigation }) {
                         <Animated.View style={[anim(3), styles.actionGroup]}>
                             <Pressable
                                 style={[styles.outlineBtn, modRequested && { borderColor: '#86EFAC', backgroundColor: '#F0FDF4' }]}
-                                disabled={requestingMod || modRequested}
-                                onPress={async () => {
-                                    setRequestingMod(true);
-                                    try {
-                                        await apiService.patients.requestMedicationModification({ description: 'Patient requests medication review/modification.' });
-                                        setModRequested(true);
-                                        showToast(t('medications.request_sent_toast', { defaultValue: 'Request Sent ✓' }), t('medications.caregiver_review_next_call', { defaultValue: 'Your caregiver will review your meds on the next call.' }), 'success');
-                                    } catch { showToast(t('common.error', { defaultValue: 'Error' }), t('common.could_not_send', { defaultValue: 'Could not send. Try again.' }), 'error'); }
-                                    finally { setRequestingMod(false); }
-                                }}
+                                disabled={uploadingImage || modRequested}
+                                onPress={handleUploadPrescription}
                             >
-                                {requestingMod ? <ActivityIndicator size="small" color="#6366F1" /> :
+                                {uploadingImage ? <ActivityIndicator size="small" color="#6366F1" /> :
                                     modRequested ? <><CheckCircle2 size={18} color="#16A34A" /><Text style={[styles.outlineBtnTxt, { color: '#16A34A' }]}>{t('medications.request_sent', { defaultValue: 'Request Sent!' })}</Text></> :
                                         <><Pencil size={18} color="#6366F1" /><Text style={styles.outlineBtnTxt}>{t('medications.request_med_review', { defaultValue: 'Request Medication Review' })}</Text></>
-                                }
-                            </Pressable>
-                            <Pressable style={[styles.outlineBtn, { borderColor: '#D1FAE5' }]} disabled={uploadingImage} onPress={handleUploadPrescription}>
-                                {uploadingImage ? <ActivityIndicator size="small" color="#10B981" /> :
-                                    <><Upload size={18} color="#10B981" /><Text style={[styles.outlineBtnTxt, { color: '#10B981' }]}>{t('medications.upload_new_prescription', { defaultValue: 'Upload New Prescription' })}</Text></>
                                 }
                             </Pressable>
 

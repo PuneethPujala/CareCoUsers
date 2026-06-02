@@ -146,6 +146,7 @@ describe('User Patients Routes', () => {
         Caller.findById = jest.fn().mockReturnValue({
             select: jest.fn().mockResolvedValue(null)
         });
+        CallLog.aggregate = jest.fn().mockResolvedValue([]);
     });
 
     // ── GET /api/users/patients/cities ────────────────────────────────────────

@@ -568,6 +568,60 @@ router.post('/me/prescriptions', authenticateSession, async (req, res) => {
     }
 });
 
+router.post('/me/avatar', authenticateSession, async (req, res) => {
+    try {
+        const { file_base64, content_type } = req.body;
+        if (!file_base64) return res.status(400).json({ error: 'file_base64 is required' });
+
+        const patient = await getOrCreatePatient(req);
+        const { createClient } = require('@supabase/supabase-js');
+        const supabaseUrl = process.env.SUPABASE_URL;
+        const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+        if (!supabaseUrl || !supabaseServiceKey) {
+            return res.status(500).json({ error: 'Supabase configuration missing on server' });
+        }
+
+        const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+        const buffer = Buffer.from(file_base64, 'base64');
+        const ext = content_type === 'image/png' ? 'png' : 'jpg';
+        const randomHash = Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
+        const fileName = `${patient.supabase_uid || patient._id}/${randomHash}.${ext}`;
+
+        const { data, error } = await supabaseAdmin.storage
+            .from('avatars')
+            .upload(fileName, buffer, { contentType: content_type || 'image/jpeg', upsert: true });
+
+        if (error) {
+            logger.error('Supabase avatar upload error', { error: error.message, patientId: patient._id });
+            return res.status(500).json({ error: 'Failed to upload avatar: ' + error.message });
+        }
+
+        const publicUrl = supabaseAdmin.storage.from('avatars').getPublicUrl(fileName).data.publicUrl;
+
+        // Proactively delete old avatar from Supabase Storage if it exists
+        if (patient.avatar_url) {
+            try {
+                const marker = `/public/avatars/`;
+                const idx = patient.avatar_url.indexOf(marker);
+                if (idx !== -1) {
+                    const oldFilePath = decodeURIComponent(patient.avatar_url.substring(idx + marker.length));
+                    await supabaseAdmin.storage.from('avatars').remove([oldFilePath]);
+                }
+            } catch (delErr) {
+                logger.warn('Failed to delete old avatar file', { error: delErr.message, patientId: patient._id });
+            }
+        }
+
+        patient.avatar_url = publicUrl;
+        await patient.save();
+
+        res.status(200).json({ message: 'Avatar uploaded successfully', avatar_url: publicUrl, patient });
+    } catch (err) {
+        logger.error('Upload avatar error', { error: err.message, patientId: req.user?.id });
+        res.status(500).json({ error: 'Server Error' });
+    }
+});
+
 router.put('/me/lifestyle', authenticateSession, async (req, res) => {
     try {
         const patient = await getOrCreatePatient(req);
@@ -906,8 +960,35 @@ router.get('/me/caller', authenticateSession, async (req, res) => {
 
         let mappedCaller = null;
         if (caller) {
-            mappedCaller = caller.toJSON();
+            mappedCaller = typeof caller.toJSON === 'function' ? caller.toJSON() : { ...caller };
             mappedCaller.availability = getDerivedAvailability(caller);
+
+            const statsResult = await CallLog.aggregate([
+                { $match: { patientId: patient._id, caretakerId: caller._id } },
+                {
+                    $group: {
+                        _id: null,
+                        totalCalls: { $sum: 1 },
+                        completedCalls: { $sum: { $cond: [{ $eq: ['$status', 'completed'] }, 1, 0] } },
+                        totalDuration: { $sum: { $cond: [{ $eq: ['$status', 'completed'] }, '$duration', 0] } }
+                    }
+                }
+            ]);
+
+            if (statsResult.length > 0) {
+                const s = statsResult[0];
+                mappedCaller.stats = {
+                    totalCalls: s.totalCalls,
+                    avgDuration: s.completedCalls > 0 ? Math.round(s.totalDuration / s.completedCalls) : 0,
+                    answeredPercent: s.totalCalls > 0 ? Math.round((s.completedCalls / s.totalCalls) * 100) : 0
+                };
+            } else {
+                mappedCaller.stats = {
+                    totalCalls: 0,
+                    avgDuration: 0,
+                    answeredPercent: 0
+                };
+            }
         }
 
         res.json({ caller: mappedCaller || null, manager: manager || null });
