@@ -4,7 +4,7 @@ import {
     ActivityIndicator, KeyboardAvoidingView, TouchableOpacity,
     DeviceEventEmitter, InteractionManager, Dimensions, StatusBar, AppState, RefreshControl, Image
 } from 'react-native';
-import { getCompanionState } from '../../utils/companionHelper';
+import { getStreakState } from '../../utils/streakHelper';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
     Pill, Package, Sparkles, ChevronRight, TrendingUp, Activity,
@@ -626,7 +626,7 @@ export default function PatientHomeScreen({ navigation }) {
                                 <LinearGradient colors={bg} style={styles.statChip}>
                                     <View style={[styles.statChipIcon, { backgroundColor: iconBg }]}>
                                         {isCompanion ? (
-                                            <Image source={getCompanionState(medicationStreak, adherenceDetails?.daily_log).image} style={{ width: 22, height: 22 }} resizeMode="contain" />
+                                            <Image source={getStreakState(medicationStreak, adherenceDetails?.daily_log).image} style={{ width: 22, height: 22 }} resizeMode="contain" />
                                         ) : (
                                             <StatIcon size={14} color={iconColor} strokeWidth={2.5} />
                                         )}
@@ -641,7 +641,7 @@ export default function PatientHomeScreen({ navigation }) {
                     {/* ── STREAK / PRESENCE CARD ── */}
                     {/* Seam 5: Warm messaging for zero-streak (new AND returning users) */}
                     {medicationStreak === 0 && totalMeds > 0 && (() => {
-                        const companion = getCompanionState(medicationStreak, adherenceDetails?.daily_log);
+                        const companion = getStreakState(medicationStreak, adherenceDetails?.daily_log);
                         return (
                             <Animated.View style={[anim(2), { marginHorizontal: 20, marginBottom: 20 }]}>
                                 <View style={[styles.emptyCard, { backgroundColor: '#FFFBF5', borderColor: '#FEF3C7', marginHorizontal: 0, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 16 }]}>
@@ -661,7 +661,7 @@ export default function PatientHomeScreen({ navigation }) {
                         );
                     })()}
                     {isNewUser && medicationStreak === 0 && (() => {
-                        const companion = getCompanionState(0, []); // fresh start
+                        const companion = getStreakState(0, []); // fresh start
                         return (
                             <Animated.View style={[anim(2), { marginHorizontal: 20, marginBottom: 20 }]}>
                                 <View style={[styles.emptyCard, { backgroundColor: '#FFF7ED', borderColor: '#FEF3C7', marginHorizontal: 0, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 16 }]}>

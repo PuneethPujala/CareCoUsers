@@ -4,7 +4,7 @@ import {
     View, Text, StyleSheet, Animated, Pressable, ScrollView, SafeAreaView,
     Platform, Dimensions, Easing, RefreshControl, Modal, Alert, Image,
 } from 'react-native';
-import { getCompanionState } from '../../utils/companionHelper';
+import { getStreakState } from '../../utils/streakHelper';
 import { LinearGradient } from 'expo-linear-gradient';
 import { LineChart } from 'react-native-chart-kit';
 import {
@@ -555,7 +555,7 @@ export default function AdherenceScreen({ navigation }) {
                     {/* ── [1] Streak Banner with Companion ── */}
                     <Animated.View style={anim(1)}>
                         {(() => {
-                            const companion = getCompanionState(streak);
+                            const companion = getStreakState(streak);
                             return (
                                 <LinearGradient
                                     colors={streak >= 7 ? ['#F97316', '#EF4444'] : streak >= 3 ? ['#F59E0B', '#F97316'] : streak > 0 ? ['#22C55E', '#16A34A'] : ['#64748B', '#475569']}
