@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, TextInput, StyleSheet, Alert, ActivityIndicator, StatusBar, Animated, BackHandler, Modal, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, TextInput, StyleSheet, Alert, ActivityIndicator, StatusBar, Animated, BackHandler, Modal, KeyboardAvoidingView, Platform, PanResponder } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -118,6 +118,75 @@ export default function ActiveCallScreen({ navigation, route }) {
 
     const timerRef = useRef(null);
     const startedAtRef = useRef(new Date().toISOString());
+
+    // ── UX Animations State ──
+    const breathAnim = useRef(new Animated.Value(1)).current;
+    const waveAnim1 = useRef(new Animated.Value(0.3)).current;
+    const waveAnim2 = useRef(new Animated.Value(0.3)).current;
+    const waveAnim3 = useRef(new Animated.Value(0.3)).current;
+    const slideAnim = useRef(new Animated.ValueXY()).current;
+    const [sliderWidth, setSliderWidth] = useState(280);
+
+    // Breathing Focus Ring Loop
+    useEffect(() => {
+        Animated.loop(
+            Animated.sequence([
+                Animated.timing(breathAnim, { toValue: 1.15, duration: 2000, useNativeDriver: true }),
+                Animated.timing(breathAnim, { toValue: 1, duration: 2000, useNativeDriver: true }),
+            ])
+        ).start();
+    }, [breathAnim]);
+
+    // Live Audio Waveform Loop
+    useEffect(() => {
+        if (recording) {
+            Animated.loop(
+                Animated.stagger(150, [
+                    Animated.sequence([Animated.timing(waveAnim1, { toValue: 1, duration: 250, useNativeDriver: true }), Animated.timing(waveAnim1, { toValue: 0.3, duration: 250, useNativeDriver: true })]),
+                    Animated.sequence([Animated.timing(waveAnim2, { toValue: 1, duration: 250, useNativeDriver: true }), Animated.timing(waveAnim2, { toValue: 0.3, duration: 250, useNativeDriver: true })]),
+                    Animated.sequence([Animated.timing(waveAnim3, { toValue: 1, duration: 250, useNativeDriver: true }), Animated.timing(waveAnim3, { toValue: 0.3, duration: 250, useNativeDriver: true })]),
+                ])
+            ).start();
+        } else {
+            waveAnim1.setValue(0.3);
+            waveAnim2.setValue(0.3);
+            waveAnim3.setValue(0.3);
+        }
+    }, [recording, waveAnim1, waveAnim2, waveAnim3]);
+
+    // Swipe-to-Complete Logic
+    const slidePanResponder = useRef(
+        PanResponder.create({
+            onStartShouldSetPanResponder: () => true,
+            onMoveShouldSetPanResponder: () => true,
+            onPanResponderGrant: () => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            },
+            onPanResponderMove: (_, gestureState) => {
+                const thumbWidth = 64;
+                const maxSlide = sliderWidth - thumbWidth - 8;
+                if (gestureState.dx > 0 && gestureState.dx < maxSlide) {
+                    slideAnim.setValue({ x: gestureState.dx, y: 0 });
+                } else if (gestureState.dx >= maxSlide) {
+                    slideAnim.setValue({ x: maxSlide, y: 0 });
+                }
+            },
+            onPanResponderRelease: (_, gestureState) => {
+                const thumbWidth = 64;
+                const maxSlide = sliderWidth - thumbWidth - 8;
+                if (gestureState.dx > maxSlide * 0.85) {
+                    Animated.spring(slideAnim, { toValue: { x: maxSlide, y: 0 }, useNativeDriver: false }).start(() => {
+                        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                        handleEndCall();
+                    });
+                } else {
+                    Animated.spring(slideAnim, { toValue: { x: 0, y: 0 }, useNativeDriver: false }).start(() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                    });
+                }
+            }
+        })
+    ).current;
 
     const getMedKey = (med) => med._id || med.name || JSON.stringify(med);
     const getPrevMedKey = (med) => `${med._shift}_${getMedKey(med)}`;
@@ -584,6 +653,16 @@ export default function ActiveCallScreen({ navigation, route }) {
                 {/* SVG Progress Ring + Timer */}
                 <View style={st.timerBlock}>
                     <View style={st.timerRingWrap}>
+                        {/* Breathing Aura */}
+                        <Animated.View style={[StyleSheet.absoluteFill, { 
+                            borderRadius: ringSize / 2, 
+                            backgroundColor: isDark ? 'rgba(99, 102, 241, 0.15)' : 'rgba(99, 102, 241, 0.1)',
+                            transform: [{ scale: breathAnim }],
+                            opacity: breathAnim.interpolate({
+                                inputRange: [1, 1.15],
+                                outputRange: [0.8, 0]
+                            })
+                        }]} />
                         <Svg width={ringSize} height={ringSize} style={{ position: 'absolute' }}>
                             <Circle cx={ringSize/2} cy={ringSize/2} r={ringRadius} fill="none" stroke={tc.border} strokeWidth={ringStroke} />
                             <Circle cx={ringSize/2} cy={ringSize/2} r={ringRadius} fill="none" stroke={tc.accents.primary[0]} strokeWidth={ringStroke} strokeLinecap="round" strokeDasharray={ringCircum} strokeDashoffset={ringProgress} transform={`rotate(-90 ${ringSize/2} ${ringSize/2})`} />
@@ -890,7 +969,11 @@ export default function ActiveCallScreen({ navigation, route }) {
                                 </View>
                             ) : recording ? (
                                 <TouchableOpacity style={st.dictationBtnActive} onPress={stopDictation} activeOpacity={0.7}>
-                                    <View style={st.recordingDot} />
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2, height: 12, marginRight: 2 }}>
+                                        {[waveAnim1, waveAnim2, waveAnim3].map((anim, i) => (
+                                            <Animated.View key={i} style={{ width: 3, height: '100%', backgroundColor: '#DC2626', borderRadius: 1.5, transform: [{ scaleY: anim }] }} />
+                                        ))}
+                                    </View>
                                     <Text style={st.dictationBtnActiveTxt}>{formatTime(dictationTime)} • Stop</Text>
                                 </TouchableOpacity>
                             ) : (
@@ -913,18 +996,42 @@ export default function ActiveCallScreen({ navigation, route }) {
                         </View>
 
                         {/* ═══ End Call Button ═══ */}
-                        <TouchableOpacity style={st.endBtnWrap} activeOpacity={0.85} onPress={handleEndCall} disabled={saving}>
-                            <LinearGradient colors={['#EF4444', '#DC2626']} start={{x:0,y:0}} end={{x:1,y:0}} style={st.endBtnGrad}>
-                                {saving ? (
-                                    <ActivityIndicator size="small" color="#FFFFFF" />
-                                ) : (
-                                    <>
-                                        <Feather name="phone-off" size={19} color="#FFFFFF" />
-                                        <Text style={st.endBtnText}>Log & End Call</Text>
-                                    </>
-                                )}
-                            </LinearGradient>
-                        </TouchableOpacity>
+                        <View 
+                            style={[st.endBtnWrap, { opacity: (saving || !isCallMade) ? 0.6 : 1, backgroundColor: '#FEE2E2', borderWidth: 1, borderColor: '#FECACA' }]}
+                            onLayout={(e) => setSliderWidth(e.nativeEvent.layout.width)}
+                        >
+                            {/* Background Text */}
+                            <View style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, justifyContent: 'center', alignItems: 'center' }}>
+                                <Text style={{ fontSize: 16, fontWeight: '800', color: '#EF4444', letterSpacing: 0.5, opacity: 0.7 }}>
+                                    {saving ? 'Saving...' : 'Swipe to Complete ⭢'}
+                                </Text>
+                            </View>
+                            
+                            {/* Interactive Draggable Thumb */}
+                            {!saving && isCallMade && (
+                                <Animated.View 
+                                    {...slidePanResponder.panHandlers}
+                                    style={{
+                                        width: 64, 
+                                        height: '100%', 
+                                        backgroundColor: '#EF4444', 
+                                        borderRadius: 18, 
+                                        justifyContent: 'center', 
+                                        alignItems: 'center',
+                                        transform: [{ translateX: slideAnim.x }],
+                                        shadowColor: '#EF4444', shadowOpacity: 0.4, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 5
+                                    }}
+                                >
+                                    <Feather name="phone-off" size={20} color="#FFF" />
+                                </Animated.View>
+                            )}
+                            {/* Static view for when disabled/saving */}
+                            {(saving || !isCallMade) && (
+                                <View style={{ width: 64, height: '100%', backgroundColor: '#FCA5A5', borderRadius: 18, justifyContent: 'center', alignItems: 'center' }}>
+                                    <ActivityIndicator size="small" color="#FFF" animating={saving} />
+                                </View>
+                            )}
+                        </View>
 
                         <View style={{ height: 40 }} />
                     </>
