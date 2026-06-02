@@ -3,6 +3,8 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
 import { LogBox, View, Text } from 'react-native';
+import Toast, { BaseToast, ErrorToast } from 'react-native-toast-message';
+import * as Haptics from 'expo-haptics';
 import { AuthProvider } from './src/context/AuthContext';
 import RootNavigator from './src/navigation/RootNavigator';
 import SplashScreen from './src/screens/SplashScreen';
@@ -41,6 +43,43 @@ class ErrorBoundary extends React.Component {
   }
 }
 
+// ── Custom Toast Configuration ──
+const toastConfig = {
+  success: (props) => (
+    <BaseToast
+      {...props}
+      style={{ borderLeftColor: '#10B981', backgroundColor: '#0F172A', borderRadius: 16, height: 'auto', paddingVertical: 12, shadowColor: '#10B981', shadowOpacity: 0.2, shadowRadius: 10, elevation: 5, minHeight: 70 }}
+      contentContainerStyle={{ paddingHorizontal: 15 }}
+      text1Style={{ fontSize: 16, fontWeight: '800', color: '#F8FAFC', marginBottom: 4 }}
+      text2Style={{ fontSize: 14, fontWeight: '500', color: '#CBD5E1' }}
+      text1NumberOfLines={2}
+      text2NumberOfLines={3}
+    />
+  ),
+  error: (props) => (
+    <ErrorToast
+      {...props}
+      style={{ borderLeftColor: '#EF4444', backgroundColor: '#0F172A', borderRadius: 16, height: 'auto', paddingVertical: 12, shadowColor: '#EF4444', shadowOpacity: 0.3, shadowRadius: 10, elevation: 5, minHeight: 70 }}
+      contentContainerStyle={{ paddingHorizontal: 15 }}
+      text1Style={{ fontSize: 16, fontWeight: '800', color: '#F8FAFC', marginBottom: 4 }}
+      text2Style={{ fontSize: 14, fontWeight: '500', color: '#CBD5E1' }}
+      text1NumberOfLines={2}
+      text2NumberOfLines={3}
+    />
+  ),
+  info: (props) => (
+    <BaseToast
+      {...props}
+      style={{ borderLeftColor: '#6366F1', backgroundColor: '#0F172A', borderRadius: 16, height: 'auto', paddingVertical: 12, shadowColor: '#6366F1', shadowOpacity: 0.2, shadowRadius: 10, elevation: 5, minHeight: 70 }}
+      contentContainerStyle={{ paddingHorizontal: 15 }}
+      text1Style={{ fontSize: 16, fontWeight: '800', color: '#F8FAFC', marginBottom: 4 }}
+      text2Style={{ fontSize: 14, fontWeight: '500', color: '#CBD5E1' }}
+      text1NumberOfLines={2}
+      text2NumberOfLines={3}
+    />
+  )
+};
+
 export default function App() {
   const navigationRef = useRef(null);
 
@@ -67,6 +106,7 @@ export default function App() {
             <StatusBar style="auto" />
           </NavigationContainer>
         </AuthProvider>
+        <Toast config={toastConfig} />
       </SafeAreaProvider>
     </ErrorBoundary>
   );

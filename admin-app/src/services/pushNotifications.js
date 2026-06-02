@@ -7,16 +7,34 @@ import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
+import Toast from 'react-native-toast-message';
+import * as Haptics from 'expo-haptics';
+import { useNotificationStore } from '../store/useNotificationStore';
+
 // ── Configure how notifications appear when app is in foreground ──
 Notifications.setNotificationHandler({
     handleNotification: async () => ({
-        shouldShowAlert: true,
-        shouldPlaySound: true,
+        shouldShowAlert: false, // We use custom toast instead
+        shouldPlaySound: false, // Handled manually
         shouldSetBadge: true,
-        shouldShowBanner: true,
-        shouldShowList: true,
     }),
 });
+
+// ── Define Actionable Categories ──
+async function setupCategories() {
+    await Notifications.setNotificationCategoryAsync('shift_alert', [
+        {
+            identifier: 'start_shift',
+            buttonTitle: 'Start Shift Now',
+            options: { opensAppToForeground: true }
+        },
+        {
+            identifier: 'dismiss',
+            buttonTitle: 'Dismiss',
+            options: { isDestructive: true }
+        }
+    ]);
+}
 
 // ── Create Android notification channel ──
 async function setupNotificationChannel() {
@@ -43,6 +61,7 @@ async function registerForPushNotifications() {
         }
 
         await setupNotificationChannel();
+        await setupCategories();
 
         // Check existing permissions
         const { status: existingStatus } = await Notifications.getPermissionsAsync();
@@ -97,7 +116,36 @@ function setupNotificationListeners(navigationRef) {
 
     // When notification received while app is open
     notificationReceivedListener = Notifications.addNotificationReceivedListener(notification => {
-        console.log('[Push] Received in foreground:', notification.request.content.title);
+        const { title, body, data } = notification.request.content;
+        
+        // Add to local notification hub history
+        useNotificationStore.getState().addNotification({ title, body, data });
+
+        const urgency = data?.urgency || 'normal';
+        
+        // Trigger specific haptics
+        if (urgency === 'high' || urgency === 'critical') {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        } else {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        }
+
+        // Show our beautiful custom dynamic banner
+        Toast.show({
+            type: urgency === 'high' ? 'error' : (urgency === 'critical' ? 'error' : 'info'),
+            text1: title || 'New Notification',
+            text2: body || '',
+            position: 'top',
+            topOffset: 50,
+            visibilityTime: 4000,
+            autoHide: true,
+            onPress: () => {
+                Toast.hide();
+                if (navigationRef?.current && data?.screen) {
+                    navigationRef.current.navigate(data.screen, data.params || {});
+                }
+            }
+        });
     });
 }
 

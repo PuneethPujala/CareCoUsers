@@ -138,10 +138,49 @@ async function checkShiftStart(callers) {
             body: `You have ${patientCount} patient${patientCount > 1 ? 's' : ''} to call this shift.`,
             type: 'shift_reminder',
             priority: 'normal',
-            data: { screen: 'CallerDashboard', shift, schedulerEvent: `shift_start_${shift}` },
+            data: { screen: 'CallerDashboard', shift, schedulerEvent: `shift_start_${shift}`, categoryId: 'shift_alert' },
         });
 
         console.log(`[Scheduler] Shift start notification sent to ${caller.fullName}`);
+    }
+}
+
+/**
+ * 1.5. THE NUDGE — 5 mins after shift starts, if zero calls made
+ */
+async function checkShiftNudge(callers) {
+    const shift = getCurrentShift();
+    const ist = getISTDate();
+    const hour = ist.getHours();
+    const min = ist.getMinutes();
+
+    // 5 to 15 minutes into shift
+    const isNudgeWindow = (
+        (shift === 'morning' && hour === 8 && min >= 5 && min < 15) ||
+        (shift === 'afternoon' && hour === 12 && min >= 5 && min < 15) ||
+        (shift === 'night' && hour === 17 && min >= 5 && min < 15)
+    );
+
+    if (!isNudgeWindow) return;
+
+    for (const caller of callers) {
+        if (await alreadySent(caller._id, 'shift_nudge', shift)) continue;
+
+        const callCount = await getTodayCallCount(caller._id);
+        if (callCount > 0) continue; // They already started working!
+
+        const patients = await getAssignedPatients(caller._id);
+        if (patients.length === 0) continue;
+
+        await sendPush(caller._id, {
+            title: `Shift Started — Action Required`,
+            body: `Your ${getShiftLabel(shift)} shift began 5 minutes ago. Please log in and start contacting your ${patients.length} patients immediately.`,
+            type: 'shift_nudge',
+            priority: 'urgent',
+            data: { screen: 'CallerDashboard', shift, schedulerEvent: `shift_nudge_${shift}`, urgency: 'high', categoryId: 'shift_alert' },
+        });
+
+        console.log(`[Scheduler] Nudge sent to ${caller.fullName}`);
     }
 }
 
@@ -282,6 +321,7 @@ async function runSchedulerCycle() {
         if (callers.length === 0) return;
 
         await checkShiftStart(callers);
+        await checkShiftNudge(callers);
         await checkPatientsWaiting(callers);
         await checkCallReminder(callers);
         await checkShiftSummary(callers);
