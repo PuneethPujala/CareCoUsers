@@ -642,7 +642,7 @@ export default function PatientHomeScreen({ navigation }) {
                         return (
                             <Animated.View style={[anim(2), { marginHorizontal: 20, marginBottom: 20 }]}>
                                 <View style={[styles.emptyCard, { backgroundColor: '#FFFBF5', borderColor: '#FEF3C7', marginHorizontal: 0, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 16 }]}>
-                                    <View style={[styles.emptyIconBox, { backgroundColor: '#FFFFFF', borderWidth: 1.5, borderColor: '#FEF3C7', marginBottom: 0, width: 56, height: 56, borderRadius: 16, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }]}>
+                                    <View style={[styles.emptyIconBox, { backgroundColor: '#FFFFFF', borderWidth: 1.5, borderColor: '#FEF3C7', marginBottom: 0, width: 56, height: 56, borderRadius: 16, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 4, elevation: 2 }]}>
                                         <StreakCompanion streak={medicationStreak} dailyLog={adherenceDetails?.daily_log} size={44} />
                                     </View>
                                     <View style={{ flex: 1 }}>
@@ -662,7 +662,7 @@ export default function PatientHomeScreen({ navigation }) {
                         return (
                             <Animated.View style={[anim(2), { marginHorizontal: 20, marginBottom: 20 }]}>
                                 <View style={[styles.emptyCard, { backgroundColor: '#FFF7ED', borderColor: '#FEF3C7', marginHorizontal: 0, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 16 }]}>
-                                    <View style={[styles.emptyIconBox, { backgroundColor: '#FFFFFF', borderWidth: 1.5, borderColor: '#FED7AA', marginBottom: 0, width: 56, height: 56, borderRadius: 16, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }]}>
+                                    <View style={[styles.emptyIconBox, { backgroundColor: '#FFFFFF', borderWidth: 1.5, borderColor: '#FED7AA', marginBottom: 0, width: 56, height: 56, borderRadius: 16, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 4, elevation: 2 }]}>
                                         <StreakCompanion streak={0} dailyLog={[]} size={44} />
                                     </View>
                                     <View style={{ flex: 1 }}>

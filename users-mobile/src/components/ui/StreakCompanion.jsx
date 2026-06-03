@@ -204,7 +204,7 @@ export default function StreakCompanion({
             >
                 <Image
                     source={companion.image}
-                    style={[styles.image, { width: size, height: size }, imageStyle]}
+                    style={[styles.image, { width: size, height: size, borderRadius: size * 0.2 }, imageStyle]}
                     resizeMode="contain"
                 />
             </Animated.View>
