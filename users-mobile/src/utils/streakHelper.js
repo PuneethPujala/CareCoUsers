@@ -3,14 +3,14 @@ import { Image } from 'react-native';
 
 // ── Streak companion plant assets ────────────────────────────────
 const STREAK_IMAGES = {
-    seed_of_hope: require('../../assets/companion/seed_of_hope.png'),
-    growing_strength: require('../../assets/companion/growing_strength.png'),
-    recovery_buddy: require('../../assets/companion/recovery_buddy.png'),
-    blooming_health: require('../../assets/companion/blooming_health.png'),
-    miss_1_day: require('../../assets/companion/miss_1_day.png'),
-    miss_2_days: require('../../assets/companion/miss_2_days.png'),
-    miss_3_days: require('../../assets/companion/miss_3_days.png'),
-    revive_window: require('../../assets/companion/revive_window.png'),
+    seed_of_hope: require('../../assets/companion/seed_of_hope.jpg'),
+    growing_strength: require('../../assets/companion/growing_strength.jpg'),
+    recovery_buddy: require('../../assets/companion/recovery_buddy.jpg'),
+    blooming_health: require('../../assets/companion/blooming_health.jpg'),
+    miss_1_day: require('../../assets/companion/miss_1_day.jpg'),
+    miss_2_days: require('../../assets/companion/miss_2_days.jpg'),
+    miss_3_days: require('../../assets/companion/miss_3_days.jpg'),
+    revive_window: require('../../assets/companion/revive_window.jpg'),
 };
 
 /**
