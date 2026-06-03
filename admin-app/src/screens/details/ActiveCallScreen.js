@@ -125,7 +125,7 @@ export default function ActiveCallScreen({ navigation, route }) {
     const waveAnim2 = useRef(new Animated.Value(0.3)).current;
     const waveAnim3 = useRef(new Animated.Value(0.3)).current;
     const slideAnim = useRef(new Animated.ValueXY()).current;
-    const [sliderWidth, setSliderWidth] = useState(280);
+    const sliderWidthRef = useRef(280);
 
     // Breathing Focus Ring Loop
     useEffect(() => {
@@ -156,32 +156,29 @@ export default function ActiveCallScreen({ navigation, route }) {
 
     // Swipe-to-Complete Logic
     const onSwipeComplete = useRef(null);
-    const THUMB_WIDTH = 60;
+    const THUMB_WIDTH = 56;
 
     const slidePanResponder = useRef(
         PanResponder.create({
             onStartShouldSetPanResponder: () => true,
-            onMoveShouldSetPanResponder: () => true,
+            onMoveShouldSetPanResponder: (_, gs) => Math.abs(gs.dx) > 5,
             onPanResponderGrant: () => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             },
-            onPanResponderMove: (_, gestureState) => {
-                const maxSlide = sliderWidth - THUMB_WIDTH - 8;
-                if (gestureState.dx > 0 && gestureState.dx < maxSlide) {
-                    slideAnim.setValue({ x: gestureState.dx, y: 0 });
-                } else if (gestureState.dx >= maxSlide) {
-                    slideAnim.setValue({ x: maxSlide, y: 0 });
-                }
+            onPanResponderMove: (_, gs) => {
+                const maxSlide = sliderWidthRef.current - THUMB_WIDTH - 4;
+                const clamped = Math.max(0, Math.min(gs.dx, maxSlide));
+                slideAnim.setValue({ x: clamped, y: 0 });
             },
-            onPanResponderRelease: (_, gestureState) => {
-                const maxSlide = sliderWidth - THUMB_WIDTH - 8;
-                if (gestureState.dx > maxSlide * 0.85) {
-                    Animated.spring(slideAnim, { toValue: { x: maxSlide, y: 0 }, useNativeDriver: false }).start(() => {
+            onPanResponderRelease: (_, gs) => {
+                const maxSlide = sliderWidthRef.current - THUMB_WIDTH - 4;
+                if (gs.dx > maxSlide * 0.75) {
+                    Animated.spring(slideAnim, { toValue: { x: maxSlide, y: 0 }, useNativeDriver: false, bounciness: 2 }).start(() => {
                         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                         if (onSwipeComplete.current) onSwipeComplete.current();
                     });
                 } else {
-                    Animated.spring(slideAnim, { toValue: { x: 0, y: 0 }, useNativeDriver: false }).start(() => {
+                    Animated.spring(slideAnim, { toValue: { x: 0, y: 0 }, useNativeDriver: false, bounciness: 4 }).start(() => {
                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                     });
                 }
@@ -1005,40 +1002,50 @@ export default function ActiveCallScreen({ navigation, route }) {
                             />
                         </View>
 
-                        {/* ═══ End Call Button ═══ */}
+                        {/* ═══ End Call Slider ═══ */}
                         <View 
-                            style={[st.endBtnWrap, { height: 60, opacity: saving ? 0.6 : 1, backgroundColor: '#FEE2E2', borderWidth: 1, borderColor: '#FECACA', justifyContent: 'center' }]}
-                            onLayout={(e) => setSliderWidth(e.nativeEvent.layout.width)}
+                            style={[st.endBtnWrap, { height: 56, opacity: saving ? 0.6 : 1, backgroundColor: '#FEE2E2', borderWidth: 1, borderColor: '#FECACA' }]}
+                            onLayout={(e) => { sliderWidthRef.current = e.nativeEvent.layout.width; }}
                         >
+                            {/* Green fill that follows the thumb */}
+                            {!saving && (
+                                <Animated.View style={{
+                                    position: 'absolute', left: 0, top: 0, bottom: 0,
+                                    width: Animated.add(slideAnim.x, THUMB_WIDTH),
+                                    backgroundColor: '#10B981',
+                                    borderRadius: 18,
+                                    opacity: slideAnim.x.interpolate({ inputRange: [0, 50], outputRange: [0.15, 0.9], extrapolate: 'clamp' }),
+                                }} />
+                            )}
                             {/* Background Text */}
-                            <Text style={{ position: 'absolute', width: '100%', textAlign: 'center', fontSize: 16, fontWeight: '800', color: '#EF4444', letterSpacing: 0.5, opacity: 0.7 }}>
+                            <Animated.Text style={{
+                                position: 'absolute', width: '100%', textAlign: 'center',
+                                fontSize: 15, fontWeight: '800', letterSpacing: 0.5,
+                                color: slideAnim.x.interpolate({ inputRange: [0, 80], outputRange: ['#EF4444', '#FFFFFF'], extrapolate: 'clamp' }),
+                                opacity: slideAnim.x.interpolate({ inputRange: [0, 120], outputRange: [0.7, 0], extrapolate: 'clamp' }),
+                            }}>
                                 {saving ? 'Saving...' : 'Swipe to Complete ⭢'}
-                            </Text>
-                            
-                            {/* Interactive Draggable Thumb */}
+                            </Animated.Text>
+                            {/* Draggable Thumb */}
                             {!saving && (
                                 <Animated.View 
                                     {...slidePanResponder.panHandlers}
                                     style={{
-                                        width: 60, 
-                                        height: 58, 
-                                        position: 'absolute',
-                                        left: 0,
-                                        backgroundColor: '#EF4444', 
-                                        borderRadius: 18, 
-                                        justifyContent: 'center', 
-                                        alignItems: 'center',
+                                        width: THUMB_WIDTH, height: 54, position: 'absolute', left: 0,
+                                        borderRadius: 17, justifyContent: 'center', alignItems: 'center',
                                         transform: [{ translateX: slideAnim.x }],
-                                        shadowColor: '#EF4444', shadowOpacity: 0.4, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 5
+                                        backgroundColor: slideAnim.x.interpolate({ inputRange: [0, 60], outputRange: ['#EF4444', '#059669'], extrapolate: 'clamp' }),
+                                        shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 6, shadowOffset: { width: 0, height: 3 }, elevation: 5,
                                     }}
                                 >
-                                    <Feather name="phone-off" size={20} color="#FFF" />
+                                    <Animated.View style={{ transform: [{ rotate: slideAnim.x.interpolate({ inputRange: [0, 150], outputRange: ['0deg', '180deg'], extrapolate: 'clamp' }) }] }}>
+                                        <Feather name="chevrons-right" size={22} color="#FFF" />
+                                    </Animated.View>
                                 </Animated.View>
                             )}
-                            {/* Static view for when disabled/saving */}
                             {saving && (
-                                <View style={{ width: 60, height: 58, position: 'absolute', left: 0, backgroundColor: '#FCA5A5', borderRadius: 18, justifyContent: 'center', alignItems: 'center' }}>
-                                    <ActivityIndicator size="small" color="#FFF" animating={saving} />
+                                <View style={{ width: THUMB_WIDTH, height: 54, position: 'absolute', left: 0, backgroundColor: '#10B981', borderRadius: 17, justifyContent: 'center', alignItems: 'center' }}>
+                                    <ActivityIndicator size="small" color="#FFF" />
                                 </View>
                             )}
                         </View>
