@@ -358,4 +358,44 @@ describe('User Callers Routes', () => {
             expect(res.body.error).toBe('Caller profile not found');
         });
     });
+
+    // ── GET /api/users/callers/me/feed ─────────────────────────────────────────
+
+    describe('GET /api/users/callers/me/feed', () => {
+
+        it('returns formatted activity feed for caller and assigned patients', async () => {
+            const caller = makeCaller({ patient_ids: ['patient-id'] });
+            const mockAlerts = [
+                {
+                    _id: fakeId('alert-1'),
+                    type: 'missed_call',
+                    patient_id: { name: 'Alpha Patient' },
+                    description: 'Missed contact request',
+                    created_at: new Date(),
+                }
+            ];
+
+            Caller.findOne = jest.fn().mockResolvedValue(caller);
+            Alert.find     = jest.fn().mockReturnValue({
+                populate: jest.fn().mockReturnValue({
+                    sort: jest.fn().mockReturnValue({
+                        limit: jest.fn().mockResolvedValue(mockAlerts)
+                    })
+                })
+            });
+
+            const res = await request(app).get('/api/users/callers/me/feed');
+
+            expect(res.status).toBe(200);
+            expect(res.body.feed).toHaveLength(1);
+            expect(res.body.feed[0].title).toBe('Missed Contact');
+            expect(res.body.feed[0].patient).toBe('Alpha Patient');
+        });
+
+        it('returns 404 when caller not found', async () => {
+            Caller.findOne = jest.fn().mockResolvedValue(null);
+            const res = await request(app).get('/api/users/callers/me/feed');
+            expect(res.status).toBe(404);
+        });
+    });
 });

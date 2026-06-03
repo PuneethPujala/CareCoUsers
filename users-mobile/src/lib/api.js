@@ -347,6 +347,7 @@ export const apiService = {
         getPatientProfile: (id) => api.get(`/users/callers/me/patients/${id}`),
         updatePatientMedications: (id, medications) => api.patch(`/users/callers/me/patients/${id}/medications`, { medications }),
         getStats: () => api.get('/users/callers/me/stats'),
+        getActivityFeed: () => api.get('/users/callers/me/feed'),
     },
 
     medicines: {

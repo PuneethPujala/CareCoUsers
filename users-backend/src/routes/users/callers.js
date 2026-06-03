@@ -343,6 +343,63 @@ router.get('/me/stats', authenticate, async (req, res) => {
 });
 
 /**
+ * GET /api/users/callers/me/feed
+ * Caller reads their activity feed (patient alerts, missed medications, unreachable)
+ */
+router.get('/me/feed', authenticate, async (req, res) => {
+    try {
+        const caller = await Caller.findOne({ supabase_uid: req.user.id });
+        if (!caller) {
+            return res.status(404).json({ error: 'Caller profile not found' });
+        }
+
+        const alerts = await Alert.find({
+            $or: [
+                { caller_id: caller._id },
+                { patient_id: { $in: caller.patient_ids } }
+            ]
+        })
+        .populate('patient_id', 'name')
+        .sort({ created_at: -1 })
+        .limit(50);
+
+        const feed = alerts.map((alert) => {
+            let color = '#718096'; // default gray
+            let title = 'Alert';
+
+            if (alert.type === 'missed_call' || alert.type === 'patient_unreachable_3attempts') {
+                color = '#E53E3E'; // red
+                title = 'Missed Contact';
+            } else if (alert.type === 'medicine_refusal' || alert.type === 'medication_missed') {
+                color = '#DD6B20'; // orange
+                title = 'Medication Alert';
+            } else if (alert.type === 'medication_modification') {
+                color = '#3182CE'; // blue
+                title = 'Modification Request';
+            } else if (alert.type === 'unresponsive_7days') {
+                color = '#D69E2E'; // yellow
+                title = 'Unresponsive Alert';
+            }
+
+            return {
+                id: alert._id,
+                title,
+                patient: alert.patient_id?.name || 'Assigned Patient',
+                desc: alert.description || 'Action required.',
+                time: alert.created_at ? new Date(alert.created_at).toLocaleString() : 'Just now',
+                color,
+                type: alert.type,
+            };
+        });
+
+        res.json({ feed });
+    } catch (error) {
+        console.error('Get caller activity feed error:', error);
+        res.status(500).json({ error: 'Failed to get activity feed' });
+    }
+});
+
+/**
  * POST /api/users/callers/me/heartbeat
  * Update caller's last active heartbeat timestamp
  */

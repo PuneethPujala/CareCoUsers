@@ -1,18 +1,53 @@
-import React from 'react';
-import { View, Text, StyleSheet, FlatList, Platform } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, FlatList, Platform, ActivityIndicator } from 'react-native';
 import { Activity, AlertOctagon, PhoneMissed, MessageSquare } from 'lucide-react-native';
 import { colors } from '../../theme';
+import { apiService } from '../../lib/api';
 
-const FEED = []; // TODO: Wire to API once backend endpoint is ready
+const ICON_MAP = {
+    missed_call: PhoneMissed,
+    patient_unreachable_3attempts: PhoneMissed,
+    medicine_refusal: AlertOctagon,
+    medication_missed: AlertOctagon,
+    medication_modification: MessageSquare,
+    default: AlertOctagon,
+};
 
 export default function ActivityFeedScreen() {
+    const [feed, setFeed] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
+
+    const loadFeed = async (isRefresh = false) => {
+        if (isRefresh) setRefreshing(true);
+        else setLoading(true);
+
+        try {
+            const res = await apiService.callers.getActivityFeed();
+            setFeed(res.data.feed || []);
+        } catch (error) {
+            console.warn('Failed to load activity feed:', error.message);
+        } finally {
+            setLoading(false);
+            setRefreshing(false);
+        }
+    };
+
+    useEffect(() => {
+        loadFeed();
+    }, []);
+
     return (
         <View style={styles.container}>
             <View style={styles.header}>
                 <Text style={styles.headerTitle}>Activity Feed</Text>
             </View>
 
-            {FEED.length === 0 ? (
+            {loading ? (
+                <View style={styles.loaderWrap}>
+                    <ActivityIndicator size="large" color={colors.primary} />
+                </View>
+            ) : feed.length === 0 ? (
                 <View style={styles.emptyWrap}>
                     <View style={styles.emptyIconBox}>
                         <Activity size={36} color={colors.primary} strokeWidth={1.5} />
@@ -24,11 +59,13 @@ export default function ActivityFeedScreen() {
                 </View>
             ) : (
                 <FlatList
-                    data={FEED}
+                    data={feed}
                     keyExtractor={item => item.id}
                     contentContainerStyle={styles.listContent}
+                    refreshing={refreshing}
+                    onRefresh={() => loadFeed(true)}
                     renderItem={({ item }) => {
-                        const { Icon } = item;
+                        const Icon = ICON_MAP[item.type] || ICON_MAP.default;
                         return (
                             <View style={styles.card}>
                                 <View style={[styles.cardAccent, { backgroundColor: item.color }]} />
@@ -62,7 +99,7 @@ const styles = StyleSheet.create({
         shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 4,
     },
     headerTitle: { fontSize: 18, fontWeight: '700', color: '#FFFFFF' },
-
+    loaderWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
     listContent: { padding: 16, paddingBottom: 40 },
     card: {
         backgroundColor: '#FFFFFF', borderRadius: 12, marginBottom: 12, overflow: 'hidden',
