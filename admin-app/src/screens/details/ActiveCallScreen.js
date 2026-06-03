@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, TextInput, StyleSheet, Alert, ActivityIndicator, StatusBar, Animated, BackHandler, Modal, KeyboardAvoidingView, Platform, PanResponder } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, TextInput, StyleSheet, Alert, ActivityIndicator, StatusBar, Animated, BackHandler, Modal, KeyboardAvoidingView, Platform } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -124,8 +124,7 @@ export default function ActiveCallScreen({ navigation, route }) {
     const waveAnim1 = useRef(new Animated.Value(0.3)).current;
     const waveAnim2 = useRef(new Animated.Value(0.3)).current;
     const waveAnim3 = useRef(new Animated.Value(0.3)).current;
-    const slideAnim = useRef(new Animated.ValueXY()).current;
-    const sliderWidthRef = useRef(280);
+
 
     // Breathing Focus Ring Loop
     useEffect(() => {
@@ -154,37 +153,7 @@ export default function ActiveCallScreen({ navigation, route }) {
         }
     }, [recording, waveAnim1, waveAnim2, waveAnim3]);
 
-    // Swipe-to-Complete Logic
-    const onSwipeComplete = useRef(null);
-    const THUMB_WIDTH = 56;
 
-    const slidePanResponder = useRef(
-        PanResponder.create({
-            onStartShouldSetPanResponder: () => true,
-            onMoveShouldSetPanResponder: (_, gs) => Math.abs(gs.dx) > 5,
-            onPanResponderGrant: () => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            },
-            onPanResponderMove: (_, gs) => {
-                const maxSlide = sliderWidthRef.current - THUMB_WIDTH - 4;
-                const clamped = Math.max(0, Math.min(gs.dx, maxSlide));
-                slideAnim.setValue({ x: clamped, y: 0 });
-            },
-            onPanResponderRelease: (_, gs) => {
-                const maxSlide = sliderWidthRef.current - THUMB_WIDTH - 4;
-                if (gs.dx > maxSlide * 0.75) {
-                    Animated.spring(slideAnim, { toValue: { x: maxSlide, y: 0 }, useNativeDriver: false, bounciness: 2 }).start(() => {
-                        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                        if (onSwipeComplete.current) onSwipeComplete.current();
-                    });
-                } else {
-                    Animated.spring(slideAnim, { toValue: { x: 0, y: 0 }, useNativeDriver: false, bounciness: 4 }).start(() => {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                    });
-                }
-            }
-        })
-    ).current;
 
     const getMedKey = (med) => med._id || med.name || JSON.stringify(med);
     const getPrevMedKey = (med) => `${med._shift}_${getMedKey(med)}`;
@@ -517,15 +486,12 @@ export default function ActiveCallScreen({ navigation, route }) {
         }
     };
 
-    const resetSlider = () => {
-        Animated.spring(slideAnim, { toValue: { x: 0, y: 0 }, useNativeDriver: false }).start();
-    };
+
 
     const handleEndCall = async () => {
         if (!outcome) {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
             Alert.alert('Select Outcome', 'Please select a call outcome before ending the call.');
-            resetSlider();
             return;
         }
 
@@ -545,7 +511,7 @@ export default function ActiveCallScreen({ navigation, route }) {
                     'Incomplete Medication Review',
                     `Only ${cc} of ${medications.length} medications are confirmed. The patient will remain PENDING in your queue until all medications are verified.\n\nDo you want to proceed?`,
                     [
-                        { text: 'Go Back', style: 'cancel', onPress: () => resetSlider() },
+                        { text: 'Go Back', style: 'cancel' },
                         { text: 'Submit Anyway', style: 'destructive', onPress: () => submitCall() },
                     ]
                 );
@@ -624,7 +590,7 @@ export default function ActiveCallScreen({ navigation, route }) {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
             Alert.alert('Error', 'Failed to save call log data. Please ensure you are online.');
             setSaving(false);
-            resetSlider();
+
             timerRef.current = setInterval(() => setSeconds(s => s + 1), 1000);
         }
     };
@@ -636,8 +602,7 @@ export default function ActiveCallScreen({ navigation, route }) {
     const ringCircum = 2 * Math.PI * ringRadius;
     const ringProgress = ringCircum - (ringCircum * (seconds % 60)) / 60;
 
-    // Keep the swipe ref pointing at the latest handleEndCall closure
-    onSwipeComplete.current = handleEndCall;
+
 
     return (
         <View style={st.root}>
@@ -1002,53 +967,35 @@ export default function ActiveCallScreen({ navigation, route }) {
                             />
                         </View>
 
-                        {/* ═══ End Call Slider ═══ */}
-                        <View 
-                            style={[st.endBtnWrap, { height: 56, opacity: saving ? 0.6 : 1, backgroundColor: '#FEE2E2', borderWidth: 1, borderColor: '#FECACA' }]}
-                            onLayout={(e) => { sliderWidthRef.current = e.nativeEvent.layout.width; }}
+                        {/* ═══ Complete Call Button ═══ */}
+                        <TouchableOpacity
+                            style={[st.endBtnWrap, { height: 56, backgroundColor: saving ? '#D1FAE5' : '#EF4444', justifyContent: 'center', alignItems: 'center' }]}
+                            activeOpacity={0.85}
+                            disabled={saving}
+                            onPress={() => {
+                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                                Alert.alert(
+                                    'Complete Call',
+                                    'Are you sure you want to end and log this call?',
+                                    [
+                                        { text: 'Cancel', style: 'cancel' },
+                                        { text: 'Yes, Complete', style: 'destructive', onPress: () => handleEndCall() },
+                                    ]
+                                );
+                            }}
                         >
-                            {/* Green fill that follows the thumb */}
-                            {!saving && (
-                                <Animated.View style={{
-                                    position: 'absolute', left: 0, top: 0, bottom: 0,
-                                    width: Animated.add(slideAnim.x, THUMB_WIDTH),
-                                    backgroundColor: '#10B981',
-                                    borderRadius: 18,
-                                    opacity: slideAnim.x.interpolate({ inputRange: [0, 50], outputRange: [0.15, 0.9], extrapolate: 'clamp' }),
-                                }} />
-                            )}
-                            {/* Background Text */}
-                            <Animated.Text style={{
-                                position: 'absolute', width: '100%', textAlign: 'center',
-                                fontSize: 15, fontWeight: '800', letterSpacing: 0.5,
-                                color: slideAnim.x.interpolate({ inputRange: [0, 80], outputRange: ['#EF4444', '#FFFFFF'], extrapolate: 'clamp' }),
-                                opacity: slideAnim.x.interpolate({ inputRange: [0, 120], outputRange: [0.7, 0], extrapolate: 'clamp' }),
-                            }}>
-                                {saving ? 'Saving...' : 'Swipe to Complete ⭢'}
-                            </Animated.Text>
-                            {/* Draggable Thumb */}
-                            {!saving && (
-                                <Animated.View 
-                                    {...slidePanResponder.panHandlers}
-                                    style={{
-                                        width: THUMB_WIDTH, height: 54, position: 'absolute', left: 0,
-                                        borderRadius: 17, justifyContent: 'center', alignItems: 'center',
-                                        transform: [{ translateX: slideAnim.x }],
-                                        backgroundColor: slideAnim.x.interpolate({ inputRange: [0, 60], outputRange: ['#EF4444', '#059669'], extrapolate: 'clamp' }),
-                                        shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 6, shadowOffset: { width: 0, height: 3 }, elevation: 5,
-                                    }}
-                                >
-                                    <Animated.View style={{ transform: [{ rotate: slideAnim.x.interpolate({ inputRange: [0, 150], outputRange: ['0deg', '180deg'], extrapolate: 'clamp' }) }] }}>
-                                        <Feather name="chevrons-right" size={22} color="#FFF" />
-                                    </Animated.View>
-                                </Animated.View>
-                            )}
-                            {saving && (
-                                <View style={{ width: THUMB_WIDTH, height: 54, position: 'absolute', left: 0, backgroundColor: '#10B981', borderRadius: 17, justifyContent: 'center', alignItems: 'center' }}>
-                                    <ActivityIndicator size="small" color="#FFF" />
+                            {saving ? (
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                                    <ActivityIndicator size="small" color="#059669" />
+                                    <Text style={{ fontSize: 16, fontWeight: '800', color: '#059669' }}>Saving...</Text>
+                                </View>
+                            ) : (
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                                    <Feather name="check-circle" size={20} color="#FFF" />
+                                    <Text style={{ fontSize: 16, fontWeight: '800', color: '#FFF', letterSpacing: 0.3 }}>Complete Call</Text>
                                 </View>
                             )}
-                        </View>
+                        </TouchableOpacity>
 
                         <View style={{ height: 40 }} />
                     </>
