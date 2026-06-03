@@ -183,6 +183,7 @@ export const apiService = {
     getSuperAdminStats: () => api.get('/dashboard/super-admin-stats', { params: { _t: Date.now() } }),
     getOrgAdminStats: () => api.get('/dashboard/org-admin-stats', { params: { _t: Date.now() } }),
     getCareManagerStats: () => api.get('/dashboard/care-manager-stats', { params: { _t: Date.now() } }),
+    getShiftPulse: () => api.get('/dashboard/care-manager-shift-pulse'),
   },
 
   // Profile endpoints

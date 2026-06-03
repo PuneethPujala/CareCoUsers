@@ -652,6 +652,165 @@ router.get('/care-manager-stats',
     }
 );
 
+/**
+ * GET /api/dashboard/care-manager-shift-pulse
+ * Lightweight, real-time shift data for premium UX widgets.
+ * Returns: shiftPulse, dailyGoal, callerActivity[], shiftHandoff
+ */
+router.get('/care-manager-shift-pulse',
+    authenticate,
+    requireRole('care_manager'),
+    async (req, res) => {
+        try {
+            const managerId = req.profile._id;
+            const orgId = req.profile.organizationId;
+            const CallLog = require('../models/CallLog');
+            const Patient = require('../models/Patient');
+            const CaretakerPatient = require('../models/CaretakerPatient');
+
+            // Determine current shift (IST)
+            const nowIST = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
+            const hour = nowIST.getUTCHours();
+            let currentShift = 'morning';
+            if (hour >= 12 && hour < 17) currentShift = 'afternoon';
+            else if (hour >= 17) currentShift = 'night';
+
+            // Today's date string (IST)
+            const todayStr = nowIST.toISOString().split('T')[0];
+            const todayStart = new Date(todayStr + 'T00:00:00+05:30');
+            const todayEnd = new Date(todayStr + 'T23:59:59+05:30');
+
+            // Get managed callers
+            const managedCallers = await Profile.find({
+                organizationId: orgId,
+                role: { $in: ['caller', 'caretaker'] },
+                isActive: true,
+                $or: [
+                    { managedBy: managerId },
+                    { managedBy: { $exists: false } },
+                    { managedBy: null }
+                ]
+            }).select('_id fullName').lean();
+
+            const callerIds = managedCallers.map(c => c._id);
+
+            // Today's call logs for managed callers
+            const todayLogs = await CallLog.find({
+                caretakerId: { $in: callerIds },
+                scheduledTime: { $gte: todayStart, $lte: todayEnd }
+            }).select('caretakerId status scheduledTime startedAt outcome patientMood').lean();
+
+            // Total expected calls today (patients assigned to managed callers)
+            const totalAssigned = await CaretakerPatient.countDocuments({
+                caretakerId: { $in: callerIds },
+                status: 'active'
+            });
+
+            const completedToday = todayLogs.filter(l => l.status === 'completed').length;
+            const totalScheduledToday = Math.max(totalAssigned, todayLogs.length);
+
+            // ── Daily Goal ──
+            const dailyGoal = {
+                completed: completedToday,
+                total: totalScheduledToday,
+                percentage: totalScheduledToday > 0 ? Math.round((completedToday / totalScheduledToday) * 100) : 0
+            };
+
+            // ── Per-Caller Activity (for Shift Pulse + Leaderboard) ──
+            const callerActivity = managedCallers.map(caller => {
+                const callerLogs = todayLogs.filter(l => l.caretakerId.toString() === caller._id.toString());
+                const callerCompleted = callerLogs.filter(l => l.status === 'completed');
+                const firstCall = callerCompleted.sort((a, b) => new Date(a.startedAt || a.scheduledTime) - new Date(b.startedAt || b.scheduledTime))[0];
+
+                return {
+                    id: caller._id,
+                    name: caller.fullName,
+                    callsToday: callerCompleted.length,
+                    totalScheduled: callerLogs.length,
+                    firstCallAt: firstCall ? (firstCall.startedAt || firstCall.scheduledTime) : null,
+                    lastCallAt: callerCompleted.length > 0 
+                        ? (callerCompleted[callerCompleted.length - 1].startedAt || callerCompleted[callerCompleted.length - 1].scheduledTime)
+                        : null,
+                    isActive: callerCompleted.length > 0,
+                };
+            });
+
+            const activeCallers = callerActivity.filter(c => c.isActive).length;
+            const idleCallers = callerActivity.length - activeCallers;
+
+            // ── Shift Pulse ──
+            const shiftPulse = {
+                activeCallers,
+                idleCallers,
+                totalCallers: callerActivity.length,
+                currentShift
+            };
+
+            // ── Shift Handoff (previous shift summary) ──
+            const prevShift = currentShift === 'morning' ? 'night' : (currentShift === 'afternoon' ? 'morning' : 'afternoon');
+            const prevShiftLogs = todayLogs.filter(l => {
+                const h = new Date(l.scheduledTime).getUTCHours() + 5.5;
+                const adjH = h >= 24 ? h - 24 : h;
+                if (prevShift === 'morning') return adjH >= 0 && adjH < 12;
+                if (prevShift === 'afternoon') return adjH >= 12 && adjH < 17;
+                return adjH >= 17;
+            });
+
+            const prevCompleted = prevShiftLogs.filter(l => l.status === 'completed').length;
+            const prevMissed = prevShiftLogs.filter(l => l.status !== 'completed').length;
+            const moodFlags = prevShiftLogs.filter(l => l.patientMood === 'sad' || l.patientMood === 'bad').length;
+
+            const shiftHandoff = {
+                prevShift,
+                completedCalls: prevCompleted,
+                missedPatients: prevMissed,
+                totalCalls: prevShiftLogs.length,
+                moodFlags,
+                percentage: prevShiftLogs.length > 0 ? Math.round((prevCompleted / prevShiftLogs.length) * 100) : 100
+            };
+
+            // ── 7-Day Heatmap Data per caller ──
+            const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+            const weekLogs = await CallLog.find({
+                caretakerId: { $in: callerIds },
+                scheduledTime: { $gte: sevenDaysAgo }
+            }).select('caretakerId status scheduledTime').lean();
+
+            const callerHeatmaps = managedCallers.map(caller => {
+                const cLogs = weekLogs.filter(l => l.caretakerId.toString() === caller._id.toString());
+                const days = [];
+                for (let i = 6; i >= 0; i--) {
+                    const d = new Date(Date.now() - i * 24 * 60 * 60 * 1000);
+                    const dStr = d.toISOString().split('T')[0];
+                    const dayLogs = cLogs.filter(l => new Date(l.scheduledTime).toISOString().split('T')[0] === dStr);
+                    const completed = dayLogs.filter(l => l.status === 'completed').length;
+                    const total = dayLogs.length;
+                    days.push({ date: dStr, completed, total, day: d.toLocaleDateString('en-US', { weekday: 'short' }) });
+                }
+                return {
+                    id: caller._id,
+                    name: caller.fullName,
+                    days,
+                    weekTotal: cLogs.filter(l => l.status === 'completed').length,
+                    weekScheduled: cLogs.length
+                };
+            });
+
+            res.json({
+                shiftPulse,
+                dailyGoal,
+                callerActivity,
+                shiftHandoff,
+                callerHeatmaps
+            });
+
+        } catch (error) {
+            console.error('Care manager shift pulse error:', error);
+            res.status(500).json({ error: 'Failed to load shift pulse data.' });
+        }
+    }
+);
+
 // ── Helpers ──
 
 function formatResourceType(type) {

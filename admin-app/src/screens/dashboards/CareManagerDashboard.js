@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, RefreshControl, StatusBar, Animated, Dimensions } from 'react-native';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
+import Svg, { Circle } from 'react-native-svg';
 import { Theme } from '../../theme/theme';
 import { useAuth } from '../../context/AuthContext';
 import GradientHeader from '../../components/common/GradientHeader';
@@ -11,6 +11,7 @@ import { apiService } from '../../lib/api';
 import { Colors, Shadows, Spacing, Typography, Radius } from '../../theme/colors';
 
 const { width: SW } = Dimensions.get('window');
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 // ── Helpers ──
 function getCapacityConfig(pct, stats = {}) {
@@ -29,6 +30,13 @@ export default function CareManagerDashboard({ navigation }) {
     const [stats, setStats] = useState({ totalCallers: 0, totalPatients: 0, unassignedPatients: 0 });
     const [capacity, setCapacity] = useState(null);
     const [performers, setPerformers] = useState([]);
+    const [shiftPulse, setShiftPulse] = useState(null);
+    const [dailyGoal, setDailyGoal] = useState(null);
+    const [callerActivity, setCallerActivity] = useState([]);
+    const [shiftHandoff, setShiftHandoff] = useState(null);
+    const [callerHeatmaps, setCallerHeatmaps] = useState([]);
+    const [handoffExpanded, setHandoffExpanded] = useState(false);
+    const goalRingAnim = useRef(new Animated.Value(0)).current;
 
     // Animations
     const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -45,10 +53,22 @@ export default function CareManagerDashboard({ navigation }) {
                 console.log('[Reconciliation] Skipped:', reconErr?.message);
             }
 
-            const res = await apiService.dashboard.getCareManagerStats();
+            const [res, pulseRes] = await Promise.all([
+                apiService.dashboard.getCareManagerStats(),
+                apiService.dashboard.getShiftPulse().catch(() => ({ data: {} }))
+            ]);
             setStats(res.data.stats || { totalCallers: 0, totalPatients: 0, unassignedPatients: 0 });
             setCapacity(res.data.capacity || null);
             setPerformers(res.data.performers || []);
+            setShiftPulse(pulseRes.data.shiftPulse || null);
+            setDailyGoal(pulseRes.data.dailyGoal || null);
+            setCallerActivity(pulseRes.data.callerActivity || []);
+            setShiftHandoff(pulseRes.data.shiftHandoff || null);
+            setCallerHeatmaps(pulseRes.data.callerHeatmaps || []);
+
+            // Animate the goal ring
+            goalRingAnim.setValue(0);
+            Animated.timing(goalRingAnim, { toValue: 1, duration: 1200, useNativeDriver: false }).start();
             
             // Trigger load animation
             fadeAnim.setValue(0);
@@ -115,6 +135,112 @@ export default function CareManagerDashboard({ navigation }) {
                                 </View>
                                 <Feather name="chevron-right" size={20} color="rgba(255,255,255,0.8)" />
                             </TouchableOpacity>
+                        )}
+
+                        {/* ═══ 1. Shift Handoff Summary ═══ */}
+                        {shiftHandoff && shiftHandoff.totalCalls > 0 && (
+                            <TouchableOpacity style={s.premiumCard} activeOpacity={0.85} onPress={() => setHandoffExpanded(!handoffExpanded)}>
+                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+                                        <View style={{ width: 40, height: 40, borderRadius: 14, backgroundColor: '#EEF2FF', justifyContent: 'center', alignItems: 'center' }}>
+                                            <Feather name="sunrise" size={18} color="#6366F1" />
+                                        </View>
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={{ fontSize: 11, fontWeight: '700', color: '#64748B', letterSpacing: 0.5 }}>
+                                                {shiftHandoff.prevShift?.toUpperCase()} SHIFT HANDOFF
+                                            </Text>
+                                            <Text style={{ fontSize: 16, fontWeight: '800', color: '#0F172A', marginTop: 2 }}>
+                                                {shiftHandoff.completedCalls}/{shiftHandoff.totalCalls} calls completed
+                                            </Text>
+                                        </View>
+                                    </View>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                        <View style={[s.capacityBadge, { backgroundColor: shiftHandoff.percentage >= 80 ? '#F0FDF4' : shiftHandoff.percentage >= 50 ? '#FFFBEB' : '#FEF2F2' }]}>
+                                            <Text style={{ fontSize: 12, fontWeight: '800', color: shiftHandoff.percentage >= 80 ? '#10B981' : shiftHandoff.percentage >= 50 ? '#F59E0B' : '#EF4444' }}>
+                                                {shiftHandoff.percentage}%
+                                            </Text>
+                                        </View>
+                                        <Feather name={handoffExpanded ? 'chevron-up' : 'chevron-down'} size={16} color="#94A3B8" />
+                                    </View>
+                                </View>
+                                {handoffExpanded && (
+                                    <View style={[s.forecastGrid, { marginTop: 16 }]}>
+                                        <View style={s.forecastItem}>
+                                            <View style={[s.forecastIconWrap, { backgroundColor: '#F0FDF4' }]}><Feather name="check-circle" size={14} color="#10B981" /></View>
+                                            <Text style={s.forecastVal}>{shiftHandoff.completedCalls}</Text>
+                                            <Text style={s.forecastLbl}>Completed</Text>
+                                        </View>
+                                        <View style={s.forecastDivider} />
+                                        <View style={s.forecastItem}>
+                                            <View style={[s.forecastIconWrap, { backgroundColor: '#FEF2F2' }]}><Feather name="x-circle" size={14} color="#EF4444" /></View>
+                                            <Text style={s.forecastVal}>{shiftHandoff.missedPatients}</Text>
+                                            <Text style={s.forecastLbl}>Missed</Text>
+                                        </View>
+                                        <View style={s.forecastDivider} />
+                                        <View style={s.forecastItem}>
+                                            <View style={[s.forecastIconWrap, { backgroundColor: '#FFFBEB' }]}><Ionicons name="sad-outline" size={14} color="#F59E0B" /></View>
+                                            <Text style={s.forecastVal}>{shiftHandoff.moodFlags}</Text>
+                                            <Text style={s.forecastLbl}>Mood Flags</Text>
+                                        </View>
+                                    </View>
+                                )}
+                            </TouchableOpacity>
+                        )}
+
+                        {/* ═══ 2. Daily Goal Tracker Ring ═══ */}
+                        {dailyGoal && (() => {
+                            const gSize = 130, gStroke = 10, gR = (gSize - gStroke) / 2;
+                            const gCircum = 2 * Math.PI * gR;
+                            const goalPct = dailyGoal.percentage / 100;
+                            const goalColor = goalPct >= 0.8 ? '#10B981' : goalPct >= 0.5 ? '#F59E0B' : '#6366F1';
+                            const animatedOffset = goalRingAnim.interpolate({ inputRange: [0, 1], outputRange: [gCircum, gCircum - gCircum * goalPct] });
+                            return (
+                                <View style={[s.premiumCard, { alignItems: 'center', paddingVertical: 28 }]}>
+                                    <Text style={{ fontSize: 11, fontWeight: '700', color: '#64748B', letterSpacing: 0.5, marginBottom: 16 }}>TODAY'S TEAM PROGRESS</Text>
+                                    <View style={{ width: gSize, height: gSize, justifyContent: 'center', alignItems: 'center' }}>
+                                        <Svg width={gSize} height={gSize} style={{ position: 'absolute' }}>
+                                            <Circle cx={gSize/2} cy={gSize/2} r={gR} fill="none" stroke="#F1F5F9" strokeWidth={gStroke} />
+                                            <AnimatedCircle cx={gSize/2} cy={gSize/2} r={gR} fill="none" stroke={goalColor} strokeWidth={gStroke} strokeLinecap="round" strokeDasharray={gCircum} strokeDashoffset={animatedOffset} transform={`rotate(-90 ${gSize/2} ${gSize/2})`} />
+                                        </Svg>
+                                        <Text style={{ fontSize: 32, fontWeight: '900', color: '#0F172A' }}>{dailyGoal.percentage}%</Text>
+                                    </View>
+                                    <Text style={{ fontSize: 15, fontWeight: '700', color: '#0F172A', marginTop: 14 }}>{dailyGoal.completed} of {dailyGoal.total} calls</Text>
+                                    <Text style={{ fontSize: 13, fontWeight: '500', color: '#64748B', marginTop: 4 }}>
+                                        {goalPct >= 1 ? '🎉 All calls completed!' : goalPct >= 0.8 ? 'Almost there — keep it up!' : goalPct >= 0.5 ? 'Good progress so far' : 'Shift just getting started'}
+                                    </Text>
+                                </View>
+                            );
+                        })()}
+
+                        {/* ═══ 3. Live Shift Pulse Bar ═══ */}
+                        {shiftPulse && shiftPulse.totalCallers > 0 && (
+                            <View style={s.premiumCard}>
+                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                                    <Text style={{ fontSize: 11, fontWeight: '700', color: '#64748B', letterSpacing: 0.5 }}>LIVE SHIFT PULSE</Text>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                        <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#10B981' }} />
+                                        <Text style={{ fontSize: 12, fontWeight: '700', color: '#10B981' }}>{shiftPulse.currentShift?.toUpperCase()}</Text>
+                                    </View>
+                                </View>
+                                <View style={{ height: 28, borderRadius: 14, backgroundColor: '#F1F5F9', flexDirection: 'row', overflow: 'hidden' }}>
+                                    {shiftPulse.activeCallers > 0 && (
+                                        <LinearGradient colors={['#10B981', '#059669']} start={{x:0,y:0}} end={{x:1,y:0}} style={{ width: `${(shiftPulse.activeCallers / shiftPulse.totalCallers) * 100}%`, borderRadius: 14, justifyContent: 'center', alignItems: 'center' }}>
+                                            <Text style={{ fontSize: 11, fontWeight: '800', color: '#FFF' }}>{shiftPulse.activeCallers} Active</Text>
+                                        </LinearGradient>
+                                    )}
+                                    {shiftPulse.idleCallers > 0 && (
+                                        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                                            <Text style={{ fontSize: 11, fontWeight: '700', color: '#94A3B8' }}>{shiftPulse.idleCallers} Idle</Text>
+                                        </View>
+                                    )}
+                                </View>
+                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 }}>
+                                    <Text style={{ fontSize: 12, fontWeight: '600', color: '#64748B' }}>{shiftPulse.totalCallers} callers on shift</Text>
+                                    <Text style={{ fontSize: 12, fontWeight: '700', color: shiftPulse.activeCallers === shiftPulse.totalCallers ? '#10B981' : '#F59E0B' }}>
+                                        {Math.round((shiftPulse.activeCallers / shiftPulse.totalCallers) * 100)}% engaged
+                                    </Text>
+                                </View>
+                            </View>
                         )}
 
                         {/* ── Key Metrics ── */}
@@ -327,6 +453,88 @@ export default function CareManagerDashboard({ navigation }) {
                                 ))
                             )}
                         </View>
+
+                        {/* ═══ 4. Time to First Call Leaderboard ═══ */}
+                        {callerActivity.length > 0 && (() => {
+                            const ranked = [...callerActivity]
+                                .filter(c => c.firstCallAt)
+                                .map(c => {
+                                    const shiftStart = new Date();
+                                    const h = shiftStart.getHours();
+                                    if (h < 12) shiftStart.setHours(6, 0, 0, 0);
+                                    else if (h < 17) shiftStart.setHours(12, 0, 0, 0);
+                                    else shiftStart.setHours(17, 0, 0, 0);
+                                    const diffMin = Math.max(0, Math.round((new Date(c.firstCallAt) - shiftStart) / 60000));
+                                    return { ...c, responseMin: diffMin };
+                                })
+                                .sort((a, b) => a.responseMin - b.responseMin)
+                                .slice(0, 5);
+                            if (ranked.length === 0) return null;
+                            return (
+                                <>
+                                    <Text style={[s.sectionTitle, Theme.typography.common, { marginTop: 8 }]}>First Call Response</Text>
+                                    <View style={s.premiumCardList}>
+                                        {ranked.map((c, i) => (
+                                            <View key={c.id}>
+                                                {i > 0 && <View style={s.listDivider} />}
+                                                <View style={s.performerRow}>
+                                                    <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: i === 0 ? '#F0FDF4' : '#F8FAFC', justifyContent: 'center', alignItems: 'center', marginRight: 12 }}>
+                                                        <Text style={{ fontSize: 13, fontWeight: '900', color: i === 0 ? '#10B981' : '#64748B' }}>#{i + 1}</Text>
+                                                    </View>
+                                                    <View style={{ flex: 1 }}>
+                                                        <Text style={s.performerName} numberOfLines={1}>{c.name}</Text>
+                                                        <Text style={s.performerStats}>{c.callsToday} calls today</Text>
+                                                    </View>
+                                                    <View style={[s.capacityBadge, { backgroundColor: c.responseMin <= 5 ? '#F0FDF4' : c.responseMin <= 15 ? '#FFFBEB' : '#FEF2F2' }]}>
+                                                        <Feather name="clock" size={10} color={c.responseMin <= 5 ? '#10B981' : c.responseMin <= 15 ? '#F59E0B' : '#EF4444'} style={{ marginRight: 4 }} />
+                                                        <Text style={{ fontSize: 12, fontWeight: '800', color: c.responseMin <= 5 ? '#10B981' : c.responseMin <= 15 ? '#F59E0B' : '#EF4444' }}>
+                                                            {c.responseMin}m
+                                                        </Text>
+                                                    </View>
+                                                </View>
+                                            </View>
+                                        ))}
+                                    </View>
+                                </>
+                            );
+                        })()}
+
+                        {/* ═══ 5. Caller Heatmap Cards ═══ */}
+                        {callerHeatmaps.length > 0 && (
+                            <>
+                                <Text style={[s.sectionTitle, Theme.typography.common, { marginTop: 8 }]}>7-Day Activity Map</Text>
+                                {callerHeatmaps.slice(0, 6).map(caller => {
+                                    const weekPct = caller.weekScheduled > 0 ? Math.round((caller.weekTotal / caller.weekScheduled) * 100) : 0;
+                                    return (
+                                        <TouchableOpacity key={caller.id} style={[s.premiumCard, { paddingVertical: 16, paddingHorizontal: 18, marginBottom: 12 }]} activeOpacity={0.8} onPress={() => navigation.navigate('CallerDetail', { callerId: caller.id })}>
+                                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+                                                    <View style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center' }}>
+                                                        <Text style={{ fontSize: 14, fontWeight: '800', color: '#475569' }}>{caller.name?.charAt(0)}</Text>
+                                                    </View>
+                                                    <Text style={{ fontSize: 14, fontWeight: '700', color: '#0F172A' }} numberOfLines={1}>{caller.name}</Text>
+                                                </View>
+                                                <View style={[s.capacityBadge, { backgroundColor: weekPct >= 80 ? '#F0FDF4' : weekPct >= 50 ? '#FFFBEB' : '#FEF2F2' }]}>
+                                                    <Text style={{ fontSize: 11, fontWeight: '800', color: weekPct >= 80 ? '#10B981' : weekPct >= 50 ? '#F59E0B' : '#EF4444' }}>{weekPct}%</Text>
+                                                </View>
+                                            </View>
+                                            <View style={{ flexDirection: 'row', gap: 6 }}>
+                                                {caller.days.map((d, di) => {
+                                                    const pct = d.total > 0 ? d.completed / d.total : -1;
+                                                    const bg = pct === -1 ? '#F1F5F9' : pct >= 0.8 ? '#10B981' : pct >= 0.5 ? '#F59E0B' : pct > 0 ? '#EF4444' : '#E2E8F0';
+                                                    return (
+                                                        <View key={di} style={{ flex: 1, alignItems: 'center' }}>
+                                                            <View style={{ width: '100%', height: 24, borderRadius: 6, backgroundColor: bg, opacity: pct === -1 ? 0.4 : 0.85 }} />
+                                                            <Text style={{ fontSize: 9, fontWeight: '600', color: '#94A3B8', marginTop: 4 }}>{d.day}</Text>
+                                                        </View>
+                                                    );
+                                                })}
+                                            </View>
+                                        </TouchableOpacity>
+                                    );
+                                })}
+                            </>
+                        )}
 
                     </Animated.View>
                 )}
