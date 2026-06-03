@@ -435,7 +435,7 @@ export default function PatientHomeScreen({ navigation }) {
             onPress: () => navigation.navigate('AdherenceDetails'),
         },
         {
-            isCompanion: true,
+            Icon: Flame,
             value: streakValue, label: streakLabel,
             iconColor: medicationStreak > 0 ? '#F97316' : '#D4A574', bg: medicationStreak > 0 ? ['#FFF7ED', '#FEF3C7'] : ['#FFFBF5', '#FFF7ED'], iconBg: medicationStreak > 0 ? '#FED7AA' : '#FDE8D0',
             onPress: () => navigation.navigate('AdherenceDetails'),
@@ -626,11 +626,7 @@ export default function PatientHomeScreen({ navigation }) {
                             <Pressable key={i} style={{ flex: 1 }} onPress={statPress || undefined}>
                                 <LinearGradient colors={bg} style={styles.statChip}>
                                     <View style={[styles.statChipIcon, { backgroundColor: iconBg }]}>
-                                        {isCompanion ? (
-                                            <StreakCompanion streak={medicationStreak} dailyLog={adherenceDetails?.daily_log} size={22} showEffects={false} />
-                                        ) : (
-                                            <StatIcon size={14} color={iconColor} strokeWidth={2.5} />
-                                        )}
+                                        <StatIcon size={14} color={iconColor} strokeWidth={2.5} />
                                     </View>
                                     <Text style={[styles.statChipValue, { color: iconColor }]}>{value}</Text>
                                     <Text style={styles.statChipLabel}>{label}</Text>
@@ -646,7 +642,7 @@ export default function PatientHomeScreen({ navigation }) {
                         return (
                             <Animated.View style={[anim(2), { marginHorizontal: 20, marginBottom: 20 }]}>
                                 <View style={[styles.emptyCard, { backgroundColor: '#FFFBF5', borderColor: '#FEF3C7', marginHorizontal: 0, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 16 }]}>
-                                    <View style={[styles.emptyIconBox, { backgroundColor: '#FFEDD5', marginBottom: 0, width: 56, height: 56, borderRadius: 16, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }]}>
+                                    <View style={[styles.emptyIconBox, { backgroundColor: '#FFFFFF', borderWidth: 1.5, borderColor: '#FEF3C7', marginBottom: 0, width: 56, height: 56, borderRadius: 16, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }]}>
                                         <StreakCompanion streak={medicationStreak} dailyLog={adherenceDetails?.daily_log} size={44} />
                                     </View>
                                     <View style={{ flex: 1 }}>
@@ -666,7 +662,7 @@ export default function PatientHomeScreen({ navigation }) {
                         return (
                             <Animated.View style={[anim(2), { marginHorizontal: 20, marginBottom: 20 }]}>
                                 <View style={[styles.emptyCard, { backgroundColor: '#FFF7ED', borderColor: '#FEF3C7', marginHorizontal: 0, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 16 }]}>
-                                    <View style={[styles.emptyIconBox, { backgroundColor: '#FFEDD5', marginBottom: 0, width: 56, height: 56, borderRadius: 16, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }]}>
+                                    <View style={[styles.emptyIconBox, { backgroundColor: '#FFFFFF', borderWidth: 1.5, borderColor: '#FED7AA', marginBottom: 0, width: 56, height: 56, borderRadius: 16, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }]}>
                                         <StreakCompanion streak={0} dailyLog={[]} size={44} />
                                     </View>
                                     <View style={{ flex: 1 }}>

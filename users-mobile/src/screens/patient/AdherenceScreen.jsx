@@ -1026,7 +1026,7 @@ const styles = StyleSheet.create({
     streakLeft: { flexDirection: 'row', alignItems: 'center', gap: 14, flex: 1 },
     companionImageWrap: {
         width: 56, height: 56, borderRadius: 16,
-        backgroundColor: 'rgba(255,255,255,0.2)',
+        backgroundColor: '#FFFFFF',
         alignItems: 'center', justifyContent: 'center',
         overflow: 'hidden',
     },
