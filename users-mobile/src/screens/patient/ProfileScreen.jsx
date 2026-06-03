@@ -25,8 +25,9 @@ import usePatientStore from '../../store/usePatientStore';
 import * as Sharing from 'expo-sharing';
 import ViewShot from 'react-native-view-shot';
 import { LinearGradient } from 'expo-linear-gradient';
-import { handleAvatarPicker, deleteOldAvatar } from '../../utils/avatarHelper';
+import { handleAvatarPicker, deleteOldAvatar, pickRawImage, uploadCroppedAvatar } from '../../utils/avatarHelper';
 import AvatarSelectModal from '../../components/ui/AvatarSelectModal';
+import AvatarCropModal from '../../components/ui/AvatarCropModal';
 const C = {
     primary: '#6366F1', primarySoft: '#EEF2FF', dark: '#0F172A', mid: '#334155',
     muted: '#94A3B8', light: '#CBD5E1', border: '#F1F5F9', pageBg: '#F8FAFC',
@@ -78,6 +79,8 @@ export default function PatientProfileScreen({ navigation }) {
 
     // Modals
     const [avatarModalVisible, setAvatarModalVisible] = useState(false);
+    const [cropImageUri, setCropImageUri] = useState(null);
+    const [cropModalVisible, setCropModalVisible] = useState(false);
     const [ecModalVisible, setEcModalVisible] = useState(false);
     const [accountModalVisible, setAccountModalVisible] = useState(false);
     const [editAccountModalVisible, setEditAccountModalVisible] = useState(false);
@@ -1052,20 +1055,37 @@ export default function PatientProfileScreen({ navigation }) {
                 visible={avatarModalVisible}
                 onClose={() => setAvatarModalVisible(false)}
                 onSelectSource={async (sourceType) => {
-                    const publicUrl = await handleAvatarPicker(sourceType, patient?._id || 'unknown', patient?.avatar_url, 'avatars', true);
-                    if (publicUrl) {
-                        try {
-                            const res = await apiService.patients.updateMe({ avatar_url: publicUrl });
-                            setPatient(res.data.patient);
-                            usePatientStore.getState().setPatient(res.data.patient);
-                            AlertManager.alert(t('common.success', { defaultValue: 'Success' }), t('profile.picture_updated', { defaultValue: 'Profile picture updated successfully.' }));
-                        } catch (err) {
-                            AlertManager.alert(t('common.error', { defaultValue: 'Error' }), t('profile.picture_update_error', { defaultValue: 'Failed to save profile picture.' }));
-                        }
+                    const rawUri = await pickRawImage(sourceType);
+                    if (rawUri) {
+                        setCropImageUri(rawUri);
+                        setCropModalVisible(true);
                     }
                 }}
                 onRemove={handleRemoveAvatar}
                 currentAvatarUrl={patient?.avatar_url}
+            />
+
+            <AvatarCropModal
+                visible={cropModalVisible}
+                imageUri={cropImageUri}
+                onClose={() => setCropModalVisible(false)}
+                onConfirm={async (cropRes) => {
+                    setCropModalVisible(false);
+                    setAccountActionLoading(true);
+                    try {
+                        const publicUrl = await uploadCroppedAvatar(cropRes.base64, true);
+                        if (publicUrl) {
+                            const res = await apiService.patients.updateMe({ avatar_url: publicUrl });
+                            setPatient(res.data.patient);
+                            usePatientStore.getState().setPatient(res.data.patient);
+                            AlertManager.alert(t('common.success', { defaultValue: 'Success' }), t('profile.picture_updated', { defaultValue: 'Profile picture updated successfully.' }));
+                        }
+                    } catch (err) {
+                        AlertManager.alert(t('common.error', { defaultValue: 'Error' }), t('profile.picture_update_error', { defaultValue: 'Failed to save profile picture.' }));
+                    } finally {
+                        setAccountActionLoading(false);
+                    }
+                }}
             />
 
             {/* ════════════════════  MODALS  ════════════════════ */}

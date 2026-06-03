@@ -79,7 +79,16 @@
     "smartwatch_path_label": "Smartwatch path:",
     "smartwatch_path_text": "Log vitals manually for 3 days or connect your smartwatch to activate forecasting sooner.",
     "renew_personalized_ai": "Renew to continue personalized AI analysis",
-    "log_today_s_vitals": "Log Today's Vitals"
+    "log_today_s_vitals": "Log Today's Vitals",
+    "live_coach": "Live Coach",
+    "ai_coach_desc": "Real-time analysis and personalized advice based on your current vital measurements.",
+    "all_stable_title": "Vitals Stable",
+    "all_stable_desc": "All tracked vitals are currently stable and within optimal ranges. Great job! Keep up the good work and maintain a healthy routine.",
+    "pending_vitals_title": "Awaiting Vitals",
+    "pending_vitals_desc": "No smartwatch or manual vitals synced today. Make sure your watch is connected, or enter vitals manually below.",
+    "link_wearable_title": "Link Your Wearable",
+    "link_wearable_desc": "Connect your smartwatch via Health Connect to sync live vitals automatically and receive real-time coaching insights.",
+    "link_smartwatch_btn": "Link Smartwatch"
   },
   "time_slots": {
     "morning": "Morning",
@@ -699,5 +708,20 @@
     "medications_label": "MEDICATIONS",
     "no_meds_scheduled_day": "No medications scheduled for this day.",
     "vitals_logged_label": "VITALS LOGGED"
+  },
+  "advisor": {
+    "hr_high_title": "Elevated Heart Rate",
+    "hr_high_desc": "Your heart rate is currently elevated at {{hr}} bpm. Try to slow down what you're doing, sit down comfortably, and take slow, deep breaths for 2 minutes.",
+    "hr_low_title": "Low Heart Rate",
+    "hr_low_desc": "Your heart rate is slightly low at {{hr}} bpm. Ensure you are resting. If you feel dizzy or lightheaded, please sit or lie down and contact your doctor.",
+    "spo2_low_title": "Oxygen Levels Below Optimal",
+    "spo2_low_smoker_desc": "Your oxygen saturation is low at {{spo2}}%. As a smoker, this is a critical reminder to step away from cigarettes immediately. Open windows to improve indoor airflow and step outside for fresh air.",
+    "spo2_low_desc": "Your oxygen saturation is low at {{spo2}}%. Step outside for fresh air, open windows to improve ventilation, and practice deep, steady breathing. Sit upright, and contact your doctor if it continues to drop.",
+    "bp_high_title": "Elevated Blood Pressure",
+    "bp_high_desc": "Your blood pressure is elevated at {{sys}}/{{dia}} mmHg. Consider resting in a quiet space, drinking a glass of water, and avoiding high-sodium foods today.",
+    "bp_low_title": "Low Blood Pressure",
+    "bp_low_desc": "Your blood pressure is low at {{sys}}/{{dia}} mmHg. Try to sit or lie down, drink a glass of water, and avoid rising too quickly from a seated position.",
+    "hyd_low_title": "Dehydration Warning",
+    "hyd_low_desc": "Your hydration level is low at {{hyd}}%. Drink a large glass of water now to help restore your body's optimal fluid balance."
   }
 }

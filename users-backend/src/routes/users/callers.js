@@ -385,10 +385,14 @@ router.get('/me/feed', authenticate, async (req, res) => {
                 id: alert._id,
                 title,
                 patient: alert.patient_id?.name || 'Assigned Patient',
+                patient_id: alert.patient_id?._id,
                 desc: alert.description || 'Action required.',
                 time: alert.created_at ? new Date(alert.created_at).toLocaleString() : 'Just now',
                 color,
                 type: alert.type,
+                status: alert.status,
+                prescription_url: alert.prescription_url,
+                extracted_medicines: alert.extracted_medicines || []
             };
         });
 
@@ -417,6 +421,30 @@ router.post('/me/heartbeat', authenticate, async (req, res) => {
     } catch (error) {
         console.error('Caller heartbeat error:', error);
         res.status(500).json({ error: 'Failed to update heartbeat' });
+    }
+});
+
+/**
+ * POST /api/users/callers/me/alerts/:alertId/resolve
+ * Resolve/Action an alert
+ */
+router.post('/me/alerts/:alertId/resolve', authenticate, async (req, res) => {
+    try {
+        const caller = await Caller.findOne({ supabase_uid: req.user.id });
+        if (!caller) return res.status(404).json({ error: 'Caller profile not found' });
+
+        const alert = await Alert.findOne({ _id: req.params.alertId });
+        if (!alert) return res.status(404).json({ error: 'Alert not found' });
+
+        alert.status = 'resolved';
+        alert.resolved_at = new Date();
+        alert.action_taken = req.body.action_taken || 'Resolved by caller';
+        await alert.save();
+
+        res.json({ success: true, alert });
+    } catch (error) {
+        console.error('Resolve alert error:', error);
+        res.status(500).json({ error: 'Failed to resolve alert' });
     }
 });
 

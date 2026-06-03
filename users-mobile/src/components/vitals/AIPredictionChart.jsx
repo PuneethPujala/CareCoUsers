@@ -8,14 +8,14 @@ export default function AIPredictionChart({ vitalsHistory, predictionData, metri
   const [chartWidth, setChartWidth] = useState(screenWidth - 100);
   const safeHistory = vitalsHistory || [];
   
-  // ── Client-side fallback prediction (simple linear regression) ──
-  // When the backend AI service has no predictions, generate a basic
-  // 3-day forecast from the most recent readings using least-squares.
+  // ── Client-side fallback prediction (Physiological Mean Reversion) ──
+  // When the backend AI service has no predictions, generate a 3-day
+  // forecast that models homeostasis (reverting towards the patient's
+  // baseline and general physiological averages) rather than linear runaway.
   const effectivePrediction = (() => {
     if (predictionData && predictionData.length > 0) return predictionData;
     if (safeHistory.length < 3) return []; // Need at least 3 points
     
-    // Linear regression on the last N values
     const vals = safeHistory.map(h => h.value).filter(v => v > 0);
     if (vals.length < 3) return [];
     
@@ -31,19 +31,56 @@ export default function AIPredictionChart({ vitalsHistory, predictionData, metri
     const slope = den !== 0 ? num / den : 0;
     const intercept = yMean - slope * xMean;
     
-    // Generate 3 future points
+    // Determine physiological baseline based on metric name
+    const getBaseline = (name) => {
+      const lower = (name || '').toLowerCase();
+      if (lower.includes('heart')) return 75; // 75 bpm HR average
+      if (lower.includes('pressure') || lower.includes('bp') || lower.includes('systolic')) return 120; // 120 mmHg Systolic
+      if (lower.includes('oxygen') || lower.includes('spo')) return 98; // 98% SpO2 average
+      if (lower.includes('hydration')) return 65; // 65% Hydration baseline
+      return 80;
+    };
+
+    const userAverage = yMean;
+    const baseline = getBaseline(metricName);
+    const target = (userAverage + baseline) / 2; // Blend user history and medical standard
+    
+    const lastVal = vals[vals.length - 1];
+    let current = lastVal;
+    let currentSlope = slope * 0.45; // Dampen the initial trend momentum
+    
     const forecasts = [];
     const today = new Date();
+    
     for (let i = 1; i <= 3; i++) {
       const futureDate = new Date(today);
       futureDate.setDate(futureDate.getDate() + i);
-      const predicted = Math.round(intercept + slope * (n - 1 + i));
-      // Clamp to reasonable ranges
-      const clamped = Math.max(0, Math.min(predicted, 300));
+      
+      // Predict using momentum and reversion to baseline
+      const predicted = current + currentSlope + 0.35 * (target - current);
+      
+      // Decay momentum for subsequent days
+      currentSlope *= 0.5;
+      
+      // physiological safety clamps
+      let clamped = predicted;
+      const lowerName = (metricName || '').toLowerCase();
+      if (lowerName.includes('oxygen') || lowerName.includes('spo')) {
+        clamped = Math.max(92, Math.min(predicted, 100)); // Cap SpO2 between 92% and 100%
+      } else if (lowerName.includes('hydration')) {
+        clamped = Math.max(20, Math.min(predicted, 100)); // Cap hydration
+      } else if (lowerName.includes('pressure') || lowerName.includes('bp') || lowerName.includes('systolic')) {
+        clamped = Math.max(85, Math.min(predicted, 180)); // BP limits
+      } else {
+        clamped = Math.max(45, Math.min(predicted, 160)); // HR limits
+      }
+      
+      const rounded = Math.round(clamped);
       forecasts.push({
         label: futureDate.toLocaleDateString([], { month: 'short', day: 'numeric' }),
-        value: clamped,
+        value: rounded,
       });
+      current = clamped;
     }
     return forecasts;
   })();

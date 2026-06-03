@@ -53,6 +53,15 @@ const AlertSchema = new mongoose.Schema(
         action_taken: String,
         description: String,
         resolved_at: Date,
+        prescription_url: String,
+        extracted_medicines: [
+            {
+                name: String,
+                dosage: String,
+                frequency: String,
+                duration: String,
+            }
+        ],
         acknowledged_by: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'Profile',

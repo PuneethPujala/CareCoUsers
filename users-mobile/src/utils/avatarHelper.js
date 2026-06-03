@@ -121,3 +121,72 @@ export const handleAvatarPicker = async (sourceType, userId, currentAvatarUrl, b
         return null;
     }
 };
+
+/**
+ * Launches the camera or library without native cropping to get the raw image URI.
+ */
+export const pickRawImage = async (sourceType) => {
+    try {
+        if (sourceType === 'camera') {
+            const { status } = await ImagePicker.requestCameraPermissionsAsync();
+            if (status !== 'granted') {
+                AlertManager.alert('Permission Denied', 'Camera permission is required to take a photo.');
+                return null;
+            }
+        } else {
+            const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+            if (status !== 'granted') {
+                AlertManager.alert('Permission Denied', 'Library permission is required to choose a photo.');
+                return null;
+            }
+        }
+
+        const pickerOptions = {
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: false,
+            quality: 1,
+        };
+
+        const result = sourceType === 'camera'
+            ? await ImagePicker.launchCameraAsync(pickerOptions)
+            : await ImagePicker.launchImageLibraryAsync(pickerOptions);
+
+        if (result.canceled || !result.assets || result.assets.length === 0) {
+            return null;
+        }
+
+        return result.assets[0].uri;
+    } catch (error) {
+        console.error('Failed to pick raw image:', error);
+        AlertManager.alert('Error', 'Failed to select image.');
+        return null;
+    }
+};
+
+/**
+ * Uploads a cropped base64 avatar image to the backend.
+ */
+export const uploadCroppedAvatar = async (croppedBase64, isPatient = true) => {
+    try {
+        let publicUrl = null;
+        if (isPatient) {
+            const uploadRes = await apiService.patients.uploadAvatar({
+                file_base64: croppedBase64,
+                content_type: 'image/jpeg'
+            });
+            publicUrl = uploadRes.data.avatar_url;
+        } else {
+            const uploadRes = await apiService.auth.uploadAvatar({
+                file_base64: croppedBase64,
+                content_type: 'image/jpeg'
+            });
+            publicUrl = uploadRes.data.avatarUrl;
+        }
+        return publicUrl;
+    } catch (error) {
+        console.error('Avatar upload failed:', error);
+        AlertManager.alert('Upload Failed', 'An error occurred while uploading your profile picture.');
+        return null;
+    }
+};
+

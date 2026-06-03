@@ -765,7 +765,7 @@ export default function MedicationsScreen({ navigation }) {
                         text: 'Take Photo', 
                         onPress: async () => {
                             const result = await ImagePicker.launchCameraAsync({
-                                allowsEditing: true, quality: 0.8, base64: true,
+                                allowsEditing: false, quality: 0.8, base64: true,
                             });
                             processSelectedImage(result);
                         }
@@ -775,7 +775,7 @@ export default function MedicationsScreen({ navigation }) {
                         onPress: async () => {
                             const result = await ImagePicker.launchImageLibraryAsync({
                                 mediaTypes: ImagePicker.MediaTypeOptions.Images,
-                                allowsEditing: true, quality: 0.8, base64: true,
+                                allowsEditing: false, quality: 0.8, base64: true,
                             });
                             processSelectedImage(result);
                         }

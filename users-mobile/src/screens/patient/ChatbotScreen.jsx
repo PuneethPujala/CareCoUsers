@@ -14,6 +14,7 @@ import * as ImagePicker from 'expo-image-picker';
 import usePatientStore from '../../store/usePatientStore';
 import { getApiTokens } from '../../lib/tokenStorage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { apiService } from '../../lib/api';
 
 const INITIAL_SUGGESTIONS = [
     '📋 What should I do today?',
@@ -43,6 +44,28 @@ function generateDynamicGreeting(firstName) {
     }
     
     return `Hi ${firstName}! 👋 I'm your Conversational Care Assistant. I can help you check your medications list, log vitals, view your weekly summary, or coordinate with your care team. How can I help you today?`;
+}
+
+function generateCompanionGreeting(companionFirstName, patientName, companionData) {
+    const patientShortName = patientName?.split(' ')[0] || 'your family member';
+    const medsCount = companionData?.medication_schedule?.length || 0;
+    const takenCount = companionData?.medication_schedule?.filter(m => m.taken).length || 0;
+    const streak = companionData?.patient?.current_streak || 0;
+    
+    if (medsCount > 0 && takenCount === medsCount) {
+        return `Hi ${companionFirstName}! 🎉 ${patientShortName} has taken all ${medsCount} medications scheduled for today. Outstanding job! How can I assist you with their health details right now?`;
+    }
+    
+    if (streak >= 7) {
+        return `Hello ${companionFirstName}! 👋 ${patientShortName} is on a strong ${streak}-day medication streak! Let's keep it going today. How can I help you?`;
+    }
+    
+    if (medsCount > 0 && takenCount < medsCount) {
+        const remaining = medsCount - takenCount;
+        return `Hi ${companionFirstName}! 👋 Just a quick update: ${patientShortName} has ${remaining} medication${remaining > 1 ? 's' : ''} left to take today. I'm here if you have any questions or if you'd like to check their vitals.`;
+    }
+    
+    return `Hi ${companionFirstName}! 👋 I'm your Care Assistant. I can help you check ${patientShortName}'s medications list, view vitals status, review their weekly summary, or check-in on their adherence. How can I help you today?`;
 }
 
 function AdherenceCard({ rate, streak, level }) {
@@ -380,7 +403,7 @@ function TypingIndicator({ stage }) {
 }
 
 // ── Welcome Snapshot Card ───────────────────────────────────────────────────
-function WelcomeSnapshotCard({ firstName, medsCount, takenCount, vitals, streak }) {
+function WelcomeSnapshotCard({ firstName, medsCount, takenCount, vitals, streak, userRole, patientName }) {
     const remaining = medsCount - takenCount;
     
     // Determine BP text
@@ -397,6 +420,11 @@ function WelcomeSnapshotCard({ firstName, medsCount, takenCount, vitals, streak 
     const hr = new Date().getHours();
     const greeting = hr < 12 ? 'Good morning' : hr < 17 ? 'Good afternoon' : 'Good evening';
     
+    const isCompanion = userRole === 'companion';
+    const subText = isCompanion 
+        ? `Here is ${patientName || 'your family member'}'s health snapshot.`
+        : "Here's your health snapshot for today.";
+        
     return (
         <View style={styles.welcomeCard}>
             <LinearGradient 
@@ -407,7 +435,7 @@ function WelcomeSnapshotCard({ firstName, medsCount, takenCount, vitals, streak 
             >
                 <View style={styles.welcomeContent}>
                     <Text style={styles.welcomeTitle}>{greeting}, <Text style={{ fontWeight: '800', color: '#4F46E5' }}>{firstName}!</Text> 👋</Text>
-                    <Text style={styles.welcomeSub}>Here's your health snapshot for today.</Text>
+                    <Text style={styles.welcomeSub}>{subText}</Text>
                     
                     <View style={styles.snapshotRow}>
                         <View style={styles.snapshotBadge}>
@@ -440,7 +468,10 @@ function WelcomeSnapshotCard({ firstName, medsCount, takenCount, vitals, streak 
 }
 
 // ── Quick Actions Dashboard ────────────────────────────────────────────────
-function QuickActionsDashboard({ onPress }) {
+function QuickActionsDashboard({ onPress, userRole, patientName }) {
+    const isCompanion = userRole === 'companion';
+    const patientShortName = patientName?.split(' ')[0] || 'Patient';
+    
     return (
         <View style={styles.actionsDashboard}>
             <View style={styles.actionsHeader}>
@@ -451,58 +482,58 @@ function QuickActionsDashboard({ onPress }) {
             <View style={styles.actionsGrid}>
                 {/* Row 1 */}
                 <View style={styles.actionsGridRow}>
-                    <Pressable style={styles.actionGridCard} onPress={() => onPress('📋 What should I do today?')}>
+                    <Pressable style={styles.actionGridCard} onPress={() => onPress(isCompanion ? `📋 What should ${patientShortName} do today?` : '📋 What should I do today?')}>
                         <View style={[styles.actionIconBox, { backgroundColor: '#FFF7ED' }]}>
                             <Calendar size={18} color="#EA580C" />
                         </View>
                         <View style={styles.actionCardContent}>
-                            <Text style={styles.actionCardTitle}>What should I do today?</Text>
-                            <Text style={styles.actionCardSub}>See today's plan</Text>
+                            <Text style={styles.actionCardTitle}>{isCompanion ? `What should ${patientShortName} do today?` : 'What should I do today?'}</Text>
+                            <Text style={styles.actionCardSub}>{isCompanion ? "See patient's plan" : "See today's plan"}</Text>
                         </View>
                     </Pressable>
                     
-                    <Pressable style={styles.actionGridCard} onPress={() => onPress('📊 Weekly Health Summary')}>
+                    <Pressable style={styles.actionGridCard} onPress={() => onPress(isCompanion ? `📊 ${patientShortName}'s Weekly Health Summary` : '📊 Weekly Health Summary')}>
                         <View style={[styles.actionIconBox, { backgroundColor: '#ECFDF5' }]}>
                             <TrendingUp size={18} color="#059669" />
                         </View>
                         <View style={styles.actionCardContent}>
-                            <Text style={styles.actionCardTitle}>Weekly Health Summary</Text>
-                            <Text style={styles.actionCardSub}>Your progress this week</Text>
+                            <Text style={styles.actionCardTitle}>{isCompanion ? `${patientShortName}'s Weekly Summary` : 'Weekly Health Summary'}</Text>
+                            <Text style={styles.actionCardSub}>{isCompanion ? "Patient's progress this week" : "Your progress this week"}</Text>
                         </View>
                     </Pressable>
                 </View>
                 
                 {/* Row 2 */}
                 <View style={styles.actionsGridRow}>
-                    <Pressable style={styles.actionGridCard} onPress={() => onPress('💊 My medications list')}>
+                    <Pressable style={styles.actionGridCard} onPress={() => onPress(isCompanion ? `💊 ${patientShortName}'s medications list` : '💊 My medications list')}>
                         <View style={[styles.actionIconBox, { backgroundColor: '#EEF2FF' }]}>
                             <Pill size={18} color="#4F46E5" />
                         </View>
                         <View style={styles.actionCardContent}>
-                            <Text style={styles.actionCardTitle}>My medications list</Text>
-                            <Text style={styles.actionCardSub}>View all your meds</Text>
+                            <Text style={styles.actionCardTitle}>{isCompanion ? `${patientShortName}'s meds list` : 'My medications list'}</Text>
+                            <Text style={styles.actionCardSub}>{isCompanion ? "View patient's meds" : "View all your meds"}</Text>
                         </View>
                     </Pressable>
                     
-                    <Pressable style={styles.actionGridCard} onPress={() => onPress('📈 My adherence streak')}>
+                    <Pressable style={styles.actionGridCard} onPress={() => onPress(isCompanion ? `📈 ${patientShortName}'s adherence streak` : '📈 My adherence streak')}>
                         <View style={[styles.actionIconBox, { backgroundColor: '#FFF1F2' }]}>
                             <Flame size={18} color="#E11D48" />
                         </View>
                         <View style={styles.actionCardContent}>
-                            <Text style={styles.actionCardTitle}>My adherence streak</Text>
-                            <Text style={styles.actionCardSub}>Track your consistency</Text>
+                            <Text style={styles.actionCardTitle}>{isCompanion ? `${patientShortName}'s adherence streak` : 'My adherence streak'}</Text>
+                            <Text style={styles.actionCardSub}>{isCompanion ? "Track patient's consistency" : "Track your consistency"}</Text>
                         </View>
                     </Pressable>
                 </View>
             </View>
             
             {/* Center Card 5 */}
-            <Pressable style={styles.actionCardCenter} onPress={() => onPress('🩺 View vitals status')}>
+            <Pressable style={styles.actionCardCenter} onPress={() => onPress(isCompanion ? `🩺 View ${patientShortName}'s vitals status` : '🩺 View vitals status')}>
                 <View style={[styles.actionIconBox, { backgroundColor: '#F0FDF4' }]}>
                     <Activity size={18} color="#16A34A" />
                 </View>
                 <View style={styles.actionCardContent}>
-                    <Text style={styles.actionCardTitle}>View vitals status</Text>
+                    <Text style={styles.actionCardTitle}>{isCompanion ? `View ${patientShortName}'s vitals status` : 'View vitals status'}</Text>
                     <Text style={styles.actionCardSub}>Check BP, HR & more</Text>
                 </View>
             </Pressable>
@@ -513,7 +544,9 @@ function QuickActionsDashboard({ onPress }) {
                     <Shield size={18} color="#4F46E5" />
                 </View>
                 <Text style={styles.privacyText}>
-                    Your health data is private, secure, and used only to support your care.
+                    {isCompanion 
+                        ? `Patient health data is private, secure, and used only to support their care.`
+                        : `Your health data is private, secure, and used only to support your care.`}
                 </Text>
                 <Pressable style={styles.privacyLearnBtn}>
                     <Text style={styles.privacyLearnText}>Learn more</Text>
@@ -528,13 +561,59 @@ function QuickActionsDashboard({ onPress }) {
 // ══════════════════════════════════════════════════════════════════════════════
 export default function ChatbotScreen({ navigation, route }) {
     const { t } = useTranslation();
-    const { displayName, user } = useAuth();
+    const { displayName, user, profile, userRole } = useAuth();
     const patient = usePatientStore(state => state.patient);
+    const companionSelectedPatientId = usePatientStore(state => state.companionSelectedPatientId);
+    
+    const isCompanion = userRole === 'companion' || profile?.role === 'companion';
+    const targetPatientId = isCompanion ? companionSelectedPatientId : patient?._id;
+
+    // Companion specific data fetching
+    const [companionData, setCompanionData] = useState(null);
+    const [isCompanionLoading, setIsCompanionLoading] = useState(isCompanion);
+
+    useEffect(() => {
+        const fetchCompanionPatientData = async () => {
+            if (!companionSelectedPatientId) {
+                setIsCompanionLoading(false);
+                return;
+            }
+            try {
+                setIsCompanionLoading(true);
+                const res = await apiService.companion.getPatientStatus({ patientId: companionSelectedPatientId });
+                setCompanionData(res.data);
+            } catch (err) {
+                console.warn('Failed to fetch patient data for companion', err);
+            } finally {
+                setIsCompanionLoading(false);
+            }
+        };
+        if (isCompanion) {
+            fetchCompanionPatientData();
+        }
+    }, [companionSelectedPatientId, isCompanion]);
+
     const dashboardMeds = usePatientStore(state => state.dashboardMeds || []);
-    const medsCount = dashboardMeds.length;
-    const takenCount = dashboardMeds.filter(m => m.taken).length;
+    const medsCount = isCompanion
+        ? (companionData?.medication_schedule?.length || 0)
+        : dashboardMeds.length;
+    const takenCount = isCompanion
+        ? (companionData?.medication_schedule?.filter(m => m.taken).length || 0)
+        : dashboardMeds.filter(m => m.taken).length;
     const vitals = usePatientStore(state => state.vitals);
+    const activeVitals = isCompanion
+        ? (companionData?.latest_vital ? {
+            systolic: companionData.latest_vital.bp_systolic,
+            diastolic: companionData.latest_vital.bp_diastolic,
+            heartRate: companionData.latest_vital.heart_rate,
+            spo2: companionData.latest_vital.spo2,
+          } : null)
+        : vitals;
     const adherenceDetails = usePatientStore(state => state.adherenceDetails);
+    const activeStreak = isCompanion
+        ? (companionData?.patient?.current_streak || 0)
+        : (adherenceDetails?.streak || 0);
+
     const insets = useSafeAreaInsets();
     const flatListRef = useRef(null);
     const xhrRef = useRef(null); // Track active SSE stream for abort/cancellation
@@ -570,19 +649,26 @@ export default function ChatbotScreen({ navigation, route }) {
     const firstName = displayName?.split(' ')[0] || 'there';
 
     const [messages, setMessages] = useState([]);
+    const [isHistoryLoaded, setIsHistoryLoaded] = useState(false);
 
     useEffect(() => {
-        if (messages.length === 0) {
+        if (isHistoryLoaded && messages.length === 0) {
+            if (isCompanion && !companionData) return; // Wait for companion patient data before initializing greeting
+            
+            const greetingText = isCompanion
+                ? generateCompanionGreeting(firstName, companionData?.patient?.name, companionData)
+                : generateDynamicGreeting(firstName);
+
             setMessages([
                 {
                     id: '1',
-                    text: generateDynamicGreeting(firstName),
+                    text: greetingText,
                     isUser: false,
                     timestamp: Date.now(),
                 }
             ]);
         }
-    }, [messages.length, firstName]);
+    }, [messages.length, firstName, isCompanion, companionData, isHistoryLoaded]);
 
     const scrollToBottom = useCallback(() => {
         setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
@@ -593,9 +679,12 @@ export default function ChatbotScreen({ navigation, route }) {
     // Load Chat History from AsyncStorage
     useEffect(() => {
         const loadHistory = async () => {
-            if (!patient?._id) return;
+            if (!targetPatientId) {
+                setIsHistoryLoaded(true);
+                return;
+            }
             try {
-                const stored = await AsyncStorage.getItem(`@caremymed_chatbot_messages_${patient._id}`);
+                const stored = await AsyncStorage.getItem(`@caremymed_chatbot_messages_${targetPatientId}`);
                 if (stored) {
                     const parsed = JSON.parse(stored);
                     if (parsed && parsed.length > 0) {
@@ -605,25 +694,27 @@ export default function ChatbotScreen({ navigation, route }) {
                 }
             } catch (err) {
                 console.log('Failed to load chat history', err);
+            } finally {
+                setIsHistoryLoaded(true);
             }
         };
         loadHistory();
-    }, [patient?._id]);
+    }, [targetPatientId]);
 
     // Save Chat History to AsyncStorage
     useEffect(() => {
         const saveHistory = async () => {
-            if (!patient?._id || messages.length <= 1) return;
+            if (!targetPatientId || messages.length <= 1) return;
             try {
                 // Keep only the last 50 messages to avoid payload limits
                 const messagesToSave = messages.slice(-50);
-                await AsyncStorage.setItem(`@caremymed_chatbot_messages_${patient._id}`, JSON.stringify(messagesToSave));
+                await AsyncStorage.setItem(`@caremymed_chatbot_messages_${targetPatientId}`, JSON.stringify(messagesToSave));
             } catch (err) {
                 console.log('Failed to save chat history', err);
             }
         };
         saveHistory();
-    }, [messages, patient?._id]);
+    }, [messages, targetPatientId]);
 
     // Cleanup audio and abort active stream on unmount
     useEffect(() => {
@@ -680,10 +771,15 @@ export default function ChatbotScreen({ navigation, route }) {
                     throw new Error('Not authenticated. Please log in again.');
                 }
                 const token = tokens.access_token;
-                const targetLanguage = patient?.preferredLanguage ?? patient?.language ?? 'en';
+                const targetLanguage = isCompanion
+                    ? (companionData?.patient?.preferredLanguage ?? companionData?.patient?.language ?? 'en')
+                    : (patient?.preferredLanguage ?? patient?.language ?? 'en');
 
                 const formData = new FormData();
                 formData.append('targetLanguage', targetLanguage);
+                if (targetPatientId) {
+                    formData.append('patientId', targetPatientId);
+                }
 
                 if (isAudio && recordingUri) {
                     setTypingStage('📝 Transcribing...');
@@ -910,7 +1006,7 @@ export default function ChatbotScreen({ navigation, route }) {
             setIsTyping(false);
             setTypingStage('');
         }
-    }, [inputText, recording, user, patient]);
+    }, [inputText, recording, user, patient, isCompanion, companionData, targetPatientId]);
 
     const handleClearChat = () => {
         Alert.alert(
@@ -925,8 +1021,8 @@ export default function ChatbotScreen({ navigation, route }) {
                         try {
                             setMessages([]);
                             setFollowUpSuggestions([]);
-                            if (patient?._id) {
-                                await AsyncStorage.removeItem(`@caremymed_chatbot_messages_${patient._id}`);
+                            if (targetPatientId) {
+                                await AsyncStorage.removeItem(`@caremymed_chatbot_messages_${targetPatientId}`);
                             }
                         } catch (err) {
                             console.log('Failed to clear chat history', err);
@@ -941,7 +1037,7 @@ export default function ChatbotScreen({ navigation, route }) {
         try {
             const result = await ImagePicker.launchImageLibraryAsync({
                 mediaTypes: ImagePicker.MediaTypeOptions.Images,
-                allowsEditing: true,
+                allowsEditing: false,
                 quality: 0.8,
             });
 
@@ -1110,18 +1206,30 @@ export default function ChatbotScreen({ navigation, route }) {
                     contentContainerStyle={styles.messageList}
                     showsVerticalScrollIndicator={false}
                     ListHeaderComponent={
-                        <WelcomeSnapshotCard
-                            firstName={patient?.first_name || displayName || 'there'}
-                            medsCount={medsCount}
-                            takenCount={takenCount}
-                            vitals={vitals}
-                            streak={adherenceDetails?.streak || 0}
-                        />
+                        isCompanion && isCompanionLoading ? (
+                            <View style={{ padding: 20, alignItems: 'center' }}>
+                                <ActivityIndicator size="small" color="#6366F1" />
+                            </View>
+                        ) : (
+                            <WelcomeSnapshotCard
+                                firstName={isCompanion ? (displayName || 'there') : (patient?.first_name || displayName || 'there')}
+                                medsCount={medsCount}
+                                takenCount={takenCount}
+                                vitals={activeVitals}
+                                streak={activeStreak}
+                                userRole={userRole}
+                                patientName={companionData?.patient?.name}
+                            />
+                        )
                     }
                     ListFooterComponent={
                         <>
                             {messages.length <= 2 && (
-                                <QuickActionsDashboard onPress={(s) => handleSend(s)} />
+                                <QuickActionsDashboard 
+                                    onPress={(s) => handleSend(s)} 
+                                    userRole={userRole}
+                                    patientName={companionData?.patient?.name}
+                                />
                             )}
                             {isTyping ? <TypingIndicator stage={typingStage} /> : null}
                             {!isTyping && followUpSuggestions.length > 0 ? (

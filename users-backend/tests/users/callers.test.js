@@ -398,4 +398,44 @@ describe('User Callers Routes', () => {
             expect(res.status).toBe(404);
         });
     });
+
+    // ── POST /api/users/callers/me/alerts/:alertId/resolve ────────────────────
+
+    describe('POST /api/users/callers/me/alerts/:alertId/resolve', () => {
+
+        it('resolves an alert successfully', async () => {
+            const caller = makeCaller();
+            const alert = {
+                _id: fakeId('alert-id'),
+                status: 'open',
+                save: jest.fn().mockResolvedValue(true)
+            };
+
+            Caller.findOne = jest.fn().mockResolvedValue(caller);
+            Alert.findOne = jest.fn().mockResolvedValue(alert);
+
+            const res = await request(app)
+                .post('/api/users/callers/me/alerts/alert-id/resolve')
+                .send({ action_taken: 'Resolved manually' });
+
+            expect(res.status).toBe(200);
+            expect(res.body.success).toBe(true);
+            expect(alert.status).toBe('resolved');
+            expect(alert.action_taken).toBe('Resolved manually');
+            expect(alert.save).toHaveBeenCalled();
+        });
+
+        it('returns 404 when alert not found', async () => {
+            const caller = makeCaller();
+            Caller.findOne = jest.fn().mockResolvedValue(caller);
+            Alert.findOne = jest.fn().mockResolvedValue(null);
+
+            const res = await request(app)
+                .post('/api/users/callers/me/alerts/nonexistent/resolve')
+                .send({ action_taken: 'Resolved manually' });
+
+            expect(res.status).toBe(404);
+            expect(res.body.error).toBe('Alert not found');
+        });
+    });
 });

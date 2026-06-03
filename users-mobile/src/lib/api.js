@@ -289,6 +289,8 @@ export const apiService = {
             api.post('/users/patients/me/flag-issue', {
                 type: 'medication_modification',
                 description: data?.description || 'Patient requests medication review/modification on next call.',
+                file_url: data?.file_url,
+                extracted_medicines: data?.extracted_medicines,
             }),
         getPreviousCallers: () => api.get('/users/patients/me/previous-callers'),
         getVitals: (params) => api.get('/users/patients/me/vitals', { params }),
@@ -348,6 +350,7 @@ export const apiService = {
         updatePatientMedications: (id, medications) => api.patch(`/users/callers/me/patients/${id}/medications`, { medications }),
         getStats: () => api.get('/users/callers/me/stats'),
         getActivityFeed: () => api.get('/users/callers/me/feed'),
+        resolveAlert: (alertId, data) => api.post(`/users/callers/me/alerts/${alertId}/resolve`, data),
     },
 
     medicines: {

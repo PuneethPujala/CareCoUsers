@@ -61,23 +61,42 @@ export default function PrescriptionVerificationScreen({ navigation, route }) {
     useEffect(() => {
         let isMounted = true;
         const processImage = async () => {
+            let success = false;
             try {
                 const response = await apiService.patients.extractOCR(imageBase64);
                 if (isMounted) {
                     if (response.data?.success && response.data?.data?.medications) {
                         setMedications(response.data.data.medications);
+                        success = true;
                     } else {
                         throw new Error('Could not parse medications from image.');
                     }
                 }
             } catch (error) {
                 if (isMounted) {
-                    AlertManager.alert('Extraction Failed', 'We could not cleanly read this prescription. Please enter the medications manually.', [
-                        { text: 'OK', onPress: () => navigation.goBack() }
-                    ]);
+                    AlertManager.alert(
+                        'Extraction Failed',
+                        'We could not cleanly read this prescription. Would you like to proceed and enter the medications manually?',
+                        [
+                            {
+                                text: 'Proceed Manually',
+                                onPress: () => {
+                                    setMedications([]);
+                                    setIsAnalyzing(false);
+                                }
+                            },
+                            {
+                                text: 'Cancel',
+                                style: 'cancel',
+                                onPress: () => navigation.goBack()
+                            }
+                        ]
+                    );
                 }
             } finally {
-                if (isMounted) setIsAnalyzing(false);
+                if (isMounted && success) {
+                    setIsAnalyzing(false);
+                }
             }
         };
 
@@ -113,18 +132,28 @@ export default function PrescriptionVerificationScreen({ navigation, route }) {
         setIsSaving(true);
         try {
             // Filter out empty ones
-            const validMeds = medications.filter(m => m.name.trim() !== '');
+            const validMeds = medications.filter(m => m.name && m.name.trim() !== '');
             const medNames = validMeds.map(m => m.name.trim()).join(', ');
 
             // 1. Upload prescription to database
-            await apiService.patients.uploadPrescription({
+            const uploadRes = await apiService.patients.uploadPrescription({
                 file_base64: imageBase64,
                 content_type: 'image/jpeg'
             });
 
+            const uploadedArray = uploadRes.data?.uploaded_prescriptions || [];
+            const fileUrl = uploadedArray[uploadedArray.length - 1]?.file_url || '';
+
             // 2. Submit the modification request
             await apiService.patients.requestMedicationModification({
-                description: `Patient requested medication review. Extracted medicines: ${medNames || 'none'}`
+                description: `Patient uploaded a prescription for review. Medicines: ${medNames || 'none'}`,
+                file_url: fileUrl,
+                extracted_medicines: validMeds.map(m => ({
+                    name: m.name,
+                    dosage: m.dosage || '',
+                    frequency: m.frequency || '',
+                    duration: m.duration || ''
+                }))
             });
 
             // 3. Trigger refresh callback if provided
@@ -197,6 +226,22 @@ export default function PrescriptionVerificationScreen({ navigation, route }) {
                             Review and correct any fields below. Fields with a yellow warning need extra attention.
                         </Text>
                     </View>
+
+                    {/* Prescription Document Preview */}
+                    <Text style={styles.sectionTitle}>Prescription Document</Text>
+                    {imageUri ? (
+                        <View style={styles.imageFrame}>
+                            <Image
+                                source={{ uri: imageUri }}
+                                style={styles.prescriptionImage}
+                                resizeMode="contain"
+                            />
+                        </View>
+                    ) : (
+                        <View style={styles.noImageFrame}>
+                            <Text style={styles.noImageText}>No prescription image provided.</Text>
+                        </View>
+                    )}
 
                     {medications.map((med, index) => {
                         const needsConfirmation = med.confidence < 0.7 && !med.isEdited;
@@ -354,6 +399,12 @@ const styles = StyleSheet.create({
     },
     saveBtnDisabled: { opacity: 0.5 },
     saveBtnText: { fontSize: 16, fontWeight: '800', color: '#FFF' },
+
+    imageFrame: { width: '100%', height: 260, borderRadius: 16, borderWidth: 1, borderColor: '#CBD5E1', overflow: 'hidden', backgroundColor: '#F8FAFC', marginVertical: 8 },
+    prescriptionImage: { width: '100%', height: '100%' },
+    sectionTitle: { fontSize: 15, fontWeight: '800', color: '#334155', marginTop: 12, letterSpacing: 0.3 },
+    noImageFrame: { width: '100%', height: 100, borderRadius: 16, borderWidth: 1.5, borderColor: '#E2E8F0', borderStyle: 'dashed', backgroundColor: '#F8FAFC', alignItems: 'center', justifyContent: 'center', marginVertical: 8 },
+    noImageText: { fontSize: 13, color: '#94A3B8', fontWeight: '500' },
 
     // Overlay styles
     overlayContainer: { flex: 1, backgroundColor: '#0F172A', alignItems: 'center', justifyContent: 'center' },

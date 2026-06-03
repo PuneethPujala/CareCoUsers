@@ -175,6 +175,88 @@ export default function PatientHomeScreen({ navigation }) {
     const isCached = usePatientStore((s) => s.isCached);
     const storeFetchDashboard = usePatientStore((s) => s.fetchDashboard);
 
+    const activeInsights = useMemo(() => {
+        const list = [];
+        if (!vitals) return list;
+
+        const hr = Number(vitals.heart_rate);
+        const sys = Number(vitals.blood_pressure?.systolic);
+        const dia = Number(vitals.blood_pressure?.diastolic);
+        const spo2 = Number(vitals.oxygen_saturation);
+        const hyd = Number(vitals.hydration);
+        const isSmoker = patient?.smoking_status === 'current';
+
+        // 1. Heart Rate
+        if (hr > 100) {
+            list.push({
+                key: 'hr_high',
+                title: t('advisor.hr_high_title', { defaultValue: 'Elevated Heart Rate' }),
+                desc: t('advisor.hr_high_desc', { hr, defaultValue: `Your heart rate is currently elevated at ${hr} bpm. Try to slow down what you're doing, sit down comfortably, and take slow, deep breaths for 2 minutes.` }),
+                type: 'warning',
+                color: '#EF4444',
+                icon: Heart
+            });
+        } else if (hr > 0 && hr < 55) {
+            list.push({
+                key: 'hr_low',
+                title: t('advisor.hr_low_title', { defaultValue: 'Low Heart Rate' }),
+                desc: t('advisor.hr_low_desc', { hr, defaultValue: `Your heart rate is slightly low at ${hr} bpm. Ensure you are resting. If you feel dizzy or lightheaded, please sit or lie down and contact your doctor.` }),
+                type: 'warning',
+                color: '#3B82F6',
+                icon: Heart
+            });
+        }
+
+        // 2. Oxygen (SpO2)
+        if (spo2 > 0 && spo2 < 95) {
+            list.push({
+                key: 'spo2_low',
+                title: t('advisor.spo2_low_title', { defaultValue: 'Oxygen Levels Below Optimal' }),
+                desc: isSmoker
+                    ? t('advisor.spo2_low_smoker_desc', { spo2, defaultValue: `Your oxygen saturation is low at ${spo2}%. As a smoker, this is a critical reminder to step away from cigarettes immediately. Open windows to improve indoor airflow and step outside for fresh air.` })
+                    : t('advisor.spo2_low_desc', { spo2, defaultValue: `Your oxygen saturation is low at ${spo2}%. Step outside for fresh air, open windows to improve ventilation, and practice deep, steady breathing. Sit upright, and contact your doctor if it continues to drop.` }),
+                type: 'critical',
+                color: '#EF4444',
+                icon: Wind
+            });
+        }
+
+        // 3. Blood Pressure
+        if (sys > 140 || dia > 90) {
+            list.push({
+                key: 'bp_high',
+                title: t('advisor.bp_high_title', { defaultValue: 'Elevated Blood Pressure' }),
+                desc: t('advisor.bp_high_desc', { sys, dia, defaultValue: `Your blood pressure is elevated at ${sys}/${dia} mmHg. Consider resting in a quiet space, drinking a glass of water, and avoiding high-sodium foods today.` }),
+                type: 'warning',
+                color: '#EF4444',
+                icon: Activity
+            });
+        } else if (sys > 0 && sys < 90) {
+            list.push({
+                key: 'bp_low',
+                title: t('advisor.bp_low_title', { defaultValue: 'Low Blood Pressure' }),
+                desc: t('advisor.bp_low_desc', { sys, dia, defaultValue: `Your blood pressure is low at ${sys}/${dia} mmHg. Try to sit or lie down, drink a glass of water, and avoid rising too quickly from a seated position.` }),
+                type: 'warning',
+                color: '#3B82F6',
+                icon: Activity
+            });
+        }
+
+        // 4. Hydration
+        if (hyd > 0 && hyd < 60) {
+            list.push({
+                key: 'hyd_low',
+                title: t('advisor.hyd_low_title', { defaultValue: 'Dehydration Warning' }),
+                desc: t('advisor.hyd_low_desc', { hyd, defaultValue: `Your hydration level is low at ${hyd}%. Drink a large glass of water now to help restore your body's optimal fluid balance.` }),
+                type: 'info',
+                color: '#0EA5E9',
+                icon: Droplets
+            });
+        }
+
+        return list;
+    }, [vitals, patient, t]);
+
     const [loading, setLoading] = useState(true);
     const [unreadCount, setUnreadCount] = useState(0);
     const [isLogging, setIsLogging] = useState(false);
@@ -848,171 +930,97 @@ export default function PatientHomeScreen({ navigation }) {
                                     </View>
                                 )}
 
-                                {/* AI Health Outlook or Forecast Training Progress */}
-                                {loggedDaysCount >= 3 ? (
-                                    <View style={styles.card}>
-                                        <View style={styles.cardHeaderRow}>
-                                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, marginRight: 8 }}>
-                                                <LinearGradient colors={['#EEF2FF', '#C7D2FE']} style={styles.aiIconBox}>
-                                                    <Sparkles size={16} color="#6366F1" />
-                                                </LinearGradient>
-                                                <Text style={[styles.cardTitle, { flexShrink: 1 }]} numberOfLines={1}>{t('common.ai_health_outlook', { defaultValue: 'AI Health Outlook' })}</Text>
-                                            </View>
-                                            {aiPrediction && (
-                                                <View style={[
-                                                    styles.aiBadge,
-                                                    aiPrediction.health_label === 'Critical' ? styles.aiBadgeRed :
-                                                        aiPrediction.health_label === 'Warning' ? styles.aiBadgeOrange :
-                                                            styles.aiBadgeGreen,
-                                                ]}>
-                                                    <View style={[styles.aiBadgeDot, {
-                                                        backgroundColor: aiPrediction.health_label === 'Critical' ? '#EF4444' :
-                                                            aiPrediction.health_label === 'Warning' ? '#F59E0B' : '#10B981'
-                                                    }]} />
-                                                    <Text style={[
-                                                        styles.aiBadgeText,
-                                                        { color: aiPrediction.health_label === 'Critical' ? '#DC2626' : aiPrediction.health_label === 'Warning' ? '#D97706' : '#16A34A' },
-                                                    ]}>{aiPrediction.health_label}</Text>
-                                                </View>
-                                            )}
+                                {/* AI Health Outlook / Live Vitals Coach */}
+                                <View style={styles.card}>
+                                    <View style={styles.cardHeaderRow}>
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, marginRight: 8 }}>
+                                            <LinearGradient colors={['#EEF2FF', '#C7D2FE']} style={styles.aiIconBox}>
+                                                <Sparkles size={16} color="#6366F1" />
+                                            </LinearGradient>
+                                            <Text style={[styles.cardTitle, { flexShrink: 1 }]} numberOfLines={1}>
+                                                {t('common.ai_health_outlook', { defaultValue: 'AI Health Outlook' })}
+                                            </Text>
                                         </View>
+                                        <View style={[styles.aiBadge, styles.aiBadgeGreen]}>
+                                            <View style={[styles.aiBadgeDot, { backgroundColor: '#10B981' }]} />
+                                            <Text style={[styles.aiBadgeText, { color: '#16A34A' }]}>
+                                                {t('home.live_coach', { defaultValue: 'Live Coach' })}
+                                            </Text>
+                                        </View>
+                                    </View>
 
-                                        {/* AI Forecast Confidence Score */}
-                                        <View style={styles.confidenceRow}>
-                                            <Text style={styles.confidenceLabel}>Forecast Reliability:</Text>
-                                            {vitalsHistory && vitalsHistory.length >= 14 ? (
-                                                <View style={[styles.confidenceBadge, { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' }]}>
-                                                    <View style={[styles.confidenceDot, { backgroundColor: '#10B981' }]} />
-                                                    <Text style={[styles.confidenceText, { color: '#047857' }]}>High</Text>
-                                                </View>
-                                            ) : vitalsHistory && vitalsHistory.length >= 6 ? (
-                                                <View style={[styles.confidenceBadge, { backgroundColor: '#FFFBEB', borderColor: '#FDE68A' }]}>
-                                                    <View style={[styles.confidenceDot, { backgroundColor: '#F59E0B' }]} />
-                                                    <Text style={[styles.confidenceText, { color: '#B45309' }]}>Medium</Text>
+                                    <Text style={styles.aiDesc}>
+                                        {t('home.ai_coach_desc', { defaultValue: 'Real-time analysis and personalized advice based on your current vital measurements.' })}
+                                    </Text>
+
+                                    <View style={{ marginTop: 4 }}>
+                                        {hasVitalsToday ? (
+                                            activeInsights.length > 0 ? (
+                                                <View style={styles.advisorList}>
+                                                    {activeInsights.map((insight) => {
+                                                        const InsightIcon = insight.icon;
+                                                        return (
+                                                            <View key={insight.key} style={[styles.advisorCard, { borderLeftColor: insight.color }]}>
+                                                                <View style={styles.advisorHeader}>
+                                                                    <View style={[styles.advisorIconBubble, { backgroundColor: insight.color + '15' }]}>
+                                                                        <InsightIcon size={16} color={insight.color} strokeWidth={2.5} />
+                                                                    </View>
+                                                                    <Text style={styles.advisorCardTitle}>{insight.title}</Text>
+                                                                </View>
+                                                                <Text style={styles.advisorDesc}>{insight.desc}</Text>
+                                                            </View>
+                                                        );
+                                                    })}
                                                 </View>
                                             ) : (
-                                                <View style={[styles.confidenceBadge, { backgroundColor: '#FEF2F2', borderColor: '#FCA5A5' }]}>
-                                                    <View style={[styles.confidenceDot, { backgroundColor: '#EF4444' }]} />
-                                                    <Text style={[styles.confidenceText, { color: '#B91C1C' }]}>Low</Text>
+                                                <View style={styles.stableCard}>
+                                                    <LinearGradient colors={['#ECFDF5', '#F0FDF4']} style={styles.stableGradient}>
+                                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+                                                            <View style={styles.stableCheckCircle}>
+                                                                <CheckCircle2 size={16} color="#10B981" strokeWidth={3} />
+                                                            </View>
+                                                            <Text style={styles.stableTitle}>
+                                                                {t('home.all_stable_title', { defaultValue: 'Vitals Stable' })}
+                                                            </Text>
+                                                        </View>
+                                                        <Text style={styles.stableDesc}>
+                                                            {t('home.all_stable_desc', { defaultValue: 'All tracked vitals are currently stable and within optimal ranges. Great job! Keep up the good work and maintain a healthy routine.' })}
+                                                        </Text>
+                                                    </LinearGradient>
                                                 </View>
-                                            )}
-                                        </View>
-
-                                        <Text style={styles.aiDesc}>{t('home.ai_desc', { defaultValue: 'Our AI analyzes your vitals history to forecast trends and flag potential concerns.' })}</Text>
-                                        <View style={{ marginTop: 10 }}>
-                                            {daysPremiumRemaining <= 0 && (
-                                                <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(255,255,255,0.75)', zIndex: 10, alignItems: 'center', justifyContent: 'center', borderRadius: 16, marginTop: -10 }]}>
-                                                    <Pressable onPress={() => openPremium()} style={{ backgroundColor: '#FFF', paddingHorizontal: 16, paddingVertical: 12, borderRadius: 24, shadowColor: '#A855F7', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 12, elevation: 6, flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderColor: '#F3E8FF' }}>
-                                                        <Sparkles size={16} color="#A855F7" />
-                                                        <Text style={{ fontSize: 13, fontWeight: '800', color: '#6B21A8' }}>{t('home.renew_personalized_ai', { defaultValue: 'Renew to continue personalized AI analysis' })}</Text>
+                                            )
+                                        ) : (
+                                            !syncStatus.connected ? (
+                                                <View style={styles.pendingCard}>
+                                                    <Text style={styles.pendingTitle}>
+                                                        {t('home.link_wearable_title', { defaultValue: 'Link Your Wearable' })}
+                                                    </Text>
+                                                    <Text style={[styles.pendingDesc, { marginBottom: 4 }]}>
+                                                        {t('home.link_wearable_desc', { defaultValue: 'Connect your smartwatch via Health Connect to sync live vitals automatically and receive real-time coaching insights.' })}
+                                                    </Text>
+                                                    <Pressable
+                                                        style={styles.linkButton}
+                                                        onPress={() => navigation.navigate('HealthConnectSetup')}
+                                                    >
+                                                        <Watch size={14} color="#FFF" style={{ marginRight: 6 }} />
+                                                        <Text style={styles.linkButtonText}>
+                                                            {t('home.link_smartwatch_btn', { defaultValue: 'Link Smartwatch' })}
+                                                        </Text>
                                                     </Pressable>
                                                 </View>
-                                            )}
-                                            <AIPredictionChart
-                                                metricName="Heart Rate"
-                                                unit="bpm"
-                                                vitalsHistory={vitalsHistory.map(v => ({
-                                                    label: new Date(v.date).toLocaleDateString([], { month: 'short', day: 'numeric' }),
-                                                    value: v.heart_rate,
-                                                }))}
-                                                predictionData={aiPrediction?.predictions ? aiPrediction.predictions.map(p => ({
-                                                    label: new Date(p.date).toLocaleDateString([], { month: 'short', day: 'numeric' }),
-                                                    value: p.heart_rate,
-                                                })) : null}
-                                            />
-                                        </View>
-                                    </View>
-                                ) : (
-                                    <View style={styles.card}>
-                                        <View style={styles.cardHeaderRow}>
-                                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, marginRight: 8 }}>
-                                                <LinearGradient colors={['#F5F3FF', '#EDE9FE']} style={[styles.aiIconBox, { backgroundColor: '#F5F3FF' }]}>
-                                                    <Sparkles size={16} color="#8B5CF6" />
-                                                </LinearGradient>
-                                                <Text style={[styles.cardTitle, { flexShrink: 1 }]} numberOfLines={1}>{t('common.ai_health_outlook', { defaultValue: 'AI Health Outlook' })}</Text>
-                                            </View>
-                                            <View style={[styles.aiBadge, { backgroundColor: '#F3E8FF', borderColor: '#E9D5FF', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 }]}>
-                                                <Text style={[styles.aiBadgeText, { color: '#7C3AED', fontSize: 11, fontWeight: '700' }]}>
-                                                    {t('home.forecast_preview', { defaultValue: 'Forecast Preview' })}
-                                                </Text>
-                                            </View>
-                                        </View>
-
-                                        {/* Custom ECG Pulse illustration */}
-                                        <PulseIllustration />
-
-                                        <View style={{ marginTop: 8, paddingHorizontal: 4 }}>
-                                            <Text style={{ fontSize: 15, fontWeight: '700', color: '#1E293B', marginBottom: 12 }}>
-                                                {t('home.forecast_training_progress', { defaultValue: 'Forecast Training Progress' })}
-                                            </Text>
-                                            
-                                            {/* Progress Circles */}
-                                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-                                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                                                    <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: loggedDaysCount >= 1 ? '#8B5CF6' : '#F1F5F9', alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: loggedDaysCount >= 1 ? '#8B5CF6' : '#CBD5E1' }}>
-                                                        {loggedDaysCount >= 1 ? <CheckCircle2 size={12} color="#FFF" strokeWidth={3} /> : <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#94A3B8' }} />}
-                                                    </View>
-                                                    <Text style={{ fontSize: 13, fontWeight: '600', color: loggedDaysCount >= 1 ? '#1E293B' : '#64748B' }}>{t('home.day_1', { defaultValue: 'Day 1' })}</Text>
-                                                </View>
-                                                
-                                                <View style={{ width: 16, height: 1, backgroundColor: '#E2E8F0' }} />
-
-                                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                                                    <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: loggedDaysCount >= 2 ? '#8B5CF6' : '#F1F5F9', alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: loggedDaysCount >= 2 ? '#8B5CF6' : '#CBD5E1' }}>
-                                                        {loggedDaysCount >= 2 ? <CheckCircle2 size={12} color="#FFF" strokeWidth={3} /> : <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#94A3B8' }} />}
-                                                    </View>
-                                                    <Text style={{ fontSize: 13, fontWeight: '600', color: loggedDaysCount >= 2 ? '#1E293B' : '#64748B' }}>{t('home.day_2', { defaultValue: 'Day 2' })}</Text>
-                                                </View>
-                                                
-                                                <View style={{ width: 16, height: 1, backgroundColor: '#E2E8F0' }} />
-
-                                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                                                    <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: loggedDaysCount >= 3 ? '#8B5CF6' : '#F1F5F9', alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: loggedDaysCount >= 3 ? '#8B5CF6' : '#CBD5E1' }}>
-                                                        {loggedDaysCount >= 3 ? <CheckCircle2 size={12} color="#FFF" strokeWidth={3} /> : <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#94A3B8' }} />}
-                                                    </View>
-                                                    <Text style={{ fontSize: 13, fontWeight: '600', color: loggedDaysCount >= 3 ? '#1E293B' : '#64748B' }}>{t('home.day_3', { defaultValue: 'Day 3' })}</Text>
-                                                </View>
-                                            </View>
-
-                                            <Text style={{ fontSize: 13, color: '#475569', lineHeight: 20, marginBottom: 14 }}>
-                                                {loggedDaysCount === 0 && t('home.days_required_3', { defaultValue: '3 more days of health data required to generate a personalized forecast.' })}
-                                                {loggedDaysCount === 1 && t('home.days_required_2', { defaultValue: '2 more days of health data required to generate a personalized forecast.' })}
-                                                {loggedDaysCount === 2 && t('home.days_required_1', { defaultValue: '1 more day of health data required to generate a personalized forecast.' })}
-                                            </Text>
-
-                                            <View style={{ backgroundColor: '#F8FAFC', borderRadius: 14, padding: 12, borderWidth: 1, borderColor: '#F1F5F9', marginBottom: 16 }}>
-                                                <Text style={{ fontSize: 12, color: '#64748B', lineHeight: 18 }}>
-                                                    💡 <Text style={{ fontWeight: '600' }}>{t('home.smartwatch_path_label', { defaultValue: 'Smartwatch path:' })}</Text> {t('home.smartwatch_path_text', { defaultValue: 'Log vitals manually for 3 days or connect your smartwatch to activate forecasting sooner.' })}
-                                                </Text>
-                                            </View>
-
-                                            {!hasVitalsToday && (
-                                                <Pressable
-                                                    style={{
-                                                        backgroundColor: '#6366F1',
-                                                        borderRadius: 20,
-                                                        paddingVertical: 10,
-                                                        alignItems: 'center',
-                                                        justifyContent: 'center',
-                                                        flexDirection: 'row',
-                                                        gap: 6
-                                                    }}
-                                                    onPress={() => {
-                                                        scrollViewRef.current?.scrollTo({ y: vitalsSectionY.current + 110, animated: true });
-                                                        setTimeout(() => {
-                                                            heartRateInputRef.current?.focus();
-                                                        }, 350);
-                                                    }}
-                                                >
-                                                    <Activity size={14} color="#FFF" />
-                                                    <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '700' }}>
-                                                        {t('home.log_today_s_vitals', { defaultValue: "Log Today's Vitals" })}
+                                            ) : (
+                                                <View style={styles.pendingCard}>
+                                                    <Text style={styles.pendingTitle}>
+                                                        {t('home.pending_vitals_title', { defaultValue: 'Awaiting Vitals' })}
                                                     </Text>
-                                                </Pressable>
-                                            )}
-                                        </View>
+                                                    <Text style={styles.pendingDesc}>
+                                                        {t('home.pending_vitals_desc', { defaultValue: 'No smartwatch or manual vitals synced today. Make sure your watch is connected, or enter vitals manually below.' })}
+                                                    </Text>
+                                                </View>
+                                            )
+                                        )}
                                     </View>
-                                )}
+                                </View>
 
                                 {/* Collapsible log vitals row (only shown if they already logged today) */}
                                 {hasVitalsToday && (
@@ -1270,5 +1278,106 @@ const styles = StyleSheet.create({
     tipLabel: { fontSize: 11, fontWeight: '800', color: '#6366F1', letterSpacing: 1.2, textTransform: 'uppercase' },
     tipText: { fontSize: 14, color: '#3730A3', lineHeight: 22, fontWeight: '500' },
 
-
+    // ── Vitals Coach / Advisor ──
+    advisorList: {
+        gap: 12,
+        marginTop: 4,
+    },
+    advisorCard: {
+        backgroundColor: '#F8FAFC',
+        borderRadius: 16,
+        padding: 16,
+        borderLeftWidth: 4,
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
+    },
+    advisorHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+        marginBottom: 8,
+    },
+    advisorIconBubble: {
+        width: 32,
+        height: 32,
+        borderRadius: 10,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    advisorCardTitle: {
+        fontSize: 14,
+        fontWeight: '800',
+        color: '#1E293B',
+    },
+    advisorDesc: {
+        fontSize: 13,
+        color: '#475569',
+        lineHeight: 20,
+    },
+    stableCard: {
+        borderRadius: 20,
+        overflow: 'hidden',
+        borderWidth: 1,
+        borderColor: '#A7F3D0',
+    },
+    stableGradient: {
+        padding: 18,
+    },
+    stableCheckCircle: {
+        width: 28,
+        height: 28,
+        borderRadius: 9,
+        backgroundColor: '#DCFCE7',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    stableTitle: {
+        fontSize: 15,
+        fontWeight: '800',
+        color: '#065F46',
+    },
+    stableDesc: {
+        fontSize: 13,
+        color: '#047857',
+        lineHeight: 20,
+        fontWeight: '500',
+    },
+    pendingCard: {
+        backgroundColor: '#F8FAFC',
+        borderRadius: 20,
+        padding: 18,
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 24,
+    },
+    pendingTitle: {
+        fontSize: 15,
+        fontWeight: '800',
+        color: '#475569',
+        marginBottom: 6,
+        textAlign: 'center',
+    },
+    pendingDesc: {
+        fontSize: 13,
+        color: '#64748B',
+        lineHeight: 20,
+        textAlign: 'center',
+    },
+    linkButton: {
+        backgroundColor: '#6366F1',
+        borderRadius: 14,
+        paddingVertical: 10,
+        paddingHorizontal: 16,
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexDirection: 'row',
+        marginTop: 12,
+    },
+    linkButtonText: {
+        color: '#FFF',
+        fontSize: 13,
+        fontWeight: '700',
+    },
 });

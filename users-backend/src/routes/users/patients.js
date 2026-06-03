@@ -1554,7 +1554,7 @@ router.get('/me/ai-prediction', authenticateSession, async (req, res) => {
 
 router.post('/me/flag-issue', authenticateSession, async (req, res) => {
     try {
-        const { type, description } = req.body;
+        const { type, description, file_url, extracted_medicines } = req.body;
         const patient = await getOrCreatePatient(req);
         const Alert = require('../../models/Alert');
         const alert = new Alert({
@@ -1565,6 +1565,8 @@ router.post('/me/flag-issue', authenticateSession, async (req, res) => {
             organization_id: patient.organization_id,
             description,
             auto_generated: false,
+            prescription_url: file_url,
+            extracted_medicines: extracted_medicines,
         });
         await alert.save();
         res.status(201).json({ message: 'Issue flagged successfully', alert });

@@ -380,7 +380,9 @@ export default function MyCallerScreen({ navigation }) {
                         </LinearGradient>
                       )}
                     </View>
-                    <View style={s.heroOnlineDot} />
+                    <View style={[s.heroOnlineDot, { 
+                      backgroundColor: caller.availability === 'available' ? '#10B981' : caller.availability === 'away' ? '#F59E0B' : caller.availability === 'busy' ? '#EF4444' : '#94A3B8' 
+                    }]} />
                   </View>
 
                   {/* Info */}
@@ -391,7 +393,7 @@ export default function MyCallerScreen({ navigation }) {
                       <View style={{ 
                         flexDirection: 'row', 
                         alignItems: 'center', 
-                        backgroundColor: caller.availability === 'available' ? '#D1FAE5' : caller.availability === 'away' ? '#FEF3C7' : '#F1F5F9',
+                        backgroundColor: caller.availability === 'available' ? '#D1FAE5' : caller.availability === 'away' ? '#FEF3C7' : caller.availability === 'busy' ? '#FEE2E2' : '#F1F5F9',
                         paddingHorizontal: 8,
                         paddingVertical: 2,
                         borderRadius: 8,
@@ -400,15 +402,15 @@ export default function MyCallerScreen({ navigation }) {
                           width: 6, 
                           height: 6, 
                           borderRadius: 3, 
-                          backgroundColor: caller.availability === 'available' ? '#10B981' : caller.availability === 'away' ? '#F59E0B' : '#64748B',
+                          backgroundColor: caller.availability === 'available' ? '#10B981' : caller.availability === 'away' ? '#F59E0B' : caller.availability === 'busy' ? '#EF4444' : '#94A3B8',
                           marginRight: 4 
                         }} />
                         <Text style={{ 
                           fontSize: 10, 
                           fontWeight: '700', 
-                          color: caller.availability === 'available' ? '#065F46' : caller.availability === 'away' ? '#92400E' : '#475569' 
+                          color: caller.availability === 'available' ? '#065F46' : caller.availability === 'away' ? '#92400E' : caller.availability === 'busy' ? '#991B1B' : '#475569' 
                         }}>
-                          {caller.availability === 'available' ? '🟢 Available' : caller.availability === 'away' ? '🟡 Away' : '🔴 Offline'}
+                          {caller.availability === 'available' ? 'Available' : caller.availability === 'away' ? 'Away' : caller.availability === 'busy' ? 'Busy' : 'Offline'}
                         </Text>
                       </View>
                     </View>
@@ -699,7 +701,14 @@ export default function MyCallerScreen({ navigation }) {
                               <Text style={s.sheetAvatarLetter}>{profileName.charAt(0)}</Text>
                             </LinearGradient>
                           )}
-                          <View style={s.sheetOnlineDot} />
+                          <View style={[
+                            s.sheetOnlineDot,
+                            {
+                              backgroundColor: isManager 
+                                ? '#10B981' 
+                                : (selectedProfile?.availability === 'available' ? '#10B981' : selectedProfile?.availability === 'away' ? '#F59E0B' : selectedProfile?.availability === 'busy' ? '#EF4444' : '#94A3B8')
+                            }
+                          ]} />
                         </View>
                         <View style={s.sheetHeroInfo}>
                           <Text style={s.sheetName} numberOfLines={1}>{profileName}</Text>

@@ -597,145 +597,7 @@ export default function VitalsHistoryScreen({ navigation }) {
         }
     };
 
-    // ─── Render: Wearable Status Widget ──────────────────────────
-    const renderWearableWidget = () => {
-        const lastSyncText = syncStatus.lastSync
-            ? `Synced ${Math.round((Date.now() - new Date(syncStatus.lastSync)) / 60000)}m ago`
-            : 'Never synced';
-        
-        const lastSyncDiffHours = syncStatus.lastSync
-            ? (Date.now() - new Date(syncStatus.lastSync)) / (60000 * 60)
-            : 999;
 
-        // Determine status
-        let statusColor = '#EF4444';
-        let statusLabel = 'Attention Needed';
-        let reasons = [];
-
-        if (syncStatus.permissionStatus !== 'granted') {
-            reasons.push('Permission revoked/not granted');
-        }
-        if (!syncStatus.lastSync) {
-            reasons.push('No sync data imported yet');
-        }
-
-        if (syncStatus.connected && syncStatus.permissionStatus === 'granted') {
-            if (lastSyncDiffHours < 1) {
-                statusColor = '#10B981';
-                statusLabel = 'Healthy';
-            } else if (lastSyncDiffHours < 24) {
-                statusColor = '#F59E0B';
-                statusLabel = 'Delayed';
-                reasons.push(`Last sync was ${Math.round(lastSyncDiffHours)} hours ago`);
-            } else {
-                statusColor = '#EF4444';
-                statusLabel = 'Attention Needed';
-                reasons.push('Last sync was more than 24 hours ago');
-            }
-        }
-
-        const spin = syncRotateAnim.interpolate({
-            inputRange: [0, 1],
-            outputRange: ['0deg', '360deg'],
-        });
-
-        return (
-            <Animated.View style={[{ opacity: staggerAnims[0], transform: [{ translateY: staggerAnims[0].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }, styles.wearableCard]}>
-                <View style={styles.wearableTop}>
-                    <View style={styles.wearableTitleRow}>
-                        <View style={styles.watchIconContainer}>
-                            <Watch size={20} color="#6366F1" />
-                        </View>
-                        <View>
-                            <Text style={styles.wearableTitle}>Smartwatch Sync</Text>
-                            <Text style={styles.wearableSub}>
-                                {syncStatus.latestSource === 'healthkit' ? 'Linked to Apple Health' : 'Linked to Health Connect'}
-                            </Text>
-                        </View>
-                    </View>
-                    <Pressable
-                        style={[styles.syncNowBtn, manualSyncing && styles.syncNowBtnDisabled]}
-                        onPress={handleManualSync}
-                        disabled={manualSyncing}
-                    >
-                        <Animated.View style={{ transform: [{ rotate: spin }] }}>
-                            <RefreshCw size={14} color="#6366F1" strokeWidth={2.5} />
-                        </Animated.View>
-                        <Text style={styles.syncNowTxt}>{manualSyncing ? 'Syncing...' : 'Sync Now'}</Text>
-                    </Pressable>
-                </View>
-
-                {/* Sync statistics grid */}
-                <View style={styles.syncStatsGrid}>
-                    <View style={styles.syncStatCell}>
-                        <Text style={styles.syncStatLabel}>Status</Text>
-                        <View style={styles.syncStatusBadgeInline}>
-                            <View style={[styles.syncStatusDotInline, { backgroundColor: statusColor }]} />
-                            <Text style={[styles.syncStatusTextInline, { color: statusColor }]}>{statusLabel}</Text>
-                        </View>
-                    </View>
-                    <View style={styles.syncStatCell}>
-                        <Text style={styles.syncStatLabel}>Last Sync</Text>
-                        <Text style={styles.syncStatVal}>{lastSyncText}</Text>
-                    </View>
-                    <View style={styles.syncStatCell}>
-                        <Text style={styles.syncStatLabel}>Imported Today</Text>
-                        <Text style={styles.syncStatVal}>{syncStatus.readingsToday} records</Text>
-                    </View>
-                </View>
-
-                {/* Attention Needed Diagnostics */}
-                {statusLabel === 'Attention Needed' && (
-                    <View style={styles.diagnosticsBox}>
-                        <Text style={styles.diagnosticsTitle}>Connection Diagnostics:</Text>
-                        {reasons.map((r, i) => (
-                            <Text key={i} style={styles.diagnosticsReason}>• {r}</Text>
-                        ))}
-                        <Pressable
-                            style={styles.fixConnectionBtn}
-                            onPress={() => navigation.navigate('HealthConnectSetup')}
-                        >
-                            <Text style={styles.fixConnectionTxt}>Fix Connection</Text>
-                        </Pressable>
-                    </View>
-                )}
-            </Animated.View>
-        );
-    };
-
-    // ─── Render: Data Coverage Widget ──────────────────────────
-    const renderDataCoverageWidget = () => {
-        const metrics = [
-            { label: 'Heart Rate', key: 'heartRate', pct: coverageMetrics.heartRate, icon: Heart, color: '#CC5B31' },
-            { label: 'Blood Pressure', key: 'bloodPressure', pct: coverageMetrics.bloodPressure, icon: Activity, color: '#4B88D6' },
-            { label: 'SpO₂', key: 'oxygenSaturation', pct: coverageMetrics.oxygenSaturation, icon: Wind, color: '#4DA379' },
-        ];
-
-        return (
-            <Animated.View style={[{ opacity: staggerAnims[0], transform: [{ translateY: staggerAnims[0].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }, styles.coverageCard]}>
-                <View style={styles.coverageHeader}>
-                    <Text style={styles.coverageTitle}>7-Day Data Coverage</Text>
-                    <Text style={styles.coverageSub}>passively logged telemetry density</Text>
-                </View>
-                <View style={styles.coverageBarsList}>
-                    {metrics.map(m => (
-                        <View key={m.key} style={m.key !== 'heartRate' && { marginTop: 12 }}>
-                            <View style={styles.coverageBarTop}>
-                                <View style={styles.coverageLabelRow}>
-                                    <m.icon size={12} color={m.color} style={{ marginRight: 6 }} />
-                                    <Text style={styles.coverageBarLabel}>{m.label}</Text>
-                                </View>
-                                <Text style={[styles.coverageBarPct, { color: m.color }]}>{m.pct}%</Text>
-                            </View>
-                            <View style={styles.coverageTrack}>
-                                <View style={[styles.coverageProgress, { width: `${m.pct}%`, backgroundColor: m.color }]} />
-                            </View>
-                        </View>
-                    ))}
-                </View>
-            </Animated.View>
-        );
-    };
 
     // ─── Render: Header ──────────────────────────────────────────
     const renderHeader = () => {
@@ -1077,158 +939,71 @@ export default function VitalsHistoryScreen({ navigation }) {
         );
     };
 
-    // ─── Render: Intelligence Card ───────────────────────────────
-    const renderIntelligenceCard = (def) => {
+    // ─── Render: AI Health Coach Card ────────────────────────────
+    const renderAIHealthCoach = (def) => {
         if (!def || !vitals.length) return null;
+        
         const latest = vitals[0];
         const val = def.extract(latest);
         const text = def.insight ? def.insight(val) : 'Stable readings recorded.';
-        return (
-            <Animated.View style={[styles.insightCard, { opacity: fadeAnim }]}>
-                <LinearGradient colors={[def.accent + '22', def.bgTint || '#FFFFFF']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} />
-                <View style={[styles.insightIconBubble, { backgroundColor: def.accent + '22' }]}>
-                    <Sparkles size={18} color={def.accent} />
-                </View>
-                <View style={styles.insightBody}>
-                    <Text style={[styles.insightEyebrow, { color: def.accent }]}>AI Health Insight</Text>
-                    <Text style={styles.insightText}>{text}</Text>
-                </View>
-            </Animated.View>
-        );
-    };
-
-    // ─── Render: AI Trend Insights ──────────────────────────────
-    const renderTrendInsights = () => {
-        if (!trendInsights) {
-            return (
-                <Animated.View style={[{ opacity: staggerAnims[0], transform: [{ translateY: staggerAnims[0].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }, styles.insightCardContainer]}>
-                    <View style={styles.insightHeader}>
-                        <View style={styles.insightTitleLeft}>
-                            <Sparkles size={16} color="#6366F1" />
-                            <Text style={styles.insightMainTitle}>AI Trend Insights</Text>
-                        </View>
-                    </View>
-                    <View style={styles.insightEmptyBox}>
-                        <Activity size={20} color="#94A3B8" style={{ marginBottom: 6 }} />
-                        <Text style={styles.insightEmptyTxt}>
-                            Awaiting telemetry data to construct your 7-day trend analysis.
-                        </Text>
-                    </View>
-                </Animated.View>
-            );
+        
+        // Let's get trend details if they exist in trendInsights
+        let trendDetail = null;
+        if (trendInsights) {
+            if (def.id === 'heart_rate') trendDetail = trendInsights.heartRate;
+            else if (def.id === 'blood_pressure') trendDetail = trendInsights.bloodPressure;
+            else if (def.id === 'oxygen_saturation') trendDetail = trendInsights.oxygen;
         }
 
         const themes = {
-            stable: { bg: '#ECFDF5', border: '#A7F3D0', text: '#065F46' },
-            improving: { bg: '#ECFDF5', border: '#A7F3D0', text: '#065F46' },
-            warning: { bg: '#FFFBEB', border: '#FDE68A', text: '#92400E' },
-            normal: { bg: '#F0FDF4', border: '#BBF7D0', text: '#166534' },
-            dips: { bg: '#FEF2F2', border: '#FCA5A5', text: '#991B1B' }
+            stable: { bg: '#F0FDF4', border: '#DCFCE7', text: '#15803D' },
+            improving: { bg: '#F0FDF4', border: '#DCFCE7', text: '#15803D' },
+            warning: { bg: '#FFFBEB', border: '#FEF3C7', text: '#B45309' },
+            normal: { bg: '#F0FDF4', border: '#DCFCE7', text: '#15803D' },
+            dips: { bg: '#FEF2F2', border: '#FEE2E2', text: '#B91C1C' }
         };
-
         const getTheme = (key) => themes[key] || themes.stable;
-
-        // Fetch medication adherence from Zustand store for the observational correlation
+        
         const adherenceDetails = usePatientStore.getState().adherenceDetails;
         const isAdherenceHigh = adherenceDetails?.rate >= 80 || adherenceDetails?.streak >= 3;
 
         return (
-            <Animated.View style={[{ opacity: staggerAnims[0], transform: [{ translateY: staggerAnims[0].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }, styles.insightCardContainer]}>
-                <View style={styles.insightHeader}>
-                    <View style={styles.insightTitleLeft}>
-                        <Sparkles size={16} color="#6366F1" />
-                        <Text style={styles.insightMainTitle}>AI Trend Insights</Text>
+            <Animated.View style={[{ opacity: fadeAnim }, styles.coachCard]}>
+                <View style={styles.coachHeader}>
+                    <View style={styles.coachTitleGroup}>
+                        <View style={styles.coachIconBubble}>
+                            <Sparkles size={18} color="#6366F1" fill="#6366F1" />
+                        </View>
+                        <Text style={styles.coachTitle}>AI Health Coach</Text>
                     </View>
-                    <View style={styles.sourceAwareBadge}>
-                        <Text style={styles.sourceAwareText}>
-                            {trendInsights.wearablePct}% Wearable · {trendInsights.manualPct}% Manual
+                    {trendDetail && (
+                        <View style={[styles.coachStatusBadge, { backgroundColor: getTheme(trendDetail.theme).bg, borderColor: getTheme(trendDetail.theme).border }]}>
+                            <Text style={[styles.coachStatusText, { color: getTheme(trendDetail.theme).text }]}>
+                                {trendDetail.label}
+                            </Text>
+                        </View>
+                    )}
+                </View>
+
+                <View style={styles.coachBody}>
+                    <Text style={styles.coachInsightText}>{text}</Text>
+                    
+                    {trendDetail && trendDetail.confidence && (
+                        <Text style={styles.coachSubtext}>
+                            7-Day Trend: {trendDetail.label.toLowerCase()} • {trendDetail.confidence} confidence ({trendDetail.readings} readings)
+                        </Text>
+                    )}
+
+                    <View style={styles.coachDivider} />
+
+                    <View style={styles.coachAdherenceRow}>
+                        <CheckCircle2 size={13} color="#6366F1" style={{ marginRight: 6 }} />
+                        <Text style={styles.coachAdherenceText}>
+                            {isAdherenceHigh
+                                ? "Excellent medication adherence matches your stable vital trends."
+                                : "Consistency in your meds can help improve your vital trends."}
                         </Text>
                     </View>
-                </View>
-
-                {/* Insight metrics list */}
-                <View style={styles.insightsList}>
-                    {/* Heart Rate Insight */}
-                    <View style={styles.insightListItem}>
-                        <View style={styles.insightListLeft}>
-                            <View style={[styles.insightIconBoxMini, { backgroundColor: '#FEE2E2' }]}>
-                                <Heart size={14} color="#EF4444" fill="#EF4444" />
-                            </View>
-                            <View style={{ flex: 1 }}>
-                                <Text style={styles.insightMetricName}>Heart Rate</Text>
-                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
-                                    <View style={[styles.inlineStatusBadge, { backgroundColor: getTheme(trendInsights.heartRate.theme).bg, borderColor: getTheme(trendInsights.heartRate.theme).border }]}>
-                                        <Text style={[styles.inlineStatusTxt, { color: getTheme(trendInsights.heartRate.theme).text }]}>
-                                            {trendInsights.heartRate.label}
-                                        </Text>
-                                    </View>
-                                    <Text style={styles.insightReadingsCount}>
-                                        Confidence: {trendInsights.heartRate.confidence} ({trendInsights.heartRate.readings} logs)
-                                    </Text>
-                                </View>
-                            </View>
-                        </View>
-                    </View>
-
-                    {/* Blood Pressure Insight */}
-                    <View style={[styles.insightListItem, { borderTopWidth: 1, borderTopColor: '#F1F5F9', paddingTop: 12, marginTop: 12 }]}>
-                        <View style={styles.insightListLeft}>
-                            <View style={[styles.insightIconBoxMini, { backgroundColor: '#E0F2FE' }]}>
-                                <Activity size={14} color="#0EA5E9" />
-                            </View>
-                            <View style={{ flex: 1 }}>
-                                <Text style={styles.insightMetricName}>Blood Pressure</Text>
-                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
-                                    <View style={[styles.inlineStatusBadge, { backgroundColor: getTheme(trendInsights.bloodPressure.theme).bg, borderColor: getTheme(trendInsights.bloodPressure.theme).border }]}>
-                                        <Text style={[styles.inlineStatusTxt, { color: getTheme(trendInsights.bloodPressure.theme).text }]}>
-                                            {trendInsights.bloodPressure.label}
-                                        </Text>
-                                    </View>
-                                    <Text style={styles.insightReadingsCount}>
-                                        Confidence: {trendInsights.bloodPressure.confidence} ({trendInsights.bloodPressure.readings} logs)
-                                    </Text>
-                                </View>
-                            </View>
-                        </View>
-                    </View>
-
-                    {/* Oxygen Insight */}
-                    <View style={[styles.insightListItem, { borderTopWidth: 1, borderTopColor: '#F1F5F9', paddingTop: 12, marginTop: 12 }]}>
-                        <View style={styles.insightListLeft}>
-                            <View style={[styles.insightIconBoxMini, { backgroundColor: '#ECFDF5' }]}>
-                                <Wind size={14} color="#10B981" />
-                            </View>
-                            <View style={{ flex: 1 }}>
-                                <Text style={styles.insightMetricName}>Oxygen Saturation (SpO₂)</Text>
-                                <Text style={styles.insightOxygenDesc}>
-                                    {trendInsights.oxygen.desc}
-                                </Text>
-                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
-                                    <View style={[styles.inlineStatusBadge, { backgroundColor: getTheme(trendInsights.oxygen.theme).bg, borderColor: getTheme(trendInsights.oxygen.theme).border }]}>
-                                        <Text style={[styles.inlineStatusTxt, { color: getTheme(trendInsights.oxygen.theme).text }]}>
-                                            {trendInsights.oxygen.label}
-                                        </Text>
-                                    </View>
-                                    <Text style={styles.insightReadingsCount}>
-                                        Confidence: {trendInsights.oxygen.confidence} ({trendInsights.oxygen.readings} logs)
-                                    </Text>
-                                </View>
-                            </View>
-                        </View>
-                    </View>
-                </View>
-
-                {/* Medication Adherence Correlation Block */}
-                <View style={styles.correlationBlock}>
-                    <View style={styles.correlationHeader}>
-                        <CheckCircle2 size={13} color="#6366F1" style={{ marginRight: 5 }} />
-                        <Text style={styles.correlationTitle}>Medication Adherence Observation</Text>
-                    </View>
-                    <Text style={styles.correlationDesc}>
-                        {isAdherenceHigh
-                            ? "Excellent medication adherence this week has matched stable vital telemetry trends."
-                            : "Improving medication consistency is recommended to help maintain stable vital trends."}
-                    </Text>
                 </View>
             </Animated.View>
         );
@@ -1282,14 +1057,6 @@ export default function VitalsHistoryScreen({ navigation }) {
                 >
                     {initialLoading ? renderSkeleton() : (
                         <>
-                            {/* ── Wearable Status Widget ────────── */}
-                            {renderWearableWidget()}
-
-                            {/* ── Data Coverage Widget ──────────── */}
-                            {renderDataCoverageWidget()}
-
-                            {/* ── AI Trend Insights Widget ──────── */}
-                            {renderTrendInsights()}
 
                             {/* ── Hero Summary Card ───────────── */}
                             {renderHeroCard()}
@@ -1440,8 +1207,8 @@ export default function VitalsHistoryScreen({ navigation }) {
                             {/* ── Chart ───────────────────────── */}
                             {!loading && vitals.length > 0 && renderChartCard(def)}
 
-                            {/* ── Intelligence ────────────────── */}
-                            {renderIntelligenceCard(def)}
+                            {/* ── AI Health Coach ──────────────── */}
+                            {renderAIHealthCoach(def)}
 
                             {/* ── History List ────────────────── */}
                             <Animated.View style={[{ opacity: staggerAnims[3], transform: [{ translateY: staggerAnims[3].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }, { marginTop: 8 }]}>
@@ -1467,52 +1234,53 @@ export default function VitalsHistoryScreen({ navigation }) {
 
                                 {historyLogs.length === 0 ? (
                                     <View style={styles.historyEmpty}>
-                                        <Clock size={20} color="#CBD5E1" />
                                         <Text style={styles.historyEmptyText}>No logs recorded on this date.</Text>
                                     </View>
                                 ) : (
-                                    historyLogs.slice().reverse().map((log, idx) => (
-                                        <View key={log._id || idx} style={styles.historyCard}>
-                                            <View style={styles.historyCardHeader}>
-                                                <View style={styles.historyTimeRow}>
-                                                    <View style={styles.historyTimeDot} />
-                                                    <Clock size={12} color="#6366F1" />
-                                                    <Text style={styles.historyTime}>
-                                                        {new Date(log.date).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }).toLowerCase()}
-                                                    </Text>
-                                                    {/* Smartwatch / Manual Source Lineage Badge */}
-                                                    {log.source && log.source !== 'manual' ? (
-                                                        <View style={[styles.sourceBadge, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]}>
-                                                            <Watch size={10} color="#3B82F6" style={{ marginRight: 3 }} />
-                                                            <Text style={[styles.sourceBadgeText, { color: '#2563EB' }]}>
-                                                                {log.source === 'health_connect' ? 'Health Connect' : log.source === 'healthkit' ? 'Apple Health' : log.source}
-                                                            </Text>
-                                                        </View>
-                                                    ) : (
-                                                        <View style={[styles.sourceBadge, { backgroundColor: '#F8FAFC', borderColor: '#E2E8F0' }]}>
-                                                            <Text style={[styles.sourceBadgeText, { color: '#64748B' }]}>✍️ Manual</Text>
-                                                        </View>
-                                                    )}
-                                                </View>
-                                                <View style={styles.historyEntryBadge}>
-                                                    <Text style={styles.historyEntryNum}>#{historyLogs.length - idx}</Text>
-                                                </View>
-                                            </View>
-                                            <View style={styles.historyChipsGrid}>
-                                                {METRIC_CHIPS.map(m => (
-                                                    <View key={m.key} style={[styles.historyChip, { backgroundColor: m.bg, borderColor: m.border }]}>
-                                                        <View style={styles.historyChipTop}>
-                                                            <m.icon size={11} color={m.color} />
-                                                            <Text style={[styles.historyChipLabel, { color: m.color }]}>{m.label}</Text>
-                                                        </View>
-                                                        <Text style={[styles.historyChipValue, { color: m.color }]}>
-                                                            {m.getValue(log)}<Text style={styles.historyChipUnit}> {m.unit}</Text>
-                                                        </Text>
+                                    <View style={styles.timelineContainer}>
+                                        <View style={styles.timelineLine} />
+                                        {historyLogs.slice().reverse().map((log, idx) => {
+                                            const isLast = idx === historyLogs.length - 1;
+                                            return (
+                                                <View key={log._id || idx} style={[styles.timelineItem, isLast && { marginBottom: 0 }]}>
+                                                    <View style={styles.timelineDotOuter}>
+                                                        <View style={styles.timelineDotInner} />
                                                     </View>
-                                                ))}
-                                            </View>
-                                        </View>
-                                    ))
+                                                    
+                                                    <View style={styles.timelineContent}>
+                                                        <View style={styles.timelineHeader}>
+                                                            <View style={styles.timelineTimeRow}>
+                                                                <Text style={styles.timelineTime}>
+                                                                    {new Date(log.date).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }).toLowerCase()}
+                                                                </Text>
+                                                                {log.source && log.source !== 'manual' ? (
+                                                                    <Text style={styles.timelineSource}>
+                                                                        via {log.source === 'health_connect' ? 'Health Connect' : log.source === 'healthkit' ? 'Apple Health' : log.source}
+                                                                    </Text>
+                                                                ) : (
+                                                                    <Text style={styles.timelineSource}>via Manual</Text>
+                                                                )}
+                                                            </View>
+                                                            <Text style={styles.timelineIndex}>#{historyLogs.length - idx}</Text>
+                                                        </View>
+
+                                                        <View style={styles.timelineMetricsRow}>
+                                                            {METRIC_CHIPS.map(m => (
+                                                                <View key={m.key} style={styles.timelineMetricBadge}>
+                                                                    <m.icon size={11} color={m.color} style={{ marginRight: 4 }} />
+                                                                    <Text style={styles.timelineMetricLabel}>{m.label}</Text>
+                                                                    <Text style={[styles.timelineMetricValue, { color: m.color }]}>
+                                                                        {m.getValue(log)}
+                                                                        <Text style={styles.timelineMetricUnit}> {m.unit}</Text>
+                                                                    </Text>
+                                                                </View>
+                                                            ))}
+                                                        </View>
+                                                    </View>
+                                                </View>
+                                            );
+                                        })}
+                                    </View>
                                 )}
                             </Animated.View>
                         </>
@@ -1709,80 +1477,201 @@ const styles = StyleSheet.create({
     landscapeChart: { borderRadius: 20, alignSelf: 'center' },
     closeFullscreenBtn: { position: 'absolute', top: 20, right: 20, zIndex: 1000, backgroundColor: '#F1F5F9', width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.12, shadowRadius: 8, elevation: 6 },
 
-    /* Wearable Card */
-    wearableCard: {
-        backgroundColor: '#FFFFFF', borderRadius: 24, padding: 20, marginBottom: 20,
-        borderWidth: 1, borderColor: '#F1F5F9',
-        shadowColor: '#6366F1', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.05, shadowRadius: 16, elevation: 4,
+    /* AI Health Coach */
+    coachCard: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: 24,
+        padding: 20,
+        marginBottom: 20,
+        borderWidth: 1,
+        borderColor: '#F1F5F9',
+        shadowColor: '#6366F1',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.06,
+        shadowRadius: 18,
+        elevation: 4,
+        overflow: 'hidden',
     },
-    wearableTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 },
-    wearableTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-    watchIconContainer: { width: 42, height: 42, borderRadius: 14, backgroundColor: '#EEF2FF', alignItems: 'center', justifyContent: 'center' },
-    wearableTitle: { fontSize: 16, fontWeight: '900', color: '#0F172A' },
-    wearableSub: { fontSize: 12, fontWeight: '600', color: '#64748B', marginTop: 2 },
-    syncNowBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#EEF2FF', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: '#C7D2FE' },
-    syncNowBtnDisabled: { opacity: 0.6 },
-    syncNowTxt: { fontSize: 13, fontWeight: '800', color: '#6366F1' },
-    syncStatsGrid: { flexDirection: 'row', gap: 10, borderTopWidth: 1, borderTopColor: '#F1F5F9', paddingTop: 16 },
-    syncStatCell: { flex: 1, backgroundColor: '#F8FAFC', borderRadius: 14, padding: 12, borderWidth: 1, borderColor: '#F1F5F9' },
-    syncStatLabel: { fontSize: 10, fontWeight: '800', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 },
-    syncStatusBadgeInline: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-    syncStatusDotInline: { width: 6, height: 6, borderRadius: 3 },
-    syncStatusTextInline: { fontSize: 11, fontWeight: '800' },
-    syncStatVal: { fontSize: 12, fontWeight: '800', color: '#1E293B' },
-    diagnosticsBox: { marginTop: 16, backgroundColor: '#FEF2F2', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: '#FCA5A5' },
-    diagnosticsTitle: { fontSize: 12, fontWeight: '800', color: '#991B1B', marginBottom: 6 },
-    diagnosticsReason: { fontSize: 11, fontWeight: '600', color: '#B91C1C', lineHeight: 16, marginBottom: 2 },
-    fixConnectionBtn: { marginTop: 10, backgroundColor: '#EF4444', borderRadius: 10, paddingVertical: 8, paddingHorizontal: 12, alignSelf: 'flex-start' },
-    fixConnectionTxt: { fontSize: 11, fontWeight: '800', color: '#FFFFFF' },
-
-    /* Coverage Card */
-    coverageCard: {
-        backgroundColor: '#FFFFFF', borderRadius: 24, padding: 20, marginBottom: 20,
-        borderWidth: 1, borderColor: '#F1F5F9',
-        shadowColor: '#0F172A', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.03, shadowRadius: 16, elevation: 3,
+    coachHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 12,
     },
-    coverageHeader: { marginBottom: 16 },
-    coverageTitle: { fontSize: 15, fontWeight: '900', color: '#0F172A' },
-    coverageSub: { fontSize: 11, fontWeight: '600', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 3 },
-    coverageBarsList: {},
-    coverageBarTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
-    coverageLabelRow: { flexDirection: 'row', alignItems: 'center' },
-    coverageBarLabel: { fontSize: 12, fontWeight: '800', color: '#475569' },
-    coverageBarPct: { fontSize: 13, fontWeight: '900' },
-    coverageTrack: { height: 7, backgroundColor: '#F1F5F9', borderRadius: 4, overflow: 'hidden' },
-    coverageProgress: { height: '100%', borderRadius: 4 },
+    coachTitleGroup: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    coachIconBubble: {
+        width: 32,
+        height: 32,
+        borderRadius: 10,
+        backgroundColor: '#EEF2FF',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    coachTitle: {
+        fontSize: 15,
+        fontWeight: '900',
+        color: '#0F172A',
+    },
+    coachStatusBadge: {
+        borderWidth: 1,
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 8,
+    },
+    coachStatusText: {
+        fontSize: 10,
+        fontWeight: '900',
+        textTransform: 'uppercase',
+        letterSpacing: 0.3,
+    },
+    coachBody: {
+        marginTop: 4,
+    },
+    coachInsightText: {
+        fontSize: 14,
+        fontWeight: '800',
+        color: '#1E293B',
+        lineHeight: 20,
+    },
+    coachSubtext: {
+        fontSize: 11,
+        color: '#94A3B8',
+        fontWeight: '600',
+        marginTop: 6,
+    },
+    coachDivider: {
+        height: 1,
+        backgroundColor: '#F1F5F9',
+        marginVertical: 14,
+    },
+    coachAdherenceRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    coachAdherenceText: {
+        fontSize: 12,
+        color: '#4F46E5',
+        fontWeight: '700',
+        flex: 1,
+    },
 
-    /* Source badges */
-    heroSourceBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255, 255, 255, 0.18)', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, alignSelf: 'flex-start', marginTop: 6 },
-    heroSourceBadgeText: { fontSize: 10, fontWeight: '800', color: '#FFFFFF' },
+    /* Timeline Journals */
+    timelineContainer: {
+        paddingLeft: 16,
+        position: 'relative',
+        marginTop: 8,
+    },
+    timelineLine: {
+        position: 'absolute',
+        left: 4,
+        top: 12,
+        bottom: 12,
+        width: 2,
+        backgroundColor: '#E2E8F0',
+    },
+    timelineItem: {
+        flexDirection: 'row',
+        position: 'relative',
+        marginBottom: 16,
+    },
+    timelineDotOuter: {
+        position: 'absolute',
+        left: -17,
+        top: 14,
+        width: 12,
+        height: 12,
+        borderRadius: 6,
+        backgroundColor: '#EEF2FF',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 1,
+    },
+    timelineDotInner: {
+        width: 6,
+        height: 6,
+        borderRadius: 3,
+        backgroundColor: '#6366F1',
+    },
+    timelineContent: {
+        flex: 1,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 20,
+        padding: 14,
+        borderWidth: 1,
+        borderColor: '#F1F5F9',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.03,
+        shadowRadius: 8,
+        elevation: 2,
+    },
+    timelineHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 8,
+    },
+    timelineTimeRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+    },
+    timelineTime: {
+        fontSize: 13,
+        fontWeight: '800',
+        color: '#0F172A',
+    },
+    timelineSource: {
+        fontSize: 10,
+        fontWeight: '700',
+        color: '#94A3B8',
+    },
+    timelineIndex: {
+        fontSize: 11,
+        fontWeight: '800',
+        color: '#6366F1',
+        backgroundColor: '#EEF2FF',
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: 10,
+    },
+    timelineMetricsRow: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 6,
+    },
+    timelineMetricBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#F8FAFC',
+        borderRadius: 8,
+        paddingHorizontal: 8,
+        paddingVertical: 5,
+        borderWidth: 1,
+        borderColor: '#F1F5F9',
+    },
+    timelineMetricLabel: {
+        fontSize: 9,
+        fontWeight: '700',
+        color: '#64748B',
+        marginRight: 4,
+        textTransform: 'uppercase',
+    },
+    timelineMetricValue: {
+        fontSize: 11,
+        fontWeight: '800',
+    },
+    timelineMetricUnit: {
+        fontSize: 9,
+        fontWeight: '600',
+        color: '#94A3B8',
+    },
     sourceBadge: { flexDirection: 'row', alignItems: 'center', borderRadius: 8, borderWidth: 1, paddingHorizontal: 6, paddingVertical: 2, marginLeft: 8 },
     sourceBadgeText: { fontSize: 9, fontWeight: '800' },
-
-    /* AI Trend Insights Widget Styles */
-    insightCardContainer: {
-        backgroundColor: '#FFFFFF', borderRadius: 24, padding: 20, marginBottom: 20,
-        borderWidth: 1, borderColor: '#F1F5F9',
-        shadowColor: '#6366F1', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.05, shadowRadius: 16, elevation: 4,
-    },
-    insightHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-    insightTitleLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-    insightMainTitle: { fontSize: 15, fontWeight: '900', color: '#0F172A' },
-    sourceAwareBadge: { backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
-    sourceAwareText: { fontSize: 10, fontWeight: '700', color: '#64748B' },
-    insightEmptyBox: { alignItems: 'center', justifyContent: 'center', paddingVertical: 24, backgroundColor: '#F8FAFC', borderRadius: 16, borderStyle: 'dashed', borderWidth: 1.5, borderColor: '#CBD5E1' },
-    insightEmptyTxt: { fontSize: 12, color: '#64748B', fontWeight: '600', textAlign: 'center', marginHorizontal: 20, lineHeight: 18 },
-    insightsList: { gap: 12 },
-    insightListItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-    insightListLeft: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
-    insightIconBoxMini: { width: 30, height: 30, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-    insightMetricName: { fontSize: 12, fontWeight: '800', color: '#0F172A' },
-    inlineStatusBadge: { borderWidth: 1, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, alignSelf: 'flex-start' },
-    inlineStatusTxt: { fontSize: 9, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.3 },
-    insightReadingsCount: { fontSize: 10, fontWeight: '600', color: '#94A3B8' },
-    insightOxygenDesc: { fontSize: 11, fontWeight: '500', color: '#475569', lineHeight: 16, marginTop: 2, marginBottom: 2 },
-    correlationBlock: { marginTop: 18, backgroundColor: '#EEF2FF', borderLeftWidth: 3, borderLeftColor: '#6366F1', padding: 12, borderRadius: 12 },
-    correlationHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
-    correlationTitle: { fontSize: 11, fontWeight: '800', color: '#3730A3', textTransform: 'uppercase', letterSpacing: 0.5 },
-    correlationDesc: { fontSize: 11, color: '#312E81', lineHeight: 16, fontWeight: '600' },
+    heroSourceBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255, 255, 255, 0.18)', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, alignSelf: 'flex-start', marginTop: 6 },
+    heroSourceBadgeText: { fontSize: 10, fontWeight: '800', color: '#FFFFFF' },
 });
