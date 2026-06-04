@@ -678,6 +678,10 @@ export default function ChatbotScreen({ navigation, route }) {
 
     // Load Chat History from AsyncStorage
     useEffect(() => {
+        setIsHistoryLoaded(false);
+        setMessages([]);
+        setFollowUpSuggestions([]);
+        
         const loadHistory = async () => {
             if (!targetPatientId) {
                 setIsHistoryLoaded(true);
