@@ -64,6 +64,23 @@ export default function AvatarCropModal({
         }
     }, [visible, imageUri]);
 
+    // Clamp panning position on scale changes to prevent empty borders
+    useEffect(() => {
+        if (!imageDims) return;
+        const wScaled = displayWidth * scale;
+        const hScaled = displayHeight * scale;
+        const maxDragX = Math.max(0, (wScaled - CROP_SIZE) / 2);
+        const maxDragY = Math.max(0, (hScaled - CROP_SIZE) / 2);
+
+        const clampedX = Math.max(-maxDragX, Math.min(maxDragX, panX));
+        const clampedY = Math.max(-maxDragY, Math.min(maxDragY, panY));
+
+        setPanX(clampedX);
+        setPanY(clampedY);
+        lastPanX.current = clampedX;
+        lastPanY.current = clampedY;
+    }, [scale, imageDims, displayWidth, displayHeight]);
+
     // Pan responder for dragging the image
     const panResponder = useRef(
         PanResponder.create({
@@ -73,14 +90,15 @@ export default function AvatarCropModal({
                 // Lock current offset
             },
             onPanResponderMove: (evt, gestureState) => {
-                // Calculate bounds to prevent dragging completely out
-                const maxDragX = (CONTAINER_SIZE * scale) / 2;
-                const maxDragY = (CONTAINER_SIZE * scale) / 2;
+                const wScaled = displayWidth * scale;
+                const hScaled = displayHeight * scale;
+
+                const maxDragX = Math.max(0, (wScaled - CROP_SIZE) / 2);
+                const maxDragY = Math.max(0, (hScaled - CROP_SIZE) / 2);
 
                 const nextX = lastPanX.current + gestureState.dx;
                 const nextY = lastPanY.current + gestureState.dy;
 
-                // Clamp values so the image stays within viewport bounds
                 setPanX(Math.max(-maxDragX, Math.min(maxDragX, nextX)));
                 setPanY(Math.max(-maxDragY, Math.min(maxDragY, nextY)));
             },
@@ -93,18 +111,18 @@ export default function AvatarCropModal({
 
     if (!visible) return null;
 
-    // Calculate display dimensions keeping aspect ratio
-    let displayWidth = CONTAINER_SIZE;
-    let displayHeight = CONTAINER_SIZE;
+    // Calculate display dimensions keeping aspect ratio relative to CROP_SIZE
+    let displayWidth = CROP_SIZE;
+    let displayHeight = CROP_SIZE;
 
     if (imageDims) {
         const { width: iw, height: ih } = imageDims;
         if (iw > ih) {
-            displayHeight = CONTAINER_SIZE;
-            displayWidth = (iw / ih) * CONTAINER_SIZE;
+            displayHeight = CROP_SIZE;
+            displayWidth = (iw / ih) * CROP_SIZE;
         } else {
-            displayWidth = CONTAINER_SIZE;
-            displayHeight = (ih / iw) * CONTAINER_SIZE;
+            displayWidth = CROP_SIZE;
+            displayHeight = (ih / iw) * CROP_SIZE;
         }
     }
 
