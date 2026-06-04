@@ -843,7 +843,6 @@ router.post('/patients/:patientId/invite-code', authenticate, async (req, res) =
 
         const expiresAt = new Date(Date.now() + 2 * 60 * 60 * 1000); // 2 hours
 
-        const Patient = require('../models/Patient');
         await Patient.updateOne(
             { _id: patientId },
             { $set: { invite_code: code, invite_code_expires_at: expiresAt } }

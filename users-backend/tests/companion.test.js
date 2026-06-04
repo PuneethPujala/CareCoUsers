@@ -17,8 +17,24 @@ const mockAuthState = {
 
 // Mocks
 jest.mock('../src/middleware/authenticate', () => ({
-    authenticate: (req, res, next) => { req.user = mockAuthState.user; req.profile = mockAuthState.profile; next(); },
-    authenticateSession: (req, res, next) => { req.user = mockAuthState.user; req.profile = mockAuthState.profile; next(); },
+    authenticate: (req, res, next) => {
+        req.user = mockAuthState.user;
+        req.profile = mockAuthState.profile;
+        req.auth = { 
+            userId: mockAuthState.profile?._id, 
+            userType: mockAuthState.profile?.role === 'companion' ? 'Companion' : 'Patient' 
+        };
+        next();
+    },
+    authenticateSession: (req, res, next) => {
+        req.user = mockAuthState.user;
+        req.profile = mockAuthState.profile;
+        req.auth = { 
+            userId: mockAuthState.profile?._id, 
+            userType: mockAuthState.profile?.role === 'companion' ? 'Companion' : 'Patient' 
+        };
+        next();
+    },
     requireRole: (...allowed) => (req, res, next) => {
         if (!allowed.includes(req.profile.role)) return res.status(403).json({ error: 'Insufficient role permissions', code: 'INSUFFICIENT_ROLE' });
         next();
@@ -576,6 +592,64 @@ describe('Companion Routes', () => {
             expect(res.body.message).toMatch(/linked patient/i);
             expect(CompanionAccess.create).toHaveBeenCalled();
             expect(mockPatientObj.save).toHaveBeenCalled();
+        });
+    });
+
+    describe('POST /api/companion/patients/:patientId/invite-code', () => {
+        it('returns 403 if userType is not Companion', async () => {
+            const originalRole = mockAuthState.profile.role;
+            mockAuthState.profile.role = 'patient';
+            
+            const res = await request(app)
+                .post('/api/companion/patients/patient-123/invite-code');
+
+            expect(res.status).toBe(403);
+            expect(res.body.error).toMatch(/Only caregiver companions/i);
+
+            mockAuthState.profile.role = originalRole;
+        });
+
+        it('returns 403 if companion does not have active CompanionAccess to the patient', async () => {
+            CompanionAccess.findOne = jest.fn().mockResolvedValue(null);
+
+            const res = await request(app)
+                .post('/api/companion/patients/patient-123/invite-code');
+
+            expect(res.status).toBe(403);
+            expect(res.body.error).toMatch(/active care circle permission/i);
+        });
+
+        it('successfully generates invite code and updates Patient document', async () => {
+            const mockAccess = {
+                companion_id: fakeId('companion-profile-id'),
+                patient_id: fakeId('patient-123'),
+                is_active: true,
+                status: 'accepted'
+            };
+            CompanionAccess.findOne = jest.fn().mockResolvedValue(mockAccess);
+
+            const mockPatientObj = {
+                _id: fakeId('patient-123'),
+                name: 'Jane Patient',
+            };
+            Patient.findOne = jest.fn().mockResolvedValue(null); // for invite code uniqueness check
+            Patient.updateOne = jest.fn().mockResolvedValue({ nModified: 1 });
+
+            const res = await request(app)
+                .post('/api/companion/patients/patient-123/invite-code');
+
+            expect(res.status).toBe(200);
+            expect(res.body.success).toBe(true);
+            expect(res.body.invite_code).toHaveLength(6);
+            expect(Patient.updateOne).toHaveBeenCalledWith(
+                { _id: 'patient-123' },
+                expect.objectContaining({
+                    $set: expect.objectContaining({
+                        invite_code: res.body.invite_code,
+                        invite_code_expires_at: expect.any(Date)
+                    })
+                })
+            );
         });
     });
 });
