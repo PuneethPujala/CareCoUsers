@@ -311,7 +311,8 @@ describe('Companion Routes', () => {
             });
             Medication.find = jest.fn().mockReturnValue({
                 lean: jest.fn().mockResolvedValue([
-                    { _id: 'med-123', name: 'Aspirin', dosage: '100mg', times: ['morning'], refillInfo: { remainingDoses: 10, alertThreshold: 5 } }
+                    { _id: 'med-123', name: 'Aspirin', dosage: '100mg', times: ['morning'], refillInfo: { remainingDoses: 10, alertThreshold: 5 } },
+                    { _id: 'med-456', name: 'Lipitor', dosage: '20mg', times: ['night'], isActive: false, is_active: false, refillInfo: { remainingDoses: 10, alertThreshold: 5 } }
                 ])
             });
             VitalLog.find = jest.fn().mockReturnValue({

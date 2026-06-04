@@ -403,7 +403,7 @@ router.get('/patient-status', authenticate, async (req, res) => {
             logs,
             latestVital,
             recentAlerts,
-            medications,
+            medicationsRaw,
             vitalsHistory,
             todayMedicineLog,
             allAlerts
@@ -416,6 +416,8 @@ router.get('/patient-status', authenticate, async (req, res) => {
             MedicineLog.findOne({ patient_id: patient._id, date: { $gte: startOfToday, $lte: endOfToday } }).lean(),
             Alert.find({ patient_id: patient._id }).populate('acknowledged_by').sort({ created_at: -1 }).limit(10).lean()
         ]);
+
+        const medications = medicationsRaw.filter(m => m.is_active !== false);
 
         // adherenceRate is now computed AFTER medication_schedule is built
 

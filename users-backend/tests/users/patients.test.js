@@ -406,6 +406,20 @@ describe('User Patients Routes', () => {
             expect(res.body.medications[0].name).toBe('Metformin');
         });
 
+        it('only returns active medications', async () => {
+            const meds = [
+                { name: 'Metformin', dosage: '500mg', times: ['morning'], is_active: true },
+                { name: 'Aspirin', dosage: '100mg', times: ['night'], is_active: false }
+            ];
+            Patient.findOne = jest.fn().mockResolvedValue(makePatient({ medications: meds }));
+
+            const res = await request(app).get('/api/users/patients/me/medications');
+
+            expect(res.status).toBe(200);
+            expect(res.body.medications).toHaveLength(1);
+            expect(res.body.medications[0].name).toBe('Metformin');
+        });
+
         it('returns empty array when patient not found', async () => {
             Patient.findOne = jest.fn().mockResolvedValue(null);
 
@@ -413,6 +427,28 @@ describe('User Patients Routes', () => {
 
             expect(res.status).toBe(200);
             expect(res.body.medications).toEqual([]);
+        });
+    });
+
+    // ── PUT /api/users/patients/me/medications ────────────────────────────────
+
+    describe('PUT /api/users/patients/me/medications', () => {
+        it('updates/adds medications and only returns active ones', async () => {
+            const meds = [
+                { name: 'Metformin', dosage: '500mg', times: ['morning'], is_active: true },
+                { name: 'Aspirin', dosage: '100mg', times: ['night'], is_active: false }
+            ];
+            Patient.findOne = jest.fn().mockResolvedValue(makePatient({ medications: meds }));
+            Patient.updateOne = jest.fn().mockResolvedValue({ matchedCount: 1 });
+            Patient.findById = jest.fn().mockResolvedValue(makePatient({ medications: meds }));
+
+            const res = await request(app)
+                .put('/api/users/patients/me/medications')
+                .send({ name: 'Metformin', dosage: '500mg', times: ['morning'], is_active: true });
+
+            expect(res.status).toBe(200);
+            expect(res.body.medications).toHaveLength(1);
+            expect(res.body.medications[0].name).toBe('Metformin');
         });
     });
 

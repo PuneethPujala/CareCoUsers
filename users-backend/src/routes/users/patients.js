@@ -1414,7 +1414,8 @@ router.post('/me/calls/:sessionId/feedback', authenticateSession, async (req, re
 router.get('/me/medications', authenticateSession, async (req, res) => {
     try {
         const patient = await getOrCreatePatient(req);
-        res.json({ medications: patient.medications || [] });
+        const activeMeds = (patient.medications || []).filter(m => m.is_active !== false);
+        res.json({ medications: activeMeds });
     } catch (error) {
         logger.error('Get medications error', { error: error.message, patientId: req.user?.id });
         res.status(500).json({ error: 'Failed to get medications' });
@@ -1461,7 +1462,8 @@ router.put('/me/medications', authenticateSession, async (req, res) => {
         logger.info('Medications updated', { patientId: patient._id });
         // Refresh health score cache in background
         refreshHealthScoreCache(patient._id).catch(() => {});
-        res.json({ medications: req.patient.medications });
+        const activeMeds = (req.patient.medications || []).filter(m => m.is_active !== false);
+        res.json({ medications: activeMeds });
     } catch (error) {
         logger.error('Update medications error', { error: error.message, patientId: req.user?.id });
         res.status(500).json({ error: 'Failed to update medications' });
