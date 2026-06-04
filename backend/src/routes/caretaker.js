@@ -1414,45 +1414,83 @@ router.delete('/patients/:id/medications/:medId', async (req, res) => {
         const medObjId = new mongoose.Types.ObjectId(medId);
         const patientObjId = mongoose.Types.ObjectId.isValid(patientId) ? new mongoose.Types.ObjectId(patientId) : patientId;
 
-        // 1. Try marking inactive in Medication collection (Soft Delete)
-        const med = await Medication.findOneAndUpdate(
-            { _id: medObjId },
-            { $set: { status: 'inactive', isActive: false, is_active: false } },
-            { new: true }
-        );
+        const { deleteType } = req.body || {}; // 'hard' or 'soft'
 
-        let found = !!med;
-
-        // 2. Try marking inactive in embedded arrays
-        let patient1 = await Patient.findOneAndUpdate(
-            { $or: [{ _id: patientObjId }, { profile_id: patientObjId }], 'medications._id': medObjId },
-            { $set: { 'medications.$.isActive': false, 'medications.$.is_active': false, 'medications.$.status': 'inactive' } },
-            { new: true }
-        );
-        
+        let medName = null;
+        let patient1 = null;
         let patient2 = null;
-        if (!patient1) {
-            patient2 = await Patient.findOneAndUpdate(
-                { $or: [{ _id: patientObjId }, { profile_id: patientObjId }], 'metadata.medications._id': medObjId },
-                { $set: { 'metadata.medications.$.isActive': false, 'metadata.medications.$.is_active': false, 'metadata.medications.$.status': 'inactive' } },
+        let found = false;
+
+        if (deleteType === 'hard') {
+            // -- HARD DELETE: Remove entirely from DB --
+            const medToDel = await Medication.findById(medObjId);
+            if (medToDel) {
+                medName = medToDel.name || medToDel.genericName;
+                await Medication.deleteOne({ _id: medObjId });
+                found = true;
+            }
+
+            patient1 = await Patient.findOneAndUpdate(
+                { $or: [{ _id: patientObjId }, { profile_id: patientObjId }], 'medications._id': medObjId },
+                { $pull: { medications: { _id: medObjId } } }
+            ); // Don't use {new: true} here so we can grab the medName from the old doc if needed
+
+            if (!patient1) {
+                patient2 = await Patient.findOneAndUpdate(
+                    { $or: [{ _id: patientObjId }, { profile_id: patientObjId }], 'metadata.medications._id': medObjId },
+                    { $pull: { 'metadata.medications': { _id: medObjId } } }
+                );
+            }
+
+            // Extract medName if not found yet
+            if (!medName) {
+                let mFound = patient1?.medications?.find(m => m._id.toString() === medId);
+                if (!mFound) mFound = patient2?.metadata?.medications?.find(m => m._id.toString() === medId);
+                if (mFound) medName = mFound.name || mFound.genericName;
+            }
+
+            if (!found && !patient1 && !patient2) {
+                return res.status(404).json({ error: 'Medication or Patient not found' });
+            }
+
+        } else {
+            // -- SOFT DELETE: Mark as inactive --
+            const med = await Medication.findOneAndUpdate(
+                { _id: medObjId },
+                { $set: { status: 'inactive', isActive: false, is_active: false } },
                 { new: true }
             );
-        }
 
-        if (!found && !patient1 && !patient2) {
-            return res.status(404).json({ error: 'Medication or Patient not found' });
-        }
+            found = !!med;
 
-        // 3. Sync today's MedicineLog — mark removed med as inactive
-        let medName = med ? med.name : null;
-        if (!medName) {
-            let mFound = patient1?.medications?.find(m => m._id.toString() === medId);
-            if (!mFound) {
-                mFound = patient2?.metadata?.medications?.find(m => m._id.toString() === medId);
+            patient1 = await Patient.findOneAndUpdate(
+                { $or: [{ _id: patientObjId }, { profile_id: patientObjId }], 'medications._id': medObjId },
+                { $set: { 'medications.$.isActive': false, 'medications.$.is_active': false, 'medications.$.status': 'inactive' } },
+                { new: true }
+            );
+            
+            if (!patient1) {
+                patient2 = await Patient.findOneAndUpdate(
+                    { $or: [{ _id: patientObjId }, { profile_id: patientObjId }], 'metadata.medications._id': medObjId },
+                    { $set: { 'metadata.medications.$.isActive': false, 'metadata.medications.$.is_active': false, 'metadata.medications.$.status': 'inactive' } },
+                    { new: true }
+                );
             }
-            if (mFound) medName = mFound.name || mFound.genericName;
+
+            if (!found && !patient1 && !patient2) {
+                return res.status(404).json({ error: 'Medication or Patient not found' });
+            }
+
+            if (med) {
+                medName = med.name || med.genericName;
+            } else {
+                let mFound = patient1?.medications?.find(m => m._id.toString() === medId);
+                if (!mFound) mFound = patient2?.metadata?.medications?.find(m => m._id.toString() === medId);
+                if (mFound) medName = mFound.name || mFound.genericName;
+            }
         }
 
+        // Sync today's MedicineLog — mark removed med as inactive
         if (medName) {
             const pDoc = patient1 || patient2 || await Patient.findById(patientObjId) || await Patient.findOne({ profile_id: patientObjId });
             if (pDoc) {
@@ -1460,7 +1498,7 @@ router.delete('/patients/:id/medications/:medId', async (req, res) => {
             }
         }
 
-        res.json({ message: 'Medication deleted' });
+        res.json({ message: deleteType === 'hard' ? 'Medication permanently deleted' : 'Medication deleted' });
     } catch (error) {
         console.error('Delete medication error:', error);
         res.status(500).json({ error: 'Failed to delete medication' });

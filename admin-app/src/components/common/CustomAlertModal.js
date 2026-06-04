@@ -34,7 +34,7 @@ const CustomAlertModal = ({ visible, title, message, buttons, onClose, type = 'i
 
                     <View style={s.spacer} />
 
-                    <View style={s.buttonGrid}>
+                    <View style={[s.buttonGrid, buttons.length >= 3 && { flexDirection: 'column', gap: 8 }]}>
                         {buttons.map((btn, index) => {
                             const isDestructive = btn.style === 'destructive';
                             const isCancel = btn.style === 'cancel';
@@ -45,7 +45,9 @@ const CustomAlertModal = ({ visible, title, message, buttons, onClose, type = 'i
                                     style={[
                                         s.button,
                                         isCancel ? s.buttonCancel : (isDestructive ? s.buttonDestructive : s.buttonDefault),
-                                        buttons.length > 1 && { flex: 1, marginHorizontal: 4 }
+                                        buttons.length >= 3
+                                            ? { width: '100%' }
+                                            : (buttons.length > 1 && { flex: 1, marginHorizontal: 4 })
                                     ]}
                                     onPress={() => {
                                         if (btn.onPress) btn.onPress();
