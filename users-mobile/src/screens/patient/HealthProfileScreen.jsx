@@ -1,11 +1,15 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, Platform, ActivityIndicator, Animated, Pressable, Linking, Modal, TextInput, FlatList, Switch } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Platform, ActivityIndicator, Animated, Pressable, Linking, Modal, TextInput, FlatList, Switch, LayoutAnimation, UIManager } from 'react-native';
+
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+    UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 import SmartInput from '../../components/ui/SmartInput';
 import PremiumFormModal from '../../components/ui/PremiumFormModal';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { LinearGradient } from 'expo-linear-gradient';
-import { TriangleAlert, ShieldCheck, HeartPulse, Activity, Droplet, Phone, Plus, Pencil, X, Trash2, CircleCheck, RefreshCw, ChevronDown, Upload, Siren, ChevronRight, TrendingUp, TrendingDown, Sparkles, BellRing, FileText, Pill, Syringe, Link2, Users, Calendar, Info } from 'lucide-react-native';
+import { TriangleAlert, ShieldCheck, HeartPulse, Activity, Droplet, Phone, Plus, Pencil, X, Trash2, CircleCheck, RefreshCw, ChevronDown, Upload, Siren, ChevronRight, TrendingUp, TrendingDown, Sparkles, BellRing, FileText, Pill, Syringe, Link2, Users, Calendar, Info, Clock, MapPin } from 'lucide-react-native';
 import { StatusBar } from 'react-native';
 import Svg, { Circle as SvgCircle } from 'react-native-svg';
 import { apiService } from '../../lib/api';
@@ -88,6 +92,8 @@ export default function HealthProfileScreen({ navigation }) {
     const [loading, setLoading] = useState(true);
     const [isSyncing, setIsSyncing] = useState(false);
     const [healthSdkReady, setHealthSdkReady] = useState(false);
+    const [visibleHistoryCount, setVisibleHistoryCount] = useState(3);
+    const [completenessExpanded, setCompletenessExpanded] = useState(false);
 
     useEffect(() => {
         if (isHealthSupported()) {
@@ -129,7 +135,7 @@ export default function HealthProfileScreen({ navigation }) {
         }
     };
 
-    const staggerAnims = useRef([...Array(10)].map(() => new Animated.Value(0))).current;
+    const staggerAnims = useRef([...Array(15)].map(() => new Animated.Value(0))).current;
 
     const [modalVisible, setModalVisible] = useState(false);
     const [editingType, setEditingType] = useState(null);
@@ -431,10 +437,37 @@ export default function HealthProfileScreen({ navigation }) {
     }
 
     if (profile?.freePlan) return (
-        <View style={[s.container, { justifyContent: 'center', alignItems: 'center', padding: 32 }]}>
-            <View style={s.upgradeIconWrap}><ShieldCheck size={32} color={C.primary} /></View>
-            <Text style={s.upgradeTitle}>{t('common.premium_feature', { defaultValue: 'Premium Feature' })}</Text>
-            <Text style={s.upgradeBody}>{t('health_profile.premium_desc', { defaultValue: 'Your centralized health profile is included in the Basic Plan. Upgrade on the Home screen to build your health profile.' })}</Text>
+        <View style={[s.container, { justifyContent: 'center', padding: 24 }]}>
+            <LinearGradient
+                colors={['#FFF5F5', '#FFF0F2', '#FEE2E6']}
+                style={s.premiumBannerCard}
+            >
+                <View style={s.premiumBadgeWrap}>
+                    <ShieldCheck size={28} color="#F43F5E" />
+                </View>
+                <Text style={s.premiumBannerTitle}>
+                    {t('health_profile.free_title', { defaultValue: 'Your health story starts here ❤️' })}
+                </Text>
+                <Text style={s.premiumBannerBody}>
+                    {t('health_profile.free_body', { defaultValue: 'Keep your medical history, care contacts, medications, and important records organized in one secure place.' })}
+                </Text>
+                
+                <View style={s.premiumDivider} />
+
+                <Text style={s.premiumBannerPitch}>
+                    {t('health_profile.free_pitch', { defaultValue: 'Upgrade anytime to unlock advanced health insights, AI trend analysis, and personalized forecasting.' })}
+                </Text>
+
+                <Pressable 
+                    style={({ pressed }) => [s.premiumCtaBtn, pressed && { opacity: 0.9 }]}
+                    onPress={() => navigation.navigate('PremiumShowcase')}
+                >
+                    <Sparkles size={16} color="#FFF" style={{ marginRight: 6 }} />
+                    <Text style={s.premiumCtaBtnTxt}>
+                        {t('health_profile.unlock_premium', { defaultValue: 'Unlock Premium Insights' })}
+                    </Text>
+                </Pressable>
+            </LinearGradient>
         </View>
     );
 
@@ -590,17 +623,53 @@ export default function HealthProfileScreen({ navigation }) {
 
                 {/* ── PROFILE COMPLETENESS BANNER (above health score) ── */}
                 <Animated.View style={anim(0)}>
-                    <Pressable style={s.completeBanner} onPress={handleCompletionClick}>
+                    <Pressable 
+                        style={s.completeBanner} 
+                        onPress={() => {
+                            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                            setCompletenessExpanded(!completenessExpanded);
+                        }}
+                    >
                         <View style={{ flex: 1 }}>
-                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8, alignItems: 'center' }}>
                                 <Text style={s.completeBannerTitle}>{t('health_profile.profile_completeness', { defaultValue: 'Profile Completeness' })}</Text>
-                                <Text style={[s.completeBannerPct, { color: completionPct === 100 ? '#10B981' : '#0EA5E9' }]}>{completionPct}%</Text>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                    <Text style={[s.completeBannerPct, { color: completionPct === 100 ? '#10B981' : '#0EA5E9' }]}>{completionPct}%</Text>
+                                    <ChevronDown size={14} color={completionPct === 100 ? '#10B981' : '#0EA5E9'} style={{ transform: [{ rotate: completenessExpanded ? '180deg' : '0deg' }] }} />
+                                </View>
                             </View>
                             <View style={s.completeBarOuter}>
                                 <View style={[s.completeBarInner, { width: `${completionPct}%`, backgroundColor: completionPct === 100 ? '#10B981' : '#0EA5E9' }]} />
                             </View>
-                            {completionPct < 100 && (
+                            {!completenessExpanded && completionPct < 100 && (
                                 <Text style={s.completeBannerSub}>{t('health_profile.tap_to_complete', { defaultValue: 'Tap to see what’s missing →' })}</Text>
+                            )}
+                            {completenessExpanded && (
+                                <View style={s.checklistContainer}>
+                                    {[
+                                        { key: 'blood_type', label: t('health_profile.blood_type', { defaultValue: 'Blood Type' }), completed: profile?.blood_type && profile.blood_type !== 'unknown' },
+                                        { key: 'conditions', label: t('health_profile.current_conditions', { defaultValue: 'Current Conditions' }), completed: conditions.length > 0 },
+                                        { key: 'allergies', label: t('health_profile.allergies', { defaultValue: 'Allergies' }), completed: allergies.length > 0 },
+                                        { key: 'medical_history', label: t('health_profile.medical_history', { defaultValue: 'Medical History' }), completed: medical_history.length > 0 },
+                                        { key: 'medications', label: t('health_profile.medications', { defaultValue: 'Medications' }), completed: medications.length > 0 },
+                                        { key: 'vaccinations', label: t('health_profile.vaccinations', { defaultValue: 'Vaccinations' }), completed: vaccinations.length > 0 },
+                                        { key: 'lifestyle', label: t('health_profile.height_weight', { defaultValue: 'Height & Weight' }), completed: !!(lifestyle.height_cm && lifestyle.weight_kg) },
+                                        { key: 'trusted_contacts', label: t('caller.emergency_contact', { defaultValue: 'Emergency Contact' }), completed: !!(profile?.trusted_contacts?.length > 0) },
+                                        { key: 'gp', label: t('health_profile.primary_gp', { defaultValue: 'Primary GP' }), completed: !!gp.name },
+                                        { key: 'smoking', label: t('health_profile.smoking_status', { defaultValue: 'Smoking Status' }), completed: !!(lifestyle.smoking_status && lifestyle.smoking_status !== 'unknown') }
+                                    ].map(item => (
+                                        <View key={item.key} style={s.checklistItem}>
+                                            {item.completed ? (
+                                                <CircleCheck size={14} color="#10B981" />
+                                            ) : (
+                                                <View style={s.checklistEmptyCircle} />
+                                            )}
+                                            <Text style={[s.checklistText, item.completed && s.checklistTextCompleted]} numberOfLines={1}>
+                                                {item.label}
+                                            </Text>
+                                        </View>
+                                    ))}
+                                </View>
                             )}
                         </View>
                     </Pressable>
@@ -842,13 +911,15 @@ export default function HealthProfileScreen({ navigation }) {
                         <View style={s.gridCard}>
                             <View style={s.gridHeader}>
                                 <View style={[s.gridIconWrap, { backgroundColor: '#F3E8FF' }]}><FileText size={16} color="#A855F7" /></View>
-                                <Text style={s.gridTitle}>{t('health_profile.medical_history', { defaultValue: 'Medical History' })}</Text>
+                                <Text style={s.gridTitle}>
+                                    {t('health_profile.medical_history_count', { defaultValue: 'Medical History ({{count}} records)', count: medical_history.length }).replace('{{count}}', String(medical_history.length))}
+                                </Text>
                                 <Pressable style={s.gridAddBtn} onPress={() => openModal('history')} hitSlop={10}>
                                     <Plus size={16} color="#A855F7" />
                                 </Pressable>
                             </View>
                             <View style={s.gridBody}>
-                                {medical_history.slice(0, 3).map((h, i) => (
+                                {medical_history.slice(0, visibleHistoryCount).map((h, i) => (
                                     <Pressable key={i} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }} onPress={() => openModal('history', h)}>
                                         <View style={{ flex: 1 }}>
                                             <Text style={s.gridHistoryTxt}>{h.event}</Text>
@@ -858,6 +929,28 @@ export default function HealthProfileScreen({ navigation }) {
                                     </Pressable>
                                 ))}
                                 {medical_history.length === 0 && <Text style={s.emptyGridTxt}>{t('health_profile.no_history', { defaultValue: 'No records' })}</Text>}
+                                {medical_history.length > 3 && (
+                                    <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 12, marginTop: 8 }}>
+                                        {visibleHistoryCount > 3 && (
+                                            <Pressable onPress={() => {
+                                                LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                                                setVisibleHistoryCount(3);
+                                            }} style={s.historyLinkBtn}>
+                                                <Text style={s.historyLinkBtnTxt}>{t('health_profile.show_less', { defaultValue: 'Show Less' })}</Text>
+                                            </Pressable>
+                                        )}
+                                        {visibleHistoryCount < medical_history.length && (
+                                            <Pressable onPress={() => {
+                                                LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                                                setVisibleHistoryCount(prev => prev + 4);
+                                            }} style={s.historyLinkBtn}>
+                                                <Text style={s.historyLinkBtnTxt}>
+                                                    {t('health_profile.show_more_count', { defaultValue: 'Show {{count}} More', count: Math.min(4, medical_history.length - visibleHistoryCount) }).replace('{{count}}', String(Math.min(4, medical_history.length - visibleHistoryCount)))}
+                                                </Text>
+                                            </Pressable>
+                                        )}
+                                    </View>
+                                )}
                             </View>
                         </View>
                     </Animated.View>
@@ -898,6 +991,69 @@ export default function HealthProfileScreen({ navigation }) {
                                     </View>
                                 ))}
                                 {(!gp.name && !profile?.trusted_contacts?.length) && <Text style={s.emptyGridTxt}>{t('health_profile.no_contacts', { defaultValue: 'No contacts' })}</Text>}
+                            </View>
+                        </View>
+                    </Animated.View>
+
+                    {/* Upcoming Appointments */}
+                    <Animated.View style={anim(9)}>
+                        <View style={s.gridCard}>
+                            <View style={s.gridHeader}>
+                                <View style={[s.gridIconWrap, { backgroundColor: '#EEF2FF' }]}><Calendar size={16} color="#6366F1" /></View>
+                                <Text style={s.gridTitle}>{t('health_profile.upcoming_appointments', { defaultValue: 'Upcoming Appointments' })}</Text>
+                                <Pressable style={s.gridAddBtn} onPress={() => openModal('appointment')} hitSlop={10}>
+                                    <Plus size={16} color="#6366F1" />
+                                </Pressable>
+                            </View>
+                            <View style={s.gridBody}>
+                                {appointments && appointments.length > 0 ? (
+                                    appointments
+                                        .filter(appt => appt.status !== 'cancelled')
+                                        .sort((a, b) => new Date(a.date) - new Date(b.date))
+                                        .map((appt, i) => {
+                                            const apptDate = new Date(appt.date);
+                                            const isTodayObj = new Date();
+                                            const isTomorrowObj = new Date();
+                                            isTomorrowObj.setDate(isTomorrowObj.getDate() + 1);
+                                            let dateLabel = apptDate.toLocaleDateString();
+                                            if (apptDate.toDateString() === isTodayObj.toDateString()) {
+                                                dateLabel = t('common.today', { defaultValue: 'Today' });
+                                            } else if (apptDate.toDateString() === isTomorrowObj.toDateString()) {
+                                                dateLabel = t('common.tomorrow', { defaultValue: 'Tomorrow' });
+                                            }
+                                            
+                                            const timeLabel = apptDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+                                            return (
+                                                <Pressable key={i} style={s.apptRow} onPress={() => openModal('appointment', appt)}>
+                                                    <View style={{ flex: 1 }}>
+                                                        <Text style={s.apptDoctor} numberOfLines={1}>{appt.doctor_name}</Text>
+                                                        <Text style={s.apptTitle} numberOfLines={1}>{appt.title}</Text>
+                                                        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4, gap: 12 }}>
+                                                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                                                                <Clock size={10} color="#6366F1" />
+                                                                <Text style={s.apptDateText}>{dateLabel} • {timeLabel}</Text>
+                                                            </View>
+                                                            {appt.location ? (
+                                                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                                                                    <MapPin size={10} color="#94A3B8" />
+                                                                    <Text style={s.apptLocText} numberOfLines={1}>{appt.location}</Text>
+                                                                </View>
+                                                            ) : null}
+                                                        </View>
+                                                    </View>
+                                                    <ChevronRight size={14} color="#CBD5E1" />
+                                                </Pressable>
+                                            );
+                                        })
+                                ) : (
+                                    <View style={{ alignItems: 'center', paddingVertical: 12 }}>
+                                        <Text style={s.emptyGridTxt}>{t('health_profile.no_appointments', { defaultValue: 'No appointments scheduled yet.' })}</Text>
+                                        <Pressable style={s.schedBtn} onPress={() => openModal('appointment')}>
+                                            <Text style={s.schedBtnTxt}>{t('health_profile.schedule_appointment', { defaultValue: 'Schedule Appointment' })}</Text>
+                                        </Pressable>
+                                    </View>
+                                )}
                             </View>
                         </View>
                     </Animated.View>
@@ -1928,5 +2084,158 @@ const s = StyleSheet.create({
         ...FONT.bold,
         color: '#FFFFFF',
         letterSpacing: 0.2,
+    },
+    historyLinkBtn: {
+        paddingVertical: 6,
+        paddingHorizontal: 12,
+        borderRadius: 8,
+        backgroundColor: '#F3E8FF',
+    },
+    historyLinkBtnTxt: {
+        fontSize: 12,
+        ...FONT.bold,
+        color: '#A855F7',
+    },
+    apptRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: '#F1F5F9',
+    },
+    apptDoctor: {
+        fontSize: 14,
+        ...FONT.bold,
+        color: '#0F172A',
+    },
+    apptTitle: {
+        fontSize: 13,
+        ...FONT.medium,
+        color: '#64748B',
+        marginTop: 2,
+    },
+    apptDateText: {
+        fontSize: 11,
+        ...FONT.semibold,
+        color: '#4F46E5',
+    },
+    apptLocText: {
+        fontSize: 11,
+        ...FONT.medium,
+        color: '#64748B',
+    },
+    schedBtn: {
+        marginTop: 8,
+        paddingVertical: 8,
+        paddingHorizontal: 16,
+        borderRadius: 12,
+        backgroundColor: '#EEF2FF',
+    },
+    schedBtnTxt: {
+        fontSize: 13,
+        ...FONT.bold,
+        color: '#6366F1',
+    },
+    checklistContainer: {
+        marginTop: 16,
+        paddingTop: 12,
+        borderTopWidth: 1,
+        borderTopColor: '#BAE6FD',
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 10,
+    },
+    checklistItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        width: '47%',
+        marginBottom: 4,
+    },
+    checklistEmptyCircle: {
+        width: 14,
+        height: 14,
+        borderRadius: 7,
+        borderWidth: 1.5,
+        borderColor: '#94A3B8',
+    },
+    checklistText: {
+        fontSize: 11,
+        ...FONT.medium,
+        color: '#64748B',
+    },
+    checklistTextCompleted: {
+        color: '#0F172A',
+        ...FONT.semibold,
+    },
+    premiumBannerCard: {
+        borderRadius: 28,
+        padding: 24,
+        alignItems: 'center',
+        borderWidth: 1.5,
+        borderColor: '#FECDD3',
+        shadowColor: '#F43F5E',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.08,
+        shadowRadius: 20,
+        elevation: 6,
+    },
+    premiumBadgeWrap: {
+        width: 64,
+        height: 64,
+        borderRadius: 32,
+        backgroundColor: '#FFE4E6',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 20,
+    },
+    premiumBannerTitle: {
+        fontSize: 20,
+        ...FONT.bold,
+        color: '#9F1239',
+        textAlign: 'center',
+        marginBottom: 12,
+    },
+    premiumBannerBody: {
+        fontSize: 14,
+        ...FONT.medium,
+        color: '#E11D48',
+        textAlign: 'center',
+        lineHeight: 22,
+        marginBottom: 16,
+    },
+    premiumDivider: {
+        height: 1,
+        width: '100%',
+        backgroundColor: '#FDA4AF',
+        marginVertical: 12,
+    },
+    premiumBannerPitch: {
+        fontSize: 13,
+        ...FONT.semibold,
+        color: '#BE123C',
+        textAlign: 'center',
+        lineHeight: 20,
+        marginBottom: 24,
+    },
+    premiumCtaBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#E11D48',
+        borderRadius: 16,
+        paddingVertical: 14,
+        paddingHorizontal: 28,
+        width: '100%',
+        shadowColor: '#E11D48',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 10,
+        elevation: 4,
+    },
+    premiumCtaBtnTxt: {
+        color: '#FFFFFF',
+        fontSize: 15,
+        ...FONT.bold,
     },
 });

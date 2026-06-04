@@ -37,6 +37,8 @@ const FONT = {
 export default function CompanionDashboardScreen() {
     const [data, setData] = useState(null);
     const [refreshing, setRefreshing] = useState(false);
+    const [nudging, setNudging] = useState(false);
+    const [requestingBP, setRequestingBP] = useState(false);
     
     const selectedPatientId = usePatientStore(s => s.companionSelectedPatientId);
     const navigation = useNavigation();
@@ -73,12 +75,16 @@ export default function CompanionDashboardScreen() {
     };
 
     const handleNudge = async () => {
+        if (nudging) return;
+        setNudging(true);
         try {
             await apiService.companion.nudge({ patientId: selectedPatientId });
             AlertManager.alert('Nudge Sent', `${data.patient.name} has been nudged successfully! ❤️`);
         } catch (err) {
             console.warn('Failed to nudge', err);
             AlertManager.alert('Nudge Failed', 'Unable to send nudge reminder at this time.');
+        } finally {
+            setNudging(false);
         }
     };
 
@@ -92,12 +98,16 @@ export default function CompanionDashboardScreen() {
     };
 
     const handleRequestBP = async () => {
+        if (requestingBP) return;
+        setRequestingBP(true);
         try {
             await apiService.companion.requestBP({ patientId: selectedPatientId });
             AlertManager.alert('BP Request Sent', `Request for Blood Pressure log sent to ${data.patient.name} successfully! 🩺`);
         } catch (err) {
             console.warn('Failed to request BP', err);
             AlertManager.alert('Request Failed', 'Unable to send Blood Pressure log request.');
+        } finally {
+            setRequestingBP(false);
         }
     };
 
@@ -166,9 +176,13 @@ export default function CompanionDashboardScreen() {
 
                 {/* 1. Quick Actions Bar */}
                 <View style={styles.actionsContainer}>
-                    <Pressable style={styles.actionButton} onPress={handleNudge}>
+                    <Pressable style={styles.actionButton} onPress={handleNudge} disabled={nudging}>
                         <View style={[styles.actionIconContainer, { backgroundColor: C.primaryLight }]}>
-                            <Send color={C.primary} size={18} />
+                            {nudging ? (
+                                <ActivityIndicator size="small" color={C.primary} />
+                            ) : (
+                                <Send color={C.primary} size={18} />
+                            )}
                         </View>
                         <Text style={styles.actionLabel}>Nudge</Text>
                     </Pressable>
@@ -180,9 +194,13 @@ export default function CompanionDashboardScreen() {
                         <Text style={styles.actionLabel}>Call</Text>
                     </Pressable>
 
-                    <Pressable style={styles.actionButton} onPress={handleRequestBP}>
+                    <Pressable style={styles.actionButton} onPress={handleRequestBP} disabled={requestingBP}>
                         <View style={[styles.actionIconContainer, { backgroundColor: C.dangerLight }]}>
-                            <HeartPulse color={C.danger} size={18} />
+                            {requestingBP ? (
+                                <ActivityIndicator size="small" color={C.danger} />
+                            ) : (
+                                <HeartPulse color={C.danger} size={18} />
+                            )}
                         </View>
                         <Text style={styles.actionLabel}>Request BP</Text>
                     </Pressable>

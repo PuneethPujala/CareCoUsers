@@ -29,6 +29,39 @@ const FONT = {
     heavy: { fontFamily: 'Inter_800ExtraBold' },
 };
 
+const getAlertTitle = (type) => {
+    switch (type) {
+        case 'missed_call':
+            return 'Missed Call';
+        case 'patient_unreachable_3attempts':
+            return 'Patient Unreachable';
+        case 'medicine_refusal':
+            return 'Medicine Refused';
+        case 'medication_modification':
+            return 'Schedule Modified';
+        case 'medication_missed':
+            return 'Schedule Missed';
+        case 'unresponsive_7days':
+            return 'Unresponsive Alert';
+        case 'team_lead_recommended':
+            return 'Care Circle Alert';
+        case 'caller_performance':
+            return 'Caller Performance Alert';
+        case 'caller_capacity':
+            return 'Caller Capacity Alert';
+        case 'general':
+            return 'General Alert';
+        case 'other':
+            return 'Care Circle Alert';
+        default:
+            if (!type) return 'Alert Triggered';
+            return type
+                .split('_')
+                .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                .join(' ');
+    }
+};
+
 export default function CompanionAlertsScreen() {
     const [data, setData] = useState(null);
     const [alerts, setAlerts] = useState([]);
@@ -59,11 +92,29 @@ export default function CompanionAlertsScreen() {
     };
 
     const acknowledgeAlert = async (id) => {
+        const previousAlerts = alerts;
+        const previousData = data;
+
+        // Optimistically filter out the alert from state
+        setAlerts(prev => prev.filter(a => a._id !== id));
+        setData(prev => {
+            if (!prev) return prev;
+            return {
+                ...prev,
+                recent_alerts: (prev.recent_alerts || []).filter(a => a._id !== id)
+            };
+        });
+
         try {
             await apiService.companion.acknowledgeAlert(id);
-            await loadData();
+            // Non-blocking refresh to sync any other background updates
+            loadData();
         } catch (err) {
             console.warn('Failed to acknowledge alert', err);
+            // Revert state on failure
+            setAlerts(previousAlerts);
+            setData(previousData);
+            AlertManager.alert('Dismiss Failed', 'Unable to dismiss this alert at the moment. Please try again.');
         }
     };
 
@@ -169,17 +220,17 @@ export default function CompanionAlertsScreen() {
                         {alerts.map(a => (
                             <View key={a._id} style={styles.alertCard}>
                                 <View style={styles.alertHeader}>
-                                    <ShieldAlert color={C.danger} size={20} />
-                                    <Text style={styles.alertTitle}>Schedule Missed</Text>
+                                    <ShieldAlert color="#E11D48" size={20} />
+                                    <Text style={styles.alertTitle}>{getAlertTitle(a.type)}</Text>
                                 </View>
                                 <Text style={styles.alertDesc}>{a.description}</Text>
                                  <View style={styles.alertFooter}>
                                     <Pressable style={styles.callQuickBtn} onPress={handleCall}>
-                                        <Phone color={C.dark} size={16} />
+                                        <Phone color="#E11D48" size={16} />
                                         <Text style={styles.callQuickText}>Call Now</Text>
                                     </Pressable>
                                     <Pressable style={styles.ackBtn} onPress={() => acknowledgeAlert(a._id)}>
-                                        <CheckCircle2 color="#FFF" size={16} />
+                                        <CheckCircle2 color="#475569" size={16} />
                                         <Text style={styles.ackText}>Dismiss</Text>
                                     </Pressable>
                                 </View>
@@ -399,12 +450,17 @@ const styles = StyleSheet.create({
     
     // Alert Card Styles
     alertCard: {
-        backgroundColor: '#FFF1F2',
-        borderRadius: 24,
-        padding: 20,
+        backgroundColor: 'rgba(255, 241, 242, 0.7)',
+        borderRadius: 20,
+        padding: 16,
         borderWidth: 1,
-        borderColor: '#FECDD3',
+        borderColor: 'rgba(254, 205, 211, 0.8)',
         gap: 12,
+        shadowColor: '#F43F5E',
+        shadowOpacity: 0.04,
+        shadowRadius: 10,
+        shadowOffset: { width: 0, height: 4 },
+        elevation: 1,
     },
     alertHeader: {
         flexDirection: 'row',
@@ -412,15 +468,15 @@ const styles = StyleSheet.create({
         gap: 8,
     },
     alertTitle: {
-        fontSize: 15,
+        fontSize: 14,
         ...FONT.bold,
-        color: C.danger,
+        color: '#E11D48',
     },
     alertDesc: {
-        fontSize: 14,
+        fontSize: 13,
         ...FONT.semibold,
         color: '#881337',
-        lineHeight: 20,
+        lineHeight: 18,
     },
     alertFooter: {
         flexDirection: 'row',
@@ -432,31 +488,33 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         gap: 6,
-        backgroundColor: '#FFF',
+        backgroundColor: 'rgba(225, 29, 72, 0.08)',
         borderWidth: 1,
-        borderColor: '#E2E8F0',
-        paddingHorizontal: 16,
-        paddingVertical: 10,
-        borderRadius: 14,
+        borderColor: 'rgba(225, 29, 72, 0.4)',
+        paddingHorizontal: 14,
+        paddingVertical: 8,
+        borderRadius: 12,
     },
     callQuickText: {
-        fontSize: 13,
+        fontSize: 12,
         ...FONT.bold,
-        color: C.dark,
+        color: '#E11D48',
     },
     ackBtn: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 6,
-        backgroundColor: C.danger,
-        paddingHorizontal: 16,
-        paddingVertical: 10,
-        borderRadius: 14,
+        backgroundColor: 'rgba(241, 245, 249, 0.6)',
+        borderWidth: 1,
+        borderColor: 'rgba(148, 163, 184, 0.3)',
+        paddingHorizontal: 14,
+        paddingVertical: 8,
+        borderRadius: 12,
     },
     ackText: {
-        fontSize: 13,
+        fontSize: 12,
         ...FONT.bold,
-        color: '#FFF',
+        color: '#475569',
     },
 
     // Guardian Card Styles
