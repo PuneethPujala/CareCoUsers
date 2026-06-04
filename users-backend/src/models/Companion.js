@@ -49,6 +49,9 @@ const CompanionSchema = new mongoose.Schema(
         message: 'Please enter a valid phone number',
       },
     },
+    avatarUrl: {
+      type: String,
+    },
     role: {
       type: String,
       required: true,

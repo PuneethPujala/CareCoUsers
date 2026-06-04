@@ -2,11 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, RefreshControl, Pressable, TextInput, ActivityIndicator } from 'react-native';
 import { apiService } from '../../lib/api';
 import { layout } from '../../theme';
-import { ShieldCheck, UserPlus, ChevronRight } from 'lucide-react-native';
+import { ShieldCheck, UserPlus, ChevronRight, LogOut } from 'lucide-react-native';
 import AlertManager from '../../utils/AlertManager';
 import usePatientStore from '../../store/usePatientStore';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useAuth } from '../../context/AuthContext';
 
 const C = {
     bg: '#F8FAFC',
@@ -38,6 +39,7 @@ export default function CompanionHomeScreen() {
     const setCompanionSelectedPatientId = usePatientStore(s => s.setCompanionSelectedPatientId);
     const navigation = useNavigation();
     const insets = useSafeAreaInsets();
+    const { signOut } = useAuth();
 
     const loadData = async () => {
         try {
@@ -87,9 +89,39 @@ export default function CompanionHomeScreen() {
     return (
         <View style={styles.container}>
             <View style={[styles.header, { paddingTop: Math.max(60, insets.top + 20) }]}>
-                <View>
-                    <Text style={styles.headerSub}>Family Care Portal</Text>
-                    <Text style={styles.title}>Welcome!</Text>
+                <View style={styles.headerRow}>
+                    <View>
+                        <Text style={styles.headerSub}>Family Care Portal</Text>
+                        <Text style={styles.title}>Welcome!</Text>
+                    </View>
+                    <Pressable 
+                        style={styles.logoutBtn} 
+                        onPress={async () => {
+                            AlertManager.alert(
+                                'Logout',
+                                'Are you sure you want to log out?',
+                                [
+                                    { text: 'Cancel', style: 'cancel' },
+                                    { 
+                                        text: 'Logout', 
+                                        style: 'destructive', 
+                                        onPress: async () => {
+                                            try {
+                                                const res = await signOut();
+                                                if (res?.error) {
+                                                    AlertManager.alert('Logout Failed', res.error);
+                                                }
+                                            } catch (err) {
+                                                AlertManager.alert('Logout Failed', err.message);
+                                            }
+                                        } 
+                                    }
+                                ]
+                            );
+                        }}
+                    >
+                        <LogOut color={C.danger} size={22} />
+                    </Pressable>
                 </View>
             </View>
 
@@ -186,6 +218,21 @@ const styles = StyleSheet.create({
         backgroundColor: C.surface,
         borderBottomWidth: 1,
         borderBottomColor: '#F8FAFC',
+    },
+    headerRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+    },
+    logoutBtn: {
+        width: 44,
+        height: 44,
+        borderRadius: 14,
+        backgroundColor: '#FEF2F2',
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 1,
+        borderColor: '#FEE2E2',
     },
     headerSub: {
         fontSize: 12,

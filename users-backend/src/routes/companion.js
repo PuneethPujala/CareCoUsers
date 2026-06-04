@@ -862,7 +862,7 @@ module.exports = router;
  * POST /api/companion/link-patient
  * Link an authenticated companion to a patient using an invite code.
  */
-router.post('/link-patient', authenticateSession, async (req, res) => {
+router.post('/link-patient', authenticate, async (req, res) => {
     try {
         const { invite_code } = req.body;
         if (!invite_code) {
@@ -882,7 +882,7 @@ router.post('/link-patient', authenticateSession, async (req, res) => {
             return res.status(400).json({ error: 'Invalid or expired invite code.' });
         }
 
-        const profileId = req.user.userId;
+        const profileId = req.profile?._id || req.auth?.userId;
         const profile = await Companion.findById(profileId);
         if (!profile) {
             return res.status(404).json({ error: 'Companion profile not found.' });

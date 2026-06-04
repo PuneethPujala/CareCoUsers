@@ -538,4 +538,44 @@ describe('Companion Routes', () => {
             expect(res.body.profile.fullName).toBe('Updated Companion');
         });
     });
+
+    describe('POST /api/companion/link-patient', () => {
+        it('returns 400 when invite code is missing', async () => {
+            const res = await request(app)
+                .post('/api/companion/link-patient')
+                .send({});
+            expect(res.status).toBe(400);
+            expect(res.body.error).toMatch(/required/i);
+        });
+
+        it('successfully links companion to patient using invite code', async () => {
+            const mockPatientObj = {
+                _id: fakeId('patient-123'),
+                name: 'Jane Patient',
+                trusted_contacts: [],
+                save: jest.fn().mockResolvedValue({}),
+            };
+            const mockSelect = jest.fn().mockResolvedValue(mockPatientObj);
+            Patient.findOne = jest.fn().mockReturnValue({ select: mockSelect });
+
+            const mockCompanionObj = {
+                _id: fakeId('companion-profile-id'),
+                email: 'companion@careco.in',
+                fullName: 'Companion Name',
+            };
+            Companion.findById = jest.fn().mockResolvedValue(mockCompanionObj);
+
+            CompanionAccess.findOne = jest.fn().mockResolvedValue(null);
+            CompanionAccess.create = jest.fn().mockResolvedValue({ _id: 'access-123' });
+
+            const res = await request(app)
+                .post('/api/companion/link-patient')
+                .send({ invite_code: 'FNYBWB' });
+
+            expect(res.status).toBe(200);
+            expect(res.body.message).toMatch(/linked patient/i);
+            expect(CompanionAccess.create).toHaveBeenCalled();
+            expect(mockPatientObj.save).toHaveBeenCalled();
+        });
+    });
 });

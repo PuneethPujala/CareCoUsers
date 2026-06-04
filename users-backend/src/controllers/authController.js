@@ -443,6 +443,30 @@ async function updateMe(req, res) {
       return res.json({ message: 'Profile updated successfully' });
     }
 
+    if (req.profile?.role === 'companion') {
+      const Companion = require('../models/Companion');
+      const companion = await Companion.findByIdAndUpdate(req.profile._id, updateData, {
+        new: true,
+        runValidators: true,
+      });
+      await logEvent(req.profile.supabaseUid, 'profile_updated', 'companion', companion._id, req, {
+        updatedFields: Object.keys(updateData),
+      });
+      return res.json({
+        message: 'Profile updated successfully',
+        profile: {
+          id: companion._id,
+          email: companion.email,
+          fullName: companion.fullName,
+          role: companion.role,
+          phone: companion.phone,
+          avatarUrl: companion.avatarUrl,
+          isActive: companion.isActive,
+          emailVerified: companion.emailVerified,
+        },
+      });
+    }
+
     const profile = await Profile.findByIdAndUpdate(req.profile._id, updateData, {
       new: true,
       runValidators: true,
@@ -469,6 +493,78 @@ async function updateMe(req, res) {
   } catch (err) {
     console.error('Update profile error:', err);
     res.status(500).json({ error: 'Failed to update profile' });
+  }
+}
+
+async function uploadAvatar(req, res) {
+  try {
+    const { file_base64, content_type } = req.body;
+    if (!file_base64) return res.status(400).json({ error: 'file_base64 is required' });
+
+    let userModel;
+    let resourceType;
+    if (req.profile.role === 'companion') {
+      userModel = require('../models/Companion');
+      resourceType = 'companion';
+    } else {
+      userModel = Profile;
+      resourceType = 'profile';
+    }
+
+    const user = await userModel.findById(req.profile._id);
+    if (!user) {
+      return res.status(404).json({ error: 'Profile not found' });
+    }
+
+    const { createClient } = require('@supabase/supabase-js');
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!supabaseUrl || !supabaseServiceKey) {
+      return res.status(500).json({ error: 'Supabase configuration missing on server' });
+    }
+
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+    const buffer = Buffer.from(file_base64, 'base64');
+    const ext = content_type === 'image/png' ? 'png' : 'jpg';
+    const randomHash = Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
+    const fileName = `${user.supabaseUid || user._id}/${randomHash}.${ext}`;
+
+    const { data, error } = await supabaseAdmin.storage
+      .from('avatars')
+      .upload(fileName, buffer, { contentType: content_type || 'image/jpeg', upsert: true });
+
+    if (error) {
+      console.error('Supabase avatar upload error:', error.message);
+      return res.status(500).json({ error: 'Failed to upload: ' + error.message });
+    }
+
+    const publicUrl = supabaseAdmin.storage.from('avatars').getPublicUrl(fileName).data.publicUrl;
+
+    // Delete old avatar from Supabase Storage if it exists
+    if (user.avatarUrl) {
+      try {
+        const marker = `/public/avatars/`;
+        const idx = user.avatarUrl.indexOf(marker);
+        if (idx !== -1) {
+          const oldFilePath = decodeURIComponent(user.avatarUrl.substring(idx + marker.length));
+          await supabaseAdmin.storage.from('avatars').remove([oldFilePath]);
+        }
+      } catch (delErr) {
+        console.warn('Failed to delete old avatar file:', delErr.message);
+      }
+    }
+
+    user.avatarUrl = publicUrl;
+    await user.save();
+
+    await logEvent(user.supabaseUid, 'avatar_uploaded', resourceType, user._id, req, {
+      avatarUrl: publicUrl,
+    });
+
+    res.json({ message: 'Avatar uploaded successfully', avatarUrl: publicUrl, user });
+  } catch (error) {
+    console.error('Upload avatar error:', error);
+    res.status(500).json({ error: 'Failed to upload avatar', details: error.message });
   }
 }
 
@@ -649,6 +745,7 @@ module.exports = {
   changePassword,
   patientCity,
   updateMe,
+  uploadAvatar,
   sendOtp,
   verifyOtp,
   setPassword,

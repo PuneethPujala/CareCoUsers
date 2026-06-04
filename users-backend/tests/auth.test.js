@@ -739,4 +739,95 @@ describe('Auth Routes', () => {
             );
         });
     });
-});
+
+    // ── PUT /api/auth/me & POST /api/auth/me/avatar for Companion ──────────────
+
+    describe('PUT /api/auth/me and POST /api/auth/me/avatar for Companion', () => {
+        beforeEach(() => {
+            mockAuthState.profile = {
+                _id: 'companion123',
+                role: 'companion',
+                email: 'companion@caremymed.in',
+                fullName: 'Companion Name',
+                phone: '+919999999999',
+                supabaseUid: 'cmp-uid-123',
+            };
+        });
+
+        it('allows companion to update own profile and bypasses RBAC checks', async () => {
+            const updatedCompanion = {
+                _id: 'companion123',
+                email: 'companion@caremymed.in',
+                fullName: 'Companion New Name',
+                role: 'companion',
+                phone: '+919999999998',
+                avatarUrl: 'http://example.com/avatar.jpg',
+                isActive: true,
+                emailVerified: true,
+            };
+            Companion.findByIdAndUpdate = jest.fn().mockResolvedValue(updatedCompanion);
+
+            const res = await request(app)
+                .put('/api/auth/me')
+                .send({
+                    fullName: 'Companion New Name',
+                    phone: '+919999999998',
+                    avatarUrl: 'http://example.com/avatar.jpg',
+                });
+
+            expect(res.status).toBe(200);
+            expect(res.body.message).toBe('Profile updated successfully');
+            expect(res.body.profile.fullName).toBe('Companion New Name');
+            expect(res.body.profile.phone).toBe('+919999999998');
+            expect(res.body.profile.avatarUrl).toBe('http://example.com/avatar.jpg');
+            expect(Companion.findByIdAndUpdate).toHaveBeenCalledWith(
+                'companion123',
+                {
+                    fullName: 'Companion New Name',
+                    phone: '+919999999998',
+                    avatarUrl: 'http://example.com/avatar.jpg',
+                },
+                { new: true, runValidators: true }
+            );
+        });
+
+        it('allows companion to upload cropped avatar to Supabase and saves avatarUrl', async () => {
+            const companionObj = {
+                _id: 'companion123',
+                supabaseUid: 'cmp-uid-123',
+                avatarUrl: null,
+                save: jest.fn().mockResolvedValue(true),
+            };
+            Companion.findById = jest.fn().mockResolvedValue(companionObj);
+
+            // Mock Supabase storage methods
+            const mockUpload = jest.fn().mockResolvedValue({ data: {}, error: null });
+            const mockGetPublicUrl = jest.fn().mockReturnValue({
+                data: { publicUrl: 'https://supabase.co/storage/v1/object/public/avatars/cmp-uid-123/random.jpg' },
+            });
+
+            mockSupabase.auth.admin = {
+                createUser: jest.fn(),
+            };
+            mockSupabase.storage = {
+                from: jest.fn().mockReturnValue({
+                    upload: mockUpload,
+                    getPublicUrl: mockGetPublicUrl,
+                }),
+            };
+
+            const res = await request(app)
+                .post('/api/auth/me/avatar')
+                .send({
+                    file_base64: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+                    content_type: 'image/png',
+                });
+
+            expect(res.status).toBe(200);
+            expect(res.body.message).toBe('Avatar uploaded successfully');
+            expect(res.body.avatarUrl).toBe('https://supabase.co/storage/v1/object/public/avatars/cmp-uid-123/random.jpg');
+            expect(companionObj.avatarUrl).toBe('https://supabase.co/storage/v1/object/public/avatars/cmp-uid-123/random.jpg');
+            expect(companionObj.save).toHaveBeenCalled();
+        });
+    });
+});
