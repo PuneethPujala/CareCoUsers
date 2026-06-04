@@ -110,6 +110,19 @@ export default function ActiveCallScreen({ navigation, route }) {
     const [isSpeaker, setIsSpeaker] = useState(true);
     const [agoraError, setAgoraError] = useState(null);
 
+    // Premium Custom Alert State
+    const [customAlert, setCustomAlert] = useState({
+        visible: false,
+        title: '',
+        message: '',
+        type: 'info', // 'info', 'warning', 'danger', 'success'
+        buttons: []
+    });
+
+    const showPremiumAlert = (title, message, type = 'info', buttons = [{ text: 'OK', onPress: () => setCustomAlert(a => ({ ...a, visible: false })) }]) => {
+        setCustomAlert({ visible: true, title, message, type, buttons });
+    };
+
     // Dictation State
     const [recording, setRecording] = useState(null);
     const [isDictating, setIsDictating] = useState(false);
@@ -491,14 +504,18 @@ export default function ActiveCallScreen({ navigation, route }) {
     const handleEndCall = async () => {
         if (!outcome) {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-            Alert.alert('Select Outcome', 'Please select a call outcome before ending the call.');
+            showPremiumAlert('Select Outcome', 'Please select a call outcome before ending the call.', 'warning');
             return;
         }
 
         if (!patientId || patientId === 'mock') {
             clearInterval(timerRef.current);
-            Alert.alert('Call Finished', 'Mock call completed.');
-            navigation.goBack();
+            showPremiumAlert('Call Finished', 'Mock call completed.', 'success', [
+                { text: 'Done', style: 'default', onPress: () => {
+                    setCustomAlert(a => ({ ...a, visible: false }));
+                    navigation.goBack();
+                }}
+            ]);
             return;
         }
 
@@ -507,12 +524,16 @@ export default function ActiveCallScreen({ navigation, route }) {
             if (!allChecked) {
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
                 const cc = medications.filter(m => checkedMeds[getMedKey(m)]).length;
-                Alert.alert(
-                    'Incomplete Medication Review',
+                showPremiumAlert(
+                    'Incomplete Review',
                     `Only ${cc} of ${medications.length} medications are confirmed. The patient will remain PENDING in your queue until all medications are verified.\n\nDo you want to proceed?`,
+                    'warning',
                     [
-                        { text: 'Go Back', style: 'cancel' },
-                        { text: 'Submit Anyway', style: 'destructive', onPress: () => submitCall() },
+                        { text: 'Go Back', style: 'cancel', onPress: () => setCustomAlert(a => ({ ...a, visible: false })) },
+                        { text: 'Submit Anyway', style: 'destructive', onPress: () => {
+                            setCustomAlert(a => ({ ...a, visible: false }));
+                            submitCall();
+                        }},
                     ]
                 );
                 return;
@@ -588,7 +609,7 @@ export default function ActiveCallScreen({ navigation, route }) {
         } catch (err) {
             console.error('[ActiveCall] End call error:', err);
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-            Alert.alert('Error', 'Failed to save call log data. Please ensure you are online.');
+            showPremiumAlert('Error', 'Failed to save call log data. Please ensure you are online.', 'danger');
             setSaving(false);
 
             timerRef.current = setInterval(() => setSeconds(s => s + 1), 1000);
@@ -974,12 +995,16 @@ export default function ActiveCallScreen({ navigation, route }) {
                             disabled={saving}
                             onPress={() => {
                                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                                Alert.alert(
+                                showPremiumAlert(
                                     'Complete Call',
                                     'Are you sure you want to end and log this call?',
+                                    'info',
                                     [
-                                        { text: 'Cancel', style: 'cancel' },
-                                        { text: 'Yes, Complete', style: 'destructive', onPress: () => handleEndCall() },
+                                        { text: 'Cancel', style: 'cancel', onPress: () => setCustomAlert(a => ({ ...a, visible: false })) },
+                                        { text: 'Yes, Complete', style: 'destructive', onPress: () => {
+                                            setCustomAlert(a => ({ ...a, visible: false }));
+                                            handleEndCall();
+                                        }},
                                     ]
                                 );
                             }}
@@ -1060,6 +1085,44 @@ export default function ActiveCallScreen({ navigation, route }) {
                         </TouchableOpacity>
                     </TouchableOpacity>
                 </KeyboardAvoidingView>
+            </Modal>
+
+            {/* ═══ Premium Custom Alert Modal ═══ */}
+            <Modal visible={customAlert.visible} animationType="fade" transparent onRequestClose={() => setCustomAlert(a => ({ ...a, visible: false }))}>
+                <View style={[st.modalOverlay, { justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(15, 23, 42, 0.6)' }]}>
+                    <View style={{ width: '85%', backgroundColor: '#FFF', borderRadius: 24, padding: 24, shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.15, shadowRadius: 20, elevation: 10 }}>
+                        <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: customAlert.type === 'danger' ? '#FEF2F2' : customAlert.type === 'warning' ? '#FFFBEB' : customAlert.type === 'success' ? '#F0FDF4' : '#EEF2FF', justifyContent: 'center', alignItems: 'center', marginBottom: 16 }}>
+                            <Feather name={customAlert.type === 'danger' ? 'x-circle' : customAlert.type === 'warning' ? 'alert-triangle' : customAlert.type === 'success' ? 'check-circle' : 'info'} size={24} color={customAlert.type === 'danger' ? '#EF4444' : customAlert.type === 'warning' ? '#F59E0B' : customAlert.type === 'success' ? '#10B981' : '#6366F1'} />
+                        </View>
+                        <Text style={{ fontSize: 20, fontWeight: '800', color: '#0F172A', marginBottom: 8 }}>{customAlert.title}</Text>
+                        <Text style={{ fontSize: 15, color: '#475569', lineHeight: 22, marginBottom: 24 }}>{customAlert.message}</Text>
+                        
+                        <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 12 }}>
+                            {customAlert.buttons.map((btn, idx) => (
+                                <TouchableOpacity
+                                    key={idx}
+                                    style={{
+                                        paddingVertical: 12,
+                                        paddingHorizontal: 20,
+                                        borderRadius: 12,
+                                        backgroundColor: btn.style === 'destructive' ? '#EF4444' : btn.style === 'cancel' ? '#F1F5F9' : '#6366F1',
+                                        minWidth: 100,
+                                        alignItems: 'center'
+                                    }}
+                                    onPress={btn.onPress}
+                                >
+                                    <Text style={{
+                                        fontSize: 15,
+                                        fontWeight: '700',
+                                        color: btn.style === 'cancel' ? '#475569' : '#FFF'
+                                    }}>
+                                        {btn.text}
+                                    </Text>
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+                    </View>
+                </View>
             </Modal>
         </View>
     );
