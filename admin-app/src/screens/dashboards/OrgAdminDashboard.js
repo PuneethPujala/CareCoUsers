@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, RefreshControl, Alert, Dimensions, StatusBar, Modal, TextInput, ActivityIndicator, Platform } from 'react-native';
 import { Feather, Ionicons } from '@expo/vector-icons';
+import Svg, { Circle, G, Text as SvgText, Path } from 'react-native-svg';
 import { Theme } from '../../theme/theme';
 import { useAuth } from '../../context/AuthContext';
 import { apiService } from '../../lib/api';
@@ -46,6 +47,7 @@ export default function OrgAdminDashboard({ navigation }) {
         routingQueue: [],
         recentActivity: []
     });
+    const [pulseData, setPulseData] = useState(null);
     
     // Collaboration States
     const [orgDetails, setOrgDetails] = useState(null);
@@ -73,13 +75,15 @@ export default function OrgAdminDashboard({ navigation }) {
             // Auto-reconcile: silently assign any unassigned patients to available callers
             try { await apiService.org.reconcile(); } catch (e) { /* non-blocking */ }
 
-            const [res, orgRes] = await Promise.all([
+            const [res, orgRes, pulseRes] = await Promise.all([
                 apiService.dashboard.getOrgAdminStats(),
-                orgIdStr ? apiService.organizations.getById(orgIdStr) : Promise.resolve({ data: null })
+                orgIdStr ? apiService.organizations.getById(orgIdStr) : Promise.resolve({ data: null }),
+                apiService.dashboard.getOrgAdminPulse().catch(() => ({ data: null }))
             ]);
 
             setStats(res.data || {}); 
             setOrgDetails(orgRes.data);
+            if (pulseRes.data) setPulseData(pulseRes.data);
         } catch (err) { 
             const m = err?.response?.data?.error || 'Failed to load organization data.'; 
             setError(m); 
@@ -369,6 +373,118 @@ export default function OrgAdminDashboard({ navigation }) {
         );
     };
 
+    const renderCommandCenter = () => {
+        if (!pulseData) return null;
+        const { systemUtilization, globalSla, staffingForecast, orgPulse, escalationHeatmap } = pulseData;
+
+        // ── 1. System Health ──
+        const size = 140;
+        const strokeWidth = 10;
+        const center = size / 2;
+        const r1 = (size - strokeWidth) / 2;
+        const c1 = 2 * Math.PI * r1;
+        const utilPct = systemUtilization?.percentage || 0;
+        const d1 = c1 - (c1 * utilPct) / 100;
+        
+        const r2 = r1 - strokeWidth - 6;
+        const c2 = 2 * Math.PI * r2;
+        const slaPct = globalSla?.percentage || 0;
+        const d2 = c2 - (c2 * slaPct) / 100;
+
+        // ── 2. Pulse Bar ──
+        const activePct = orgPulse?.engagement || 0;
+        const idlePct = 100 - activePct;
+
+        return (
+            <View style={{ paddingHorizontal: 16, marginBottom: 24, gap: 16 }}>
+                
+                {/* Dual Ring Health Card */}
+                <View style={s.ccCard}>
+                    <Text style={s.ccTitle}>Network Health & Utilization</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <View style={{ width: size, height: size, justifyContent: 'center', alignItems: 'center' }}>
+                            <Svg width={size} height={size} style={{ transform: [{ rotate: '-90deg' }] }}>
+                                <Circle cx={center} cy={center} r={r1} stroke="#EEF2FF" strokeWidth={strokeWidth} fill="none" />
+                                <Circle cx={center} cy={center} r={r1} stroke="#4F46E5" strokeWidth={strokeWidth} fill="none" strokeDasharray={c1} strokeDashoffset={d1} strokeLinecap="round" />
+                                <Circle cx={center} cy={center} r={r2} stroke="#ECFDF5" strokeWidth={strokeWidth} fill="none" />
+                                <Circle cx={center} cy={center} r={r2} stroke="#10B981" strokeWidth={strokeWidth} fill="none" strokeDasharray={c2} strokeDashoffset={d2} strokeLinecap="round" />
+                            </Svg>
+                            <View style={{ position: 'absolute', justifyContent: 'center', alignItems: 'center' }}>
+                                <Feather name="activity" size={24} color="#0F172A" />
+                            </View>
+                        </View>
+                        <View style={{ flex: 1, marginLeft: 20, gap: 16 }}>
+                            <View>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
+                                    <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#4F46E5', marginRight: 6 }} />
+                                    <Text style={{ fontSize: 12, fontWeight: '700', color: '#64748B', textTransform: 'uppercase' }}>Utilization</Text>
+                                </View>
+                                <Text style={{ fontSize: 18, fontWeight: '800', color: '#0F172A' }}>{utilPct}% <Text style={{ fontSize: 12, fontWeight: '600', color: '#94A3B8' }}>({systemUtilization?.activeAssignments}/{systemUtilization?.maxCapacity})</Text></Text>
+                            </View>
+                            <View>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
+                                    <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#10B981', marginRight: 6 }} />
+                                    <Text style={{ fontSize: 12, fontWeight: '700', color: '#64748B', textTransform: 'uppercase' }}>Global SLA</Text>
+                                </View>
+                                <Text style={{ fontSize: 18, fontWeight: '800', color: '#0F172A' }}>{slaPct}% <Text style={{ fontSize: 12, fontWeight: '600', color: '#94A3B8' }}>({globalSla?.completed}/{globalSla?.total})</Text></Text>
+                            </View>
+                        </View>
+                    </View>
+                </View>
+
+                {/* AI Staffing Forecaster */}
+                <View style={[s.ccCard, { backgroundColor: staffingForecast?.callersNeeded14Days > 0 ? '#FFFBEB' : '#F0FDF4', borderColor: staffingForecast?.callersNeeded14Days > 0 ? '#FEF3C7' : '#D1FAE5' }]}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+                        <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: staffingForecast?.callersNeeded14Days > 0 ? '#F59E0B' : '#10B981', justifyContent: 'center', alignItems: 'center', marginRight: 12 }}>
+                            <Feather name={staffingForecast?.callersNeeded14Days > 0 ? "trending-up" : "shield"} size={16} color="#FFF" />
+                        </View>
+                        <Text style={{ fontSize: 16, fontWeight: '800', color: staffingForecast?.callersNeeded14Days > 0 ? '#92400E' : '#065F46' }}>
+                            {staffingForecast?.callersNeeded14Days > 0 ? 'Action Required: Hiring' : 'Capacity Stable'}
+                        </Text>
+                    </View>
+                    <Text style={{ fontSize: 14, fontWeight: '600', color: staffingForecast?.callersNeeded14Days > 0 ? '#B45309' : '#047857', lineHeight: 20 }}>
+                        {staffingForecast?.message}
+                    </Text>
+                </View>
+
+                {/* Live Org Pulse & Heatmap Row */}
+                <View style={{ flexDirection: 'row', gap: 12 }}>
+                    <View style={[s.ccCard, { flex: 1 }]}>
+                        <Text style={s.ccTitle}>Live {orgPulse?.currentShift} Pulse</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'flex-end', marginBottom: 12, gap: 4 }}>
+                            <Text style={{ fontSize: 28, fontWeight: '800', color: '#0F172A', lineHeight: 32 }}>{activePct}%</Text>
+                            <Text style={{ fontSize: 13, fontWeight: '700', color: '#64748B', paddingBottom: 4 }}>Active</Text>
+                        </View>
+                        <View style={{ height: 12, borderRadius: 6, backgroundColor: '#F1F5F9', flexDirection: 'row', overflow: 'hidden' }}>
+                            <View style={{ width: `${activePct}%`, backgroundColor: '#10B981' }} />
+                            <View style={{ width: `${idlePct}%`, backgroundColor: '#94A3B8' }} />
+                        </View>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 }}>
+                            <Text style={{ fontSize: 11, fontWeight: '700', color: '#10B981' }}>{orgPulse?.activeCallers} Engaged</Text>
+                            <Text style={{ fontSize: 11, fontWeight: '700', color: '#94A3B8' }}>{orgPulse?.idleCallers} Idle</Text>
+                        </View>
+                    </View>
+
+                    <View style={[s.ccCard, { flex: 1, padding: 12 }]}>
+                        <Text style={[s.ccTitle, { marginBottom: 12 }]}>7-Day Escalations</Text>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', height: 60 }}>
+                            {escalationHeatmap?.map((day, i) => {
+                                const h = Math.max(10, Math.min(60, day.criticalScore * 10));
+                                const isCritical = day.criticalScore >= 5;
+                                return (
+                                    <View key={i} style={{ alignItems: 'center', gap: 4 }}>
+                                        <View style={{ width: 14, height: h, backgroundColor: isCritical ? '#EF4444' : (day.criticalScore > 0 ? '#F59E0B' : '#E2E8F0'), borderRadius: 4 }} />
+                                        <Text style={{ fontSize: 9, fontWeight: '800', color: '#94A3B8' }}>{day.day.charAt(0)}</Text>
+                                    </View>
+                                )
+                            })}
+                        </View>
+                    </View>
+                </View>
+            </View>
+        );
+    };
+
     return (
         <View style={s.container}>
             <StatusBar barStyle="dark-content" />
@@ -382,26 +498,8 @@ export default function OrgAdminDashboard({ navigation }) {
                     <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#6366F1" />
                 }
             >
-                {/* Reusing exact Hero Card styling to show Active Users */}
-                <HeroStatCard 
-                    title="ACTIVE ORGANIZATION USERS"
-                    value={
-                        (stats.stats?.care_manager || 0) + 
-                        (stats.stats?.caller || 0) + 
-                        (stats.stats?.patient_mentor || 0) + 
-                        (stats.stats?.patient || 0)
-                    }
-                    suffix=""
-                    changeText="Total Workforce & Patients"
-                    changeSub=""
-                    data={[
-                        // Dynamic-looking sparkline indicating growth
-                        40, 45, 52, 60, 70, 85, 95, 
-                        (stats.stats?.patient || 110), 
-                        (stats.stats?.caller || 120), 
-                        130
-                    ]}
-                />
+                {/* ═══ Premium Command Center ═══ */}
+                {renderCommandCenter()}
 
                 {/* KPI Grid (2 Columns x 2 Rows) */}
                 <View style={s.gridContainer}>
@@ -771,8 +869,11 @@ const s = StyleSheet.create({
     revenueSplitDivider: { width: 1, backgroundColor: '#E2E8F0', marginHorizontal: 16 },
     emptyStateCard: { backgroundColor: '#F8FAFC', borderRadius: 16, padding: 24, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#E2E8F0', borderStyle: 'dashed' },
 
-    typeCardInline: { flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 20, paddingVertical: 14, paddingHorizontal: 12, borderWidth: 2, borderColor: '#F1F5F9' },
     typeCardLabelInline: { flex: 1, fontSize: 13, fontWeight: '800', color: '#64748B' },
     typeRadioCircleInline: { width: 18, height: 18, borderRadius: 9, borderWidth: 2, borderColor: '#CBD5E1', justifyContent: 'center', alignItems: 'center' },
-    typeRadioInnerInline: { width: 10, height: 10, borderRadius: 5 }
+    typeRadioInnerInline: { width: 10, height: 10, borderRadius: 5 },
+
+    // Command Center Custom Utilities
+    ccCard: { backgroundColor: '#FFFFFF', borderRadius: 20, padding: 20, borderWidth: 1, borderColor: '#F1F5F9', ...Theme.shadows.sharp },
+    ccTitle: { fontSize: 14, fontWeight: '800', color: '#0F172A', letterSpacing: -0.3, marginBottom: 16 },
 });

@@ -184,6 +184,7 @@ export const apiService = {
     getOrgAdminStats: () => api.get('/dashboard/org-admin-stats', { params: { _t: Date.now() } }),
     getCareManagerStats: () => api.get('/dashboard/care-manager-stats', { params: { _t: Date.now() } }),
     getShiftPulse: () => api.get('/dashboard/care-manager-shift-pulse'),
+    getOrgAdminPulse: () => api.get('/dashboard/org-admin-pulse'),
   },
 
   // Profile endpoints
