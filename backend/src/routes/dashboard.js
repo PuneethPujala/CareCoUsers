@@ -470,11 +470,7 @@ router.get('/care-manager-stats',
                         organizationId: req.profile.organizationId,
                         role: { $in: ['caller', 'caretaker'] },
                         isActive: true,
-                        $or: [
-                            { managedBy: managerId },
-                            { managedBy: { $exists: false } },
-                            { managedBy: null }
-                        ]
+                        managedBy: managerId
                     }).select('_id fullName').lean();
 
                     const totalCallers = managedCallers.length;
@@ -685,11 +681,7 @@ router.get('/care-manager-shift-pulse',
                 organizationId: orgId,
                 role: { $in: ['caller', 'caretaker'] },
                 isActive: true,
-                $or: [
-                    { managedBy: managerId },
-                    { managedBy: { $exists: false } },
-                    { managedBy: null }
-                ]
+                managedBy: managerId
             }).select('_id fullName').lean();
 
             const callerIds = managedCallers.map(c => c._id);
@@ -700,33 +692,34 @@ router.get('/care-manager-shift-pulse',
                 scheduledTime: { $gte: todayStart, $lte: todayEnd }
             }).select('caretakerId status scheduledTime startedAt outcome patientMood').lean();
 
-            // Total expected calls today (patients assigned to managed callers)
-            const totalAssigned = await CaretakerPatient.countDocuments({
-                caretakerId: { $in: callerIds },
-                status: 'active'
-            });
+            // Total active assignments per caller
+            const assignments = await CaretakerPatient.aggregate([
+                { $match: { caretakerId: { $in: callerIds }, status: 'active' } },
+                { $group: { _id: '$caretakerId', count: { $sum: 1 } } }
+            ]);
+            const assignmentMap = Object.fromEntries(assignments.map(a => [a._id.toString(), a.count]));
 
-            const completedToday = todayLogs.filter(l => l.status === 'completed').length;
-            const totalScheduledToday = Math.max(totalAssigned, todayLogs.length);
-
-            // ── Daily Goal ──
-            const dailyGoal = {
-                completed: completedToday,
-                total: totalScheduledToday,
-                percentage: totalScheduledToday > 0 ? Math.round((completedToday / totalScheduledToday) * 100) : 0
-            };
+            let globalTotalScheduled = 0;
+            let globalCompleted = 0;
 
             // ── Per-Caller Activity (for Shift Pulse + Leaderboard) ──
             const callerActivity = managedCallers.map(caller => {
                 const callerLogs = todayLogs.filter(l => l.caretakerId.toString() === caller._id.toString());
                 const callerCompleted = callerLogs.filter(l => l.status === 'completed');
                 const firstCall = callerCompleted.sort((a, b) => new Date(a.startedAt || a.scheduledTime) - new Date(b.startedAt || b.scheduledTime))[0];
+                
+                const assigned = assignmentMap[caller._id.toString()] || 0;
+                // Expected calls is max of active assignments vs actual call logs generated today
+                const expectedCalls = Math.max(assigned, callerLogs.length);
+                
+                globalTotalScheduled += expectedCalls;
+                globalCompleted += callerCompleted.length;
 
                 return {
                     id: caller._id,
                     name: caller.fullName,
                     callsToday: callerCompleted.length,
-                    totalScheduled: callerLogs.length,
+                    totalScheduled: expectedCalls,
                     firstCallAt: firstCall ? (firstCall.startedAt || firstCall.scheduledTime) : null,
                     lastCallAt: callerCompleted.length > 0 
                         ? (callerCompleted[callerCompleted.length - 1].startedAt || callerCompleted[callerCompleted.length - 1].scheduledTime)
@@ -734,6 +727,13 @@ router.get('/care-manager-shift-pulse',
                     isActive: callerCompleted.length > 0,
                 };
             });
+
+            // ── Daily Goal ──
+            const dailyGoal = {
+                completed: globalCompleted,
+                total: globalTotalScheduled,
+                percentage: globalTotalScheduled > 0 ? Math.round((globalCompleted / globalTotalScheduled) * 100) : 0
+            };
 
             const activeCallers = callerActivity.filter(c => c.isActive).length;
             const idleCallers = callerActivity.length - activeCallers;
@@ -807,6 +807,150 @@ router.get('/care-manager-shift-pulse',
         } catch (error) {
             console.error('Care manager shift pulse error:', error);
             res.status(500).json({ error: 'Failed to load shift pulse data.' });
+        }
+    }
+);
+
+/**
+ * GET /api/dashboard/org-admin-pulse
+ * Premium UX data for Org Admin Dashboard
+ * Returns: systemUtilization, globalSla, staffingForecast, orgPulse, escalationHeatmap
+ */
+router.get('/org-admin-pulse',
+    authenticate,
+    requireRole('admin', 'super_admin'),
+    async (req, res) => {
+        try {
+            const orgId = req.profile.organizationId;
+            const CallLog = require('../models/CallLog');
+            const Patient = require('../models/Patient');
+            const CaretakerPatient = require('../models/CaretakerPatient');
+
+            // Determine current shift (IST)
+            const nowIST = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
+            const hour = nowIST.getUTCHours();
+            let currentShift = 'morning';
+            if (hour >= 12 && hour < 17) currentShift = 'afternoon';
+            else if (hour >= 17) currentShift = 'night';
+
+            // Today's date string (IST)
+            const todayStr = nowIST.toISOString().split('T')[0];
+            const todayStart = new Date(todayStr + 'T00:00:00+05:30');
+            const todayEnd = new Date(todayStr + 'T23:59:59+05:30');
+
+            // ── System Utilization & Global SLA ──
+            const allOrgCallers = await Profile.find({
+                organizationId: orgId,
+                role: { $in: ['caller', 'caretaker'] },
+                isActive: true
+            }).select('_id fullName managedBy').lean();
+
+            const callerIds = allOrgCallers.map(c => c._id);
+            const totalCallers = allOrgCallers.length;
+            const MAX_PATIENTS_PER_CALLER = 30;
+            const maxCapacity = totalCallers * MAX_PATIENTS_PER_CALLER;
+
+            const activeAssignments = await CaretakerPatient.countDocuments({
+                caretakerId: { $in: callerIds },
+                status: 'active'
+            });
+
+            // Utilization
+            const systemUtilization = {
+                activeAssignments,
+                maxCapacity,
+                percentage: maxCapacity > 0 ? Math.round((activeAssignments / maxCapacity) * 100) : 0
+            };
+
+            // SLA (today's calls)
+            const todayLogs = await CallLog.find({
+                caretakerId: { $in: callerIds },
+                scheduledTime: { $gte: todayStart, $lte: todayEnd }
+            }).select('status patientMood').lean();
+
+            const completedToday = todayLogs.filter(l => l.status === 'completed').length;
+            const totalScheduledToday = Math.max(activeAssignments, todayLogs.length);
+
+            const globalSla = {
+                completed: completedToday,
+                total: totalScheduledToday,
+                percentage: totalScheduledToday > 0 ? Math.round((completedToday / totalScheduledToday) * 100) : 0
+            };
+
+            // ── AI Staffing Forecast ──
+            const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+            const patientsLast30Days = await Patient.countDocuments({
+                organization_id: orgId,
+                is_active: true,
+                createdAt: { $gte: thirtyDaysAgo }
+            });
+            const dailyGrowthRate = Math.round((patientsLast30Days / 30) * 10) / 10;
+            const availableSlots = Math.max(0, maxCapacity - activeAssignments);
+            
+            let callersNeeded = 0;
+            if (dailyGrowthRate > 0) {
+                const patientsIn14Days = dailyGrowthRate * 14;
+                const shortfall = patientsIn14Days - availableSlots;
+                if (shortfall > 0) {
+                    callersNeeded = Math.ceil(shortfall / MAX_PATIENTS_PER_CALLER);
+                }
+            }
+
+            const staffingForecast = {
+                trend: dailyGrowthRate > 0 ? 'growing' : 'stable',
+                dailyGrowthRate,
+                availableSlots,
+                callersNeeded14Days: callersNeeded,
+                message: callersNeeded > 0 
+                    ? `Patient volume is growing. You need to onboard ${callersNeeded} new caller(s) in the next 14 days to maintain capacity.`
+                    : `Capacity is stable. You have ${availableSlots} slots available for new patients.`
+            };
+
+            // ── Live Org Pulse ──
+            const activeCallerIds = [...new Set(todayLogs.filter(l => l.status === 'completed').map(l => l.caretakerId.toString()))];
+            
+            const orgPulse = {
+                currentShift,
+                activeCallers: activeCallerIds.length,
+                idleCallers: totalCallers - activeCallerIds.length,
+                engagement: totalCallers > 0 ? Math.round((activeCallerIds.length / totalCallers) * 100) : 0
+            };
+
+            // ── Critical Escalation Heatmap (7-Day) ──
+            const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+            const weekLogs = await CallLog.find({
+                caretakerId: { $in: callerIds },
+                scheduledTime: { $gte: sevenDaysAgo }
+            }).select('status scheduledTime patientMood').lean();
+
+            const heatmapDays = [];
+            for (let i = 6; i >= 0; i--) {
+                const d = new Date(Date.now() - i * 24 * 60 * 60 * 1000);
+                const dStr = d.toISOString().split('T')[0];
+                const dayLogs = weekLogs.filter(l => new Date(l.scheduledTime).toISOString().split('T')[0] === dStr);
+                const missed = dayLogs.filter(l => l.status !== 'completed').length;
+                const flags = dayLogs.filter(l => l.patientMood === 'sad' || l.patientMood === 'bad').length;
+                
+                heatmapDays.push({
+                    date: dStr,
+                    day: d.toLocaleDateString('en-US', { weekday: 'short' }),
+                    missed,
+                    flags,
+                    criticalScore: missed + (flags * 2)
+                });
+            }
+
+            res.json({
+                systemUtilization,
+                globalSla,
+                staffingForecast,
+                orgPulse,
+                escalationHeatmap: heatmapDays
+            });
+
+        } catch (error) {
+            console.error('Org Admin pulse error:', error);
+            res.status(500).json({ error: 'Failed to load org admin pulse data.' });
         }
     }
 );

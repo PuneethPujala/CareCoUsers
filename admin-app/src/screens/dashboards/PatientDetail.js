@@ -150,21 +150,38 @@ export default function PatientDetail({ route, navigation }) {
     };
 
     const deleteMedication = (med) => {
-        showAlert('Remove Medication', `Remove ${med.name}?`, 'destructive', [
-            { text: 'Cancel', style: 'cancel' },
-            { 
-                text: 'Remove', 
-                style: 'destructive', 
-                onPress: async () => {
-                    try {
-                        await apiService.caretaker.deleteMedication(patient.id, med._id || med.id);
-                        fetchData();
-                    } catch (err) {
-                        showAlert('Error', handleApiError(err).message, 'error');
-                    }
-                } 
-            }
-        ]);
+        showAlert(
+            'Remove Medication', 
+            `Why are you removing ${med.name}?\n\nChoose "Mistake" to permanently delete it, or "Stopped" to keep the history but stop tracking it.`, 
+            'warning', 
+            [
+                { text: 'Cancel', style: 'cancel' },
+                { 
+                    text: 'Patient Stopped', 
+                    style: 'default', 
+                    onPress: async () => {
+                        try {
+                            await apiService.caretaker.deleteMedication(patient.id, med._id || med.id, 'soft');
+                            fetchData();
+                        } catch (err) {
+                            showAlert('Error', handleApiError(err).message, 'error');
+                        }
+                    } 
+                },
+                { 
+                    text: 'Entered By Mistake', 
+                    style: 'destructive', 
+                    onPress: async () => {
+                        try {
+                            await apiService.caretaker.deleteMedication(patient.id, med._id || med.id, 'hard');
+                            fetchData();
+                        } catch (err) {
+                            showAlert('Error', handleApiError(err).message, 'error');
+                        }
+                    } 
+                }
+            ]
+        );
     };
 
     return (

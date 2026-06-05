@@ -261,21 +261,38 @@ export default function PatientDetailScreen({ navigation, route }) {
     };
 
     const deleteMedication = (med) => {
-        showAlert('Remove Medication', `Remove ${med.name}?`, 'destructive', [
-            { text: 'Cancel', style: 'cancel' },
-            { 
-                text: 'Remove', 
-                style: 'destructive', 
-                onPress: async () => {
-                    try {
-                        await apiService.caretaker.deleteMedication(patientId, med._id || med.id);
-                        fetchPatient();
-                    } catch (err) {
-                        showAlert('Error', handleApiError(err).message, 'error');
-                    }
-                } 
-            }
-        ]);
+        showAlert(
+            'Remove Medication', 
+            `Why are you removing ${med.name}?\n\nChoose "Mistake" to permanently delete it, or "Stopped" to keep the history but stop tracking it.`, 
+            'warning', 
+            [
+                { text: 'Cancel', style: 'cancel' },
+                { 
+                    text: 'Patient Stopped', 
+                    style: 'default', 
+                    onPress: async () => {
+                        try {
+                            await apiService.caretaker.deleteMedication(patientId, med._id || med.id, 'soft');
+                            fetchPatient();
+                        } catch (err) {
+                            showAlert('Error', handleApiError(err).message, 'error');
+                        }
+                    } 
+                },
+                { 
+                    text: 'Entered By Mistake', 
+                    style: 'destructive', 
+                    onPress: async () => {
+                        try {
+                            await apiService.caretaker.deleteMedication(patientId, med._id || med.id, 'hard');
+                            fetchPatient();
+                        } catch (err) {
+                            showAlert('Error', handleApiError(err).message, 'error');
+                        }
+                    } 
+                }
+            ]
+        );
     };
 
     const handleToggleMedication = async (med) => {

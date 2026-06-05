@@ -184,6 +184,7 @@ export const apiService = {
     getOrgAdminStats: () => api.get('/dashboard/org-admin-stats', { params: { _t: Date.now() } }),
     getCareManagerStats: () => api.get('/dashboard/care-manager-stats', { params: { _t: Date.now() } }),
     getShiftPulse: () => api.get('/dashboard/care-manager-shift-pulse'),
+    getOrgAdminPulse: () => api.get('/dashboard/org-admin-pulse'),
   },
 
   // Profile endpoints
@@ -249,7 +250,7 @@ export const apiService = {
     dictate: (audioFormData) => api.post('/caretaker/dictate', audioFormData, { headers: { 'Content-Type': 'multipart/form-data' } }),
     addMedication: (patientId, data) => api.post(`/caretaker/patients/${patientId}/medications`, data),
     updateMedication: (patientId, medId, data) => api.put(`/caretaker/patients/${patientId}/medications/${medId}`, data),
-    deleteMedication: (patientId, medId) => api.delete(`/caretaker/patients/${patientId}/medications/${medId}`),
+    deleteMedication: (patientId, medId, deleteType = 'soft') => api.delete(`/caretaker/patients/${patientId}/medications/${medId}`, { data: { deleteType } }),
 
     // Temporary / OTC Medicines
     getTempMeds: (patientId) => api.get(`/caretaker/patients/${patientId}/temp-meds`),
