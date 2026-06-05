@@ -44,9 +44,13 @@ app.use(cors({
 }));
 
 // ── Rate limiting ─────────────────────────────────────────────
+// Trust the reverse proxy (e.g. Nginx, Load Balancers) to get the real client IP.
+// Without this, all users share the exact same rate limit pool!
+app.set('trust proxy', 1);
+
 const limiter = rateLimit({
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
-  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || (process.env.NODE_ENV === 'production' ? 100 : 500),
+  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || (process.env.NODE_ENV === 'production' ? 2000 : 5000),
   message: { error: 'Too many requests from this IP, please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,
