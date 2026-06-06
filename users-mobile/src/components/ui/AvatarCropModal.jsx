@@ -40,6 +40,25 @@ export default function AvatarCropModal({
     const lastPanX = useRef(0);
     const lastPanY = useRef(0);
 
+    // Calculate display dimensions keeping aspect ratio relative to CROP_SIZE
+    let displayWidth = CROP_SIZE;
+    let displayHeight = CROP_SIZE;
+
+    if (imageDims) {
+        const { width: iw, height: ih } = imageDims;
+        if (iw > ih) {
+            displayHeight = CROP_SIZE;
+            displayWidth = (iw / ih) * CROP_SIZE;
+        } else {
+            displayWidth = CROP_SIZE;
+            displayHeight = (ih / iw) * CROP_SIZE;
+        }
+    }
+
+    // Keep refs of current values to avoid stale closures in PanResponder
+    const stateRef = useRef();
+    stateRef.current = { scale, displayWidth, displayHeight, panX, panY };
+
     useEffect(() => {
         if (visible && imageUri) {
             setLoading(true);
@@ -90,8 +109,9 @@ export default function AvatarCropModal({
                 // Lock current offset
             },
             onPanResponderMove: (evt, gestureState) => {
-                const wScaled = displayWidth * scale;
-                const hScaled = displayHeight * scale;
+                const { scale: currentScale, displayWidth: currentDW, displayHeight: currentDH } = stateRef.current;
+                const wScaled = currentDW * currentScale;
+                const hScaled = currentDH * currentScale;
 
                 const maxDragX = Math.max(0, (wScaled - CROP_SIZE) / 2);
                 const maxDragY = Math.max(0, (hScaled - CROP_SIZE) / 2);
@@ -103,28 +123,13 @@ export default function AvatarCropModal({
                 setPanY(Math.max(-maxDragY, Math.min(maxDragY, nextY)));
             },
             onPanResponderRelease: () => {
-                lastPanX.current = panX;
-                lastPanY.current = panY;
+                lastPanX.current = stateRef.current.panX;
+                lastPanY.current = stateRef.current.panY;
             },
         })
     ).current;
 
     if (!visible) return null;
-
-    // Calculate display dimensions keeping aspect ratio relative to CROP_SIZE
-    let displayWidth = CROP_SIZE;
-    let displayHeight = CROP_SIZE;
-
-    if (imageDims) {
-        const { width: iw, height: ih } = imageDims;
-        if (iw > ih) {
-            displayHeight = CROP_SIZE;
-            displayWidth = (iw / ih) * CROP_SIZE;
-        } else {
-            displayWidth = CROP_SIZE;
-            displayHeight = (ih / iw) * CROP_SIZE;
-        }
-    }
 
     const handleZoomChange = (val) => {
         setScale(val);

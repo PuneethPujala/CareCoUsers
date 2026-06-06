@@ -3,11 +3,17 @@ const router = express.Router();
 const multer = require('multer');
 const FormData = require('form-data');
 const axios = require('axios');
-const { generatePoCResponse, streamPoCResponse } = require('../services/aiChatbotPoC');
+const { streamPoCResponse } = require('../services/aiChatbotPoC');
 const { authenticate } = require('../middleware/authenticate'); 
-const { aiChatRateLimiter } = require('../middleware/rateLimiter');
+const { 
+    aiChatRateLimiter, 
+    aiChatIpRateLimiter, 
+    aiChatPatientRateLimiter, 
+    aiChatSessionRateLimiter 
+} = require('../middleware/rateLimiter');
 const AuditLog = require('../models/AuditLog');
 const emergencyConfig = require('../config/emergency_phrases.json');
+const AIChatSession = require('../models/AIChatSession');
 
 const PYTHON_API = process.env.PYTHON_API || 'http://localhost:8000';
 
@@ -34,6 +40,137 @@ function buildErrorResponse(stage, errorMsg) {
     };
 }
 
+// Helper to resolve patient ID for a request
+async function getPatientId(req, bodyPatientId) {
+    if (req.auth?.userType === 'Patient') {
+        return req.auth.userId;
+    }
+    if (req.auth?.userType === 'Companion') {
+        let resolvedPatientId = bodyPatientId || req.query.patientId;
+        if (!resolvedPatientId) {
+            const CompanionAccess = require('../models/CompanionAccess');
+            const access = await CompanionAccess.findOne({ companion_id: req.auth.userId, is_active: true, status: 'accepted' });
+            if (access) {
+                resolvedPatientId = access.patient_id;
+            }
+        }
+        return resolvedPatientId;
+    }
+    return null;
+}
+
+/**
+ * GET /api/chatbot/sessions
+ * List active sessions for the patient (sorted by updatedAt desc)
+ */
+router.get('/sessions', authenticate, aiChatSessionRateLimiter, async (req, res) => {
+    try {
+        const patientId = await getPatientId(req);
+        if (!patientId) {
+            return res.status(400).json({ error: 'Patient context not found.' });
+        }
+        
+        const sessions = await AIChatSession.find({ patient_id: patientId, is_active: true })
+            .select('-messages')
+            .sort({ updated_at: -1 });
+            
+        res.json(sessions);
+    } catch (err) {
+        console.error('[ChatbotRoutes] Get sessions error:', err);
+        res.status(500).json({ error: 'Failed to fetch chat sessions.' });
+    }
+});
+
+/**
+ * POST /api/chatbot/sessions
+ * Create a new chat session (limit 10 concurrent active sessions)
+ */
+router.post('/sessions', authenticate, aiChatSessionRateLimiter, async (req, res) => {
+    try {
+        const patientId = await getPatientId(req, req.body.patientId);
+        if (!patientId) {
+            return res.status(400).json({ error: 'Patient context not found.' });
+        }
+
+        const activeCount = await AIChatSession.countDocuments({ patient_id: patientId, is_active: true });
+        if (activeCount >= 10) {
+            return res.status(400).json({ 
+                error: 'Limit reached: You can have at most 10 active chats. Please delete some chats first.' 
+            });
+        }
+
+        const disclaimer = {
+            role: 'assistant',
+            text: 'CareMyMed AI provides educational guidance and assistance. It does not replace a licensed medical professional. For emergencies, contact emergency services or your healthcare provider immediately.',
+            timestamp: new Date()
+        };
+
+        const newSession = await AIChatSession.create({
+            patient_id: patientId,
+            title: 'New Chat',
+            is_active: true,
+            is_generating: false,
+            message_count: 1,
+            messages: [disclaimer]
+        });
+
+        res.status(201).json(newSession);
+    } catch (err) {
+        console.error('[ChatbotRoutes] Create session error:', err);
+        res.status(500).json({ error: 'Failed to create chat session.' });
+    }
+});
+
+/**
+ * GET /api/chatbot/sessions/:id
+ * Get details of a single session
+ */
+router.get('/sessions/:id', authenticate, async (req, res) => {
+    try {
+        const patientId = await getPatientId(req);
+        if (!patientId) {
+            return res.status(400).json({ error: 'Patient context not found.' });
+        }
+
+        const session = await AIChatSession.findOne({ _id: req.params.id, patient_id: patientId, is_active: true });
+        if (!session) {
+            return res.status(404).json({ error: 'Chat session not found.' });
+        }
+
+        res.json(session);
+    } catch (err) {
+        console.error('[ChatbotRoutes] Get session details error:', err);
+        res.status(500).json({ error: 'Failed to fetch chat session details.' });
+    }
+});
+
+/**
+ * DELETE /api/chatbot/sessions/:id
+ * Soft delete a chat session
+ */
+router.delete('/sessions/:id', authenticate, aiChatSessionRateLimiter, async (req, res) => {
+    try {
+        const patientId = await getPatientId(req);
+        if (!patientId) {
+            return res.status(400).json({ error: 'Patient context not found.' });
+        }
+
+        const result = await AIChatSession.updateOne(
+            { _id: req.params.id, patient_id: patientId, is_active: true },
+            { $set: { is_active: false } }
+        );
+
+        if (result.matchedCount === 0) {
+            return res.status(404).json({ error: 'Chat session not found or already deleted.' });
+        }
+
+        res.json({ success: true, message: 'Chat session deleted successfully.' });
+    } catch (err) {
+        console.error('[ChatbotRoutes] Delete session error:', err);
+        res.status(500).json({ error: 'Failed to delete chat session.' });
+    }
+});
+
 /**
  * POST /api/chatbot/chat
  * SSE Streaming endpoint.
@@ -48,31 +185,18 @@ function buildErrorResponse(stage, errorMsg) {
  *   { type: "done" }                                      — Stream complete
  *   { type: "error",       message: "..." }               — Error during stream
  */
-router.post('/chat', authenticate, aiChatRateLimiter, upload.single('audio'), async (req, res) => {
+router.post('/chat', authenticate, aiChatRateLimiter, aiChatIpRateLimiter, aiChatPatientRateLimiter, upload.single('audio'), async (req, res) => {
+    let patientId = null;
+    let sessionId = req.body.sessionId;
+    
     try {
         const { targetLanguage, query, patientId: bodyPatientId } = req.body;
         
         // Securely resolve patient context
-        let patientId = req.auth?.userId;
+        patientId = await getPatientId(req, bodyPatientId);
         
         if (!patientId) {
             return res.status(401).json(buildErrorResponse('validation', 'User is not fully authenticated or profile is missing.'));
-        }
-
-        // Caregivers / Companions route patient lookup
-        if (req.auth?.userType === 'Companion') {
-            let resolvedPatientId = bodyPatientId;
-            if (!resolvedPatientId) {
-                const CompanionAccess = require('../models/CompanionAccess');
-                const access = await CompanionAccess.findOne({ companion_id: req.auth.userId, is_active: true, status: 'accepted' });
-                if (access) {
-                    resolvedPatientId = access.patient_id;
-                }
-            }
-            if (!resolvedPatientId) {
-                return res.status(400).json(buildErrorResponse('validation', 'No linked patient found for this companion circle.'));
-            }
-            patientId = resolvedPatientId;
         }
 
         let extractedQuery = query;
@@ -111,6 +235,11 @@ router.post('/chat', authenticate, aiChatRateLimiter, upload.single('audio'), as
         // 2. Validate query
         if (!extractedQuery) {
             return res.status(400).json(buildErrorResponse('validation', 'Neither audio nor text query was provided.'));
+        }
+
+        // Query length check (anti-abuse)
+        if (extractedQuery.length > 1000) {
+            return res.status(400).json(buildErrorResponse('validation', 'Query exceeds the limit of 1000 characters.'));
         }
 
         // Server-Side Emergency Filter
@@ -158,9 +287,47 @@ router.post('/chat', authenticate, aiChatRateLimiter, upload.single('audio'), as
             return;
         }
 
+        // 3. Resolve Session history and Concurrency lock
+        let historyMessages = [];
+        if (sessionId) {
+            const session = await AIChatSession.findOne({ _id: sessionId, patient_id: patientId, is_active: true });
+            if (!session) {
+                return res.status(404).json(buildErrorResponse('validation', 'Chat session not found.'));
+            }
+            if (session.is_generating) {
+                return res.status(409).json(buildErrorResponse('concurrency', 'Please wait for the current response to finish before sending another message.'));
+            }
+
+            // Apply lock
+            session.is_generating = true;
+            await session.save();
+
+            // Load last 10 messages for memory (excluding system disclaimers if needed, but we pass all)
+            const lastMessages = session.messages.slice(-10);
+            historyMessages = lastMessages.map(m => ({
+                role: m.role,
+                content: m.text
+            }));
+
+            // Append user query to database
+            session.messages.push({
+                role: 'user',
+                text: extractedQuery,
+                timestamp: new Date()
+            });
+
+            // Auto-generate title from first message if it's default 'New Chat'
+            if (session.title === 'New Chat') {
+                session.title = extractedQuery.substring(0, 40) + (extractedQuery.length > 40 ? '...' : '');
+            }
+
+            session.message_count = session.messages.length;
+            await session.save();
+        }
+
         console.log(`[ChatbotRoute] Streaming RAG pipeline for query: "${extractedQuery}"`);
 
-        // 3. Set SSE headers and begin streaming
+        // 4. Set SSE headers and begin streaming
         res.setHeader('Content-Type', 'text/event-stream');
         res.setHeader('Cache-Control', 'no-cache');
         res.setHeader('Connection', 'keep-alive');
@@ -174,10 +341,10 @@ router.post('/chat', authenticate, aiChatRateLimiter, upload.single('audio'), as
             console.log('[ChatbotRoute] Client disconnected, aborting stream.');
         });
 
-        // 4. Stream the response
-        await streamPoCResponse(patientId, extractedQuery, targetLanguage, res, transcribedText);
+        // 5. Stream the response
+        await streamPoCResponse(patientId, extractedQuery, targetLanguage, res, transcribedText, sessionId, historyMessages);
 
-        // 5. Close the SSE stream
+        // 6. Close the SSE stream
         if (!clientDisconnected) {
             res.end();
         }
@@ -194,6 +361,15 @@ router.post('/chat', authenticate, aiChatRateLimiter, upload.single('audio'), as
                 res.end();
             } catch (e) {
                 // Response already closed, ignore
+            }
+        }
+    } finally {
+        // 7. Ensure Lock Release
+        if (sessionId && patientId) {
+            try {
+                await AIChatSession.updateOne({ _id: sessionId, patient_id: patientId }, { $set: { is_generating: false } });
+            } catch (lockErr) {
+                console.error('[ChatbotRoute] Failed to release generating lock:', lockErr.message);
             }
         }
     }

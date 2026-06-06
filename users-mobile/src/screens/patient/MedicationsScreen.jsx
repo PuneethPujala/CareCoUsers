@@ -480,6 +480,7 @@ export default function MedicationsScreen({ navigation }) {
     const [refreshing, setRefreshing] = useState(false);
     const [showPrefModal, setShowPrefModal] = useState(false);
     const [tempPrefs, setTempPrefs] = useState({ morning: '09:00', afternoon: '14:00', evening: '17:00', night: '20:00' });
+    const [unreadCount, setUnreadCount] = useState(0);
     const [savingPrefs, setSavingPrefs] = useState(false);
     const [activePicker, setActivePicker] = useState(null);
     const [toast, setToast] = useState({ visible: false, title: '', message: '', type: 'success' });
@@ -554,6 +555,9 @@ export default function MedicationsScreen({ navigation }) {
             load(false).then(() => {
                 if (!hasAnimated.current) { hasAnimated.current = true; runAnimations(); }
             });
+            apiService.patients.getNotificationsUnreadCount()
+                .then(res => setUnreadCount(res.data?.count || 0))
+                .catch(() => {});
         });
         const interval = setInterval(() => load(true), 120000);
         return () => { task.cancel(); clearInterval(interval); };
@@ -906,8 +910,8 @@ export default function MedicationsScreen({ navigation }) {
                         <Text style={styles.headerTitle}>{t('common.medications', { defaultValue: 'Medications' })}</Text>
                     </View>
                     <Pressable style={styles.headerBtn} onPress={() => navigation.navigate('Notifications')}>
-                        <Bell size={20} color="#0F172A" strokeWidth={2.2} />
-                        <View style={{ position: 'absolute', top: 11, right: 12, width: 8, height: 8, borderRadius: 4, backgroundColor: '#EF4444', borderWidth: 1.5, borderColor: '#FFFFFF' }} />
+                        <Bell size={20} color="#475569" strokeWidth={2.5} />
+                        {unreadCount > 0 && <View style={styles.bellDot} />}
                     </Pressable>
                 </View>
             </View>
@@ -1620,10 +1624,11 @@ const styles = StyleSheet.create({
         fontSize: 32, fontWeight: '800', color: '#0F172A', letterSpacing: -1,
     },
     headerBtn: {
-        width: 44, height: 44, borderRadius: 22,
-        backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center',
-        borderWidth: 1, borderColor: '#E2E8F0',
+        width: 42, height: 42, borderRadius: 21,
+        backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0',
+        alignItems: 'center', justifyContent: 'center',
     },
+    bellDot: { position: 'absolute', top: 10, right: 10, width: 7, height: 7, borderRadius: 3.5, backgroundColor: '#EF4444', borderWidth: 1.5, borderColor: '#FFFFFF' },
 
     // ── Progress card (inside scroll) ──
     progressCard: {

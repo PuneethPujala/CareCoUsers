@@ -19,6 +19,7 @@ import { useTranslation } from 'react-i18next';
 import AlertManager from '../../utils/AlertManager';
 import { HapticPatterns } from '../../utils/haptics';
 import PatientActiveCallModal from './PatientActiveCallModal';
+import { useFocusEffect } from '@react-navigation/native';
 
 // ── Skeleton ────────────────────────────────────────────────────────────────
 const SkeletonItem = ({ width, height, borderRadius = 8, style }) => {
@@ -91,6 +92,7 @@ export default function MyCallerScreen({ navigation }) {
   const [manager,            setManager]              = useState(null);
   const [refreshing,         setRefreshing]           = useState(false);
   const [callModalVisible,   setCallModalVisible]     = useState(false);
+  const [unreadCount,        setUnreadCount]          = useState(0);
 
   const contactModalAnim = useRef(new Animated.Value(0)).current;
   const staggerAnims     = useRef([...Array(20)].map(() => new Animated.Value(0))).current;
@@ -169,9 +171,17 @@ export default function MyCallerScreen({ navigation }) {
     }
   }, [runAnimations]);
 
-  useEffect(() => {
-    (async () => { await loadData(); setLoading(false); })();
-  }, [loadData]);
+  useFocusEffect(
+    useCallback(() => {
+      (async () => {
+        await loadData();
+        setLoading(false);
+      })();
+      apiService.patients.getNotificationsUnreadCount()
+        .then(res => setUnreadCount(res.data?.count || 0))
+        .catch(() => {});
+    }, [loadData])
+  );
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -333,7 +343,8 @@ export default function MyCallerScreen({ navigation }) {
           <Text style={s.headerTitle}>{t('caller.care_team', { defaultValue: 'Care Team' })}</Text>
         </View>
         <Pressable style={s.bellBtn} onPress={() => navigation.navigate('Notifications')}>
-          <Bell size={20} color={C.primary} strokeWidth={2.5} />
+          <Bell size={20} color="#475569" strokeWidth={2.5} />
+          {unreadCount > 0 && <View style={s.bellDot} />}
         </Pressable>
       </Animated.View>
 
@@ -998,10 +1009,11 @@ const s = StyleSheet.create({
   headerLabel: { fontSize: 13, fontWeight: '800', color: C.primary, letterSpacing: 1.5, marginBottom: 4 },
   headerTitle: { fontSize: 32, fontWeight: '800', color: C.dark, letterSpacing: -1 },
   bellBtn: {
-    width: 44, height: 44, borderRadius: 22, backgroundColor: '#FFF',
+    width: 42, height: 42, borderRadius: 21,
+    backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0',
     alignItems: 'center', justifyContent: 'center',
-    shadowColor: '#4361EE', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 12, elevation: 3,
   },
+  bellDot: { position: 'absolute', top: 10, right: 10, width: 7, height: 7, borderRadius: 3.5, backgroundColor: '#EF4444', borderWidth: 1.5, borderColor: '#FFFFFF' },
 
   // Scroll
   scroll: { flex: 1 },

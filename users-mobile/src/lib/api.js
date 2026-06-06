@@ -367,6 +367,12 @@ export const apiService = {
         addTempMed: (data) => api.post('/users/medicines/temp-meds', data),
         deleteTempMed: (medId) => api.delete(`/users/medicines/temp-meds/${medId}`),
     },
+    chatbot: {
+        getSessions: (params) => api.get('/chatbot/sessions', { params }),
+        createSession: (data) => api.post('/chatbot/sessions', data),
+        getSession: (id, params) => api.get(`/chatbot/sessions/${id}`, { params }),
+        deleteSession: (id, params) => api.delete(`/chatbot/sessions/${id}`, { params }),
+    },
 };
 
 import { parseError } from '../utils/parseError';

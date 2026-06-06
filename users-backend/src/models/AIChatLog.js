@@ -88,6 +88,12 @@ const AIChatLogSchema = new mongoose.Schema(
             type: Number,
             default: 0,
         },
+        session_id: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'AIChatSession',
+            default: null,
+            index: true,
+        },
         timestamp: {
             type: Date,
             default: Date.now,

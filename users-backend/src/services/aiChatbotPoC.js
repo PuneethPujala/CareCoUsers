@@ -228,7 +228,7 @@ function generateStructuredCards(intent, patientContext) {
  * Shared by both streaming and non-streaming paths.
  * @returns {{ systemPrompt: string, messages: Array }} 
  */
-async function buildRAGContext(patientId, userQuery, targetLanguage) {
+async function buildRAGContext(patientId, userQuery, targetLanguage, historyMessages = []) {
     console.log(`[PoC] Fetching context for patient ${patientId}...`);
     
     // 1. Fetch & Truncate Patient Context
@@ -435,6 +435,7 @@ ${JSON.stringify(patientContext, null, 2)}
 
     const messages = [
         { role: "system", content: SYSTEM_PROMPT },
+        ...historyMessages,
         { role: "user", content: userQuery }
     ];
 
@@ -453,7 +454,7 @@ ${JSON.stringify(patientContext, null, 2)}
  * Streams an Ollama or Groq chat completion to an Express SSE response.
  * Emits structured events: meta, chunk, suggestions, done, error.
  */
-async function streamPoCResponse(patientId, userQuery, targetLanguage, res, transcribedText = null) {
+async function streamPoCResponse(patientId, userQuery, targetLanguage, res, transcribedText = null, sessionId = null, historyMessages = []) {
     const requestStart = performance.now();
     const sendEvent = (type, payload) => {
         try {
@@ -477,6 +478,7 @@ async function streamPoCResponse(patientId, userQuery, targetLanguage, res, tran
         try {
             await AIChatLog.create({
                 patient_id: patientId,
+                session_id: sessionId || null,
                 prompt: userQuery,
                 retrieved_chunks: [],
                 response: emergencyMsg,
@@ -497,6 +499,28 @@ async function streamPoCResponse(patientId, userQuery, targetLanguage, res, tran
             });
         } catch (logErr) {
             console.error('[PoC] Emergency chat log error:', logErr.message);
+        }
+
+        if (sessionId) {
+            try {
+                const AIChatSession = require('../models/AIChatSession');
+                await AIChatSession.updateOne(
+                    { _id: sessionId, patient_id: patientId },
+                    {
+                        $push: {
+                            messages: {
+                                role: 'assistant',
+                                text: emergencyMsg,
+                                suggestions: ["Call 911", "Call 112"],
+                                timestamp: new Date()
+                            }
+                        },
+                        $inc: { message_count: 1 }
+                    }
+                );
+            } catch (dbErr) {
+                console.error('[PoC] Emergency session update failed:', dbErr.message);
+            }
         }
         return;
     }
@@ -532,7 +556,7 @@ async function streamPoCResponse(patientId, userQuery, targetLanguage, res, tran
             sendEvent('meta', { transcribedText });
         }
 
-        const context = await buildRAGContext(patientId, userQuery, targetLanguage);
+        const context = await buildRAGContext(patientId, userQuery, targetLanguage, historyMessages);
         const { messages } = context;
         matchedGuidelines = context.matchedGuidelines || [];
         retrievalLatency = context.retrievalLatency || 0;
@@ -640,7 +664,7 @@ async function streamPoCResponse(patientId, userQuery, targetLanguage, res, tran
         console.warn(`[PoC] Groq failed (Reason: ${fallbackReason}). Falling back to local Ollama...`);
 
         try {
-            const context = await buildRAGContext(patientId, userQuery, targetLanguage);
+            const context = await buildRAGContext(patientId, userQuery, targetLanguage, historyMessages);
             const { messages } = context;
             matchedGuidelines = context.matchedGuidelines || [];
             retrievalLatency = context.retrievalLatency || 0;
@@ -730,6 +754,7 @@ async function streamPoCResponse(patientId, userQuery, targetLanguage, res, tran
             try {
                 await AIChatLog.create({
                     patient_id: patientId,
+                    session_id: sessionId || null,
                     prompt: userQuery,
                     retrieved_chunks: matchedGuidelines,
                     response: fallbackMessage,
@@ -751,6 +776,28 @@ async function streamPoCResponse(patientId, userQuery, targetLanguage, res, tran
                 });
             } catch (logErr) {
                 console.error('[PoC] Chat log error on total failure:', logErr.message);
+            }
+
+            if (sessionId) {
+                try {
+                    const AIChatSession = require('../models/AIChatSession');
+                    await AIChatSession.updateOne(
+                        { _id: sessionId, patient_id: patientId },
+                        {
+                            $push: {
+                                messages: {
+                                    role: 'assistant',
+                                    text: fallbackMessage,
+                                    suggestions: ["Try again", "Call Care Coordinator"],
+                                    timestamp: new Date()
+                                }
+                            },
+                            $inc: { message_count: 1 }
+                        }
+                    );
+                } catch (dbErr) {
+                    console.error('[PoC] Fallback failure session update failed:', dbErr.message);
+                }
             }
             return;
         }
@@ -775,6 +822,7 @@ async function streamPoCResponse(patientId, userQuery, targetLanguage, res, tran
     try {
         await AIChatLog.create({
             patient_id: patientId,
+            session_id: sessionId || null,
             prompt: userQuery,
             retrieved_chunks: matchedGuidelines,
             response: cleanedResponse || fullText,
@@ -796,6 +844,28 @@ async function streamPoCResponse(patientId, userQuery, targetLanguage, res, tran
         });
     } catch (logErr) {
         console.error('[PoC] Successful chat log error:', logErr.message);
+    }
+
+    if (sessionId) {
+        try {
+            const AIChatSession = require('../models/AIChatSession');
+            await AIChatSession.updateOne(
+                { _id: sessionId, patient_id: patientId },
+                {
+                    $push: {
+                        messages: {
+                            role: 'assistant',
+                            text: cleanedResponse || fullText,
+                            suggestions: suggestions,
+                            timestamp: new Date()
+                        }
+                    },
+                    $inc: { message_count: 1 }
+                }
+            );
+        } catch (dbErr) {
+            console.error('[PoC] Failed to update session with assistant response:', dbErr.message);
+        }
     }
 }
 

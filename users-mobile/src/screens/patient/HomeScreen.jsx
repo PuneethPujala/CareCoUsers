@@ -32,7 +32,24 @@ import Svg, { Path, Defs, LinearGradient as SvgLinearGradient, Stop } from 'reac
 const { width: SW } = Dimensions.get('window');
 
 // ── Health tips ────────────────────────────────────────────────────────────
-const HEALTH_TIPS_COUNT = 15;
+const HEALTH_TIPS = [
+    "💧 Stay hydrated! Drinking 8 glasses of water daily helps manage blood pressure and keeps your joints lubricated.",
+    "🚶‍♂️ A quick 10-minute walk after meals can significantly lower post-meal blood sugar levels and assist digestion.",
+    "🧂 Watch the salt! Reducing sodium intake by just a little can help keep your heart healthy and lower blood pressure.",
+    "🥗 Fill half your plate with colorful vegetables at lunch and dinner to ensure you get a boost of essential fiber and vitamins.",
+    "😴 Aim for 7-8 hours of quality sleep tonight. Sleep is critical for brain function, cardiovascular health, and cell repair.",
+    "🧘‍♀️ Take 5 slow, deep breaths when feeling stressed. Deep breathing instantly calms the nervous system and lowers heart rate.",
+    "🍎 Swap processed afternoon snacks for a piece of fresh fruit or a handful of unsalted almonds to sustain your energy levels.",
+    "🥛 Bone health matters! Make sure you're getting enough calcium and Vitamin D from dairy, fortified foods, or sunlight.",
+    "🦷 Brush and floss daily. Poor dental health is linked to an increased risk of cardiovascular issues.",
+    "🍵 Green tea is rich in antioxidants that support metabolic health and improve cardiovascular function.",
+    "🧠 Challenge your brain today! Solve a puzzle, read a new article, or practice a language to support cognitive longevity.",
+    "🍳 Start your day with a high-protein breakfast like eggs or yogurt to stay full longer and reduce morning cravings.",
+    "🧍 Posture check! Take a moment to sit up straight and stretch your shoulders to relieve back and neck tension.",
+    "💧 Sip water consistently throughout the day rather than chugging it all at once to maintain steady hydration levels.",
+    "❤️ Stay connected. Call or message a loved one today. Social connection is a powerful driver of overall mental and physical well-being."
+];
+const HEALTH_TIPS_COUNT = HEALTH_TIPS.length;
 const getDailyTipIndex = () => Math.floor((Date.now() / 86400000)) % HEALTH_TIPS_COUNT;
 
 const ACCENT_MAP = {
@@ -1052,7 +1069,7 @@ export default function PatientHomeScreen({ navigation }) {
                                         </LinearGradient>
                                         <Text style={styles.tipLabel}>{t('home.daily_health_tip', { defaultValue: 'DAILY HEALTH TIP' })}</Text>
                                     </View>
-                                    <Text style={styles.tipText}>{t('tips.tip_' + getDailyTipIndex(), { defaultValue: '💧 Stay hydrated! Drinking 8 glasses of water daily helps manage blood pressure.' })}</Text>
+                                    <Text style={styles.tipText}>{t('tips.tip_' + getDailyTipIndex(), { defaultValue: HEALTH_TIPS[getDailyTipIndex()] })}</Text>
                                 </LinearGradient>
                             </View>
                         </Animated.View>

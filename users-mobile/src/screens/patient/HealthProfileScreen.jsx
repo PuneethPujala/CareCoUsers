@@ -1,5 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, Platform, ActivityIndicator, Animated, Pressable, Linking, Modal, TextInput, FlatList, Switch, LayoutAnimation, UIManager } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Platform, ActivityIndicator, Animated, Pressable, Linking, Modal, TextInput, FlatList, Switch, LayoutAnimation, UIManager, Image } from 'react-native';
+
+const medsMealIllus = require('../../../assets/meds_meal_illus.png');
+const eatEarlyIllus = require('../../../assets/eat_early_illus.png');
+const ricePortionIllus = require('../../../assets/rice_portion_illus.png');
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
     UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -9,9 +13,9 @@ import PremiumFormModal from '../../components/ui/PremiumFormModal';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { LinearGradient } from 'expo-linear-gradient';
-import { TriangleAlert, ShieldCheck, HeartPulse, Activity, Droplet, Phone, Plus, Pencil, X, Trash2, CircleCheck, RefreshCw, ChevronDown, Upload, Siren, ChevronRight, TrendingUp, TrendingDown, Sparkles, BellRing, FileText, Pill, Syringe, Link2, Users, Calendar, Info, Clock, MapPin } from 'lucide-react-native';
+import { TriangleAlert, ShieldCheck, HeartPulse, Activity, Droplet, Phone, Plus, Pencil, X, Trash2, CircleCheck, RefreshCw, ChevronDown, Upload, Siren, ChevronRight, TrendingUp, TrendingDown, Sparkles, Bell, FileText, Pill, Syringe, Link2, Users, Calendar, Info, Clock, MapPin } from 'lucide-react-native';
 import { StatusBar } from 'react-native';
-import Svg, { Circle as SvgCircle } from 'react-native-svg';
+import Svg, { Circle as SvgCircle, Path, Defs, LinearGradient as SvgLinearGradient, Stop, Rect } from 'react-native-svg';
 import { apiService } from '../../lib/api';
 import { initializeHealthPlatform, requestHealthPermissions, fetchDailyVitalsSummary, isHealthSupported } from '../../lib/healthIntegration';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -94,6 +98,7 @@ export default function HealthProfileScreen({ navigation }) {
     const [healthSdkReady, setHealthSdkReady] = useState(false);
     const [visibleHistoryCount, setVisibleHistoryCount] = useState(3);
     const [completenessExpanded, setCompletenessExpanded] = useState(false);
+    const [unreadCount, setUnreadCount] = useState(0);
 
     useEffect(() => {
         if (isHealthSupported()) {
@@ -187,6 +192,9 @@ export default function HealthProfileScreen({ navigation }) {
                     runAnimations();
                 }
             });
+            apiService.patients.getNotificationsUnreadCount()
+                .then(res => setUnreadCount(res.data?.count || 0))
+                .catch(() => {});
         }, [runAnimations])
     );
 
@@ -614,7 +622,8 @@ export default function HealthProfileScreen({ navigation }) {
                         <Text style={{ fontSize: 13, color: '#64748B', marginTop: 4, ...FONT.medium }}>{t('health_profile.overview_sub', { defaultValue: 'Overview of your health and medical information' })}</Text>
                     </View>
                     <Pressable style={s.headerBtn} onPress={() => navigation.navigate('Notifications')}>
-                        <BellRing size={20} color="#0F172A" strokeWidth={2.5} />
+                        <Bell size={20} color="#475569" strokeWidth={2.5} />
+                        {unreadCount > 0 && <View style={s.bellDot} />}
                     </Pressable>
                 </View>
             </View>
@@ -1492,115 +1501,642 @@ export default function HealthProfileScreen({ navigation }) {
             </Modal>
 
             {/* ── SCORE INFO MODAL ── */}
-            <Modal visible={showScoreInfo} transparent animationType="fade" statusBarTranslucent onRequestClose={() => setShowScoreInfo(false)}>
-                <View style={{ flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.6)', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
-                    <Pressable style={StyleSheet.absoluteFill} onPress={() => setShowScoreInfo(false)} />
-                    <View style={{ backgroundColor: '#FFF', borderRadius: 24, width: '100%', maxHeight: '85%', overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.1, shadowRadius: 20, elevation: 10 }}>
-                        <View style={{ paddingHorizontal: 24, paddingTop: 24, paddingBottom: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#F1F5F9' }}>
-                            <Text style={{ fontSize: 18, ...FONT.heavy, color: '#0F172A' }}>Health Score Details</Text>
-                            <Pressable onPress={() => setShowScoreInfo(false)} hitSlop={12} style={{ backgroundColor: '#F1F5F9', padding: 6, borderRadius: 16 }}>
-                                <X size={18} color="#64748B" />
-                            </Pressable>
-                        </View>
-                        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 24, gap: 16 }}>
-                    {/* Today's Focus / Insights */}
-                    {hs && hs.tips && hs.tips.length > 0 && (
-                        <View style={{ marginBottom: 8 }}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12 }}>
-                                <Sparkles size={16} color="#6366F1" />
-                                <Text style={{ fontSize: 11, ...FONT.heavy, color: '#6366F1', letterSpacing: 1 }}>TODAY'S FOCUS</Text>
-                            </View>
-                            {hs.tips.map((tip, idx) => {
-                                const impactCfg = {
-                                    high:   { bg: '#FEF2F2', border: '#FCA5A5', accent: '#DC2626', label: 'High Impact' },
-                                    medium: { bg: '#FFFBEB', border: '#FDE68A', accent: '#D97706', label: 'Medium' },
-                                    low:    { bg: '#F0FDF4', border: '#BBF7D0', accent: '#16A34A', label: 'Good to have' },
-                                }[tip.impact] || { bg: '#EEF2FF', border: '#C7D2FE', accent: '#6366F1', label: 'Tip' };
-                                return (
-                                    <View key={idx} style={[s.insightCard, { backgroundColor: impactCfg.bg, borderColor: impactCfg.border, borderLeftColor: impactCfg.accent, marginBottom: 8 }]}>
-                                        <View style={s.insightTop}>
-                                            <Text style={s.insightIcon}>{tip.icon || '💡'}</Text>
-                                            <View style={{ flex: 1 }}>
-                                                <Text style={s.insightTitle}>{tip.title}</Text>
-                                            </View>
-                                            <View style={[s.insightBadge, { backgroundColor: impactCfg.accent + '18', borderColor: impactCfg.border }]}>
-                                                <Text style={[s.insightBadgeText, { color: impactCfg.accent }]}>{impactCfg.label}</Text>
+            <Modal visible={showScoreInfo} transparent animationType="slide" statusBarTranslucent onRequestClose={() => setShowScoreInfo(false)}>
+                {(() => {
+                    const hasScore = hsScore !== null && hsScore > 0;
+                    const activeScoreVal = hasScore ? hsScore : 0;
+                    
+                    const scoreColor = activeScoreVal >= 80 ? '#10B981' : activeScoreVal >= 60 ? '#F59E0B' : activeScoreVal >= 40 ? '#F97316' : '#F43F5E';
+                    const scoreStatus = hasScore ? (hsLabel || 'Stable') : 'Learning Patterns';
+                    
+                    // Health Age: derive from actual age and score, not fabricated
+                    const actualAge = age || null;
+                    const healthAgeDiff = hasScore ? (activeScoreVal >= 80 ? -2 : activeScoreVal >= 60 ? 0 : activeScoreVal >= 40 ? 1 : 3) : null;
+                    const healthAgeVal = actualAge && healthAgeDiff !== null ? Math.max(18, actualAge + healthAgeDiff) : null;
+
+                    // Streak: use real gamification data from backend when available
+                    const gamif = profile?.gamification;
+                    const realStreak = gamif?.current_streak ?? 0;
+                    const historyDates = gamif?.history_dates || []; // YYYY-MM-DD strings
+                    const adherencePct = hsBreakdown?.adherence ? Math.round((hsBreakdown.adherence.pts / hsBreakdown.adherence.max) * 100) : null;
+                    const hasRealStreakData = realStreak > 0 || historyDates.length > 0;
+
+                    // Build weekly view from real history_dates
+                    const daysOfWeek = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+                    const todayIdx = (new Date().getDay() + 6) % 7;
+                    const today = new Date();
+                    const completedDays = daysOfWeek.map((_, idx) => {
+                        if (historyDates.length > 0) {
+                            // Check if this day of the current week has a log entry
+                            const dayDate = new Date(today);
+                            dayDate.setDate(today.getDate() - (todayIdx - idx));
+                            const dateStr = dayDate.toISOString().slice(0, 10);
+                            return historyDates.includes(dateStr);
+                        }
+                        // Fallback: no history data, show nothing
+                        return false;
+                    });
+                    const streakDays = hasRealStreakData ? realStreak : 0;
+                    const streakLabel = hasRealStreakData ? 'Streak' : 'Consistency';
+
+                    // First medication for coach card
+                    const firstMed = activeMeds && activeMeds.length > 0 ? activeMeds[0].name : null;
+                    const topTip = (hs?.tips || []).find(t => t.impact === 'high') || (hs?.tips || [])[0] || null;
+                    const coachAction = topTip ? topTip.title : (firstMed ? `Take ${firstMed} with your next meal` : 'Complete your health profile to unlock personalized coaching');
+                    const coachImpact = topTip?.impact === 'high' ? '+5' : topTip?.impact === 'medium' ? '+3' : '+2';
+
+                    // Health drivers from real breakdown
+                    const driverData = hsBreakdown ? [
+                        { label: 'Medication', pct: Math.round((hsBreakdown.adherence.pts / hsBreakdown.adherence.max) * 100), icon: '💊' },
+                        { label: 'Lifestyle', pct: Math.round((hsBreakdown.lifestyle.pts / hsBreakdown.lifestyle.max) * 100), icon: '🏃' },
+                        { label: 'Vitals', pct: Math.round((hsBreakdown.vitals.pts / hsBreakdown.vitals.max) * 100), icon: '🩺' },
+                        { label: 'Conditions', pct: Math.round((hsBreakdown.conditions.pts / hsBreakdown.conditions.max) * 100), icon: '❤️' },
+                        { label: 'Preventive Care', pct: Math.round((hsBreakdown.preventive.pts / hsBreakdown.preventive.max) * 100), icon: '🛡️' },
+                        { label: 'Mobility', pct: Math.round((hsBreakdown.mobility.pts / hsBreakdown.mobility.max) * 100), icon: '🚶' },
+                    ] : null;
+                    const driverColor = (pct) => pct >= 75 ? '#10B981' : pct >= 50 ? '#F59E0B' : '#F43F5E';
+
+                    // Weakest driver for prediction
+                    const weakest = driverData ? [...driverData].sort((a, b) => a.pct - b.pct)[0] : null;
+                    const projectedBoost = weakest ? Math.min(8, Math.round((100 - weakest.pct) * 0.15)) : 5;
+                    const projectedScore = hasScore ? Math.min(100, activeScoreVal + projectedBoost) : null;
+
+                    // Achievements: use real persistent badges from backend + profile-derived ones
+                    const backendBadges = profile?.unlockedAchievements || [];
+                    const badgeLabels = {
+                        first_perfect_day: '🌟 First Perfect Day',
+                        weekly_90: '📅 Weekly 90% Adherence',
+                        streak_7: '🔥 7-Day Streak',
+                        streak_30: '🔥 30-Day Streak',
+                        first_vital: '🩺 First Vital Logged',
+                        profile_complete: '✅ Profile Complete',
+                    };
+                    const unlockedAchievements = [
+                        ...backendBadges.map(key => badgeLabels[key] || key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())),
+                    ];
+                    // Supplement with profile-derived badges (only if not already covered by backend)
+                    if (backendBadges.length === 0) {
+                        if (activeMeds.length > 0) unlockedAchievements.push('Active Medication Tracker');
+                        if (conditions.length > 0 && managedCount >= conditions.length * 0.5) unlockedAchievements.push('Condition Management');
+                        if (completionPct >= 80) unlockedAchievements.push('Profile Champion');
+                        if (gp.name) unlockedAchievements.push('Care Network Active');
+                        if (vaccinations.length >= 2) unlockedAchievements.push('Vaccination Record');
+                    }
+
+                    // Next milestone
+                    let nextMilestone = 'Keep up the great work — all milestones achieved!';
+                    let milestoneProgress = 100;
+                    let milestoneTarget = 100;
+
+                    if (completionPct < 100) {
+                        nextMilestone = `Complete ${100 - completionPct}% more of your profile to unlock 🏆 Health Profile Master`;
+                        milestoneProgress = completionPct;
+                        milestoneTarget = 100;
+                    } else if (streakDays < 7) {
+                        nextMilestone = `Log vitals/meds for ${7 - streakDays} more days to unlock 🏆 7-Day Streak (${streakDays}/7)`;
+                        milestoneProgress = streakDays;
+                        milestoneTarget = 7;
+                    } else if (streakDays < 30) {
+                        nextMilestone = `Log vitals/meds for ${30 - streakDays} more days to unlock 🏆 30-Day Streak (${streakDays}/30)`;
+                        milestoneProgress = streakDays;
+                        milestoneTarget = 30;
+                    } else if (adherencePct !== null && adherencePct < 95) {
+                        nextMilestone = `Improve medication adherence to 95% to unlock 🏆 Medication Champion (${adherencePct}/95%)`;
+                        milestoneProgress = adherencePct;
+                        milestoneTarget = 95;
+                    }
+
+                    // Dynamic Coach CTA question & text based on weakest driver
+                    let coachQuestion = 'How can I improve my health score?';
+                    let coachCtaText = 'Ask AI Coach';
+
+                    if (weakest) {
+                        const qMap = {
+                            'Medication': 'How can I stick to my medication schedule?',
+                            'Lifestyle': 'What active habits can help improve my lifestyle score?',
+                            'Vitals': 'How do I keep my vitals stable and healthy?',
+                            'Conditions': 'What are the best ways to manage my health conditions?',
+                            'Preventive Care': 'What preventive checks should I get done?',
+                            'Mobility': 'How can I safely improve my mobility score?',
+                        };
+                        coachQuestion = qMap[weakest.label] || 'How can I improve my health score?';
+
+                        const ctaMap = {
+                            'Medication': 'Ask how to stick to meds',
+                            'Lifestyle': 'Ask how to improve habits',
+                            'Vitals': 'Ask how to stabilize vitals',
+                            'Conditions': 'Ask how to manage conditions',
+                            'Preventive Care': 'Ask about preventive care',
+                            'Mobility': 'Ask how to improve mobility',
+                        };
+                        coachCtaText = ctaMap[weakest.label] || 'Ask AI Coach';
+                    }
+
+                    return (
+                        <View style={s.tipsBackdrop}>
+                            <View style={[s.tipsSheet, { maxHeight: '95%' }]}>
+                                {/* Drag Handle */}
+                                <View style={s.tipsHandle} />
+
+                                {/* Modal Header */}
+                                <View style={{ paddingHorizontal: 24, paddingTop: 16, paddingBottom: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={{ fontSize: 24, ...FONT.heavy, color: '#0F172A', letterSpacing: -0.5, marginBottom: 2 }}>AI Health Score Coach</Text>
+                                        <Text style={{ fontSize: 13, ...FONT.medium, color: '#64748B' }}>Your personalized health insights</Text>
+                                    </View>
+                                    <Pressable onPress={() => setShowScoreInfo(false)} hitSlop={12} style={{ backgroundColor: '#F1F5F9', padding: 6, borderRadius: 16, borderWidth: 1, borderColor: '#E2E8F0' }}>
+                                        <X size={18} color="#64748B" />
+                                    </Pressable>
+                                </View>
+
+                                <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40, paddingHorizontal: 24 }}>
+                                    
+                                    {/* ── SECTION 1: HERO CARD ── */}
+                                    <View style={{
+                                        backgroundColor: '#FFFFFF',
+                                        borderRadius: 36,
+                                        padding: 24,
+                                        marginBottom: 20,
+                                        borderWidth: 1.5,
+                                        borderColor: '#EEF2FF',
+                                        flexDirection: 'row',
+                                        alignItems: 'center',
+                                        gap: 20,
+                                        shadowColor: '#6366F1',
+                                        shadowOffset: { width: 0, height: 12 },
+                                        shadowOpacity: 0.08,
+                                        shadowRadius: 24,
+                                        elevation: 4,
+                                        position: 'relative',
+                                        overflow: 'hidden',
+                                    }}>
+                                        {/* Glow Background Layer */}
+                                        <View style={{
+                                            position: 'absolute',
+                                            top: -50,
+                                            left: -50,
+                                            width: 150,
+                                            height: 150,
+                                            borderRadius: 75,
+                                            backgroundColor: '#6366F1',
+                                            opacity: 0.05,
+                                        }} />
+
+                                        {/* SVG Score Circle */}
+                                        <View style={{ position: 'relative', width: 110, height: 110, alignItems: 'center', justifyContent: 'center' }}>
+                                            <Svg width={110} height={110} viewBox="0 0 110 110">
+                                                <Defs>
+                                                    <SvgLinearGradient id="scoreGrad" x1="0" y1="0" x2="1" y2="1">
+                                                        <Stop offset="0%" stopColor="#6366F1" />
+                                                        <Stop offset="100%" stopColor={hasScore ? scoreColor : '#CBD5E1'} />
+                                                    </SvgLinearGradient>
+                                                </Defs>
+                                                <SvgCircle cx={55} cy={55} r={45} stroke="#F1F5F9" strokeWidth={8} fill="none" />
+                                                {hasScore && (
+                                                    <SvgCircle 
+                                                        cx={55} 
+                                                        cy={55} 
+                                                        r={45} 
+                                                        stroke="url(#scoreGrad)" 
+                                                        strokeWidth={8} 
+                                                        strokeDasharray={2 * Math.PI * 45} 
+                                                        strokeDashoffset={2 * Math.PI * 45 * (1 - activeScoreVal / 100)} 
+                                                        strokeLinecap="round" 
+                                                        fill="none" 
+                                                        transform="rotate(-90 55 55)" 
+                                                    />
+                                                )}
+                                            </Svg>
+                                            <View style={{ position: 'absolute', alignItems: 'center' }}>
+                                                <Text style={{ fontSize: 32, ...FONT.heavy, color: hasScore ? '#0F172A' : '#94A3B8', lineHeight: 36 }}>{hasScore ? activeScoreVal : '—'}</Text>
                                             </View>
                                         </View>
-                                        <Text style={s.insightBody}>{tip.body}</Text>
+
+                                        {/* Score Info Details */}
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={{ fontSize: 20, ...FONT.heavy, color: '#0F172A', marginBottom: 4 }}>
+                                                {scoreStatus}
+                                            </Text>
+                                            
+                                            {hasScore ? (
+                                                <View style={{ gap: 4 }}>
+                                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                                                        <TrendingUp size={14} color={scoreColor} />
+                                                        <Text style={{ fontSize: 13, ...FONT.bold, color: scoreColor }}>{hsGrade} Grade</Text>
+                                                    </View>
+                                                    {hsBracket && <Text style={{ fontSize: 12, ...FONT.medium, color: '#64748B' }}>Adjusted for {bracketLabel}</Text>}
+                                                    <Text style={{ fontSize: 11, ...FONT.medium, color: '#94A3B8' }}>{lastSyncText}</Text>
+                                                </View>
+                                            ) : (
+                                                <Text style={{ fontSize: 13, ...FONT.medium, color: '#64748B', lineHeight: 18 }}>
+                                                    We're learning your health patterns. Complete your profile to unlock your score!
+                                                </Text>
+                                            )}
+                                        </View>
                                     </View>
-                                );
-                            })}
-                        </View>
-                    )}
 
-                    <Text style={{ fontSize: 16, color: '#334155', lineHeight: 24, marginBottom: 10 }}>
-                        Your health score is a dynamic measure of your overall well-being. It is not a fixed grade, but rather an indicator of where you are right now and where you can improve.
-                    </Text>
-
-                    <View style={{ backgroundColor: '#F8FAFC', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: '#F1F5F9' }}>
-                        <Text style={{ fontSize: 14, fontWeight: '800', color: '#0F172A', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>How it's calculated</Text>
-                        <Text style={{ fontSize: 15, color: '#475569', lineHeight: 22 }}>
-                            We start with a baseline determined by your age and BMI. From there, the score adapts based on your consistency. High medication adherence and stable vitals will improve your score, while missed doses or critical alerts highlight areas to focus on.
-                        </Text>
-                    </View>
-
-                    <View style={{ backgroundColor: '#EEF2FF', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: '#E0E7FF' }}>
-                        <Text style={{ fontSize: 14, fontWeight: '800', color: '#4338CA', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>What the points mean</Text>
-                        <Text style={{ fontSize: 15, color: '#4F46E5', lineHeight: 22, marginBottom: 12 }}>
-                            The "Score Breakdown" below shows recent factors influencing your score. Don't worry about the exact math—focus instead on the habits!
-                        </Text>
-                        
-                        {/* Score Breakdown */}
-                        {hsBreakdown && (() => {
-                            const dims = [
-                                { key: 'adherence', label: 'Medication Adherence', icon: '💊', max: 30 },
-                                { key: 'lifestyle',  label: 'Lifestyle Habits',  icon: '🏃', max: 20 },
-                                { key: 'conditions', label: 'Condition Burden',  icon: '🩺', max: 15 },
-                                { key: 'vitals',     label: 'Vitals Tracking',   icon: '❤️', max: 15 },
-                                { key: 'preventive', label: 'Preventive Care',   icon: '🛡️', max: 10 },
-                                { key: 'mobility',   label: 'Mobility',          icon: '🚶', max: 10 },
-                            ].filter(d => hsBreakdown[d.key])
-                             .map(d => {
-                                 const bd = hsBreakdown[d.key];
-                                 const pts = typeof bd === 'object' ? (bd.pts || 0) : (Number(bd) || 0);
-                                 const max = typeof bd === 'object' && bd.max ? bd.max : d.max;
-                                 let pct = Math.round((pts / max) * 100);
-                                 if (isNaN(pct) || !isFinite(pct)) pct = 0;
-                                 return { ...d, pts, max, pct };
-                             })
-                             .sort((a, b) => b.pct - a.pct);
-
-                            return (
-                                <View style={{ marginTop: 12, flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                                    {dims.map(({ key, label, icon, pts, max, pct }) => {
-                                        const dimColor = pct >= 70 ? '#10B981' : pct >= 40 ? '#F59E0B' : '#EF4444';
-                                        return (
-                                            <View key={key} style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 12, borderWidth: 1, borderColor: '#C7D2FE' }}>
-                                                <Text style={{ fontSize: 14, marginRight: 6 }}>{icon}</Text>
-                                                <Text style={{ fontSize: 13, ...FONT.bold, color: '#312E81', marginRight: 6 }}>{label}</Text>
-                                                <TrendingUp size={12} color={dimColor} style={{ marginRight: 4 }} />
-                                                <Text style={{ fontSize: 13, ...FONT.heavy, color: dimColor }}>+{pts}</Text>
+                                    {/* ── SECTION 2: HEALTH AGE WIDGET ── */}
+                                    {actualAge && healthAgeVal !== null && (
+                                        <View style={{
+                                            backgroundColor: '#FAFBFF',
+                                            borderRadius: 24,
+                                            padding: 16,
+                                            borderWidth: 1,
+                                            borderColor: '#E0E7FF',
+                                            marginBottom: 20,
+                                            flexDirection: 'row',
+                                            justifyContent: 'space-between',
+                                            alignItems: 'center',
+                                        }}>
+                                            <View style={{ gap: 2 }}>
+                                                <Text style={{ fontSize: 12, ...FONT.heavy, color: '#6366F1', letterSpacing: 0.8, textTransform: 'uppercase' }}>HEALTH AGE</Text>
+                                                <Text style={{ fontSize: 20, ...FONT.heavy, color: '#0F172A' }}>{healthAgeVal} Years</Text>
                                             </View>
-                                        );
-                                    })}
-                                </View>
-                            );
-                        })()}
-                    </View>
+                                            <View style={{
+                                                backgroundColor: healthAgeDiff <= 0 ? '#ECFDF5' : '#FEF2F2',
+                                                paddingHorizontal: 10,
+                                                paddingVertical: 6,
+                                                borderRadius: 12,
+                                            }}>
+                                                <Text style={{ fontSize: 12, ...FONT.bold, color: healthAgeDiff <= 0 ? '#10B981' : '#EF4444' }}>
+                                                    {healthAgeDiff <= 0 ? `${Math.abs(healthAgeDiff)} years younger` : `${healthAgeDiff} years older`}
+                                                </Text>
+                                            </View>
+                                        </View>
+                                    )}
 
-                    <View style={{ backgroundColor: '#F0FDF4', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: '#DCFCE7' }}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                            <CircleCheck size={18} color="#16A34A" />
-                            <Text style={{ fontSize: 14, fontWeight: '800', color: '#15803D', textTransform: 'uppercase', letterSpacing: 0.5 }}>Keep It Up!</Text>
+                                    {/* ── SECTION 3: AI HEALTH COACH CARD ── */}
+                                    <View style={{
+                                        backgroundColor: '#EEF2FF',
+                                        borderRadius: 24,
+                                        padding: 20,
+                                        marginBottom: 20,
+                                        borderWidth: 1.5,
+                                        borderColor: '#E0E7FF',
+                                        position: 'relative',
+                                        overflow: 'hidden',
+                                    }}>
+                                        <Sparkles size={110} color="#6366F1" style={{ position: 'absolute', right: -30, bottom: -30, opacity: 0.04 }} />
+                                        
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+                                            <Sparkles size={16} color="#6366F1" />
+                                            <Text style={{ fontSize: 12, ...FONT.heavy, color: '#6366F1', letterSpacing: 0.8 }}>AI HEALTH COACH</Text>
+                                            {topTip && (
+                                                <View style={{
+                                                    backgroundColor: '#E0E7FF',
+                                                    paddingHorizontal: 8,
+                                                    paddingVertical: 2,
+                                                    borderRadius: 8,
+                                                    marginLeft: 'auto',
+                                                }}>
+                                                    <Text style={{ fontSize: 9, ...FONT.bold, color: '#4F46E5' }}>{(topTip.impact || 'TIP').toUpperCase()}</Text>
+                                                </View>
+                                            )}
+                                        </View>
+
+                                        <Text style={{ fontSize: 16, ...FONT.bold, color: '#0F172A', lineHeight: 22, marginBottom: 4 }}>
+                                            {coachAction}
+                                        </Text>
+                                        {topTip?.body && (
+                                            <Text style={{ fontSize: 13, ...FONT.medium, color: '#475569', lineHeight: 18, marginBottom: 12 }}>
+                                                {topTip.body}
+                                            </Text>
+                                        )}
+
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
+                                            {hasScore && (
+                                                <View style={{
+                                                    backgroundColor: '#ECFDF5',
+                                                    paddingHorizontal: 12,
+                                                    paddingVertical: 6,
+                                                    borderRadius: 12,
+                                                }}>
+                                                    <Text style={{ fontSize: 12, ...FONT.heavy, color: '#10B981', letterSpacing: 0.2 }}>
+                                                        {coachImpact} Score Impact
+                                                    </Text>
+                                                </View>
+                                            )}
+                                            <Pressable
+                                                onPress={() => { 
+                                                    setShowScoreInfo(false); 
+                                                    navigation.navigate('Chatbot', { 
+                                                        initialMessage: coachQuestion,
+                                                        healthContext: {
+                                                            score: activeScoreVal,
+                                                            grade: hsGrade,
+                                                            label: scoreStatus,
+                                                            weakestDriver: weakest?.label || 'General',
+                                                            weakestScore: weakest?.pct ?? 0,
+                                                            projectedBoost,
+                                                            projectedScore,
+                                                            suggestedAction: coachAction
+                                                        }
+                                                    }); 
+                                                }}
+                                                hitSlop={8}
+                                                style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 4, opacity: pressed ? 0.7 : 1 }]}
+                                            >
+                                                <Text style={{ fontSize: 12, ...FONT.bold, color: '#4F46E5' }}>{coachCtaText}</Text>
+                                                <ChevronRight size={14} color="#4F46E5" />
+                                            </Pressable>
+                                        </View>
+                                    </View>
+
+                                    {/* ── SECTION 4: OPPORTUNITY CARDS ── */}
+                                    <View style={{ marginBottom: 20 }}>
+                                        <Text style={{ fontSize: 12, ...FONT.heavy, color: '#64748B', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 12 }}>OPPORTUNITIES</Text>
+                                        
+                                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingRight: 24 }}>
+                                            {activeMeds.length > 0 && (
+                                                <Pressable 
+                                                    onPress={() => { setShowScoreInfo(false); navigation.navigate('Medications'); }}
+                                                    style={{
+                                                        width: 150,
+                                                        backgroundColor: '#FFFFFF',
+                                                        borderRadius: 24,
+                                                        padding: 16,
+                                                        borderWidth: 1,
+                                                        borderColor: '#E2E8F0',
+                                                        justifyContent: 'space-between',
+                                                        minHeight: 120,
+                                                        shadowColor: '#000',
+                                                        shadowOffset: { width: 0, height: 4 },
+                                                        shadowOpacity: 0.02,
+                                                        shadowRadius: 8,
+                                                        elevation: 1,
+                                                    }}
+                                                >
+                                                    <View style={{ backgroundColor: '#ECFDF5', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, alignSelf: 'flex-start' }}>
+                                                        <Text style={{ fontSize: 10, ...FONT.heavy, color: '#10B981' }}>+5 Score</Text>
+                                                    </View>
+                                                    <Text style={{ fontSize: 13, ...FONT.bold, color: '#0F172A', marginTop: 8 }} numberOfLines={2}>Take morning meds</Text>
+                                                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', marginTop: 4 }}>
+                                                        <ChevronRight size={14} color="#6366F1" />
+                                                    </View>
+                                                </Pressable>
+                                            )}
+
+                                            <Pressable 
+                                                onPress={() => { setShowScoreInfo(false); navigation.navigate('VitalsHistory'); }}
+                                                style={{
+                                                    width: 150,
+                                                    backgroundColor: '#FFFFFF',
+                                                    borderRadius: 24,
+                                                    padding: 16,
+                                                    borderWidth: 1,
+                                                    borderColor: '#E2E8F0',
+                                                    justifyContent: 'space-between',
+                                                    minHeight: 120,
+                                                    shadowColor: '#000',
+                                                    shadowOffset: { width: 0, height: 4 },
+                                                    shadowOpacity: 0.02,
+                                                    shadowRadius: 8,
+                                                    elevation: 1,
+                                                }}
+                                            >
+                                                <View style={{ backgroundColor: '#ECFDF5', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, alignSelf: 'flex-start' }}>
+                                                    <Text style={{ fontSize: 10, ...FONT.heavy, color: '#10B981' }}>+4 Score</Text>
+                                                </View>
+                                                <Text style={{ fontSize: 13, ...FONT.bold, color: '#0F172A', marginTop: 8 }} numberOfLines={2}>Log BP Reading</Text>
+                                                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', marginTop: 4 }}>
+                                                    <ChevronRight size={14} color="#6366F1" />
+                                                </View>
+                                            </Pressable>
+
+                                            {healthSdkReady && (
+                                                <Pressable 
+                                                    onPress={() => { setShowScoreInfo(false); handleWearableSync(); }}
+                                                    style={{
+                                                        width: 150,
+                                                        backgroundColor: '#FFFFFF',
+                                                        borderRadius: 24,
+                                                        padding: 16,
+                                                        borderWidth: 1,
+                                                        borderColor: '#E2E8F0',
+                                                        justifyContent: 'space-between',
+                                                        minHeight: 120,
+                                                        shadowColor: '#000',
+                                                        shadowOffset: { width: 0, height: 4 },
+                                                        shadowOpacity: 0.02,
+                                                        shadowRadius: 8,
+                                                        elevation: 1,
+                                                    }}
+                                                >
+                                                    <View style={{ backgroundColor: '#ECFDF5', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, alignSelf: 'flex-start' }}>
+                                                        <Text style={{ fontSize: 10, ...FONT.heavy, color: '#10B981' }}>+3 Score</Text>
+                                                    </View>
+                                                    <Text style={{ fontSize: 13, ...FONT.bold, color: '#0F172A', marginTop: 8 }} numberOfLines={2}>Sync Wearable</Text>
+                                                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', marginTop: 4 }}>
+                                                        <ChevronRight size={14} color="#6366F1" />
+                                                    </View>
+                                                </Pressable>
+                                            )}
+
+                                            {completionPct < 100 && (
+                                                <Pressable 
+                                                    onPress={() => { setShowScoreInfo(false); handleCompletionClick(); }}
+                                                    style={{
+                                                        width: 150,
+                                                        backgroundColor: '#FFFFFF',
+                                                        borderRadius: 24,
+                                                        padding: 16,
+                                                        borderWidth: 1,
+                                                        borderColor: '#E2E8F0',
+                                                        justifyContent: 'space-between',
+                                                        minHeight: 120,
+                                                        shadowColor: '#000',
+                                                        shadowOffset: { width: 0, height: 4 },
+                                                        shadowOpacity: 0.02,
+                                                        shadowRadius: 8,
+                                                        elevation: 1,
+                                                    }}
+                                                >
+                                                    <View style={{ backgroundColor: '#ECFDF5', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, alignSelf: 'flex-start' }}>
+                                                        <Text style={{ fontSize: 10, ...FONT.heavy, color: '#10B981' }}>+2 Score</Text>
+                                                    </View>
+                                                    <Text style={{ fontSize: 13, ...FONT.bold, color: '#0F172A', marginTop: 8 }} numberOfLines={2}>Complete Profile</Text>
+                                                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', marginTop: 4 }}>
+                                                        <ChevronRight size={14} color="#6366F1" />
+                                                    </View>
+                                                </Pressable>
+                                            )}
+                                        </ScrollView>
+                                    </View>
+
+                                    {/* ── SECTION 5: HEALTH DRIVERS ── */}
+                                    <View style={{ marginBottom: 20 }}>
+                                        <Text style={{ fontSize: 12, ...FONT.heavy, color: '#64748B', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 12 }}>HEALTH DRIVERS</Text>
+                                        
+                                        {driverData ? (
+                                            <View style={{ gap: 14 }}>
+                                                {driverData.map((driver, idx) => (
+                                                    <View key={idx}>
+                                                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
+                                                            <Text style={{ fontSize: 14, ...FONT.bold, color: '#0F172A' }}>{driver.icon} {driver.label}</Text>
+                                                            <Text style={{ fontSize: 13, ...FONT.bold, color: driverColor(driver.pct) }}>{driver.pct}%</Text>
+                                                        </View>
+                                                        <View style={{ height: 12, backgroundColor: '#F1F5F9', borderRadius: 6, overflow: 'hidden' }}>
+                                                            <View style={{ width: `${driver.pct}%`, height: '100%', backgroundColor: driverColor(driver.pct), borderRadius: 6 }} />
+                                                        </View>
+                                                    </View>
+                                                ))}
+                                            </View>
+                                        ) : (
+                                            <View style={{ backgroundColor: '#F8FAFC', borderRadius: 20, padding: 24, alignItems: 'center', borderWidth: 1, borderColor: '#F1F5F9' }}>
+                                                <Text style={{ fontSize: 24, marginBottom: 8 }}>📊</Text>
+                                                <Text style={{ fontSize: 13, ...FONT.bold, color: '#334155', marginBottom: 4 }}>Tracking Your Health</Text>
+                                                <Text style={{ fontSize: 12, ...FONT.medium, color: '#64748B', textAlign: 'center', lineHeight: 18 }}>
+                                                    Complete your profile and log medications to see detailed health driver breakdowns.
+                                                </Text>
+                                            </View>
+                                        )}
+                                    </View>
+
+                                    {/* ── SECTION 6: WEEKLY MOMENTUM & STREAK RINGS ── */}
+                                    <View style={{
+                                        backgroundColor: '#FFFFFF',
+                                        borderRadius: 28,
+                                        padding: 20,
+                                        borderWidth: 1,
+                                        borderColor: '#E2E8F0',
+                                        marginBottom: 20,
+                                        shadowColor: '#000',
+                                        shadowOffset: { width: 0, height: 4 },
+                                        shadowOpacity: 0.02,
+                                        shadowRadius: 8,
+                                        elevation: 1,
+                                    }}>
+                                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                                            <Text style={{ fontSize: 14, ...FONT.heavy, color: '#0F172A' }}>{streakDays > 0 ? `🔥 ${streakDays} Day ${streakLabel}` : `🎯 Start Your ${streakLabel}`}</Text>
+                                            <Text style={{ fontSize: 12, ...FONT.bold, color: streakDays > 0 ? '#10B981' : '#94A3B8' }}>{streakDays > 0 ? 'Active' : 'Tracking'}</Text>
+                                        </View>
+
+                                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 4 }}>
+                                            {daysOfWeek.map((day, idx) => {
+                                                const isCompleted = completedDays[idx];
+                                                const isToday = idx === todayIdx;
+                                                return (
+                                                    <View key={idx} style={{ alignItems: 'center', gap: 6 }}>
+                                                        <View style={{
+                                                            width: 34,
+                                                            height: 34,
+                                                            borderRadius: 17,
+                                                            borderWidth: 2,
+                                                            borderColor: isCompleted ? '#10B981' : isToday ? '#6366F1' : '#E2E8F0',
+                                                            borderStyle: isCompleted ? 'solid' : 'dashed',
+                                                            alignItems: 'center',
+                                                            justifyContent: 'center',
+                                                            backgroundColor: isCompleted ? '#ECFDF5' : isToday ? '#EEF2FF' : 'transparent',
+                                                        }}>
+                                                            {isCompleted ? (
+                                                                <Text style={{ fontSize: 12, color: '#10B981', ...FONT.bold }}>✓</Text>
+                                                            ) : (
+                                                                <Text style={{ fontSize: 11, color: isToday ? '#6366F1' : '#94A3B8', ...FONT.medium }}>{day}</Text>
+                                                            )}
+                                                        </View>
+                                                        <Text style={{ fontSize: 10, ...FONT.semibold, color: isToday ? '#6366F1' : '#64748B' }}>{day}</Text>
+                                                    </View>
+                                                );
+                                            })}
+                                        </View>
+                                    </View>
+
+                                    {/* ── SECTION 7: AI INSIGHT & PREDICTION CARD ── */}
+                                    {hasScore && (
+                                        <View style={{
+                                            backgroundColor: '#FAFBFF',
+                                            borderRadius: 28,
+                                            padding: 20,
+                                            borderWidth: 1,
+                                            borderColor: '#E0E7FF',
+                                            marginBottom: 20,
+                                            gap: 12,
+                                        }}>
+                                            {(hs?.tips || []).length > 0 && (
+                                                <View style={{ gap: 4 }}>
+                                                    <Text style={{ fontSize: 12, ...FONT.heavy, color: '#6366F1', letterSpacing: 0.8, textTransform: 'uppercase' }}>AI INSIGHT</Text>
+                                                    <Text style={{ fontSize: 14, ...FONT.medium, color: '#334155', lineHeight: 20 }}>
+                                                        {hs.tips[0].body}
+                                                    </Text>
+                                                </View>
+                                            )}
+                                            
+                                            {weakest && projectedScore && (
+                                                <>
+                                                    <View style={{ height: 1, backgroundColor: '#E0E7FF' }} />
+                                                    <View style={{ gap: 4 }}>
+                                                        <Text style={{ fontSize: 12, ...FONT.heavy, color: '#6366F1', letterSpacing: 0.8, textTransform: 'uppercase' }}>PREDICTION</Text>
+                                                        <Text style={{ fontSize: 14, ...FONT.medium, color: '#334155', lineHeight: 20 }}>
+                                                            Improving your {weakest.label.toLowerCase()} score could boost your overall health score.
+                                                        </Text>
+                                                        <View style={{
+                                                            backgroundColor: '#EEF2FF',
+                                                            paddingHorizontal: 10,
+                                                            paddingVertical: 6,
+                                                            borderRadius: 12,
+                                                            alignSelf: 'flex-start',
+                                                            marginTop: 4,
+                                                        }}>
+                                                            <Text style={{ fontSize: 12, ...FONT.bold, color: '#4F46E5' }}>Projected Score: {projectedScore}</Text>
+                                                        </View>
+                                                    </View>
+                                                </>
+                                            )}
+                                        </View>
+                                    )}
+
+                                    {/* ── SECTION 8: ACHIEVEMENTS & NEXT MILESTONE ── */}
+                                    <View style={{
+                                        backgroundColor: '#FFFFFF',
+                                        borderRadius: 28,
+                                        padding: 20,
+                                        borderWidth: 1,
+                                        borderColor: '#E2E8F0',
+                                        marginBottom: 20,
+                                        shadowColor: '#000',
+                                        shadowOffset: { width: 0, height: 4 },
+                                        shadowOpacity: 0.02,
+                                        shadowRadius: 8,
+                                        elevation: 1,
+                                    }}>
+                                        <Text style={{ fontSize: 12, ...FONT.heavy, color: '#64748B', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 12 }}>ACHIEVEMENTS</Text>
+                                        
+                                        {/* Next Milestone Card */}
+                                        <View style={{
+                                            backgroundColor: '#FFFBEB',
+                                            borderRadius: 20,
+                                            padding: 14,
+                                            marginBottom: 16,
+                                            borderWidth: 1,
+                                            borderColor: '#FDE68A',
+                                        }}>
+                                            <Text style={{ fontSize: 11, ...FONT.heavy, color: '#D97706', letterSpacing: 0.5, marginBottom: 4 }}>NEXT MILESTONE</Text>
+                                            <Text style={{ fontSize: 14, ...FONT.bold, color: '#0F172A', marginBottom: 8 }}>{nextMilestone}</Text>
+                                            <View style={{ height: 6, backgroundColor: '#FEF3C7', borderRadius: 3, overflow: 'hidden' }}>
+                                                <View style={{ width: `${Math.min(100, Math.round((milestoneProgress / milestoneTarget) * 100))}%`, height: '100%', backgroundColor: '#F59E0B', borderRadius: 3 }} />
+                                            </View>
+                                        </View>
+
+                                        {unlockedAchievements.length > 0 && (
+                                            <>
+                                                <Text style={{ fontSize: 11, ...FONT.heavy, color: '#94A3B8', letterSpacing: 0.5, marginBottom: 8 }}>UNLOCKED</Text>
+                                                <View style={{ gap: 10 }}>
+                                                    {unlockedAchievements.map((achievement, idx) => (
+                                                        <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                                                            <Text style={{ fontSize: 18 }}>🏆</Text>
+                                                            <Text style={{ fontSize: 13, ...FONT.bold, color: '#334155' }}>{achievement}</Text>
+                                                        </View>
+                                                    ))}
+                                                </View>
+                                            </>
+                                        )}
+                                    </View>
+
+                                </ScrollView>
+                            </View>
                         </View>
-                        <Text style={{ fontSize: 15, color: '#16A34A', lineHeight: 22 }}>
-                            You're building healthier routines. Whether it's taking your meds or syncing your vitals, every consistent day helps improve your overall well-being.
-                        </Text>
-                    </View>
-                        </ScrollView>
-                    </View>
-                </View>
+                    );
+                })()}
             </Modal>
         </View>
     );
@@ -1625,10 +2161,11 @@ const s = StyleSheet.create({
     },
     headerTitle: { fontSize: 32, fontWeight: '800', color: '#0F172A', letterSpacing: -1 },
     headerBtn: {
-        width: 44, height: 44, borderRadius: 22,
-        backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center',
-        borderWidth: 1, borderColor: '#E2E8F0',
+        width: 42, height: 42, borderRadius: 21,
+        backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0',
+        alignItems: 'center', justifyContent: 'center',
     },
+    bellDot: { position: 'absolute', top: 10, right: 10, width: 7, height: 7, borderRadius: 3.5, backgroundColor: '#EF4444', borderWidth: 1.5, borderColor: '#FFFFFF' },
 
     scrollContent: {
         paddingHorizontal: 18,

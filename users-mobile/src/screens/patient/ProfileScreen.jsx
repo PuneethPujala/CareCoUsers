@@ -75,6 +75,7 @@ export default function PatientProfileScreen({ navigation }) {
     const [accountActionLoading, setAccountActionLoading] = useState(false);
     const [devTapCount, setDevTapCount] = useState(0);
     const [isSharing, setIsSharing] = useState(false);
+    const [unreadCount, setUnreadCount] = useState(0);
     const shareCardRef = useRef(null);
 
     // Modals
@@ -231,6 +232,10 @@ export default function PatientProfileScreen({ navigation }) {
                     } catch (mfaErr) {
                         console.warn('[Profile] Failed to fetch MFA status:', mfaErr.message);
                     }
+
+                    apiService.patients.getNotificationsUnreadCount()
+                        .then(res => setUnreadCount(res.data?.count || 0))
+                        .catch(() => {});
 
                     if (!hasAnimated.current) {
                         hasAnimated.current = true;
@@ -700,7 +705,8 @@ export default function PatientProfileScreen({ navigation }) {
                             <Text style={s.headerTitle}>{t('profile.my_profile', { defaultValue: 'My Profile' })}</Text>
                         </View>
                         <Pressable style={s.headerBtn} onPress={() => navigation.navigate('Notifications')}>
-                            <Bell size={20} color={C.primary} strokeWidth={2.5} />
+                            <Bell size={20} color="#475569" strokeWidth={2.5} />
+                            {unreadCount > 0 && <View style={s.bellDot} />}
                         </Pressable>
                     </View>
                 </Animated.View>
@@ -1694,7 +1700,12 @@ const s = StyleSheet.create({
     headerLeft: { flex: 1 },
     heroLabel: { fontSize: 13, fontWeight: '800', color: C.primary, letterSpacing: 1.5, marginBottom: 4 },
     headerTitle: { fontSize: 32, fontWeight: '800', color: C.dark, letterSpacing: -1 },
-    headerBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#FFF', alignItems: 'center', justifyContent: 'center', shadowColor: '#4361EE', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 12, elevation: 3 },
+    headerBtn: {
+        width: 42, height: 42, borderRadius: 21,
+        backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0',
+        alignItems: 'center', justifyContent: 'center',
+    },
+    bellDot: { position: 'absolute', top: 10, right: 10, width: 7, height: 7, borderRadius: 3.5, backgroundColor: '#EF4444', borderWidth: 1.5, borderColor: '#FFFFFF' },
 
     /* Scroll */
     scroll: { flex: 1 },

@@ -21,7 +21,53 @@ const aiChatRateLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+// Stricter IP-based rate limiter for the chatbot endpoint globally
+const aiChatIpRateLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000, // 10 minutes
+  max: 30, // Limit each IP address to 30 requests per 10 minutes globally
+  keyGenerator: (req) => {
+    return req.ip;
+  },
+  message: { error: 'Too many chat requests from this network. Please try again in a few minutes.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Patient-based rate limiter (resolving the target patient ID)
+const aiChatPatientRateLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000, // 10 minutes
+  max: 30, // Limit each patient to 30 requests per 10 minutes
+  keyGenerator: (req) => {
+    let targetId = req.auth?.userId || req.ip;
+    if (req.auth?.userType === 'Companion') {
+      const companionSelectedPatientId = req.body?.patientId || req.query?.patientId;
+      if (companionSelectedPatientId) {
+        targetId = companionSelectedPatientId;
+      }
+    }
+    return String(targetId);
+  },
+  message: { error: 'Too many chat requests for this patient. Please wait a few minutes.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Rate limiter for chatbot session operations (create, delete)
+const aiChatSessionRateLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000, // 10 minutes
+  max: 15, // Limit session operations to 15 per 10 minutes
+  keyGenerator: (req) => {
+    return req.auth?.userId || req.ip;
+  },
+  message: { error: 'Too many chat session operations. Please wait a few minutes.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 module.exports = {
   otpRateLimiter,
   aiChatRateLimiter,
+  aiChatIpRateLimiter,
+  aiChatPatientRateLimiter,
+  aiChatSessionRateLimiter,
 };

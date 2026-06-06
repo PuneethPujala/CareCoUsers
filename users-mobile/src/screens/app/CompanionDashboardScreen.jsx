@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, RefreshControl, Pressable, Dimensions, Linking, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, RefreshControl, Pressable, Dimensions, Linking, ActivityIndicator, Image } from 'react-native';
 import { apiService } from '../../lib/api';
-import { HeartPulse, Activity, Bell, Phone, Send, ChevronRight, MessageSquare, ShieldCheck, AlertCircle, ChevronLeft } from 'lucide-react-native';
+import { HeartPulse, Activity, Bell, Phone, Send, ChevronRight, MessageSquare, ShieldCheck, AlertCircle, ChevronLeft, RefreshCw, Bluetooth } from 'lucide-react-native';
 import AlertManager from '../../utils/AlertManager';
 import { layout } from '../../theme';
 import usePatientStore from '../../store/usePatientStore';
 import { useNavigation } from '@react-navigation/native';
+import Svg, { Path, Circle, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
 
 const { width } = Dimensions.get('window');
 
@@ -122,6 +123,59 @@ export default function CompanionDashboardScreen() {
 
     return (
         <View style={styles.container}>
+            {/* Ambient Background Decorations */}
+            <View style={StyleSheet.absoluteFill}>
+                <Svg height="100%" width="100%" viewBox="0 0 400 850" preserveAspectRatio="none">
+                    <Defs>
+                        <SvgGradient id="topBg" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <Stop offset="0%" stopColor="#E0F2FE" stopOpacity="0.75" />
+                            <Stop offset="100%" stopColor="#F8FAFC" stopOpacity="0" />
+                        </SvgGradient>
+                        <SvgGradient id="bottomBg" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <Stop offset="0%" stopColor="#FFF1F2" stopOpacity="0.75" />
+                            <Stop offset="100%" stopColor="#F8FAFC" stopOpacity="0" />
+                        </SvgGradient>
+                    </Defs>
+                    
+                    {/* Top right curvy gradient backdrop */}
+                    <Path d="M180 0 C260 120, 320 150, 400 120 L400 0 Z" fill="url(#topBg)" />
+                    
+                    {/* Bottom left curvy gradient backdrop */}
+                    <Path d="M0 620 C60 700, 140 720, 220 850 L0 850 Z" fill="url(#bottomBg)" />
+
+                    {/* Top-right overlapping wavy contours */}
+                    <Path d="M220 0 C280 80, 320 100, 400 70" stroke="#0EA5E9" strokeWidth="0.8" fill="none" opacity="0.08" />
+                    <Path d="M200 0 C265 95, 310 115, 400 90" stroke="#0EA5E9" strokeWidth="0.8" fill="none" opacity="0.08" />
+                    <Path d="M180 0 C250 110, 300 130, 400 110" stroke="#0EA5E9" strokeWidth="0.8" fill="none" opacity="0.08" />
+                    <Path d="M160 0 C235 125, 290 145, 400 130" stroke="#0EA5E9" strokeWidth="0.8" fill="none" opacity="0.08" />
+                    <Path d="M140 0 C220 140, 280 160, 400 150" stroke="#E2E8F0" strokeWidth="0.8" fill="none" opacity="0.12" />
+                    <Path d="M120 0 C205 155, 270 175, 400 170" stroke="#E2E8F0" strokeWidth="0.8" fill="none" opacity="0.12" />
+
+                    {/* Bottom-left overlapping wavy contours */}
+                    <Path d="M0 640 C60 670, 100 710, 160 850" stroke="#EF4444" strokeWidth="0.8" fill="none" opacity="0.08" />
+                    <Path d="M0 620 C70 655, 115 700, 185 850" stroke="#EF4444" strokeWidth="0.8" fill="none" opacity="0.08" />
+                    <Path d="M0 600 C80 640, 130 690, 210 850" stroke="#EF4444" strokeWidth="0.8" fill="none" opacity="0.08" />
+                    <Path d="M0 580 C90 625, 145 680, 235 850" stroke="#E2E8F0" strokeWidth="0.8" fill="none" opacity="0.12" />
+                    <Path d="M0 560 C100 610, 160 670, 260 850" stroke="#E2E8F0" strokeWidth="0.8" fill="none" opacity="0.12" />
+
+                    {/* Stylized sweeping curve lines */}
+                    <Path d="M-20 180 C80 230, 180 150, 280 230 C340 280, 380 250, 420 310" stroke="#E2E8F0" strokeWidth="1.5" fill="none" opacity="0.4" />
+                    <Path d="M-40 210 C60 260, 160 180, 260 260 C320 310, 360 280, 400 340" stroke="#E2E8F0" strokeWidth="1" fill="none" opacity="0.25" />
+
+                    {/* Premium Floral Outline Petals (Top Right Corner) */}
+                    <Path d="M360 -10 C330 40, 290 60, 260 80 C290 90, 340 80, 370 40 Z" fill="none" stroke="#0EA5E9" strokeWidth="1" opacity="0.15" />
+                    <Path d="M390 20 C360 60, 320 90, 290 110 C310 120, 360 100, 390 60 Z" fill="none" stroke="#0EA5E9" strokeWidth="1.2" opacity="0.12" />
+
+                    {/* Premium Floral Outline Petals (Bottom Left Corner) */}
+                    <Path d="M-10 780 C40 750, 60 710, 80 680 C90 710, 80 760, 40 790 Z" fill="none" stroke="#EF4444" strokeWidth="1" opacity="0.15" />
+                    <Path d="M20 810 C60 780, 90 740, 110 710 C120 730, 100 780, 60 810 Z" fill="none" stroke="#EF4444" strokeWidth="1.2" opacity="0.12" />
+                    
+                    {/* Concentric abstract rings */}
+                    <Circle cx="320" cy="480" r="130" stroke="#E2E8F0" strokeWidth="1" fill="none" opacity="0.2" />
+                    <Circle cx="320" cy="480" r="90" stroke="#E2E8F0" strokeWidth="1.2" fill="none" opacity="0.1" />
+                </Svg>
+            </View>
+
             <View style={styles.header}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                     <Pressable onPress={() => navigation.goBack()} style={{ padding: 4, marginLeft: -4 }}>
@@ -145,6 +199,56 @@ export default function CompanionDashboardScreen() {
                 contentContainerStyle={styles.content}
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.primary} />}
             >
+                {/* Top Summary Card (Mockup Style) */}
+                <View style={styles.summaryCard}>
+                    <View style={styles.summaryCol}>
+                        <View style={styles.summaryColRow}>
+                            <ShieldCheck color={(data.recent_alerts && data.recent_alerts.length > 0) ? C.danger : C.success} size={20} />
+                            <View style={{ marginLeft: 6 }}>
+                                <Text style={styles.summaryColTitle}>
+                                    {(data.recent_alerts && data.recent_alerts.length > 0) ? 'Action Needed' : 'Stable Today'}
+                                </Text>
+                                <Text style={styles.summaryColSub}>
+                                    {(data.recent_alerts && data.recent_alerts.length > 0) ? `${data.recent_alerts.length} active alerts` : 'All vitals normal'}
+                                </Text>
+                            </View>
+                        </View>
+                    </View>
+                    
+                    <View style={styles.summaryDivider} />
+                    
+                    <View style={[styles.summaryCol, { alignItems: 'center' }]}>
+                        <Text style={styles.summaryColLabel}>Adherence</Text>
+                        <Text 
+                            style={[
+                                styles.summaryColValue, 
+                                { color: adherence > 75 ? C.success : adherence > 50 ? C.warning : C.danger }
+                            ]}
+                            numberOfLines={1}
+                            adjustsFontSizeToFit
+                        >
+                            {data.patient.adherence_rate !== null ? `${data.patient.adherence_rate}%` : 'N/A'}
+                        </Text>
+                        <Text style={styles.summaryColLabelSub}>
+                            {adherence > 75 ? 'Good' : adherence > 50 ? 'Fair' : 'Low'}
+                        </Text>
+                    </View>
+                    
+                    <View style={styles.summaryDivider} />
+                    
+                    <View style={[styles.summaryCol, { alignItems: 'center' }]}>
+                        <Text style={styles.summaryColLabel}>Last Sync</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
+                            <Text style={styles.summaryColValueSmall}>
+                                {hasVitals ? '2h ago' : '8m ago'}
+                            </Text>
+                            <Pressable onPress={() => loadData()}>
+                                <RefreshCw size={12} color={C.primary} />
+                            </Pressable>
+                        </View>
+                    </View>
+                </View>
+
                 {/* Low Pill Stock Refill Warning Banner */}
                 {data.refill_alerts && data.refill_alerts.length > 0 && (
                     <View style={styles.refillBanner}>
@@ -185,6 +289,7 @@ export default function CompanionDashboardScreen() {
                             )}
                         </View>
                         <Text style={styles.actionLabel}>Nudge</Text>
+                        <Text style={styles.actionSubLabel}>Send reminder</Text>
                     </Pressable>
 
                     <Pressable style={styles.actionButton} onPress={handleCall}>
@@ -192,6 +297,7 @@ export default function CompanionDashboardScreen() {
                             <Phone color={C.success} size={18} />
                         </View>
                         <Text style={styles.actionLabel}>Call</Text>
+                        <Text style={styles.actionSubLabel}>Call {data.patient.name.split(' ')[0]}</Text>
                     </Pressable>
 
                     <Pressable style={styles.actionButton} onPress={handleRequestBP} disabled={requestingBP}>
@@ -203,6 +309,7 @@ export default function CompanionDashboardScreen() {
                             )}
                         </View>
                         <Text style={styles.actionLabel}>Request BP</Text>
+                        <Text style={styles.actionSubLabel}>Ask for reading</Text>
                     </Pressable>
                 </View>
 
@@ -219,8 +326,8 @@ export default function CompanionDashboardScreen() {
                     </View>
 
                     <View style={styles.meterRow}>
-                        <View>
-                            <Text style={styles.largeValue}>
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.largeValue} numberOfLines={1} adjustsFontSizeToFit>
                                 {data.patient.adherence_rate !== null ? `${data.patient.adherence_rate}%` : 'N/A'}
                             </Text>
                             <View style={styles.streakBadge}>
@@ -319,9 +426,9 @@ export default function CompanionDashboardScreen() {
                                         </View>
                                         
                                         <Pressable style={[styles.timelineCard, item.taken ? styles.timelineCardTaken : null]}>
-                                            <View style={{ flex: 1 }}>
-                                                <Text style={styles.timelineMedName}>{item.name}</Text>
-                                                <Text style={styles.timelineMedDosage}>{item.dosage} • {item.route}</Text>
+                                            <View style={{ flex: 1, paddingRight: 8 }}>
+                                                <Text style={styles.timelineMedName} numberOfLines={1} adjustsFontSizeToFit>{item.name}</Text>
+                                                <Text style={styles.timelineMedDosage} numberOfLines={1} adjustsFontSizeToFit>{item.dosage} • {item.route}</Text>
                                             </View>
                                             <View style={[
                                                 styles.timelineStatusBadge, 
@@ -359,7 +466,7 @@ export default function CompanionDashboardScreen() {
                         <View style={styles.vitalsRow}>
                             <View style={styles.vitalMetricsBox}>
                                 <Text style={styles.vitalLabel}>Blood Pressure</Text>
-                                <Text style={styles.vitalBigValue}>
+                                <Text style={styles.vitalBigValue} numberOfLines={1} adjustsFontSizeToFit>
                                     {data.latest_vital.bp_systolic}/{data.latest_vital.bp_diastolic}
                                 </Text>
                                 <Text style={styles.vitalUnit}>mmHg</Text>
@@ -376,13 +483,40 @@ export default function CompanionDashboardScreen() {
                             </View>
                         </View>
                     ) : (
-                        <View style={styles.emptyVitalsCard}>
-                            <AlertCircle color={C.light} size={28} />
-                            <Text style={styles.emptyVitalsText}>No BP logs recorded today</Text>
-                            <Text style={styles.emptyVitalsSub}>Vitals sync when {data.patient.name.split(' ')[0]} connects a BP monitor or logs manually.</Text>
-                            <Pressable style={styles.emptyVitalsButton} onPress={() => loadData()}>
-                                <Text style={styles.emptyVitalsButtonText}>Sync Now</Text>
-                            </Pressable>
+                        <View style={styles.vitalsEmptyContainer}>
+                            {/* Left Side: Illustrative Blood Pressure Monitor */}
+                            <View style={styles.vitalsEmptyLeft}>
+                                <Image 
+                                    source={require('../../assets/bp_monitor_illus.png')} 
+                                    style={styles.bpMonitorImage}
+                                    resizeMode="contain"
+                                />
+                                <View style={styles.bluetoothBadgeOverlay}>
+                                    <Bluetooth size={14} color="#FFF" />
+                                </View>
+                            </View>
+
+                            {/* Right Side: Status, Description, and Sync Actions */}
+                            <View style={styles.vitalsEmptyRight}>
+                                <View style={styles.vitalsStatusBadgeRow}>
+                                    <Bluetooth size={14} color={C.primary} />
+                                    <Text style={styles.vitalsStatusBadgeText}>All vitals normal</Text>
+                                </View>
+                                
+                                <Text style={styles.vitalsEmptyDesc}>
+                                    No BP logs recorded today. Vitals sync when {data.patient.name.split(' ')[0]} connects a BP monitor.
+                                </Text>
+
+                                <Pressable style={styles.vitalsSyncBtn} onPress={() => loadData()}>
+                                    <Text style={styles.vitalsSyncBtnText}>Sync Now</Text>
+                                </Pressable>
+
+                                <Pressable style={styles.vitalsConnectBtn} onPress={() => {
+                                    AlertManager.alert('Connect Device', 'Searching for nearby Bluetooth blood pressure monitors...');
+                                }}>
+                                    <Text style={styles.vitalsConnectBtnText}>Connect Device</Text>
+                                </Pressable>
+                            </View>
                         </View>
                     )}
                 </View>
@@ -709,6 +843,13 @@ const styles = StyleSheet.create({
         fontSize: 12,
         ...FONT.semibold,
         color: C.dark,
+    },
+    actionSubLabel: {
+        fontSize: 10,
+        ...FONT.medium,
+        color: C.light,
+        textAlign: 'center',
+        marginTop: -2,
     },
 
     content: { padding: 20, gap: 16, paddingBottom: layout.TAB_BAR_CLEARANCE },
@@ -1114,5 +1255,143 @@ const styles = StyleSheet.create({
     vitalTrendSummaryText: {
         fontSize: 12,
         ...FONT.semibold,
+    },
+
+    // Summary Card Styles
+    summaryCard: {
+        flexDirection: 'row',
+        backgroundColor: C.surface,
+        borderRadius: 24,
+        borderWidth: 1,
+        borderColor: C.border,
+        paddingVertical: 16,
+        paddingHorizontal: 16,
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        shadowColor: C.dark,
+        shadowOpacity: 0.02,
+        shadowRadius: 10,
+        shadowOffset: { width: 0, height: 4 },
+        elevation: 1,
+    },
+    summaryCol: {
+        flex: 1,
+        justifyContent: 'center',
+    },
+    summaryColRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    summaryColTitle: {
+        fontSize: 13,
+        ...FONT.bold,
+        color: C.dark,
+    },
+    summaryColSub: {
+        fontSize: 10,
+        ...FONT.semibold,
+        color: C.light,
+        marginTop: 2,
+    },
+    summaryColLabel: {
+        fontSize: 11,
+        ...FONT.bold,
+        color: C.light,
+    },
+    summaryColValue: {
+        fontSize: 16,
+        ...FONT.heavy,
+        marginTop: 2,
+    },
+    summaryColValueSmall: {
+        fontSize: 12,
+        ...FONT.bold,
+        color: C.dark,
+    },
+    summaryColLabelSub: {
+        fontSize: 10,
+        ...FONT.semibold,
+        color: C.mid,
+        marginTop: 1,
+    },
+    summaryDivider: {
+        width: 1,
+        height: 32,
+        backgroundColor: C.border,
+        marginHorizontal: 8,
+    },
+
+    // Horizontal Empty Vitals Styles
+    vitalsEmptyContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 16,
+        paddingVertical: 8,
+    },
+    vitalsEmptyLeft: {
+        position: 'relative',
+        width: 120,
+        height: 120,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    bpMonitorImage: {
+        width: 110,
+        height: 110,
+    },
+    bluetoothBadgeOverlay: {
+        position: 'absolute',
+        top: 8,
+        right: 8,
+        width: 24,
+        height: 24,
+        borderRadius: 12,
+        backgroundColor: '#2563EB',
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 2,
+        borderColor: '#FFF',
+    },
+    vitalsEmptyRight: {
+        flex: 1,
+        gap: 8,
+    },
+    vitalsStatusBadgeRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+    },
+    vitalsStatusBadgeText: {
+        fontSize: 13,
+        ...FONT.bold,
+        color: C.success,
+    },
+    vitalsEmptyDesc: {
+        fontSize: 12,
+        ...FONT.medium,
+        color: C.mid,
+        lineHeight: 18,
+    },
+    vitalsSyncBtn: {
+        backgroundColor: '#2563EB',
+        paddingVertical: 10,
+        borderRadius: 12,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginTop: 4,
+    },
+    vitalsSyncBtnText: {
+        color: '#FFF',
+        fontSize: 13,
+        ...FONT.bold,
+    },
+    vitalsConnectBtn: {
+        alignItems: 'center',
+        paddingVertical: 4,
+    },
+    vitalsConnectBtnText: {
+        color: '#2563EB',
+        fontSize: 12,
+        ...FONT.bold,
     },
 });

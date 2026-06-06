@@ -1,11 +1,11 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import {
     View, Text, StyleSheet, FlatList, TextInput, Pressable, KeyboardAvoidingView,
-    Platform, Animated, ActivityIndicator, StatusBar, Image, Alert, PanResponder, Vibration, AppState
+    Platform, Animated, ActivityIndicator, StatusBar, Image, PanResponder, Vibration, AppState
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ArrowLeft, Send, Sparkles, Bot, User, Mic, Paperclip, Trash2, Pill, Flame, TrendingUp, CheckCircle2, Activity, Heart, Wind, Calendar, Shield } from 'lucide-react-native';
+import { ArrowLeft, Send, Sparkles, Bot, User, Mic, Paperclip, Trash2, Pill, Flame, TrendingUp, CheckCircle2, Activity, Heart, Wind, Calendar, Shield, Plus } from 'lucide-react-native';
 import { colors } from '../../theme';
 import { useAuth } from '../../context/AuthContext';
 import { useTranslation } from 'react-i18next';
@@ -14,7 +14,8 @@ import * as ImagePicker from 'expo-image-picker';
 import usePatientStore from '../../store/usePatientStore';
 import { getApiTokens } from '../../lib/tokenStorage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { apiService } from '../../lib/api';
+import { apiService, handleApiError } from '../../lib/api';
+import AlertManager from '../../utils/AlertManager';
 
 const INITIAL_SUGGESTIONS = [
     '📋 What should I do today?',
@@ -150,27 +151,21 @@ function VitalsCard({ systolic, diastolic, heartRate, spo2 }) {
                 
                 <View style={styles.vitalsGrid}>
                     <View style={styles.vitalGridItem}>
-                        <Heart size={14} color="#E11D48" />
-                        <View>
-                            <Text style={styles.vitalGridValue}>{systolic}/{diastolic}</Text>
-                            <Text style={styles.vitalGridUnit}>BP mmHg</Text>
-                        </View>
+                        <Heart size={14} color="#E11D48" style={{ marginBottom: 4 }} />
+                        <Text style={styles.vitalGridValue} numberOfLines={1} adjustsFontSizeToFit>{systolic}/{diastolic}</Text>
+                        <Text style={styles.vitalGridUnit}>BP mmHg</Text>
                     </View>
                     
                     <View style={styles.vitalGridItem}>
-                        <Activity size={14} color="#4F46E5" />
-                        <View>
-                            <Text style={styles.vitalGridValue}>{heartRate}</Text>
-                            <Text style={styles.vitalGridUnit}>HR bpm</Text>
-                        </View>
+                        <Activity size={14} color="#4F46E5" style={{ marginBottom: 4 }} />
+                        <Text style={styles.vitalGridValue} numberOfLines={1} adjustsFontSizeToFit>{heartRate}</Text>
+                        <Text style={styles.vitalGridUnit}>HR bpm</Text>
                     </View>
                     
                     <View style={styles.vitalGridItem}>
-                        <Wind size={14} color="#0EA5E9" />
-                        <View>
-                            <Text style={styles.vitalGridValue}>{spo2}%</Text>
-                            <Text style={styles.vitalGridUnit}>SpO₂</Text>
-                        </View>
+                        <Wind size={14} color="#0EA5E9" style={{ marginBottom: 4 }} />
+                        <Text style={styles.vitalGridValue} numberOfLines={1} adjustsFontSizeToFit>{spo2}%</Text>
+                        <Text style={styles.vitalGridUnit}>SpO₂</Text>
                     </View>
                 </View>
             </LinearGradient>
@@ -567,10 +562,35 @@ export default function ChatbotScreen({ navigation, route }) {
     
     const isCompanion = userRole === 'companion' || profile?.role === 'companion';
     const targetPatientId = isCompanion ? companionSelectedPatientId : patient?._id;
+    const sessionId = route.params?.sessionId;
 
     // Companion specific data fetching
     const [companionData, setCompanionData] = useState(null);
     const [isCompanionLoading, setIsCompanionLoading] = useState(isCompanion);
+
+    // Auto-create chat session if no sessionId is provided
+    useEffect(() => {
+        if (!sessionId && targetPatientId) {
+            const autoCreate = async () => {
+                try {
+                    setIsLoadingSession(true);
+                    const data = isCompanion ? { patientId: targetPatientId } : {};
+                    const res = await apiService.chatbot.createSession(data);
+                    const newSessionId = res.data._id;
+                    navigation.replace('Chatbot', {
+                        sessionId: newSessionId,
+                        initialMessage: route.params?.initialMessage,
+                        initialQuery: route.params?.initialQuery,
+                        healthContext: route.params?.healthContext
+                    });
+                } catch (err) {
+                    console.warn('Failed to auto-create chatbot session:', err);
+                    setIsLoadingSession(false);
+                }
+            };
+            autoCreate();
+        }
+    }, [sessionId, targetPatientId, isCompanion]);
 
     useEffect(() => {
         const fetchCompanionPatientData = async () => {
@@ -649,26 +669,7 @@ export default function ChatbotScreen({ navigation, route }) {
     const firstName = displayName?.split(' ')[0] || 'there';
 
     const [messages, setMessages] = useState([]);
-    const [isHistoryLoaded, setIsHistoryLoaded] = useState(false);
-
-    useEffect(() => {
-        if (isHistoryLoaded && messages.length === 0) {
-            if (isCompanion && !companionData) return; // Wait for companion patient data before initializing greeting
-            
-            const greetingText = isCompanion
-                ? generateCompanionGreeting(firstName, companionData?.patient?.name, companionData)
-                : generateDynamicGreeting(firstName);
-
-            setMessages([
-                {
-                    id: '1',
-                    text: greetingText,
-                    isUser: false,
-                    timestamp: Date.now(),
-                }
-            ]);
-        }
-    }, [messages.length, firstName, isCompanion, companionData, isHistoryLoaded]);
+    const [isLoadingSession, setIsLoadingSession] = useState(true);
 
     const scrollToBottom = useCallback(() => {
         setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
@@ -676,49 +677,66 @@ export default function ChatbotScreen({ navigation, route }) {
 
     useEffect(() => { scrollToBottom(); }, [messages, isTyping]);
 
-    // Load Chat History from AsyncStorage
+    // Load Chat Session from Backend
     useEffect(() => {
-        setIsHistoryLoaded(false);
         setMessages([]);
         setFollowUpSuggestions([]);
         
-        const loadHistory = async () => {
-            if (!targetPatientId) {
-                setIsHistoryLoaded(true);
+        const loadSession = async () => {
+            if (!sessionId) {
+                setIsLoadingSession(false);
                 return;
             }
             try {
-                const stored = await AsyncStorage.getItem(`@caremymed_chatbot_messages_${targetPatientId}`);
-                if (stored) {
-                    const parsed = JSON.parse(stored);
-                    if (parsed && parsed.length > 0) {
-                        setMessages(parsed);
-                        setTimeout(() => scrollToBottom(), 300);
+                setIsLoadingSession(true);
+                const params = isCompanion ? { patientId: targetPatientId } : {};
+                const res = await apiService.chatbot.getSession(sessionId, params);
+                
+                const sessionMessages = (res.data.messages || []).map(m => ({
+                    id: m._id || String(Math.random()),
+                    text: m.text,
+                    isUser: m.role === 'user',
+                    timestamp: new Date(m.timestamp).getTime(),
+                    cards: m.cards || [],
+                    suggestions: m.suggestions || [],
+                    image: m.image,
+                    audio: m.audio
+                }));
+                
+                setMessages(sessionMessages);
+                
+                // Set suggestions from last assistant message
+                if (sessionMessages.length > 0) {
+                    const lastMsg = sessionMessages[sessionMessages.length - 1];
+                    if (!lastMsg.isUser && lastMsg.suggestions && lastMsg.suggestions.length > 0) {
+                        setFollowUpSuggestions(lastMsg.suggestions);
                     }
                 }
+                
+                setTimeout(() => scrollToBottom(), 300);
             } catch (err) {
-                console.log('Failed to load chat history', err);
+                console.warn('Failed to load chat session:', err);
+                AlertManager.alert('Error', 'Could not load conversation messages.', [{ text: 'OK' }], { type: 'error' });
             } finally {
-                setIsHistoryLoaded(true);
+                setIsLoadingSession(false);
             }
         };
-        loadHistory();
-    }, [targetPatientId]);
+        loadSession();
+    }, [sessionId, targetPatientId, isCompanion]);
 
-    // Save Chat History to AsyncStorage
+    const hasAutoSent = useRef(false);
+
     useEffect(() => {
-        const saveHistory = async () => {
-            if (!targetPatientId || messages.length <= 1) return;
-            try {
-                // Keep only the last 50 messages to avoid payload limits
-                const messagesToSave = messages.slice(-50);
-                await AsyncStorage.setItem(`@caremymed_chatbot_messages_${targetPatientId}`, JSON.stringify(messagesToSave));
-            } catch (err) {
-                console.log('Failed to save chat history', err);
+        if (!isLoadingSession && sessionId && !hasAutoSent.current) {
+            const initMsg = route.params?.initialMessage || route.params?.initialQuery;
+            if (initMsg) {
+                hasAutoSent.current = true;
+                setTimeout(() => {
+                    handleSend(initMsg);
+                }, 500);
             }
-        };
-        saveHistory();
-    }, [messages, targetPatientId]);
+        }
+    }, [isLoadingSession, sessionId, route.params, handleSend]);
 
     // Cleanup audio and abort active stream on unmount
     useEffect(() => {
@@ -784,6 +802,9 @@ export default function ChatbotScreen({ navigation, route }) {
                 if (targetPatientId) {
                     formData.append('patientId', targetPatientId);
                 }
+                if (sessionId) {
+                    formData.append('sessionId', sessionId);
+                }
 
                 if (isAudio && recordingUri) {
                     setTypingStage('📝 Transcribing...');
@@ -795,7 +816,12 @@ export default function ChatbotScreen({ navigation, route }) {
                     });
                 } else {
                     setTypingStage('🧠 Thinking...');
-                    formData.append('query', userMsg);
+                    let finalQuery = userMsg;
+                    const healthContext = route.params?.healthContext;
+                    if (healthContext && userMsg === route.params?.initialMessage) {
+                        finalQuery = `${userMsg}\n\n[Context: Current Health Score is ${healthContext.score} (${healthContext.label}, Grade ${healthContext.grade}). Weakest driver is ${healthContext.weakestDriver} at ${healthContext.weakestScore}%. Suggested action is: ${healthContext.suggestedAction}. Projected boost is +${healthContext.projectedBoost} to ${healthContext.projectedScore}.]`;
+                    }
+                    formData.append('query', finalQuery);
                 }
 
                 const baseUrl = process.env.EXPO_PUBLIC_CHATBOT_URL || process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.5:3001/api';
@@ -1012,28 +1038,59 @@ export default function ChatbotScreen({ navigation, route }) {
         }
     }, [inputText, recording, user, patient, isCompanion, companionData, targetPatientId]);
 
-    const handleClearChat = () => {
-        Alert.alert(
-            'Clear Conversation',
-            'Are you sure you want to delete all messages? This cannot be undone.',
+    const [isCreating, setIsCreating] = useState(false);
+
+    const handleCreateSession = async () => {
+        if (!targetPatientId) return;
+        try {
+            setIsCreating(true);
+            const data = isCompanion ? { patientId: targetPatientId } : {};
+            const res = await apiService.chatbot.createSession(data);
+            
+            // Navigate/Replace with new session
+            navigation.replace('Chatbot', { sessionId: res.data._id });
+        } catch (err) {
+            console.warn('Failed to create session:', err);
+            const apiErr = handleApiError(err);
+            if (err.response?.status === 400 && apiErr.message.includes('Limit reached')) {
+                AlertManager.alert(
+                    'Chat Limit Reached 🚨',
+                    'You can have at most 10 active concurrent chats. Please delete some previous conversations to start a new one.',
+                    [{ text: 'OK' }],
+                    { type: 'warning' }
+                );
+            } else {
+                AlertManager.alert('Error', apiErr.message || 'Could not start a new chat session.', [{ text: 'OK' }], { type: 'error' });
+            }
+        } finally {
+            setIsCreating(false);
+        }
+    };
+
+    const handleDeleteChat = () => {
+        if (!sessionId) return;
+        Vibration.vibrate(50);
+        AlertManager.alert(
+            'Delete Conversation 🗑️',
+            'Are you sure you want to delete this chat session? This will permanently erase the history and return you to the conversations list.',
             [
                 { text: 'Cancel', style: 'cancel' },
                 { 
-                    text: 'Clear', 
+                    text: 'Delete', 
                     style: 'destructive',
                     onPress: async () => {
                         try {
-                            setMessages([]);
-                            setFollowUpSuggestions([]);
-                            if (targetPatientId) {
-                                await AsyncStorage.removeItem(`@caremymed_chatbot_messages_${targetPatientId}`);
-                            }
+                            const params = isCompanion ? { patientId: targetPatientId } : {};
+                            await apiService.chatbot.deleteSession(sessionId, params);
+                            navigation.goBack();
                         } catch (err) {
-                            console.log('Failed to clear chat history', err);
+                            console.warn('Failed to delete chat session:', err);
+                            AlertManager.alert('Error', 'Could not delete conversation.', [{ text: 'OK' }], { type: 'error' });
                         }
                     }
                 }
-            ]
+            ],
+            { type: 'warning' }
         );
     };
 
@@ -1050,7 +1107,7 @@ export default function ChatbotScreen({ navigation, route }) {
             }
         } catch (error) {
             console.warn('Image picker error:', error);
-            Alert.alert('Error', 'Could not open image gallery.');
+            AlertManager.alert('Error', 'Could not open image gallery.', [{ text: 'OK' }], { type: 'error' });
         }
     };
 
@@ -1067,7 +1124,7 @@ export default function ChatbotScreen({ navigation, route }) {
                 );
                 setRecording(recording);
             } else {
-                Alert.alert('Permission needed', 'Please grant microphone access to send voice messages.');
+                AlertManager.alert('Permission needed', 'Please grant microphone access to send voice messages.', [{ text: 'OK' }], { type: 'warning' });
                 setRecMode('idle');
             }
         } catch (err) {
@@ -1162,6 +1219,15 @@ export default function ChatbotScreen({ navigation, route }) {
 
     const keyExtractor = useCallback((item) => item.id, []);
 
+    if (isLoadingSession) {
+        return (
+            <View style={{ flex: 1, backgroundColor: '#F8FAFC', alignItems: 'center', justifyContent: 'center' }}>
+                <ActivityIndicator size="large" color="#6366F1" />
+                <Text style={{ marginTop: 12, color: '#475569', fontSize: 14, fontWeight: '500' }}>Loading conversation...</Text>
+            </View>
+        );
+    }
+
     return (
         <View style={[styles.screen, { paddingTop: insets.top }]}>
             <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
@@ -1184,16 +1250,33 @@ export default function ChatbotScreen({ navigation, route }) {
                         </View>
                     </View>
                 </View>
-                <Pressable 
-                    onPress={handleClearChat} 
-                    style={({ pressed }) => [
-                        styles.clearBtn,
-                        pressed && { opacity: 0.7 }
-                    ]}
-                    hitSlop={12}
-                >
-                    <Trash2 size={20} color="#EF4444" strokeWidth={2} />
-                </Pressable>
+                <View style={styles.headerRightActions}>
+                    <Pressable 
+                        onPress={handleCreateSession} 
+                        disabled={isCreating}
+                        style={({ pressed }) => [
+                            styles.headerNewChatBtn,
+                            pressed && { opacity: 0.7 }
+                        ]}
+                        hitSlop={12}
+                    >
+                        {isCreating ? (
+                            <ActivityIndicator size="small" color="#6366F1" />
+                        ) : (
+                            <Plus size={20} color="#6366F1" strokeWidth={2.5} />
+                        )}
+                    </Pressable>
+                    <Pressable 
+                        onPress={handleDeleteChat} 
+                        style={({ pressed }) => [
+                            styles.clearBtn,
+                            pressed && { opacity: 0.7 }
+                        ]}
+                        hitSlop={12}
+                    >
+                        <Trash2 size={20} color="#EF4444" strokeWidth={2} />
+                    </Pressable>
+                </View>
             </View>
 
             {/* ── Messages ── */}
@@ -1228,7 +1311,7 @@ export default function ChatbotScreen({ navigation, route }) {
                     }
                     ListFooterComponent={
                         <>
-                            {messages.length <= 2 && (
+                            {!messages.some(m => m.isUser) && (
                                 <QuickActionsDashboard 
                                     onPress={(s) => handleSend(s)} 
                                     userRole={userRole}
@@ -1341,6 +1424,8 @@ const styles = StyleSheet.create({
     },
     backBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 6, elevation: 2 },
     clearBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#FEE2E2', alignItems: 'center', justifyContent: 'center' },
+    headerRightActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    headerNewChatBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#EEF2FF', alignItems: 'center', justifyContent: 'center' },
     headerCenter: { flexDirection: 'row', alignItems: 'center', gap: 10 },
     headerAvatar: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
     headerMascotAvatar: { width: 40, height: 40, borderRadius: 20 },
@@ -1650,9 +1735,20 @@ const styles = StyleSheet.create({
     
     // Vitals Grid
     vitalsGrid: { flexDirection: 'row', justifyContent: 'space-between', gap: 6, marginTop: 4 },
-    vitalGridItem: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#F8FAFC', padding: 8, borderRadius: 10, borderWidth: 0.5, borderColor: '#E2E8F0' },
-    vitalGridValue: { fontSize: 13, fontWeight: '700', color: '#1E293B' },
-    vitalGridUnit: { fontSize: 9, fontWeight: '600', color: '#64748B' },
+    vitalGridItem: { 
+        flex: 1, 
+        flexDirection: 'column', 
+        alignItems: 'center', 
+        justifyContent: 'center',
+        backgroundColor: '#F8FAFC', 
+        paddingVertical: 10, 
+        paddingHorizontal: 4,
+        borderRadius: 10, 
+        borderWidth: 0.5, 
+        borderColor: '#E2E8F0' 
+    },
+    vitalGridValue: { fontSize: 13, fontWeight: '700', color: '#1E293B', textAlign: 'center', width: '100%' },
+    vitalGridUnit: { fontSize: 9, fontWeight: '600', color: '#64748B', textAlign: 'center', marginTop: 2 },
     
     // Summary Card
     summaryList: { gap: 6 },

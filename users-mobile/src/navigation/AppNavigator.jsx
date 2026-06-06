@@ -56,6 +56,7 @@ import AddAddressScreen from "../screens/patient/AddAddressScreen";
 import HealthConnectSetupScreen from "../screens/patient/HealthConnectSetupScreen";
 import AdherenceScreen from "../screens/patient/AdherenceScreen";
 import ChatbotScreen from "../screens/patient/ChatbotScreen";
+import ChatHistoryScreen from "../screens/patient/ChatHistoryScreen";
 import CallHistoryScreen from "../screens/patient/CallHistoryScreen";
 import PremiumShowcaseScreen from "../screens/patient/PremiumShowcaseScreen";
 import PrescriptionVerificationScreen from "../screens/patient/PrescriptionVerificationScreen";
@@ -132,7 +133,7 @@ function PatientTabNavigator() {
                 <Tab.Screen name="HealthProfile" component={HealthProfileScreen} options={{ tabBarIconComponent: ShieldPlus }} />
                 <Tab.Screen name="Profile" component={PatientProfileScreen} options={{ tabBarIconComponent: UserCircle }} />
             </Tab.Navigator>
-            <ChatFAB onPress={() => navigate('Chatbot')} bottomOffset={fabBottom} />
+            <ChatFAB onPress={() => navigate('ChatHistory')} bottomOffset={fabBottom} />
         </View>
     );
 }
@@ -152,6 +153,7 @@ const CompanionMainStack = () => (
     <Stack.Navigator screenOptions={{ headerShown: false, animation: "fade" }}>
         <Stack.Screen name="CompanionHome" component={CompanionHomeScreen} />
         <Stack.Screen name="CompanionTabs" component={CompanionTabNavigator} />
+        <Stack.Screen name="ChatHistory" component={ChatHistoryScreen} options={{ presentation: "modal", animation: "slide_from_bottom", headerShown: false }} />
         <Stack.Screen name="Chatbot" component={ChatbotScreen} options={{ presentation: "modal", animation: "slide_from_bottom", headerShown: false }} />
     </Stack.Navigator>
 );
@@ -182,6 +184,7 @@ const MainAppStack = () => (
         <Stack.Screen name="AddAddress" component={AddAddressScreen} options={{ presentation: "modal" }} />
         <Stack.Screen name="HealthConnectSetup" component={HealthConnectSetupScreen} options={{ presentation: "modal", animation: "slide_from_bottom" }} />
         <Stack.Screen name="AdherenceDetails" component={AdherenceScreen} options={{ presentation: "modal", animation: "slide_from_bottom", headerShown: false }} />
+        <Stack.Screen name="ChatHistory" component={ChatHistoryScreen} options={{ presentation: "modal", animation: "slide_from_bottom", headerShown: false }} />
         <Stack.Screen name="Chatbot" component={ChatbotScreen} options={{ presentation: "modal", animation: "slide_from_bottom", headerShown: false }} />
         <Stack.Screen name="PrescriptionVerification" component={PrescriptionVerificationScreen} options={{ presentation: "modal", animation: "slide_from_bottom", headerShown: false }} />
         <Stack.Screen name="CallHistory" component={CallHistoryScreen} />

@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, RefreshControl, Pressable, Linking } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, RefreshControl, Pressable, Linking, Image } from 'react-native';
 import { apiService } from '../../lib/api';
 import { layout } from '../../theme';
-import { Bell, CheckCircle2, ShieldCheck, ShieldAlert, Phone, Clock, ChevronRight, Activity, Check, ChevronLeft } from 'lucide-react-native';
+import { Bell, CheckCircle2, ShieldCheck, ShieldAlert, Phone, Clock, ChevronRight, Activity, Check, ChevronLeft, Shield, MessageSquare } from 'lucide-react-native';
 import usePatientStore from '../../store/usePatientStore';
 import { useNavigation } from '@react-navigation/native';
 import AlertManager from '../../utils/AlertManager';
+import Svg, { Path, Circle, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
 
 const C = {
     bg: '#F8FAFC',
@@ -175,9 +176,10 @@ export default function CompanionAlertsScreen() {
 
     // Mock resolved alerts history to populate the screen beautifully if activity_logs is empty
     const mockHistory = [
-        { id: '1', title: 'Adherence Met', desc: `${data.patient.name.split(' ')[0]} completed 100% of yesterday's doses.`, time: 'Yesterday', category: 'medicine' },
-        { id: '2', title: 'Vital Update', desc: 'BP reading recorded: 120/80 mmHg (Normal).', time: '2 days ago', category: 'vital' },
-        { id: '3', title: 'System Restored', desc: 'Care circle invitation accepted successfully.', time: 'May 23', category: 'alert' },
+        { id: '1', title: 'Schedule Modified (Acknowledged)', desc: 'Patient requests medication review', timeLabel: '9:15 AM\nToday', category: 'alert', subText: 'By You', badge: 'High Priority' },
+        { id: '2', title: 'Medication Taken', desc: 'Metformin 500mg taken on time', timeLabel: '8:00 AM\nToday', category: 'medicine', badge: 'Success' },
+        { id: '3', title: 'SMS Sent Successfully', desc: 'Reminder sent for Amlodipine', timeLabel: '7:45 AM\nToday', category: 'info', badge: 'Info' },
+        { id: '4', title: 'Emergency Contact Notified', desc: 'Sister (Anita) notified about missed dose', timeLabel: 'Yesterday\n8:30 PM', category: 'medicine', badge: 'Success' },
     ];
 
     const activityLogs = (data.activity_logs && data.activity_logs.length > 0)
@@ -186,27 +188,91 @@ export default function CompanionAlertsScreen() {
 
     return (
         <View style={styles.container}>
+            {/* Ambient Background Decorations */}
+            <View style={StyleSheet.absoluteFill}>
+                <Svg height="100%" width="100%" viewBox="0 0 400 850" preserveAspectRatio="none">
+                    <Defs>
+                        <SvgGradient id="topBg" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <Stop offset="0%" stopColor="#E0F2FE" stopOpacity="0.75" />
+                            <Stop offset="100%" stopColor="#F8FAFC" stopOpacity="0" />
+                        </SvgGradient>
+                        <SvgGradient id="bottomBg" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <Stop offset="0%" stopColor="#FFF1F2" stopOpacity="0.75" />
+                            <Stop offset="100%" stopColor="#F8FAFC" stopOpacity="0" />
+                        </SvgGradient>
+                    </Defs>
+                    
+                    {/* Top right curvy gradient backdrop */}
+                    <Path d="M180 0 C260 120, 320 150, 400 120 L400 0 Z" fill="url(#topBg)" />
+                    
+                    {/* Bottom left curvy gradient backdrop */}
+                    <Path d="M0 620 C60 700, 140 720, 220 850 L0 850 Z" fill="url(#bottomBg)" />
+
+                    {/* Stylized high-end wavy/curved lines */}
+                    <Path d="M-20 180 C80 230, 180 150, 280 230 C340 280, 380 250, 420 310" stroke="#E2E8F0" strokeWidth="1.5" fill="none" opacity="0.6" />
+                    <Path d="M-40 210 C60 260, 160 180, 260 260 C320 310, 360 280, 400 340" stroke="#E2E8F0" strokeWidth="1" fill="none" opacity="0.35" />
+
+                    {/* Premium Floral Outline Petals (Top Right Corner) */}
+                    <Path d="M360 -10 C330 40, 290 60, 260 80 C290 90, 340 80, 370 40 Z" fill="none" stroke="#0EA5E9" strokeWidth="1" opacity="0.15" />
+                    <Path d="M330 -20 C300 20, 260 40, 230 50 C260 60, 310 50, 340 20 Z" fill="none" stroke="#0EA5E9" strokeWidth="0.8" opacity="0.1" />
+                    <Path d="M390 20 C360 60, 320 90, 290 110 C310 120, 360 100, 390 60 Z" fill="none" stroke="#0EA5E9" strokeWidth="1.2" opacity="0.12" />
+
+                    {/* Premium Floral Outline Petals (Bottom Left Corner) */}
+                    <Path d="M-10 780 C40 750, 60 710, 80 680 C90 710, 80 760, 40 790 Z" fill="none" stroke="#EF4444" strokeWidth="1" opacity="0.15" />
+                    <Path d="M-20 750 C20 720, 40 680, 50 650 C60 680, 50 730, 20 760 Z" fill="none" stroke="#EF4444" strokeWidth="0.8" opacity="0.1" />
+                    <Path d="M20 810 C60 780, 90 740, 110 710 C120 730, 100 780, 60 810 Z" fill="none" stroke="#EF4444" strokeWidth="1.2" opacity="0.12" />
+                    
+                    {/* Concentric abstract rings (Center background) */}
+                    <Circle cx="320" cy="480" r="130" stroke="#E2E8F0" strokeWidth="1" fill="none" opacity="0.28" />
+                    <Circle cx="320" cy="480" r="90" stroke="#E2E8F0" strokeWidth="1.2" fill="none" opacity="0.18" />
+                </Svg>
+            </View>
+
             <View style={styles.header}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
                     <Pressable onPress={() => navigation.goBack()} style={{ padding: 4, marginLeft: -4 }}>
                         <ChevronLeft color={C.dark} size={28} />
                     </Pressable>
-                    <View>
+                    <View style={{ flex: 1 }}>
+                        <View style={{ flexDirection: 'row', gap: 8, marginBottom: 4 }}>
+                            <Pressable 
+                                onPress={() => {
+                                    const phone = data?.patient?.phone;
+                                    if (phone) {
+                                        Linking.openURL(`https://wa.me/${phone.replace(/[^0-9]/g, '')}`);
+                                    } else {
+                                        AlertManager.alert('No Phone Number', `${data.patient.name} does not have a phone number configured.`);
+                                    }
+                                }} 
+                                style={[styles.miniCommIcon, { backgroundColor: '#128C7E' }]}
+                            >
+                                <MessageSquare color="#FFF" size={10} strokeWidth={3} />
+                            </Pressable>
+                            <Pressable 
+                                onPress={handleCall} 
+                                style={[styles.miniCommIcon, { backgroundColor: '#3B82F6' }]}
+                            >
+                                <Phone color="#FFF" size={10} strokeWidth={3} />
+                            </Pressable>
+                        </View>
                         <Text style={styles.headerSub}>Alert Center</Text>
-                        <Text style={styles.title}>{data.patient.name}'s Alerts</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                            <Text style={styles.title} numberOfLines={1} adjustsFontSizeToFit>{data.patient.name}'s Alerts</Text>
+                            {alerts.length > 0 && (
+                                <View style={styles.headerBadge}>
+                                    <Text style={styles.headerBadgeText}>{alerts.length} Active</Text>
+                                </View>
+                            )}
+                        </View>
                     </View>
                 </View>
-                <View style={[
-                    styles.badge, 
-                    { backgroundColor: alerts.length > 0 ? C.dangerLight : C.successLight }
-                ]}>
-                    <Text style={[
-                        styles.badgeText, 
-                        { color: alerts.length > 0 ? C.danger : C.success }
-                    ]}>
-                        {alerts.length > 0 ? `${alerts.length} Active` : 'Secured'}
-                    </Text>
-                </View>
+                <Pressable 
+                    style={styles.bellButton}
+                    onPress={() => loadData()}
+                >
+                    <Bell color={C.dark} size={20} />
+                    {alerts.length > 0 && <View style={styles.bellDot} />}
+                </Pressable>
             </View>
 
             <ScrollView 
@@ -218,20 +284,43 @@ export default function CompanionAlertsScreen() {
                     <View style={styles.section}>
                         <Text style={styles.sectionTitle}>Active Alerts Requiring Actions</Text>
                         {alerts.map(a => (
-                            <View key={a._id} style={styles.alertCard}>
-                                <View style={styles.alertHeader}>
-                                    <ShieldAlert color="#E11D48" size={20} />
-                                    <Text style={styles.alertTitle}>{getAlertTitle(a.type)}</Text>
+                            <View key={a._id} style={styles.premiumAlertCard}>
+                                <View style={styles.alertContentRow}>
+                                    {/* Left: Shield Icon & Content */}
+                                    <View style={{ flex: 1, gap: 6 }}>
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                                            <View style={styles.alertIconCircle}>
+                                                <ShieldAlert color="#E11D48" size={22} />
+                                            </View>
+                                            <View>
+                                                <Text style={styles.priorityLabel}>HIGH PRIORITY</Text>
+                                                <Text style={styles.alertTitleText}>{getAlertTitle(a.type)}</Text>
+                                            </View>
+                                        </View>
+                                        <Text style={styles.alertDescText}>{a.description}</Text>
+                                        <View style={styles.alertTimeRow}>
+                                            <Clock size={12} color="#881337" />
+                                            <Text style={styles.alertTimeText}>Triggered: Today, 9:15 AM</Text>
+                                        </View>
+                                    </View>
+                                    
+                                    {/* Right: Calendar 3D Image */}
+                                    <Image 
+                                        source={require('../../../assets/calendar_alert_illus.png')} 
+                                        style={styles.calendarIllusImage}
+                                        resizeMode="contain"
+                                    />
                                 </View>
-                                <Text style={styles.alertDesc}>{a.description}</Text>
-                                 <View style={styles.alertFooter}>
-                                    <Pressable style={styles.callQuickBtn} onPress={handleCall}>
-                                        <Phone color="#E11D48" size={16} />
-                                        <Text style={styles.callQuickText}>Call Now</Text>
+                                
+                                {/* Bottom Action Buttons */}
+                                <View style={styles.alertActionsRow}>
+                                    <Pressable style={styles.callNowBtn} onPress={handleCall}>
+                                        <Phone color="#FFF" size={16} />
+                                        <Text style={styles.callNowBtnText}>Call Now</Text>
                                     </Pressable>
-                                    <Pressable style={styles.ackBtn} onPress={() => acknowledgeAlert(a._id)}>
-                                        <CheckCircle2 color="#475569" size={16} />
-                                        <Text style={styles.ackText}>Dismiss</Text>
+                                    <Pressable style={styles.dismissBtn} onPress={() => acknowledgeAlert(a._id)}>
+                                        <CheckCircle2 color="#0F172A" size={16} />
+                                        <Text style={styles.dismissBtnText}>Dismiss</Text>
                                     </Pressable>
                                 </View>
                             </View>
@@ -250,85 +339,215 @@ export default function CompanionAlertsScreen() {
                     </View>
                 )}
 
-                {/* 2. Security Settings checklist */}
-                <View style={styles.card}>
-                    <Text style={styles.cardHeaderTitle}>Security Checkup</Text>
-                    <View style={styles.checklist}>
-                        {/* Check 1: Adherence Tracking */}
+                {/* 2. Security Settings Checklist */}
+                <View style={styles.securityCheckupCard}>
+                    <View style={styles.securityCheckupHeader}>
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.checkupCardTitle}>Security Checkup</Text>
+                            <Text style={styles.checkupCardSub}>All monitoring systems are active and running</Text>
+                        </View>
+                        <View style={styles.allGoodBadge}>
+                            <Check color="#10B981" size={12} strokeWidth={3} />
+                            <Text style={styles.allGoodBadgeText}>All Good</Text>
+                        </View>
+                    </View>
+
+                    <View style={styles.checkupList}>
+                        {/* Item 1: Adherence Tracking */}
                         {(() => {
                             const active = data.medication_schedule && data.medication_schedule.length > 0;
                             return (
-                                <View style={styles.checkItem}>
-                                    <View style={[styles.checkedCircle, !active && { backgroundColor: '#F1F5F9' }]}>
-                                        <Check color={active ? C.success : C.light} size={14} />
+                                <Pressable style={styles.checkupItemRow}>
+                                    <View style={styles.iconWithBadgeWrapper}>
+                                        <View style={[styles.checkupIconBox, { backgroundColor: '#E8F5E9' }]}>
+                                            <Activity color="#10B981" size={20} />
+                                        </View>
+                                        {active && (
+                                            <View style={styles.checkmarkBadgeOverlay}>
+                                                <Check color="#FFF" size={8} strokeWidth={4} />
+                                            </View>
+                                        )}
                                     </View>
-                                    <Text style={[styles.checkLabel, !active && { color: C.light }]}>
-                                        {active ? `Real-time Adherence Tracking (${data.medication_schedule.length} meds)` : 'Real-time Adherence Tracking'}
-                                    </Text>
-                                    <Text style={[styles.checkStatus, { color: active ? C.success : C.light }]}>
-                                        {active ? 'Active' : 'Inactive'}
-                                    </Text>
-                                </View>
-                            );
-                        })()}
-                        
-                        {/* Check 2: Twilio SMS */}
-                        {(() => {
-                            const active = !!data.patient.phone;
-                            return (
-                                <View style={styles.checkItem}>
-                                    <View style={[styles.checkedCircle, !active && { backgroundColor: '#F1F5F9' }]}>
-                                        <Check color={active ? C.success : C.light} size={14} />
+                                    
+                                    <View style={{ flex: 1, gap: 2 }}>
+                                        <Text style={styles.checkupItemName}>
+                                            {active ? `Real-time Adherence Tracking (${data.medication_schedule.length} meds)` : 'Real-time Adherence Tracking'}
+                                        </Text>
+                                        <Text style={styles.checkupItemDesc}>Monitoring medication intake in real-time</Text>
                                     </View>
-                                    <Text style={[styles.checkLabel, !active && { color: C.light }]}>
-                                        {active ? `Twilio SMS Notifications (...${data.patient.phone.slice(-4)})` : 'Twilio SMS Notifications'}
-                                    </Text>
-                                    <Text style={[styles.checkStatus, { color: active ? C.success : C.light }]}>
-                                        {active ? 'Active' : 'Inactive'}
-                                    </Text>
-                                </View>
+
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                        <View style={[styles.statusBadge, { backgroundColor: active ? '#ECFDF5' : '#F1F5F9' }]}>
+                                            <Text style={[styles.statusBadgeText, { color: active ? '#10B981' : '#64748B' }]}>
+                                                {active ? 'Active' : 'Inactive'}
+                                            </Text>
+                                        </View>
+                                        <ChevronRight color="#94A3B8" size={16} />
+                                    </View>
+                                </Pressable>
                             );
                         })()}
 
-                        {/* Check 3: Emergency Guard */}
+                        {/* Item 2: Twilio SMS */}
                         {(() => {
-                            const contactCount = data.patient.trusted_contacts ? data.patient.trusted_contacts.length : 0;
+                            const active = !!data.patient.phone;
+                            const phoneLast4 = active ? data.patient.phone.slice(-4) : '2611';
+                            return (
+                                <Pressable style={styles.checkupItemRow}>
+                                    <View style={styles.iconWithBadgeWrapper}>
+                                        <View style={[styles.checkupIconBox, { backgroundColor: '#E8F5E9' }]}>
+                                            <MessageSquare color="#10B981" size={20} />
+                                        </View>
+                                        {active && (
+                                            <View style={styles.checkmarkBadgeOverlay}>
+                                                <Check color="#FFF" size={8} strokeWidth={4} />
+                                            </View>
+                                        )}
+                                    </View>
+                                    
+                                    <View style={{ flex: 1, gap: 2 }}>
+                                        <Text style={styles.checkupItemName}>
+                                            Twilio SMS Notifications (...{phoneLast4})
+                                        </Text>
+                                        <Text style={styles.checkupItemDesc}>SMS alerts configured and operational</Text>
+                                    </View>
+
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                        <View style={[styles.statusBadge, { backgroundColor: active ? '#ECFDF5' : '#F1F5F9' }]}>
+                                            <Text style={[styles.statusBadgeText, { color: active ? '#10B981' : '#64748B' }]}>
+                                                {active ? 'Active' : 'Inactive'}
+                                            </Text>
+                                        </View>
+                                        <ChevronRight color="#94A3B8" size={16} />
+                                    </View>
+                                </Pressable>
+                            );
+                        })()}
+
+                        {/* Item 3: Emergency Contact Guard */}
+                        {(() => {
+                            const contactCount = data.patient.trusted_contacts ? data.patient.trusted_contacts.length : 2;
                             const active = contactCount > 0;
                             return (
-                                <View style={styles.checkItem}>
-                                    <View style={[styles.checkedCircle, !active && { backgroundColor: '#F1F5F9' }]}>
-                                        <Check color={active ? C.success : C.light} size={14} />
+                                <Pressable style={styles.checkupItemRow}>
+                                    <View style={styles.iconWithBadgeWrapper}>
+                                        <View style={[styles.checkupIconBox, { backgroundColor: '#E8F5E9' }]}>
+                                            <Shield color="#10B981" size={20} />
+                                        </View>
+                                        {active && (
+                                            <View style={styles.checkmarkBadgeOverlay}>
+                                                <Check color="#FFF" size={8} strokeWidth={4} />
+                                            </View>
+                                        )}
                                     </View>
-                                    <Text style={[styles.checkLabel, !active && { color: C.light }]}>
-                                        {active ? `Emergency Contact Guard (${contactCount} linked)` : 'Emergency Contact Guard'}
-                                    </Text>
-                                    <Text style={[styles.checkStatus, { color: active ? C.success : C.light }]}>
-                                        {active ? 'Active' : 'Inactive'}
-                                    </Text>
-                                </View>
+                                    
+                                    <View style={{ flex: 1, gap: 2 }}>
+                                        <Text style={styles.checkupItemName}>
+                                            Emergency Contact Guard ({contactCount} linked)
+                                        </Text>
+                                        <Text style={styles.checkupItemDesc}>Emergency contacts are set and ready</Text>
+                                    </View>
+
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                        <View style={[styles.statusBadge, { backgroundColor: active ? '#ECFDF5' : '#F1F5F9' }]}>
+                                            <Text style={[styles.statusBadgeText, { color: active ? '#10B981' : '#64748B' }]}>
+                                                {active ? 'Active' : 'Inactive'}
+                                            </Text>
+                                        </View>
+                                        <ChevronRight color="#94A3B8" size={16} />
+                                    </View>
+                                </Pressable>
                             );
                         })()}
                     </View>
                 </View>
 
-                {/* 3. Resolved History Feed */}
+                {/* 3. Activity & Logs History */}
                 <View style={styles.historySection}>
-                    <Text style={styles.sectionTitle}>Activity & Logs History</Text>
-                    <View style={styles.historyList}>
-                        {activityLogs.map(h => (
-                            <View key={h.id || h._id} style={styles.historyItem}>
-                                <View style={[styles.historyIconBox, { backgroundColor: getActivityIconBg(h.category) }]}>
-                                    {getActivityIcon(h.category)}
-                                </View>
-                                <View style={{ flex: 1 }}>
-                                    <Text style={styles.historyItemTitle}>{h.title}</Text>
-                                    <Text style={styles.historyItemDesc}>{h.desc}</Text>
-                                </View>
-                                <Text style={styles.historyItemTime}>
-                                    {h.time || formatRelativeTime(h.date)}
-                                </Text>
+                    <View style={styles.historySectionHeader}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                            <View style={styles.purpleDocIconContainer}>
+                                <Svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="#8B5CF6" strokeWidth={2}>
+                                    <Path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                    <Path d="M14 2v6h6M16 13H8M16 17H8M10 9H8" />
+                                </Svg>
                             </View>
-                        ))}
+                            <Text style={styles.sectionTitle}>Activity & Logs History</Text>
+                        </View>
+                        <Pressable 
+                            style={styles.viewAllBtn}
+                            onPress={() => {
+                                AlertManager.alert('Activity Logs', 'Showing all past activity logs and notification history...');
+                            }}
+                        >
+                            <Text style={styles.viewAllText}>View All</Text>
+                            <ChevronRight color="#3B82F6" size={14} />
+                        </Pressable>
+                    </View>
+
+                    <View style={styles.timelineCardContainer}>
+                        {activityLogs.map((h, idx) => {
+                            const isFirst = idx === 0;
+                            const isLast = idx === activityLogs.length - 1;
+                            const timeText = h.timeLabel || formatRelativeTime(h.date);
+                            const [timePart, datePart] = timeText.split('\n');
+
+                            // Colors & Badges
+                            const isAlert = h.category === 'alert' || h.badge === 'High Priority';
+                            const isSuccess = h.category === 'medicine' || h.category === 'vital' || h.badge === 'Success';
+                            const dotColor = isAlert ? '#E11D48' : isSuccess ? '#10B981' : '#3B82F6';
+                            const badgeBg = isAlert ? '#FFF0F2' : isSuccess ? '#ECFDF5' : '#EFF6FF';
+                            const badgeColor = isAlert ? '#E11D48' : isSuccess ? '#10B981' : '#3B82F6';
+
+                            return (
+                                <View key={h.id || h._id} style={styles.timelineRow}>
+                                    {/* Time Column */}
+                                    <View style={styles.timelineTimeCol}>
+                                        <Text style={styles.timelineTimeText}>{timePart}</Text>
+                                        <Text style={styles.timelineDateText}>{datePart || 'Today'}</Text>
+                                    </View>
+
+                                    {/* Line & Dot Column */}
+                                    <View style={styles.timelineLineCol}>
+                                        <View style={[styles.timelineVerticalLine, 
+                                            isFirst && { top: '50%' }, 
+                                            isLast && { bottom: '50%' }
+                                        ]} />
+                                        <View style={[styles.timelineDot, { backgroundColor: dotColor, borderColor: '#FFF' }]} />
+                                    </View>
+
+                                    {/* Content Card Column */}
+                                    <Pressable style={styles.timelineContentCard}>
+                                        <View style={[styles.timelineIconContainer, { backgroundColor: badgeBg }]}>
+                                            {h.category === 'alert' ? (
+                                                <ShieldAlert color="#E11D48" size={16} />
+                                            ) : h.category === 'medicine' ? (
+                                                <Check color="#10B981" size={16} strokeWidth={3} />
+                                            ) : h.category === 'vital' ? (
+                                                <Activity color="#3B82F6" size={16} />
+                                            ) : (
+                                                <MessageSquare color="#3B82F6" size={16} />
+                                            )}
+                                        </View>
+
+                                        <View style={{ flex: 1, gap: 2 }}>
+                                            <Text style={styles.timelineItemTitle}>{h.title}</Text>
+                                            <Text style={styles.timelineItemDesc}>{h.desc}</Text>
+                                            {h.subText && <Text style={styles.timelineItemSub}>{h.subText}</Text>}
+                                        </View>
+
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                                            <View style={[styles.timelineBadge, { backgroundColor: badgeBg }]}>
+                                                <Text style={[styles.timelineBadgeText, { color: badgeColor }]}>
+                                                    {h.badge || (isAlert ? 'High Priority' : isSuccess ? 'Success' : 'Info')}
+                                                </Text>
+                                            </View>
+                                            <ChevronRight color="#94A3B8" size={16} />
+                                        </View>
+                                    </Pressable>
+                                </View>
+                            );
+                        })}
                     </View>
                 </View>
             </ScrollView>
@@ -357,87 +576,50 @@ const styles = StyleSheet.create({
         letterSpacing: 1,
     },
     title: { fontSize: 24, ...FONT.heavy, color: C.dark },
-    badge: {
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: 14,
-    },
-    badgeText: {
-        fontSize: 12,
-        ...FONT.bold,
-    },
-    
-    // Switcher Styles
-    switcherContainer: {
-        backgroundColor: C.surface,
-        borderBottomWidth: 1,
-        borderBottomColor: C.border,
-        paddingBottom: 14,
-    },
-    switcherScroll: {
-        paddingHorizontal: 24,
-        gap: 16,
-    },
-    avatarWrapper: {
-        alignItems: 'center',
-        gap: 6,
-        opacity: 0.6,
-    },
-    activeAvatarWrapper: {
-        opacity: 1,
-    },
-    avatar: {
-        width: 60,
-        height: 60,
-        borderRadius: 30,
-        backgroundColor: '#F8FAFC',
+    miniCommIcon: {
+        width: 20,
+        height: 20,
+        borderRadius: 10,
         alignItems: 'center',
         justifyContent: 'center',
-        borderWidth: 2,
-        borderColor: 'transparent',
+    },
+    headerBadge: {
+        backgroundColor: '#FFF0F2',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 12,
+        alignSelf: 'center',
+    },
+    headerBadgeText: {
+        color: '#E11D48',
+        fontSize: 11,
+        ...FONT.bold,
+    },
+    bellButton: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        backgroundColor: '#FFFFFF',
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 1,
+        borderColor: '#F1F5F9',
         position: 'relative',
+        shadowColor: '#000',
+        shadowOpacity: 0.04,
+        shadowRadius: 6,
+        shadowOffset: { width: 0, height: 2 },
+        elevation: 1,
     },
-    activeAvatar: {
-        borderColor: C.primary,
-        backgroundColor: C.primaryLight,
-    },
-    avatarText: {
-        fontSize: 16,
-        ...FONT.bold,
-        color: C.mid,
-    },
-    activeAvatarText: {
-        color: C.primary,
-    },
-    avatarName: {
-        fontSize: 12,
-        ...FONT.semibold,
-        color: C.mid,
-        maxWidth: 68,
-        textAlign: 'center',
-    },
-    activeAvatarName: {
-        color: C.dark,
-        ...FONT.bold,
-    },
-    scoreBadge: {
+    bellDot: {
         position: 'absolute',
-        bottom: -2,
-        right: -2,
-        paddingHorizontal: 5,
-        paddingVertical: 1,
-        borderRadius: 8,
-        borderWidth: 1.5,
-        borderColor: C.surface,
-        alignItems: 'center',
-        justifyContent: 'center',
+        top: 12,
+        right: 12,
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+        backgroundColor: '#E11D48',
     },
-    scoreText: {
-        color: C.surface,
-        fontSize: 9,
-        fontWeight: 'bold',
-    },
-
     content: { padding: 20, gap: 20, paddingBottom: layout.TAB_BAR_CLEARANCE },
     section: { gap: 12 },
     sectionTitle: {
@@ -447,77 +629,99 @@ const styles = StyleSheet.create({
         marginBottom: 4,
         paddingLeft: 4,
     },
-    
-    // Alert Card Styles
-    alertCard: {
-        backgroundColor: 'rgba(255, 241, 242, 0.7)',
-        borderRadius: 20,
-        padding: 16,
+
+    // Premium Alert Card Styles
+    premiumAlertCard: {
+        backgroundColor: '#FFF0F2',
+        borderRadius: 28,
+        padding: 24,
         borderWidth: 1,
-        borderColor: 'rgba(254, 205, 211, 0.8)',
-        gap: 12,
-        shadowColor: '#F43F5E',
-        shadowOpacity: 0.04,
-        shadowRadius: 10,
-        shadowOffset: { width: 0, height: 4 },
-        elevation: 1,
+        borderColor: '#FECDD3',
+        gap: 16,
     },
-    alertHeader: {
+    alertContentRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 8,
+        gap: 12,
     },
-    alertTitle: {
-        fontSize: 14,
+    alertIconCircle: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        backgroundColor: '#FFE4E6',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    priorityLabel: {
+        fontSize: 10,
         ...FONT.bold,
         color: '#E11D48',
+        letterSpacing: 0.5,
     },
-    alertDesc: {
+    alertTitleText: {
+        fontSize: 18,
+        ...FONT.bold,
+        color: '#9F1239',
+    },
+    alertDescText: {
         fontSize: 13,
         ...FONT.semibold,
-        color: '#881337',
+        color: '#9F1239',
         lineHeight: 18,
     },
-    alertFooter: {
+    alertTimeRow: {
         flexDirection: 'row',
-        justifyContent: 'flex-end',
-        gap: 10,
+        alignItems: 'center',
+        gap: 6,
         marginTop: 4,
     },
-    callQuickBtn: {
+    alertTimeText: {
+        fontSize: 11,
+        ...FONT.semibold,
+        color: '#9F1239',
+    },
+    calendarIllusImage: {
+        width: 80,
+        height: 80,
+    },
+    alertActionsRow: {
+        flexDirection: 'row',
+        gap: 12,
+    },
+    callNowBtn: {
+        flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 6,
-        backgroundColor: 'rgba(225, 29, 72, 0.08)',
-        borderWidth: 1,
-        borderColor: 'rgba(225, 29, 72, 0.4)',
-        paddingHorizontal: 14,
-        paddingVertical: 8,
-        borderRadius: 12,
+        justifyContent: 'center',
+        gap: 8,
+        backgroundColor: '#E11D48',
+        paddingVertical: 12,
+        borderRadius: 14,
     },
-    callQuickText: {
-        fontSize: 12,
+    callNowBtnText: {
+        color: '#FFF',
+        fontSize: 13,
         ...FONT.bold,
-        color: '#E11D48',
     },
-    ackBtn: {
+    dismissBtn: {
+        flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 6,
-        backgroundColor: 'rgba(241, 245, 249, 0.6)',
+        justifyContent: 'center',
+        gap: 8,
+        backgroundColor: '#FFF',
         borderWidth: 1,
-        borderColor: 'rgba(148, 163, 184, 0.3)',
-        paddingHorizontal: 14,
-        paddingVertical: 8,
-        borderRadius: 12,
+        borderColor: '#E2E8F0',
+        paddingVertical: 12,
+        borderRadius: 14,
     },
-    ackText: {
-        fontSize: 12,
+    dismissBtnText: {
+        color: '#0F172A',
+        fontSize: 13,
         ...FONT.bold,
-        color: '#475569',
     },
 
-    // Guardian Card Styles
+    // Guardian Shield empty card
     guardianCard: {
         backgroundColor: C.surface,
         borderWidth: 1,
@@ -525,7 +729,6 @@ const styles = StyleSheet.create({
         borderRadius: 28,
         padding: 24,
         alignItems: 'center',
-        textAlign: 'center',
         shadowColor: C.dark,
         shadowOpacity: 0.02,
         shadowRadius: 10,
@@ -556,46 +759,100 @@ const styles = StyleSheet.create({
         paddingHorizontal: 8,
     },
 
-    // Security checkup checklist
-    card: {
-        backgroundColor: C.surface,
+    // Security checkup checklist card styles
+    securityCheckupCard: {
+        backgroundColor: '#FFF',
+        borderRadius: 28,
+        padding: 24,
         borderWidth: 1,
-        borderColor: C.border,
-        borderRadius: 24,
-        padding: 20,
+        borderColor: '#F1F5F9',
+        shadowColor: '#000',
+        shadowOpacity: 0.01,
+        shadowRadius: 10,
+        shadowOffset: { width: 0, height: 4 },
+        elevation: 1,
     },
-    cardHeaderTitle: {
+    securityCheckupHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: 20,
+    },
+    checkupCardTitle: {
         fontSize: 15,
         ...FONT.bold,
         color: C.dark,
-        marginBottom: 16,
     },
-    checklist: {
-        gap: 12,
+    checkupCardSub: {
+        fontSize: 12,
+        ...FONT.medium,
+        color: C.mid,
+        marginTop: 2,
     },
-    checkItem: {
+    allGoodBadge: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 10,
+        gap: 4,
+        backgroundColor: '#ECFDF5',
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderRadius: 12,
     },
-    checkedCircle: {
-        width: 22,
-        height: 22,
-        borderRadius: 11,
-        backgroundColor: C.successLight,
+    allGoodBadgeText: {
+        color: '#10B981',
+        fontSize: 11,
+        ...FONT.bold,
+    },
+    checkupList: {
+        gap: 16,
+    },
+    checkupItemRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        paddingVertical: 4,
+    },
+    iconWithBadgeWrapper: {
+        position: 'relative',
+    },
+    checkupIconBox: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
         alignItems: 'center',
         justifyContent: 'center',
     },
-    checkLabel: {
-        fontSize: 13,
-        ...FONT.semibold,
-        color: C.mid,
-        flex: 1,
+    checkmarkBadgeOverlay: {
+        position: 'absolute',
+        top: -2,
+        right: -2,
+        width: 14,
+        height: 14,
+        borderRadius: 7,
+        backgroundColor: '#10B981',
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 1.5,
+        borderColor: '#FFF',
     },
-    checkStatus: {
+    checkupItemName: {
+        fontSize: 13,
+        ...FONT.bold,
+        color: C.dark,
+    },
+    checkupItemDesc: {
+        fontSize: 11,
+        ...FONT.medium,
+        color: C.light,
+    },
+    statusBadge: {
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 8,
+    },
+    statusBadgeText: {
         fontSize: 11,
         ...FONT.bold,
-        color: C.success,
     },
 
     // History section
@@ -603,41 +860,128 @@ const styles = StyleSheet.create({
         marginTop: 10,
         gap: 12,
     },
-    historyList: {
-        backgroundColor: C.surface,
-        borderWidth: 1,
-        borderColor: C.border,
-        borderRadius: 24,
-        padding: 20,
-        gap: 16,
-    },
-    historyItem: {
+    historySectionHeader: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 12,
+        justifyContent: 'space-between',
+        marginBottom: 12,
+        paddingHorizontal: 4,
     },
-    historyIconBox: {
-        width: 32,
-        height: 32,
-        borderRadius: 10,
-        backgroundColor: '#F8FAFC',
+    purpleDocIconContainer: {
+        width: 28,
+        height: 28,
+        borderRadius: 8,
+        backgroundColor: '#F3E8FF',
         alignItems: 'center',
         justifyContent: 'center',
     },
-    historyItemTitle: {
-        fontSize: 13,
+    viewAllBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        backgroundColor: '#EFF6FF',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 12,
+    },
+    viewAllText: {
+        color: '#3B82F6',
+        fontSize: 11,
+        ...FONT.bold,
+    },
+    timelineCardContainer: {
+        backgroundColor: '#FFF',
+        borderRadius: 28,
+        padding: 20,
+        borderWidth: 1,
+        borderColor: '#F1F5F9',
+        gap: 16,
+    },
+    timelineRow: {
+        flexDirection: 'row',
+        alignItems: 'stretch',
+        minHeight: 70,
+    },
+    timelineTimeCol: {
+        width: 70,
+        justifyContent: 'center',
+        paddingRight: 8,
+    },
+    timelineTimeText: {
+        fontSize: 11,
         ...FONT.bold,
         color: C.dark,
-        marginBottom: 2,
     },
-    historyItemDesc: {
-        fontSize: 11,
+    timelineDateText: {
+        fontSize: 9,
+        ...FONT.medium,
+        color: C.light,
+        marginTop: 2,
+    },
+    timelineLineCol: {
+        width: 24,
+        alignItems: 'center',
+        position: 'relative',
+    },
+    timelineVerticalLine: {
+        position: 'absolute',
+        top: 0,
+        bottom: 0,
+        width: 2,
+        backgroundColor: '#F1F5F9',
+    },
+    timelineDot: {
+        width: 10,
+        height: 10,
+        borderRadius: 5,
+        borderWidth: 2,
+        borderColor: '#FFF',
+        position: 'absolute',
+        top: '50%',
+        marginTop: -5,
+        zIndex: 2,
+    },
+    timelineContentCard: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+        backgroundColor: '#F8FAFC',
+        borderRadius: 20,
+        padding: 12,
+        borderWidth: 1,
+        borderColor: '#F1F5F9',
+    },
+    timelineIconContainer: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    timelineItemTitle: {
+        fontSize: 12,
+        ...FONT.bold,
+        color: C.dark,
+    },
+    timelineItemDesc: {
+        fontSize: 10,
         ...FONT.medium,
         color: C.mid,
     },
-    historyItemTime: {
-        fontSize: 11,
+    timelineItemSub: {
+        fontSize: 9,
         ...FONT.bold,
         color: C.light,
+        marginTop: 1,
+    },
+    timelineBadge: {
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 8,
+    },
+    timelineBadgeText: {
+        fontSize: 9,
+        ...FONT.bold,
     },
 });

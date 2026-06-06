@@ -51,7 +51,9 @@ export const requestHealthPermissions = async () => {
                 { accessType: 'read', recordType: 'HeartRate' },
                 { accessType: 'read', recordType: 'BloodPressure' },
                 { accessType: 'read', recordType: 'SleepSession' },
-                { accessType: 'read', recordType: 'OxygenSaturation' }
+                { accessType: 'read', recordType: 'OxygenSaturation' },
+                { accessType: 'read', recordType: 'Hydration' },
+                { accessType: 'read', recordType: 'BodyTemperature' }
             ];
             const granted = await HealthConnect.requestPermission(permissions);
             return granted && granted.length > 0;
@@ -69,6 +71,8 @@ export const requestHealthPermissions = async () => {
                         AppleHealthKit.Constants.Permissions.BloodPressureDiastolic,
                         AppleHealthKit.Constants.Permissions.SleepAnalysis,
                         AppleHealthKit.Constants.Permissions.OxygenSaturation,
+                        AppleHealthKit.Constants.Permissions.Water,
+                        AppleHealthKit.Constants.Permissions.BodyTemperature,
                     ],
                 },
             };
@@ -138,6 +142,8 @@ export const fetchDailyVitalsSummary = async () => {
         oxygen_saturation: null,
         systolic: null,
         diastolic: null,
+        hydration: null,
+        temperature: null,
     };
 
     if (Platform.OS === 'android' && HealthConnect) {
@@ -168,14 +174,52 @@ export const fetchDailyVitalsSummary = async () => {
                 const total = o2Records.records.reduce((acc, curr) => acc + curr.percentage, 0);
                 vitals.oxygen_saturation = Math.round(total / o2Records.records.length);
             }
-            
-            // Note: In a production scale app, we would also query Blood Pressure 
-            // and format it, but HR and O2 are the primary continuous smartwatch metrics.
+
+            const bpRecords = await HealthConnect.readRecords('BloodPressure', {
+                timeRangeFilter: {
+                    operator: 'between',
+                    startTime: startTime.toISOString(),
+                    endTime: endTime.toISOString(),
+                },
+            });
+
+            if (bpRecords && bpRecords.records.length > 0) {
+                const systolicTotal = bpRecords.records.reduce((acc, curr) => acc + curr.systolic.inMillimetersOfMercury, 0);
+                const diastolicTotal = bpRecords.records.reduce((acc, curr) => acc + curr.diastolic.inMillimetersOfMercury, 0);
+                vitals.systolic = Math.round(systolicTotal / bpRecords.records.length);
+                vitals.diastolic = Math.round(diastolicTotal / bpRecords.records.length);
+            }
+
+            const hydrationRecords = await HealthConnect.readRecords('Hydration', {
+                timeRangeFilter: {
+                    operator: 'between',
+                    startTime: startTime.toISOString(),
+                    endTime: endTime.toISOString(),
+                },
+            });
+
+            if (hydrationRecords && hydrationRecords.records.length > 0) {
+                // Calculate hydration relative to 2.0L daily target
+                const totalLiters = hydrationRecords.records.reduce((acc, curr) => acc + curr.volume.inLiters, 0);
+                vitals.hydration = Math.min(100, Math.round((totalLiters / 2.0) * 100));
+            }
+
+            const tempRecords = await HealthConnect.readRecords('BodyTemperature', {
+                timeRangeFilter: {
+                    operator: 'between',
+                    startTime: startTime.toISOString(),
+                    endTime: endTime.toISOString(),
+                },
+            });
+
+            if (tempRecords && tempRecords.records.length > 0) {
+                const totalTemp = tempRecords.records.reduce((acc, curr) => acc + curr.temperature.inFahrenheit, 0);
+                vitals.temperature = Math.round((totalTemp / tempRecords.records.length) * 10) / 10;
+            }
         } catch (e) {
             console.error('Failed to read Health Connect data', e);
         }
     } else if (Platform.OS === 'ios' && AppleHealthKit) {
-        // Example implementation for iOS HealthKit
         const options = {
             startDate: startTime.toISOString(),
             endDate: endTime.toISOString(),
@@ -192,6 +236,41 @@ export const fetchDailyVitalsSummary = async () => {
             if (hr.length > 0) {
                 const total = hr.reduce((acc, curr) => acc + curr.value, 0);
                 vitals.heart_rate = Math.round(total / hr.length);
+            }
+
+            const bp = await new Promise((resolve) => {
+                AppleHealthKit.getBloodPressureSamples(options, (err, results) => {
+                    resolve(err ? [] : results);
+                });
+            });
+
+            if (bp.length > 0) {
+                const systolicTotal = bp.reduce((acc, curr) => acc + curr.bloodPressureSystolicValue, 0);
+                const diastolicTotal = bp.reduce((acc, curr) => acc + curr.bloodPressureDiastolicValue, 0);
+                vitals.systolic = Math.round(systolicTotal / bp.length);
+                vitals.diastolic = Math.round(diastolicTotal / bp.length);
+            }
+
+            const water = await new Promise((resolve) => {
+                AppleHealthKit.getWater(options, (err, results) => {
+                    resolve(err ? [] : results);
+                });
+            });
+
+            if (water.length > 0) {
+                const totalMl = water.reduce((acc, curr) => acc + curr.value, 0);
+                vitals.hydration = Math.min(100, Math.round((totalMl / 2000) * 100));
+            }
+
+            const temp = await new Promise((resolve) => {
+                AppleHealthKit.getBodyTemperatureSamples(options, (err, results) => {
+                    resolve(err ? [] : results);
+                });
+            });
+
+            if (temp.length > 0) {
+                const totalTemp = temp.reduce((acc, curr) => acc + curr.value, 0);
+                vitals.temperature = Math.round((totalTemp / temp.length) * 10) / 10;
             }
         } catch (e) {
             console.error('Failed to read Apple HealthKit data', e);
@@ -286,6 +365,50 @@ export const fetchGranularVitals = async (sinceTimestamp) => {
                     }
                 }
             }
+
+            // ── Hydration records ─────────────────────────────────
+            const hydrationRecords = await HealthConnect.readRecords('Hydration', timeFilter);
+            if (hydrationRecords?.records) {
+                for (const record of hydrationRecords.records) {
+                    const timestamp = record.startTime || record.endTime;
+                    const existing = readings.find(r => {
+                        const diff = Math.abs(new Date(r.timestamp) - new Date(timestamp));
+                        return diff < 5 * 60 * 1000;
+                    });
+                    const volPercent = Math.min(100, Math.round((record.volume?.inLiters / 2.0) * 100));
+                    if (existing) {
+                        existing.hydration = volPercent;
+                    } else {
+                        readings.push({
+                            timestamp,
+                            heart_rate: null,
+                            hydration: volPercent,
+                        });
+                    }
+                }
+            }
+
+            // ── Body Temperature records ──────────────────────────
+            const tempRecords = await HealthConnect.readRecords('BodyTemperature', timeFilter);
+            if (tempRecords?.records) {
+                for (const record of tempRecords.records) {
+                    const timestamp = record.time || record.startTime;
+                    const existing = readings.find(r => {
+                        const diff = Math.abs(new Date(r.timestamp) - new Date(timestamp));
+                        return diff < 5 * 60 * 1000;
+                    });
+                    const tempF = record.temperature?.inFahrenheit;
+                    if (existing) {
+                        existing.temperature = tempF;
+                    } else {
+                        readings.push({
+                            timestamp,
+                            heart_rate: null,
+                            temperature: tempF,
+                        });
+                    }
+                }
+            }
         } catch (e) {
             console.error('Failed to fetch granular Health Connect data:', e);
         }
@@ -361,6 +484,56 @@ export const fetchGranularVitals = async (sinceTimestamp) => {
                             systolic: sample.bloodPressureSystolicValue,
                             diastolic: sample.bloodPressureDiastolicValue,
                         },
+                    });
+                }
+            }
+
+            // ── Hydration (Water) ─────────────────────────────────
+            const waterSamples = await new Promise((resolve) => {
+                AppleHealthKit.getWater(options, (err, results) => {
+                    resolve(err ? [] : results);
+                });
+            });
+
+            for (const sample of waterSamples) {
+                const timestamp = sample.startDate || sample.endDate;
+                const existing = readings.find(r => {
+                    const diff = Math.abs(new Date(r.timestamp) - new Date(timestamp));
+                    return diff < 5 * 60 * 1000;
+                });
+                const volPercent = Math.min(100, Math.round((sample.value / 2000) * 100)); // assume ml
+                if (existing) {
+                    existing.hydration = volPercent;
+                } else {
+                    readings.push({
+                        timestamp,
+                        heart_rate: null,
+                        hydration: volPercent,
+                    });
+                }
+            }
+
+            // ── Body Temperature ──────────────────────────────────
+            const tempSamples = await new Promise((resolve) => {
+                AppleHealthKit.getBodyTemperatureSamples(options, (err, results) => {
+                    resolve(err ? [] : results);
+                });
+            });
+
+            for (const sample of tempSamples) {
+                const timestamp = sample.startDate || sample.endDate;
+                const existing = readings.find(r => {
+                    const diff = Math.abs(new Date(r.timestamp) - new Date(timestamp));
+                    return diff < 5 * 60 * 1000;
+                });
+                const tempF = sample.value;
+                if (existing) {
+                    existing.temperature = tempF;
+                } else {
+                    readings.push({
+                        timestamp,
+                        heart_rate: null,
+                        temperature: tempF,
                     });
                 }
             }
