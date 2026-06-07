@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, Platform, ActivityIndicator, Animated, Pressable, Linking, Modal, TextInput, FlatList, Switch, LayoutAnimation, UIManager, Image } from 'react-native';
 
-const medsMealIllus = require('../../../assets/meds_meal_illus.png');
-const eatEarlyIllus = require('../../../assets/eat_early_illus.png');
-const ricePortionIllus = require('../../../assets/rice_portion_illus.png');
+const medsMealIllus = require('../../../assets/meds_meal_illus.jpg');
+const eatEarlyIllus = require('../../../assets/eat_early_illus.jpg');
+const ricePortionIllus = require('../../../assets/rice_portion_illus.jpg');
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
     UIManager.setLayoutAnimationEnabledExperimental(true);

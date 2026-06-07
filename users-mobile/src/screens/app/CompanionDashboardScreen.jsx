@@ -487,7 +487,7 @@ export default function CompanionDashboardScreen() {
                             {/* Left Side: Illustrative Blood Pressure Monitor */}
                             <View style={styles.vitalsEmptyLeft}>
                                 <Image 
-                                    source={require('../../../assets/bp_monitor_illus.png')} 
+                                    source={require('../../../assets/bp_monitor_illus.jpg')} 
                                     style={styles.bpMonitorImage}
                                     resizeMode="contain"
                                 />

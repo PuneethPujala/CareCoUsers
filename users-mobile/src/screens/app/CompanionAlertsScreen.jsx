@@ -306,7 +306,7 @@ export default function CompanionAlertsScreen() {
                                     
                                     {/* Right: Calendar 3D Image */}
                                     <Image 
-                                        source={require('../../../assets/calendar_alert_illus.png')} 
+                                        source={require('../../../assets/calendar_alert_illus.jpg')} 
                                         style={styles.calendarIllusImage}
                                         resizeMode="contain"
                                     />
