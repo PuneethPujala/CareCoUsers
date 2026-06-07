@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
     Modal,
     View,
@@ -15,9 +15,9 @@ import {
 import * as ImageManipulator from 'expo-image-manipulator';
 import { ZoomIn, ZoomOut, Move, Check, X } from 'lucide-react-native';
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CONTAINER_SIZE = SCREEN_WIDTH - 40;
-const CROP_SIZE = 240; // Size of the circular crop box in UI pixels
+const CROP_SIZE = CONTAINER_SIZE; // Crop circle fills the container
 
 export default function AvatarCropModal({
     visible,
@@ -29,7 +29,7 @@ export default function AvatarCropModal({
     const [loading, setLoading] = useState(true);
     const [cropping, setCropping] = useState(false);
 
-    // Pan coordinates
+    // Pan coordinates (offset from center)
     const [panX, setPanX] = useState(0);
     const [panY, setPanY] = useState(0);
 
@@ -40,24 +40,28 @@ export default function AvatarCropModal({
     const lastPanX = useRef(0);
     const lastPanY = useRef(0);
 
-    // Calculate display dimensions keeping aspect ratio relative to CROP_SIZE
-    let displayWidth = CROP_SIZE;
-    let displayHeight = CROP_SIZE;
+    // Calculate the base display size so the image covers the crop circle.
+    // The shorter side of the image maps to CROP_SIZE, ensuring full coverage.
+    let baseDisplayWidth = CROP_SIZE;
+    let baseDisplayHeight = CROP_SIZE;
 
     if (imageDims) {
         const { width: iw, height: ih } = imageDims;
-        if (iw > ih) {
-            displayHeight = CROP_SIZE;
-            displayWidth = (iw / ih) * CROP_SIZE;
+        const aspect = iw / ih;
+        if (aspect >= 1) {
+            // Landscape or square: height fits CROP_SIZE, width stretches
+            baseDisplayHeight = CROP_SIZE;
+            baseDisplayWidth = CROP_SIZE * aspect;
         } else {
-            displayWidth = CROP_SIZE;
-            displayHeight = (ih / iw) * CROP_SIZE;
+            // Portrait: width fits CROP_SIZE, height stretches
+            baseDisplayWidth = CROP_SIZE;
+            baseDisplayHeight = CROP_SIZE / aspect;
         }
     }
 
     // Keep refs of current values to avoid stale closures in PanResponder
     const stateRef = useRef();
-    stateRef.current = { scale, displayWidth, displayHeight, panX, panY };
+    stateRef.current = { scale, baseDisplayWidth, baseDisplayHeight, panX, panY };
 
     useEffect(() => {
         if (visible && imageUri) {
@@ -83,35 +87,39 @@ export default function AvatarCropModal({
         }
     }, [visible, imageUri]);
 
-    // Clamp panning position on scale changes to prevent empty borders
-    useEffect(() => {
-        if (!imageDims) return;
-        const wScaled = displayWidth * scale;
-        const hScaled = displayHeight * scale;
+    // Clamp panning so the image always covers the crop circle
+    const clampPan = useCallback((currentPanX, currentPanY, currentScale) => {
+        const wScaled = baseDisplayWidth * currentScale;
+        const hScaled = baseDisplayHeight * currentScale;
         const maxDragX = Math.max(0, (wScaled - CROP_SIZE) / 2);
         const maxDragY = Math.max(0, (hScaled - CROP_SIZE) / 2);
+        return {
+            x: Math.max(-maxDragX, Math.min(maxDragX, currentPanX)),
+            y: Math.max(-maxDragY, Math.min(maxDragY, currentPanY)),
+        };
+    }, [baseDisplayWidth, baseDisplayHeight]);
 
-        const clampedX = Math.max(-maxDragX, Math.min(maxDragX, panX));
-        const clampedY = Math.max(-maxDragY, Math.min(maxDragY, panY));
-
-        setPanX(clampedX);
-        setPanY(clampedY);
-        lastPanX.current = clampedX;
-        lastPanY.current = clampedY;
-    }, [scale, imageDims, displayWidth, displayHeight]);
+    // Re-clamp on scale changes
+    useEffect(() => {
+        if (!imageDims) return;
+        const clamped = clampPan(panX, panY, scale);
+        setPanX(clamped.x);
+        setPanY(clamped.y);
+        lastPanX.current = clamped.x;
+        lastPanY.current = clamped.y;
+    }, [scale, imageDims]);
 
     // Pan responder for dragging the image
     const panResponder = useRef(
         PanResponder.create({
             onStartShouldSetPanResponder: () => true,
-            onMoveShouldSetPanResponder: () => true,
-            onPanResponderGrant: () => {
-                // Lock current offset
-            },
+            onMoveShouldSetPanResponder: (_, gs) =>
+                Math.abs(gs.dx) > 2 || Math.abs(gs.dy) > 2,
+            onPanResponderGrant: () => {},
             onPanResponderMove: (evt, gestureState) => {
-                const { scale: currentScale, displayWidth: currentDW, displayHeight: currentDH } = stateRef.current;
-                const wScaled = currentDW * currentScale;
-                const hScaled = currentDH * currentScale;
+                const { scale: s, baseDisplayWidth: bdw, baseDisplayHeight: bdh } = stateRef.current;
+                const wScaled = bdw * s;
+                const hScaled = bdh * s;
 
                 const maxDragX = Math.max(0, (wScaled - CROP_SIZE) / 2);
                 const maxDragY = Math.max(0, (hScaled - CROP_SIZE) / 2);
@@ -144,55 +152,56 @@ export default function AvatarCropModal({
             const iw = imageDims.width;
             const ih = imageDims.height;
 
-            // Scaled size in UI pixels
-            const wScaled = displayWidth * scale;
-            const hScaled = displayHeight * scale;
+            // The actual rendered image size in layout pixels
+            const renderedW = baseDisplayWidth * scale;
+            const renderedH = baseDisplayHeight * scale;
 
-            // Offset of the image top-left relative to crop box top-left
-            // Crop box top left is centered in container:
-            const cropLeft = CONTAINER_SIZE / 2 - CROP_SIZE / 2;
-            const cropTop = CONTAINER_SIZE / 2 - CROP_SIZE / 2;
-
+            // The image center is at the container center + pan offset.
             // Image top-left in container coords:
-            const imgLeft = CONTAINER_SIZE / 2 - wScaled / 2 + panX;
-            const imgTop = CONTAINER_SIZE / 2 - hScaled / 2 + panY;
+            const imgLeft = (CONTAINER_SIZE - renderedW) / 2 + panX;
+            const imgTop = (CONTAINER_SIZE - renderedH) / 2 + panY;
 
-            // UI coordinates to crop (distance from image top-left to crop box top-left)
+            // The crop circle is centered in the container:
+            const cropLeft = (CONTAINER_SIZE - CROP_SIZE) / 2;
+            const cropTop = (CONTAINER_SIZE - CROP_SIZE) / 2;
+
+            // Distance from image top-left to crop region top-left (in layout px)
             const dx = cropLeft - imgLeft;
             const dy = cropTop - imgTop;
 
-            // Scaling factor from UI layout pixels to raw image pixels
-            const scaleFactor = iw / wScaled;
+            // Ratio from layout pixels -> original image pixels
+            const pxPerLayoutX = iw / renderedW;
+            const pxPerLayoutY = ih / renderedH;
 
-            // Map layout pixels to original image dimensions
-            const originX = dx * scaleFactor;
-            const originY = dy * scaleFactor;
-            const cropWidth = CROP_SIZE * scaleFactor;
-            const cropHeight = CROP_SIZE * scaleFactor;
+            // Map to original image coordinates
+            const originX = dx * pxPerLayoutX;
+            const originY = dy * pxPerLayoutY;
+            const cropW = CROP_SIZE * pxPerLayoutX;
+            const cropH = CROP_SIZE * pxPerLayoutY;
 
-            // Clamping bounds to avoid out-of-bounds crops
-            const finalX = Math.max(0, Math.min(iw - 10, originX));
-            const finalY = Math.max(0, Math.min(ih - 10, originY));
-            const finalW = Math.max(10, Math.min(iw - finalX, cropWidth));
-            const finalH = Math.max(10, Math.min(ih - finalY, cropHeight));
+            // Clamp to valid bounds
+            const finalX = Math.max(0, Math.round(originX));
+            const finalY = Math.max(0, Math.round(originY));
+            const finalW = Math.round(Math.min(cropW, iw - finalX));
+            const finalH = Math.round(Math.min(cropH, ih - finalY));
 
-            // Crop image using expo-image-manipulator
+            // Ensure minimum size
+            const safeW = Math.max(10, finalW);
+            const safeH = Math.max(10, finalH);
+
             const cropRes = await ImageManipulator.manipulateAsync(
                 imageUri,
                 [
                     {
                         crop: {
-                            originX: Math.round(finalX),
-                            originY: Math.round(finalY),
-                            width: Math.round(finalW),
-                            height: Math.round(finalH),
+                            originX: finalX,
+                            originY: finalY,
+                            width: safeW,
+                            height: safeH,
                         },
                     },
                     {
-                        resize: {
-                            width: 512,
-                            height: 512,
-                        },
+                        resize: { width: 512, height: 512 },
                     },
                 ],
                 { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG, base64: true }
@@ -205,6 +214,10 @@ export default function AvatarCropModal({
             setCropping(false);
         }
     };
+
+    // Actual scaled image size for rendering
+    const renderW = baseDisplayWidth * scale;
+    const renderH = baseDisplayHeight * scale;
 
     return (
         <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -230,29 +243,21 @@ export default function AvatarCropModal({
                                 <Image
                                     source={{ uri: imageUri }}
                                     style={{
-                                        width: displayWidth,
-                                        height: displayHeight,
-                                        transform: [
-                                            { translateX: panX },
-                                            { translateY: panY },
-                                            { scale: scale },
-                                        ],
+                                        width: renderW,
+                                        height: renderH,
+                                        position: 'absolute',
+                                        left: (CONTAINER_SIZE - renderW) / 2 + panX,
+                                        top: (CONTAINER_SIZE - renderH) / 2 + panY,
                                     }}
                                     resizeMode="cover"
                                 />
 
-                                {/* Semi-transparent mask outside crop area */}
-                                <View style={styles.maskContainer} pointerEvents="none">
-                                    <View style={styles.maskRow} />
-                                    <View style={styles.maskMiddleRow}>
-                                        <View style={styles.maskSide} />
-                                        <View style={styles.cropCircleOutline} />
-                                        <View style={styles.maskSide} />
-                                    </View>
-                                    <View style={styles.maskRow} />
+                                {/* Semi-transparent mask outside crop circle */}
+                                <View style={styles.maskOverlay} pointerEvents="none">
+                                    <View style={styles.cropCircleOutline} />
                                 </View>
 
-                                {/* Guide indicator (Move instruction icon) */}
+                                {/* Guide indicator */}
                                 <View style={styles.dragHint} pointerEvents="none">
                                     <Move size={20} color="rgba(255,255,255,0.7)" />
                                 </View>
@@ -263,13 +268,11 @@ export default function AvatarCropModal({
                     {/* Instruction */}
                     <Text style={styles.hintText}>Drag to position. Use sliders to scale.</Text>
 
-                    {/* Custom Zoom Slider bar */}
+                    {/* Zoom Control */}
                     <View style={styles.sliderSection}>
                         <ZoomOut size={16} color="#64748B" />
                         <View style={styles.sliderTrackWrap}>
-                            {/* Visual slider path */}
                             <View style={styles.sliderTrackLine} />
-                            {/* Slide handler buttons or points */}
                             <View style={styles.scaleButtonsContainer}>
                                 {[1.0, 1.4, 1.8, 2.2, 2.6, 3.0].map((sVal) => {
                                     const isActive = Math.abs(scale - sVal) < 0.2;
@@ -298,7 +301,7 @@ export default function AvatarCropModal({
                         <ZoomIn size={16} color="#64748B" />
                     </View>
 
-                    {/* Footer Actions */}
+                    {/* Footer */}
                     <View style={styles.footer}>
                         <Pressable style={[styles.btn, styles.btnCancel]} onPress={onClose}>
                             <Text style={styles.btnTextCancel}>Cancel</Text>
@@ -381,25 +384,15 @@ const styles = StyleSheet.create({
     cropContainer: {
         width: CONTAINER_SIZE,
         height: CONTAINER_SIZE,
-        justifyContent: 'center',
-        alignItems: 'center',
+        overflow: 'hidden',
         position: 'relative',
     },
-    maskContainer: {
+    maskOverlay: {
         ...StyleSheet.absoluteFillObject,
-        flexDirection: 'column',
-    },
-    maskRow: {
-        flex: 1,
-        backgroundColor: 'rgba(15, 23, 42, 0.6)',
-    },
-    maskMiddleRow: {
-        height: CROP_SIZE,
-        flexDirection: 'row',
-    },
-    maskSide: {
-        flex: 1,
-        backgroundColor: 'rgba(15, 23, 42, 0.6)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        // Dark overlay with a transparent circle cut out via border trick
+        backgroundColor: 'transparent',
     },
     cropCircleOutline: {
         width: CROP_SIZE,
@@ -415,6 +408,7 @@ const styles = StyleSheet.create({
     dragHint: {
         position: 'absolute',
         bottom: 12,
+        alignSelf: 'center',
         backgroundColor: 'rgba(15, 23, 42, 0.7)',
         paddingHorizontal: 10,
         paddingVertical: 6,
