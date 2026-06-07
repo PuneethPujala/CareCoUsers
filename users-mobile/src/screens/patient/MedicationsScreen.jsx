@@ -475,6 +475,7 @@ export default function MedicationsScreen({ navigation }) {
     const storeFetchMedications = usePatientStore(s => s.fetchMedications);
     const storeSavePrefs = usePatientStore(s => s.saveCallPreferences);
     const storeOptimisticToggle = usePatientStore(s => s.optimisticToggleMed);
+    const storeFetchDashboard = usePatientStore(s => s.fetchDashboard);
 
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -496,6 +497,7 @@ export default function MedicationsScreen({ navigation }) {
     const [showAddTempMedModal, setShowAddTempMedModal] = useState(false);
     const [tempMedForm, setTempMedForm] = useState({ name: '', dosage: '', frequency: 'As needed', reason: '', shift: 'morning' });
     const [addingTempMed, setAddingTempMed] = useState(false);
+    const deletedTempMedsRef = useRef({});
 
     const staggerAnims = useRef([...Array(10)].map(() => new Animated.Value(0))).current;
     const hasAnimated = useRef(false);
@@ -520,11 +522,33 @@ export default function MedicationsScreen({ navigation }) {
 
     const load = useCallback(async (isRefresh = false) => {
         try {
-            await storeFetchMedications();
+            const promises = [
+                storeFetchMedications(),
+                apiService.patients.getNotificationsUnreadCount()
+                    .then(res => setUnreadCount(res.data?.count || 0))
+                    .catch(() => {})
+            ];
+            if (isRefresh) {
+                promises.push(storeFetchDashboard(true).catch(() => {}));
+            }
+            await Promise.all(promises);
             
             try {
                 const tempRes = await apiService.medicines.getTempMeds();
-                setTempMeds(tempRes.data?.tempMedications || []);
+                const freshTempMeds = tempRes.data?.tempMedications || [];
+                const now = Date.now();
+                const filtered = freshTempMeds.filter(m => {
+                    const deletedTs = deletedTempMedsRef.current[m._id];
+                    if (deletedTs) {
+                        if (now - deletedTs < 60000) {
+                            return false;
+                        } else {
+                            delete deletedTempMedsRef.current[m._id];
+                        }
+                    }
+                    return true;
+                });
+                setTempMeds(filtered);
             } catch (tempErr) {
                 console.warn('Failed to fetch temporary medications:', tempErr.message);
             }
@@ -548,7 +572,7 @@ export default function MedicationsScreen({ navigation }) {
             setLoading(false);
             if (isRefresh) setRefreshing(false);
         }
-    }, [storeFetchMedications, runAnimations]);
+    }, [storeFetchMedications, storeFetchDashboard, runAnimations]);
 
     useFocusEffect(useCallback(() => {
         const task = InteractionManager.runAfterInteractions(() => {
@@ -619,14 +643,17 @@ export default function MedicationsScreen({ navigation }) {
                         // Optimistically remove from state immediately
                         setTempMeds(prev => prev.filter(m => m._id !== med._id));
                         
+                        // Register in optimistic deleted map
+                        deletedTempMedsRef.current[med._id] = Date.now();
+                        
                         try {
                             await apiService.medicines.deleteTempMed(med._id);
                             showToast(t('common.success', { defaultValue: 'Success' }), 'Temporary medicine removed.', 'success');
-                            // Background refetch to ensure alignment
-                            const tempRes = await apiService.medicines.getTempMeds();
-                            setTempMeds(tempRes.data?.tempMedications || []);
+                            // No immediate getTempMeds call needed! It's already deleted in local state.
                         } catch (err) {
                             console.warn('Delete temp-med failed:', err.message);
+                            // Remove from optimistic deleted map
+                            delete deletedTempMedsRef.current[med._id];
                             // Rollback state on error
                             setTempMeds(previousMeds);
                             showToast(t('common.error', { defaultValue: 'Error' }), 'Failed to remove medicine.', 'error');

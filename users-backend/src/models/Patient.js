@@ -503,6 +503,20 @@ const PatientSchema = new mongoose.Schema(
             type: [String],
             default: [],
         },
+        // ── Persistent Mood History ───────────────────
+        moodHistory: [
+            {
+                date: { type: Date, default: Date.now },
+                value: { type: String, enum: ['sad', 'okay', 'good', 'great'] },
+                mood: { type: String, enum: ['sad', 'okay', 'good', 'great'] },
+                source: { type: String, default: 'patient' }
+            }
+        ],
+        // ── Unified Health State Cache ─────────────────
+        patient_health_state: {
+            type: mongoose.Schema.Types.Mixed,
+            default: null
+        },
     },
     {
         timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' },

@@ -596,17 +596,54 @@ router.get('/patient-status', authenticate, async (req, res) => {
         // Log the activity
         await logEvent(req.user.id, 'companion_viewed_dashboard', 'profile', req.profile._id, req, { patientId: patient._id });
 
+        let healthState = patient.patient_health_state;
+        if (!healthState) {
+            const { recomputeAndCacheHealthState } = require('../services/patientHealthStateService');
+            healthState = await recomputeAndCacheHealthState(patient._id);
+        }
+
+        // Fallback: if recomputation failed (returned null), build a minimal state
+        // from legacy fields so the endpoint remains functional
+        if (!healthState) {
+            const medSchedule = medication_schedule || [];
+            const totalMeds = medSchedule.length;
+            const takenMeds = medSchedule.filter(m => m.taken).length;
+            healthState = {
+                score: patient.healthScoreCache ?? 82,
+                grade: 'B',
+                label: 'Good',
+                color: '#4CAF50',
+                mood: { today: null, trend: 'stable' },
+                adherence: {
+                    today: totalMeds > 0 ? Math.round((takenMeds / totalMeds) * 100) : 0,
+                    streak: patient.gamification?.current_streak ?? patient.gamification?.streak ?? 0,
+                },
+                vitals: { status: 'stable', bp: 'normal', hr: 'normal' },
+                coach: {
+                    primary_focus: 'adherence',
+                    insight: 'Keep up with your daily medications.',
+                    suggested_question: 'How can I improve medication consistency?',
+                    confidence: 'low',
+                    generated_at: new Date().toISOString(),
+                },
+                goals: { current: 'Reach Score 85', progress: patient.healthScoreCache ?? 82, target: 85 },
+                achievements: { unlocked: [], next: { id: 'streak_7', progress: 0, target: 7, label: '7 Day Streak' } },
+            };
+        }
+
         res.json({
             patient: {
                 id: patient._id,
                 name: patient.name,
                 phone: patient.phone || '',
                 avatar_url: patient.avatar_url,
-                health_score: patient.healthScoreCache,
-                adherence_rate: adherenceRate,
-                current_streak: patient.gamification?.current_streak || 0,
+                health_score: healthState.score,
+                adherence_rate: healthState.adherence.today,
+                current_streak: healthState.adherence.streak,
                 trusted_contacts: patient.trusted_contacts || [],
+                patient_health_state: healthState,
             },
+            patient_health_state: healthState,
             latest_vital: latestVital,
             recent_alerts: recentAlerts,
             medication_schedule,
@@ -616,14 +653,17 @@ router.get('/patient-status', authenticate, async (req, res) => {
             activity_logs: final_activity_logs,
             linked_patients: accesses
                 .filter(a => a.patient_id)
-                .map(a => ({
-                    id: a.patient_id._id,
-                    name: a.patient_id.name,
-                    phone: a.patient_id.phone || '',
-                    avatar_url: a.patient_id.avatar_url,
-                    health_score: a.patient_id.healthScoreCache,
-                    current_streak: a.patient_id.gamification?.current_streak || 0
-                }))
+                .map(a => {
+                    const linkedState = a.patient_id.patient_health_state || {};
+                    return {
+                        id: a.patient_id._id,
+                        name: a.patient_id.name,
+                        phone: a.patient_id.phone || '',
+                        avatar_url: a.patient_id.avatar_url,
+                        health_score: linkedState.score ?? a.patient_id.healthScoreCache ?? 82,
+                        current_streak: linkedState.adherence?.streak ?? a.patient_id.gamification?.current_streak ?? 0
+                    };
+                })
         });
 
     } catch (err) {

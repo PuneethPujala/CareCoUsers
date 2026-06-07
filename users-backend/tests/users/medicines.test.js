@@ -33,6 +33,7 @@ jest.mock('../../src/models/MedicineLog');
 jest.mock('../../src/models/Medication');
 jest.mock('../../src/models/Notification');
 jest.mock('../../src/models/TempMedication');
+jest.mock('../../src/models/VitalLog');
 jest.mock('../../src/services/medicineAIService', () => ({
     lookupMedicine: jest.fn().mockResolvedValue({
         riskTier: 'safe',
@@ -42,6 +43,9 @@ jest.mock('../../src/services/medicineAIService', () => ({
         warnings: [],
         interactions: [],
     }),
+}));
+jest.mock('../../src/services/patientHealthStateService', () => ({
+    recomputeAndCacheHealthState: jest.fn().mockResolvedValue({}),
 }));
 
 // ─── Imports ──────────────────────────────────────────────────────────────────

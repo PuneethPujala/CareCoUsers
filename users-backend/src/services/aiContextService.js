@@ -25,7 +25,7 @@ const CallLog = require('../models/CallLog');
  */
 async function buildPatientContext(patientId) {
     // 1. Fetch Patient & Profile
-    const patient = await Patient.findById(patientId).select('name date_of_birth gender profile_id timezone medications gamification');
+    const patient = await Patient.findById(patientId).select('name date_of_birth gender profile_id timezone medications gamification patient_health_state');
     if (!patient) return null;
     
     const tz = patient.timezone || 'Asia/Kolkata';
@@ -215,6 +215,12 @@ async function buildPatientContext(patientId) {
         }
     }
 
+    let healthState = patient.patient_health_state;
+    if (!healthState) {
+        const { recomputeAndCacheHealthState } = require('./patientHealthStateService');
+        healthState = await recomputeAndCacheHealthState(patient._id);
+    }
+
     // 7. Build final payload
     const payload = {
         patient: {
@@ -224,6 +230,7 @@ async function buildPatientContext(patientId) {
             blood_type: profile?.blood_type,
             diet: profile?.dietary_restrictions
         },
+        patient_health_state: healthState,
         care_team: careTeam,
         latest_interaction: recentCall,
         today: todayStr,

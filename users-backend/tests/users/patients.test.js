@@ -42,6 +42,10 @@ jest.mock('../../src/middleware/authenticate', () => ({
     requireRole: () => (req, res, next) => next(),
 }));
 
+jest.mock('../../src/services/patientHealthStateService', () => ({
+    recomputeAndCacheHealthState: jest.fn().mockResolvedValue({}),
+}));
+
 jest.mock('../../src/models/Patient');
 jest.mock('../../src/models/CallLog');
 jest.mock('../../src/models/MedicineLog');
@@ -52,6 +56,8 @@ jest.mock('../../src/models/Profile');
 jest.mock('../../src/models/Notification');
 jest.mock('../../src/models/AIVitalPrediction');
 jest.mock('../../src/models/CompanionAccess');
+jest.mock('../../src/models/VitalLog');
+jest.mock('../../src/models/Medication');
 
 // ─── Imports ──────────────────────────────────────────────────────────────────
 

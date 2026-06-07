@@ -489,7 +489,7 @@ export default function CompanionDashboardScreen() {
                                 <Image 
                                     source={require('../../../assets/bp_monitor_illus.jpg')} 
                                     style={styles.bpMonitorImage}
-                                    resizeMode="contain"
+                                    resizeMode="cover"
                                 />
                                 <View style={styles.bluetoothBadgeOverlay}>
                                     <Bluetooth size={14} color="#FFF" />
@@ -1338,6 +1338,8 @@ const styles = StyleSheet.create({
     bpMonitorImage: {
         width: 110,
         height: 110,
+        borderRadius: 16,
+        overflow: 'hidden',
     },
     bluetoothBadgeOverlay: {
         position: 'absolute',

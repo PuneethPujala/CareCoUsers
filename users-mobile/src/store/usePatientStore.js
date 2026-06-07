@@ -42,6 +42,75 @@ function getTodayStringInTz(timezone) {
     }
 }
 
+/**
+ * Corrects adherenceDetails client-side to prevent stale reads.
+ * Merges the client-side/optimistic medication state with the server payload.
+ */
+function correctAdherenceData(adherenceData, get) {
+    if (!adherenceData) return adherenceData;
+    
+    // Flatten medication list from store
+    const schedule = get().medicationSchedule;
+    const flatMeds = schedule ? Object.values(schedule).flat() : [];
+    const meds = flatMeds.length > 0 ? flatMeds : (get().dashboardMeds || []);
+    
+    if (meds.length === 0) return adherenceData;
+    
+    const tz = get().patient?.timezone || 'Asia/Kolkata';
+    const todayStr = getTodayStringInTz(tz); // YYYY-MM-DD
+    
+    const taken = meds.filter(m => m.taken).length;
+    const total = meds.length;
+    const completed = total > 0 && taken === total;
+    
+    const updated = { ...adherenceData };
+    
+    // 1. Correct today's summary stats
+    if (updated.today) {
+        updated.today = {
+            ...updated.today,
+            taken,
+            total,
+            completed
+        };
+    }
+    
+    // 2. Correct daily_log entry
+    if (updated.daily_log) {
+        let foundToday = false;
+        const newDailyLog = updated.daily_log.map(d => {
+            const dStr = typeof d.date === 'string'
+                ? d.date.slice(0, 10)
+                : new Date(d.date).toISOString().slice(0, 10);
+            if (dStr === todayStr) {
+                foundToday = true;
+                return {
+                    ...d,
+                    taken,
+                    total,
+                    rate: total > 0 ? Math.round((taken / total) * 100) : 0,
+                    completed
+                };
+            }
+            return d;
+        });
+        
+        if (!foundToday) {
+            newDailyLog.push({
+                date: `${todayStr}T00:00:00.000Z`,
+                taken,
+                total,
+                rate: total > 0 ? Math.round((taken / total) * 100) : 0,
+                completed
+            });
+        }
+        updated.daily_log = newDailyLog;
+    }
+    
+    return updated;
+}
+
+
 const usePatientStore = create((set, get) => ({
     patient: null,
     companionSelectedPatientId: null,
@@ -75,8 +144,9 @@ const usePatientStore = create((set, get) => ({
     fetchAdherenceDetails: async () => {
         try {
             const { data } = await apiService.medicines.getAdherenceDetails();
-            set({ adherenceDetails: data });
-            return data;
+            const corrected = correctAdherenceData(data, get);
+            set({ adherenceDetails: corrected });
+            return corrected;
         } catch (err) {
             console.warn('[Store] fetchAdherenceDetails error:', err.message);
             return null;
@@ -176,19 +246,22 @@ const usePatientStore = create((set, get) => ({
                 });
 
 
-                set({
+                const freshAdherenceDetails = correctAdherenceData(dashData.adherence || { streak: 0 }, get);
+                set(s => ({
                     patient: freshPatient,
                     vitals: freshVitals,
                     vitalsHistory: dashData.vitalsHistory || [],
                     aiPrediction: dashData.aiPrediction,
                     dashboardMeds: freshMeds,
                     callPreferences: prefs,
-                    adherenceDetails: dashData.adherence || { streak: 0 },
+                    adherenceDetails: s.adherenceDetails
+                        ? { ...s.adherenceDetails, ...freshAdherenceDetails }
+                        : freshAdherenceDetails,
                     isCached: false,
                     loading: false,
                     lastFetchTs: Date.now(),
                     _optimisticMeds: optRef,
-                });
+                }));
 
                 await setCache(CACHE_KEYS.HOME_DASHBOARD, {
                     patient: freshPatient,
@@ -270,19 +343,22 @@ const usePatientStore = create((set, get) => ({
             });
 
 
-            set({
+            const freshAdherenceDetails = correctAdherenceData(adhRes.data, get);
+            set(s => ({
                 patient: freshPatient,
                 vitals: freshVitals,
                 vitalsHistory: vHistRes.data.vitals || [],
                 aiPrediction: aiRes.data.prediction,
                 dashboardMeds: freshMeds,
                 callPreferences: prefs,
-                adherenceDetails: adhRes.data,
+                adherenceDetails: s.adherenceDetails
+                    ? { ...s.adherenceDetails, ...freshAdherenceDetails }
+                    : freshAdherenceDetails,
                 isCached: false,
                 loading: false,
                 lastFetchTs: Date.now(),
                 _optimisticMeds: optRef,
-            });
+            }));
 
             await setCache(CACHE_KEYS.HOME_DASHBOARD, {
                 patient: freshPatient,
@@ -376,10 +452,19 @@ const usePatientStore = create((set, get) => ({
                 const dt = new Date(todayDateStr + 'T12:00:00Z'); // noon UTC avoids DST issues
                 dt.setUTCDate(dt.getUTCDate() - i);
                 const dateStr = dt.toISOString().slice(0, 10);
+                const isToday = dateStr === todayDateStr;
+                let rate = 0;
+                if (isToday) {
+                    const totalMeds = mergedMeds.length;
+                    const takenMeds = mergedMeds.filter(m => m.taken).length;
+                    rate = totalMeds > 0 ? Math.round((takenMeds / totalMeds) * 100) : 0;
+                } else {
+                    rate = adherenceByDate[dateStr] ?? 0;
+                }
                 weeklyData.push({
                     day: dayNames[dt.getUTCDay()],
-                    p: adherenceByDate[dateStr] ?? 0,
-                    isToday: dateStr === todayDateStr,
+                    p: rate,
+                    isToday,
                 });
             }
 

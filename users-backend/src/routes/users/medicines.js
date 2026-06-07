@@ -71,8 +71,9 @@ function mapTimeToLegacyBucket(timeStr) {
  * BUG 3 FIX: mark-slot's fallback log creation was missing external meds.
  */
 async function buildMergedMeds(patient) {
-    const searchIds = [patient._id];
-    if (patient.profile_id) searchIds.push(patient.profile_id);
+    const searchIds = [];
+    if (patient._id) searchIds.push(patient._id.toString());
+    if (patient.profile_id) searchIds.push(patient.profile_id.toString());
     let query = Medication.find({ patientId: { $in: searchIds }, isActive: true });
     if (query && typeof query.lean === 'function') {
         query = query.lean();
@@ -88,7 +89,7 @@ async function buildMergedMeds(patient) {
     const seenNames = new Set();
 
     // 1. Add external (caller-managed) meds FIRST
-    for (const extMed of externalMeds) {
+    for (const extMed of (externalMeds || [])) {
         const name = extMed.name;
         if (name && !seenNames.has(name.toLowerCase())) {
             seenNames.add(name.toLowerCase());
@@ -433,7 +434,11 @@ router.put('/mark', authenticateSession, async (req, res) => {
         }
 
         const streakService = require('../../services/streakService');
-        streakService.evaluateAndUpdateStreak(patient._id).catch(e => logger.error('Streak Update Failed', { error: e.message, patientId: patient._id }));
+        await streakService.evaluateAndUpdateStreak(patient._id).catch(e => logger.error('Streak Update Failed', { error: e.message, patientId: patient._id }));
+
+        // Trigger health state recomputation
+        const { recomputeAndCacheHealthState } = require('../../services/patientHealthStateService');
+        recomputeAndCacheHealthState(patient._id).catch(e => logger.warn('Medication trigger recompute failed', { error: e.message }));
 
         res.json({ log });
     } catch (error) {
@@ -591,6 +596,10 @@ router.put('/mark-slot', authenticateSession, async (req, res) => {
             const streakService = require('../../services/streakService');
             await streakService.evaluateAndUpdateStreak(patient._id);
         }
+
+        // Trigger health state recomputation
+        const { recomputeAndCacheHealthState } = require('../../services/patientHealthStateService');
+        recomputeAndCacheHealthState(patient._id).catch(e => logger.warn('Medication slot trigger recompute failed', { error: e.message }));
 
         res.json({ success: true, log });
     } catch (error) {

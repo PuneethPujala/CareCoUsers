@@ -527,10 +527,29 @@ export default function MyCallerScreen({ navigation }) {
                     <ShieldCheck size={11} color={C.success} strokeWidth={2.5} />
                     <Text style={s.managerRoleText}>{t('caller.role_manager', { defaultValue: 'Care Manager' })}</Text>
                     <View style={s.dotSep} />
-                    <View style={s.availablePill}>
-                      <View style={s.availableDot} />
-                      <Text style={s.availableText}>{t('caller.available', { defaultValue: 'Available' })}</Text>
-                    </View>
+                    <View style={{ 
+                        flexDirection: 'row', 
+                        alignItems: 'center', 
+                        backgroundColor: manager.availability === 'available' ? '#D1FAE5' : manager.availability === 'away' ? '#FEF3C7' : manager.availability === 'busy' ? '#FEE2E2' : '#F1F5F9',
+                        paddingHorizontal: 8,
+                        paddingVertical: 2,
+                        borderRadius: 8,
+                      }}>
+                        <View style={{ 
+                          width: 6, 
+                          height: 6, 
+                          borderRadius: 3, 
+                          backgroundColor: manager.availability === 'available' ? '#10B981' : manager.availability === 'away' ? '#F59E0B' : manager.availability === 'busy' ? '#EF4444' : '#94A3B8',
+                          marginRight: 4 
+                        }} />
+                        <Text style={{ 
+                          fontSize: 10, 
+                          fontWeight: '700', 
+                          color: manager.availability === 'available' ? '#065F46' : manager.availability === 'away' ? '#92400E' : manager.availability === 'busy' ? '#991B1B' : '#475569' 
+                        }}>
+                          {manager.availability === 'available' ? 'Available' : manager.availability === 'away' ? 'Away' : manager.availability === 'busy' ? 'Busy' : 'Offline'}
+                        </Text>
+                      </View>
                   </View>
                 </View>
               </View>
@@ -715,9 +734,7 @@ export default function MyCallerScreen({ navigation }) {
                           <View style={[
                             s.sheetOnlineDot,
                             {
-                              backgroundColor: isManager 
-                                ? '#10B981' 
-                                : (selectedProfile?.availability === 'available' ? '#10B981' : selectedProfile?.availability === 'away' ? '#F59E0B' : selectedProfile?.availability === 'busy' ? '#EF4444' : '#94A3B8')
+                              backgroundColor: selectedProfile?.availability === 'available' ? '#10B981' : selectedProfile?.availability === 'away' ? '#F59E0B' : selectedProfile?.availability === 'busy' ? '#EF4444' : '#94A3B8'
                             }
                           ]} />
                         </View>

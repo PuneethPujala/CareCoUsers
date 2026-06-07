@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, Platform, ActivityIndicator, Animated, Pressable, Linking, Modal, TextInput, FlatList, Switch, LayoutAnimation, UIManager, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Platform, ActivityIndicator, Animated, Pressable, Linking, Modal, TextInput, FlatList, Switch, LayoutAnimation, UIManager, Image, RefreshControl } from 'react-native';
 
 const medsMealIllus = require('../../../assets/meds_meal_illus.jpg');
 const eatEarlyIllus = require('../../../assets/eat_early_illus.jpg');
@@ -99,6 +99,7 @@ export default function HealthProfileScreen({ navigation }) {
     const [visibleHistoryCount, setVisibleHistoryCount] = useState(3);
     const [completenessExpanded, setCompletenessExpanded] = useState(false);
     const [unreadCount, setUnreadCount] = useState(0);
+    const [refreshing, setRefreshing] = useState(false);
 
     useEffect(() => {
         if (isHealthSupported()) {
@@ -167,8 +168,12 @@ export default function HealthProfileScreen({ navigation }) {
 
     const loadProfile = async () => {
         try {
-            const { data } = await apiService.patients.getProfile();
-            setProfile(data);
+            const [profileRes, unreadRes] = await Promise.all([
+                apiService.patients.getProfile(),
+                apiService.patients.getNotificationsUnreadCount().catch(() => ({ data: { count: 0 } }))
+            ]);
+            setProfile(profileRes.data);
+            setUnreadCount(unreadRes.data?.count || 0);
         } catch (err) {
             console.warn('Failed to load health profile:', err.message);
             try {
@@ -181,6 +186,12 @@ export default function HealthProfileScreen({ navigation }) {
             setLoading(false);
         }
     };
+
+    const onRefresh = useCallback(async () => {
+        setRefreshing(true);
+        await loadProfile();
+        setRefreshing(false);
+    }, []);
 
     const hasAnimated = useRef(false);
 
@@ -628,18 +639,29 @@ export default function HealthProfileScreen({ navigation }) {
                 </View>
             </View>
 
-            <ScrollView contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
+            <ScrollView 
+                contentContainerStyle={s.scrollContent} 
+                showsVerticalScrollIndicator={false}
+                refreshControl={
+                    <RefreshControl 
+                        refreshing={refreshing} 
+                        onRefresh={onRefresh} 
+                        tintColor="#6366F1" 
+                        colors={["#6366F1"]} 
+                    />
+                }
+            >
 
                 {/* ── PROFILE COMPLETENESS BANNER (above health score) ── */}
                 <Animated.View style={anim(0)}>
-                    <Pressable 
-                        style={s.completeBanner} 
-                        onPress={() => {
-                            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-                            setCompletenessExpanded(!completenessExpanded);
-                        }}
-                    >
-                        <View style={{ flex: 1 }}>
+                    <View style={s.completeBanner}>
+                        <Pressable 
+                            onPress={() => {
+                                LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                                setCompletenessExpanded(!completenessExpanded);
+                            }}
+                            style={{ flex: 1 }}
+                        >
                             <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8, alignItems: 'center' }}>
                                 <Text style={s.completeBannerTitle}>{t('health_profile.profile_completeness', { defaultValue: 'Profile Completeness' })}</Text>
                                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -653,21 +675,35 @@ export default function HealthProfileScreen({ navigation }) {
                             {!completenessExpanded && completionPct < 100 && (
                                 <Text style={s.completeBannerSub}>{t('health_profile.tap_to_complete', { defaultValue: 'Tap to see what’s missing →' })}</Text>
                             )}
-                            {completenessExpanded && (
-                                <View style={s.checklistContainer}>
-                                    {[
-                                        { key: 'blood_type', label: t('health_profile.blood_type', { defaultValue: 'Blood Type' }), completed: profile?.blood_type && profile.blood_type !== 'unknown' },
-                                        { key: 'conditions', label: t('health_profile.current_conditions', { defaultValue: 'Current Conditions' }), completed: conditions.length > 0 },
-                                        { key: 'allergies', label: t('health_profile.allergies', { defaultValue: 'Allergies' }), completed: allergies.length > 0 },
-                                        { key: 'medical_history', label: t('health_profile.medical_history', { defaultValue: 'Medical History' }), completed: medical_history.length > 0 },
-                                        { key: 'medications', label: t('health_profile.medications', { defaultValue: 'Medications' }), completed: medications.length > 0 },
-                                        { key: 'vaccinations', label: t('health_profile.vaccinations', { defaultValue: 'Vaccinations' }), completed: vaccinations.length > 0 },
-                                        { key: 'lifestyle', label: t('health_profile.height_weight', { defaultValue: 'Height & Weight' }), completed: !!(lifestyle.height_cm && lifestyle.weight_kg) },
-                                        { key: 'trusted_contacts', label: t('caller.emergency_contact', { defaultValue: 'Emergency Contact' }), completed: !!(profile?.trusted_contacts?.length > 0) },
-                                        { key: 'gp', label: t('health_profile.primary_gp', { defaultValue: 'Primary GP' }), completed: !!gp.name },
-                                        { key: 'smoking', label: t('health_profile.smoking_status', { defaultValue: 'Smoking Status' }), completed: !!(lifestyle.smoking_status && lifestyle.smoking_status !== 'unknown') }
-                                    ].map(item => (
-                                        <View key={item.key} style={s.checklistItem}>
+                        </Pressable>
+                        {completenessExpanded && (
+                            <View style={[s.checklistContainer, { marginTop: 12 }]}>
+                                {[
+                                    { key: 'blood_type', label: t('health_profile.blood_type', { defaultValue: 'Blood Type' }), completed: profile?.blood_type && profile.blood_type !== 'unknown' },
+                                    { key: 'conditions', label: t('health_profile.current_conditions', { defaultValue: 'Current Conditions' }), completed: conditions.length > 0 },
+                                    { key: 'allergies', label: t('health_profile.allergies', { defaultValue: 'Allergies' }), completed: allergies.length > 0 },
+                                    { key: 'medical_history', label: t('health_profile.medical_history', { defaultValue: 'Medical History' }), completed: medical_history.length > 0 },
+                                    { key: 'medications', label: t('health_profile.medications', { defaultValue: 'Medications' }), completed: medications.length > 0 },
+                                    { key: 'vaccinations', label: t('health_profile.vaccinations', { defaultValue: 'Vaccinations' }), completed: vaccinations.length > 0 },
+                                    { key: 'lifestyle', label: t('health_profile.height_weight', { defaultValue: 'Height & Weight' }), completed: !!(lifestyle.height_cm && lifestyle.weight_kg) },
+                                    { key: 'trusted_contacts', label: t('caller.emergency_contact', { defaultValue: 'Emergency Contact' }), completed: !!(profile?.trusted_contacts?.length > 0) },
+                                    { key: 'gp', label: t('health_profile.primary_gp', { defaultValue: 'Primary GP' }), completed: !!gp.name },
+                                    { key: 'smoking', label: t('health_profile.smoking_status', { defaultValue: 'Smoking Status' }), completed: !!(lifestyle.smoking_status && lifestyle.smoking_status !== 'unknown') }
+                                ].map(item => {
+                                    const handleChecklistPress = () => {
+                                        if (item.key === 'blood_type') openModal('identity');
+                                        else if (item.key === 'conditions') openModal('condition');
+                                        else if (item.key === 'allergies') openModal('allergy');
+                                        else if (item.key === 'medical_history') openModal('history');
+                                        else if (item.key === 'medications') openModal('medication');
+                                        else if (item.key === 'vaccinations') openModal('vaccination');
+                                        else if (item.key === 'lifestyle') openModal('vitals');
+                                        else if (item.key === 'trusted_contacts') openModal('contact');
+                                        else if (item.key === 'gp') openModal('gp');
+                                        else if (item.key === 'smoking') openModal('habits');
+                                    };
+                                    return (
+                                        <Pressable key={item.key} style={s.checklistItem} onPress={handleChecklistPress}>
                                             {item.completed ? (
                                                 <CircleCheck size={14} color="#10B981" />
                                             ) : (
@@ -676,12 +712,12 @@ export default function HealthProfileScreen({ navigation }) {
                                             <Text style={[s.checklistText, item.completed && s.checklistTextCompleted]} numberOfLines={1}>
                                                 {item.label}
                                             </Text>
-                                        </View>
-                                    ))}
-                                </View>
-                            )}
-                        </View>
-                    </Pressable>
+                                        </Pressable>
+                                    );
+                                })}
+                            </View>
+                        )}
+                    </View>
                 </Animated.View>
 
                 {/* ── COMPACT HEALTH SCORE CARD (tappable) ── */}
@@ -696,50 +732,58 @@ export default function HealthProfileScreen({ navigation }) {
                                             <Info size={12} color="#64748B" />
                                         </Pressable>
                                     </View>
-                                <View style={s.dashScoreRow}>
-                                    <Text style={[s.dashScoreMain, { color: hsScore !== null ? hsColor : C.muted }]}>
-                                        {hsScore !== null ? hsScore : '—'}
-                                    </Text>
-                                    <Text style={s.dashScoreSub}>/ 100</Text>
-                                    {hsGrade !== '—' && (
-                                        <View style={[s.gradeChip, { backgroundColor: hsColor + '20', borderColor: hsColor }]}>
-                                            <Text style={[s.gradeChipTxt, { color: hsColor }]}>{hsGrade}</Text>
+                                    <View style={s.dashScoreRow}>
+                                        <Text style={[s.dashScoreMain, { color: hsScore !== null ? hsColor : C.muted }]}>
+                                            {hsScore !== null ? hsScore : '—'}
+                                        </Text>
+                                        <Text style={s.dashScoreSub}>/ 100</Text>
+                                        {hsGrade !== '—' && (
+                                            <View style={[s.gradeChip, { backgroundColor: hsColor + '20', borderColor: hsColor }]}>
+                                                <Text style={[s.gradeChipTxt, { color: hsColor }]}>{hsGrade}</Text>
+                                            </View>
+                                        )}
+                                    </View>
+                                    <View style={s.dashStatusRow}>
+                                        <ShieldCheck size={14} color={hsColor} />
+                                        <Text style={[s.dashStatusTxt, { color: hsColor }]}>{hsLabel}</Text>
+                                    </View>
+                                    {hsBracket && (
+                                        <View style={s.bracketTag}>
+                                            <Text style={s.bracketTagTxt}>{t('health_profile.adjusted_for', { defaultValue: 'Adjusted for age • {{bracket}}', bracket: bracketLabel }).replace('{{bracket}}', bracketLabel)}</Text>
                                         </View>
                                     )}
+                                    <Pressable 
+                                        style={({ pressed }) => [s.dashSyncRow, pressed && { opacity: 0.7 }]} 
+                                        onPress={(e) => {
+                                            e.stopPropagation();
+                                            handleWearableSync();
+                                        }}
+                                    >
+                                        <RefreshCw size={10} color={isSyncing ? C.primary : "#94A3B8"} style={isSyncing ? { transform: [{ rotate: '45deg' }] } : {}} />
+                                        <Text style={[s.dashSyncTxt, isSyncing && { color: C.primary }]}>
+                                            {isSyncing ? t('health_profile.syncing', { defaultValue: 'Syncing...' }) : lastSyncText}
+                                        </Text>
+                                    </Pressable>
                                 </View>
-                                <View style={s.dashStatusRow}>
-                                    <ShieldCheck size={14} color={hsColor} />
-                                    <Text style={[s.dashStatusTxt, { color: hsColor }]}>{hsLabel}</Text>
-                                </View>
-                                {hsBracket && (
-                                    <View style={s.bracketTag}>
-                                        <Text style={s.bracketTagTxt}>{t('health_profile.adjusted_for', { defaultValue: 'Adjusted for age • {{bracket}}', bracket: bracketLabel }).replace('{{bracket}}', bracketLabel)}</Text>
+                                <View style={s.dashCenter}>
+                                    <View style={s.ringWrap}>
+                                        <Svg width={88} height={88} viewBox="0 0 88 88">
+                                            <SvgCircle cx="44" cy="44" r="38" stroke="#EEF2FF" strokeWidth="8" fill="transparent" />
+                                            <SvgCircle
+                                                cx="44" cy="44" r="38"
+                                                stroke={hsScore !== null ? hsColor : '#CBD5E1'}
+                                                strokeWidth="8"
+                                                fill="transparent"
+                                                strokeDasharray={`${2 * Math.PI * 38}`}
+                                                strokeDashoffset={`${2 * Math.PI * 38 * (1 - (hsScore ?? 0) / 100)}`}
+                                                strokeLinecap="round"
+                                                transform="rotate(-90 44 44)"
+                                            />
+                                        </Svg>
+                                        <HeartPulse size={24} color={hsScore !== null ? hsColor : '#94A3B8'} style={{ position: 'absolute' }} />
                                     </View>
-                                )}
-                                <View style={s.dashSyncRow}>
-                                    <RefreshCw size={10} color="#94A3B8" />
-                                    <Text style={s.dashSyncTxt}>{lastSyncText}</Text>
                                 </View>
                             </View>
-                            <View style={s.dashCenter}>
-                                <View style={s.ringWrap}>
-                                    <Svg width={88} height={88} viewBox="0 0 88 88">
-                                        <SvgCircle cx="44" cy="44" r="38" stroke="#EEF2FF" strokeWidth="8" fill="transparent" />
-                                        <SvgCircle
-                                            cx="44" cy="44" r="38"
-                                            stroke={hsScore !== null ? hsColor : '#CBD5E1'}
-                                            strokeWidth="8"
-                                            fill="transparent"
-                                            strokeDasharray={`${2 * Math.PI * 38}`}
-                                            strokeDashoffset={`${2 * Math.PI * 38 * (1 - (hsScore ?? 0) / 100)}`}
-                                            strokeLinecap="round"
-                                            transform="rotate(-90 44 44)"
-                                        />
-                                    </Svg>
-                                    <HeartPulse size={24} color={hsScore !== null ? hsColor : '#94A3B8'} style={{ position: 'absolute' }} />
-                                </View>
-                            </View>
-                        </View>
                             {/* Tap hint */}
                             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingTop: 14, borderTopWidth: 1, borderTopColor: '#F1F5F9' }}>
                                 <Text style={{ fontSize: 12, color: '#94A3B8', ...FONT.bold }}>Tap for full breakdown &amp; insights</Text>
@@ -771,6 +815,27 @@ export default function HealthProfileScreen({ navigation }) {
                             ))}
                         </View>
                     </Pressable>
+                </Animated.View>
+
+                {/* ── IDENTITY BENTO ── */}
+                <Animated.View style={anim(1.5)}>
+                    <View style={s.bentoGrid}>
+                        <Pressable style={s.bentoCard} onPress={() => openModal('identity')}>
+                            <View style={[s.bentoCircle, { backgroundColor: '#FEE2E2' }]}><Droplet size={18} color="#EF4444" /></View>
+                            <Text style={s.bentoVal}>{profile?.blood_type && profile.blood_type !== 'unknown' ? profile.blood_type : '—'}</Text>
+                            <Text style={s.bentoLbl}>{t('health_profile.blood_type', { defaultValue: 'Blood Type' }).toUpperCase()}</Text>
+                        </Pressable>
+                        <Pressable style={s.bentoCard} onPress={() => openModal('vitals')}>
+                            <View style={[s.bentoCircle, { backgroundColor: '#E0F2FE' }]}><Activity size={18} color="#0EA5E9" /></View>
+                            <Text style={s.bentoVal}>{lifestyle.height_cm ? `${lifestyle.height_cm} cm` : '—'}</Text>
+                            <Text style={s.bentoLbl}>{t('health_profile.height', { defaultValue: 'Height' }).toUpperCase()}</Text>
+                        </Pressable>
+                        <Pressable style={s.bentoCard} onPress={() => openModal('vitals')}>
+                            <View style={[s.bentoCircle, { backgroundColor: '#D1FAE5' }]}><Activity size={18} color="#10B981" /></View>
+                            <Text style={s.bentoVal}>{lifestyle.weight_kg ? `${lifestyle.weight_kg} kg` : '—'}</Text>
+                            <Text style={s.bentoLbl}>{t('health_profile.weight', { defaultValue: 'Weight' }).toUpperCase()}</Text>
+                        </Pressable>
+                    </View>
                 </Animated.View>
 
                 {/* ── STACKED CARDS ── */}
@@ -847,9 +912,9 @@ export default function HealthProfileScreen({ navigation }) {
                                     <Text style={[s.wellSub, { color: '#10B981' }]}>{habitLabel}</Text>
                                 </Pressable>
                                 <Pressable style={[s.wellBox, { borderColor: '#D1FAE5' }]} onPress={() => openModal('activity')}>
-                                    <Text style={[s.wellVal, { color: '#10B981' }]} numberOfLines={1} adjustsFontSizeToFit>{trendLabel}</Text>
-                                    <Text style={s.wellLbl} numberOfLines={1} adjustsFontSizeToFit>{t('health_profile.conditions', { defaultValue: 'Conditions' })}</Text>
-                                    <Text style={[s.wellSub, { color: '#10B981' }]} numberOfLines={1} adjustsFontSizeToFit>{trendSub}</Text>
+                                    <Text style={[s.wellVal, { color: '#10B981' }]} numberOfLines={1} adjustsFontSizeToFit>{lifestyle.mobility_level ? (lifestyle.mobility_level.charAt(0).toUpperCase() + lifestyle.mobility_level.slice(1)) : '—'}</Text>
+                                    <Text style={s.wellLbl} numberOfLines={1} adjustsFontSizeToFit>{t('health_profile.mobility', { defaultValue: 'Mobility' })}</Text>
+                                    <Text style={[s.wellSub, { color: '#10B981' }]} numberOfLines={1} adjustsFontSizeToFit>{lifestyle.exercise_frequency ? t(`health_profile.intensity_${lifestyle.exercise_frequency}`, { defaultValue: lifestyle.exercise_frequency.charAt(0).toUpperCase() + lifestyle.exercise_frequency.slice(1) }) : '—'}</Text>
                                 </Pressable>
                             </View>
                         </View>
@@ -970,7 +1035,21 @@ export default function HealthProfileScreen({ navigation }) {
                             <View style={s.gridHeader}>
                                 <View style={[s.gridIconWrap, { backgroundColor: '#E0F2FE' }]}><Users size={16} color="#3B82F6" /></View>
                                 <Text style={s.gridTitle}>{t('health_profile.care_network', { defaultValue: 'Care Network' })}</Text>
-                                <Pressable style={s.gridAddBtn} onPress={() => openModal('gp')} hitSlop={10}>
+                                <Pressable 
+                                    style={s.gridAddBtn} 
+                                    onPress={() => {
+                                        AlertManager.alert(
+                                            t('health_profile.add_to_network', { defaultValue: 'Add to Care Network' }),
+                                            t('health_profile.add_network_desc', { defaultValue: 'Choose who you would like to add' }),
+                                            [
+                                                { text: t('health_profile.primary_doctor', { defaultValue: 'Primary Doctor' }), onPress: () => openModal('gp') },
+                                                { text: t('caller.emergency_contact', { defaultValue: 'Emergency Contact' }), onPress: () => openModal('contact') },
+                                                { text: t('common.cancel', { defaultValue: 'Cancel' }), style: 'cancel' }
+                                            ]
+                                        );
+                                    }} 
+                                    hitSlop={10}
+                                >
                                     <Plus size={16} color="#3B82F6" />
                                 </Pressable>
                             </View>
@@ -989,10 +1068,10 @@ export default function HealthProfileScreen({ navigation }) {
                                 )}
                                 {profile?.trusted_contacts?.filter(c => c.is_emergency).map((c, i) => (
                                     <View key={'c'+i} style={[s.netRow, { marginTop: 10 }]}>
-                                        <View style={{ flex: 1, paddingRight: 6 }}>
+                                        <Pressable style={{ flex: 1, paddingRight: 6 }} onPress={() => openModal('contact', c)}>
                                             <Text style={s.netName} numberOfLines={1}>{c.name}</Text>
                                             <Text style={s.netRole}>{t('health_profile.emergency_contact', { defaultValue: 'Emergency Contact' })}</Text>
-                                        </View>
+                                        </Pressable>
                                         <Pressable style={[s.netBtn, { backgroundColor: '#FEF2F2', borderColor: '#FECACA' }]} onPress={() => Linking.openURL(`tel:${c.phone}`)}>
                                             <Siren size={12} color="#EF4444" style={{ marginRight: 4 }} />
                                             <Text style={[s.netBtnTxt, { color: '#EF4444' }]}>{t('health_profile.sos', { defaultValue: 'SOS' })}</Text>
@@ -1253,14 +1332,14 @@ export default function HealthProfileScreen({ navigation }) {
                 {editingType === 'history' && (
                     <>
                         <View style={s.formGroup}><SmartInput label={t('health_profile.event_surgery_lbl', { defaultValue: 'Event / Surgery / Diagnosis *' })} value={formState.event} onChangeText={(t) => setFormState({ ...formState, event: t })} placeholder={t('health_profile.event_placeholder', { defaultValue: 'e.g. Knee Replacement' })} /></View>
-                        <View style={s.formGroup}><Text style={s.formLabel}>{t('common.date', { defaultValue: 'Date *' })}</Text><Pressable style={s.input} onPress={() => { setDatePickerField('date'); setShowDatePicker(true); }}><Text style={{ color: formState.date ? C.dark : C.muted, fontSize: 15 }}>{formState.date ? new Date(formState.date).toLocaleDateString(t('common.locale_date', { defaultValue: 'en-US' }), { year: 'numeric', month: 'short', day: 'numeric' }) : t('common.select_date', { defaultValue: 'Select date' })}</Text></Pressable></View>
+                        <View style={s.formGroup}><Text style={s.formLabel}>{t('common.date', { defaultValue: 'Date *' })}</Text><Pressable style={[s.input, { justifyContent: 'center' }]} onPress={() => { setDatePickerField('date'); setShowDatePicker(true); }}><Text style={{ color: formState.date ? C.dark : C.muted, fontSize: 15 }}>{formState.date ? new Date(formState.date).toLocaleDateString(t('common.locale_date', { defaultValue: 'en-US' }), { year: 'numeric', month: 'short', day: 'numeric' }) : t('common.select_date', { defaultValue: 'Select date' })}</Text></Pressable></View>
                         <View style={s.formGroup}><SmartInput label={t('health_profile.detailed_notes', { defaultValue: 'Detailed Notes' })} variant="multiline" multiline value={formState.notes} onChangeText={(t) => setFormState({ ...formState, notes: t })} placeholder={t('health_profile.surgery_notes_placeholder', { defaultValue: 'How did the procedure go? Who was the doctor?' })} /></View>
                     </>
                 )}
                 {editingType === 'vaccination' && (
                     <>
                         <View style={s.formGroup}><SmartInput label={t('health_profile.vaccine_name', { defaultValue: 'Vaccine Name *' })} value={formState.name} onChangeText={(t) => setFormState({ ...formState, name: t })} placeholder={t('health_profile.vaccine_placeholder', { defaultValue: 'e.g. Influenza, COVID-19' })} /></View>
-                        <View style={s.formGroup}><Text style={s.formLabel}>{t('health_profile.date_given', { defaultValue: 'Date Given *' })}</Text><Pressable style={s.input} onPress={() => { setDatePickerField('date_given'); setShowDatePicker(true); }}><Text style={{ color: formState.date_given ? C.dark : C.muted, fontSize: 15 }}>{formState.date_given ? new Date(formState.date_given).toLocaleDateString(t('common.locale_date', { defaultValue: 'en-US' }), { year: 'numeric', month: 'short', day: 'numeric' }) : t('common.select_date', { defaultValue: 'Select date' })}</Text></Pressable></View>
+                        <View style={s.formGroup}><Text style={s.formLabel}>{t('health_profile.date_given', { defaultValue: 'Date Given *' })}</Text><Pressable style={[s.input, { justifyContent: 'center' }]} onPress={() => { setDatePickerField('date_given'); setShowDatePicker(true); }}><Text style={{ color: formState.date_given ? C.dark : C.muted, fontSize: 15 }}>{formState.date_given ? new Date(formState.date_given).toLocaleDateString(t('common.locale_date', { defaultValue: 'en-US' }), { year: 'numeric', month: 'short', day: 'numeric' }) : t('common.select_date', { defaultValue: 'Select date' })}</Text></Pressable></View>
                     </>
                 )}
                 {editingType === 'appointment' && (
@@ -1753,94 +1832,118 @@ export default function HealthProfileScreen({ navigation }) {
                                                 <Text style={{ fontSize: 20, ...FONT.heavy, color: '#0F172A' }}>{healthAgeVal} Years</Text>
                                             </View>
                                             <View style={{
-                                                backgroundColor: healthAgeDiff <= 0 ? '#ECFDF5' : '#FEF2F2',
+                                                backgroundColor: healthAgeDiff === 0 ? '#F1F5F9' : (healthAgeDiff < 0 ? '#ECFDF5' : '#FEF2F2'),
                                                 paddingHorizontal: 10,
                                                 paddingVertical: 6,
                                                 borderRadius: 12,
                                             }}>
-                                                <Text style={{ fontSize: 12, ...FONT.bold, color: healthAgeDiff <= 0 ? '#10B981' : '#EF4444' }}>
-                                                    {healthAgeDiff <= 0 ? `${Math.abs(healthAgeDiff)} years younger` : `${healthAgeDiff} years older`}
+                                                <Text style={{ fontSize: 12, ...FONT.bold, color: healthAgeDiff === 0 ? '#475569' : (healthAgeDiff < 0 ? '#10B981' : '#EF4444') }}>
+                                                    {healthAgeDiff === 0 ? 'Same as actual age' : (healthAgeDiff < 0 ? `${Math.abs(healthAgeDiff)} years younger` : `${healthAgeDiff} years older`)}
                                                 </Text>
                                             </View>
                                         </View>
                                     )}
 
                                     {/* ── SECTION 3: AI HEALTH COACH CARD ── */}
-                                    <View style={{
-                                        backgroundColor: '#EEF2FF',
-                                        borderRadius: 24,
-                                        padding: 20,
-                                        marginBottom: 20,
-                                        borderWidth: 1.5,
-                                        borderColor: '#E0E7FF',
-                                        position: 'relative',
-                                        overflow: 'hidden',
-                                    }}>
-                                        <Sparkles size={110} color="#6366F1" style={{ position: 'absolute', right: -30, bottom: -30, opacity: 0.04 }} />
+                                    {(() => {
+                                        // Determine which illustration to use for the coach card based on keywords
+                                        let coachIllus = medsMealIllus; // default fallback
+                                        const actionLower = coachAction.toLowerCase();
+                                        if (actionLower.includes('early') || actionLower.includes('fasting') || actionLower.includes('dinner') || actionLower.includes('bed') || actionLower.includes('hour')) {
+                                            coachIllus = eatEarlyIllus;
+                                        } else if (actionLower.includes('rice') || actionLower.includes('portion') || actionLower.includes('carb') || actionLower.includes('diet') || actionLower.includes('sugar') || actionLower.includes('meal')) {
+                                            coachIllus = ricePortionIllus;
+                                        } else if (actionLower.includes('med') || actionLower.includes('take') || actionLower.includes('pill') || actionLower.includes('tablets')) {
+                                            coachIllus = medsMealIllus;
+                                        }
                                         
-                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 }}>
-                                            <Sparkles size={16} color="#6366F1" />
-                                            <Text style={{ fontSize: 12, ...FONT.heavy, color: '#6366F1', letterSpacing: 0.8 }}>AI HEALTH COACH</Text>
-                                            {topTip && (
-                                                <View style={{
-                                                    backgroundColor: '#E0E7FF',
-                                                    paddingHorizontal: 8,
-                                                    paddingVertical: 2,
-                                                    borderRadius: 8,
-                                                    marginLeft: 'auto',
-                                                }}>
-                                                    <Text style={{ fontSize: 9, ...FONT.bold, color: '#4F46E5' }}>{(topTip.impact || 'TIP').toUpperCase()}</Text>
-                                                </View>
-                                            )}
-                                        </View>
+                                        return (
+                                            <View style={{
+                                                backgroundColor: '#EEF2FF',
+                                                borderRadius: 24,
+                                                borderWidth: 1.5,
+                                                borderColor: '#E0E7FF',
+                                                marginBottom: 20,
+                                                position: 'relative',
+                                                overflow: 'hidden',
+                                            }}>
+                                                <Image 
+                                                    source={coachIllus} 
+                                                    style={{ 
+                                                        width: '100%', 
+                                                        height: 140, 
+                                                        resizeMode: 'cover',
+                                                        borderTopLeftRadius: 22,
+                                                        borderTopRightRadius: 22,
+                                                    }} 
+                                                />
+                                                <View style={{ padding: 20 }}>
+                                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+                                                        <Sparkles size={16} color="#6366F1" />
+                                                        <Text style={{ fontSize: 12, ...FONT.heavy, color: '#6366F1', letterSpacing: 0.8 }}>AI HEALTH COACH</Text>
+                                                        {topTip && (
+                                                            <View style={{
+                                                                backgroundColor: '#E0E7FF',
+                                                                paddingHorizontal: 8,
+                                                                paddingVertical: 2,
+                                                                borderRadius: 8,
+                                                                marginLeft: 'auto',
+                                                            }}>
+                                                                <Text style={{ fontSize: 9, ...FONT.bold, color: '#4F46E5' }}>{(topTip.impact || 'TIP').toUpperCase()}</Text>
+                                                            </View>
+                                                        )}
+                                                    </View>
 
-                                        <Text style={{ fontSize: 16, ...FONT.bold, color: '#0F172A', lineHeight: 22, marginBottom: 4 }}>
-                                            {coachAction}
-                                        </Text>
-                                        {topTip?.body && (
-                                            <Text style={{ fontSize: 13, ...FONT.medium, color: '#475569', lineHeight: 18, marginBottom: 12 }}>
-                                                {topTip.body}
-                                            </Text>
-                                        )}
-
-                                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
-                                            {hasScore && (
-                                                <View style={{
-                                                    backgroundColor: '#ECFDF5',
-                                                    paddingHorizontal: 12,
-                                                    paddingVertical: 6,
-                                                    borderRadius: 12,
-                                                }}>
-                                                    <Text style={{ fontSize: 12, ...FONT.heavy, color: '#10B981', letterSpacing: 0.2 }}>
-                                                        {coachImpact} Score Impact
+                                                    <Text style={{ fontSize: 16, ...FONT.bold, color: '#0F172A', lineHeight: 22, marginBottom: 4 }}>
+                                                        {coachAction}
                                                     </Text>
+                                                    {topTip?.body && (
+                                                        <Text style={{ fontSize: 13, ...FONT.medium, color: '#475569', lineHeight: 18, marginBottom: 12 }}>
+                                                            {topTip.body}
+                                                        </Text>
+                                                    )}
+
+                                                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
+                                                        {hasScore && (
+                                                            <View style={{
+                                                                backgroundColor: '#ECFDF5',
+                                                                paddingHorizontal: 12,
+                                                                paddingVertical: 6,
+                                                                borderRadius: 12,
+                                                            }}>
+                                                                <Text style={{ fontSize: 12, ...FONT.heavy, color: '#10B981', letterSpacing: 0.2 }}>
+                                                                    {coachImpact} Score Impact
+                                                                </Text>
+                                                            </View>
+                                                        )}
+                                                        <Pressable
+                                                            onPress={() => { 
+                                                                setShowScoreInfo(false); 
+                                                                navigation.navigate('Chatbot', { 
+                                                                    initialMessage: coachQuestion,
+                                                                    healthContext: {
+                                                                        score: activeScoreVal,
+                                                                        grade: hsGrade,
+                                                                        label: scoreStatus,
+                                                                        weakestDriver: weakest?.label || 'General',
+                                                                        weakestScore: weakest?.pct ?? 0,
+                                                                        projectedBoost,
+                                                                        projectedScore,
+                                                                        suggestedAction: coachAction
+                                                                    }
+                                                                }); 
+                                                            }}
+                                                            hitSlop={8}
+                                                            style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 4, opacity: pressed ? 0.7 : 1 }]}
+                                                        >
+                                                            <Text style={{ fontSize: 12, ...FONT.bold, color: '#4F46E5' }}>{coachCtaText}</Text>
+                                                            <ChevronRight size={14} color="#4F46E5" />
+                                                        </Pressable>
+                                                    </View>
                                                 </View>
-                                            )}
-                                            <Pressable
-                                                onPress={() => { 
-                                                    setShowScoreInfo(false); 
-                                                    navigation.navigate('Chatbot', { 
-                                                        initialMessage: coachQuestion,
-                                                        healthContext: {
-                                                            score: activeScoreVal,
-                                                            grade: hsGrade,
-                                                            label: scoreStatus,
-                                                            weakestDriver: weakest?.label || 'General',
-                                                            weakestScore: weakest?.pct ?? 0,
-                                                            projectedBoost,
-                                                            projectedScore,
-                                                            suggestedAction: coachAction
-                                                        }
-                                                    }); 
-                                                }}
-                                                hitSlop={8}
-                                                style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 4, opacity: pressed ? 0.7 : 1 }]}
-                                            >
-                                                <Text style={{ fontSize: 12, ...FONT.bold, color: '#4F46E5' }}>{coachCtaText}</Text>
-                                                <ChevronRight size={14} color="#4F46E5" />
-                                            </Pressable>
-                                        </View>
-                                    </View>
+                                            </View>
+                                        );
+                                    })()}
 
                                     {/* ── SECTION 4: OPPORTUNITY CARDS ── */}
                                     <View style={{ marginBottom: 20 }}>

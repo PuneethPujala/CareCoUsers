@@ -373,6 +373,8 @@ export default function AdherenceScreen({ navigation }) {
         await Promise.all([
             fetchAdherenceDetails(),
             fetchAdherenceRecap(activeRecapTabRef.current),
+            usePatientStore.getState().fetchDashboard(true).catch(() => {}),
+            usePatientStore.getState().fetchMedications().catch(() => {})
         ]);
         setRefreshing(false);
     };

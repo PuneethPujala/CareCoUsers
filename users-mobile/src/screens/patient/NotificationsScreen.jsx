@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useRef } from 'react';
 import {
     View, Text, StyleSheet, ScrollView, Platform, Pressable,
-    ActivityIndicator, Animated, StatusBar,
+    ActivityIndicator, Animated, StatusBar, RefreshControl,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import {
@@ -60,6 +60,7 @@ export default function NotificationsScreen({ navigation }) {
     // Ref so we can check staleness inside async callbacks without stale closures
     const notificationsRef = useRef([]);
     const [showBatteryPrompt, setShowBatteryPrompt] = useState(false);
+    const [refreshing, setRefreshing] = useState(false);
 
     // ─── Fetch all notification data ─────────────────────────────────────────
     const fetchContext = useCallback(async () => {
@@ -275,6 +276,12 @@ export default function NotificationsScreen({ navigation }) {
         }
     }, []);
 
+    const onRefresh = useCallback(async () => {
+        setRefreshing(true);
+        await fetchContext();
+        setRefreshing(false);
+    }, [fetchContext]);
+
     const checkBatteryPrompt = useCallback(async () => {
         if (Platform.OS !== 'android') return;
         try {
@@ -446,6 +453,14 @@ export default function NotificationsScreen({ navigation }) {
                 style={s.list}
                 contentContainerStyle={s.listContent}
                 showsVerticalScrollIndicator={false}
+                refreshControl={
+                    <RefreshControl
+                        refreshing={refreshing}
+                        onRefresh={onRefresh}
+                        tintColor="#6366F1"
+                        colors={["#6366F1"]}
+                    />
+                }
             >
                 {/* ── Battery Optimization Banner (Android Only) ── */}
                 {showBatteryPrompt && (

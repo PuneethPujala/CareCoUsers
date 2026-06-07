@@ -32,28 +32,10 @@ router.use((req, res, next) => {
  */
 async function refreshHealthScoreCache(patientId) {
     try {
-        const patient = await Patient.findById(patientId);
-        if (!patient) return;
-
-        // 7-day adherence rate
-        const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-        const logs = await MedicineLog.find({ patient_id: patientId, date: { $gte: weekAgo } });
-        let adherenceRate = null;
-        if (logs.length > 0) {
-            const taken = logs.filter(l => l.status === 'taken').length;
-            adherenceRate = (taken / logs.length) * 100;
-        }
-
-        // Latest vitals
-        const latestVital = await VitalLog.findOne({ patient_id: patientId }).sort({ recorded_at: -1 }).lean();
-
-        const result = computeHealthScore(patient.toObject(), adherenceRate, latestVital);
-        await Patient.updateOne(
-            { _id: patientId },
-            { $set: { healthScoreCache: result.score, healthScoreUpdatedAt: new Date() } }
-        );
+        const { recomputeAndCacheHealthState } = require('../../services/patientHealthStateService');
+        await recomputeAndCacheHealthState(patientId);
     } catch (err) {
-        logger.warn('Failed to refresh health score cache', { error: err.message, patientId });
+        logger.warn('Failed to refresh unified health state cache', { error: err.message, patientId });
     }
 }
 
@@ -925,7 +907,7 @@ router.get('/me/caller', authenticateSession, async (req, res) => {
         if (patient.assigned_manager_id) {
             const Profile = require('../../models/Profile');
             manager = await Profile.findById(patient.assigned_manager_id)
-                .select('fullName phone email profile_photo_url languages_spoken experience_years');
+                .select('fullName phone email profile_photo_url languages_spoken experience_years last_active_at');
         }
 
         if (!caller) {
@@ -991,7 +973,13 @@ router.get('/me/caller', authenticateSession, async (req, res) => {
             }
         }
 
-        res.json({ caller: mappedCaller || null, manager: manager || null });
+        let mappedManager = null;
+        if (manager) {
+            mappedManager = typeof manager.toJSON === 'function' ? manager.toJSON() : { ...manager };
+            mappedManager.availability = getDerivedAvailability(manager);
+        }
+
+        res.json({ caller: mappedCaller || null, manager: mappedManager || null });
     } catch (error) {
         logger.error('Get assigned caller error', { error: error.message, patientId: req.user?.id });
         res.status(500).json({ error: 'Failed to get assigned caller' });
@@ -1603,6 +1591,10 @@ router.post('/me/vitals', authenticateSession, async (req, res) => {
         });
         await vitalLog.save();
         logger.info('Vitals logged', { patientId: patient._id, source: vitalLog.source });
+        
+        // Trigger health state recomputation
+        refreshHealthScoreCache(patient._id).catch(e => logger.warn('Vitals trigger recompute state failed', { error: e.message }));
+
         res.status(201).json({ message: 'Vitals logged successfully', vitals: vitalLog });
     } catch (error) {
         logger.error('Log vitals error', { error: error.message, patientId: req.user?.id });
@@ -1905,21 +1897,92 @@ router.get('/me/dashboard', authenticateSession, async (req, res) => {
         const adherence = {
             streak,
             weeklyRate: weeklyTotal > 0 ? Math.round((weeklyTaken / weeklyTotal) * 100) : 0,
+            daily_log: dailyLog,
         };
 
         const vitals = todayVitals.length > 0 ? todayVitals[0] : null;
+        const latestVital = vitalsHistory.length > 0 ? vitalsHistory[vitalsHistory.length - 1] : null;
+        let adherenceRate = null;
+        if (weeklyTotal > 0) {
+            adherenceRate = (weeklyTaken / weeklyTotal) * 100;
+        }
+
+        let healthState = patient.patient_health_state;
+        if (!healthState) {
+            const { recomputeAndCacheHealthState } = require('../../services/patientHealthStateService');
+            healthState = await recomputeAndCacheHealthState(patient._id);
+        }
 
         res.json({
-            patient: patientObj,
+            patient: { ...patientObj, patient_health_state: healthState },
             vitals,
             vitalsHistory,
             meds: todayMedLog,
             aiPrediction: aiPrediction || null,
             adherence,
+            patient_health_state: healthState,
         });
     } catch (error) {
         logger.error('Dashboard aggregate error', { error: error.message, patientId: req.user?.id });
         res.status(500).json({ error: 'Failed to load dashboard' });
+    }
+});
+
+// ─── Log Daily Mood ─────────────────────────────────────────────────────────
+router.post('/me/mood', authenticateSession, async (req, res) => {
+    try {
+        const { value } = req.body;
+        if (!['sad', 'okay', 'good', 'great'].includes(value)) {
+            return res.status(400).json({ error: 'Invalid mood value' });
+        }
+
+        const patient = await getOrCreatePatient(req);
+        const timezone = patient.timezone || 'Asia/Kolkata';
+        
+        // Find if they already logged mood today
+        const todayStr = moment().tz(timezone).format('YYYY-MM-DD');
+        const todayStart = new Date(`${todayStr}T00:00:00.000Z`);
+        const todayEnd = new Date(`${todayStr}T23:59:59.999Z`);
+
+        let existingIdx = (patient.moodHistory || []).findIndex(
+            m => m.date >= todayStart && m.date <= todayEnd
+        );
+
+        if (existingIdx !== -1) {
+            patient.moodHistory[existingIdx].value = value;
+            patient.moodHistory[existingIdx].mood = value;
+            patient.moodHistory[existingIdx].source = 'patient';
+            patient.moodHistory[existingIdx].date = new Date(); // update timestamp
+        } else {
+            patient.moodHistory.push({ value, mood: value, source: 'patient', date: new Date() });
+        }
+
+        await patient.save();
+
+        // Refresh health score cache
+        await refreshHealthScoreCache(patient._id);
+
+        const updated = await Patient.findById(patient._id).lean();
+        res.json({ success: true, patient: updated });
+    } catch (err) {
+        logger.error('Mood logging error', { error: err.message, patientId: req.user?.id });
+        res.status(500).json({ error: 'Failed to log mood' });
+    }
+});
+
+// ─── Get Unified Health State ───────────────────────────────────────────────
+router.get('/me/health-state', authenticateSession, async (req, res) => {
+    try {
+        const patient = await getOrCreatePatient(req);
+        let state = patient.patient_health_state;
+        if (!state) {
+            const { recomputeAndCacheHealthState } = require('../../services/patientHealthStateService');
+            state = await recomputeAndCacheHealthState(patient._id);
+        }
+        res.json(state);
+    } catch (error) {
+        logger.error('Get health state error', { error: error.message, patientId: req.user?.id });
+        res.status(500).json({ error: 'Failed to retrieve patient health state' });
     }
 });
 

@@ -234,27 +234,6 @@ export default function CompanionAlertsScreen() {
                         <ChevronLeft color={C.dark} size={28} />
                     </Pressable>
                     <View style={{ flex: 1 }}>
-                        <View style={{ flexDirection: 'row', gap: 8, marginBottom: 4 }}>
-                            <Pressable 
-                                onPress={() => {
-                                    const phone = data?.patient?.phone;
-                                    if (phone) {
-                                        Linking.openURL(`https://wa.me/${phone.replace(/[^0-9]/g, '')}`);
-                                    } else {
-                                        AlertManager.alert('No Phone Number', `${data.patient.name} does not have a phone number configured.`);
-                                    }
-                                }} 
-                                style={[styles.miniCommIcon, { backgroundColor: '#128C7E' }]}
-                            >
-                                <MessageSquare color="#FFF" size={10} strokeWidth={3} />
-                            </Pressable>
-                            <Pressable 
-                                onPress={handleCall} 
-                                style={[styles.miniCommIcon, { backgroundColor: '#3B82F6' }]}
-                            >
-                                <Phone color="#FFF" size={10} strokeWidth={3} />
-                            </Pressable>
-                        </View>
                         <Text style={styles.headerSub}>Alert Center</Text>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                             <Text style={styles.title} numberOfLines={1} adjustsFontSizeToFit>{data.patient.name}'s Alerts</Text>
@@ -266,13 +245,37 @@ export default function CompanionAlertsScreen() {
                         </View>
                     </View>
                 </View>
-                <Pressable 
-                    style={styles.bellButton}
-                    onPress={() => loadData()}
-                >
-                    <Bell color={C.dark} size={20} />
-                    {alerts.length > 0 && <View style={styles.bellDot} />}
-                </Pressable>
+                
+                {/* Header Actions Row */}
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <Pressable 
+                        onPress={() => {
+                            const phone = data?.patient?.phone;
+                            if (phone) {
+                                Linking.openURL(`https://wa.me/${phone.replace(/[^0-9]/g, '')}`);
+                            } else {
+                                AlertManager.alert('No Phone Number', `${data.patient.name} does not have a phone number configured.`);
+                            }
+                        }} 
+                        style={[styles.miniCommIcon, { backgroundColor: '#ECFDF5' }]}
+                    >
+                        <MessageSquare color="#10B981" size={18} strokeWidth={2.5} />
+                    </Pressable>
+                    <Pressable 
+                        onPress={handleCall} 
+                        style={[styles.miniCommIcon, { backgroundColor: '#EFF6FF' }]}
+                    >
+                        <Phone color="#3B82F6" size={18} strokeWidth={2.5} />
+                    </Pressable>
+                    
+                    <Pressable 
+                        style={styles.bellButton}
+                        onPress={() => loadData()}
+                    >
+                        <Bell color={C.dark} size={20} />
+                        {alerts.length > 0 && <View style={styles.bellDot} />}
+                    </Pressable>
+                </View>
             </View>
 
             <ScrollView 
@@ -308,7 +311,7 @@ export default function CompanionAlertsScreen() {
                                     <Image 
                                         source={require('../../../assets/calendar_alert_illus.jpg')} 
                                         style={styles.calendarIllusImage}
-                                        resizeMode="contain"
+                                        resizeMode="cover"
                                     />
                                 </View>
                                 
@@ -530,20 +533,20 @@ export default function CompanionAlertsScreen() {
                                             )}
                                         </View>
 
-                                        <View style={{ flex: 1, gap: 2 }}>
-                                            <Text style={styles.timelineItemTitle}>{h.title}</Text>
+                                        <View style={{ flex: 1, gap: 4 }}>
+                                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                                                <Text style={styles.timelineItemTitle}>{h.title}</Text>
+                                                <View style={[styles.timelineBadge, { backgroundColor: badgeBg }]}>
+                                                    <Text style={[styles.timelineBadgeText, { color: badgeColor }]}>
+                                                        {h.badge || (isAlert ? 'High Priority' : isSuccess ? 'Success' : 'Info')}
+                                                    </Text>
+                                                </View>
+                                            </View>
                                             <Text style={styles.timelineItemDesc}>{h.desc}</Text>
                                             {h.subText && <Text style={styles.timelineItemSub}>{h.subText}</Text>}
                                         </View>
 
-                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                                            <View style={[styles.timelineBadge, { backgroundColor: badgeBg }]}>
-                                                <Text style={[styles.timelineBadgeText, { color: badgeColor }]}>
-                                                    {h.badge || (isAlert ? 'High Priority' : isSuccess ? 'Success' : 'Info')}
-                                                </Text>
-                                            </View>
-                                            <ChevronRight color="#94A3B8" size={16} />
-                                        </View>
+                                        <ChevronRight color="#94A3B8" size={16} />
                                     </Pressable>
                                 </View>
                             );
@@ -577,9 +580,9 @@ const styles = StyleSheet.create({
     },
     title: { fontSize: 24, ...FONT.heavy, color: C.dark },
     miniCommIcon: {
-        width: 20,
-        height: 20,
-        borderRadius: 10,
+        width: 44,
+        height: 44,
+        borderRadius: 22,
         alignItems: 'center',
         justifyContent: 'center',
     },
@@ -683,6 +686,8 @@ const styles = StyleSheet.create({
     calendarIllusImage: {
         width: 80,
         height: 80,
+        borderRadius: 16,
+        overflow: 'hidden',
     },
     alertActionsRow: {
         flexDirection: 'row',
@@ -903,9 +908,9 @@ const styles = StyleSheet.create({
         minHeight: 70,
     },
     timelineTimeCol: {
-        width: 70,
+        width: 62,
         justifyContent: 'center',
-        paddingRight: 8,
+        paddingRight: 4,
     },
     timelineTimeText: {
         fontSize: 11,
@@ -919,7 +924,7 @@ const styles = StyleSheet.create({
         marginTop: 2,
     },
     timelineLineCol: {
-        width: 24,
+        width: 18,
         alignItems: 'center',
         position: 'relative',
     },
@@ -945,10 +950,11 @@ const styles = StyleSheet.create({
         flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 10,
+        gap: 8,
         backgroundColor: '#F8FAFC',
         borderRadius: 20,
-        padding: 12,
+        paddingHorizontal: 10,
+        paddingVertical: 12,
         borderWidth: 1,
         borderColor: '#F1F5F9',
     },
@@ -968,6 +974,7 @@ const styles = StyleSheet.create({
         fontSize: 10,
         ...FONT.medium,
         color: C.mid,
+        lineHeight: 14,
     },
     timelineItemSub: {
         fontSize: 9,
@@ -976,9 +983,9 @@ const styles = StyleSheet.create({
         marginTop: 1,
     },
     timelineBadge: {
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-        borderRadius: 8,
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderRadius: 6,
     },
     timelineBadgeText: {
         fontSize: 9,

@@ -121,6 +121,9 @@ const ProfileSchema = new mongoose.Schema(
     lastLoginAt: {
       type: Date,
     },
+    last_active_at: {
+      type: Date,
+    },
     // ── MFA / TOTP ────────────────────────────────
     mfaEnabled: {
       type: Boolean,
