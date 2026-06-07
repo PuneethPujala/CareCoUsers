@@ -10,8 +10,9 @@ import {
     Platform,
     TouchableWithoutFeedback,
     Vibration,
+    Image,
 } from 'react-native';
-import { Camera, Image as ImageIcon, Trash2, X } from 'lucide-react-native';
+import { Camera, Image as ImageIcon, Trash2, X, User } from 'lucide-react-native';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -21,6 +22,7 @@ const AvatarSelectModal = ({
     onSelectSource,
     onRemove,
     currentAvatarUrl,
+    userName,
 }) => {
     const slideAnim = useRef(new Animated.Value(0)).current;
     const backdropAnim = useRef(new Animated.Value(0)).current;
@@ -139,6 +141,25 @@ const AvatarSelectModal = ({
                         </Pressable>
                     </View>
 
+                    {/* Current Avatar Preview */}
+                    <View style={styles.avatarPreviewContainer}>
+                        <View style={styles.avatarPreviewRing}>
+                            {currentAvatarUrl ? (
+                                <Image
+                                    source={{ uri: currentAvatarUrl }}
+                                    style={styles.avatarPreviewImage}
+                                />
+                            ) : (
+                                <View style={styles.avatarPreviewFallback}>
+                                    <User size={36} color="#94A3B8" strokeWidth={1.5} />
+                                </View>
+                            )}
+                        </View>
+                        <Text style={styles.avatarPreviewLabel}>
+                            {currentAvatarUrl ? 'Current Photo' : 'No Photo Set'}
+                        </Text>
+                    </View>
+
                     {/* Actions List */}
                     <View style={styles.actionsContainer}>
                         <Pressable
@@ -242,6 +263,41 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         marginLeft: 12,
+    },
+    avatarPreviewContainer: {
+        alignItems: 'center',
+        marginBottom: 20,
+    },
+    avatarPreviewRing: {
+        width: 96,
+        height: 96,
+        borderRadius: 48,
+        borderWidth: 3,
+        borderColor: '#E2E8F0',
+        overflow: 'hidden',
+        backgroundColor: '#F8FAFC',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    avatarPreviewImage: {
+        width: 90,
+        height: 90,
+        borderRadius: 45,
+    },
+    avatarPreviewFallback: {
+        width: 90,
+        height: 90,
+        borderRadius: 45,
+        backgroundColor: '#F1F5F9',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    avatarPreviewLabel: {
+        marginTop: 8,
+        fontSize: 13,
+        fontWeight: '600',
+        color: '#94A3B8',
+        letterSpacing: 0.2,
     },
     actionsContainer: {
         gap: 12,
