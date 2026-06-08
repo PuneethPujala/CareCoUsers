@@ -18,6 +18,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { ShieldCheck, Copy, ArrowLeft, CheckCircle2, QrCode, Smartphone, KeyRound } from 'lucide-react-native';
 import * as Clipboard from 'expo-clipboard';
 import { apiService } from '../../lib/api';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import AlertManager from '../../utils/AlertManager';
 
@@ -71,13 +72,13 @@ const OTPBoxes = ({ value = '', onChange, onComplete, length = 6, editable = tru
 };
 
 const otpSt = StyleSheet.create({
-    row: { flexDirection: 'row', gap: 10, justifyContent: 'center', marginVertical: 20 },
+    row: { flexDirection: 'row', gap: 8, justifyContent: 'center', marginVertical: 20 },
     box: {
-        width: 48, height: 60,
-        borderRadius: 16,
+        width: 38, height: 50,
+        borderRadius: 12,
         backgroundColor: '#F8FAFC',
         borderWidth: 2, borderColor: '#E2E8F0',
-        fontSize: 26, ...FONT.heavy,
+        fontSize: 22, ...FONT.heavy,
         color: '#0F172A',
     },
     boxFilled: {
@@ -134,6 +135,7 @@ const stepSt = StyleSheet.create({
 });
 
 export default function MFASetupScreen({ navigation }) {
+    const insets = useSafeAreaInsets();
     const [step, setStep] = useState('loading'); // loading | qr | verify | done
     const [qrCode, setQrCode] = useState(null);
     const [secretKey, setSecretKey] = useState('');
@@ -247,7 +249,7 @@ export default function MFASetupScreen({ navigation }) {
             : 'Setting up your secure authenticator…';
 
     return (
-        <View style={styles.container}>
+        <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
             <ScrollView
                 contentContainerStyle={{ flexGrow: 1, paddingBottom: 40 }}
                 showsVerticalScrollIndicator={false}
@@ -445,18 +447,18 @@ const styles = StyleSheet.create({
 
     /* ─── Hero ─── */
     hero: {
-        minHeight: 260,
+        minHeight: 200,
         borderBottomLeftRadius: 44,
         borderBottomRightRadius: 44,
         alignItems: 'center',
         justifyContent: 'center',
-        paddingTop: Platform.OS === 'ios' ? 60 : 44,
+        paddingTop: 24,
         paddingBottom: 36,
         overflow: 'hidden',
     },
     backBtn: {
         position: 'absolute',
-        top: Platform.OS === 'ios' ? 56 : 36,
+        top: 20,
         left: 20,
         zIndex: 10,
         width: 40, height: 40, borderRadius: 14,
