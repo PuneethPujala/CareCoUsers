@@ -1614,13 +1614,20 @@ export default function HealthProfileScreen({ navigation }) {
                     // Health Age: derive from actual age and score, not fabricated
                     const actualAge = age || null;
                     const healthAgeDiff = hasScore ? (activeScoreVal >= 80 ? -2 : activeScoreVal >= 60 ? 0 : activeScoreVal >= 40 ? 1 : 3) : null;
+                    const getDriverPct = (driverKey) => {
+                        const driver = hsBreakdown?.[driverKey];
+                        if (!driver || typeof driver.pts !== 'number' || typeof driver.max !== 'number' || driver.max === 0) {
+                            return 0;
+                        }
+                        return Math.round((driver.pts / driver.max) * 100);
+                    };
+                    const adherencePct = hsBreakdown ? getDriverPct('adherence') : null;
                     const healthAgeVal = actualAge && healthAgeDiff !== null ? Math.max(18, actualAge + healthAgeDiff) : null;
 
                     // Streak: use real gamification data from backend when available
                     const gamif = profile?.gamification;
                     const realStreak = gamif?.current_streak ?? 0;
                     const historyDates = gamif?.history_dates || []; // YYYY-MM-DD strings
-                    const adherencePct = hsBreakdown?.adherence ? Math.round((hsBreakdown.adherence.pts / hsBreakdown.adherence.max) * 100) : null;
                     const hasRealStreakData = realStreak > 0 || historyDates.length > 0;
 
                     // Build weekly view from real history_dates
@@ -1649,12 +1656,12 @@ export default function HealthProfileScreen({ navigation }) {
 
                     // Health drivers from real breakdown
                     const driverData = hsBreakdown ? [
-                        { label: 'Medication', pct: Math.round((hsBreakdown.adherence.pts / hsBreakdown.adherence.max) * 100), icon: '💊' },
-                        { label: 'Lifestyle', pct: Math.round((hsBreakdown.lifestyle.pts / hsBreakdown.lifestyle.max) * 100), icon: '🏃' },
-                        { label: 'Vitals', pct: Math.round((hsBreakdown.vitals.pts / hsBreakdown.vitals.max) * 100), icon: '🩺' },
-                        { label: 'Conditions', pct: Math.round((hsBreakdown.conditions.pts / hsBreakdown.conditions.max) * 100), icon: '❤️' },
-                        { label: 'Preventive Care', pct: Math.round((hsBreakdown.preventive.pts / hsBreakdown.preventive.max) * 100), icon: '🛡️' },
-                        { label: 'Mobility', pct: Math.round((hsBreakdown.mobility.pts / hsBreakdown.mobility.max) * 100), icon: '🚶' },
+                        { label: 'Medication', pct: getDriverPct('adherence'), icon: '💊' },
+                        { label: 'Lifestyle', pct: getDriverPct('lifestyle'), icon: '🏃' },
+                        { label: 'Vitals', pct: getDriverPct('vitals'), icon: '🩺' },
+                        { label: 'Conditions', pct: getDriverPct('conditions'), icon: '❤️' },
+                        { label: 'Preventive Care', pct: getDriverPct('preventive'), icon: '🛡️' },
+                        { label: 'Mobility', pct: getDriverPct('mobility'), icon: '🚶' },
                     ] : null;
                     const driverColor = (pct) => pct >= 75 ? '#10B981' : pct >= 50 ? '#F59E0B' : '#F43F5E';
 
