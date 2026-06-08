@@ -25,6 +25,8 @@ const C = {
     danger: '#EF4444',
 };
 
+let cachedSessions = null;
+
 export default function ChatHistoryScreen() {
     const navigation = useNavigation();
     const insets = useSafeAreaInsets();
@@ -36,8 +38,8 @@ export default function ChatHistoryScreen() {
     const isCompanion = userRole === 'companion';
     const targetPatientId = isCompanion ? companionSelectedPatientId : patient?._id;
 
-    const [sessions, setSessions] = useState([]);
-    const [isLoading, setIsLoading] = useState(true);
+    const [sessions, setSessions] = useState(cachedSessions || []);
+    const [isLoading, setIsLoading] = useState(!cachedSessions);
     const [isCreating, setIsCreating] = useState(false);
 
     const loadSessions = useCallback(async () => {
@@ -46,10 +48,14 @@ export default function ChatHistoryScreen() {
             return;
         }
         try {
-            setIsLoading(true);
+            if (!cachedSessions) {
+                setIsLoading(true);
+            }
             const params = isCompanion ? { patientId: targetPatientId } : {};
             const res = await apiService.chatbot.getSessions(params);
-            setSessions(res.data || []);
+            const fetched = res.data || [];
+            setSessions(fetched);
+            cachedSessions = fetched;
         } catch (err) {
             console.warn('Failed to load chat sessions:', err);
             const apiErr = handleApiError(err);
@@ -71,6 +77,16 @@ export default function ChatHistoryScreen() {
             setIsCreating(true);
             const data = isCompanion ? { patientId: targetPatientId } : {};
             const res = await apiService.chatbot.createSession(data);
+            
+            // Optimistically update cache and local sessions before navigating
+            const newSession = res.data;
+            if (newSession) {
+                setSessions(prev => {
+                    const next = [newSession, ...prev];
+                    cachedSessions = next;
+                    return next;
+                });
+            }
             
             // Navigate to chatbot screen
             navigation.navigate('Chatbot', { sessionId: res.data._id });
@@ -106,7 +122,11 @@ export default function ChatHistoryScreen() {
                         try {
                             const params = isCompanion ? { patientId: targetPatientId } : {};
                             await apiService.chatbot.deleteSession(session._id, params);
-                            setSessions(prev => prev.filter(s => s._id !== session._id));
+                            setSessions(prev => {
+                                const next = prev.filter(s => s._id !== session._id);
+                                cachedSessions = next;
+                                return next;
+                            });
                         } catch (err) {
                             console.warn('Failed to delete session:', err);
                             const apiErr = handleApiError(err);

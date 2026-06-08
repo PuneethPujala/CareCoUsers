@@ -311,6 +311,11 @@ export default function PatientHomeScreen({ navigation }) {
     const [medsExpanded, setMedsExpanded] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
 
+    // Today's Insights Sliding Carousel State & Constants
+    const [activeInsightIndex, setActiveInsightIndex] = useState(0);
+    const insightScrollViewRef = useRef(null);
+    const slideWidth = SW - 40 - 44; // cardWidth (SW - 40) - card padding (44)
+
     // Mood states
     const [moodLogged, setMoodLogged] = useState(false);
     const [selectedMood, setSelectedMood] = useState(null);
@@ -736,6 +741,68 @@ export default function PatientHomeScreen({ navigation }) {
         });
     }, [patient?.patient_health_state?.coach?.insight, activeInsights, selectedMood, firstName, t]);
 
+    // Dynamic Slide Insights for Carousel
+    const slideInsights = useMemo(() => {
+        // Slide 1: Medication Consistency
+        let medInsight = '';
+        const incomplete = totalMeds - takenCount;
+        if (totalMeds === 0) {
+            medInsight = t('home.insight_no_meds', { defaultValue: "No medications scheduled for today. Keep checking your dashboard for updates." });
+        } else if (incomplete === 0) {
+            medInsight = t('home.insight_all_taken', { defaultValue: "You have taken all medications today! Outstanding consistency." });
+        } else if (incomplete === 1) {
+            medInsight = t('home.insight_one_left', { defaultValue: "Only one medication remains for today. Let's get it done!" });
+        } else {
+            medInsight = t('home.insight_adherence_fallback', { defaultValue: "Pairing medications with daily routines like meals helps build consistency." });
+        }
+
+        // Slide 2: Vitals Pulse
+        let vitalsInsight = '';
+        if (activeInsights.length > 0) {
+            vitalsInsight = activeInsights[0].desc;
+        } else {
+            vitalsInsight = t('home.insight_vitals_stable', { defaultValue: "Your vitals (Heart Rate & Blood Pressure) are within normal, stable ranges today." });
+        }
+
+        // Slide 3: Wellness & Mindset
+        let wellnessInsight = '';
+        if (selectedMood === 'sad') {
+            wellnessInsight = t('home.insight_sad_fallback', {
+                defaultValue: `Sorry you are feeling down today, ${firstName}. Let's focus on small wins: take your medications and drink a warm cup of water.`,
+                name: firstName
+            });
+        } else {
+            wellnessInsight = t('home.insight_default_fallback', {
+                defaultValue: `All your tracked indicators look outstanding, ${firstName}! Your consistency this week has been excellent. Keep up the good work.`,
+                name: firstName
+            });
+        }
+
+        return [
+            {
+                id: 'meds',
+                title: t('home.insight_meds_title', { defaultValue: "Medication Consistency" }),
+                desc: medInsight,
+                icon: Pill,
+                iconColor: '#34D399',
+            },
+            {
+                id: 'vitals',
+                title: t('home.insight_vitals_title', { defaultValue: "Vitals Pulse" }),
+                desc: vitalsInsight,
+                icon: Activity,
+                iconColor: '#60A5FA',
+            },
+            {
+                id: 'wellness',
+                title: t('home.insight_wellness_title', { defaultValue: "Daily Wellness" }),
+                desc: wellnessInsight,
+                icon: Sparkles,
+                iconColor: '#C084FC',
+            }
+        ];
+    }, [totalMeds, takenCount, activeInsights, selectedMood, firstName, t]);
+
     useEffect(() => {
         if (!displayInsight) {
             setDisplayInsight(targetInsightText);
@@ -1100,7 +1167,7 @@ export default function PatientHomeScreen({ navigation }) {
                         </View>
                     </Animated.View>
 
-                    {/* ── 4. TODAY'S INSIGHT (AI Coach Guidance) ── */}
+                    {/* ── 4. TODAY'S INSIGHT (AI Coach Guidance sliding carousel) ── */}
                     <Animated.View style={[anim(4), styles.section]}>
                         <LinearGradient
                             colors={['#1E1B4B', '#312E81']}
@@ -1113,7 +1180,9 @@ export default function PatientHomeScreen({ navigation }) {
                                     <View style={styles.insightIconBox}>
                                         <Sparkles size={16} color="#A855F7" />
                                     </View>
-                                    <Text style={styles.insightTitle}>{t('common.todays_insight', { defaultValue: "Today's Insight" })}</Text>
+                                    <Text style={styles.insightTitle}>
+                                        {slideInsights[activeInsightIndex]?.title || t('common.todays_insight', { defaultValue: "Today's Insight" })}
+                                    </Text>
                                 </View>
                                 <View style={styles.insightBadge}>
                                     <View style={styles.insightBadgeDot} />
@@ -1121,57 +1190,55 @@ export default function PatientHomeScreen({ navigation }) {
                                 </View>
                             </View>
 
-                            <View style={styles.insightBody}>
-                                <Animated.View style={{ flex: 1, paddingRight: 10, opacity: coachFadeAnim, transform: [{ translateY: coachSlideAnim }] }}>
-                                    <Text style={styles.insightDescText}>
-                                        {displayInsight}
-                                    </Text>
-                                </Animated.View>
-                                
-                                <View style={styles.insightIllustration}>
-                                    <Svg width={48} height={48} viewBox="0 0 24 24" fill="none" stroke="#A855F7" strokeWidth="1.5">
-                                        <Path d="M12 21a9 9 0 0 0 9-9c0-1.66-1.34-3-3-3s-3 1.34-3 3v2a3 3 0 0 1-3 3" />
-                                        <Path d="M12 21a9 9 0 0 1-9-9c0-1.66 1.34-3 3-3s3 1.34 3 3v2a3 3 0 0 0 3 3" />
-                                        <Path d="M12 3v15" strokeDasharray="3 3" />
-                                        <SvgCircle cx="12" cy="3" r="1" fill="#A855F7" />
-                                    </Svg>
-                                </View>
-                            </View>
+                            <ScrollView
+                                ref={insightScrollViewRef}
+                                horizontal
+                                pagingEnabled
+                                showsHorizontalScrollIndicator={false}
+                                onScroll={(e) => {
+                                    const contentOffset = e.nativeEvent.contentOffset.x;
+                                    const index = Math.round(contentOffset / slideWidth);
+                                    if (index !== activeInsightIndex && index >= 0 && index < slideInsights.length) {
+                                        setActiveInsightIndex(index);
+                                    }
+                                }}
+                                scrollEventThrottle={16}
+                                style={{ width: slideWidth }}
+                                contentContainerStyle={{ alignItems: 'center' }}
+                            >
+                                {slideInsights.map((slide) => {
+                                    const SlideIcon = slide.icon;
+                                    return (
+                                        <View key={slide.id} style={{ width: slideWidth, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                                            <View style={{ flex: 1, paddingRight: 10 }}>
+                                                <Text style={styles.insightDescText}>
+                                                    {slide.desc}
+                                                </Text>
+                                            </View>
+                                            <View style={styles.insightIllustration}>
+                                                <SlideIcon size={26} color={slide.iconColor} strokeWidth={2} />
+                                            </View>
+                                        </View>
+                                    );
+                                })}
+                            </ScrollView>
 
                             <View style={styles.insightDotsRow}>
-                                <View style={[styles.insightDot, styles.insightDotActive]} />
-                                <View style={styles.insightDot} />
-                                <View style={styles.insightDot} />
+                                {slideInsights.map((_, index) => (
+                                    <TouchableOpacity
+                                        key={index}
+                                        onPress={() => {
+                                            insightScrollViewRef.current?.scrollTo({ x: index * slideWidth, animated: true });
+                                            setActiveInsightIndex(index);
+                                        }}
+                                        style={[
+                                            styles.insightDot,
+                                            activeInsightIndex === index && styles.insightDotActive
+                                        ]}
+                                    />
+                                ))}
                             </View>
                         </LinearGradient>
-                    </Animated.View>
-
-                    {/* ── 5. NEXT GOAL ── */}
-                    <Animated.View style={[anim(5), styles.section]}>
-                        <View style={styles.goalCard}>
-                            <View style={styles.goalCardHeader}>
-                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                                    <View style={styles.goalIconBox}>
-                                        <Trophy size={15} color="#F59E0B" />
-                                    </View>
-                                    <Text style={styles.goalTitle}>{t('home.next_goal', { defaultValue: 'NEXT GOAL' })}</Text>
-                                </View>
-                                <Text style={styles.goalProgressValue}>
-                                    {healthScore} / {targetMilestone}
-                                </Text>
-                            </View>
-                            
-                            <Text style={styles.goalDesc}>Reach Health Score {targetMilestone}</Text>
-
-                            <View style={styles.progressBg}>
-                                <LinearGradient
-                                    colors={['#FCD34D', '#F59E0B']}
-                                    start={{ x: 0, y: 0 }}
-                                    end={{ x: 1, y: 0 }}
-                                    style={[styles.progressFill, { width: `${milestoneProgress * 100}%` }]}
-                                />
-                            </View>
-                        </View>
                     </Animated.View>
 
                     {/* ── 6. MEDICATIONS ── */}
@@ -1345,9 +1412,9 @@ export default function PatientHomeScreen({ navigation }) {
                         )}
                     </Animated.View>
 
-                    {/* ── 8. HEALTH JOURNEY ── */}
+                    {/* ── 8. HEALTH JOURNEY & NEXT GOAL ── */}
                     <Animated.View style={[anim(8), styles.section]}>
-                        <View style={styles.journeyCard}>
+                        <Pressable onPress={() => navigation.navigate('AdherenceDetails')} style={styles.journeyCard}>
                             <View style={styles.journeyHeader}>
                                 <Text style={styles.journeyTitle}>HEALTH JOURNEY</Text>
                                 <View style={styles.journeyImprovementBadge}>
@@ -1366,6 +1433,37 @@ export default function PatientHomeScreen({ navigation }) {
                             <Text style={styles.journeyDesc}>
                                 Better medication adherence and stable vital trends recorded this week.
                             </Text>
+
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 12, borderTopWidth: 1, borderTopColor: '#F1F5F9', paddingTop: 10 }}>
+                                <Text style={{ fontSize: 12, color: '#6366F1', fontWeight: '700' }}>View Adherence Details</Text>
+                                <ChevronRight size={12} color="#6366F1" />
+                            </View>
+                        </Pressable>
+
+                        {/* Relocated Next Goal Card */}
+                        <View style={[styles.goalCard, { marginTop: 12 }]}>
+                            <View style={styles.goalCardHeader}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                    <View style={styles.goalIconBox}>
+                                        <Trophy size={15} color="#F59E0B" />
+                                    </View>
+                                    <Text style={styles.goalTitle}>{t('home.next_goal', { defaultValue: 'NEXT GOAL' })}</Text>
+                                </View>
+                                <Text style={styles.goalProgressValue}>
+                                    {healthScore} / {targetMilestone}
+                                </Text>
+                            </View>
+                            
+                            <Text style={styles.goalDesc}>Reach Health Score {targetMilestone}</Text>
+
+                            <View style={styles.progressBg}>
+                                <LinearGradient
+                                    colors={['#FCD34D', '#F59E0B']}
+                                    start={{ x: 0, y: 0 }}
+                                    end={{ x: 1, y: 0 }}
+                                    style={[styles.progressFill, { width: `${milestoneProgress * 100}%` }]}
+                                />
+                            </View>
                         </View>
                     </Animated.View>
 
@@ -1373,9 +1471,9 @@ export default function PatientHomeScreen({ navigation }) {
                     <Animated.View style={[anim(9), styles.section]}>
                         <Text style={styles.sectionTitle}>{t('common.quick_actions', { defaultValue: 'QUICK ACTIONS' })}</Text>
                         <View style={styles.deemphasizedActionsRow}>
-                            <Pressable style={styles.actionChip} onPress={() => navigation.navigate('Medications')}>
-                                <Pill size={13} color="#475569" />
-                                <Text style={styles.actionChipText}>Meds</Text>
+                            <Pressable style={styles.actionChip} onPress={() => navigation.navigate('AdherenceDetails')}>
+                                <TrendingUp size={13} color="#475569" />
+                                <Text style={styles.actionChipText}>Adherence</Text>
                             </Pressable>
 
                             <Pressable style={styles.actionChip} onPress={() => navigation.navigate('Notifications')}>
@@ -1412,29 +1510,6 @@ export default function PatientHomeScreen({ navigation }) {
 
                     <View style={{ height: 60 }} />
                 </ScrollView>
-
-                {/* ── FLOATING COACH PILL (Context-aware Label) ── */}
-                <Pressable
-                    style={styles.floatingCoachBtn}
-                    onPress={() => navigation.navigate('Chatbot')}
-                >
-                    <LinearGradient
-                        colors={['#818CF8', '#6366F1']}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 1 }}
-                        style={styles.floatingCoachGradient}
-                    >
-                        <Sparkles size={16} color="#FFF" style={{ marginRight: 6 }} />
-                        <Text style={styles.floatingCoachText}>
-                            {activeInsights.length > 0 
-                                ? `Coach · ${activeInsights.length} new insight${activeInsights.length > 1 ? 's' : ''}` 
-                                : !moodLogged 
-                                    ? "Coach · Check-in pending"
-                                    : "Coach · Ask me"
-                            }
-                        </Text>
-                    </LinearGradient>
-                </Pressable>
             </View>
         </KeyboardAvoidingView>
     );
