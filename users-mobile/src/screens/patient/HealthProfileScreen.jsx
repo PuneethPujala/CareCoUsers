@@ -635,10 +635,13 @@ export default function HealthProfileScreen({ navigation }) {
         setFormState({ ...formState, times });
     };
 
-    const anim = (i) => ({
-        opacity: staggerAnims[i],
-        transform: [{ translateY: staggerAnims[i].interpolate({ inputRange: [0, 1], outputRange: [24, 0] }) }],
-    });
+    const anim = (i) => {
+        const a = staggerAnims[Math.floor(i)] || staggerAnims[0];
+        return {
+            opacity: a,
+            transform: [{ translateY: a.interpolate({ inputRange: [0, 1], outputRange: [24, 0] }) }],
+        };
+    };
 
     const activeMeds = medications.filter(m => m.is_active !== false);
     const inactiveMeds = medications.filter(m => m.is_active === false);
