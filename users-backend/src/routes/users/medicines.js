@@ -1321,20 +1321,25 @@ router.delete('/temp-meds/:medId', authenticateSession, async (req, res) => {
         const searchIds = [patient._id];
         if (patient.profile_id) searchIds.push(patient.profile_id);
 
-        const tempMed = await TempMedication.findOne({
-            _id: medId,
-            patientId: { $in: searchIds },
-            isActive: true
-        });
+        const tempMed = await TempMedication.findOneAndUpdate(
+            {
+                _id: medId,
+                patientId: { $in: searchIds },
+                isActive: true
+            },
+            {
+                $set: {
+                    isActive: false,
+                    deletedBy: patient.profile_id || patient._id,
+                    deletedAt: new Date(),
+                },
+            },
+            { new: true }
+        );
 
         if (!tempMed) {
             return res.status(404).json({ error: 'Temporary medicine not found.' });
         }
-
-        tempMed.isActive = false;
-        tempMed.deletedBy = patient.profile_id || patient._id;
-        tempMed.deletedAt = new Date();
-        await tempMed.save();
 
         res.json({ message: 'Temporary medicine removed.' });
     } catch (error) {

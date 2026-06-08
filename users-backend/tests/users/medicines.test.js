@@ -412,18 +412,17 @@ describe('User Medicines Routes', () => {
 
         describe('DELETE /api/users/medicines/temp-meds/:medId', () => {
             it('soft deletes the temporary medication', async () => {
-                const mockSave = jest.fn().mockResolvedValue(true);
                 const mockMedId = '507f1f77bcf86cd799439011';
-                TempMedication.findOne = jest.fn().mockResolvedValue({
+                TempMedication.findOneAndUpdate = jest.fn().mockResolvedValue({
                     _id: mockMedId,
-                    isActive: true,
-                    save: mockSave,
+                    isActive: false,
+                    deletedAt: new Date(),
                 });
 
                 const res = await request(app).delete(`/api/users/medicines/temp-meds/${mockMedId}`);
 
                 expect(res.status).toBe(200);
-                expect(mockSave).toHaveBeenCalled();
+                expect(TempMedication.findOneAndUpdate).toHaveBeenCalled();
             });
         });
     });
