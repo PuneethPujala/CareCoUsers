@@ -538,6 +538,20 @@ export default function PatientHomeScreen({ navigation }) {
         checkDailyMoodStatus();
     }, [patient, checkDailyMoodStatus]);
 
+    // ── Derived values ─────────────────────────────────────────────────────
+    const takenCount = meds.filter(m => m.taken).length;
+    const totalMeds = meds.length;
+    const adherencePct = totalMeds > 0 ? Math.round((takenCount / totalMeds) * 100) : 0;
+    const medicationStreak = patient?.patient_health_state?.adherence?.streak ?? adherenceDetails?.streak ?? 0;
+    const dateStr = new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' });
+    const firstName = (patient?.name || displayName)?.split(' ')[0] || 'there';
+
+    let daysPremiumRemaining = 0;
+    if (patient?.subscription?.expires_at) {
+        const diff = new Date(patient.subscription.expires_at) - new Date();
+        daysPremiumRemaining = Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
+    }
+
     const openPremium = () => {
         const isRenewal = !!patient?.subscription?.expires_at;
         navigation.navigate('PremiumShowcase', { isRenewal });
@@ -560,20 +574,6 @@ export default function PatientHomeScreen({ navigation }) {
             checkPremiumPopup();
         }
     }, [daysPremiumRemaining, loading]);
-
-    // ── Derived values ─────────────────────────────────────────────────────
-    const takenCount = meds.filter(m => m.taken).length;
-    const totalMeds = meds.length;
-    const adherencePct = totalMeds > 0 ? Math.round((takenCount / totalMeds) * 100) : 0;
-    const medicationStreak = patient?.patient_health_state?.adherence?.streak ?? adherenceDetails?.streak ?? 0;
-    const dateStr = new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' });
-    const firstName = (patient?.name || displayName)?.split(' ')[0] || 'there';
-
-    let daysPremiumRemaining = 0;
-    if (patient?.subscription?.expires_at) {
-        const diff = new Date(patient.subscription.expires_at) - new Date();
-        daysPremiumRemaining = Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
-    }
 
     // ── The Morning/Evening Brief (Dynamic Context) ──
     const getDynamicBrief = () => {
