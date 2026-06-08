@@ -13,7 +13,7 @@ import PremiumFormModal from '../../components/ui/PremiumFormModal';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { LinearGradient } from 'expo-linear-gradient';
-import { TriangleAlert, ShieldCheck, HeartPulse, Activity, Droplet, Phone, Plus, Pencil, X, Trash2, CircleCheck, RefreshCw, ChevronDown, Upload, Siren, ChevronRight, TrendingUp, TrendingDown, Sparkles, Bell, FileText, Pill, Syringe, Link2, Users, Calendar, Info, Clock, MapPin } from 'lucide-react-native';
+import { AlertTriangle, ShieldCheck, HeartPulse, Activity, Droplet, Phone, Plus, Pencil, X, Trash2, CheckCircle2, RefreshCw, ChevronDown, Upload, Siren, ChevronRight, TrendingUp, TrendingDown, Sparkles, Bell, FileText, Pill, Syringe, Link2, Users, Calendar, Info, Clock, MapPin } from 'lucide-react-native';
 import { StatusBar } from 'react-native';
 import Svg, { Circle as SvgCircle, Path, Defs, LinearGradient as SvgLinearGradient, Stop, Rect } from 'react-native-svg';
 import { apiService } from '../../lib/api';
@@ -728,7 +728,7 @@ export default function HealthProfileScreen({ navigation }) {
                                     return (
                                         <Pressable key={item.key} style={s.checklistItem} onPress={handleChecklistPress}>
                                             {item.completed ? (
-                                                <CircleCheck size={14} color="#10B981" />
+                                                <CheckCircle2 size={14} color="#10B981" />
                                             ) : (
                                                 <View style={s.checklistEmptyCircle} />
                                             )}
@@ -820,7 +820,7 @@ export default function HealthProfileScreen({ navigation }) {
                 <Animated.View style={anim(1)}>
                     <Pressable style={s.alertsCard}>
                         <View style={s.alertHeader}>
-                            <View style={s.alertIconBox}><TriangleAlert size={18} color="#EF4444" /></View>
+                            <View style={s.alertIconBox}><AlertTriangle size={18} color="#EF4444" /></View>
                             <View style={{ flex: 1 }}>
                                 <Text style={s.alertTitle}>{t('health_profile.health_alerts', { defaultValue: 'Health Alerts' })}</Text>
                                 <Text style={s.alertSub}>
@@ -895,7 +895,7 @@ export default function HealthProfileScreen({ navigation }) {
                     <Animated.View style={anim(3)}>
                         <View style={s.gridCard}>
                             <View style={s.gridHeader}>
-                                <View style={[s.gridIconWrap, { backgroundColor: '#FEF3C7' }]}><TriangleAlert size={16} color="#F59E0B" /></View>
+                                <View style={[s.gridIconWrap, { backgroundColor: '#FEF3C7' }]}><AlertTriangle size={16} color="#F59E0B" /></View>
                                 <Text style={s.gridTitle}>{t('health_profile.allergies', { defaultValue: 'Allergies' })}</Text>
                                 <Pressable style={s.gridAddBtn} onPress={() => openModal('allergy')} hitSlop={10}>
                                     <Plus size={16} color="#F59E0B" />
@@ -904,7 +904,7 @@ export default function HealthProfileScreen({ navigation }) {
                             <View style={[s.gridBody, { flexDirection: 'row', flexWrap: 'wrap', gap: 6 }]}>
                                 {allergies.map((a, i) => (
                                     <Pressable key={i} style={s.gridChip} onPress={() => openModal('allergy', a)}>
-                                        <TriangleAlert size={10} color="#F59E0B" style={{marginRight: 4}} />
+                                        <AlertTriangle size={10} color="#F59E0B" style={{marginRight: 4}} />
                                         <Text style={s.gridChipTxt}>{a.name}</Text>
                                     </Pressable>
                                 ))}
