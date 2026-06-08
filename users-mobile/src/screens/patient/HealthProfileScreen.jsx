@@ -490,9 +490,32 @@ export default function HealthProfileScreen({ navigation }) {
         </View>
     );
 
-    const { conditions = [], allergies = [], medical_history = [], medications = [], vaccinations = [], appointments = [], lifestyle = {}, gp = {}, age } = profile || {};
+    const rawConditions = profile?.conditions;
+    const rawAllergies = profile?.allergies;
+    const rawMedicalHistory = profile?.medical_history;
+    const rawMedications = profile?.medications;
+    const rawVaccinations = profile?.vaccinations;
+    const rawAppointments = profile?.appointments;
+    const rawLifestyle = profile?.lifestyle;
+    const rawGp = profile?.gp;
+    const age = profile?.age;
 
-    const calculateBMI = (h, w) => { if (!h || !w) return null; const hm = h / 100; return (w / (hm * hm)).toFixed(1); };
+    const conditions = Array.isArray(rawConditions) ? rawConditions : [];
+    const allergies = Array.isArray(rawAllergies) ? rawAllergies : [];
+    const medical_history = Array.isArray(rawMedicalHistory) ? rawMedicalHistory : [];
+    const medications = Array.isArray(rawMedications) ? rawMedications : [];
+    const vaccinations = Array.isArray(rawVaccinations) ? rawVaccinations : [];
+    const appointments = Array.isArray(rawAppointments) ? rawAppointments : [];
+    const lifestyle = rawLifestyle || {};
+    const gp = rawGp || {};
+
+    const calculateBMI = (h, w) => {
+        const height = parseFloat(h);
+        const weight = parseFloat(w);
+        if (isNaN(height) || isNaN(weight) || height <= 0 || weight <= 0) return null;
+        const hm = height / 100;
+        return (weight / (hm * hm)).toFixed(1);
+    };
     const bmi = calculateBMI(lifestyle.height_cm, lifestyle.weight_kg);
     const getBmiStyle = (val) => {
         if (!val) return { label: 'BMI' };

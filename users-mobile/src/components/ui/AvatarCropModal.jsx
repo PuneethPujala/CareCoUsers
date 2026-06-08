@@ -25,6 +25,7 @@ export default function AvatarCropModal({
     onClose,
     onConfirm,
 }) {
+    const [processedUri, setProcessedUri] = useState(null);
     const [imageDims, setImageDims] = useState(null);
     const [loading, setLoading] = useState(true);
     const [cropping, setCropping] = useState(false);
@@ -72,18 +73,41 @@ export default function AvatarCropModal({
             setPanY(0);
             lastPanX.current = 0;
             lastPanY.current = 0;
+            setProcessedUri(null);
 
-            Image.getSize(
-                imageUri,
-                (width, height) => {
-                    setImageDims({ width, height });
+            const prepareImage = async () => {
+                try {
+                    // Normalize image to bake EXIF orientation and compress to 0.9
+                    const processed = await ImageManipulator.manipulateAsync(
+                        imageUri,
+                        [],
+                        { compress: 0.9, format: ImageManipulator.SaveFormat.JPEG }
+                    );
+                    setProcessedUri(processed.uri);
+                    setImageDims({
+                        width: processed.width,
+                        height: processed.height,
+                    });
                     setLoading(false);
-                },
-                (error) => {
-                    console.error('Failed to get image size:', error);
-                    setLoading(false);
+                } catch (err) {
+                    console.error('Failed to normalize image EXIF:', err);
+                    // Fallback to original imageUri
+                    setProcessedUri(imageUri);
+                    Image.getSize(
+                        imageUri,
+                        (width, height) => {
+                            setImageDims({ width, height });
+                            setLoading(false);
+                        },
+                        (error) => {
+                            console.error('Failed to get image size:', error);
+                            setLoading(false);
+                        }
+                    );
                 }
-            );
+            };
+
+            prepareImage();
         }
     }, [visible, imageUri]);
 
@@ -190,7 +214,7 @@ export default function AvatarCropModal({
             const safeH = Math.max(10, finalH);
 
             const cropRes = await ImageManipulator.manipulateAsync(
-                imageUri,
+                processedUri || imageUri,
                 [
                     {
                         crop: {
@@ -241,7 +265,7 @@ export default function AvatarCropModal({
                             <View style={styles.cropContainer} {...panResponder.panHandlers}>
                                 {/* Draggable Image */}
                                 <Image
-                                    source={{ uri: imageUri }}
+                                    source={{ uri: processedUri || imageUri }}
                                     style={{
                                         width: renderW,
                                         height: renderH,
