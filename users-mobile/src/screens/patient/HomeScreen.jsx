@@ -342,57 +342,62 @@ export default function PatientHomeScreen({ navigation }) {
 
     const saveDailyMood = async (moodValue) => {
         if (moodSaving) return;
-        try {
-            setMoodSaving(true);
-            HapticPatterns.log();
-            
-            // Step 1: Fade out the mood picker
+        setMoodSaving(true);
+        HapticPatterns.log();
+
+        // Optimistic state switch FIRST — React immediately renders the thanks view
+        setMoodLogged(true);
+        setSelectedMood(moodValue);
+
+        // Cross-fade: picker fades out + thanks fades in simultaneously (no blank gap)
+        thanksFadeAnim.setValue(0);
+        Animated.parallel([
             Animated.timing(moodFadeAnim, {
                 toValue: 0,
+                duration: 200,
+                useNativeDriver: true,
+            }),
+            Animated.timing(thanksFadeAnim, {
+                toValue: 1,
                 duration: 250,
                 useNativeDriver: true,
-            }).start(async () => {
-                try {
-                    const { data } = await apiService.patients.logMood(moodValue);
-                    if (data?.success) {
-                        setMoodLogged(true);
-                        setSelectedMood(moodValue);
-                        
-                        // Step 2: Fade in the thanks card
-                        thanksFadeAnim.setValue(0);
-                        Animated.timing(thanksFadeAnim, {
-                            toValue: 1,
-                            duration: 350,
-                            useNativeDriver: true,
-                        }).start();
-                        
-                        // Step 3: Delayed fetch (1500ms) to sync the new live coach card data
-                        setTimeout(async () => {
-                            await fetchData(true);
-                        }, 1500);
-                    } else {
-                        // Fallback: restore mood picker if not successful
-                        Animated.timing(moodFadeAnim, {
-                            toValue: 1,
-                            duration: 250,
-                            useNativeDriver: true,
-                        }).start();
-                    }
-                } catch (err) {
-                    console.warn('Failed to log mood to backend:', err.message);
-                    // Fallback: restore mood picker on error
-                    Animated.timing(moodFadeAnim, {
-                        toValue: 1,
-                        duration: 250,
-                        useNativeDriver: true,
-                    }).start();
-                }
-            });
+            }),
+        ]).start();
+
+        try {
+            const { data } = await apiService.patients.logMood(moodValue);
+            if (data?.success) {
+                // Delayed fetch to sync new live coach card data
+                setTimeout(async () => {
+                    await fetchData(true);
+                }, 1500);
+            } else {
+                revertMoodCheckin();
+            }
         } catch (err) {
-            console.warn('Failed to log mood:', err.message);
+            console.warn('Failed to log mood to backend:', err.message);
+            revertMoodCheckin();
         } finally {
             setMoodSaving(false);
         }
+    };
+
+    const revertMoodCheckin = () => {
+        // Fade out thanks card and restore picker if request failed
+        Animated.timing(thanksFadeAnim, {
+            toValue: 0,
+            duration: 200,
+            useNativeDriver: true,
+        }).start(() => {
+            setMoodLogged(false);
+            setSelectedMood(null);
+            moodFadeAnim.setValue(0);
+            Animated.timing(moodFadeAnim, {
+                toValue: 1,
+                duration: 200,
+                useNativeDriver: true,
+            }).start();
+        });
     };
 
     const onRefresh = useCallback(async () => {
@@ -1026,7 +1031,7 @@ export default function PatientHomeScreen({ navigation }) {
                         
                         <Text style={styles.orbNextDose}>
                             {nextDose
-                                ? `${t('home.next_dose', { defaultValue: 'Next Dose' })}: ${nextDose.slot}${nextDose.time ? ` (${nextDose.time})` : ''}`
+                                ? `${t('home.next_dose', { slot: nextDose.slot, defaultValue: `Next Dose: ${nextDose.slot}` })}${nextDose.time ? ` (${nextDose.time})` : ''}`
                                 : t('home.all_done_today', { defaultValue: 'All medications completed! 🎉' })
                             }
                         </Text>

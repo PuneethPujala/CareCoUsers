@@ -38,7 +38,7 @@
     "all_meds_taken": "आज सभी दवाएँ ले ली गईं!",
     "great_job": "ट्रैक पर रहकर बढ़िया काम",
     "medication_count": "दवाई",
-    "next_dose": "अगला: {{स्लॉट}}",
+    "next_dose": "अगला: {{slot}}",
     "all_done_today": "आज के लिए सब कुछ हो गया! 🎉",
     "adherence": "अनुपालन",
     "of": "का",
