@@ -1161,7 +1161,7 @@ export default function PatientHomeScreen({ navigation }) {
                             <Text style={styles.pulseDetailsText}>
                                 {activeInsights.length > 0 
                                     ? "Some vitals require attention. View your coach suggestions below."
-                                    : `Heart Rate Normal · BP Normal · ${takenCount}/${totalMeds} Medications Taken`
+                                    : 'Heart Rate Normal · BP Normal · Oxygen Saturation Normal'
                                 }
                             </Text>
                         </View>
