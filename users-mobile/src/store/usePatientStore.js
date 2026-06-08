@@ -84,24 +84,38 @@ function correctAdherenceData(adherenceData, get) {
                 : new Date(d.date).toISOString().slice(0, 10);
             if (dStr === todayStr) {
                 foundToday = true;
+                const rate = total > 0 ? Math.round((taken / total) * 100) : 0;
+                let status = 'none';
+                if (total === 0) status = 'none';
+                else if (rate === 100) status = 'complete';
+                else if (rate > 0) status = 'partial';
+                else status = 'missed';
                 return {
                     ...d,
                     taken,
                     total,
-                    rate: total > 0 ? Math.round((taken / total) * 100) : 0,
-                    completed
+                    rate,
+                    completed,
+                    status
                 };
             }
             return d;
         });
         
         if (!foundToday) {
+            const rate = total > 0 ? Math.round((taken / total) * 100) : 0;
+            let status = 'none';
+            if (total === 0) status = 'none';
+            else if (rate === 100) status = 'complete';
+            else if (rate > 0) status = 'partial';
+            else status = 'missed';
             newDailyLog.push({
                 date: `${todayStr}T00:00:00.000Z`,
                 taken,
                 total,
-                rate: total > 0 ? Math.round((taken / total) * 100) : 0,
-                completed
+                rate,
+                completed,
+                status
             });
         }
         updated.daily_log = newDailyLog;
