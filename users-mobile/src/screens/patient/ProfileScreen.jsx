@@ -23,6 +23,7 @@ import { Lock as LockIcon } from 'lucide-react-native';
 import LegalModal from '../../components/ui/LegalModal';
 import usePatientStore from '../../store/usePatientStore';
 import * as Sharing from 'expo-sharing';
+import * as FileSystem from 'expo-file-system';
 import ViewShot from 'react-native-view-shot';
 import { LinearGradient } from 'expo-linear-gradient';
 import { handleAvatarPicker, deleteOldAvatar, pickRawImage, uploadCroppedAvatar } from '../../utils/avatarHelper';
@@ -75,6 +76,7 @@ export default function PatientProfileScreen({ navigation }) {
     const [accountActionLoading, setAccountActionLoading] = useState(false);
     const [devTapCount, setDevTapCount] = useState(0);
     const [isSharing, setIsSharing] = useState(false);
+    const [isExporting, setIsExporting] = useState(false);
     const [unreadCount, setUnreadCount] = useState(0);
     const shareCardRef = useRef(null);
 
@@ -933,7 +935,42 @@ export default function PatientProfileScreen({ navigation }) {
                             } finally {
                                 setIsSharing(false);
                             }
-                        }} isLast />
+                        }} />
+
+                        <InfoRow 
+                            icon={ClipboardList} 
+                            iconBg="#EEF2FF" 
+                            iconColor="#4F46E5" 
+                            label={t('profile.export_account_data', { defaultValue: 'Export Account Data (JSON)' })} 
+                            value={null} 
+                            placeholder={isExporting ? t('common.loading', { defaultValue: 'Exporting...' }) : t('profile.download_json', { defaultValue: 'Download portability JSON' })} 
+                            onPress={async () => {
+                                try {
+                                    setIsExporting(true);
+                                    const response = await apiService.auth.exportMyData();
+                                    const jsonString = JSON.stringify(response.data, null, 2);
+                                    
+                                    const fileUri = FileSystem.cacheDirectory + 'caremymed-health-data.json';
+                                    await FileSystem.writeAsStringAsync(fileUri, jsonString, { encoding: FileSystem.EncodingType.UTF8 });
+                                    
+                                    const isAvailable = await Sharing.isAvailableAsync();
+                                    if (isAvailable) {
+                                        await Sharing.shareAsync(fileUri, {
+                                            dialogTitle: 'My Health Data Export',
+                                            mimeType: 'application/json'
+                                        });
+                                    } else {
+                                        AlertManager.alert('Success', 'JSON data generated, but sharing is not available on this device.');
+                                    }
+                                } catch (e) {
+                                    console.warn('JSON export failed:', e);
+                                    AlertManager.alert(t('common.error', { defaultValue: 'Error' }), 'Failed to export health data.');
+                                } finally {
+                                    setIsExporting(false);
+                                }
+                            }} 
+                            isLast 
+                        />
                     </View>
                 </Animated.View>
 
