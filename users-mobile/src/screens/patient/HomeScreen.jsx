@@ -854,6 +854,20 @@ export default function PatientHomeScreen({ navigation }) {
             .slice(-7);
     }, [vitalsHistory]);
 
+    const spo2History = useMemo(() => {
+        return (vitalsHistory || [])
+            .map(v => Number(v.oxygen_saturation))
+            .filter(v => !isNaN(v) && v > 0)
+            .slice(-7);
+    }, [vitalsHistory]);
+
+    const hydHistory = useMemo(() => {
+        return (vitalsHistory || [])
+            .map(v => Number(v.hydration))
+            .filter(v => !isNaN(v) && v > 0)
+            .slice(-7);
+    }, [vitalsHistory]);
+
     // ── 1. Priority Greeting Selection Engine ──
     const getAdaptiveGreeting = () => {
         const incomplete = totalMeds - takenCount;
@@ -1364,7 +1378,11 @@ export default function PatientHomeScreen({ navigation }) {
 
                         {/* Vitals Grid Row */}
                         {hasVitalsToday ? (
-                            <View style={styles.vitalsGrid}>
+                            <ScrollView
+                                horizontal
+                                showsHorizontalScrollIndicator={false}
+                                contentContainerStyle={styles.vitalsScrollContainer}
+                            >
                                 <VitalsCard
                                     label={t('home.heart_rate', { defaultValue: 'Heart Rate' })}
                                     value={vitals?.heart_rate || '—'}
@@ -1383,7 +1401,25 @@ export default function PatientHomeScreen({ navigation }) {
                                     status={vitals?.blood_pressure?.systolic ? 'Recorded' : 'Not Logged'}
                                     historyValues={bpHistory}
                                 />
-                            </View>
+                                <VitalsCard
+                                    label={t('home.oxygen_saturation', { defaultValue: 'Oxygen Saturation' })}
+                                    value={vitals?.oxygen_saturation != null ? `${vitals.oxygen_saturation}` : '—'}
+                                    unit="%"
+                                    icon={Wind}
+                                    color="#10B981"
+                                    status={vitals?.oxygen_saturation != null ? 'Recorded' : 'Not Logged'}
+                                    historyValues={spo2History}
+                                />
+                                <VitalsCard
+                                    label={t('home.hydration', { defaultValue: 'Hydration' })}
+                                    value={vitals?.hydration != null ? `${vitals.hydration}` : '—'}
+                                    unit="%"
+                                    icon={Droplets}
+                                    color="#0EA5E9"
+                                    status={vitals?.hydration != null ? 'Recorded' : 'Not Logged'}
+                                    historyValues={hydHistory}
+                                />
+                            </ScrollView>
                         ) : (
                             <View style={styles.card}>
                                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
@@ -1969,8 +2005,13 @@ const styles = StyleSheet.create({
         gap: 12,
         marginBottom: 14,
     },
+    vitalsScrollContainer: {
+        flexDirection: 'row',
+        gap: 12,
+        paddingBottom: 14,
+    },
     vitalsCard: {
-        flex: 1,
+        width: 165,
         backgroundColor: '#FFFFFF',
         borderRadius: 24,
         padding: 16,
