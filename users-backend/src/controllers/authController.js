@@ -585,7 +585,10 @@ async function sendOtp(req, res) {
       const { createOTP } = require('../services/otpService');
       const { sendOTPEmail } = require('../services/emailService');
       const otp = await createOTP(emailNorm);
-      sendOTPEmail(identifier, otp).catch((err) => console.error('OTP email failed:', err.message));
+      const emailResult = await sendOTPEmail(identifier, otp);
+      if (emailResult === null) {
+          return res.status(500).json({ error: 'Failed to send OTP email. Please check server configuration.' });
+      }
       res.json({ message: 'Verification code sent to your email.' });
     } else if (type === 'phone') {
       const phoneNorm = identifier.trim();

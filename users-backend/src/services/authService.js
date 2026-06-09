@@ -914,7 +914,7 @@ async function createStaffUser(body, req, actorProfile) {
     }
   }
 
-  sendTempPasswordEmail(email, fullName, tempPassword, ROLE_LABELS[role] || role);
+  await sendTempPasswordEmail(email, fullName, tempPassword, ROLE_LABELS[role] || role);
 
   await logEvent(actorProfile.supabaseUid, 'create_user', 'profile', profile._id, req, {
     targetEmail: emailNorm,
