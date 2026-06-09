@@ -25,6 +25,7 @@ import { useTranslation } from 'react-i18next';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { HapticPatterns } from '../../utils/haptics';
 import Svg, { Path, Defs, LinearGradient as SvgLinearGradient, Stop, Circle as SvgCircle } from 'react-native-svg';
+import LottieView from 'lottie-react-native';
 
 const { width: SW } = Dimensions.get('window');
 
@@ -1126,19 +1127,19 @@ export default function PatientHomeScreen({ navigation }) {
                                     <Text style={styles.checkinTitle}>{t('home.how_are_feeling', { defaultValue: 'How are you feeling today?' })}</Text>
                                     <View style={styles.moodEmojiRow}>
                                         <Pressable style={styles.moodEmojiPill} onPress={() => saveDailyMood('sad')}>
-                                            <Text style={styles.moodEmoji}>😞</Text>
+                                            <LottieView source={require('../../assets/lottie/sad.json')} autoPlay loop style={styles.moodLottie} />
                                             <Text style={styles.moodLabel}>Low</Text>
                                         </Pressable>
                                         <Pressable style={styles.moodEmojiPill} onPress={() => saveDailyMood('okay')}>
-                                            <Text style={styles.moodEmoji}>😐</Text>
+                                            <LottieView source={require('../../assets/lottie/okay.json')} autoPlay loop style={styles.moodLottie} />
                                             <Text style={styles.moodLabel}>Okay</Text>
                                         </Pressable>
                                         <Pressable style={styles.moodEmojiPill} onPress={() => saveDailyMood('good')}>
-                                            <Text style={styles.moodEmoji}>🙂</Text>
+                                            <LottieView source={require('../../assets/lottie/good.json')} autoPlay loop style={styles.moodLottie} />
                                             <Text style={styles.moodLabel}>Good</Text>
                                         </Pressable>
                                         <Pressable style={styles.moodEmojiPill} onPress={() => saveDailyMood('great')}>
-                                            <Text style={styles.moodEmoji}>😄</Text>
+                                            <LottieView source={require('../../assets/lottie/great.json')} autoPlay loop style={styles.moodLottie} />
                                             <Text style={styles.moodLabel}>Great</Text>
                                         </Pressable>
                                     </View>
@@ -1159,27 +1160,7 @@ export default function PatientHomeScreen({ navigation }) {
                         </View>
                     </Animated.View>
 
-                    {/* ── 3. HEALTH PULSE (Instant Reassurance) ── */}
-                    <Animated.View style={[anim(3), styles.section]}>
-                        <View style={styles.pulseCard}>
-                            <View style={styles.pulseHeader}>
-                                <Activity size={14} color="#6366F1" />
-                                <Text style={styles.pulseTitle}>HEALTH PULSE</Text>
-                                <View style={[styles.pulseStatusIndicator, { backgroundColor: activeInsights.length > 0 ? '#FEF2F2' : '#ECFDF5' }]}>
-                                    <View style={[styles.pulseStatusDot, { backgroundColor: activeInsights.length > 0 ? '#EF4444' : '#10B981' }]} />
-                                    <Text style={[styles.pulseStatusLabel, { color: activeInsights.length > 0 ? '#EF4444' : '#10B981' }]}>
-                                        {activeInsights.length > 0 ? 'Attention Needed' : 'Stable Today'}
-                                    </Text>
-                                </View>
-                            </View>
-                            <Text style={styles.pulseDetailsText}>
-                                {activeInsights.length > 0 
-                                    ? "Some vitals require attention. View your coach suggestions below."
-                                    : 'Heart Rate Normal · BP Normal · Oxygen Saturation Normal'
-                                }
-                            </Text>
-                        </View>
-                    </Animated.View>
+                    {/* Removed Health Pulse - combined with Vitals below */}
 
                     {/* ── 4. TODAY'S INSIGHT (AI Coach Guidance sliding carousel) ── */}
                     <Animated.View style={[anim(4), styles.section]}>
@@ -1674,15 +1655,13 @@ const styles = StyleSheet.create({
     // ── Daily Check-In ──
     checkinCard: {
         backgroundColor: '#FFFFFF',
-        borderRadius: 24,
-        padding: 20,
-        borderWidth: 1,
-        borderColor: '#E2E8F0',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.02,
-        shadowRadius: 10,
-        elevation: 2,
+        borderRadius: 28,
+        padding: 24,
+        shadowColor: '#6366F1',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.06,
+        shadowRadius: 20,
+        elevation: 4,
     },
     checkinTitle: {
         fontSize: 15,
@@ -1702,9 +1681,10 @@ const styles = StyleSheet.create({
         padding: 8,
         width: 60,
     },
-    moodEmoji: {
-        fontSize: 32,
-        marginBottom: 4,
+    moodLottie: {
+        width: 48,
+        height: 48,
+        marginBottom: 8,
     },
     moodLabel: {
         fontSize: 11,
@@ -2183,10 +2163,10 @@ const styles = StyleSheet.create({
     tipText: { fontSize: 14, color: '#3730A3', lineHeight: 22, fontWeight: '500' },
 
     // ── Scroll Content ──
-    scrollContent: { paddingHorizontal: 20, paddingTop: 4, paddingBottom: layout.TAB_BAR_CLEARANCE },
+    scrollContent: { paddingHorizontal: 24, paddingTop: 16, paddingBottom: layout.TAB_BAR_CLEARANCE },
 
     // ── Sections ──
-    section: { marginBottom: 20 },
+    section: { marginBottom: 32 },
     sectionTitle: {
         fontSize: 11, fontWeight: '800', color: '#94A3B8',
         letterSpacing: 1.8, textTransform: 'uppercase', marginBottom: 12,
@@ -2237,9 +2217,8 @@ const styles = StyleSheet.create({
 
     // ── Generic Card ──
     card: {
-        backgroundColor: '#FFFFFF', borderRadius: 24, padding: 20,
-        shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.02, shadowRadius: 10, elevation: 2,
-        borderWidth: 1, borderColor: '#E2E8F0',
+        backgroundColor: '#FFFFFF', borderRadius: 28, padding: 24,
+        shadowColor: '#6366F1', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.06, shadowRadius: 20, elevation: 4,
     },
     cardTitle: { fontSize: 16, fontWeight: '800', color: '#1E293B' },
     toggleBadge: { backgroundColor: 'rgba(99,102,241,0.1)', paddingHorizontal: 14, paddingVertical: 7, borderRadius: 10 },
