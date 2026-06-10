@@ -121,6 +121,8 @@ export default function PatientDetailScreen({ navigation, route }) {
         timePhases: ['morning'], route: 'oral', instructions: '', withFood: false 
     });
     const [submitting, setSubmitting] = useState(false);
+    const [uploadedPrescriptions, setUploadedPrescriptions] = useState([]);
+    const [isExtracting, setIsExtracting] = useState(false);
 
     const [customAlert, setCustomAlert] = useState({ visible: false, title: '', message: '', buttons: [], type: 'info' });
 
@@ -143,7 +145,9 @@ export default function PatientDetailScreen({ navigation, route }) {
             setLoading(true);
             setError(null);
             const res = await apiService.patients.getById(patientId);
-            setPatient(res.data);
+            const data = res.data?.patient || res.data;
+            setPatient(data);
+            setUploadedPrescriptions(data?.uploaded_prescriptions || data?.metadata?.uploaded_prescriptions || []);
             
             // Fetch ALL medications with enriched status (patientMarked/callerMarked)
             // No shift filter — we want the complete medication list for this patient
@@ -175,6 +179,34 @@ export default function PatientDetailScreen({ navigation, route }) {
     const handleEmail = (email) => {
         if (!email) return showAlert('No Email', 'No email on file.', 'warning');
         Linking.openURL(`mailto:${email}`);
+    };
+
+    const handleExtractOCR = async (fileUrl) => {
+        setIsExtracting(true);
+        try {
+            const res = await apiService.caretaker.extractPrescriptionOCR(patientId, fileUrl);
+            const meds = res.data?.data?.medications || [];
+            if (meds.length > 0) {
+                const first = meds[0];
+                setMedForm({
+                    name: first.name,
+                    dosage: first.dosage || '',
+                    frequency: first.frequency || 'Daily',
+                    timePhases: ['morning'],
+                    route: 'oral',
+                    instructions: '',
+                    withFood: false
+                });
+                setShowMedModal(true);
+                showAlert('OCR Success', `Extracted ${meds.length} medications. Added first one to the form.`, 'success');
+            } else {
+                showAlert('OCR Result', 'No medications could be confidently extracted from this image.', 'info');
+            }
+        } catch (err) {
+            showAlert('OCR Error', handleApiError(err).message, 'error');
+        } finally {
+            setIsExtracting(false);
+        }
     };
 
     const openAddMedModal = () => {
@@ -624,6 +656,42 @@ export default function PatientDetailScreen({ navigation, route }) {
                             </View>
                         </View>
                     </>
+                )}
+
+                {/* ═══ Uploaded Prescriptions ═══ */}
+                {uploadedPrescriptions && uploadedPrescriptions.length > 0 && (
+                    <View style={{ marginTop: 24 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+                            <View style={{ width: 28, height: 28, borderRadius: 8, backgroundColor: '#ECFDF5', justifyContent: 'center', alignItems: 'center' }}>
+                                <Feather name="file-text" size={14} color="#10B981" />
+                            </View>
+                            <Text style={[s.sectionTitle, Theme.typography.common, { marginTop: 0, marginBottom: 0 }]}>Uploaded Prescriptions</Text>
+                        </View>
+                        <View style={{ gap: 10 }}>
+                            {uploadedPrescriptions.map((presc, idx) => (
+                                <View key={presc._id || presc.id || idx} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#FFF', borderRadius: 14, padding: 16, borderWidth: 1, borderColor: '#E2E8F0' }}>
+                                    <View>
+                                        <Text style={{ fontSize: 15, fontWeight: '600', color: '#1E293B' }}>Prescription {idx + 1}</Text>
+                                        <Text style={{ fontSize: 12, color: '#64748B', marginTop: 4 }}>{new Date(presc.uploaded_at || presc.uploadedAt || presc.created_at).toLocaleDateString()}</Text>
+                                    </View>
+                                    <TouchableOpacity 
+                                        onPress={() => handleExtractOCR(presc.file_url)} 
+                                        disabled={isExtracting}
+                                        style={{ backgroundColor: '#6366F1', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, flexDirection: 'row', alignItems: 'center', gap: 6 }}
+                                    >
+                                        {isExtracting ? (
+                                            <ActivityIndicator size="small" color="#FFF" />
+                                        ) : (
+                                            <>
+                                                <Feather name="cpu" size={14} color="#FFF" />
+                                                <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '600' }}>Extract with AI</Text>
+                                            </>
+                                        )}
+                                    </TouchableOpacity>
+                                </View>
+                            ))}
+                        </View>
+                    </View>
                 )}
 
                 {/* ═══ All Prescribed Medications ═══ */}
