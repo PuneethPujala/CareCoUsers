@@ -26,6 +26,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { HapticPatterns } from '../../utils/haptics';
 import Svg, { Path, Defs, LinearGradient as SvgLinearGradient, Stop, Circle as SvgCircle } from 'react-native-svg';
 import LottieView from 'lottie-react-native';
+import { BlurView } from 'expo-blur';
 
 const { width: SW } = Dimensions.get('window');
 
@@ -1017,514 +1018,106 @@ export default function PatientHomeScreen({ navigation }) {
                     keyboardShouldPersistTaps="handled"
                     refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#4F46E5" />}
                 >
-                    {/* Pills Row */}
-                    <Animated.View style={[anim(0), { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 20 }]}>
-                        <View style={styles.datePill}>
-                            <CalendarDays size={12} color="#94A3B8" />
-                            <Text style={styles.dateText}>{dateStr}</Text>
-                        </View>
-                        <Pressable onPress={() => navigation.navigate('LocationSearch')} style={[styles.locationPill, { flex: 1 }]}>
-                            <View style={styles.locationDot}>
-                                <MapPin size={10} color="#FFF" fill="#FFF" />
-                            </View>
-                            <Text style={styles.locationText} numberOfLines={1}>
-                                {patient?.city || profile?.city || t('home.detecting', { defaultValue: 'Detecting...' })}
-                            </Text>
-                            <ChevronRight size={12} color="#94A3B8" style={{ marginLeft: 'auto' }} />
-                        </Pressable>
-                    </Animated.View>
-
-                    {daysPremiumRemaining <= 0 && (
-                        <Pressable style={styles.premiumBanner} onPress={() => openPremium()}>
-                            <View style={styles.premiumBannerLeft}>
-                                <View style={styles.premiumBannerIcon}>
-                                    <Sparkles size={18} color="#A855F7" />
-                                </View>
-                                <View style={{ flex: 1 }}>
-                                    <Text style={styles.premiumBannerTitle}>Premium Expired</Text>
-                                    <Text style={styles.premiumBannerSub}>Your AI health insights are paused until renewal.</Text>
-                                </View>
-                            </View>
-                            <ChevronRight size={20} color="#CBD5E1" />
-                        </Pressable>
-                    )}
-
-                    {/* Offline Banner */}
-                    {isCached && (
-                        <View style={styles.offlineBanner}>
-                            <WifiOff size={13} color="#92400E" />
-                            <Text style={styles.offlineBannerText}>{t('home.offline_banner', { defaultValue: 'Showing cached data · Pull to refresh' })}</Text>
-                        </View>
-                    )}
-
-                    {/* ── 1. GLASS HEALTH ORB (Brand Focus, 60% Width) ── */}
-                    <Animated.View style={[anim(1), styles.orbContainer]}>
-                        <Animated.View style={[styles.orbWrapper, { transform: [{ scale: orbScaleAnim }] }]}>
-                            <Svg width={210} height={210} viewBox="0 0 200 200" style={styles.orbSvg}>
-                                <Defs>
-                                    <SvgLinearGradient id="orbGlowGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                                        <Stop offset="0%" stopColor="#818CF8" stopOpacity={0.15} />
-                                        <Stop offset="100%" stopColor="#A855F7" stopOpacity={0.03} />
-                                    </SvgLinearGradient>
-                                    <SvgLinearGradient id="progressRingGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                                        <Stop offset="0%" stopColor="#818CF8" />
-                                        <Stop offset="50%" stopColor="#6366F1" />
-                                        <Stop offset="100%" stopColor="#A855F7" />
-                                    </SvgLinearGradient>
-                                </Defs>
-                                <SvgCircle cx="100" cy="100" r="86" fill="url(#orbGlowGrad)" />
-                                <SvgCircle cx="100" cy="100" r="90" stroke="#F1F5F9" strokeWidth="6" fill="transparent" />
-                                <SvgCircle
-                                    cx="100"
-                                    cy="100"
-                                    r="90"
-                                    stroke="url(#progressRingGrad)"
-                                    strokeWidth="6"
-                                    fill="transparent"
-                                    strokeDasharray="565.48"
-                                    strokeDashoffset={565.48 - (565.48 * healthScore) / 100}
-                                    strokeLinecap="round"
-                                    transform="rotate(-90 100 100)"
-                                />
-                            </Svg>
-
-                            {/* Active Glow Pulse Overlay */}
-                            <Animated.View style={[StyleSheet.absoluteFill, { opacity: glowOpacityAnim, pointerEvents: 'none' }]}>
-                                <Svg width={210} height={210} viewBox="0 0 200 200" style={styles.orbSvg}>
-                                    <Defs>
-                                        <SvgLinearGradient id="activeGlowGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                                            <Stop offset="0%" stopColor={healthColor} stopOpacity={0.45} />
-                                            <Stop offset="100%" stopColor={healthColor} stopOpacity={0.05} />
-                                        </SvgLinearGradient>
-                                    </Defs>
-                                    <SvgCircle cx="100" cy="100" r="95" fill="url(#activeGlowGrad)" />
-                                </Svg>
-                            </Animated.View>
-
-                            <View style={styles.glassOrb}>
-                                <Text style={styles.orbScoreText}>{healthScore}</Text>
-                                <Text style={[styles.orbLabelText, { color: healthColor }]}>{healthLabel.toUpperCase()}</Text>
+                    
+                    {/* BENTO BOX GRID */}
+                    <View style={styles.bentoGrid}>
+                        {/* HERO TILE */}
+                        <View style={styles.bentoHeroTile}>
+                            <BlurView intensity={70} tint="light" style={styles.bentoGlass}>
+                                <LinearGradient colors={['rgba(99,102,241,0.1)', 'rgba(168,85,247,0.05)']} style={StyleSheet.absoluteFill} />
                                 
-                                <View style={[styles.orbGradeBadge, { backgroundColor: healthColor + '10', borderColor: healthColor + '30' }]}>
-                                    <Text style={[styles.orbGradeText, { color: healthColor }]}>{healthGrade}</Text>
-                                </View>
-                            </View>
-                        </Animated.View>
-                        
-                        <Text style={styles.orbNextDose}>
-                            {nextDose
-                                ? `${t('home.next_dose', { slot: nextDose.slot, defaultValue: `Next Dose: ${nextDose.slot}` })}${nextDose.time ? ` (${nextDose.time})` : ''}`
-                                : t('home.all_done_today', { defaultValue: 'All medications completed! 🎉' })
-                            }
-                        </Text>
-                    </Animated.View>
-
-                    {/* ── 2. DAILY CHECK-IN (Directly under the Orb) ── */}
-                    <Animated.View style={[anim(2), styles.section]}>
-                        <View style={styles.checkinCard}>
-                            {!moodLogged ? (
-                                <Animated.View style={{ opacity: moodFadeAnim }}>
-                                    <Text style={styles.checkinTitle}>{t('home.how_are_feeling', { defaultValue: 'How are you feeling today?' })}</Text>
-                                    <View style={styles.moodEmojiRow}>
-                                        <Pressable style={styles.moodEmojiPill} onPress={() => saveDailyMood('sad')}>
-                                            <LottieView source={require('../../assets/lottie/sad.json')} autoPlay loop style={styles.moodLottie} />
-                                            <Text style={styles.moodLabel}>Low</Text>
-                                        </Pressable>
-                                        <Pressable style={styles.moodEmojiPill} onPress={() => saveDailyMood('okay')}>
-                                            <LottieView source={require('../../assets/lottie/okay.json')} autoPlay loop style={styles.moodLottie} />
-                                            <Text style={styles.moodLabel}>Okay</Text>
-                                        </Pressable>
-                                        <Pressable style={styles.moodEmojiPill} onPress={() => saveDailyMood('good')}>
-                                            <LottieView source={require('../../assets/lottie/good.json')} autoPlay loop style={styles.moodLottie} />
-                                            <Text style={styles.moodLabel}>Good</Text>
-                                        </Pressable>
-                                        <Pressable style={styles.moodEmojiPill} onPress={() => saveDailyMood('great')}>
-                                            <LottieView source={require('../../assets/lottie/great.json')} autoPlay loop style={styles.moodLottie} />
-                                            <Text style={styles.moodLabel}>Great</Text>
-                                        </Pressable>
+                                <View style={styles.bentoHeroTop}>
+                                    <View>
+                                        <Text style={styles.bentoTitle}>Health Score</Text>
+                                        <Text style={styles.heroScore}>{healthScore}</Text>
                                     </View>
-                                </Animated.View>
-                            ) : (
-                                <Animated.View style={{ opacity: thanksFadeAnim, width: '100%' }}>
-                                    <View style={styles.checkinCompleteView}>
-                                        <Sparkles size={16} color="#6366F1" style={{ marginRight: 8 }} />
-                                        <Text style={styles.checkinCompleteText}>
-                                            ✨ Thanks for checking in. Today's insight has been updated.
-                                        </Text>
-                                        <Text style={styles.selectedMoodBadge}>
-                                            {selectedMood === 'sad' ? '😞 Low' : selectedMood === 'okay' ? '😐 Okay' : selectedMood === 'good' ? '🙂 Good' : '😄 Great'}
-                                        </Text>
-                                    </View>
-                                </Animated.View>
-                            )}
-                        </View>
-                    </Animated.View>
-
-                    {/* Removed Health Pulse - combined with Vitals below */}
-
-                    {/* ── 4. TODAY'S INSIGHT (AI Coach Guidance sliding carousel) ── */}
-                    <Animated.View style={[anim(4), styles.section]}>
-                        <LinearGradient
-                            colors={['#1E1B4B', '#312E81']}
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 1, y: 1 }}
-                            style={styles.insightCard}
-                        >
-                            <View style={styles.insightHeaderRow}>
-                                <View style={styles.insightHeaderLeft}>
-                                    <View style={styles.insightIconBox}>
-                                        <Sparkles size={16} color="#A855F7" />
-                                    </View>
-                                    <Text style={styles.insightTitle}>
-                                        {slideInsights[activeInsightIndex]?.title || t('common.todays_insight', { defaultValue: "Today's Insight" })}
-                                    </Text>
-                                </View>
-                                <View style={styles.insightBadge}>
-                                    <View style={styles.insightBadgeDot} />
-                                    <Text style={styles.insightBadgeText}>{t('home.live_coach', { defaultValue: 'LIVE COACH' })}</Text>
-                                </View>
-                            </View>
-
-                            <ScrollView
-                                ref={insightScrollViewRef}
-                                horizontal
-                                pagingEnabled
-                                showsHorizontalScrollIndicator={false}
-                                onScroll={(e) => {
-                                    const contentOffset = e.nativeEvent.contentOffset.x;
-                                    const index = Math.round(contentOffset / slideWidth);
-                                    if (index !== activeInsightIndex && index >= 0 && index < slideInsights.length) {
-                                        setActiveInsightIndex(index);
-                                    }
-                                }}
-                                scrollEventThrottle={16}
-                                style={{ width: slideWidth }}
-                                contentContainerStyle={{ alignItems: 'center' }}
-                            >
-                                {slideInsights.map((slide) => {
-                                    const SlideIcon = slide.icon;
-                                    return (
-                                        <View key={slide.id} style={{ width: slideWidth, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                                            <View style={{ flex: 1, paddingRight: 10 }}>
-                                                <Text style={styles.insightDescText}>
-                                                    {slide.desc}
-                                                </Text>
-                                            </View>
-                                            <View style={styles.insightIllustration}>
-                                                <SlideIcon size={26} color={slide.iconColor} strokeWidth={2} />
-                                            </View>
+                                    <View style={{ alignItems: 'flex-end' }}>
+                                        <View style={[styles.heroGradeBadge, { backgroundColor: healthColor }]}>
+                                            <Text style={styles.heroGradeText}>{healthGrade}</Text>
                                         </View>
-                                    );
-                                })}
-                            </ScrollView>
-
-                            <View style={styles.insightDotsRow}>
-                                {slideInsights.map((_, index) => (
-                                    <TouchableOpacity
-                                        key={index}
-                                        onPress={() => {
-                                            insightScrollViewRef.current?.scrollTo({ x: index * slideWidth, animated: true });
-                                            setActiveInsightIndex(index);
-                                        }}
-                                        style={[
-                                            styles.insightDot,
-                                            activeInsightIndex === index && styles.insightDotActive
-                                        ]}
-                                    />
-                                ))}
-                            </View>
-                        </LinearGradient>
-                    </Animated.View>
-
-                    {/* ── 6. MEDICATIONS ── */}
-                    <Animated.View style={[anim(6), styles.section]}>
-                        <View style={styles.sectionTitleRow}>
-                            <Text style={styles.sectionTitle}>{t('home.todays_plan', { defaultValue: "TODAY'S PLAN" })}</Text>
-                            <Pressable style={styles.viewAllBtn} onPress={() => navigation.navigate('Medications')}>
-                                <Text style={styles.viewAllText}>{t('home.view_details', { defaultValue: 'View Details' })}</Text>
-                                <ChevronRight size={13} color="#6366F1" />
-                            </Pressable>
-                        </View>
-
-                        {totalMeds > 0 ? (
-                            <Animated.View style={{ transform: [{ scale: medsCardScaleAnim }] }}>
-                                <Pressable style={styles.medSummaryCard} onPress={() => setMedsExpanded(!medsExpanded)}>
-                                    <LinearGradient
-                                        colors={adherencePct === 100 ? ['#22C55E', '#16A34A'] : adherencePct >= 50 ? ['#6366F1', '#4F46E5'] : ['#EF4444', '#DC2626']}
-                                        style={styles.medSummaryGradient}
-                                    >
-                                        <View style={styles.medSummaryMainRow}>
-                                            <View style={{ flex: 1 }}>
-                                                {adherencePct === 100 ? (
-                                                    <Text style={styles.medSummaryStatusTitle}>🏆 Perfect Day!</Text>
-                                                ) : (
-                                                    <Text style={styles.medSummaryStatusTitle}>🟢 On Track</Text>
-                                                )}
-                                                <Text style={styles.medSummaryDetails}>{takenCount} of {totalMeds} medications taken</Text>
-                                            </View>
-                                            <View style={styles.medSummaryPercentage}>
-                                                <Text style={styles.medPercentageText}>{adherencePct}%</Text>
-                                            </View>
-                                        </View>
-
-                                        {/* Progress Bar */}
-                                        <View style={styles.medProgressBarBg}>
-                                            <View style={[styles.medProgressBarFill, { width: `${adherencePct}%` }]} />
-                                        </View>
-
-                                        <View style={styles.medSummaryFooterRow}>
-                                            <Text style={styles.medSummaryFooterText}>
-                                                {medsExpanded ? t('home.hide', { defaultValue: 'Hide items' }) : t('home.view_details', { defaultValue: 'Tap to view schedule' })}
-                                            </Text>
-                                            <ChevronDown size={14} color="#FFF" style={{ transform: [{ rotate: medsExpanded ? '180deg' : '0deg' }] }} />
-                                        </View>
-                                    </LinearGradient>
-                                </Pressable>
-                            </Animated.View>
-                        ) : (
-                            <View style={styles.emptyCard}>
-                                <View style={styles.emptyIconBox}><Pill size={28} color="#CBD5E1" strokeWidth={1.5} /></View>
-                                <Text style={styles.emptyTitle}>{t('common.no_medications_added', { defaultValue: 'No medications added' })}</Text>
-                                <Text style={styles.emptySub}>{t('common.meds_empty_desc', { defaultValue: "Your medications will appear here once you add your first one. We'll help you stay on track." })}</Text>
-                            </View>
-                        )}
-
-                        {medsExpanded && meds.map(med => (
-                            <MedicationCard key={med.id} med={med} onPress={() => navigation.navigate('Medications')} />
-                        ))}
-                    </Animated.View>
-
-                    {/* ── 7. VITALS (Apple Health Style) ── */}
-                    <Animated.View
-                        style={[anim(7), styles.section]}
-                        onLayout={(e) => {
-                            vitalsSectionY.current = e.nativeEvent.layout.y;
-                        }}
-                    >
-                        <View style={styles.sectionTitleRow}>
-                            <Text style={styles.sectionTitle}>{t('home.vitals', { defaultValue: 'VITALS' })}</Text>
-                            <Pressable style={styles.viewAllBtn} onPress={() => navigation.navigate('VitalsHistory')}>
-                                <Text style={styles.viewAllText}>{t('home.history', { defaultValue: 'History' })}</Text>
-                                <ChevronRight size={13} color="#6366F1" />
-                            </Pressable>
-                        </View>
-
-                        {/* Wearable sync card */}
-                        <Pressable
-                            style={[styles.syncCard, syncStatus.connected && styles.syncCardConnected]}
-                            onPress={() => navigation.navigate('HealthConnectSetup')}
-                        >
-                            {syncStatus.connected && (
-                                <LinearGradient colors={['#ECFDF5', '#F0FDF4']} style={StyleSheet.absoluteFill} />
-                            )}
-                            <View style={styles.syncCardLeft}>
-                                <View style={[styles.syncIconBox, { backgroundColor: syncStatus.connected ? '#DCFCE7' : '#EEF2FF' }]}>
-                                    <Watch size={20} color={syncStatus.connected ? colors.success : '#6366F1'} strokeWidth={2.5} />
-                                </View>
-                                <View style={{ flex: 1 }}>
-                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-                                        <Text style={styles.syncTitle}>
-                                            {syncStatus.connected ? t('home.wearable_connected', { defaultValue: 'Wearable Connected' }) : t('home.connect_wearable', { defaultValue: 'Connect Wearable' })}
-                                        </Text>
-                                        {syncStatus.syncing && (
-                                            <View style={styles.syncingBadge}>
-                                                <Zap size={9} color="#D97706" />
-                                                <Text style={styles.syncingText}>{t('home.syncing', { defaultValue: 'Syncing' })}</Text>
-                                            </View>
-                                        )}
+                                        <Text style={[styles.heroGradeLabel, { color: healthColor }]}>{healthLabel.toUpperCase()}</Text>
                                     </View>
-                                    <Text style={styles.syncSub}>
-                                        {syncStatus.connected
-                                            ? `${syncStatus.readingsToday} ${t('home.readings_today', { defaultValue: 'readings today' })}${syncStatus.lastSync ? ` · ${t('home.last', { defaultValue: 'Last' })}: ` + new Date(syncStatus.lastSync).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}`
-                                            : t('home.auto_track', { defaultValue: 'Auto-track vitals from your smartwatch' })}
-                                    </Text>
                                 </View>
-                            </View>
-                            
-                            {syncStatus.connected ? (
-                                <Svg width={50} height={20} viewBox="0 0 50 20" style={{ marginRight: 8 }}>
-                                    <Path
-                                        d="M 0 10 L 15 10 L 18 2 L 22 18 L 25 10 L 50 10"
-                                        fill="none"
-                                        stroke="#10B981"
-                                        strokeWidth="1.5"
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                    />
-                                </Svg>
-                            ) : (
-                                <ChevronRight size={18} color="#CBD5E1" />
-                            )}
-                        </Pressable>
 
-                        {/* Vitals Grid Row */}
-                        {hasVitalsToday ? (
-                            <ScrollView
-                                horizontal
-                                showsHorizontalScrollIndicator={false}
-                                contentContainerStyle={styles.vitalsScrollContainer}
-                            >
-                                <VitalsCard
-                                    label={t('home.heart_rate', { defaultValue: 'Heart Rate' })}
-                                    value={vitals?.heart_rate || '—'}
-                                    unit="bpm"
-                                    icon={Heart}
-                                    color="#EF4444"
-                                    status={vitals?.heart_rate ? 'Recorded' : 'Not Logged'}
-                                    historyValues={hrHistory}
-                                />
-                                <VitalsCard
-                                    label={t('home.blood_pressure', { defaultValue: 'Blood Pressure' })}
-                                    value={vitals?.blood_pressure?.systolic ? `${vitals.blood_pressure.systolic}/${vitals.blood_pressure.diastolic}` : '—'}
-                                    unit="mmHg"
-                                    icon={Activity}
-                                    color="#6366F1"
-                                    status={vitals?.blood_pressure?.systolic ? 'Recorded' : 'Not Logged'}
-                                    historyValues={bpHistory}
-                                />
-                                <VitalsCard
-                                    label={t('home.oxygen_saturation', { defaultValue: 'Oxygen Saturation' })}
-                                    value={vitals?.oxygen_saturation != null ? `${vitals.oxygen_saturation}` : '—'}
-                                    unit="%"
-                                    icon={Wind}
-                                    color="#10B981"
-                                    status={vitals?.oxygen_saturation != null ? 'Recorded' : 'Not Logged'}
-                                    historyValues={spo2History}
-                                />
-                                <VitalsCard
-                                    label={t('home.hydration', { defaultValue: 'Hydration' })}
-                                    value={vitals?.hydration != null ? `${vitals.hydration}` : '—'}
-                                    unit="%"
-                                    icon={Droplets}
-                                    color="#0EA5E9"
-                                    status={vitals?.hydration != null ? 'Recorded' : 'Not Logged'}
-                                    historyValues={hydHistory}
-                                />
-                            </ScrollView>
-                        ) : (
-                            <View style={styles.card}>
-                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                                    <Text style={styles.cardTitle}>{t('common.today_s_check_in', { defaultValue: "Today's Check-In" })}</Text>
+                                {/* Mood Check-in minimal row */}
+                                <View style={styles.bentoMoodRow}>
+                                    {!moodLogged ? (
+                                        <>
+                                            <Text style={styles.bentoMoodText}>How are you feeling?</Text>
+                                            <View style={styles.bentoMoodActions}>
+                                                <Pressable onPress={() => saveDailyMood('sad')}><LottieView source={require('../../assets/lottie/sad.json')} autoPlay loop style={styles.bentoMoodLottie} /></Pressable>
+                                                <Pressable onPress={() => saveDailyMood('okay')}><LottieView source={require('../../assets/lottie/okay.json')} autoPlay loop style={styles.bentoMoodLottie} /></Pressable>
+                                                <Pressable onPress={() => saveDailyMood('good')}><LottieView source={require('../../assets/lottie/good.json')} autoPlay loop style={styles.bentoMoodLottie} /></Pressable>
+                                                <Pressable onPress={() => saveDailyMood('great')}><LottieView source={require('../../assets/lottie/great.json')} autoPlay loop style={styles.bentoMoodLottie} /></Pressable>
+                                            </View>
+                                        </>
+                                    ) : (
+                                        <View style={styles.bentoMoodDone}>
+                                            <Sparkles size={14} color="#6366F1" />
+                                            <Text style={styles.bentoMoodDoneText}>Mood logged: {selectedMood}</Text>
+                                        </View>
+                                    )}
                                 </View>
-                                {renderVitalsForm(true)}
-                            </View>
-                        )}
+                            </BlurView>
+                        </View>
 
-                        {/* Collapsible log vitals row */}
-                        {hasVitalsToday && (
-                            <View style={[styles.card, { marginTop: 14 }]}>
-                                <Pressable
-                                    style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}
-                                    onPress={() => { setIsLogging(!isLogging); setFormError(null); }}
-                                >
-                                    <Text style={styles.cardTitle}>{t('common.log_today_s_vitals', { defaultValue: "Log Today's Vitals" })}</Text>
-                                    <View style={[styles.toggleBadge, isLogging && styles.toggleBadgeCancel]}>
-                                        <Text style={[styles.toggleBadgeText, isLogging && { color: '#EF4444' }]}>
-                                            {isLogging ? t('common.cancel', { defaultValue: 'Cancel' }) : t('home.add_entry', { defaultValue: '+ Add Entry' })}
-                                        </Text>
+                        {/* ROW 2: Split Tiles */}
+                        <View style={styles.bentoRow}>
+                            <Pressable style={styles.bentoTileHalf} onPress={() => navigation.navigate('Medications')}>
+                                <BlurView intensity={70} tint="light" style={styles.bentoGlass}>
+                                    <View style={styles.bentoTileHeader}>
+                                        <Pill size={18} color="#34D399" />
+                                        <Text style={styles.bentoTileTitle}>Next Dose</Text>
                                     </View>
-                                </Pressable>
-                                {isLogging && renderVitalsForm(false)}
-                            </View>
-                        )}
-                    </Animated.View>
+                                    <Text style={styles.bentoTileBigValue}>{nextDose ? nextDose.slot : 'Done'}</Text>
+                                    <Text style={styles.bentoTileSub}>{nextDose ? nextDose.time : 'All clear'}</Text>
+                                </BlurView>
+                            </Pressable>
 
-                    {/* ── 8. HEALTH JOURNEY & NEXT GOAL ── */}
-                    <Animated.View style={[anim(8), styles.section]}>
-                        <Pressable onPress={() => navigation.navigate('AdherenceDetails')} style={styles.journeyCard}>
-                            <View style={styles.journeyHeader}>
-                                <Text style={styles.journeyTitle}>HEALTH JOURNEY</Text>
-                                <View style={styles.journeyImprovementBadge}>
-                                    <TrendingUp size={12} color="#10B981" />
-                                    <Text style={styles.journeyImprovementText}>+{scoreDiff} This Month</Text>
-                                </View>
-                            </View>
-
-                            <View style={styles.journeyProgressRow}>
-                                <Text style={styles.journeyProgressText}>
-                                    {prevScore} <Text style={{ color: '#94A3B8' }}>→</Text> {healthScore}
-                                </Text>
-                                <Text style={styles.journeyConsistencyBadge}>Best Consistency Yet</Text>
-                            </View>
-                            
-                            <Text style={styles.journeyDesc}>
-                                Better medication adherence and stable vital trends recorded this week.
-                            </Text>
-
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 12, borderTopWidth: 1, borderTopColor: '#F1F5F9', paddingTop: 10 }}>
-                                <Text style={{ fontSize: 12, color: '#6366F1', fontWeight: '700' }}>View Adherence Details</Text>
-                                <ChevronRight size={12} color="#6366F1" />
-                            </View>
-                        </Pressable>
-
-                        {/* Relocated Next Goal Card */}
-                        <View style={[styles.goalCard, { marginTop: 12 }]}>
-                            <View style={styles.goalCardHeader}>
-                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                                    <View style={styles.goalIconBox}>
-                                        <Trophy size={15} color="#F59E0B" />
+                            <Pressable style={styles.bentoTileHalf} onPress={() => navigation.navigate('HealthProfile')}>
+                                <BlurView intensity={70} tint="light" style={styles.bentoGlass}>
+                                    <View style={styles.bentoTileHeader}>
+                                        <Activity size={18} color="#F43F5E" />
+                                        <Text style={styles.bentoTileTitle}>Vitals</Text>
                                     </View>
-                                    <Text style={styles.goalTitle}>{t('home.next_goal', { defaultValue: 'NEXT GOAL' })}</Text>
+                                    <Text style={styles.bentoTileBigValue}>{vitals?.heart_rate || '--'}</Text>
+                                    <Text style={styles.bentoTileSub}>bpm Heart Rate</Text>
+                                </BlurView>
+                            </Pressable>
+                        </View>
+
+                        {/* AI COACH TILE */}
+                        <View style={styles.bentoTileFull}>
+                            <BlurView intensity={80} tint="dark" style={[styles.bentoGlass, { backgroundColor: 'rgba(30,27,75,0.7)' }]}>
+                                <View style={styles.bentoTileHeader}>
+                                    <Sparkles size={18} color="#A855F7" />
+                                    <Text style={[styles.bentoTileTitle, { color: '#E0E7FF' }]}>AI Coach</Text>
                                 </View>
-                                <Text style={styles.goalProgressValue}>
-                                    {healthScore} / {targetMilestone}
-                                </Text>
-                            </View>
-                            
-                            <Text style={styles.goalDesc}>Reach Health Score {targetMilestone}</Text>
-
-                            <View style={styles.progressBg}>
-                                <LinearGradient
-                                    colors={['#FCD34D', '#F59E0B']}
-                                    start={{ x: 0, y: 0 }}
-                                    end={{ x: 1, y: 0 }}
-                                    style={[styles.progressFill, { width: `${milestoneProgress * 100}%` }]}
-                                />
-                            </View>
+                                <Text style={styles.bentoCoachText}>{displayInsight}</Text>
+                            </BlurView>
                         </View>
-                    </Animated.View>
 
-                    {/* ── 9. QUICK ACTIONS (Visually De-emphasized Utility Chips) ── */}
-                    <Animated.View style={[anim(9), styles.section]}>
-                        <Text style={styles.sectionTitle}>{t('common.quick_actions', { defaultValue: 'QUICK ACTIONS' })}</Text>
-                        <View style={styles.deemphasizedActionsRow}>
-                            <Pressable style={styles.actionChip} onPress={() => navigation.navigate('AdherenceDetails')}>
-                                <TrendingUp size={13} color="#475569" />
-                                <Text style={styles.actionChipText}>Adherence</Text>
+                        {/* QUICK ACTIONS */}
+                        <View style={styles.bentoRow}>
+                            <Pressable style={styles.bentoActionTile} onPress={() => navigation.navigate('Chatbot')}>
+                                <BlurView intensity={70} tint="light" style={styles.bentoGlassCenter}>
+                                    <MessageSquare size={20} color="#6366F1" />
+                                    <Text style={styles.bentoActionText}>Chat</Text>
+                                </BlurView>
                             </Pressable>
-
-                            <Pressable style={styles.actionChip} onPress={() => navigation.navigate('Notifications')}>
-                                <Bell size={13} color="#475569" />
-                                <Text style={styles.actionChipText}>Reminders</Text>
+                            <Pressable style={styles.bentoActionTile} onPress={() => navigation.navigate('LocationSearch')}>
+                                <BlurView intensity={70} tint="light" style={styles.bentoGlassCenter}>
+                                    <MapPin size={20} color="#6366F1" />
+                                    <Text style={styles.bentoActionText}>Map</Text>
+                                </BlurView>
                             </Pressable>
-
-                            <Pressable style={styles.actionChip} onPress={() => navigation.navigate('Chatbot')}>
-                                <Sparkles size={13} color="#475569" />
-                                <Text style={styles.actionChipText}>Coach</Text>
-                            </Pressable>
-
-                            <Pressable style={styles.actionChip} onPress={() => navigation.navigate('Profile')}>
-                                <Shield size={13} color="#475569" />
-                                <Text style={styles.actionChipText}>Profile</Text>
+                            <Pressable style={styles.bentoActionTile} onPress={() => navigation.navigate('VitalsHistory')}>
+                                <BlurView intensity={70} tint="light" style={styles.bentoGlassCenter}>
+                                    <Activity size={20} color="#6366F1" />
+                                    <Text style={styles.bentoActionText}>History</Text>
+                                </BlurView>
                             </Pressable>
                         </View>
-                    </Animated.View>
-
-                    {/* ── 10. DAILY HEALTH TIP ── */}
-                    <Animated.View style={anim(9)}>
-                        <View style={styles.section}>
-                            <LinearGradient colors={['#EEF2FF', '#E0E7FF']} style={styles.tipCard}>
-                                <View style={styles.tipHeader}>
-                                    <LinearGradient colors={['#818CF8', '#6366F1']} style={styles.tipIconBox}>
-                                        <Sparkles size={14} color="#FFF" />
-                                    </LinearGradient>
-                                    <Text style={styles.tipLabel}>{t('home.daily_health_tip', { defaultValue: 'DAILY HEALTH TIP' })}</Text>
-                                </View>
-                                <Text style={styles.tipText}>{t('tips.tip_' + getDailyTipIndex(), { defaultValue: HEALTH_TIPS[getDailyTipIndex()] })}</Text>
-                            </LinearGradient>
-                        </View>
-                    </Animated.View>
-
                     <View style={{ height: 60 }} />
                 </ScrollView>
             </View>
@@ -1536,744 +1129,53 @@ export default function PatientHomeScreen({ navigation }) {
 // ══ STYLES ═══════════════════════════════════════════════════════════════════
 // ══════════════════════════════════════════════════════════════════════════════
 const styles = StyleSheet.create({
-    premiumBanner: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FAF5FF', borderRadius: 20, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: '#F3E8FF' },
-    premiumBannerLeft: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
-    premiumBannerIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#F3E8FF', alignItems: 'center', justifyContent: 'center' },
-    premiumBannerTitle: { fontSize: 15, fontWeight: '800', color: '#6B21A8' },
-    premiumBannerSub: { fontSize: 13, color: '#9333EA', fontWeight: '500', marginTop: 2, lineHeight: 18 },
-
     // ── Skeleton ──
     skeletonHeader: { paddingTop: Platform.OS === 'ios' ? 60 : 44, paddingBottom: 20, backgroundColor: '#F8FAFC', paddingHorizontal: 24 },
 
     // ── Header ──
-    header: {
-        paddingTop: Platform.OS === 'ios' ? 60 : 48,
-        paddingHorizontal: 24, paddingBottom: 14,
-        backgroundColor: '#F8FAFC',
-    },
+    header: { paddingTop: Platform.OS === 'ios' ? 60 : 48, paddingHorizontal: 24, paddingBottom: 14, backgroundColor: '#F8FAFC' },
     mainHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-    greetingName: { fontSize: 28, fontWeight: '900', color: '#6366F1', letterSpacing: -1 },
-    headerSubtext: { fontSize: 13, color: '#94A3B8', marginTop: 2, fontWeight: '600' },
+    greetingName: { fontSize: 28, fontWeight: '900', color: '#1E293B', letterSpacing: -1 },
+    headerSubtext: { fontSize: 13, color: '#64748B', marginTop: 4, fontWeight: '600' },
     headerActions: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-    headerIconBtn: {
-        width: 42, height: 42, borderRadius: 21,
-        backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0',
-        alignItems: 'center', justifyContent: 'center',
-    },
+    headerIconBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
     bellDot: { position: 'absolute', top: 10, right: 10, width: 7, height: 7, borderRadius: 3.5, backgroundColor: '#EF4444', borderWidth: 1.5, borderColor: '#FFFFFF' },
-    avatarBtn: {
-        width: 42, height: 42, borderRadius: 21,
-        backgroundColor: '#6366F1', borderWidth: 2, borderColor: '#C7D2FE',
-        alignItems: 'center', justifyContent: 'center',
-    },
+    avatarBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: '#6366F1', alignItems: 'center', justifyContent: 'center' },
     avatarText: { fontSize: 16, fontWeight: '900', color: '#FFFFFF' },
-    datePill: {
-        flexDirection: 'row', alignItems: 'center', gap: 6,
-        backgroundColor: '#FFFFFF', paddingHorizontal: 12, paddingVertical: 8,
-        borderRadius: 16, borderWidth: 1, borderColor: '#E2E8F0',
-        shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.03, shadowRadius: 4, elevation: 1
-    },
-    dateText: { fontSize: 12, color: '#475569', fontWeight: '700' },
-    locationPill: {
-        flexDirection: 'row', alignItems: 'center', gap: 6,
-        backgroundColor: '#FFFFFF', paddingHorizontal: 12, paddingVertical: 8,
-        borderRadius: 16, borderWidth: 1, borderColor: '#E2E8F0',
-        shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.03, shadowRadius: 4, elevation: 1
-    },
-    locationDot: {
-        width: 16, height: 16, borderRadius: 8,
-        backgroundColor: '#6366F1', alignItems: 'center', justifyContent: 'center',
-    },
-    locationText: { fontSize: 12, color: '#475569', fontWeight: '700', flex: 1 },
-
-    // ── Glass Health Orb ──
-    orbContainer: {
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginVertical: 18,
-    },
-    orbWrapper: {
-        width: 210,
-        height: 210,
-        alignItems: 'center',
-        justifyContent: 'center',
-        position: 'relative',
-    },
-    orbSvg: {
-        position: 'absolute',
-    },
-    glassOrb: {
-        width: 168,
-        height: 168,
-        borderRadius: 84,
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: 'rgba(255, 255, 255, 0.78)',
-        borderWidth: 1.5,
-        borderColor: 'rgba(255, 255, 255, 0.85)',
-        shadowColor: '#6366F1',
-        shadowOffset: { width: 0, height: 12 },
-        shadowOpacity: 0.16,
-        shadowRadius: 20,
-        elevation: 8,
-        position: 'relative'
-    },
-    orbScoreText: {
-        fontSize: 58,
-        fontWeight: '900',
-        color: '#0F172A',
-        letterSpacing: -2,
-    },
-    orbLabelText: {
-        fontSize: 10,
-        fontWeight: '800',
-        letterSpacing: 1.5,
-        marginTop: -4,
-    },
-    orbGradeBadge: {
-        position: 'absolute',
-        bottom: 18,
-        paddingHorizontal: 8,
-        paddingVertical: 2,
-        borderRadius: 8,
-        borderWidth: 1,
-    },
-    orbGradeText: {
-        fontSize: 11,
-        fontWeight: '900',
-    },
-    orbNextDose: {
-        fontSize: 13,
-        color: '#64748B',
-        fontWeight: '700',
-        marginTop: 14,
-        textAlign: 'center',
-    },
-
-    // ── Daily Check-In ──
-    checkinCard: {
-        backgroundColor: '#FFFFFF',
-        borderRadius: 28,
-        padding: 24,
-        shadowColor: '#6366F1',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.06,
-        shadowRadius: 20,
-        elevation: 4,
-    },
-    checkinTitle: {
-        fontSize: 15,
-        fontWeight: '800',
-        color: '#1E293B',
-        marginBottom: 14,
-        textAlign: 'center',
-    },
-    moodEmojiRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        paddingHorizontal: 10,
-    },
-    moodEmojiPill: {
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 8,
-        width: 60,
-    },
-    moodLottie: {
-        width: 48,
-        height: 48,
-        marginBottom: 8,
-    },
-    moodLabel: {
-        fontSize: 11,
-        color: '#64748B',
-        fontWeight: '700',
-    },
-    checkinCompleteView: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        flexWrap: 'wrap',
-        gap: 8,
-    },
-    checkinCompleteText: {
-        fontSize: 13,
-        color: '#312E81',
-        fontWeight: '600',
-        flex: 1,
-    },
-    selectedMoodBadge: {
-        fontSize: 12,
-        fontWeight: '700',
-        color: '#6366F1',
-        backgroundColor: '#EEF2FF',
-        paddingHorizontal: 10,
-        paddingVertical: 6,
-        borderRadius: 12,
-    },
-
-    // ── Health Pulse Card ──
-    pulseCard: {
-        backgroundColor: '#FFFFFF',
-        borderRadius: 20,
-        padding: 16,
-        borderWidth: 1,
-        borderColor: '#E2E8F0',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.01,
-        shadowRadius: 6,
-        elevation: 1,
-    },
-    pulseHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
-        marginBottom: 8,
-    },
-    pulseTitle: {
-        fontSize: 10,
-        fontWeight: '800',
-        color: '#94A3B8',
-        letterSpacing: 1.2,
-    },
-    pulseStatusIndicator: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 4,
-        paddingHorizontal: 8,
-        paddingVertical: 3,
-        borderRadius: 10,
-        marginLeft: 'auto',
-    },
-    pulseStatusDot: {
-        width: 5,
-        height: 5,
-        borderRadius: 2.5,
-    },
-    pulseStatusLabel: {
-        fontSize: 9,
-        fontWeight: '900',
-        textTransform: 'uppercase',
-    },
-    pulseDetailsText: {
-        fontSize: 13,
-        color: '#475569',
-        fontWeight: '600',
-        lineHeight: 18,
-    },
-
-    // ── AI Coach (Today's Insight) ──
-    insightCard: {
-        borderRadius: 24,
-        padding: 22,
-        shadowColor: '#4F46E5',
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.25,
-        shadowRadius: 20,
-        elevation: 8,
-    },
-    insightHeaderRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 16,
-    },
-    insightHeaderLeft: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
-    },
-    insightIconBox: {
-        width: 28,
-        height: 28,
-        borderRadius: 10,
-        backgroundColor: 'rgba(255, 255, 255, 0.15)',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    insightTitle: {
-        fontSize: 13,
-        fontWeight: '800',
-        color: '#E0E7FF',
-        letterSpacing: 1,
-    },
-    insightBadge: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 5,
-        paddingHorizontal: 10,
-        paddingVertical: 5,
-        borderRadius: 10,
-        backgroundColor: '#DCFCE7',
-    },
-    insightBadgeDot: {
-        width: 5,
-        height: 5,
-        borderRadius: 2.5,
-        backgroundColor: '#22C55E',
-    },
-    insightBadgeText: {
-        fontSize: 9,
-        fontWeight: '900',
-        color: '#16A34A',
-        letterSpacing: 0.5,
-    },
-    insightBody: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-    },
-    insightDescText: {
-        fontSize: 15,
-        color: '#FFFFFF',
-        lineHeight: 22,
-        fontWeight: '500',
-    },
-    insightIllustration: {
-        width: 56,
-        height: 56,
-        borderRadius: 18,
-        backgroundColor: 'rgba(255,255,255,0.08)',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    insightDotsRow: {
-        flexDirection: 'row',
-        justifyContent: 'center',
-        gap: 6,
-        marginTop: 18,
-    },
-    insightDot: {
-        width: 5,
-        height: 5,
-        borderRadius: 2.5,
-        backgroundColor: 'rgba(255, 255, 255, 0.3)',
-    },
-    insightDotActive: {
-        width: 15,
-        backgroundColor: '#FFFFFF',
-    },
-
-    // ── Next Goal Card ──
-    goalCard: {
-        backgroundColor: '#FFFFFF',
-        borderRadius: 24,
-        padding: 20,
-        borderWidth: 1,
-        borderColor: '#E2E8F0',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.02,
-        shadowRadius: 10,
-        elevation: 2,
-    },
-    goalCardHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 10,
-    },
-    goalIconBox: {
-        width: 24,
-        height: 24,
-        borderRadius: 8,
-        backgroundColor: '#FEF3C7',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    goalTitle: {
-        fontSize: 10,
-        fontWeight: '800',
-        color: '#94A3B8',
-        letterSpacing: 1.5,
-    },
-    goalProgressValue: {
-        fontSize: 13,
-        fontWeight: '800',
-        color: '#475569',
-    },
-    goalDesc: {
-        fontSize: 16,
-        fontWeight: '700',
-        color: '#1E293B',
-        marginBottom: 14,
-    },
-    progressBg: {
-        height: 8,
-        backgroundColor: '#F1F5F9',
-        borderRadius: 4,
-        overflow: 'hidden',
-    },
-    progressFill: {
-        height: 8,
-        borderRadius: 4,
-    },
-
-    // ── Medications Plan ──
-    medSummaryCard: {
-        borderRadius: 24,
-        overflow: 'hidden',
-        marginBottom: 14,
-        shadowColor: '#6366F1',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.12,
-        shadowRadius: 16,
-        elevation: 4,
-    },
-    medSummaryGradient: {
-        padding: 20,
-    },
-    medSummaryMainRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 14,
-    },
-    medSummaryStatusTitle: {
-        fontSize: 18,
-        fontWeight: '900',
-        color: '#FFFFFF',
-    },
-    medSummaryDetails: {
-        fontSize: 13,
-        color: 'rgba(255, 255, 255, 0.85)',
-        marginTop: 2,
-        fontWeight: '500',
-    },
-    medSummaryPercentage: {
-        width: 52,
-        height: 52,
-        borderRadius: 26,
-        backgroundColor: 'rgba(255, 255, 255, 0.15)',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    medPercentageText: {
-        color: '#FFFFFF',
-        fontSize: 16,
-        fontWeight: '900',
-    },
-    medProgressBarBg: {
-        height: 6,
-        backgroundColor: 'rgba(255, 255, 255, 0.25)',
-        borderRadius: 3,
-        overflow: 'hidden',
-        marginBottom: 14,
-    },
-    medProgressBarFill: {
-        height: 6,
-        backgroundColor: '#FFFFFF',
-        borderRadius: 3,
-    },
-    medSummaryFooterRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-    },
-    medSummaryFooterText: {
-        fontSize: 12,
-        color: '#FFFFFF',
-        fontWeight: '700',
-    },
-
-    // ── Vitals Section (Apple Health style) ──
-    vitalsGrid: {
-        flexDirection: 'row',
-        gap: 12,
-        marginBottom: 14,
-    },
-    vitalsScrollContainer: {
-        flexDirection: 'row',
-        gap: 12,
-        paddingBottom: 14,
-    },
-    vitalsCard: {
-        width: 165,
-        backgroundColor: '#FFFFFF',
-        borderRadius: 24,
-        padding: 16,
-        borderWidth: 1,
-        borderColor: '#E2E8F0',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.02,
-        shadowRadius: 10,
-        elevation: 2,
-    },
-    vitalsCardTop: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 12,
-    },
-    vitalsIconBox: {
-        width: 32,
-        height: 32,
-        borderRadius: 10,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    vitalsStatusBadge: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 4,
-        paddingHorizontal: 8,
-        paddingVertical: 3,
-        borderRadius: 14,
-    },
-    statusDot: {
-        width: 5,
-        height: 5,
-        borderRadius: 2.5,
-    },
-    statusLabel: {
-        fontSize: 9,
-        fontWeight: '800',
-        textTransform: 'uppercase',
-    },
-    vitalsCardLabel: {
-        fontSize: 12,
-        fontWeight: '700',
-        color: '#64748B',
-    },
-    vitalsCardValue: {
-        fontSize: 24,
-        fontWeight: '800',
-        color: '#0F172A',
-        letterSpacing: -0.5,
-    },
-    vitalsCardUnit: {
-        fontSize: 11,
-        fontWeight: '600',
-        color: '#94A3B8',
-    },
-    sparklineWrapper: {
-        height: 32,
-        width: '100%',
-        marginVertical: 10,
-        justifyContent: 'center',
-    },
-    vitalsCardFooter: {
-        fontSize: 10,
-        color: '#94A3B8',
-        fontWeight: '700',
-        textTransform: 'uppercase',
-        letterSpacing: 0.3,
-    },
-
-    // ── Health Journey ──
-    journeyCard: {
-        backgroundColor: '#FFFFFF',
-        borderRadius: 24,
-        padding: 20,
-        borderWidth: 1,
-        borderColor: '#E2E8F0',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.02,
-        shadowRadius: 10,
-        elevation: 2,
-    },
-    journeyHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 12,
-    },
-    journeyTitle: {
-        fontSize: 10,
-        fontWeight: '800',
-        color: '#94A3B8',
-        letterSpacing: 1.5,
-    },
-    journeyImprovementBadge: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 4,
-        backgroundColor: '#ECFDF5',
-        paddingHorizontal: 10,
-        paddingVertical: 4,
-        borderRadius: 10,
-    },
-    journeyImprovementText: {
-        fontSize: 11,
-        color: '#10B981',
-        fontWeight: '800',
-    },
-    journeyProgressRow: {
-        flexDirection: 'row',
-        alignItems: 'baseline',
-        justifyContent: 'space-between',
-        marginBottom: 10,
-    },
-    journeyProgressText: {
-        fontSize: 26,
-        fontWeight: '900',
-        color: '#0F172A',
-        letterSpacing: -1,
-    },
-    journeyConsistencyBadge: {
-        fontSize: 11,
-        color: '#6366F1',
-        fontWeight: '800',
-        backgroundColor: '#EEF2FF',
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-        borderRadius: 8,
-    },
-    journeyDesc: {
-        fontSize: 13,
-        color: '#64748B',
-        lineHeight: 18,
-        fontWeight: '500',
-    },
-
-    // ── De-emphasized Quick Actions (Flat Capsule Chips) ──
-    deemphasizedActionsRow: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 8,
-        marginTop: 4,
-    },
-    actionChip: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#F1F5F9',
-        paddingHorizontal: 12,
-        paddingVertical: 8,
-        borderRadius: 12,
-        gap: 6,
-        borderWidth: 1,
-        borderColor: '#E2E8F0',
-    },
-    actionChipText: {
-        fontSize: 12,
-        fontWeight: '700',
-        color: '#475569',
-    },
-
-    // ── tip card ──
-    tipCard: { borderRadius: 22, overflow: 'hidden', padding: 18, borderWidth: 1, borderColor: '#C7D2FE' },
-    tipHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
-    tipIconBox: { width: 30, height: 30, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-    tipLabel: { fontSize: 11, fontWeight: '800', color: '#6366F1', letterSpacing: 1.2, textTransform: 'uppercase' },
-    tipText: { fontSize: 14, color: '#3730A3', lineHeight: 22, fontWeight: '500' },
 
     // ── Scroll Content ──
-    scrollContent: { paddingHorizontal: 24, paddingTop: 16, paddingBottom: layout.TAB_BAR_CLEARANCE },
+    scrollContent: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: layout.TAB_BAR_CLEARANCE + 20 },
 
-    // ── Sections ──
-    section: { marginBottom: 32 },
-    sectionTitle: {
-        fontSize: 11, fontWeight: '800', color: '#94A3B8',
-        letterSpacing: 1.8, textTransform: 'uppercase', marginBottom: 12,
-    },
-    sectionTitleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-    viewAllBtn: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-    viewAllText: { fontSize: 13, fontWeight: '700', color: '#6366F1' },
+    // ── Bento Box Layout ──
+    bentoGrid: { gap: 16 },
+    bentoRow: { flexDirection: 'row', gap: 16 },
+    bentoGlass: { borderRadius: 32, padding: 24, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.4)' },
+    bentoGlassCenter: { borderRadius: 28, padding: 18, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.4)', alignItems: 'center', justifyContent: 'center', gap: 8 },
+    
+    bentoHeroTile: { shadowColor: '#6366F1', shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.15, shadowRadius: 24, elevation: 8 },
+    bentoHeroTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 },
+    bentoTitle: { fontSize: 13, fontWeight: '700', color: '#64748B', textTransform: 'uppercase', letterSpacing: 1.2 },
+    heroScore: { fontSize: 64, fontWeight: '900', color: '#0F172A', letterSpacing: -3, marginTop: 4 },
+    heroGradeBadge: { paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12 },
+    heroGradeText: { fontSize: 18, fontWeight: '900', color: '#FFF' },
+    heroGradeLabel: { fontSize: 11, fontWeight: '800', marginTop: 6, letterSpacing: 1 },
 
-    // ── Offline Banner ──
-    offlineBanner: {
-        flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7,
-        backgroundColor: '#FEF3C7', borderWidth: 1, borderColor: '#FDE68A',
-        borderRadius: 16, paddingVertical: 10, paddingHorizontal: 14, marginBottom: 16,
-    },
-    offlineBannerText: { fontSize: 12, fontWeight: '700', color: '#92400E' },
+    bentoMoodRow: { marginTop: 10, paddingTop: 20, borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,0.05)' },
+    bentoMoodText: { fontSize: 14, fontWeight: '700', color: '#475569', marginBottom: 12 },
+    bentoMoodActions: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 10 },
+    bentoMoodLottie: { width: 44, height: 44 },
+    bentoMoodDone: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(99,102,241,0.1)', padding: 12, borderRadius: 16 },
+    bentoMoodDoneText: { fontSize: 14, fontWeight: '700', color: '#6366F1' },
 
-    // ── Mini Med cards ──
-    medCard: {
-        backgroundColor: '#FFFFFF', borderRadius: 20, marginBottom: 10,
-        flexDirection: 'row', overflow: 'hidden',
-        shadowColor: '#000', shadowOffset: { width: 0, height: 3 },
-        shadowOpacity: 0.04, shadowRadius: 10, elevation: 3,
-        borderWidth: 1, borderColor: '#F1F5F9',
-    },
-    medCardTaken: { backgroundColor: '#F0FDF4', borderColor: '#DCFCE7' },
-    medAccentBar: { width: 5, flexShrink: 0 },
-    medCardContent: { flex: 1, flexDirection: 'row', alignItems: 'center', padding: 16, gap: 14 },
-    medIconBox: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-    medName: { fontSize: 15, fontWeight: '700', color: '#0F172A', marginBottom: 3 },
-    medDose: { fontSize: 12, color: '#64748B', fontWeight: '500' },
-    takenBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#DCFCE7', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10 },
-    takenBadgeText: { fontSize: 10, fontWeight: '700', color: colors.success },
+    bentoTileHalf: { flex: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.05, shadowRadius: 16, elevation: 4 },
+    bentoTileFull: { shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.05, shadowRadius: 16, elevation: 4 },
+    bentoTileHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
+    bentoTileTitle: { fontSize: 13, fontWeight: '800', color: '#475569', textTransform: 'uppercase', letterSpacing: 0.5 },
+    bentoTileBigValue: { fontSize: 24, fontWeight: '900', color: '#0F172A', marginBottom: 4 },
+    bentoTileSub: { fontSize: 13, fontWeight: '600', color: '#64748B' },
 
-    // ── Sync Card ──
-    syncCard: {
-        flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-        backgroundColor: '#FFFFFF', borderRadius: 24, padding: 16, marginBottom: 14,
-        shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.02, shadowRadius: 8, elevation: 2,
-        overflow: 'hidden', borderWidth: 1, borderColor: '#E2E8F0',
-    },
-    syncCardConnected: { borderColor: '#DCFCE7' },
-    syncCardLeft: { flexDirection: 'row', alignItems: 'center', flex: 1, gap: 14 },
-    syncIconBox: { width: 46, height: 46, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
-    syncTitle: { fontSize: 15, fontWeight: '700', color: '#1E293B' },
-    syncSub: { fontSize: 12, color: '#64748B', fontWeight: '500' },
-    syncingBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: '#FEF3C7', paddingHorizontal: 7, paddingVertical: 3, borderRadius: 8 },
-    syncingText: { fontSize: 10, fontWeight: '700', color: '#D97706' },
+    bentoCoachText: { fontSize: 16, fontWeight: '600', color: '#C7D2FE', lineHeight: 24 },
 
-    // ── Generic Card ──
-    card: {
-        backgroundColor: '#FFFFFF', borderRadius: 28, padding: 24,
-        shadowColor: '#6366F1', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.06, shadowRadius: 20, elevation: 4,
-    },
-    cardTitle: { fontSize: 16, fontWeight: '800', color: '#1E293B' },
-    toggleBadge: { backgroundColor: 'rgba(99,102,241,0.1)', paddingHorizontal: 14, paddingVertical: 7, borderRadius: 10 },
-    toggleBadgeCancel: { backgroundColor: 'rgba(239,68,68,0.08)' },
-    toggleBadgeText: { color: '#6366F1', fontSize: 13, fontWeight: '700' },
-    formRow: { flexDirection: 'row', gap: 12, marginBottom: 4 },
-    submitBtn: {
-        borderRadius: 18, paddingVertical: 16, alignItems: 'center', marginTop: 20,
-        overflow: 'hidden',
-        shadowColor: '#6366F1', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 10, elevation: 6,
-    },
-    submitBtnText: { color: '#FFF', fontSize: 15, fontWeight: '700', letterSpacing: 0.3 },
-    errorBanner: {
-        flexDirection: 'row', alignItems: 'center', gap: 8,
-        backgroundColor: '#FEF2F2', borderWidth: 1, borderColor: '#FECACA',
-        borderRadius: 14, padding: 12, marginBottom: 12,
-    },
-    errorText: { flex: 1, color: '#991B1B', fontSize: 13, fontWeight: '600', lineHeight: 18 },
-
-    // ── Empty State ──
-    emptyCard: {
-        backgroundColor: '#FFFFFF', borderRadius: 24, padding: 28,
-        alignItems: 'center', borderWidth: 1, borderColor: '#E2E8F0',
-        shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.02, shadowRadius: 10, elevation: 2,
-    },
-    emptyIconBox: {
-        width: 56, height: 56, borderRadius: 18, backgroundColor: '#F1F5F9',
-        alignItems: 'center', justifyContent: 'center', marginBottom: 14,
-    },
-    emptyTitle: { fontSize: 16, fontWeight: '800', color: '#1E293B', marginBottom: 6, textAlign: 'center' },
-    emptySub: { fontSize: 13, color: '#64748B', fontWeight: '500', lineHeight: 19, textAlign: 'center' },
-
-    // ── FLOATING COACH BUTTON ──
-    floatingCoachBtn: {
-        position: 'absolute',
-        right: 20,
-        bottom: 20,
-        borderRadius: 25,
-        shadowColor: '#6366F1',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.3,
-        shadowRadius: 12,
-        elevation: 6,
-        overflow: 'hidden',
-    },
-    floatingCoachGradient: {
-        paddingHorizontal: 20,
-        paddingVertical: 14,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    floatingCoachText: {
-        color: '#FFFFFF',
-        fontSize: 14,
-        fontWeight: '800',
-    },
+    bentoActionTile: { flex: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.03, shadowRadius: 10, elevation: 2 },
+    bentoActionText: { fontSize: 12, fontWeight: '700', color: '#475569' },
 });
