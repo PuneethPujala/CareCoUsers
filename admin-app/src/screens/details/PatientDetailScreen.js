@@ -1,6 +1,6 @@
 import { isValidEmail, isValidName, isValidPhone, isValidPassword, isValidAmount } from '../../utils/validators';
 import React, { useState, useCallback } from 'react';
-import { View, Text, ScrollView, StyleSheet, StatusBar, TouchableOpacity, ActivityIndicator, Linking, Alert, Modal, TextInput, Switch } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, StatusBar, TouchableOpacity, ActivityIndicator, Linking, Alert, Modal, TextInput, Switch, Image } from 'react-native';
 import { Feather, FontAwesome5 } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 
@@ -122,7 +122,7 @@ export default function PatientDetailScreen({ navigation, route }) {
     });
     const [submitting, setSubmitting] = useState(false);
     const [uploadedPrescriptions, setUploadedPrescriptions] = useState([]);
-    const [isExtracting, setIsExtracting] = useState(false);
+    const [viewingPrescriptionUrl, setViewingPrescriptionUrl] = useState(null);
 
     const [customAlert, setCustomAlert] = useState({ visible: false, title: '', message: '', buttons: [], type: 'info' });
 
@@ -179,34 +179,6 @@ export default function PatientDetailScreen({ navigation, route }) {
     const handleEmail = (email) => {
         if (!email) return showAlert('No Email', 'No email on file.', 'warning');
         Linking.openURL(`mailto:${email}`);
-    };
-
-    const handleExtractOCR = async (fileUrl) => {
-        setIsExtracting(true);
-        try {
-            const res = await apiService.caretaker.extractPrescriptionOCR(patientId, fileUrl);
-            const meds = res.data?.data?.medications || [];
-            if (meds.length > 0) {
-                const first = meds[0];
-                setMedForm({
-                    name: first.name,
-                    dosage: first.dosage || '',
-                    frequency: first.frequency || 'Daily',
-                    timePhases: ['morning'],
-                    route: 'oral',
-                    instructions: '',
-                    withFood: false
-                });
-                setShowMedModal(true);
-                showAlert('OCR Success', `Extracted ${meds.length} medications. Added first one to the form.`, 'success');
-            } else {
-                showAlert('OCR Result', 'No medications could be confidently extracted from this image.', 'info');
-            }
-        } catch (err) {
-            showAlert('OCR Error', handleApiError(err).message, 'error');
-        } finally {
-            setIsExtracting(false);
-        }
     };
 
     const openAddMedModal = () => {
@@ -675,18 +647,11 @@ export default function PatientDetailScreen({ navigation, route }) {
                                         <Text style={{ fontSize: 12, color: '#64748B', marginTop: 4 }}>{new Date(presc.uploaded_at || presc.uploadedAt || presc.created_at).toLocaleDateString()}</Text>
                                     </View>
                                     <TouchableOpacity 
-                                        onPress={() => handleExtractOCR(presc.file_url)} 
-                                        disabled={isExtracting}
+                                        onPress={() => setViewingPrescriptionUrl(presc.file_url)} 
                                         style={{ backgroundColor: '#6366F1', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, flexDirection: 'row', alignItems: 'center', gap: 6 }}
                                     >
-                                        {isExtracting ? (
-                                            <ActivityIndicator size="small" color="#FFF" />
-                                        ) : (
-                                            <>
-                                                <Feather name="cpu" size={14} color="#FFF" />
-                                                <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '600' }}>Extract with AI</Text>
-                                            </>
-                                        )}
+                                        <Feather name="eye" size={14} color="#FFF" />
+                                        <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '600' }}>View Prescription</Text>
                                     </TouchableOpacity>
                                 </View>
                             ))}
@@ -822,6 +787,30 @@ export default function PatientDetailScreen({ navigation, route }) {
                             </TouchableOpacity>
                         </View>
                     </View>
+                </View>
+            </Modal>
+
+            {/* View Prescription Modal */}
+            <Modal
+                visible={!!viewingPrescriptionUrl}
+                transparent={true}
+                animationType="fade"
+                onRequestClose={() => setViewingPrescriptionUrl(null)}
+            >
+                <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.9)', justifyContent: 'center', alignItems: 'center' }}>
+                    <TouchableOpacity 
+                        style={{ position: 'absolute', top: 50, right: 20, zIndex: 10, padding: 10, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 20 }}
+                        onPress={() => setViewingPrescriptionUrl(null)}
+                    >
+                        <Feather name="x" size={24} color="#FFF" />
+                    </TouchableOpacity>
+                    
+                    {viewingPrescriptionUrl && (
+                        <Image 
+                            source={{ uri: viewingPrescriptionUrl }} 
+                            style={{ width: '95%', height: '80%', resizeMode: 'contain' }} 
+                        />
+                    )}
                 </View>
             </Modal>
 
