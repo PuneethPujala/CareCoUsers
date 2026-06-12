@@ -16,9 +16,9 @@ const getTransporter = () => {
       pass: process.env.SMTP_PASS,
     },
     // Timeouts to prevent hanging on cloud hosts that block SMTP ports
-    connectionTimeout: 10000, // 10s to establish TCP connection
-    greetingTimeout: 10000,   // 10s to receive SMTP greeting
-    socketTimeout: 15000,     // 15s for socket inactivity
+    connectionTimeout: 30000, // 30s to establish TCP connection
+    greetingTimeout: 30000,   // 30s to receive SMTP greeting
+    socketTimeout: 45000,     // 45s for socket inactivity
   });
 
   return transporter;

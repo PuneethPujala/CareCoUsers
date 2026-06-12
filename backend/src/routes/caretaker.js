@@ -50,10 +50,10 @@ function getISTDate() {
     // Use Math to ensure IST (+05:30) is evaluated correctly regardless of NodeJS timezone
     const utcHours = d.getUTCHours();
     const utcMinutes = d.getUTCMinutes();
-    
+
     let istHours = utcHours + 5;
     let istMinutes = utcMinutes + 30;
-    
+
     if (istMinutes >= 60) {
         istHours += 1;
         istMinutes -= 60;
@@ -61,7 +61,7 @@ function getISTDate() {
     if (istHours >= 24) {
         istHours -= 24;
     }
-    
+
     const dummyDate = new Date(d);
     dummyDate.getHours = () => istHours;
     return dummyDate;
@@ -219,7 +219,7 @@ async function syncTodayMedicineLog(patientId, medName, timeBuckets, action = 'a
         } else if (action === 'remove' && log) {
             // Check if there are taken logs
             const hasBeenTaken = log.medicines.some(m => m.medicine_name === medName && m.taken);
-            
+
             if (!hasBeenTaken) {
                 // If it was never taken today, completely drop it from today's schema
                 log.medicines = log.medicines.filter(m => m.medicine_name !== medName);
@@ -268,7 +268,7 @@ async function getPatientMedications(patientId, activeOnly = true) {
     // Deduplicate by ID across BOTH sources
     const finalMeds = [];
     const seen = new Set();
-    
+
     // First, add all from master collection
     for (const m of meds) {
         const mId = (m._id || m.id || '').toString();
@@ -405,27 +405,27 @@ function getShiftBounds(shift) {
     const year = istNow.getFullYear();
     const month = String(istNow.getMonth() + 1).padStart(2, '0');
     const date = String(istNow.getDate()).padStart(2, '0');
-    
+
     // We construct ISO strings with +05:30 offset
     const dStr = `${year}-${month}-${date}T`;
-    
+
     let startStr = `${dStr}00:00:00+05:30`;
-    let endStr   = `${dStr}23:59:59+05:30`;
-    
+    let endStr = `${dStr}23:59:59+05:30`;
+
     if (shift === 'morning') {
         startStr = `${dStr}00:00:00+05:30`;
-        endStr   = `${dStr}11:59:59+05:30`;
+        endStr = `${dStr}11:59:59+05:30`;
     } else if (shift === 'afternoon') {
         startStr = `${dStr}12:00:00+05:30`;
-        endStr   = `${dStr}16:59:59+05:30`;
+        endStr = `${dStr}16:59:59+05:30`;
     } else {
         startStr = `${dStr}17:00:00+05:30`;
-        endStr   = `${dStr}23:59:59+05:30`;
+        endStr = `${dStr}23:59:59+05:30`;
     }
-    
-    return { 
-        shiftStart: new Date(startStr), 
-        shiftEnd: new Date(endStr) 
+
+    return {
+        shiftStart: new Date(startStr),
+        shiftEnd: new Date(endStr)
     };
 }
 
@@ -491,12 +491,12 @@ async function getPatientShiftStatus(caretakerId, patientId, shiftMeds, shiftSta
                 if (medLog.taken) {
                     const matchedMed = shiftMeds.find(sm => sm.name && medLog.medicine_name && sm.name.toLowerCase() === medLog.medicine_name.toLowerCase());
                     if (matchedMed) {
-                         const logShift = medLog.scheduled_time?.toLowerCase();
-                         const isShiftMatch = logShift === currentShiftString ||
-                             (currentShiftString === 'night' && logShift === 'evening');
-                         if (logShift && isShiftMatch) {
-                             confirmedMedIds.add(getMedIdentifier(matchedMed));
-                         }
+                        const logShift = medLog.scheduled_time?.toLowerCase();
+                        const isShiftMatch = logShift === currentShiftString ||
+                            (currentShiftString === 'night' && logShift === 'evening');
+                        if (logShift && isShiftMatch) {
+                            confirmedMedIds.add(getMedIdentifier(matchedMed));
+                        }
                     }
                 }
             }
@@ -513,7 +513,7 @@ async function getPatientShiftStatus(caretakerId, patientId, shiftMeds, shiftSta
                     const allTimes = med.scheduledTimes && med.scheduledTimes.length > 0 ? med.scheduledTimes : (med.times || []);
                     const medShiftCount = allTimes.length > 0 ? new Set(allTimes.map(t => {
                         const lower = (t || '').toLowerCase().trim();
-                        if (['morning','afternoon','night','evening'].includes(lower)) return lower === 'evening' ? 'night' : lower;
+                        if (['morning', 'afternoon', 'night', 'evening'].includes(lower)) return lower === 'evening' ? 'night' : lower;
                         const m24 = lower.match(/^(\d{1,2}):(\d{2})/);
                         if (m24) { const h = parseInt(m24[1], 10); return h < 12 ? 'morning' : h < 17 ? 'afternoon' : 'night'; }
                         return 'morning';
@@ -995,12 +995,12 @@ router.get('/patients/:id', async (req, res) => {
 
         // Try Profile first, then Patient
         let patient = await Profile.findById(patientId)
-            .select('fullName email phone avatarUrl dateOfBirth gender allergies conditions emergencyContact createdAt')
+            .select('fullName email phone avatarUrl dateOfBirth gender allergies conditions emergencyContact createdAt metadata.uploaded_prescriptions')
             .lean();
 
         if (!patient) {
             const rawPatient = await Patient.findById(patientId)
-                .select('name email phone avatar_url avatarUrl date_of_birth dateOfBirth gender allergies conditions emergencyContact createdAt')
+                .select('name email phone avatar_url avatarUrl date_of_birth dateOfBirth gender allergies conditions emergencyContact createdAt uploaded_prescriptions')
                 .lean();
             if (rawPatient) {
                 patient = {
@@ -1085,7 +1085,7 @@ router.get('/patients/:id/meds', async (req, res) => {
         const _m = String(_now.getMonth() + 1).padStart(2, '0');
         const _d = String(_now.getDate()).padStart(2, '0');
         const today = new Date(`${_y}-${_m}-${_d}T00:00:00.000Z`);
-        
+
         const todayLog = await MedicineLog.findOne({ patient_id: patientId, date: today }).lean();
 
         // For each med, get the last confirmation from call logs AND patient logs
@@ -1109,35 +1109,35 @@ router.get('/patients/:id/meds', async (req, res) => {
             const confirmation = lastConfirmation?.medicationConfirmations?.find(
                 m => m.medicationId?.toString() === med._id.toString()
             );
-            
+
             // Check patient application marked status
             let patientMarked = false;
             let callerMarkedFromLog = false;
             let takenLogs = [];
-            
+
             if (todayLog && todayLog.medicines) {
-                 const medLogEntries = todayLog.medicines.filter(m => 
-                     m.medicine_name && med.name && 
-                     m.medicine_name.toLowerCase() === med.name.toLowerCase() &&
-                     (!shift || (m.scheduled_time && (
-                         m.scheduled_time.toLowerCase() === shift.toLowerCase() ||
-                         (shift.toLowerCase() === 'night' && m.scheduled_time.toLowerCase() === 'evening')
-                     )))
-                 );
-                 
-                 for (const m of medLogEntries) {
-                     if (m.taken) {
-                         if (m.marked_by === 'patient' || !m.marked_by) patientMarked = true;
-                         else if (m.marked_by === 'caller') callerMarkedFromLog = true;
-                         
-                         takenLogs.push({
-                             date: `${_y}-${_m}-${_d}`,
-                             timestamp: m.taken_at || m.timestamp || new Date(),
-                             shift: m.scheduled_time || 'morning',
-                             marked_by: m.marked_by || 'patient'
-                         });
-                     }
-                 }
+                const medLogEntries = todayLog.medicines.filter(m =>
+                    m.medicine_name && med.name &&
+                    m.medicine_name.toLowerCase() === med.name.toLowerCase() &&
+                    (!shift || (m.scheduled_time && (
+                        m.scheduled_time.toLowerCase() === shift.toLowerCase() ||
+                        (shift.toLowerCase() === 'night' && m.scheduled_time.toLowerCase() === 'evening')
+                    )))
+                );
+
+                for (const m of medLogEntries) {
+                    if (m.taken) {
+                        if (m.marked_by === 'patient' || !m.marked_by) patientMarked = true;
+                        else if (m.marked_by === 'caller') callerMarkedFromLog = true;
+
+                        takenLogs.push({
+                            date: `${_y}-${_m}-${_d}`,
+                            timestamp: m.taken_at || m.timestamp || new Date(),
+                            shift: m.scheduled_time || 'morning',
+                            marked_by: m.marked_by || 'patient'
+                        });
+                    }
+                }
             }
 
             return {
@@ -1197,13 +1197,13 @@ router.post('/patients/:id/medications', async (req, res) => {
         // Check for duplicates in both Medication and Patient scopes
         const trimmedName = name.trim();
         const existingMedsQuery = await Medication.find({ patientId, name: { $regex: new RegExp('^' + trimmedName + '$', 'i') }, isActive: true });
-        
+
         let embeddedMedsQuery = [];
         const pDocCheck = await Patient.findById(patientId).lean();
         if (pDocCheck && pDocCheck.medications) {
             embeddedMedsQuery = pDocCheck.medications.filter(m => m.name && m.name.toLowerCase().trim() === trimmedName.toLowerCase() && (m.isActive !== false && m.is_active !== false));
         }
-        
+
         const existingMeds = [...existingMedsQuery, ...embeddedMedsQuery];
 
         if (existingMeds.length > 0) {
@@ -1313,11 +1313,11 @@ router.put('/patients/:id/medications/:medId', async (req, res) => {
         // Check for duplicates if name or scheduledTimes are being updated
         if (updateFields.name || updateFields.scheduledTimes) {
             const checkName = (updateFields.name || (await Medication.findById(medId))?.name || (await Patient.findOne({ 'medications._id': medId }))?.medications?.find(m => m._id.toString() === medId)?.name).trim();
-            const existingMedsQuery = await Medication.find({ 
-                patientId, 
+            const existingMedsQuery = await Medication.find({
+                patientId,
                 _id: { $ne: medId }, // Exclude the current med being updated
-                name: { $regex: new RegExp('^' + checkName + '$', 'i') }, 
-                isActive: true 
+                name: { $regex: new RegExp('^' + checkName + '$', 'i') },
+                isActive: true
             });
 
             let embeddedMedsQuery = [];
@@ -1463,7 +1463,7 @@ router.delete('/patients/:id/medications/:medId', async (req, res) => {
                 const pDoc = await Patient.findOne({ $or: [{ _id: patientObjId }, { profile_id: patientObjId }] }).select('_id').lean();
                 if (pDoc) {
                     const _now = new Date();
-                    const todayStr = `${_now.getFullYear()}-${String(_now.getMonth()+1).padStart(2,'0')}-${String(_now.getDate()).padStart(2,'0')}`;
+                    const todayStr = `${_now.getFullYear()}-${String(_now.getMonth() + 1).padStart(2, '0')}-${String(_now.getDate()).padStart(2, '0')}`;
                     const today = new Date(`${todayStr}T00:00:00.000Z`);
                     await MedicineLog.updateOne(
                         { patient_id: pDoc._id, date: today },
@@ -1513,6 +1513,118 @@ router.delete('/patients/:id/medications/:medId', async (req, res) => {
 });
 
 // ═══════════════════════════════════════════════════════════════
+// 5d. POST /api/caretaker/patients/:id/prescriptions/extract — Extract OCR from uploaded prescription
+// ═══════════════════════════════════════════════════════════════
+router.post('/patients/:id/prescriptions/extract', async (req, res) => {
+    try {
+        const caretakerId = req.profile._id;
+        const patientId = req.params.id;
+        
+        if (!(await isPatientAssigned(caretakerId, patientId, req.profile.role))) {
+            return res.status(403).json({ error: 'Patient not assigned to you' });
+        }
+        
+        const { fileUrl } = req.body;
+        if (!fileUrl) {
+            return res.status(400).json({ error: 'Prescription fileUrl is required' });
+        }
+
+        // Fetch the image as a buffer
+        const imageRes = await fetch(fileUrl);
+        if (!imageRes.ok) {
+            return res.status(400).json({ error: 'Failed to download prescription image' });
+        }
+        
+        const arrayBuffer = await imageRes.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+        const imageBase64 = buffer.toString('base64');
+
+        // Phase 1: Google Vision API for robust handwriting OCR
+        const googleVisionKey = process.env.GOOGLE_VISION_API_KEY;
+        if (!googleVisionKey) {
+            return res.status(500).json({ success: false, error: 'OCR Service temporarily unavailable (Missing Vision Key).' });
+        }
+
+        let rawText = '';
+        const gvResponse = await fetch(`https://vision.googleapis.com/v1/images:annotate?key=${googleVisionKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                requests: [{
+                    image: { content: imageBase64 },
+                    features: [{ type: 'DOCUMENT_TEXT_DETECTION' }]
+                }]
+            })
+        });
+        
+        const gvData = await gvResponse.json();
+        rawText = gvData.responses?.[0]?.fullTextAnnotation?.text || '';
+
+        if (!rawText.trim()) {
+            return res.status(400).json({ success: false, error: 'Could not detect any text on this prescription.' });
+        }
+
+        // Phase 2: Hybrid Structuring (Groq LLM)
+        const groqKey = process.env.GROQ_API_KEY;
+        if (!groqKey) {
+            return res.status(500).json({ success: false, error: 'Extraction Service temporarily unavailable (Missing Groq Key).' });
+        }
+
+        const messages = [
+            {
+                role: 'system',
+                content: `You are a medical data extraction assistant. I will provide raw OCR text from a handwritten Indian prescription. 
+                Your job is to structure this into a strict JSON array of medications.
+                Extract: name, dosage, frequency, duration. 
+                Also provide a 'confidence' score (0.0 to 1.0) indicating how clear and certain the extraction is.
+                Return ONLY valid JSON in this format: 
+                { "medications": [ { "name": "...", "dosage": "...", "frequency": "...", "duration": "...", "confidence": 0.95 } ] }`
+            },
+            {
+                role: 'user',
+                content: `Here is the raw OCR text:\n\n${rawText}`
+            }
+        ];
+
+        const llmResponse = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${groqKey}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                model: 'llama-3.3-70b-versatile',
+                messages: messages,
+                response_format: { type: "json_object" },
+                temperature: 0.1
+            })
+        });
+
+        const llmData = await llmResponse.json();
+        const jsonString = llmData.choices[0].message.content;
+        let parsedJson = JSON.parse(jsonString);
+
+        if (parsedJson && Array.isArray(parsedJson.medications)) {
+            parsedJson.medications = parsedJson.medications.map(med => ({
+                id: Math.random().toString(36).substring(7),
+                name: med.name || 'Unknown',
+                dosage: med.dosage || '',
+                frequency: med.frequency || '',
+                duration: med.duration || '',
+                confidence: typeof med.confidence === 'number' ? med.confidence : 0.5
+            }));
+        } else {
+            parsedJson = { medications: [] };
+        }
+
+        res.json({ success: true, data: parsedJson });
+    } catch (error) {
+        console.error('OCR Extraction error:', error);
+        res.status(500).json({ success: false, error: 'Failed to process prescription image.' });
+    }
+});
+
+// ═══════════════════════════════════════════════════════════════
 // 6. POST /api/caretaker/calls — Log a call
 // ═══════════════════════════════════════════════════════════════
 
@@ -1522,7 +1634,7 @@ const syncMedicineLogHelper = async (pId, d, exactTimeStr, bucketIdentifier, mNa
         const mongoose = require('mongoose');
         const MedicineLog = mongoose.model('MedicineLog');
         const Patient = mongoose.model('Patient');
-        
+
         let actualPatientId = pId;
         const pt = await Patient.findOne({ $or: [{ _id: pId }, { profile_id: pId }] }).lean();
         if (pt) actualPatientId = pt._id;
@@ -1571,7 +1683,7 @@ const syncMedicineLogHelper = async (pId, d, exactTimeStr, bucketIdentifier, mNa
         }
 
         // Find exact medicine+bucket match. NO fallback to avoid wrong bucket for multi-dose meds.
-        const dailyMed = log.medicines.find(m => 
+        const dailyMed = log.medicines.find(m =>
             m.medicine_name === mName && m.scheduled_time === bucketIdentifier
         );
 
@@ -1595,7 +1707,7 @@ const syncMedicineLogHelper = async (pId, d, exactTimeStr, bucketIdentifier, mNa
             await log.save();
             console.log(`[MedicineLog Sync] Dynamically added & updated ${mName} by caller`);
         }
-    } catch(syncLogErr) {
+    } catch (syncLogErr) {
         console.error('MedicineLog sync error during toggle:', syncLogErr);
     }
 };

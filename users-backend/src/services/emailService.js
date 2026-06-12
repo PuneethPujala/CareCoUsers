@@ -27,10 +27,12 @@ const getTransporter = () => {
         auth: {
             user: process.env.SMTP_USER,
             pass: process.env.SMTP_PASS,
-        },
-        connectionTimeout: 5000,
-        greetingTimeout: 5000,
-        socketTimeout: 5000,
+        connectionTimeout: 30000,
+        greetingTimeout: 30000,
+        socketTimeout: 45000,
+        tls: {
+            rejectUnauthorized: false
+        }
     });
 
     return transporter;

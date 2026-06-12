@@ -629,7 +629,7 @@ router.post('/create-user', authenticate, checkPasswordChange, validateRequest(c
     await profile.save();
 
     // Send temp password email (non-blocking)
-    sendTempPasswordEmail(email, fullName, tempPassword, ROLE_LABELS[role] || role);
+    await sendTempPasswordEmail(email, fullName, tempPassword, ROLE_LABELS[role] || role);
 
     // Audit log
     await logEvent(req.profile.supabaseUid, 'create_user', 'profile', profile._id, req, {

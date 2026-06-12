@@ -27,6 +27,8 @@ export default function PatientDetail({ route, navigation }) {
     const [showMedModal, setShowMedModal] = useState(false);
     const [editingMed, setEditingMed] = useState(null);
     const [medForm, setMedForm] = useState({ name: '', dosage: '', frequency: '', timePhase: 'morning' });
+    const [uploadedPrescriptions, setUploadedPrescriptions] = useState([]);
+    const [isExtracting, setIsExtracting] = useState(false);
 
     const [customAlert, setCustomAlert] = useState({ visible: false, title: '', message: '', buttons: [], type: 'info' });
 
@@ -58,6 +60,7 @@ export default function PatientDetail({ route, navigation }) {
 
             const fetchedMeds = medsRes.data?.medications || data.metadata?.medications || [];
             setMedications(fetchedMeds);
+            setUploadedPrescriptions(data.uploaded_prescriptions || data.metadata?.uploaded_prescriptions || []);
         } catch (err) {
             console.error('Failed to load patient detail', err);
             showAlert('Error', handleApiError(err).message, 'error');
@@ -127,18 +130,20 @@ export default function PatientDetail({ route, navigation }) {
         }
         setSubmitting(true);
         try {
-            const medData = {
+            const timePhaseArr = PHASE_TIMES[medForm.timePhase] || ['08:00 AM'];
+            const payload = {
                 name: medForm.name,
                 dosage: medForm.dosage,
                 frequency: medForm.frequency,
-                scheduledTimes: PHASE_TIMES[medForm.timePhase],
-                startDate: new Date()
+                times: timePhaseArr,
+                scheduledTimes: timePhaseArr
             };
-
             if (editingMed) {
-                await apiService.caretaker.updateMedication(patient.id, editingMed._id || editingMed.id, medData);
+                await apiService.caretaker.updateMedication(patientId, editingMed._id || editingMed.id, payload);
+                showAlert('Success', 'Medication updated successfully.', 'success');
             } else {
-                await apiService.caretaker.addMedication(patient.id, medData);
+                await apiService.caretaker.addMedication(patientId, payload);
+                showAlert('Success', 'Medication added successfully.', 'success');
             }
             setShowMedModal(false);
             fetchData();
@@ -146,6 +151,31 @@ export default function PatientDetail({ route, navigation }) {
             showAlert('Error', handleApiError(err).message, 'error');
         } finally {
             setSubmitting(false);
+        }
+    };
+
+    const handleExtractOCR = async (fileUrl) => {
+        setIsExtracting(true);
+        try {
+            const res = await apiService.caretaker.extractPrescriptionOCR(patientId, fileUrl);
+            const meds = res.data?.data?.medications || [];
+            if (meds.length > 0) {
+                const first = meds[0];
+                setMedForm({
+                    name: first.name,
+                    dosage: first.dosage || '',
+                    frequency: first.frequency || '1',
+                    timePhase: 'morning' // default
+                });
+                setShowMedModal(true);
+                showAlert('OCR Success', `Extracted ${meds.length} medications. Added first one to the form.`, 'success');
+            } else {
+                showAlert('OCR Result', 'No medications could be confidently extracted from this image.', 'info');
+            }
+        } catch (err) {
+            showAlert('OCR Error', handleApiError(err).message, 'error');
+        } finally {
+            setIsExtracting(false);
         }
     };
 
@@ -212,6 +242,30 @@ export default function PatientDetail({ route, navigation }) {
                                 <View style={s.statItem}><Text style={s.statValue}>{patient.lastCall}</Text><Text style={s.statLabel}>Last Call</Text></View>
                             </View>
                         </PremiumCard>
+
+                        {/* Uploaded Prescriptions OCR */}
+                        {uploadedPrescriptions && uploadedPrescriptions.length > 0 && (
+                            <PremiumCard style={s.medsCard}>
+                                <Text style={s.contactTitle}>Uploaded Prescriptions</Text>
+                                {uploadedPrescriptions.map((presc, idx) => (
+                                    <View key={presc._id || presc.id || idx} style={[s.medRow, idx > 0 && s.medDivider]}>
+                                        <View style={s.medInfo}>
+                                            <Text style={s.medName}>Prescription {idx + 1}</Text>
+                                            <Text style={s.medDosage}>{new Date(presc.uploadedAt || presc.created_at).toLocaleDateString()}</Text>
+                                        </View>
+                                        <View style={s.medRowActions}>
+                                            <TouchableOpacity 
+                                                onPress={() => handleExtractOCR(presc.file_url)} 
+                                                style={[s.iconBtn, { backgroundColor: Colors.primary, borderRadius: Radius.sm, paddingHorizontal: 8, paddingVertical: 4 }]}
+                                                disabled={isExtracting}
+                                            >
+                                                {isExtracting ? <ActivityIndicator size="small" color="#fff" /> : <Text style={{ color: Colors.white, fontSize: 12, fontWeight: '600' }}>Extract with AI</Text>}
+                                            </TouchableOpacity>
+                                        </View>
+                                    </View>
+                                ))}
+                            </PremiumCard>
+                        )}
 
                         {/* Medications Management */}
                         <PremiumCard style={s.medsCard}>

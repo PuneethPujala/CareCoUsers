@@ -1,6 +1,6 @@
 import { isValidEmail, isValidName, isValidPhone, isValidPassword, isValidAmount } from '../../utils/validators';
 import React, { useState, useCallback } from 'react';
-import { View, Text, ScrollView, StyleSheet, StatusBar, TouchableOpacity, ActivityIndicator, Linking, Alert, Modal, TextInput, Switch } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, StatusBar, TouchableOpacity, ActivityIndicator, Linking, Alert, Modal, TextInput, Switch, Image } from 'react-native';
 import { Feather, FontAwesome5 } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 
@@ -121,6 +121,8 @@ export default function PatientDetailScreen({ navigation, route }) {
         timePhases: ['morning'], route: 'oral', instructions: '', withFood: false 
     });
     const [submitting, setSubmitting] = useState(false);
+    const [uploadedPrescriptions, setUploadedPrescriptions] = useState([]);
+    const [viewingPrescriptionUrl, setViewingPrescriptionUrl] = useState(null);
 
     const [customAlert, setCustomAlert] = useState({ visible: false, title: '', message: '', buttons: [], type: 'info' });
 
@@ -143,7 +145,9 @@ export default function PatientDetailScreen({ navigation, route }) {
             setLoading(true);
             setError(null);
             const res = await apiService.patients.getById(patientId);
-            setPatient(res.data);
+            const data = res.data?.patient || res.data;
+            setPatient(data);
+            setUploadedPrescriptions(data?.uploaded_prescriptions || data?.metadata?.uploaded_prescriptions || []);
             
             // Fetch ALL medications with enriched status (patientMarked/callerMarked)
             // No shift filter — we want the complete medication list for this patient
@@ -626,6 +630,35 @@ export default function PatientDetailScreen({ navigation, route }) {
                     </>
                 )}
 
+                {/* ═══ Uploaded Prescriptions ═══ */}
+                {uploadedPrescriptions && uploadedPrescriptions.length > 0 && (
+                    <View style={{ marginTop: 24 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+                            <View style={{ width: 28, height: 28, borderRadius: 8, backgroundColor: '#ECFDF5', justifyContent: 'center', alignItems: 'center' }}>
+                                <Feather name="file-text" size={14} color="#10B981" />
+                            </View>
+                            <Text style={[s.sectionTitle, Theme.typography.common, { marginTop: 0, marginBottom: 0 }]}>Uploaded Prescriptions</Text>
+                        </View>
+                        <View style={{ gap: 10 }}>
+                            {uploadedPrescriptions.map((presc, idx) => (
+                                <View key={presc._id || presc.id || idx} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#FFF', borderRadius: 14, padding: 16, borderWidth: 1, borderColor: '#E2E8F0' }}>
+                                    <View>
+                                        <Text style={{ fontSize: 15, fontWeight: '600', color: '#1E293B' }}>Prescription {idx + 1}</Text>
+                                        <Text style={{ fontSize: 12, color: '#64748B', marginTop: 4 }}>{new Date(presc.uploaded_at || presc.uploadedAt || presc.created_at).toLocaleDateString()}</Text>
+                                    </View>
+                                    <TouchableOpacity 
+                                        onPress={() => setViewingPrescriptionUrl(presc.file_url)} 
+                                        style={{ backgroundColor: '#6366F1', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, flexDirection: 'row', alignItems: 'center', gap: 6 }}
+                                    >
+                                        <Feather name="eye" size={14} color="#FFF" />
+                                        <Text style={{ color: '#FFF', fontSize: 13, fontWeight: '600' }}>View Prescription</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            ))}
+                        </View>
+                    </View>
+                )}
+
                 {/* ═══ All Prescribed Medications ═══ */}
                 <View style={{ marginTop: 24, marginBottom: 16 }}>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
@@ -754,6 +787,30 @@ export default function PatientDetailScreen({ navigation, route }) {
                             </TouchableOpacity>
                         </View>
                     </View>
+                </View>
+            </Modal>
+
+            {/* View Prescription Modal */}
+            <Modal
+                visible={!!viewingPrescriptionUrl}
+                transparent={true}
+                animationType="fade"
+                onRequestClose={() => setViewingPrescriptionUrl(null)}
+            >
+                <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.9)', justifyContent: 'center', alignItems: 'center' }}>
+                    <TouchableOpacity 
+                        style={{ position: 'absolute', top: 50, right: 20, zIndex: 10, padding: 10, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 20 }}
+                        onPress={() => setViewingPrescriptionUrl(null)}
+                    >
+                        <Feather name="x" size={24} color="#FFF" />
+                    </TouchableOpacity>
+                    
+                    {viewingPrescriptionUrl && (
+                        <Image 
+                            source={{ uri: viewingPrescriptionUrl }} 
+                            style={{ width: '95%', height: '80%', resizeMode: 'contain' }} 
+                        />
+                    )}
                 </View>
             </Modal>
 
