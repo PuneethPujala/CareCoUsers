@@ -215,11 +215,8 @@ async function buildPatientContext(patientId) {
         }
     }
 
-    let healthState = patient.patient_health_state;
-    if (!healthState) {
-        const { recomputeAndCacheHealthState } = require('./patientHealthStateService');
-        healthState = await recomputeAndCacheHealthState(patient._id);
-    }
+    const { getCachedHealthState } = require('./patientHealthStateService');
+    let healthState = await getCachedHealthState(patient);
 
     // 7. Build final payload
     const payload = {

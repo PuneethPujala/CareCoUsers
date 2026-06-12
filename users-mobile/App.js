@@ -15,27 +15,8 @@ import './src/i18n'; // Initialize i18n
 
 
 // Sentry — must init before anything else
-let Sentry = null;
-try {
-    Sentry = require('@sentry/react-native');
-    const SENTRY_DSN = process.env.EXPO_PUBLIC_SENTRY_DSN;
-    if (SENTRY_DSN) {
-        Sentry.init({
-            dsn: SENTRY_DSN,
-            environment: __DEV__ ? 'development' : 'production',
-            tracesSampleRate: __DEV__ ? 1.0 : 0.2,
-            beforeSend(event) {
-                if (event.user) {
-                    delete event.user.email;
-                    delete event.user.ip_address;
-                }
-                return event;
-            },
-        });
-    }
-} catch (e) {
-    if (__DEV__) console.warn('[Sentry] Not available:', e.message);
-}
+import sentry from './src/utils/monitoring/sentry';
+sentry.init();
 
 SplashScreen.preventAutoHideAsync();
 

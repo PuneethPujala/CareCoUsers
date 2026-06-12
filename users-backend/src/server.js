@@ -1,6 +1,20 @@
 // IMPORTANT: Make sure to import `instrument.js` at the top of your file.
 require('../instrument.js');
 const Sentry = require('@sentry/node');
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  Sentry.captureException(reason);
+});
+
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught Exception thrown:', error);
+  Sentry.captureException(error);
+  setTimeout(() => {
+    process.exit(1);
+  }, 1000);
+});
+
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -15,6 +29,7 @@ const profileRoutes = require('./routes/profile');
 const patientRoutes = require('./routes/patients');
 const organizationRoutes = require('./routes/organizations');
 const reportRoutes = require('./routes/reports');
+const paymentRoutes = require('./routes/payment');
 
 // Users App routes (separate API gateway)
 const usersPatientRoutes = require('./routes/users/patients');
@@ -54,11 +69,24 @@ if (process.env.NODE_ENV !== 'test') {
   // We explicitly start the in-process node-cron jobs here so they run
   // directly on the Render Web Service dyno, avoiding the need for a separate Worker dyno.
   (async () => {
-    console.log('⏰ Starting in-process cron jobs (Node-Cron)');
-    require('./jobs/notificationJob').startNotificationCron();
-    require('./jobs/medicationReminderJob').startMedicationCron();
+    /**
+     * ── USE_BULLMQ_WORKERS Flag & Deployment Topology ─────────────────────────────────
+     * To prevent double-firing notifications/reminders in production:
+     * - Web Dyno / API instances: Set USE_BULLMQ_WORKERS=true (skips in-process node-cron).
+     * - Worker Dyno / Standalone worker.js process: Runs cron jobs via BullMQ repeatable queues.
+     * - Default (e.g. dev/local setup without separate worker): USE_BULLMQ_WORKERS is unset/false,
+     *   which runs node-cron in-process so notifications still function out-of-the-box.
+     */
+    if (process.env.USE_BULLMQ_WORKERS === 'true') {
+      console.log('⏰ BullMQ Worker process is active. Skipping notification and medication-reminder in-process crons.');
+    } else {
+      console.log('⏰ Starting in-process cron jobs (Node-Cron)');
+      require('./jobs/notificationJob').startNotificationCron();
+      require('./jobs/medicationReminderJob').startMedicationCron();
+    }
     require('./jobs/escalationJob').startEscalationCron();
     require('./jobs/receiptPollingJob').startReceiptCron();
+    require('./jobs/observabilityJob').startObservabilityCron();
   })();
 }
 
@@ -106,7 +134,12 @@ const checkClockDrift = require('./middleware/checkClockDrift');
 app.use('/api', checkClockDrift);
 
 // Body parsing middleware
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({
+  limit: '10mb',
+  verify: (req, res, buf) => {
+    req.rawBody = buf;
+  }
+}));
 app.use(express.urlencoded({ extended: true }));
 
 // Logging
@@ -129,25 +162,29 @@ app.use('/api/profile', profileRoutes);
 app.use('/api/patients', patientRoutes);
 app.use('/api/organizations', organizationRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api/payment', paymentRoutes);
+
+const { authenticate, authenticateSession } = require('./middleware/authenticate');
+const requireSubscription = require('./middleware/requireSubscription');
 
 // ─── Users App API Gateway ─────────────────────
 app.use('/api/users/patients', usersPatientRoutes);
 app.use('/api/users/patients/notifications', notificationsRoutes);
 app.use('/api/users/callers', usersCallerRoutes);
-app.use('/api/users/medicines', usersMedicineRoutes);
-app.use('/api/vitals', vitalsRoutes);
-app.use('/api/vitals', vitalsSyncRoutes);
+app.use('/api/users/medicines', authenticateSession, requireSubscription, usersMedicineRoutes);
+app.use('/api/vitals', authenticateSession, requireSubscription, vitalsRoutes);
+app.use('/api/vitals', authenticateSession, requireSubscription, vitalsSyncRoutes);
 
 // Companion Routes
 app.use('/api/companion', companionRoutes);
 
 // ─── Chatbot API ───────────────────────────────
 const chatbotRoutes = require('./routes/chatbotRoutes');
-app.use('/api/chatbot', chatbotRoutes);
+app.use('/api/chatbot', authenticate, requireSubscription, chatbotRoutes);
 
 // ─── OCR API ───────────────────────────────────
 const ocrRoutes = require('./routes/ocrRoutes');
-app.use('/api/ocr', ocrRoutes);
+app.use('/api/ocr', authenticate, requireSubscription, ocrRoutes);
 
 // ─── Admin API ─────────────────────────────────
 const adminObservabilityRoutes = require('./routes/admin/observability');

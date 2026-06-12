@@ -437,8 +437,8 @@ router.put('/mark', authenticateSession, async (req, res) => {
         await streakService.evaluateAndUpdateStreak(patient._id).catch(e => logger.error('Streak Update Failed', { error: e.message, patientId: patient._id }));
 
         // Trigger health state recomputation
-        const { recomputeAndCacheHealthState } = require('../../services/patientHealthStateService');
-        recomputeAndCacheHealthState(patient._id).catch(e => logger.warn('Medication trigger recompute failed', { error: e.message }));
+        const { enqueueHealthStateRecompute } = require('../../services/patientHealthStateService');
+        enqueueHealthStateRecompute(patient._id).catch(e => logger.warn('Medication trigger recompute failed', { error: e.message }));
 
         res.json({ log });
     } catch (error) {
@@ -598,8 +598,8 @@ router.put('/mark-slot', authenticateSession, async (req, res) => {
         }
 
         // Trigger health state recomputation
-        const { recomputeAndCacheHealthState } = require('../../services/patientHealthStateService');
-        recomputeAndCacheHealthState(patient._id).catch(e => logger.warn('Medication slot trigger recompute failed', { error: e.message }));
+        const { enqueueHealthStateRecompute } = require('../../services/patientHealthStateService');
+        enqueueHealthStateRecompute(patient._id).catch(e => logger.warn('Medication slot trigger recompute failed', { error: e.message }));
 
         res.json({ success: true, log });
     } catch (error) {

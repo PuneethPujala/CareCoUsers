@@ -1,4 +1,5 @@
 const axios = require('axios');
+const AuditLog = require('../models/AuditLog');
 
 /**
  * Hybrid Extraction Pipeline:
@@ -92,6 +93,19 @@ async function extractPrescription(req, res) {
             parsedJson = { medications: [] };
         }
 
+        // Log OCR success to AuditLog
+        try {
+            await AuditLog.createLog({
+                supabaseUid: req.profile?.supabaseUid || req.user?.id || 'system',
+                action: 'ocr_extraction_success',
+                resourceType: 'system',
+                outcome: 'success',
+                details: { count: parsedJson.medications.length }
+            });
+        } catch (auditError) {
+            console.error('Failed to log OCR success:', auditError.message);
+        }
+
         return res.json({
             success: true,
             data: parsedJson
@@ -100,6 +114,20 @@ async function extractPrescription(req, res) {
     } catch (error) {
         console.error('OCR Extraction Error:', error.message);
         if (error.response?.data) console.error(JSON.stringify(error.response.data));
+
+        // Log OCR failure to AuditLog
+        try {
+            await AuditLog.createLog({
+                supabaseUid: req.profile?.supabaseUid || req.user?.id || 'system',
+                action: 'ocr_extraction_failed',
+                resourceType: 'system',
+                outcome: 'failure',
+                details: { error: error.message }
+            });
+        } catch (auditError) {
+            console.error('Failed to log OCR failure:', auditError.message);
+        }
+
         return res.status(500).json({ success: false, error: 'Failed to process prescription image.' });
     }
 }

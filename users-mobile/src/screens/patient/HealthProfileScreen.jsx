@@ -20,8 +20,15 @@ import { apiService } from '../../lib/api';
 import { initializeHealthPlatform, requestHealthPermissions, fetchDailyVitalsSummary, isHealthSupported } from '../../lib/healthIntegration';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { COUNTRY_CODES, parsePhoneWithCode, validatePhone } from '../../utils/phoneUtils';
-import { layout } from '../../theme';
+import { colors, layout, spacing, radius, shadows } from '../../theme';
 import AlertManager from '../../utils/AlertManager';
+import {
+    HealthCoachCard,
+    HealthDrivers,
+    MomentumCard,
+    AchievementSection,
+    ScoreHeroCard
+} from '../../components/health';
 
 
 // ── Skeleton Loader ──────────────────────────────────────────
@@ -38,16 +45,7 @@ const SkeletonItem = ({ width, height, borderRadius = 8, style }) => {
     return <Animated.View style={[{ width, height, borderRadius, backgroundColor: '#E2E8F0', opacity: anim }, style]} />;
 };
 
-const C = {
-    primary: '#0EA5E9', primaryDark: '#0284C7', primarySoft: '#E0F2FE',
-    cardBg: '#FFFFFF', pageBg: '#F8FAFC',
-    dark: '#0F172A', mid: '#334155', muted: '#94A3B8', light: '#CBD5E1',
-    border: '#F1F5F9', borderMid: '#E2E8F0',
-    success: '#10B981', successBg: '#D1FAE5',
-    danger: '#F43F5E', dangerBg: '#FFE4E6',
-    warning: '#F59E0B', warningBg: '#FEF3C7',
-    accent: '#06B6D4',
-};
+// Local constant C deprecated in favor of theme colors
 
 const FONT = {
     regular: { fontFamily: 'Inter_400Regular' },
@@ -754,12 +752,12 @@ export default function HealthProfileScreen({ navigation }) {
                                 <View style={s.dashLeft}>
                                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
                                         <Text style={s.dashEyebrow}>{t('health_profile.health_score', { defaultValue: 'HEALTH SCORE' })}</Text>
-                                        <Pressable onPress={(e) => { e.stopPropagation(); setShowScoreInfo(true); }} hitSlop={10} style={{ padding: 4, backgroundColor: '#F1F5F9', borderRadius: 12, marginLeft: 4 }}>
+                                        <Pressable onPress={(e) => { e.stopPropagation(); setShowScoreInfo(true); }} hitSlop={10} style={{ padding: 4, backgroundColor: '#F1F5F9', borderRadius: radius.md, marginLeft: 4 }}>
                                             <Info size={12} color="#64748B" />
                                         </Pressable>
                                     </View>
                                     <View style={s.dashScoreRow}>
-                                        <Text style={[s.dashScoreMain, { color: hsScore !== null ? hsColor : C.muted }]}>
+                                        <Text style={[s.dashScoreMain, { color: hsScore !== null ? hsColor : colors.textMuted }]}>
                                             {hsScore !== null ? hsScore : '—'}
                                         </Text>
                                         <Text style={s.dashScoreSub}>/ 100</Text>
@@ -785,8 +783,8 @@ export default function HealthProfileScreen({ navigation }) {
                                             handleWearableSync();
                                         }}
                                     >
-                                        <RefreshCw size={10} color={isSyncing ? C.primary : "#94A3B8"} style={isSyncing ? { transform: [{ rotate: '45deg' }] } : {}} />
-                                        <Text style={[s.dashSyncTxt, isSyncing && { color: C.primary }]}>
+                                        <RefreshCw size={10} color={isSyncing ? colors.primary : "#94A3B8"} style={isSyncing ? { transform: [{ rotate: '45deg' }] } : {}} />
+                                        <Text style={[s.dashSyncTxt, isSyncing && { color: colors.primary }]}>
                                             {isSyncing ? t('health_profile.syncing', { defaultValue: 'Syncing...' }) : lastSyncText}
                                         </Text>
                                     </Pressable>
@@ -821,8 +819,21 @@ export default function HealthProfileScreen({ navigation }) {
 
                 {/* ── ALERTS CARD ── */}
                 <Animated.View style={anim(1)}>
-                    <Pressable style={s.alertsCard}>
-                        <View style={s.alertHeader}>
+                    <View style={s.alertsCard}>
+                        <Pressable 
+                            style={({ pressed }) => [s.alertHeader, pressed && { opacity: 0.7 }]}
+                            onPress={() => {
+                                AlertManager.alert(
+                                    t('health_profile.manage_alerts', { defaultValue: 'Manage Health Alerts' }),
+                                    t('health_profile.manage_alerts_desc', { defaultValue: 'Manage active conditions and severe allergies' }),
+                                    [
+                                        { text: t('health_profile.add_condition', { defaultValue: 'Add Condition' }), onPress: () => openModal('condition') },
+                                        { text: t('health_profile.add_allergy', { defaultValue: 'Add Allergy' }), onPress: () => openModal('allergy') },
+                                        { text: t('common.cancel', { defaultValue: 'Cancel' }), style: 'cancel' }
+                                    ]
+                                );
+                            }}
+                        >
                             <View style={s.alertIconBox}><AlertTriangle size={18} color="#EF4444" /></View>
                             <View style={{ flex: 1 }}>
                                 <Text style={s.alertTitle}>{t('health_profile.health_alerts', { defaultValue: 'Health Alerts' })}</Text>
@@ -831,16 +842,30 @@ export default function HealthProfileScreen({ navigation }) {
                                 </Text>
                             </View>
                             <ChevronRight size={16} color="#94A3B8" />
-                        </View>
+                        </Pressable>
                         <View style={s.alertChips}>
                             {conditions.filter(c => c.status === 'active').map((c, i) => (
-                                <View key={'c'+i} style={s.alertChip}><View style={s.alertDot} /><Text style={s.alertChipTxt}>{c.name}</Text></View>
+                                <Pressable 
+                                    key={'c'+i} 
+                                    style={({ pressed }) => [s.alertChip, pressed && { opacity: 0.7 }]}
+                                    onPress={() => openModal('condition', c)}
+                                >
+                                    <View style={s.alertDot} />
+                                    <Text style={s.alertChipTxt}>{c.name}</Text>
+                                </Pressable>
                             ))}
                             {allergies.filter(a => a.severity === 'severe').map((a, i) => (
-                                <View key={'a'+i} style={s.alertChip}><View style={s.alertDot} /><Text style={s.alertChipTxt}>{a.name} {t('health_profile.allergy', { defaultValue: 'Allergy' })}</Text></View>
+                                <Pressable 
+                                    key={'a'+i} 
+                                    style={({ pressed }) => [s.alertChip, pressed && { opacity: 0.7 }]}
+                                    onPress={() => openModal('allergy', a)}
+                                >
+                                    <View style={s.alertDot} />
+                                    <Text style={s.alertChipTxt}>{a.name} {t('health_profile.allergy', { defaultValue: 'Allergy' })}</Text>
+                                </Pressable>
                             ))}
                         </View>
-                    </Pressable>
+                    </View>
                 </Animated.View>
 
                 {/* ── IDENTITY BENTO ── */}
@@ -1187,7 +1212,7 @@ export default function HealthProfileScreen({ navigation }) {
                 headerRight={
                     formState._id && ['condition', 'allergy', 'medication', 'vaccination', 'history', 'appointment'].includes(editingType) ? (
                         <Pressable onPress={() => handleDelete(getCollectionName(editingType), formState._id)} style={s.trashBtn}>
-                            <Trash2 size={20} color={C.danger} />
+                            <Trash2 size={20} color={colors.danger} />
                         </Pressable>
                     ) : null
                 }
@@ -1273,15 +1298,15 @@ export default function HealthProfileScreen({ navigation }) {
                             <SmartInput label={t('caller.phone_number', { defaultValue: 'Phone Number *' })} keyboardType="phone-pad" value={formState.phone} onChangeText={(t) => setFormState({ ...formState, phone: t })} placeholder="e.g. 9876543210" />
                         </View>
                         <View style={s.formGroup}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#F8FAFC', padding: 16, borderRadius: 16, borderWidth: 1, borderColor: '#E2E8F0' }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#F8FAFC', padding: 16, borderRadius: radius.lg, borderWidth: 1, borderColor: '#E2E8F0' }}>
                                 <View style={{ flex: 1 }}>
-                                    <Text style={{ fontSize: 16, ...FONT.bold, color: C.dark }}>{t('caller.emergency_contact', { defaultValue: 'Emergency Contact' })}</Text>
-                                    <Text style={{ fontSize: 13, color: C.muted }}>{t('caller.emergency_desc', { defaultValue: 'Primary person to call in case of emergency' })}</Text>
+                                    <Text style={{ fontSize: 16, ...FONT.bold, color: colors.textPrimary }}>{t('caller.emergency_contact', { defaultValue: 'Emergency Contact' })}</Text>
+                                    <Text style={{ fontSize: 13, color: colors.textMuted }}>{t('caller.emergency_desc', { defaultValue: 'Primary person to call in case of emergency' })}</Text>
                                 </View>
                                 <Switch
                                     value={formState.is_emergency}
                                     onValueChange={(v) => setFormState({ ...formState, is_emergency: v })}
-                                    trackColor={{ false: '#CBD5E1', true: C.danger }}
+                                    trackColor={{ false: '#CBD5E1', true: colors.danger }}
                                     thumbColor={Platform.OS === 'ios' ? '#FFF' : (formState.is_emergency ? '#FFF' : '#F4F4F4')}
                                 />
                             </View>
@@ -1295,7 +1320,7 @@ export default function HealthProfileScreen({ navigation }) {
                             <Text style={s.formLabel}>{t('health_profile.contact_number', { defaultValue: 'Contact Number' })}</Text>
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                                 <Pressable
-                                    style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, paddingVertical: 14, backgroundColor: '#F8FAFC', borderRadius: 12, borderWidth: 1, borderColor: '#E2E8F0', height: 48 }}
+                                    style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, paddingVertical: 14, backgroundColor: '#F8FAFC', borderRadius: radius.md, borderWidth: 1, borderColor: '#E2E8F0', height: 48 }}
                                     onPress={() => setCountryCodeModal(true)}
                                 >
                                     <Text style={{ fontSize: 16 }}>{COUNTRY_CODES.find(c => c.code === formState.gp_phoneCode)?.flag || '🇮🇳'}</Text>
@@ -1348,9 +1373,9 @@ export default function HealthProfileScreen({ navigation }) {
                         </View>
                         <View style={s.formGroup}>
                             <Text style={s.formLabel}>{t('health_profile.prescription_details', { defaultValue: 'Prescription Details' })}</Text>
-                            <Pressable style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#F8FAFC', padding: 14, borderRadius: 12, borderWidth: 1, borderColor: '#E2E8F0', borderStyle: 'dashed' }} onPress={() => AlertManager.alert(t('common.coming_soon', { defaultValue: 'Coming Soon' }), t('health_profile.upload_coming_soon', { defaultValue: 'Upload functionality will be added in a future update.' }))}>
-                                <Upload size={18} color={C.primary} />
-                                <Text style={{ color: C.primary, fontSize: 15, fontWeight: '600' }}>{t('health_profile.upload_prescription', { defaultValue: 'Upload Prescription' })}</Text>
+                            <Pressable style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#F8FAFC', padding: 14, borderRadius: radius.md, borderWidth: 1, borderColor: '#E2E8F0', borderStyle: 'dashed' }} onPress={() => AlertManager.alert(t('common.coming_soon', { defaultValue: 'Coming Soon' }), t('health_profile.upload_coming_soon', { defaultValue: 'Upload functionality will be added in a future update.' }))}>
+                                <Upload size={18} color={colors.primary} />
+                                <Text style={{ color: colors.primary, fontSize: 15, fontWeight: '600' }}>{t('health_profile.upload_prescription', { defaultValue: 'Upload Prescription' })}</Text>
                             </Pressable>
                         </View>
                     </>
@@ -1358,28 +1383,28 @@ export default function HealthProfileScreen({ navigation }) {
                 {editingType === 'history' && (
                     <>
                         <View style={s.formGroup}><SmartInput label={t('health_profile.event_surgery_lbl', { defaultValue: 'Event / Surgery / Diagnosis *' })} value={formState.event} onChangeText={(t) => setFormState({ ...formState, event: t })} placeholder={t('health_profile.event_placeholder', { defaultValue: 'e.g. Knee Replacement' })} /></View>
-                        <View style={s.formGroup}><Text style={s.formLabel}>{t('common.date', { defaultValue: 'Date *' })}</Text><Pressable style={[s.input, { justifyContent: 'center' }]} onPress={() => { setDatePickerField('date'); setShowDatePicker(true); }}><Text style={{ color: formState.date ? C.dark : C.muted, fontSize: 15 }}>{formState.date ? new Date(formState.date).toLocaleDateString(t('common.locale_date', { defaultValue: 'en-US' }), { year: 'numeric', month: 'short', day: 'numeric' }) : t('common.select_date', { defaultValue: 'Select date' })}</Text></Pressable></View>
+                        <View style={s.formGroup}><Text style={s.formLabel}>{t('common.date', { defaultValue: 'Date *' })}</Text><Pressable style={[s.input, { justifyContent: 'center' }]} onPress={() => { setDatePickerField('date'); setShowDatePicker(true); }}><Text style={{ color: formState.date ? colors.textPrimary : colors.textMuted, fontSize: 15 }}>{formState.date ? new Date(formState.date).toLocaleDateString(t('common.locale_date', { defaultValue: 'en-US' }), { year: 'numeric', month: 'short', day: 'numeric' }) : t('common.select_date', { defaultValue: 'Select date' })}</Text></Pressable></View>
                         <View style={s.formGroup}><SmartInput label={t('health_profile.detailed_notes', { defaultValue: 'Detailed Notes' })} variant="multiline" multiline value={formState.notes} onChangeText={(t) => setFormState({ ...formState, notes: t })} placeholder={t('health_profile.surgery_notes_placeholder', { defaultValue: 'How did the procedure go? Who was the doctor?' })} /></View>
                     </>
                 )}
                 {editingType === 'vaccination' && (
                     <>
                         <View style={s.formGroup}><SmartInput label={t('health_profile.vaccine_name', { defaultValue: 'Vaccine Name *' })} value={formState.name} onChangeText={(t) => setFormState({ ...formState, name: t })} placeholder={t('health_profile.vaccine_placeholder', { defaultValue: 'e.g. Influenza, COVID-19' })} /></View>
-                        <View style={s.formGroup}><Text style={s.formLabel}>{t('health_profile.date_given', { defaultValue: 'Date Given *' })}</Text><Pressable style={[s.input, { justifyContent: 'center' }]} onPress={() => { setDatePickerField('date_given'); setShowDatePicker(true); }}><Text style={{ color: formState.date_given ? C.dark : C.muted, fontSize: 15 }}>{formState.date_given ? new Date(formState.date_given).toLocaleDateString(t('common.locale_date', { defaultValue: 'en-US' }), { year: 'numeric', month: 'short', day: 'numeric' }) : t('common.select_date', { defaultValue: 'Select date' })}</Text></Pressable></View>
+                        <View style={s.formGroup}><Text style={s.formLabel}>{t('health_profile.date_given', { defaultValue: 'Date Given *' })}</Text><Pressable style={[s.input, { justifyContent: 'center' }]} onPress={() => { setDatePickerField('date_given'); setShowDatePicker(true); }}><Text style={{ color: formState.date_given ? colors.textPrimary : colors.textMuted, fontSize: 15 }}>{formState.date_given ? new Date(formState.date_given).toLocaleDateString(t('common.locale_date', { defaultValue: 'en-US' }), { year: 'numeric', month: 'short', day: 'numeric' }) : t('common.select_date', { defaultValue: 'Select date' })}</Text></Pressable></View>
                     </>
                 )}
                 {editingType === 'appointment' && (
                     <>
-                        <View style={s.formGroup}><Text style={s.formLabel}>{t('health_profile.reason_title', { defaultValue: 'Reason / Title *' })}</Text><TextInput style={s.input} placeholderTextColor={C.muted} value={formState.title} onChangeText={(t) => setFormState({ ...formState, title: t })} placeholder={t('health_profile.appt_placeholder', { defaultValue: 'General Checkup' })} /></View>
-                        <View style={s.formGroup}><Text style={s.formLabel}>{t('health_profile.doctor_specialist', { defaultValue: 'Doctor / Specialist Name *' })}</Text><TextInput style={s.input} placeholderTextColor={C.muted} value={formState.doctor_name} onChangeText={(t) => setFormState({ ...formState, doctor_name: t })} placeholder="Dr. Smith" /></View>
+                        <View style={s.formGroup}><Text style={s.formLabel}>{t('health_profile.reason_title', { defaultValue: 'Reason / Title *' })}</Text><TextInput style={s.input} placeholderTextColor={colors.textMuted} value={formState.title} onChangeText={(t) => setFormState({ ...formState, title: t })} placeholder={t('health_profile.appt_placeholder', { defaultValue: 'General Checkup' })} /></View>
+                        <View style={s.formGroup}><Text style={s.formLabel}>{t('health_profile.doctor_specialist', { defaultValue: 'Doctor / Specialist Name *' })}</Text><TextInput style={s.input} placeholderTextColor={colors.textMuted} value={formState.doctor_name} onChangeText={(t) => setFormState({ ...formState, doctor_name: t })} placeholder="Dr. Smith" /></View>
                         <View style={s.formGroup}>
                             <Text style={s.formLabel}>{t('health_profile.date_time', { defaultValue: 'Date & Time *' })}</Text>
                             <View style={{ flexDirection: 'row', gap: 10 }}>
                                 <Pressable style={[s.input, { flex: 1, justifyContent: 'center' }]} onPress={() => { setDatePickerField('date'); setShowDatePicker(true); }}>
-                                    <Text style={{ color: formState.date ? C.dark : C.muted }}>{formState.date ? new Date(formState.date).toLocaleDateString(t('common.locale_date', { defaultValue: 'en-US' }), { year: 'numeric', month: 'short', day: 'numeric' }) : t('common.select_date', { defaultValue: 'Select Date' })}</Text>
+                                    <Text style={{ color: formState.date ? colors.textPrimary : colors.textMuted }}>{formState.date ? new Date(formState.date).toLocaleDateString(t('common.locale_date', { defaultValue: 'en-US' }), { year: 'numeric', month: 'short', day: 'numeric' }) : t('common.select_date', { defaultValue: 'Select Date' })}</Text>
                                 </Pressable>
                                 <Pressable style={[s.input, { flex: 1, justifyContent: 'center' }]} onPress={() => { setDatePickerField('date'); setShowTimePicker(true); }}>
-                                    <Text style={{ color: formState.date ? C.dark : C.muted }}>{formState.date ? new Date(formState.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : t('common.select_time', { defaultValue: 'Select Time' })}</Text>
+                                    <Text style={{ color: formState.date ? colors.textPrimary : colors.textMuted }}>{formState.date ? new Date(formState.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : t('common.select_time', { defaultValue: 'Select Time' })}</Text>
                                 </Pressable>
                             </View>
                         </View>
@@ -1432,7 +1457,7 @@ export default function HealthProfileScreen({ navigation }) {
                     <View style={s.countryModalHeader}>
                         <Text style={s.countryModalTitle}>{t('caller.select_country_code', { defaultValue: 'Select Country Code' })}</Text>
                         <Pressable onPress={() => setCountryCodeModal(false)} style={s.closeIconBtn}>
-                            <X size={20} color={C.mid} />
+                            <X size={20} color={colors.textSecondary} />
                         </Pressable>
                     </View>
                     <FlatList
@@ -1462,7 +1487,7 @@ export default function HealthProfileScreen({ navigation }) {
                     {Platform.OS === 'ios' && (
                         <View style={{ flexDirection: 'row', justifyContent: 'flex-end', padding: 16, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' }}>
                             <Pressable onPress={() => setShowDatePicker(false)}>
-                                <Text style={{ color: C.primary, fontWeight: 'bold', fontSize: 16 }}>Done</Text>
+                                <Text style={{ color: colors.primary, fontWeight: 'bold', fontSize: 16 }}>Done</Text>
                             </Pressable>
                         </View>
                     )}
@@ -1491,7 +1516,7 @@ export default function HealthProfileScreen({ navigation }) {
                     {Platform.OS === 'ios' && (
                         <View style={{ flexDirection: 'row', justifyContent: 'flex-end', padding: 16, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' }}>
                             <Pressable onPress={() => setShowTimePicker(false)}>
-                                <Text style={{ color: C.primary, fontWeight: 'bold', fontSize: 16 }}>Done</Text>
+                                <Text style={{ color: colors.primary, fontWeight: 'bold', fontSize: 16 }}>Done</Text>
                             </Pressable>
                         </View>
                     )}
@@ -1751,107 +1776,37 @@ export default function HealthProfileScreen({ navigation }) {
                                 <View style={s.tipsHandle} />
 
                                 {/* Modal Header */}
-                                <View style={{ paddingHorizontal: 24, paddingTop: 16, paddingBottom: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <View style={{ paddingHorizontal: spacing.screen, paddingTop: 16, paddingBottom: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                                     <View style={{ flex: 1 }}>
                                         <Text style={{ fontSize: 24, ...FONT.heavy, color: '#0F172A', letterSpacing: -0.5, marginBottom: 2 }}>AI Health Score Coach</Text>
                                         <Text style={{ fontSize: 13, ...FONT.medium, color: '#64748B' }}>Your personalized health insights</Text>
                                     </View>
-                                    <Pressable onPress={() => setShowScoreInfo(false)} hitSlop={12} style={{ backgroundColor: '#F1F5F9', padding: 6, borderRadius: 16, borderWidth: 1, borderColor: '#E2E8F0' }}>
+                                    <Pressable onPress={() => setShowScoreInfo(false)} hitSlop={12} style={{ backgroundColor: '#F1F5F9', padding: 6, borderRadius: radius.lg, borderWidth: 1, borderColor: '#E2E8F0' }}>
                                         <X size={18} color="#64748B" />
                                     </Pressable>
                                 </View>
 
-                                <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40, paddingHorizontal: 24 }}>
+                                <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40, paddingHorizontal: spacing.screen }}>
                                     
                                     {/* ── SECTION 1: HERO CARD ── */}
-                                    <View style={{
-                                        backgroundColor: '#FFFFFF',
-                                        borderRadius: 36,
-                                        padding: 24,
-                                        marginBottom: 20,
-                                        borderWidth: 1.5,
-                                        borderColor: '#EEF2FF',
-                                        flexDirection: 'row',
-                                        alignItems: 'center',
-                                        gap: 20,
-                                        shadowColor: '#6366F1',
-                                        shadowOffset: { width: 0, height: 12 },
-                                        shadowOpacity: 0.08,
-                                        shadowRadius: 24,
-                                        elevation: 4,
-                                        position: 'relative',
-                                        overflow: 'hidden',
-                                    }}>
-                                        {/* Glow Background Layer */}
-                                        <View style={{
-                                            position: 'absolute',
-                                            top: -50,
-                                            left: -50,
-                                            width: 150,
-                                            height: 150,
-                                            borderRadius: 75,
-                                            backgroundColor: '#6366F1',
-                                            opacity: 0.05,
-                                        }} />
-
-                                        {/* SVG Score Circle */}
-                                        <View style={{ position: 'relative', width: 110, height: 110, alignItems: 'center', justifyContent: 'center' }}>
-                                            <Svg width={110} height={110} viewBox="0 0 110 110">
-                                                <Defs>
-                                                    <SvgLinearGradient id="scoreGrad" x1="0" y1="0" x2="1" y2="1">
-                                                        <Stop offset="0%" stopColor="#6366F1" />
-                                                        <Stop offset="100%" stopColor={hasScore ? scoreColor : '#CBD5E1'} />
-                                                    </SvgLinearGradient>
-                                                </Defs>
-                                                <SvgCircle cx={55} cy={55} r={45} stroke="#F1F5F9" strokeWidth={8} fill="none" />
-                                                {hasScore && (
-                                                    <SvgCircle 
-                                                        cx={55} 
-                                                        cy={55} 
-                                                        r={45} 
-                                                        stroke="url(#scoreGrad)" 
-                                                        strokeWidth={8} 
-                                                        strokeDasharray={2 * Math.PI * 45} 
-                                                        strokeDashoffset={2 * Math.PI * 45 * (1 - activeScoreVal / 100)} 
-                                                        strokeLinecap="round" 
-                                                        fill="none" 
-                                                        transform="rotate(-90 55 55)" 
-                                                    />
-                                                )}
-                                            </Svg>
-                                            <View style={{ position: 'absolute', alignItems: 'center' }}>
-                                                <Text style={{ fontSize: 32, ...FONT.heavy, color: hasScore ? '#0F172A' : '#94A3B8', lineHeight: 36 }}>{hasScore ? activeScoreVal : '—'}</Text>
-                                            </View>
-                                        </View>
-
-                                        {/* Score Info Details */}
-                                        <View style={{ flex: 1 }}>
-                                            <Text style={{ fontSize: 20, ...FONT.heavy, color: '#0F172A', marginBottom: 4 }}>
-                                                {scoreStatus}
-                                            </Text>
-                                            
-                                            {hasScore ? (
-                                                <View style={{ gap: 4 }}>
-                                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                                                        <TrendingUp size={14} color={scoreColor} />
-                                                        <Text style={{ fontSize: 13, ...FONT.bold, color: scoreColor }}>{hsGrade} Grade</Text>
-                                                    </View>
-                                                    {hsBracket && <Text style={{ fontSize: 12, ...FONT.medium, color: '#64748B' }}>Adjusted for {bracketLabel}</Text>}
-                                                    <Text style={{ fontSize: 11, ...FONT.medium, color: '#94A3B8' }}>{lastSyncText}</Text>
-                                                </View>
-                                            ) : (
-                                                <Text style={{ fontSize: 13, ...FONT.medium, color: '#64748B', lineHeight: 18 }}>
-                                                    We're learning your health patterns. Complete your profile to unlock your score!
-                                                </Text>
-                                            )}
-                                        </View>
-                                    </View>
+                                    <ScoreHeroCard
+                                        scoreData={{
+                                            hasScore,
+                                            activeScoreVal,
+                                            scoreColor,
+                                            scoreStatus,
+                                            hsGrade,
+                                            hsBracket,
+                                            bracketLabel,
+                                            lastSyncText
+                                        }}
+                                    />
 
                                     {/* ── SECTION 2: HEALTH AGE WIDGET ── */}
                                     {actualAge && healthAgeVal !== null && (
                                         <View style={{
                                             backgroundColor: '#FAFBFF',
-                                            borderRadius: 24,
+                                            borderRadius: radius.lg,
                                             padding: 16,
                                             borderWidth: 1,
                                             borderColor: '#E0E7FF',
@@ -1868,7 +1823,7 @@ export default function HealthProfileScreen({ navigation }) {
                                                 backgroundColor: healthAgeDiff === 0 ? '#F1F5F9' : (healthAgeDiff < 0 ? '#ECFDF5' : '#FEF2F2'),
                                                 paddingHorizontal: 10,
                                                 paddingVertical: 6,
-                                                borderRadius: 12,
+                                                borderRadius: radius.md,
                                             }}>
                                                 <Text style={{ fontSize: 12, ...FONT.bold, color: healthAgeDiff === 0 ? '#475569' : (healthAgeDiff < 0 ? '#10B981' : '#EF4444') }}>
                                                     {healthAgeDiff === 0 ? 'Same as actual age' : (healthAgeDiff < 0 ? `${Math.abs(healthAgeDiff)} years younger` : `${healthAgeDiff} years older`)}
@@ -1878,105 +1833,43 @@ export default function HealthProfileScreen({ navigation }) {
                                     )}
 
                                     {/* ── SECTION 3: AI HEALTH COACH CARD ── */}
-                                    {(() => {
-                                        // Determine which illustration to use for the coach card based on keywords
-                                        let coachIllus = medsMealIllus; // default fallback
-                                        const actionLower = coachAction.toLowerCase();
-                                        if (actionLower.includes('early') || actionLower.includes('fasting') || actionLower.includes('dinner') || actionLower.includes('bed') || actionLower.includes('hour')) {
-                                            coachIllus = eatEarlyIllus;
-                                        } else if (actionLower.includes('rice') || actionLower.includes('portion') || actionLower.includes('carb') || actionLower.includes('diet') || actionLower.includes('sugar') || actionLower.includes('meal')) {
-                                            coachIllus = ricePortionIllus;
-                                        } else if (actionLower.includes('med') || actionLower.includes('take') || actionLower.includes('pill') || actionLower.includes('tablets')) {
-                                            coachIllus = medsMealIllus;
-                                        }
-                                        
-                                        return (
-                                            <View style={{
-                                                backgroundColor: '#EEF2FF',
-                                                borderRadius: 24,
-                                                borderWidth: 1.5,
-                                                borderColor: '#E0E7FF',
-                                                marginBottom: 20,
-                                                position: 'relative',
-                                                overflow: 'hidden',
-                                            }}>
-                                                <Image 
-                                                    source={coachIllus} 
-                                                    style={{ 
-                                                        width: '100%', 
-                                                        height: 140, 
-                                                        resizeMode: 'cover',
-                                                        borderTopLeftRadius: 22,
-                                                        borderTopRightRadius: 22,
-                                                    }} 
-                                                />
-                                                <View style={{ padding: 20 }}>
-                                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 }}>
-                                                        <Sparkles size={16} color="#6366F1" />
-                                                        <Text style={{ fontSize: 12, ...FONT.heavy, color: '#6366F1', letterSpacing: 0.8 }}>AI HEALTH COACH</Text>
-                                                        {topTip && (
-                                                            <View style={{
-                                                                backgroundColor: '#E0E7FF',
-                                                                paddingHorizontal: 8,
-                                                                paddingVertical: 2,
-                                                                borderRadius: 8,
-                                                                marginLeft: 'auto',
-                                                            }}>
-                                                                <Text style={{ fontSize: 9, ...FONT.bold, color: '#4F46E5' }}>{(topTip.impact || 'TIP').toUpperCase()}</Text>
-                                                            </View>
-                                                        )}
-                                                    </View>
-
-                                                    <Text style={{ fontSize: 16, ...FONT.bold, color: '#0F172A', lineHeight: 22, marginBottom: 4 }}>
-                                                        {coachAction}
-                                                    </Text>
-                                                    {topTip?.body && (
-                                                        <Text style={{ fontSize: 13, ...FONT.medium, color: '#475569', lineHeight: 18, marginBottom: 12 }}>
-                                                            {topTip.body}
-                                                        </Text>
-                                                    )}
-
-                                                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
-                                                        {hasScore && (
-                                                            <View style={{
-                                                                backgroundColor: '#ECFDF5',
-                                                                paddingHorizontal: 12,
-                                                                paddingVertical: 6,
-                                                                borderRadius: 12,
-                                                            }}>
-                                                                <Text style={{ fontSize: 12, ...FONT.heavy, color: '#10B981', letterSpacing: 0.2 }}>
-                                                                    {coachImpact} Score Impact
-                                                                </Text>
-                                                            </View>
-                                                        )}
-                                                        <Pressable
-                                                            onPress={() => { 
-                                                                setShowScoreInfo(false); 
-                                                                navigation.navigate('Chatbot', { 
-                                                                    initialMessage: coachQuestion,
-                                                                    healthContext: {
-                                                                        score: activeScoreVal,
-                                                                        grade: hsGrade,
-                                                                        label: scoreStatus,
-                                                                        weakestDriver: weakest?.label || 'General',
-                                                                        weakestScore: weakest?.pct ?? 0,
-                                                                        projectedBoost,
-                                                                        projectedScore,
-                                                                        suggestedAction: coachAction
-                                                                    }
-                                                                }); 
-                                                            }}
-                                                            hitSlop={8}
-                                                            style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 4, opacity: pressed ? 0.7 : 1 }]}
-                                                        >
-                                                            <Text style={{ fontSize: 12, ...FONT.bold, color: '#4F46E5' }}>{coachCtaText}</Text>
-                                                            <ChevronRight size={14} color="#4F46E5" />
-                                                        </Pressable>
-                                                    </View>
-                                                </View>
-                                            </View>
-                                        );
-                                    })()}
+                                    <HealthCoachCard
+                                        coachData={{
+                                            insight: {
+                                                action: coachAction,
+                                                topTip: topTip,
+                                                question: coachQuestion,
+                                                ctaText: coachCtaText,
+                                            },
+                                            score: {
+                                                value: activeScoreVal,
+                                                grade: hsGrade,
+                                                status: scoreStatus,
+                                                hasScore: hasScore,
+                                            },
+                                            projection: {
+                                                weakest: weakest,
+                                                boost: projectedBoost,
+                                                projectedScore: projectedScore,
+                                            }
+                                        }}
+                                        onPressCoach={() => {
+                                            setShowScoreInfo(false);
+                                            navigation.navigate('Chatbot', {
+                                                initialMessage: coachQuestion,
+                                                healthContext: {
+                                                    score: activeScoreVal,
+                                                    grade: hsGrade,
+                                                    label: scoreStatus,
+                                                    weakestDriver: weakest?.label || 'General',
+                                                    weakestScore: weakest?.pct ?? 0,
+                                                    projectedBoost,
+                                                    projectedScore,
+                                                    suggestedAction: coachAction
+                                                }
+                                            });
+                                        }}
+                                    />
 
                                     {/* ── SECTION 4: OPPORTUNITY CARDS ── */}
                                     <View style={{ marginBottom: 20 }}>
@@ -1989,20 +1882,16 @@ export default function HealthProfileScreen({ navigation }) {
                                                     style={{
                                                         width: 150,
                                                         backgroundColor: '#FFFFFF',
-                                                        borderRadius: 24,
+                                                        borderRadius: radius.lg,
                                                         padding: 16,
                                                         borderWidth: 1,
                                                         borderColor: '#E2E8F0',
                                                         justifyContent: 'space-between',
                                                         minHeight: 120,
-                                                        shadowColor: '#000',
-                                                        shadowOffset: { width: 0, height: 4 },
-                                                        shadowOpacity: 0.02,
-                                                        shadowRadius: 8,
-                                                        elevation: 1,
+                                                        ...shadows.card,
                                                     }}
                                                 >
-                                                    <View style={{ backgroundColor: '#ECFDF5', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, alignSelf: 'flex-start' }}>
+                                                    <View style={{ backgroundColor: '#ECFDF5', paddingHorizontal: 8, paddingVertical: 3, borderRadius: radius.sm, alignSelf: 'flex-start' }}>
                                                         <Text style={{ fontSize: 10, ...FONT.heavy, color: '#10B981' }}>+5 Score</Text>
                                                     </View>
                                                     <Text style={{ fontSize: 13, ...FONT.bold, color: '#0F172A', marginTop: 8 }} numberOfLines={2}>Take morning meds</Text>
@@ -2017,20 +1906,16 @@ export default function HealthProfileScreen({ navigation }) {
                                                 style={{
                                                     width: 150,
                                                     backgroundColor: '#FFFFFF',
-                                                    borderRadius: 24,
+                                                    borderRadius: radius.lg,
                                                     padding: 16,
                                                     borderWidth: 1,
                                                     borderColor: '#E2E8F0',
                                                     justifyContent: 'space-between',
                                                     minHeight: 120,
-                                                    shadowColor: '#000',
-                                                    shadowOffset: { width: 0, height: 4 },
-                                                    shadowOpacity: 0.02,
-                                                    shadowRadius: 8,
-                                                    elevation: 1,
+                                                    ...shadows.card,
                                                 }}
                                             >
-                                                <View style={{ backgroundColor: '#ECFDF5', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, alignSelf: 'flex-start' }}>
+                                                <View style={{ backgroundColor: '#ECFDF5', paddingHorizontal: 8, paddingVertical: 3, borderRadius: radius.sm, alignSelf: 'flex-start' }}>
                                                     <Text style={{ fontSize: 10, ...FONT.heavy, color: '#10B981' }}>+4 Score</Text>
                                                 </View>
                                                 <Text style={{ fontSize: 13, ...FONT.bold, color: '#0F172A', marginTop: 8 }} numberOfLines={2}>Log BP Reading</Text>
@@ -2045,20 +1930,16 @@ export default function HealthProfileScreen({ navigation }) {
                                                     style={{
                                                         width: 150,
                                                         backgroundColor: '#FFFFFF',
-                                                        borderRadius: 24,
+                                                        borderRadius: radius.lg,
                                                         padding: 16,
                                                         borderWidth: 1,
                                                         borderColor: '#E2E8F0',
                                                         justifyContent: 'space-between',
                                                         minHeight: 120,
-                                                        shadowColor: '#000',
-                                                        shadowOffset: { width: 0, height: 4 },
-                                                        shadowOpacity: 0.02,
-                                                        shadowRadius: 8,
-                                                        elevation: 1,
+                                                        ...shadows.card,
                                                     }}
                                                 >
-                                                    <View style={{ backgroundColor: '#ECFDF5', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, alignSelf: 'flex-start' }}>
+                                                    <View style={{ backgroundColor: '#ECFDF5', paddingHorizontal: 8, paddingVertical: 3, borderRadius: radius.sm, alignSelf: 'flex-start' }}>
                                                         <Text style={{ fontSize: 10, ...FONT.heavy, color: '#10B981' }}>+3 Score</Text>
                                                     </View>
                                                     <Text style={{ fontSize: 13, ...FONT.bold, color: '#0F172A', marginTop: 8 }} numberOfLines={2}>Sync Wearable</Text>
@@ -2074,20 +1955,16 @@ export default function HealthProfileScreen({ navigation }) {
                                                     style={{
                                                         width: 150,
                                                         backgroundColor: '#FFFFFF',
-                                                        borderRadius: 24,
+                                                        borderRadius: radius.lg,
                                                         padding: 16,
                                                         borderWidth: 1,
                                                         borderColor: '#E2E8F0',
                                                         justifyContent: 'space-between',
                                                         minHeight: 120,
-                                                        shadowColor: '#000',
-                                                        shadowOffset: { width: 0, height: 4 },
-                                                        shadowOpacity: 0.02,
-                                                        shadowRadius: 8,
-                                                        elevation: 1,
+                                                        ...shadows.card,
                                                     }}
                                                 >
-                                                    <View style={{ backgroundColor: '#ECFDF5', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8, alignSelf: 'flex-start' }}>
+                                                    <View style={{ backgroundColor: '#ECFDF5', paddingHorizontal: 8, paddingVertical: 3, borderRadius: radius.sm, alignSelf: 'flex-start' }}>
                                                         <Text style={{ fontSize: 10, ...FONT.heavy, color: '#10B981' }}>+2 Score</Text>
                                                     </View>
                                                     <Text style={{ fontSize: 13, ...FONT.bold, color: '#0F172A', marginTop: 8 }} numberOfLines={2}>Complete Profile</Text>
@@ -2100,88 +1977,22 @@ export default function HealthProfileScreen({ navigation }) {
                                     </View>
 
                                     {/* ── SECTION 5: HEALTH DRIVERS ── */}
-                                    <View style={{ marginBottom: 20 }}>
-                                        <Text style={{ fontSize: 12, ...FONT.heavy, color: '#64748B', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 12 }}>HEALTH DRIVERS</Text>
-                                        
-                                        {driverData ? (
-                                            <View style={{ gap: 14 }}>
-                                                {driverData.map((driver, idx) => (
-                                                    <View key={idx}>
-                                                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
-                                                            <Text style={{ fontSize: 14, ...FONT.bold, color: '#0F172A' }}>{driver.icon} {driver.label}</Text>
-                                                            <Text style={{ fontSize: 13, ...FONT.bold, color: driverColor(driver.pct) }}>{driver.pct}%</Text>
-                                                        </View>
-                                                        <View style={{ height: 12, backgroundColor: '#F1F5F9', borderRadius: 6, overflow: 'hidden' }}>
-                                                            <View style={{ width: `${driver.pct}%`, height: '100%', backgroundColor: driverColor(driver.pct), borderRadius: 6 }} />
-                                                        </View>
-                                                    </View>
-                                                ))}
-                                            </View>
-                                        ) : (
-                                            <View style={{ backgroundColor: '#F8FAFC', borderRadius: 20, padding: 24, alignItems: 'center', borderWidth: 1, borderColor: '#F1F5F9' }}>
-                                                <Text style={{ fontSize: 24, marginBottom: 8 }}>📊</Text>
-                                                <Text style={{ fontSize: 13, ...FONT.bold, color: '#334155', marginBottom: 4 }}>Tracking Your Health</Text>
-                                                <Text style={{ fontSize: 12, ...FONT.medium, color: '#64748B', textAlign: 'center', lineHeight: 18 }}>
-                                                    Complete your profile and log medications to see detailed health driver breakdowns.
-                                                </Text>
-                                            </View>
-                                        )}
-                                    </View>
+                                    <HealthDrivers driverData={driverData} />
 
                                     {/* ── SECTION 6: WEEKLY MOMENTUM & STREAK RINGS ── */}
-                                    <View style={{
-                                        backgroundColor: '#FFFFFF',
-                                        borderRadius: 28,
-                                        padding: 20,
-                                        borderWidth: 1,
-                                        borderColor: '#E2E8F0',
-                                        marginBottom: 20,
-                                        shadowColor: '#000',
-                                        shadowOffset: { width: 0, height: 4 },
-                                        shadowOpacity: 0.02,
-                                        shadowRadius: 8,
-                                        elevation: 1,
-                                    }}>
-                                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                                            <Text style={{ fontSize: 14, ...FONT.heavy, color: '#0F172A' }}>{streakDays > 0 ? `🔥 ${streakDays} Day ${streakLabel}` : `🎯 Start Your ${streakLabel}`}</Text>
-                                            <Text style={{ fontSize: 12, ...FONT.bold, color: streakDays > 0 ? '#10B981' : '#94A3B8' }}>{streakDays > 0 ? 'Active' : 'Tracking'}</Text>
-                                        </View>
-
-                                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 4 }}>
-                                            {daysOfWeek.map((day, idx) => {
-                                                const isCompleted = completedDays[idx];
-                                                const isToday = idx === todayIdx;
-                                                return (
-                                                    <View key={idx} style={{ alignItems: 'center', gap: 6 }}>
-                                                        <View style={{
-                                                            width: 34,
-                                                            height: 34,
-                                                            borderRadius: 17,
-                                                            borderWidth: 2,
-                                                            borderColor: isCompleted ? '#10B981' : isToday ? '#6366F1' : '#E2E8F0',
-                                                            borderStyle: isCompleted ? 'solid' : 'dashed',
-                                                            alignItems: 'center',
-                                                            justifyContent: 'center',
-                                                            backgroundColor: isCompleted ? '#ECFDF5' : isToday ? '#EEF2FF' : 'transparent',
-                                                        }}>
-                                                            {isCompleted ? (
-                                                                <Text style={{ fontSize: 12, color: '#10B981', ...FONT.bold }}>✓</Text>
-                                                            ) : (
-                                                                <Text style={{ fontSize: 11, color: isToday ? '#6366F1' : '#94A3B8', ...FONT.medium }}>{day}</Text>
-                                                            )}
-                                                        </View>
-                                                        <Text style={{ fontSize: 10, ...FONT.semibold, color: isToday ? '#6366F1' : '#64748B' }}>{day}</Text>
-                                                    </View>
-                                                );
-                                            })}
-                                        </View>
-                                    </View>
+                                    <MomentumCard
+                                        streakDays={streakDays}
+                                        streakLabel={streakLabel}
+                                        daysOfWeek={daysOfWeek}
+                                        completedDays={completedDays}
+                                        todayIdx={todayIdx}
+                                    />
 
                                     {/* ── SECTION 7: AI INSIGHT & PREDICTION CARD ── */}
                                     {hasScore && (
                                         <View style={{
                                             backgroundColor: '#FAFBFF',
-                                            borderRadius: 28,
+                                            borderRadius: radius.lg,
                                             padding: 20,
                                             borderWidth: 1,
                                             borderColor: '#E0E7FF',
@@ -2209,7 +2020,7 @@ export default function HealthProfileScreen({ navigation }) {
                                                             backgroundColor: '#EEF2FF',
                                                             paddingHorizontal: 10,
                                                             paddingVertical: 6,
-                                                            borderRadius: 12,
+                                                            borderRadius: radius.md,
                                                             alignSelf: 'flex-start',
                                                             marginTop: 4,
                                                         }}>
@@ -2222,51 +2033,12 @@ export default function HealthProfileScreen({ navigation }) {
                                     )}
 
                                     {/* ── SECTION 8: ACHIEVEMENTS & NEXT MILESTONE ── */}
-                                    <View style={{
-                                        backgroundColor: '#FFFFFF',
-                                        borderRadius: 28,
-                                        padding: 20,
-                                        borderWidth: 1,
-                                        borderColor: '#E2E8F0',
-                                        marginBottom: 20,
-                                        shadowColor: '#000',
-                                        shadowOffset: { width: 0, height: 4 },
-                                        shadowOpacity: 0.02,
-                                        shadowRadius: 8,
-                                        elevation: 1,
-                                    }}>
-                                        <Text style={{ fontSize: 12, ...FONT.heavy, color: '#64748B', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 12 }}>ACHIEVEMENTS</Text>
-                                        
-                                        {/* Next Milestone Card */}
-                                        <View style={{
-                                            backgroundColor: '#FFFBEB',
-                                            borderRadius: 20,
-                                            padding: 14,
-                                            marginBottom: 16,
-                                            borderWidth: 1,
-                                            borderColor: '#FDE68A',
-                                        }}>
-                                            <Text style={{ fontSize: 11, ...FONT.heavy, color: '#D97706', letterSpacing: 0.5, marginBottom: 4 }}>NEXT MILESTONE</Text>
-                                            <Text style={{ fontSize: 14, ...FONT.bold, color: '#0F172A', marginBottom: 8 }}>{nextMilestone}</Text>
-                                            <View style={{ height: 6, backgroundColor: '#FEF3C7', borderRadius: 3, overflow: 'hidden' }}>
-                                                <View style={{ width: `${Math.min(100, Math.round((milestoneProgress / milestoneTarget) * 100))}%`, height: '100%', backgroundColor: '#F59E0B', borderRadius: 3 }} />
-                                            </View>
-                                        </View>
-
-                                        {unlockedAchievements.length > 0 && (
-                                            <>
-                                                <Text style={{ fontSize: 11, ...FONT.heavy, color: '#94A3B8', letterSpacing: 0.5, marginBottom: 8 }}>UNLOCKED</Text>
-                                                <View style={{ gap: 10 }}>
-                                                    {unlockedAchievements.map((achievement, idx) => (
-                                                        <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                                                            <Text style={{ fontSize: 18 }}>🏆</Text>
-                                                            <Text style={{ fontSize: 13, ...FONT.bold, color: '#334155' }}>{achievement}</Text>
-                                                        </View>
-                                                    ))}
-                                                </View>
-                                            </>
-                                        )}
-                                    </View>
+                                    <AchievementSection
+                                        nextMilestone={nextMilestone}
+                                        milestoneProgress={milestoneProgress}
+                                        milestoneTarget={milestoneTarget}
+                                        unlockedAchievements={unlockedAchievements}
+                                    />
 
                                 </ScrollView>
                             </View>
@@ -2280,15 +2052,15 @@ export default function HealthProfileScreen({ navigation }) {
 
 const s = StyleSheet.create({
     // Base
-    container: { flex: 1, backgroundColor: '#F8FAFC' },
-    root: { flex: 1, backgroundColor: '#F8FAFC' },
+    container: { flex: 1, backgroundColor: colors.background },
+    root: { flex: 1, backgroundColor: colors.background },
 
     // ── Simple Header (like care team / medications) ──
     header: {
         paddingTop: Platform.OS === 'ios' ? 60 : 48,
-        paddingHorizontal: 24,
+        paddingHorizontal: spacing.screen,
         paddingBottom: 14,
-        backgroundColor: '#F8FAFC',
+        backgroundColor: colors.background,
     },
     headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
     headerEyebrow: {
@@ -2304,7 +2076,7 @@ const s = StyleSheet.create({
     bellDot: { position: 'absolute', top: 10, right: 10, width: 7, height: 7, borderRadius: 3.5, backgroundColor: '#EF4444', borderWidth: 1.5, borderColor: '#FFFFFF' },
 
     scrollContent: {
-        paddingHorizontal: 18,
+        paddingHorizontal: spacing.screen,
         paddingTop: 8,
         paddingBottom: layout.TAB_BAR_CLEARANCE,
     },
@@ -2324,9 +2096,9 @@ const s = StyleSheet.create({
     completionInner: { flex: 1, paddingVertical: 14, paddingHorizontal: 12 },
     completionTitleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
     completionTitle: { fontSize: 14, ...FONT.bold, color: '#1E293B' },
-    completionPctTxt: { fontSize: 14, ...FONT.heavy, color: C.primary },
+    completionPctTxt: { fontSize: 14, ...FONT.heavy, color: colors.primary },
     progressBarBg: { height: 5, borderRadius: 3, backgroundColor: '#BAE6FD', marginBottom: 6, overflow: 'hidden' },
-    progressBarFill: { height: '100%', borderRadius: 3, backgroundColor: C.primary },
+    progressBarFill: { height: '100%', borderRadius: 3, backgroundColor: colors.primary },
     completionSub: { fontSize: 11, ...FONT.medium, color: '#94A3B8' },
 
     // ── Section Group Headers ──
@@ -2337,7 +2109,7 @@ const s = StyleSheet.create({
         marginTop: 4,
     },
     groupIconWrap: {
-        width: 26, height: 26, borderRadius: 8,
+        width: 26, height: 26, borderRadius: radius.sm,
         alignItems: 'center', justifyContent: 'center',
         marginRight: 8,
     },
@@ -2352,9 +2124,9 @@ const s = StyleSheet.create({
     // ── Identity Bento ──
     bentoGrid: { flexDirection: 'row', gap: 10, marginBottom: 20 },
     bentoCard: {
-        flex: 1, backgroundColor: '#FFF', borderRadius: 18, padding: 14,
+        flex: 1, backgroundColor: colors.surface, borderRadius: radius.lg, padding: 14,
         alignItems: 'center',
-        shadowColor: '#4361EE', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.06, shadowRadius: 16, elevation: 4,
+        ...shadows.card,
     },
     bentoCircle: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
     bentoVal: { fontSize: 16, ...FONT.heavy, color: '#0F172A', marginBottom: 3 },
@@ -2362,14 +2134,10 @@ const s = StyleSheet.create({
 
     // ── Document Cards ──
     docCard: {
-        backgroundColor: '#FFFFFF',
-        borderRadius: 20,
+        backgroundColor: colors.surface,
+        borderRadius: radius.lg,
         overflow: 'hidden',
-        shadowColor: '#4361EE',
-        shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.06,
-        shadowRadius: 16,
-        elevation: 4,
+        ...shadows.card,
         marginBottom: 16,
     },
     docAccentBar: { height: 3, width: '100%' },
@@ -2386,7 +2154,7 @@ const s = StyleSheet.create({
     sectionHeaderBase: { fontSize: 15, ...FONT.bold, color: '#1E293B' },
     addBtn: {
         width: 30, height: 30, borderRadius: 15,
-        backgroundColor: C.primary,
+        backgroundColor: colors.primary,
         alignItems: 'center', justifyContent: 'center',
     },
 
@@ -2399,21 +2167,21 @@ const s = StyleSheet.create({
         borderBottomWidth: 1,
         borderBottomColor: '#F1F5F9',
     },
-    iconBg: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
+    iconBg: { width: 40, height: 40, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
     rowInfo: { flex: 1 },
     rowTitle: { fontSize: 15, ...FONT.bold, color: '#0F172A', marginBottom: 2 },
     rowSub: { fontSize: 12, ...FONT.medium, color: '#94A3B8' },
-    pill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
+    pill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: radius.sm },
     pillTxt: { fontSize: 11, ...FONT.bold },
 
     // ── Allergy Chips ──
     chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: 14, paddingBottom: 14, paddingTop: 0 },
-    allergyChip: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, backgroundColor: '#F1F5F9' },
+    allergyChip: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 8, borderRadius: radius.md, backgroundColor: '#F1F5F9' },
     allergyChipTxt: { fontSize: 13, ...FONT.semibold },
 
     // ── Wellness Metrics ──
     monitoringRow: { flexDirection: 'row', gap: 10 },
-    metricCard: { flex: 1, borderRadius: 18, padding: 14, alignItems: 'center', shadowColor: '#4361EE', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 3 },
+    metricCard: { flex: 1, backgroundColor: colors.surface, borderRadius: radius.lg, padding: 14, alignItems: 'center', ...shadows.card },
     metricVal: { fontSize: 20, ...FONT.heavy, marginTop: 8, marginBottom: 2 },
     metricLbl: { fontSize: 9, ...FONT.bold, color: '#94A3B8', letterSpacing: 0.8, marginBottom: 2 },
     metricSub: { fontSize: 11, ...FONT.bold },
@@ -2422,17 +2190,17 @@ const s = StyleSheet.create({
     emptyRowTxt: { fontSize: 13, color: '#94A3B8', fontStyle: 'italic', padding: 16, paddingTop: 4, textAlign: 'center' },
 
     // ── Sync Button ──
-    syncBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: C.primary, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 16 },
+    syncBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: colors.primary, paddingHorizontal: 12, paddingVertical: 8, borderRadius: radius.lg },
     syncBtnTxt: { color: '#FFF', ...FONT.bold, fontSize: 12 },
 
     // ── Primary Doctor ──
     gpRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 12 },
     gpAvatar: { width: 50, height: 50, borderRadius: 25, backgroundColor: '#E0F2FE', alignItems: 'center', justifyContent: 'center', marginRight: 14 },
-    gpAvatarTxt: { fontSize: 20, ...FONT.heavy, color: C.primary },
+    gpAvatarTxt: { fontSize: 20, ...FONT.heavy, color: colors.primary },
     gpInfo: { flex: 1 },
     gpName: { fontSize: 17, ...FONT.bold, color: '#0F172A', marginBottom: 3 },
     gpDetail: { fontSize: 13, ...FONT.medium, color: '#94A3B8' },
-    callBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginHorizontal: 16, marginBottom: 14, height: 44, borderRadius: 22, backgroundColor: C.primary },
+    callBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginHorizontal: 16, marginBottom: 14, height: 44, borderRadius: 22, backgroundColor: colors.primary },
     callBtnTxt: { fontSize: 14, ...FONT.bold, color: '#FFF' },
 
     // ── Freemium Upgrade ──
@@ -2442,37 +2210,37 @@ const s = StyleSheet.create({
 
     // ── Form Styles (preserved) ──
     formGroup: { marginBottom: 20 },
-    formLabel: { fontSize: 13, ...FONT.bold, color: C.muted, marginBottom: 10, letterSpacing: 0.5 },
-    input: { backgroundColor: '#FAFBFF', borderWidth: 1.5, borderColor: '#E2E8F0', borderRadius: 20, paddingHorizontal: 16, height: 48, fontSize: 15, ...FONT.medium, color: C.dark },
-    trashBtn: { padding: 4, backgroundColor: '#FFE4E6', borderRadius: 8 },
+    formLabel: { fontSize: 13, ...FONT.bold, color: colors.textMuted, marginBottom: 10, letterSpacing: 0.5 },
+    input: { backgroundColor: '#FAFBFF', borderWidth: 1.5, borderColor: '#E2E8F0', borderRadius: radius.md, paddingHorizontal: 16, height: 48, fontSize: 15, ...FONT.medium, color: colors.textPrimary },
+    trashBtn: { padding: 4, backgroundColor: '#FFE4E6', borderRadius: radius.sm },
     closeIconBtn: { padding: 4 },
 
     // ChipSelector
     chipSelectorWrap: { flexDirection: 'row', gap: 10, paddingBottom: 4 },
     chipVerticalWrap: { flexDirection: 'column', paddingBottom: 4 },
-    selectChip: { paddingHorizontal: 16, paddingVertical: 12, borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12, backgroundColor: '#FFF' },
-    selectChipActive: { borderColor: C.primary, backgroundColor: C.primarySoft },
-    selectChipTxt: { fontSize: 14, ...FONT.bold, color: C.muted },
-    selectChipTxtActive: { color: C.primaryDark },
+    selectChip: { paddingHorizontal: 16, paddingVertical: 12, borderWidth: 1, borderColor: '#E2E8F0', borderRadius: radius.md, backgroundColor: '#FFF' },
+    selectChipActive: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
+    selectChipTxt: { fontSize: 14, ...FONT.bold, color: colors.textMuted },
+    selectChipTxtActive: { color: colors.primaryDark },
 
     // DOB Picker
     pickerContainer: { paddingBottom: 20 },
-    pickerHeader: { backgroundColor: '#E0F2FE', padding: 16, borderRadius: 20, marginBottom: 20, alignItems: 'center' },
-    pickerPreview: { fontSize: 18, ...FONT.bold, color: C.primaryDark },
-    pickerLabel: { fontSize: 13, ...FONT.bold, color: C.muted, marginBottom: 12, letterSpacing: 0.5 },
+    pickerHeader: { backgroundColor: '#E0F2FE', padding: 16, borderRadius: radius.md, marginBottom: 20, alignItems: 'center' },
+    pickerPreview: { fontSize: 18, ...FONT.bold, color: colors.primaryDark },
+    pickerLabel: { fontSize: 13, ...FONT.bold, color: colors.textMuted, marginBottom: 12, letterSpacing: 0.5 },
     yearScroll: { marginBottom: 10 },
-    yearChip: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 12, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', marginRight: 10 },
-    yearChipActive: { backgroundColor: C.primary, borderColor: C.primary },
+    yearChip: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: radius.md, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', marginRight: 10 },
+    yearChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
     yearChipTxt: { fontSize: 16, ...FONT.bold, color: '#334155' },
     yearChipTxtActive: { color: '#FFF' },
     monthGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-    monthChip: { width: '31%', paddingVertical: 10, alignItems: 'center', borderRadius: 12, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0' },
-    monthChipActive: { backgroundColor: C.primary, borderColor: C.primary },
+    monthChip: { width: '31%', paddingVertical: 10, alignItems: 'center', borderRadius: radius.md, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0' },
+    monthChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
     monthChipTxt: { fontSize: 14, ...FONT.bold, color: '#334155' },
     monthChipTxtActive: { color: '#FFF' },
     dayScroll: { marginTop: 10 },
     dayChip: { width: 50, height: 50, borderRadius: 25, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center', marginRight: 10 },
-    dayChipActive: { backgroundColor: C.primary, borderColor: C.primary },
+    dayChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
     dayChipTxt: { fontSize: 16, ...FONT.bold, color: '#334155' },
     dayChipTxtActive: { color: '#FFF' },
 
@@ -2483,10 +2251,10 @@ const s = StyleSheet.create({
     countryOption: { flexDirection: 'row', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: '#F8FAFC' },
     countryFlag: { fontSize: 24, marginRight: 12 },
     countryName: { flex: 1, fontSize: 16, color: '#0F172A', ...FONT.medium },
-    countryCodeText: { fontSize: 16, color: C.primary, ...FONT.bold },
+    countryCodeText: { fontSize: 16, color: colors.primary, ...FONT.bold },
 
     // ── NEW LAYOUT STYLES ──
-    dashboardCard: { backgroundColor: '#FFF', borderRadius: 24, padding: 20, shadowColor: '#4F46E5', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.08, shadowRadius: 24, elevation: 6, marginBottom: 20 },
+    dashboardCard: { backgroundColor: colors.surface, borderRadius: radius.xl, padding: 20, ...shadows.card, marginBottom: 20 },
     dashTopRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
     dashLeft: { flex: 1, paddingRight: 16 },
     dashEyebrow: { fontSize: 11, ...FONT.heavy, color: '#94A3B8', letterSpacing: 1 },
@@ -2501,22 +2269,22 @@ const s = StyleSheet.create({
     ringWrap: { width: 88, height: 88, alignItems: 'center', justifyContent: 'center' },
     dashMetricsRow: { flexDirection: 'row', justifyContent: 'space-between', paddingTop: 16, borderTopWidth: 1, borderTopColor: '#F1F5F9' },
     dashMiniMetric: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-    dashMiniIcon: { width: 28, height: 28, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+    dashMiniIcon: { width: 28, height: 28, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center' },
     dashMiniLbl: { fontSize: 10, ...FONT.bold, color: '#64748B' },
     dashMiniVal: { fontSize: 14, ...FONT.heavy },
 
     // Profile completeness banner
-    completeBanner: { backgroundColor: '#F0F9FF', borderRadius: 20, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: '#BAE6FD' },
+    completeBanner: { backgroundColor: '#F0F9FF', borderRadius: radius.lg, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: '#BAE6FD' },
     completeBannerTitle: { fontSize: 13, ...FONT.bold, color: '#0369A1' },
     completeBannerPct: { fontSize: 13, ...FONT.heavy },
     completeBannerSub: { fontSize: 11, ...FONT.medium, color: '#0EA5E9', marginTop: 6 },
-    completeBarOuter: { height: 5, backgroundColor: '#E0F2FE', borderRadius: 10, overflow: 'hidden' },
-    completeBarInner: { height: 5, borderRadius: 10 },
+    completeBarOuter: { height: 5, backgroundColor: '#E0F2FE', borderRadius: radius.sm, overflow: 'hidden' },
+    completeBarInner: { height: 5, borderRadius: radius.sm },
 
     // Health score card — grade chip + bracket tag
-    gradeChip: { marginLeft: 8, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, borderWidth: 1.5 },
+    gradeChip: { marginLeft: 8, paddingHorizontal: 8, paddingVertical: 2, borderRadius: radius.sm, borderWidth: 1.5 },
     gradeChipTxt: { fontSize: 13, ...FONT.heavy },
-    bracketTag: { backgroundColor: '#F8FAFC', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3, marginBottom: 8, alignSelf: 'flex-start' },
+    bracketTag: { backgroundColor: '#F8FAFC', borderRadius: radius.sm, paddingHorizontal: 8, paddingVertical: 3, marginBottom: 8, alignSelf: 'flex-start' },
     bracketTagTxt: { fontSize: 10, ...FONT.bold, color: '#64748B', letterSpacing: 0.3 },
 
     // Score Breakdown Explainer
@@ -2535,36 +2303,36 @@ const s = StyleSheet.create({
     focusSection: { marginBottom: 20 },
     focusHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12, paddingHorizontal: 4 },
     focusHeaderTitle: { fontSize: 11, ...FONT.heavy, color: '#6366F1', letterSpacing: 1 },
-    insightCard: { borderRadius: 16, padding: 14, marginBottom: 10, borderWidth: 1, borderLeftWidth: 4, shadowColor: '#6366F1', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.04, shadowRadius: 8, elevation: 2 },
+    insightCard: { borderRadius: radius.lg, padding: 14, marginBottom: 10, borderWidth: 1, borderLeftWidth: 4, shadowColor: '#6366F1', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.04, shadowRadius: 8, elevation: 2 },
     insightTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 6 },
     insightIcon: { fontSize: 18, lineHeight: 22 },
     insightTitle: { fontSize: 14, ...FONT.bold, color: '#0F172A', lineHeight: 20 },
-    insightBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8, borderWidth: 1, marginTop: 2 },
+    insightBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: radius.sm, borderWidth: 1, marginTop: 2 },
     insightBadgeText: { fontSize: 9, ...FONT.heavy, textTransform: 'uppercase', letterSpacing: 0.3 },
     insightBody: { fontSize: 13, ...FONT.medium, color: '#475569', lineHeight: 18, marginLeft: 26 },
     seeAllInsightsBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: 12, marginTop: 4 },
     seeAllInsightsTxt: { fontSize: 13, ...FONT.bold, color: '#6366F1' },
-    emptyFocusState: { backgroundColor: '#FFF', borderRadius: 16, padding: 24, alignItems: 'center', borderWidth: 1, borderColor: '#F1F5F9' },
+    emptyFocusState: { backgroundColor: '#FFF', borderRadius: radius.lg, padding: 24, alignItems: 'center', borderWidth: 1, borderColor: '#F1F5F9' },
     emptyFocusIcon: { fontSize: 24, marginBottom: 8 },
     emptyFocusTxt: { fontSize: 13, ...FONT.medium, color: '#64748B', textAlign: 'center' },
 
-    alertsCard: { backgroundColor: '#FFF', borderRadius: 20, padding: 16, marginBottom: 20, shadowColor: '#EF4444', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.06, shadowRadius: 16, elevation: 4 },
+    alertsCard: { backgroundColor: colors.surface, borderRadius: radius.lg, padding: 16, marginBottom: 20, shadowColor: colors.danger, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 3 },
     alertHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16 },
-    alertIconBox: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#FEF2F2', alignItems: 'center', justifyContent: 'center' },
+    alertIconBox: { width: 36, height: 36, borderRadius: radius.sm, backgroundColor: '#FEF2F2', alignItems: 'center', justifyContent: 'center' },
     alertTitle: { fontSize: 15, ...FONT.bold, color: '#0F172A', marginBottom: 2 },
     alertSub: { fontSize: 12, ...FONT.medium, color: '#64748B' },
     alertChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-    alertChip: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#FEF2F2', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20 },
+    alertChip: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#FEF2F2', paddingHorizontal: 10, paddingVertical: 6, borderRadius: radius.md },
     alertDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#EF4444' },
     alertChipTxt: { fontSize: 12, ...FONT.bold, color: '#EF4444' },
 
     masonryGrid: { flexDirection: 'column', gap: 16 }, // Kept name to avoid breaking external refs, but it's now stacked
     masonryCol: { flex: 1, gap: 16 },
-    gridCard: { backgroundColor: '#FFF', borderRadius: 20, padding: 16, shadowColor: '#64748B', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.04, shadowRadius: 12, elevation: 3 },
+    gridCard: { backgroundColor: colors.surface, borderRadius: radius.lg, padding: 16, ...shadows.card },
     gridHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
-    gridIconWrap: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginRight: 10 },
+    gridIconWrap: { width: 32, height: 32, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center', marginRight: 10 },
     gridTitle: { flex: 1, fontSize: 15, ...FONT.bold, color: '#0F172A' },
-    gridAddBtn: { width: 32, height: 32, borderRadius: 10, backgroundColor: '#F8FAFC', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#F1F5F9' },
+    gridAddBtn: { width: 32, height: 32, borderRadius: radius.sm, backgroundColor: '#F8FAFC', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#F1F5F9' },
     gridBody: { paddingBottom: 4 },
     emptyGridTxt: { fontSize: 13, ...FONT.medium, color: '#94A3B8', fontStyle: 'italic', marginBottom: 10 },
 
@@ -2574,10 +2342,10 @@ const s = StyleSheet.create({
     miniPill: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
     miniPillTxt: { fontSize: 9, ...FONT.heavy, textTransform: 'uppercase' },
 
-    gridChip: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20, backgroundColor: '#FFFBEB', borderWidth: 1, borderColor: '#FEF3C7', flexDirection: 'row', alignItems: 'center' },
+    gridChip: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: radius.md, backgroundColor: '#FFFBEB', borderWidth: 1, borderColor: '#FEF3C7', flexDirection: 'row', alignItems: 'center' },
     gridChipTxt: { fontSize: 11, ...FONT.bold, color: '#D97706' },
 
-    wellBox: { flex: 1, backgroundColor: '#FFF', borderWidth: 1, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 6, alignItems: 'center', minWidth: 0 },
+    wellBox: { flex: 1, backgroundColor: '#FFF', borderWidth: 1, borderRadius: radius.md, paddingVertical: 10, paddingHorizontal: 6, alignItems: 'center', minWidth: 0 },
     wellVal: { fontSize: 14, ...FONT.heavy, marginBottom: 2 },
     wellLbl: { fontSize: 9, ...FONT.bold, color: '#64748B', marginBottom: 2, textAlign: 'center' },
     wellSub: { fontSize: 8, ...FONT.heavy, textAlign: 'center' },
@@ -2592,7 +2360,7 @@ const s = StyleSheet.create({
     netRow: { flexDirection: 'row', alignItems: 'center' },
     netName: { fontSize: 13, ...FONT.bold, color: '#0F172A', marginBottom: 2 },
     netRole: { fontSize: 11, ...FONT.medium, color: '#94A3B8' },
-    netBtn: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 12, borderWidth: 1 },
+    netBtn: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 6, borderRadius: radius.md, borderWidth: 1 },
     netBtnTxt: { fontSize: 11, ...FONT.bold },
 
     // ── Health Tips Modal ────────────────────────────────────────────────────
@@ -2625,7 +2393,7 @@ const s = StyleSheet.create({
     tipsHeader: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 24,
+        paddingHorizontal: spacing.screen,
         paddingVertical: 20,
         borderBottomWidth: 1,
         borderBottomColor: '#F1F5F9',
@@ -2668,7 +2436,7 @@ const s = StyleSheet.create({
         gap: 12,
     },
     tipCard: {
-        borderRadius: 16,
+        borderRadius: radius.lg,
         borderWidth: 1,
         borderLeftWidth: 4,
         padding: 14,
@@ -2693,7 +2461,7 @@ const s = StyleSheet.create({
     },
     tipImpactBadge: {
         borderWidth: 1,
-        borderRadius: 20,
+        borderRadius: radius.md,
         paddingHorizontal: 8,
         paddingVertical: 3,
         alignSelf: 'flex-start',
@@ -2748,7 +2516,7 @@ const s = StyleSheet.create({
         marginHorizontal: 20,
         marginTop: 12,
         backgroundColor: '#0F172A',
-        borderRadius: 16,
+        borderRadius: radius.lg,
         paddingVertical: 16,
         alignItems: 'center',
     },
@@ -2761,7 +2529,7 @@ const s = StyleSheet.create({
     historyLinkBtn: {
         paddingVertical: 6,
         paddingHorizontal: 12,
-        borderRadius: 8,
+        borderRadius: radius.sm,
         backgroundColor: '#F3E8FF',
     },
     historyLinkBtnTxt: {
@@ -2801,7 +2569,7 @@ const s = StyleSheet.create({
         marginTop: 8,
         paddingVertical: 8,
         paddingHorizontal: 16,
-        borderRadius: 12,
+        borderRadius: radius.md,
         backgroundColor: '#EEF2FF',
     },
     schedBtnTxt: {
@@ -2842,16 +2610,12 @@ const s = StyleSheet.create({
         ...FONT.semibold,
     },
     premiumBannerCard: {
-        borderRadius: 28,
+        borderRadius: radius.lg,
         padding: 24,
         alignItems: 'center',
         borderWidth: 1.5,
         borderColor: '#FECDD3',
-        shadowColor: '#F43F5E',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.08,
-        shadowRadius: 20,
-        elevation: 6,
+        ...shadows.lg,
     },
     premiumBadgeWrap: {
         width: 64,
@@ -2896,15 +2660,11 @@ const s = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         backgroundColor: '#E11D48',
-        borderRadius: 16,
+        borderRadius: radius.lg,
         paddingVertical: 14,
         paddingHorizontal: 28,
         width: '100%',
-        shadowColor: '#E11D48',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.2,
-        shadowRadius: 10,
-        elevation: 4,
+        ...shadows.md,
     },
     premiumCtaBtnTxt: {
         color: '#FFFFFF',

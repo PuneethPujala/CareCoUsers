@@ -12,7 +12,7 @@ import {
   Plus, Edit2, Bell, Trash2, Star, Activity, MessageCircle, UserCheck,
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { colors, layout } from '../../theme';
+import { colors, layout, spacing, radius, shadows } from '../../theme';
 import { apiService } from '../../lib/api';
 import { COUNTRY_CODES, parsePhoneWithCode, validatePhone } from '../../utils/phoneUtils';
 import { useTranslation } from 'react-i18next';
@@ -36,37 +36,18 @@ const SkeletonItem = ({ width, height, borderRadius = 8, style }) => {
 };
 
 // ── Theme ───────────────────────────────────────────────────────────────────
-const C = {
-  primary: '#6366F1',
-  primaryDark: '#4338CA',
-  primarySoft: '#EEF2FF',
-  cardBg: '#FFFFFF',
-  pageBg: '#F8FAFC',
-  dark: '#0F172A',
-  mid: '#334155',
-  muted: '#94A3B8',
-  light: '#CBD5E1',
-  border: '#F1F5F9',
-  borderMid: '#E2E8F0',
-  success: '#10B981',
-  successBg: '#D1FAE5',
-  danger: '#F43F5E',
-  dangerBg: '#FFE4E6',
-  warning: '#F59E0B',
-  warningBg: '#FEF3C7',
-  accent: '#06B6D4',
-};
+
 
 const CONTACT_PALETTE = [
   '#6366F1', '#10B981', '#F59E0B', '#06B6D4', '#8B5CF6', '#EC4899',
 ];
 
 const STATUS_CONFIG = {
-  completed:   { color: C.success, bg: C.successBg,  Icon: PhoneIncoming, label: 'Completed' },
-  missed:      { color: C.danger,  bg: C.dangerBg,   Icon: AlertTriangle, label: 'Missed' },
-  attempted:   { color: C.warning, bg: C.warningBg,  Icon: Clock,         label: 'Attempted' },
-  refused:     { color: C.danger,  bg: C.dangerBg,   Icon: AlertTriangle, label: 'Refused' },
-  rescheduled: { color: C.warning, bg: C.warningBg,  Icon: Calendar,      label: 'Rescheduled' },
+  completed:   { color: colors.success, bg: colors.successBg,  Icon: PhoneIncoming, label: 'Completed' },
+  missed:      { color: colors.danger,  bg: colors.dangerBg,   Icon: AlertTriangle, label: 'Missed' },
+  attempted:   { color: colors.warning, bg: colors.warningBg,  Icon: Clock,         label: 'Attempted' },
+  refused:     { color: colors.danger,  bg: colors.dangerBg,   Icon: AlertTriangle, label: 'Refused' },
+  rescheduled: { color: colors.warning, bg: colors.warningBg,  Icon: Calendar,      label: 'Rescheduled' },
 };
 
 // ── Main Component ──────────────────────────────────────────────────────────
@@ -320,7 +301,7 @@ export default function MyCallerScreen({ navigation }) {
         </View>
         <View style={s.gatewrap}>
           <LinearGradient colors={['#EEF2FF', '#E0E7FF']} style={s.gateIcon}>
-            <ShieldCheck size={36} color={C.primary} strokeWidth={1.5} />
+            <ShieldCheck size={36} color={colors.primary} strokeWidth={1.5} />
           </LinearGradient>
           <Text style={s.gateTitle}>{t('common.premium_feature', { defaultValue: 'Premium Feature' })}</Text>
           <Text style={s.gateBody}>{t('caller.premium_desc', { defaultValue: 'A dedicated care team caller is included in the Basic Plan. Upgrade on the Home screen to get matched with a caller from your city.' })}</Text>
@@ -352,7 +333,7 @@ export default function MyCallerScreen({ navigation }) {
         style={s.scroll}
         contentContainerStyle={s.scrollContent}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={C.primary} colors={[C.primary]} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.primary} colors={[colors.primary]} />}
       >
 
         {/* ── YOUR CALLER HERO CARD ──────────────────────────────────── */}
@@ -360,7 +341,7 @@ export default function MyCallerScreen({ navigation }) {
           <Text style={s.sectionLabel}>{t('caller.your_caller', { defaultValue: 'YOUR CALLER' })}</Text>
 
           {caller ? (
-            <Pressable onPress={() => openModal(caller)} style={({ pressed }) => [{ opacity: pressed ? 0.96 : 1 }]}>
+            <Pressable onPress={() => openModal(caller)} style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
               <LinearGradient colors={['#3730A3', '#4F46E5', '#6366F1']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.heroCard}>
                 {/* Top strip */}
                 <View style={s.heroTopRow}>
@@ -479,10 +460,10 @@ export default function MyCallerScreen({ navigation }) {
 
                 {/* Call button */}
                 <Pressable
-                  style={({ pressed }) => [s.heroCallBtn, pressed && { opacity: 0.9 }]}
+                  style={({ pressed }) => [s.heroCallBtn, pressed && { opacity: 0.7 }]}
                   onPress={(e) => { e.stopPropagation?.(); setCallModalVisible(true); }}
                 >
-                  <Phone size={17} color={C.primaryDark} strokeWidth={2.5} />
+                  <Phone size={17} color={colors.primaryDark} strokeWidth={2.5} />
                   <Text style={s.heroCallBtnText}>{t('common.call_now', { defaultValue: 'Call Now' })}</Text>
                 </Pressable>
               </LinearGradient>
@@ -491,12 +472,12 @@ export default function MyCallerScreen({ navigation }) {
             /* Pending state */
             <View style={s.pendingCard}>
               <LinearGradient colors={['#EEF2FF', '#E0E7FF']} style={s.pendingIconCircle}>
-                <PhoneIncoming size={30} color={C.primary} strokeWidth={1.5} />
+                <PhoneIncoming size={30} color={colors.primary} strokeWidth={1.5} />
               </LinearGradient>
               <Text style={s.pendingTitle}>{t('caller.caregiver_being_assigned', { defaultValue: 'Caregiver Being Assigned' })}</Text>
               <Text style={s.pendingBody}>{t('caller.pending_assignment_desc', { defaultValue: "Your care manager has been notified and is assigning a dedicated caregiver for you. You'll receive a notification once they're ready!" })}</Text>
               {manager && (
-                <Pressable style={s.pendingCallBtn} onPress={() => manager.phone && Linking.openURL(`tel:${manager.phone}`)}>
+                <Pressable style={({ pressed }) => [s.pendingCallBtn, pressed && { opacity: 0.7 }]} onPress={() => manager.phone && Linking.openURL(`tel:${manager.phone}`)}>
                   <Phone size={15} color="#FFF" strokeWidth={2.5} />
                   <Text style={s.pendingCallBtnText}>{t('caller.contact_your_manager', { defaultValue: 'Contact Your Manager' })}</Text>
                 </Pressable>
@@ -512,7 +493,7 @@ export default function MyCallerScreen({ navigation }) {
           </View>
 
           {manager ? (
-            <Pressable onPress={() => openModal({ ...manager, isManager: true })} style={({ pressed }) => [s.managerCard, pressed && { opacity: 0.97 }]}>
+            <Pressable onPress={() => openModal({ ...manager, isManager: true })} style={({ pressed }) => [s.managerCard, pressed && { opacity: 0.7 }]}>
               <View style={s.managerLeft}>
                 {manager.avatarUrl ? (
                   <Image source={{ uri: manager.avatarUrl }} style={s.managerAvatarImg} />
@@ -524,7 +505,7 @@ export default function MyCallerScreen({ navigation }) {
                 <View style={s.managerInfo}>
                   <Text style={s.managerName}>{manager.fullName || t('caller.manager_default', { defaultValue: 'Manager' })}</Text>
                   <View style={s.managerRoleRow}>
-                    <ShieldCheck size={11} color={C.success} strokeWidth={2.5} />
+                    <ShieldCheck size={11} color={colors.success} strokeWidth={2.5} />
                     <Text style={s.managerRoleText}>{t('caller.role_manager', { defaultValue: 'Care Manager' })}</Text>
                     <View style={s.dotSep} />
                     <View style={{ 
@@ -554,16 +535,16 @@ export default function MyCallerScreen({ navigation }) {
                 </View>
               </View>
               <Pressable
-                style={s.managerCallBtn}
+                style={({ pressed }) => [s.managerCallBtn, pressed && { opacity: 0.7 }]}
                 onPress={(e) => { e.stopPropagation?.(); manager.phone && Linking.openURL(`tel:${manager.phone}`); }}
               >
-                <Phone size={16} color={C.primary} strokeWidth={2.5} />
+                <Phone size={16} color={colors.primary} strokeWidth={2.5} />
               </Pressable>
             </Pressable>
           ) : (
             <View style={s.emptyCard}>
               <View style={s.emptyIconBox}>
-                <Users size={24} color={C.muted} strokeWidth={1.5} />
+                <Users size={24} color={colors.textMuted} strokeWidth={1.5} />
               </View>
               <View style={s.emptyTextBlock}>
                 <Text style={s.emptyTitle}>{t('caller.no_manager_assigned', { defaultValue: 'No Manager Assigned' })}</Text>
@@ -577,7 +558,7 @@ export default function MyCallerScreen({ navigation }) {
         <Animated.View style={anim(3)}>
           <View style={s.sectionHeaderRow}>
             <Text style={s.sectionLabel}>{t('caller.care_team_contacts', { defaultValue: 'TRUSTED CONTACTS' })}</Text>
-            <Pressable style={s.addBtn} onPress={() => openContactModal()}>
+            <Pressable style={({ pressed }) => [s.addBtn, pressed && { opacity: 0.7 }]} onPress={() => openContactModal()}>
               <Plus size={15} color="#FFF" strokeWidth={2.5} />
             </Pressable>
           </View>
@@ -585,7 +566,7 @@ export default function MyCallerScreen({ navigation }) {
           {contacts.length === 0 ? (
             <View style={s.emptyCard}>
               <View style={s.emptyIconBox}>
-                <Heart size={24} color={C.muted} strokeWidth={1.5} />
+                <Heart size={24} color={colors.textMuted} strokeWidth={1.5} />
               </View>
               <View style={s.emptyTextBlock}>
                 <Text style={s.emptyTitle}>{t('caller.no_contacts_added', { defaultValue: 'No Contacts Added' })}</Text>
@@ -594,8 +575,8 @@ export default function MyCallerScreen({ navigation }) {
             </View>
           ) : (
             contacts.map((contact, idx) => {
-              const accentColor = contact.is_emergency ? C.danger : CONTACT_PALETTE[idx % CONTACT_PALETTE.length];
-              const avatarBg    = contact.is_emergency ? C.dangerBg : `${accentColor}18`;
+              const accentColor = contact.is_emergency ? colors.danger : CONTACT_PALETTE[idx % CONTACT_PALETTE.length];
+              const avatarBg    = contact.is_emergency ? colors.dangerBg : `${accentColor}18`;
               return (
                 <View key={contact._id} style={s.contactCard}>
                   <View style={[s.contactAccent, { backgroundColor: accentColor }]} />
@@ -627,13 +608,13 @@ export default function MyCallerScreen({ navigation }) {
                   </View>
                   <View style={s.contactActions}>
                     <Pressable
-                      style={s.contactActionBtn}
+                      style={({ pressed }) => [s.contactActionBtn, pressed && { opacity: 0.7 }]}
                       onPress={() => contact.phone && Linking.openURL(`tel:${contact.phone}`)}
                     >
-                      <Phone size={15} color={C.primary} strokeWidth={2.5} />
+                      <Phone size={15} color={colors.primary} strokeWidth={2.5} />
                     </Pressable>
-                    <Pressable style={s.contactActionBtn} onPress={() => openContactModal(contact)}>
-                      <Edit2 size={15} color={C.mid} strokeWidth={2} />
+                    <Pressable style={({ pressed }) => [s.contactActionBtn, pressed && { opacity: 0.7 }]} onPress={() => openContactModal(contact)}>
+                      <Edit2 size={15} color={colors.textSecondary} strokeWidth={2} />
                     </Pressable>
                   </View>
                 </View>
@@ -708,7 +689,7 @@ export default function MyCallerScreen({ navigation }) {
                 {/* Floating close */}
                 <Animated.View style={[s.floatingClose, { opacity: modalAnim, transform: [{ translateY: modalAnim.interpolate({ inputRange: [0, 1], outputRange: [400, 0] }) }] }]}>
                   <TouchableOpacity onPress={closeModal} style={s.floatingCloseBtn}>
-                    <X size={20} color={C.dark} strokeWidth={3} />
+                    <X size={20} color={colors.textPrimary} strokeWidth={3} />
                   </TouchableOpacity>
                 </Animated.View>
 
@@ -752,19 +733,19 @@ export default function MyCallerScreen({ navigation }) {
                     {/* Quick stats bar */}
                     <View style={s.sheetStatsBar}>
                       <View style={s.sheetStat}>
-                        <Clock size={14} color={C.primary} strokeWidth={2.5} />
+                        <Clock size={14} color={colors.primary} strokeWidth={2.5} />
                         <Text style={s.sheetStatVal}>{profileExp}y</Text>
                         <Text style={s.sheetStatLabel}>{t('caller.experience', { defaultValue: 'Experience' })}</Text>
                       </View>
                       <View style={s.sheetStatSep} />
                       <View style={s.sheetStat}>
-                        <Globe size={14} color={C.primary} strokeWidth={2.5} />
+                        <Globe size={14} color={colors.primary} strokeWidth={2.5} />
                         <Text style={s.sheetStatVal} numberOfLines={1}>{profileLang}</Text>
                         <Text style={s.sheetStatLabel}>{t('caller.primary_lang', { defaultValue: 'Language' })}</Text>
                       </View>
                       <View style={s.sheetStatSep} />
                       <View style={s.sheetStat}>
-                        <ShieldCheck size={14} color={C.success} strokeWidth={2.5} />
+                        <ShieldCheck size={14} color={colors.success} strokeWidth={2.5} />
                         <Text style={s.sheetStatVal}>{t('caller.certified', { defaultValue: 'Active' })}</Text>
                         <Text style={s.sheetStatLabel}>{t('common.status', { defaultValue: 'Status' })}</Text>
                       </View>
@@ -773,7 +754,7 @@ export default function MyCallerScreen({ navigation }) {
                     {/* Actions */}
                     <View style={s.sheetActions}>
                       <Pressable
-                        style={({ pressed }) => [s.sheetCallBtn, { backgroundColor: isManager ? '#1F2937' : C.primaryDark }, pressed && { opacity: 0.88 }]}
+                        style={({ pressed }) => [s.sheetCallBtn, { backgroundColor: isManager ? '#1F2937' : colors.primaryDark }, pressed && { opacity: 0.7 }]}
                         onPress={() => profilePhone && Linking.openURL(`tel:${profilePhone}`)}
                       >
                         <Phone size={18} color="#FFF" strokeWidth={2.5} />
@@ -781,10 +762,10 @@ export default function MyCallerScreen({ navigation }) {
                       </Pressable>
                       {!isManager && (
                         <Pressable
-                          style={({ pressed }) => [s.sheetFlagBtn, pressed && { backgroundColor: C.dangerBg }]}
+                          style={({ pressed }) => [s.sheetFlagBtn, pressed && { backgroundColor: colors.dangerBg }]}
                           onPress={() => { closeModal(); setTimeout(() => setFlagIssueModalVisible(true), 300); }}
                         >
-                          <Flag size={18} color={C.danger} strokeWidth={2.2} />
+                          <Flag size={18} color={colors.danger} strokeWidth={2.2} />
                           <Text style={s.sheetFlagBtnText}>{t('caller.flag_issue', { defaultValue: 'Flag Issue' })}</Text>
                         </Pressable>
                       )}
@@ -800,7 +781,7 @@ export default function MyCallerScreen({ navigation }) {
 
                         {calls.length === 0 ? (
                           <View style={s.sheetEmptyCard}>
-                            <PhoneIncoming size={28} color={C.light} strokeWidth={1.5} />
+                            <PhoneIncoming size={28} color={colors.borderLight} strokeWidth={1.5} />
                             <Text style={s.sheetEmptyText}>{t('caller.no_calls_recorded', { defaultValue: 'No calls recorded yet.' })}</Text>
                           </View>
                         ) : (
@@ -850,7 +831,7 @@ export default function MyCallerScreen({ navigation }) {
         headerRight={
           editingContact && (
             <Pressable onPress={() => confirmRemoveContact(editingContact._id)} style={{ padding: 8 }}>
-              <Trash2 size={20} color={C.danger} />
+              <Trash2 size={20} color={colors.danger} />
             </Pressable>
           )
         }
@@ -868,7 +849,7 @@ export default function MyCallerScreen({ navigation }) {
           <Pressable style={s.codeBtn} onPress={() => setCountryCodeModal(true)}>
             <Text style={s.codeBtnFlag}>{COUNTRY_CODES.find(c => c.code === contactForm.phoneCode)?.flag}</Text>
             <Text style={s.codeBtnText}>{contactForm.phoneCode}</Text>
-            <ChevronDown size={13} color={C.muted} />
+            <ChevronDown size={13} color={colors.textMuted} />
           </Pressable>
           <SmartInput
             keyboardType="phone-pad"
@@ -913,7 +894,7 @@ export default function MyCallerScreen({ navigation }) {
           <Switch
             value={contactForm.is_emergency}
             onValueChange={(v) => setContactForm({ ...contactForm, is_emergency: v })}
-            trackColor={{ false: C.borderMid, true: C.danger }}
+            trackColor={{ false: colors.divider, true: colors.danger }}
             thumbColor="#FFF"
           />
         </View>
@@ -946,7 +927,7 @@ export default function MyCallerScreen({ navigation }) {
             <View style={s.ccHeader}>
               <Text style={s.ccTitle}>{t('caller.select_country_code', { defaultValue: 'Select Country Code' })}</Text>
               <Pressable onPress={() => setCountryCodeModal(false)} style={s.ccClose}>
-                <X size={20} color={C.mid} />
+                <X size={20} color={colors.textSecondary} />
               </Pressable>
             </View>
             <FlatList
@@ -976,12 +957,12 @@ export default function MyCallerScreen({ navigation }) {
         >
           <Pressable style={s.delCard} onPress={e => e.stopPropagation()}>
             <View style={s.delIconBox}>
-              <Trash2 size={26} color={C.danger} />
+              <Trash2 size={26} color={colors.danger} />
             </View>
             <Text style={s.delTitle}>{t('caller.remove_contact', { defaultValue: 'Remove Contact' })}</Text>
             <Text style={s.delBody}>
               {t('caller.remove_confirm_1', { defaultValue: 'Are you sure you want to remove ' })}
-              <Text style={{ fontWeight: '700', color: C.dark }}>{deleteConfirm.name}</Text>
+              <Text style={{ fontWeight: '700', color: colors.textPrimary }}>{deleteConfirm.name}</Text>
               {t('caller.remove_confirm_2', { defaultValue: ' from your trusted contacts?' })}
             </Text>
             <View style={s.delBtnRow}>
@@ -1015,16 +996,16 @@ export default function MyCallerScreen({ navigation }) {
 
 // ── Styles ──────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: C.pageBg },
+  container: { flex: 1, backgroundColor: colors.background },
 
   // Header
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingTop: Platform.OS === 'ios' ? 70 : 50, paddingHorizontal: 24, paddingBottom: 16,
-    backgroundColor: C.pageBg,
+    paddingTop: Platform.OS === 'ios' ? 70 : 50, paddingHorizontal: spacing.screen, paddingBottom: 16,
+    backgroundColor: colors.background,
   },
-  headerLabel: { fontSize: 13, fontWeight: '800', color: C.primary, letterSpacing: 1.5, marginBottom: 4 },
-  headerTitle: { fontSize: 32, fontWeight: '800', color: C.dark, letterSpacing: -1 },
+  headerLabel: { fontSize: 13, fontWeight: '800', color: colors.primary, letterSpacing: 1.5, marginBottom: 4 },
+  headerTitle: { fontSize: 32, fontWeight: '800', color: colors.textPrimary, letterSpacing: -1 },
   bellBtn: {
     width: 42, height: 42, borderRadius: 21,
     backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0',
@@ -1034,20 +1015,20 @@ const s = StyleSheet.create({
 
   // Scroll
   scroll: { flex: 1 },
-  scrollContent: { paddingHorizontal: 20, paddingTop: 4, paddingBottom: layout.TAB_BAR_CLEARANCE },
+  scrollContent: { paddingHorizontal: spacing.screen, paddingTop: 4, paddingBottom: layout.TAB_BAR_CLEARANCE },
 
   // Section labels
   sectionLabel: {
-    fontSize: 12, fontWeight: '800', color: C.muted, letterSpacing: 1.5,
+    fontSize: 12, fontWeight: '800', color: colors.textMuted, letterSpacing: 1.5,
     marginBottom: 12, marginTop: 8, marginLeft: 2,
   },
   sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, marginTop: 8 },
-  seeAllText: { fontSize: 13, fontWeight: '700', color: C.primary },
+  seeAllText: { fontSize: 13, fontWeight: '700', color: colors.primary },
 
   addBtn: {
-    width: 30, height: 30, borderRadius: 15, backgroundColor: C.primary,
+    width: 30, height: 30, borderRadius: 15, backgroundColor: colors.primary,
     alignItems: 'center', justifyContent: 'center',
-    shadowColor: C.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4,
+    shadowColor: colors.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4,
   },
 
   // ── Hero card (caller) ──────────────────────────────────────────────────
@@ -1074,7 +1055,7 @@ const s = StyleSheet.create({
   },
   heroAvatar: { width: 66, height: 66, borderRadius: 33, alignItems: 'center', justifyContent: 'center' },
   heroAvatarImg: { width: 66, height: 66, borderRadius: 33 },
-  heroAvatarLetter: { fontSize: 28, fontWeight: '800', color: C.primaryDark },
+  heroAvatarLetter: { fontSize: 28, fontWeight: '800', color: colors.primaryDark },
   heroOnlineDot: {
     position: 'absolute', bottom: 2, right: 2,
     width: 16, height: 16, borderRadius: 8,
@@ -1102,67 +1083,67 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 12, elevation: 6,
   },
-  heroCallBtnText: { fontSize: 16, fontWeight: '800', color: C.primaryDark },
+  heroCallBtnText: { fontSize: 16, fontWeight: '800', color: colors.primaryDark },
 
   // ── Pending state ───────────────────────────────────────────────────────
   pendingCard: {
     backgroundColor: '#FFF', borderRadius: 24, padding: 28, alignItems: 'center',
     marginBottom: 24, borderWidth: 1.5, borderColor: '#E0E7FF',
-    shadowColor: C.primary, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.07, shadowRadius: 16, elevation: 4,
+    shadowColor: colors.primary, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.07, shadowRadius: 16, elevation: 4,
   },
   pendingIconCircle: { width: 76, height: 76, borderRadius: 38, alignItems: 'center', justifyContent: 'center', marginBottom: 18 },
-  pendingTitle: { fontSize: 18, fontWeight: '800', color: C.dark, textAlign: 'center', marginBottom: 8 },
-  pendingBody:  { fontSize: 14, fontWeight: '500', color: C.muted, textAlign: 'center', lineHeight: 22, marginBottom: 20 },
+  pendingTitle: { fontSize: 18, fontWeight: '800', color: colors.textPrimary, textAlign: 'center', marginBottom: 8 },
+  pendingBody:  { fontSize: 14, fontWeight: '500', color: colors.textMuted, textAlign: 'center', lineHeight: 22, marginBottom: 20 },
   pendingCallBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: C.primary, paddingHorizontal: 22, paddingVertical: 13, borderRadius: 100,
-    shadowColor: C.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 10, elevation: 5,
+    backgroundColor: colors.primary, paddingHorizontal: 22, paddingVertical: 13, borderRadius: 100,
+    shadowColor: colors.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 10, elevation: 5,
   },
   pendingCallBtnText: { fontSize: 14, fontWeight: '700', color: '#FFF' },
 
   // ── Manager card ────────────────────────────────────────────────────────
   managerCard: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: '#FFF', borderRadius: 20, padding: 16, marginBottom: 24,
-    shadowColor: '#475569', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 3,
+    backgroundColor: colors.surface, borderRadius: radius.lg, padding: 16, marginBottom: 24,
+    ...shadows.card,
   },
   managerLeft:   { flexDirection: 'row', alignItems: 'center', gap: 14, flex: 1 },
   managerAvatar: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
   managerAvatarImg: { width: 48, height: 48, borderRadius: 24 },
   managerAvatarText: { fontSize: 20, fontWeight: '800', color: '#FFF' },
   managerInfo: { flex: 1 },
-  managerName: { fontSize: 16, fontWeight: '700', color: C.dark, marginBottom: 4 },
+  managerName: { fontSize: 16, fontWeight: '700', color: colors.textPrimary, marginBottom: 4 },
   managerRoleRow: { flexDirection: 'row', alignItems: 'center', gap: 5, flexWrap: 'wrap' },
-  managerRoleText: { fontSize: 12, fontWeight: '600', color: C.muted },
-  dotSep: { width: 3, height: 3, borderRadius: 1.5, backgroundColor: C.light },
+  managerRoleText: { fontSize: 12, fontWeight: '600', color: colors.textMuted },
+  dotSep: { width: 3, height: 3, borderRadius: 1.5, backgroundColor: colors.borderLight },
   availablePill: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  availableDot:  { width: 6, height: 6, borderRadius: 3, backgroundColor: C.success },
-  availableText: { fontSize: 12, fontWeight: '600', color: C.success },
+  availableDot:  { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.success },
+  availableText: { fontSize: 12, fontWeight: '600', color: colors.success },
   managerCallBtn: {
     width: 42, height: 42, borderRadius: 21,
-    backgroundColor: C.primarySoft, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center',
   },
 
   // ── Empty state card ────────────────────────────────────────────────────
   emptyCard: {
     flexDirection: 'row', alignItems: 'center', gap: 14,
     backgroundColor: '#FFF', borderRadius: 20, padding: 18, marginBottom: 24,
-    borderWidth: 1, borderColor: C.border,
+    borderWidth: 1, borderColor: colors.borderLight,
   },
   emptyIconBox: {
-    width: 44, height: 44, borderRadius: 14, backgroundColor: C.pageBg,
+    width: 44, height: 44, borderRadius: 14, backgroundColor: colors.background,
     alignItems: 'center', justifyContent: 'center',
   },
   emptyTextBlock: { flex: 1 },
-  emptyTitle: { fontSize: 15, fontWeight: '700', color: C.dark, marginBottom: 3 },
-  emptyBody:  { fontSize: 13, fontWeight: '500', color: C.muted, lineHeight: 19 },
+  emptyTitle: { fontSize: 15, fontWeight: '700', color: colors.textPrimary, marginBottom: 3 },
+  emptyBody:  { fontSize: 13, fontWeight: '500', color: colors.textMuted, lineHeight: 19 },
 
   // ── Contact cards ───────────────────────────────────────────────────────
   contactCard: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#FFF', borderRadius: 18, marginBottom: 10,
+    backgroundColor: colors.surface, borderRadius: radius.lg, marginBottom: 10,
     padding: 14, overflow: 'hidden',
-    shadowColor: '#4361EE', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.04, shadowRadius: 10, elevation: 2,
+    ...shadows.card,
   },
   contactAccent: { width: 4, height: '100%', position: 'absolute', left: 0, top: 0, borderTopLeftRadius: 18, borderBottomLeftRadius: 18 },
   contactAvatar: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', marginLeft: 10, marginRight: 12 },
@@ -1170,37 +1151,37 @@ const s = StyleSheet.create({
   contactAvatarTxt: { fontSize: 18, fontWeight: '800' },
   contactInfo: { flex: 1 },
   contactNameRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 3 },
-  contactName: { fontSize: 15, fontWeight: '700', color: C.dark },
-  contactSub:  { fontSize: 12, fontWeight: '500', color: C.muted },
-  sosPill:     { backgroundColor: C.dangerBg, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
-  sosTxt:      { fontSize: 9, fontWeight: '800', color: C.danger, letterSpacing: 0.5 },
+  contactName: { fontSize: 15, fontWeight: '700', color: colors.textPrimary },
+  contactSub:  { fontSize: 12, fontWeight: '500', color: colors.textMuted },
+  sosPill:     { backgroundColor: colors.dangerBg, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 },
+  sosTxt:      { fontSize: 9, fontWeight: '800', color: colors.danger, letterSpacing: 0.5 },
   contactActions: { flexDirection: 'row', gap: 6 },
   contactActionBtn: {
-    width: 36, height: 36, borderRadius: 12, backgroundColor: C.pageBg,
+    width: 36, height: 36, borderRadius: 12, backgroundColor: colors.background,
     alignItems: 'center', justifyContent: 'center',
   },
 
   // ── Recent calls section ────────────────────────────────────────────────
   callsCard: {
-    backgroundColor: '#FFF', borderRadius: 20, marginBottom: 24,
-    shadowColor: '#4361EE', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 12, elevation: 3,
+    backgroundColor: colors.surface, borderRadius: radius.lg, marginBottom: 24,
+    ...shadows.card,
     overflow: 'hidden',
   },
   callRow: { flexDirection: 'row', alignItems: 'center', padding: 16, gap: 12 },
-  callRowDivider: { borderBottomWidth: 1, borderBottomColor: C.border },
+  callRowDivider: { borderBottomWidth: 1, borderBottomColor: colors.borderLight },
   callIconBox: { width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   callBody: { flex: 1 },
-  callDate:     { fontSize: 14, fontWeight: '700', color: C.dark, marginBottom: 2 },
-  callNote:     { fontSize: 12, fontWeight: '500', color: C.muted },
+  callDate:     { fontSize: 14, fontWeight: '700', color: colors.textPrimary, marginBottom: 2 },
+  callNote:     { fontSize: 12, fontWeight: '500', color: colors.textMuted },
   statusPill:   { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
   statusPillText: { fontSize: 11, fontWeight: '700' },
-  callDuration: { fontSize: 11, fontWeight: '600', color: C.muted, textAlign: 'right' },
+  callDuration: { fontSize: 11, fontWeight: '600', color: colors.textMuted, textAlign: 'right' },
 
   // ── Free plan gate ──────────────────────────────────────────────────────
   gatewrap: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
   gateIcon:  { width: 80, height: 80, borderRadius: 40, alignItems: 'center', justifyContent: 'center', marginBottom: 24 },
-  gateTitle: { fontSize: 20, fontWeight: '800', color: C.dark, marginBottom: 12, textAlign: 'center' },
-  gateBody:  { fontSize: 15, fontWeight: '500', color: C.muted, textAlign: 'center', lineHeight: 24 },
+  gateTitle: { fontSize: 20, fontWeight: '800', color: colors.textPrimary, marginBottom: 12, textAlign: 'center' },
+  gateBody:  { fontSize: 15, fontWeight: '500', color: colors.textMuted, textAlign: 'center', lineHeight: 24 },
 
   // ── Caller/Manager detail sheet ─────────────────────────────────────────
   sheetWrapper: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, justifyContent: 'flex-end' },
@@ -1213,24 +1194,24 @@ const s = StyleSheet.create({
   },
 
   sheet: {
-    backgroundColor: C.pageBg, borderTopLeftRadius: 40, borderTopRightRadius: 40,
+    backgroundColor: colors.background, borderTopLeftRadius: 40, borderTopRightRadius: 40,
     height: '90%',
     shadowColor: '#000', shadowOffset: { width: 0, height: -10 }, shadowOpacity: 0.1, shadowRadius: 30, elevation: 24,
   },
   sheetHandle:    { width: '100%', alignItems: 'center', paddingVertical: 14 },
-  sheetHandleBar: { width: 44, height: 5, borderRadius: 3, backgroundColor: C.borderMid },
+  sheetHandleBar: { width: 44, height: 5, borderRadius: 3, backgroundColor: colors.divider },
   sheetBody:      { paddingBottom: 60 },
 
-  sheetHero: { marginHorizontal: 20, borderRadius: 24, padding: 20, marginBottom: 4 },
+  sheetHero: { marginHorizontal: 20, borderRadius: radius.lg, padding: 20, marginBottom: 4 },
   sheetHeroInner: { flexDirection: 'row', alignItems: 'center', gap: 16 },
   sheetAvatarWrap: { position: 'relative' },
   sheetAvatar: { width: 68, height: 68, borderRadius: 34, alignItems: 'center', justifyContent: 'center' },
   sheetAvatarImg: { width: 68, height: 68, borderRadius: 34 },
-  sheetAvatarLetter: { fontSize: 28, fontWeight: '800', color: C.primaryDark },
+  sheetAvatarLetter: { fontSize: 28, fontWeight: '800', color: colors.primaryDark },
   sheetOnlineDot: {
     position: 'absolute', bottom: 2, right: 2,
     width: 14, height: 14, borderRadius: 7,
-    backgroundColor: C.success, borderWidth: 2.5, borderColor: '#4F46E5',
+    backgroundColor: colors.success, borderWidth: 2.5, borderColor: '#4F46E5',
   },
   sheetHeroInfo: { flex: 1 },
   sheetName:    { fontSize: 22, fontWeight: '800', color: '#FFF', letterSpacing: -0.5, marginBottom: 4 },
@@ -1245,9 +1226,9 @@ const s = StyleSheet.create({
     shadowColor: '#4361EE', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 3,
   },
   sheetStat:      { flex: 1, alignItems: 'center', gap: 4 },
-  sheetStatVal:   { fontSize: 16, fontWeight: '800', color: C.dark },
-  sheetStatLabel: { fontSize: 11, fontWeight: '600', color: C.muted },
-  sheetStatSep:   { width: 1, height: 36, backgroundColor: C.border },
+  sheetStatVal:   { fontSize: 16, fontWeight: '800', color: colors.textPrimary },
+  sheetStatLabel: { fontSize: 11, fontWeight: '600', color: colors.textMuted },
+  sheetStatSep:   { width: 1, height: 36, backgroundColor: colors.borderLight },
 
   sheetActions: { flexDirection: 'row', gap: 12, marginHorizontal: 20, marginBottom: 24 },
   sheetCallBtn: {
@@ -1259,53 +1240,53 @@ const s = StyleSheet.create({
   sheetFlagBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     paddingHorizontal: 20, height: 54, borderRadius: 100,
-    backgroundColor: C.dangerBg, borderWidth: 1.5, borderColor: '#FECDD3',
+    backgroundColor: colors.dangerBg, borderWidth: 1.5, borderColor: '#FECDD3',
   },
-  sheetFlagBtnText: { fontSize: 14, fontWeight: '700', color: C.danger },
+  sheetFlagBtnText: { fontSize: 14, fontWeight: '700', color: colors.danger },
 
   sheetSectionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, marginBottom: 12 },
-  sheetSectionTitle: { fontSize: 18, fontWeight: '800', color: C.dark },
-  sheetCallCount:    { fontSize: 13, fontWeight: '600', color: C.muted },
+  sheetSectionTitle: { fontSize: 18, fontWeight: '800', color: colors.textPrimary },
+  sheetCallCount:    { fontSize: 13, fontWeight: '600', color: colors.textMuted },
 
   sheetCallRow: {
     flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14,
-    borderBottomWidth: 1, borderBottomColor: C.border, gap: 12,
+    borderBottomWidth: 1, borderBottomColor: colors.borderLight, gap: 12,
   },
   sheetCallIcon: { width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   sheetCallBody: { flex: 1 },
-  sheetCallDate:  { fontSize: 14, fontWeight: '700', color: C.dark, marginBottom: 2 },
-  sheetCallNote:  { fontSize: 12, fontWeight: '500', color: C.muted },
+  sheetCallDate:  { fontSize: 14, fontWeight: '700', color: colors.textPrimary, marginBottom: 2 },
+  sheetCallNote:  { fontSize: 12, fontWeight: '500', color: colors.textMuted },
   sheetCallRight: { alignItems: 'flex-end', gap: 4 },
   sheetCallBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
   sheetCallBadgeText: { fontSize: 11, fontWeight: '700' },
-  sheetCallDuration:  { fontSize: 11, fontWeight: '600', color: C.muted },
+  sheetCallDuration:  { fontSize: 11, fontWeight: '600', color: colors.textMuted },
 
   sheetEmptyCard: { alignItems: 'center', paddingVertical: 32, gap: 10, marginHorizontal: 20, backgroundColor: '#FFF', borderRadius: 20 },
-  sheetEmptyText: { fontSize: 14, fontWeight: '500', color: C.muted },
+  sheetEmptyText: { fontSize: 14, fontWeight: '500', color: colors.textMuted },
 
   // ── Contact form ────────────────────────────────────────────────────────
-  formLabel: { fontSize: 12, fontWeight: '700', color: C.mid, marginBottom: 8, marginTop: 16, letterSpacing: 0.3 },
+  formLabel: { fontSize: 12, fontWeight: '700', color: colors.textSecondary, marginBottom: 8, marginTop: 16, letterSpacing: 0.3 },
   phoneRow:  { flexDirection: 'row', alignItems: 'center', gap: 8 },
   codeBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: '#F8FAFC', borderWidth: 1.5, borderColor: C.borderMid,
+    backgroundColor: '#F8FAFC', borderWidth: 1.5, borderColor: colors.divider,
     borderRadius: 16, paddingHorizontal: 12, paddingVertical: 13,
   },
   codeBtnFlag: { fontSize: 18 },
-  codeBtnText: { fontSize: 14, fontWeight: '700', color: C.dark },
+  codeBtnText: { fontSize: 14, fontWeight: '700', color: colors.textPrimary },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: '#F1F5F9', borderWidth: 1, borderColor: C.borderMid },
-  chipActive: { backgroundColor: C.primary, borderColor: C.primary },
-  chipText: { fontSize: 13, fontWeight: '600', color: C.mid },
+  chip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: '#F1F5F9', borderWidth: 1, borderColor: colors.divider },
+  chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  chipText: { fontSize: 13, fontWeight: '600', color: colors.textSecondary },
   chipTextActive: { color: '#FFF' },
   emergencyToggleRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: '#F8FAFC', padding: 16, borderRadius: 16, borderWidth: 1, borderColor: C.borderMid,
+    backgroundColor: '#F8FAFC', padding: 16, borderRadius: 16, borderWidth: 1, borderColor: colors.divider,
     marginTop: 8,
   },
-  emergencyToggleTitle: { fontSize: 15, fontWeight: '700', color: C.dark, marginBottom: 2 },
-  emergencyToggleSub:   { fontSize: 12, fontWeight: '500', color: C.muted },
-  disclaimer: { fontSize: 12, color: C.muted, marginTop: 12, lineHeight: 19 },
+  emergencyToggleTitle: { fontSize: 15, fontWeight: '700', color: colors.textPrimary, marginBottom: 2 },
+  emergencyToggleSub:   { fontSize: 12, fontWeight: '500', color: colors.textMuted },
+  disclaimer: { fontSize: 12, color: colors.textMuted, marginTop: 12, lineHeight: 19 },
 
   // ── Country code picker ─────────────────────────────────────────────────
   ccOverlay: { flex: 1, backgroundColor: 'rgba(15,23,42,0.45)', justifyContent: 'flex-end' },
@@ -1315,12 +1296,12 @@ const s = StyleSheet.create({
     shadowColor: '#000', shadowOffset: { width: 0, height: -8 }, shadowOpacity: 0.08, shadowRadius: 24, elevation: 16,
   },
   ccHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 24, paddingBottom: 14 },
-  ccTitle:  { fontSize: 18, fontWeight: '800', color: C.dark },
+  ccTitle:  { fontSize: 18, fontWeight: '800', color: colors.textPrimary },
   ccClose:  { width: 40, height: 40, borderRadius: 20, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center' },
-  ccRow:    { flexDirection: 'row', alignItems: 'center', paddingVertical: 13, paddingHorizontal: 4, borderBottomWidth: 1, borderBottomColor: C.border },
+  ccRow:    { flexDirection: 'row', alignItems: 'center', paddingVertical: 13, paddingHorizontal: 4, borderBottomWidth: 1, borderBottomColor: colors.borderLight },
   ccFlag:   { fontSize: 22, marginRight: 12 },
-  ccName:   { flex: 1, fontSize: 15, fontWeight: '600', color: C.dark },
-  ccCode:   { fontSize: 14, fontWeight: '700', color: C.mid },
+  ccName:   { flex: 1, fontSize: 15, fontWeight: '600', color: colors.textPrimary },
+  ccCode:   { fontSize: 14, fontWeight: '700', color: colors.textSecondary },
 
   // ── Delete confirmation ─────────────────────────────────────────────────
   delOverlay: { flex: 1, backgroundColor: 'rgba(15,23,42,0.5)', justifyContent: 'center', alignItems: 'center', padding: 24 },
@@ -1329,12 +1310,12 @@ const s = StyleSheet.create({
     alignItems: 'center',
     shadowColor: '#000', shadowOffset: { width: 0, height: 16 }, shadowOpacity: 0.15, shadowRadius: 32, elevation: 16,
   },
-  delIconBox: { width: 60, height: 60, borderRadius: 30, backgroundColor: C.dangerBg, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
-  delTitle: { fontSize: 20, fontWeight: '800', color: C.dark, textAlign: 'center', marginBottom: 10 },
-  delBody:  { fontSize: 15, color: C.mid,  textAlign: 'center', lineHeight: 22, marginBottom: 24 },
+  delIconBox: { width: 60, height: 60, borderRadius: 30, backgroundColor: colors.dangerBg, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+  delTitle: { fontSize: 20, fontWeight: '800', color: colors.textPrimary, textAlign: 'center', marginBottom: 10 },
+  delBody:  { fontSize: 15, color: colors.textSecondary,  textAlign: 'center', lineHeight: 22, marginBottom: 24 },
   delBtnRow: { flexDirection: 'row', gap: 12, width: '100%' },
   delCancelBtn:  { flex: 1, paddingVertical: 14, borderRadius: 16, alignItems: 'center', backgroundColor: '#F1F5F9' },
-  delCancelText: { fontSize: 15, fontWeight: '700', color: C.mid },
-  delConfirmBtn: { flex: 1, paddingVertical: 14, borderRadius: 16, alignItems: 'center', backgroundColor: C.danger },
+  delCancelText: { fontSize: 15, fontWeight: '700', color: colors.textSecondary },
+  delConfirmBtn: { flex: 1, paddingVertical: 14, borderRadius: 16, alignItems: 'center', backgroundColor: colors.danger },
   delConfirmText: { fontSize: 15, fontWeight: '700', color: '#FFF' },
 });

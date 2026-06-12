@@ -136,6 +136,7 @@ const usePatientStore = create((set, get) => ({
     weeklyAdherence: [],
     adherenceDetails: null,
     adherenceRecap: null,
+    adherenceRecaps: { weekly: null, monthly: null, yearly: null },
     callPreferences: { morning: '09:00', afternoon: '14:00', evening: '17:00', night: '20:00' },
     loading: true,
     isCached: false,
@@ -167,10 +168,21 @@ const usePatientStore = create((set, get) => ({
         }
     },
 
-    fetchAdherenceRecap: async (period = 'weekly') => {
+    fetchAdherenceRecap: async (period = 'weekly', forceRefresh = false) => {
+        if (!forceRefresh && get().adherenceRecaps?.[period]) {
+            const cached = get().adherenceRecaps[period];
+            set({ adherenceRecap: cached });
+            return cached;
+        }
         try {
             const { data } = await apiService.medicines.getAdherenceRecap(period);
-            set({ adherenceRecap: data });
+            set((s) => ({
+                adherenceRecap: data,
+                adherenceRecaps: {
+                    ...(s.adherenceRecaps || {}),
+                    [period]: data,
+                },
+            }));
             return data;
         } catch (err) {
             console.warn('[Store] fetchAdherenceRecap error:', err.message);

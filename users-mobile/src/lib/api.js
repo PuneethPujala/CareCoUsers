@@ -279,6 +279,7 @@ export const apiService = {
         extractOCR: (imageBase64) => api.post('/ocr/extract', { imageBase64 }),
         updateMe: (data) => api.put('/users/patients/me', data),
         uploadAvatar: (data) => api.post('/users/patients/me/avatar', data),
+        initiatePayment: (data) => api.post('/users/patients/initiate-payment', data),
         subscribe: (data) => api.post('/users/patients/subscribe', data),
         updateEmergencyContact: (data) => api.put('/users/patients/me/emergency-contact', data),
         getMyCaller: () => api.get('/users/patients/me/caller'),

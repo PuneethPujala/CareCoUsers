@@ -313,6 +313,7 @@ async function recomputeAndCacheHealthState(patientId) {
                 unlocked: patient.unlockedAchievements || [],
                 next: nextBadge,
             },
+            computed_at: new Date().toISOString(),
         };
 
         // Cache state back to patient document
@@ -332,4 +333,66 @@ async function recomputeAndCacheHealthState(patientId) {
     }
 }
 
-module.exports = { recomputeAndCacheHealthState };
+/**
+ * Retrieves the cached health state if it exists and is fresh enough (under 30 minutes).
+ * If stale or missing, triggers a synchronous recomputation.
+ * @param {Object} patient Patient document/object
+ * @returns {Promise<Object>}
+ */
+async function getCachedHealthState(patient) {
+    if (!patient) return null;
+    
+    const patientId = patient._id || patient.id;
+    let state = patient.patient_health_state;
+
+    // Check if state has computed_at and is fresh enough (30 mins)
+    const MAX_STALE_MS = 30 * 60 * 1000;
+    if (state && state.computed_at) {
+        const age = Date.now() - new Date(state.computed_at).getTime();
+        if (age < MAX_STALE_MS) {
+            return state;
+        }
+    }
+
+    // If we have a lean document/plain object or missing fields, reload/recompute
+    return recomputeAndCacheHealthState(patientId);
+}
+
+/**
+ * Enqueues a health state recomputation job to BullMQ.
+ * Deduplicates multiple events for the same patient within a 5-second window.
+ * Falls back to synchronous recompute if Redis/BullMQ is unavailable.
+ * @param {string} patientId 
+ * @returns {Promise<void>}
+ */
+async function enqueueHealthStateRecompute(patientId) {
+    try {
+        const { healthStateQueue } = require('../jobs/jobQueues');
+        if (!healthStateQueue) {
+            logger.warn('[PatientHealthStateService] healthStateQueue not initialized. Falling back to synchronous recomputation.');
+            await recomputeAndCacheHealthState(patientId);
+            return;
+        }
+
+        const jobId = `health-state-${patientId}`;
+        await healthStateQueue.add(
+            'recompute',
+            { patientId },
+            {
+                jobId,
+                delay: 5000, // Debounce 5 seconds
+            }
+        );
+        logger.info(`[PatientHealthStateService] Enqueued debounced health-state recompute for patient ${patientId}`);
+    } catch (err) {
+        logger.warn('[PatientHealthStateService] Queue unavailable, falling back to synchronous recomputation', { error: err.message, patientId });
+        await recomputeAndCacheHealthState(patientId);
+    }
+}
+
+module.exports = {
+    recomputeAndCacheHealthState,
+    getCachedHealthState,
+    enqueueHealthStateRecompute,
+};
+

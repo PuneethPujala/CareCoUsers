@@ -8,10 +8,12 @@ export const colors = {
     // ─── Core Brand ────────────────────────────
     primary: '#6366F1',
     primaryMid: '#4F46E5',
+    primaryDark: '#4338CA',
+    primarySoft: '#EEF2FF',
     accent: '#818CF8',
 
     // ─── Surfaces ──────────────────────────────
-    background: '#F4F7FB',
+    background: '#F8FAFC',
     surface: '#FFFFFF',
     surfaceAlt: '#EDF2F7',
 
@@ -76,7 +78,7 @@ export const radius = {
     button: 8,
     chip: 999,
     input: 10,
-    sm: 6,
+    sm: 8,
     md: 12,
     lg: 16,
     xl: 20,
@@ -93,6 +95,8 @@ export const spacing = {
     xxl: 48,
     xxxl: 64,
     base: 8,
+    screen: 20,
+    heroScreen: 24,
 };
 
 export const shadows = {
@@ -123,6 +127,20 @@ export const shadows = {
         shadowOpacity: 0.06,
         shadowRadius: 8,
         elevation: 3,
+    },
+    hero: {
+        shadowColor: '#4F46E5',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.22,
+        shadowRadius: 16,
+        elevation: 8,
+    },
+    modal: {
+        shadowColor: '#000000',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.15,
+        shadowRadius: 30,
+        elevation: 12,
     },
 };
 

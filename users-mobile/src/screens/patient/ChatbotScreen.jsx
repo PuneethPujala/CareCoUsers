@@ -1282,8 +1282,7 @@ export default function ChatbotScreen({ navigation, route }) {
             {/* ── Messages ── */}
             <KeyboardAvoidingView 
                 style={{ flex: 1 }} 
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
-                keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : insets.top + 66}
+                behavior={Platform.OS === 'ios' ? 'padding' : undefined} 
             >
                 <FlatList
                     ref={flatListRef}

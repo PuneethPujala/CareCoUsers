@@ -231,14 +231,15 @@ async function exportMyData(req, res) {
       exported.profile = profile;
     }
 
-    await logEvent(req.user.id, 'data_exported', isPatient ? 'patient' : 'profile', req.profile._id, req);
+    const subject = req.user?.id || req.profile?.supabase_uid || req.profile?.supabaseUid || 'unknown';
+    await logEvent(subject, 'data_exported', isPatient ? 'patient' : 'profile', req.profile._id, req);
 
     res.setHeader('Content-Type', 'application/json');
     res.setHeader('Content-Disposition', `attachment; filename="caremymed-export-${Date.now()}.json"`);
     res.json(exported);
   } catch (err) {
     console.error('Export data error:', err);
-    res.status(500).json({ error: 'Failed to export data' });
+    res.status(500).json({ error: 'Failed to export data', details: err.message });
   }
 }
 

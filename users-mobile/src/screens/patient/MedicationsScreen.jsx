@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import PremiumFormModal from '../../components/ui/PremiumFormModal';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
     Pill, Sunrise, Sun, Sunset, Moon, CheckCircle2, Bell, Plus,
     AlertCircle, Calendar, Pencil, Clock, X, MessageCircle,
@@ -15,7 +16,7 @@ import {
 } from 'lucide-react-native';
 import { Swipeable } from 'react-native-gesture-handler';
 import Svg, { Circle as SvgCircle, Defs, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg';
-import { layout } from '../../theme';
+import { colors, layout, spacing, radius, shadows } from '../../theme';
 import { apiService } from '../../lib/api';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
@@ -155,13 +156,13 @@ const SlotHeader = ({ slot, callTime }) => {
     return (
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, marginTop: 4 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                <View style={{ width: 34, height: 34, borderRadius: 11, backgroundColor: light, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: border }}>
+                <View style={{ width: 34, height: 34, borderRadius: radius.sm, backgroundColor: light, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: border }}>
                     <Icon size={17} color={color} strokeWidth={2.5} />
                 </View>
                 <Text style={{ fontSize: 15, fontWeight: '800', color: '#1E293B', letterSpacing: -0.1 }}>{t(`time_slots.${slot}`, { defaultValue: label })}</Text>
             </View>
             {callTime ? (
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: light, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10, borderWidth: 1, borderColor: border }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: light, paddingHorizontal: 10, paddingVertical: 5, borderRadius: radius.sm, borderWidth: 1, borderColor: border }}>
                     <Clock size={12} color={color} strokeWidth={2.5} />
                     <Text style={{ fontSize: 11, fontWeight: '700', color }}>{callTime}</Text>
                 </View>
@@ -313,7 +314,7 @@ const MedCard = ({ med, onToggle, onSnooze, onRefill }) => {
                             {hasRefillInfo && (
                                 <Pressable 
                                     onPress={() => onRefill && onRefill(med)}
-                                    style={{ marginTop: 8, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 6, paddingHorizontal: 12, backgroundColor: '#EEF2FF', borderRadius: 8, borderWidth: 1, borderColor: '#C7D2FE' }}
+                                    style={{ marginTop: 8, alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 6, paddingHorizontal: 12, backgroundColor: '#EEF2FF', borderRadius: radius.sm, borderWidth: 1, borderColor: '#C7D2FE' }}
                                 >
                                     <Zap size={14} color="#6366F1" />
                                     <Text style={{ fontSize: 13, fontWeight: '700', color: '#6366F1' }}>Mark as Refilled</Text>
@@ -468,6 +469,10 @@ const TimePickerModal = ({ visible, onClose, onSave, initialTime }) => {
 // ══════════════════════════════════════════════════════════════════════════════
 export default function MedicationsScreen({ navigation }) {
     const { t } = useTranslation();
+    const insets = useSafeAreaInsets();
+    const dynamicBottom = insets.bottom > 0 ? insets.bottom : layout.TAB_BAR_BOTTOM;
+    const fabBottom = dynamicBottom + layout.TAB_BAR_HEIGHT + 16;
+    const localFabBottom = fabBottom + 70; // 70px above the global ChatFAB (58px height + 12px gap)
     const patient = usePatientStore(s => s.patient);
     const schedule = usePatientStore(s => s.medicationSchedule);
     const adherence = usePatientStore(s => s.weeklyAdherence);
@@ -1097,17 +1102,17 @@ export default function MedicationsScreen({ navigation }) {
 
                         {/* ── TEMPORARY MEDICATIONS ── */}
                         <Animated.View style={anim(3)}>
-                            <View style={{ backgroundColor: '#FFFFFF', borderRadius: 24, padding: 18, marginBottom: 16, borderWidth: 1, borderColor: '#E2E8F0', shadowColor: '#1E293B', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 12, elevation: 3 }}>
+                            <View style={{ backgroundColor: '#FFFFFF', borderRadius: radius.lg, padding: 18, marginBottom: 16, borderWidth: 1, borderColor: colors.borderLight, ...shadows.card }}>
                                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
                                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                                        <View style={{ width: 28, height: 28, borderRadius: 8, backgroundColor: '#FAF5FF', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#E9D5FF' }}>
+                                        <View style={{ width: 28, height: 28, borderRadius: radius.sm, backgroundColor: '#FAF5FF', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#E9D5FF' }}>
                                             <Pill size={14} color="#A855F7" strokeWidth={2.5} />
                                         </View>
                                         <Text style={{ fontSize: 14, fontWeight: '800', color: '#0F172A', letterSpacing: 0.3 }}>
                                             Temporary Medications
                                         </Text>
                                         {tempMeds.length > 0 && (
-                                            <View style={{ backgroundColor: '#FAF5FF', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 8, borderWidth: 1, borderColor: '#E9D5FF' }}>
+                                            <View style={{ backgroundColor: '#FAF5FF', paddingHorizontal: 7, paddingVertical: 2, borderRadius: radius.sm, borderWidth: 1, borderColor: '#E9D5FF' }}>
                                                 <Text style={{ fontSize: 11, fontWeight: '700', color: '#A855F7' }}>{tempMeds.length}</Text>
                                             </View>
                                         )}
@@ -1117,7 +1122,7 @@ export default function MedicationsScreen({ navigation }) {
                                             setTempMedForm({ name: '', dosage: '', frequency: 'As needed', reason: '', shift: 'morning' });
                                             setShowAddTempMedModal(true);
                                         }} 
-                                        style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 6, paddingHorizontal: 12, backgroundColor: '#FAF5FF', borderRadius: 10, borderWidth: 1, borderColor: '#E9D5FF' }}
+                                        style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 6, paddingHorizontal: 12, backgroundColor: '#FAF5FF', borderRadius: radius.sm, borderWidth: 1, borderColor: '#E9D5FF' }}
                                     >
                                         <Plus size={14} color="#A855F7" strokeWidth={2.5} />
                                         <Text style={{ fontSize: 12, fontWeight: '700', color: '#A855F7' }}>Add</Text>
@@ -1152,17 +1157,13 @@ export default function MedicationsScreen({ navigation }) {
                                                     gap: 12, 
                                                     padding: 14, 
                                                     backgroundColor: '#F8FAFC',
-                                                    borderRadius: 16,
+                                                    borderRadius: radius.md,
                                                     borderWidth: 1,
-                                                    borderColor: '#E2E8F0',
+                                                    borderColor: colors.borderLight,
                                                     borderLeftWidth: 4,
                                                     borderLeftColor: riskColor,
                                                     marginBottom: idx < tempMeds.length - 1 ? 12 : 0,
-                                                    shadowColor: '#6366F1',
-                                                    shadowOffset: { width: 0, height: 2 },
-                                                    shadowOpacity: 0.02,
-                                                    shadowRadius: 6,
-                                                    elevation: 1
+                                                    ...shadows.sm,
                                                 }}
                                             >
                                                 <View style={{ flex: 1, gap: 4 }}>
@@ -1250,9 +1251,9 @@ export default function MedicationsScreen({ navigation }) {
                             if (supplyMeds.length === 0) return null;
                             return (
                                 <Animated.View style={anim(3)}>
-                                    <View style={{ backgroundColor: '#FFFFFF', borderRadius: 24, padding: 18, marginBottom: 16, borderWidth: 1, borderColor: '#E2E8F0', shadowColor: '#1E293B', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 12, elevation: 3 }}>
+                                    <View style={{ backgroundColor: '#FFFFFF', borderRadius: radius.lg, padding: 18, marginBottom: 16, borderWidth: 1, borderColor: colors.borderLight, ...shadows.card }}>
                                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-                                            <View style={{ width: 28, height: 28, borderRadius: 8, backgroundColor: '#EEF2FF', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#C7D2FE' }}>
+                                            <View style={{ width: 28, height: 28, borderRadius: radius.sm, backgroundColor: '#EEF2FF', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#C7D2FE' }}>
                                                 <Pill size={14} color="#6366F1" strokeWidth={2.5} />
                                             </View>
                                             <Text style={{ fontSize: 14, fontWeight: '800', color: '#0F172A', letterSpacing: 0.3 }}>
@@ -1337,6 +1338,7 @@ export default function MedicationsScreen({ navigation }) {
 
             {/* ── FAB ── */}
             <Animated.View style={[styles.fab, {
+                bottom: localFabBottom,
                 opacity: staggerAnims[4],
                 transform: [{ scale: staggerAnims[4].interpolate({ inputRange: [0, 1], outputRange: [0, 1] }) }],
             }]}>
@@ -1632,19 +1634,19 @@ function UploadRow({ upload }) {
 // ══ STYLES ═══════════════════════════════════════════════════════════════════
 // ══════════════════════════════════════════════════════════════════════════════
 const styles = StyleSheet.create({
-    root: { flex: 1, backgroundColor: '#F8FAFC' },
+    root: { flex: 1, backgroundColor: colors.background },
 
     // ── Header (simple, like care team) ──
     header: {
         paddingTop: Platform.OS === 'ios' ? 60 : 48,
-        paddingHorizontal: 24, paddingBottom: 14,
-        backgroundColor: '#F8FAFC',
+        paddingHorizontal: spacing.screen, paddingBottom: 14,
+        backgroundColor: colors.background,
     },
     headerRow: {
         flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     },
     headerEyebrow: {
-        fontSize: 13, fontWeight: '800', color: '#6366F1',
+        fontSize: 13, fontWeight: '800', color: colors.primary,
         letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 4,
     },
     headerTitle: {
@@ -1652,45 +1654,43 @@ const styles = StyleSheet.create({
     },
     headerBtn: {
         width: 42, height: 42, borderRadius: 21,
-        backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0',
+        backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: colors.borderLight,
         alignItems: 'center', justifyContent: 'center',
     },
-    bellDot: { position: 'absolute', top: 10, right: 10, width: 7, height: 7, borderRadius: 3.5, backgroundColor: '#EF4444', borderWidth: 1.5, borderColor: '#FFFFFF' },
+    bellDot: { position: 'absolute', top: 10, right: 10, width: 7, height: 7, borderRadius: 3.5, backgroundColor: colors.danger, borderWidth: 1.5, borderColor: '#FFFFFF' },
 
     // ── Progress card (inside scroll) ──
     progressCard: {
-        backgroundColor: '#FFFFFF', borderRadius: 24, padding: 20,
+        backgroundColor: '#FFFFFF', borderRadius: radius.lg, padding: 20,
         flexDirection: 'row', alignItems: 'center', gap: 16,
         marginBottom: 20,
-        shadowColor: '#6366F1', shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.07, shadowRadius: 14, elevation: 4,
+        ...shadows.card,
         borderWidth: 1, borderColor: '#EEF2FF',
     },
-    progressLabel: { fontSize: 11, fontWeight: '800', color: '#94A3B8', letterSpacing: 1.2, textTransform: 'uppercase' },
+    progressLabel: { fontSize: 11, fontWeight: '800', color: colors.textMuted, letterSpacing: 1.2, textTransform: 'uppercase' },
     progressCount: { fontSize: 34, fontWeight: '900', color: '#0F172A', letterSpacing: -1 },
-    progressTotal: { fontSize: 16, fontWeight: '600', color: '#94A3B8' },
+    progressTotal: { fontSize: 16, fontWeight: '600', color: colors.textMuted },
     progressBarBg: { height: 7, backgroundColor: '#F1F5F9', borderRadius: 4, overflow: 'hidden' },
     progressBarFill: { height: 7, borderRadius: 4 },
 
     // ── Scroll ──
-    scrollView: { flex: 1, backgroundColor: '#F8FAFC' },
-    scrollContent: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: layout.TAB_BAR_CLEARANCE },
+    scrollView: { flex: 1, backgroundColor: colors.background },
+    scrollContent: { paddingHorizontal: spacing.screen, paddingTop: 8, paddingBottom: layout.TAB_BAR_CLEARANCE + 80 },
 
     // ── Chart card ──
     chartCard: {
-        backgroundColor: '#FFFFFF', borderRadius: 24, padding: 20, marginBottom: 20,
-        shadowColor: '#6366F1', shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.07, shadowRadius: 18, elevation: 4,
+        backgroundColor: '#FFFFFF', borderRadius: radius.lg, padding: 20, marginBottom: 20,
+        ...shadows.card,
         borderWidth: 1, borderColor: '#EEF2FF',
     },
     cardTitle: { fontSize: 16, fontWeight: '800', color: '#1E293B' },
     adherenceBadge: {
         flexDirection: 'row', alignItems: 'center', gap: 5,
-        backgroundColor: '#EEF2FF', paddingHorizontal: 11, paddingVertical: 6, borderRadius: 10,
+        backgroundColor: '#EEF2FF', paddingHorizontal: 11, paddingVertical: 6, borderRadius: radius.sm,
     },
-    adherenceBadgeTxt: { fontSize: 12, fontWeight: '700', color: '#6366F1' },
+    adherenceBadgeTxt: { fontSize: 12, fontWeight: '700', color: colors.primary },
     sectionLabel: {
-        fontSize: 11, fontWeight: '800', color: '#94A3B8',
+        fontSize: 11, fontWeight: '800', color: colors.textMuted,
         letterSpacing: 1.5, textTransform: 'uppercase',
     },
 
@@ -1699,25 +1699,24 @@ const styles = StyleSheet.create({
 
     // ── Med card ──
     medCard: {
-        backgroundColor: '#FFFFFF', borderRadius: 20, overflow: 'hidden',
-        shadowColor: '#1E293B', shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.05, shadowRadius: 12, elevation: 3,
-        borderWidth: 1, borderColor: '#F1F5F9',
+        backgroundColor: '#FFFFFF', borderRadius: radius.md, overflow: 'hidden',
+        ...shadows.card,
+        borderWidth: 1, borderColor: colors.borderLight,
     },
-    medCardTaken: { backgroundColor: '#F8FFF9', borderColor: '#DCFCE7' },
+    medCardTaken: { backgroundColor: '#F8FFF9', borderColor: colors.successLight },
     medTopBar: { height: 4, width: '100%' },
     medCardBody: { flexDirection: 'row', padding: 16, alignItems: 'center', gap: 14 },
     medIconBox: {
-        width: 48, height: 48, borderRadius: 16,
+        width: 48, height: 48, borderRadius: radius.md,
         alignItems: 'center', justifyContent: 'center', borderWidth: 1,
     },
     medName: { fontSize: 16, fontWeight: '800', color: '#0F172A', letterSpacing: -0.2 },
-    medDose: { fontSize: 13, color: '#64748B', fontWeight: '500', marginTop: 2 },
+    medDose: { fontSize: 13, color: colors.textSecondary, fontWeight: '500', marginTop: 2 },
     takenBadge: {
         flexDirection: 'row', alignItems: 'center', gap: 4,
-        backgroundColor: '#DCFCE7', paddingHorizontal: 7, paddingVertical: 3, borderRadius: 8,
+        backgroundColor: colors.successLight, paddingHorizontal: 7, paddingVertical: 3, borderRadius: radius.sm,
     },
-    takenBadgeTxt: { fontSize: 10, fontWeight: '700', color: '#16A34A' },
+    takenBadgeTxt: { fontSize: 10, fontWeight: '700', color: colors.success },
     verifiedBadge: {
         flexDirection: 'row', alignItems: 'center', gap: 3,
         backgroundColor: '#ECFDF5', paddingHorizontal: 6, paddingVertical: 2,
@@ -1725,31 +1724,30 @@ const styles = StyleSheet.create({
     },
     verifiedTxt: { fontSize: 9, fontWeight: '800', color: '#059669', textTransform: 'uppercase', letterSpacing: 0.5 },
     expandSection: { paddingHorizontal: 16, paddingBottom: 14 },
-    instructionBox: { flexDirection: 'row', gap: 8, padding: 12, borderRadius: 12, borderWidth: 1 },
+    instructionBox: { flexDirection: 'row', gap: 8, padding: 12, borderRadius: radius.md, borderWidth: 1 },
     instructionTxt: { flex: 1, fontSize: 13, fontWeight: '500', lineHeight: 18 },
 
     // ── Swipe actions ──
     swipeLeftAction: {
         justifyContent: 'center', alignItems: 'center',
-        backgroundColor: '#10B981', borderRadius: 20,
+        backgroundColor: colors.success, borderRadius: radius.md,
         paddingHorizontal: 22, marginRight: 10,
     },
     swipeRightAction: {
         justifyContent: 'center', alignItems: 'center',
-        backgroundColor: '#F59E0B', borderRadius: 20,
+        backgroundColor: colors.warning, borderRadius: radius.md,
         paddingHorizontal: 22, marginLeft: 10,
     },
 
     // ── Empty state ──
     emptyCard: {
-        backgroundColor: '#FFFFFF', borderRadius: 28, padding: 28,
+        backgroundColor: '#FFFFFF', borderRadius: radius.lg, padding: 28,
         alignItems: 'center', borderWidth: 1, borderColor: '#EEF2FF',
-        shadowColor: '#6366F1', shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.06, shadowRadius: 24, elevation: 5,
+        ...shadows.card,
     },
     emptyIconWrap: { width: 100, height: 100, borderRadius: 50, alignItems: 'center', justifyContent: 'center', marginBottom: 20 },
     emptyTitle: { fontSize: 26, fontWeight: '900', color: '#0F172A', marginBottom: 10 },
-    emptyBody: { fontSize: 15, color: '#64748B', textAlign: 'center', lineHeight: 24, marginBottom: 24 },
+    emptyBody: { fontSize: 15, color: colors.textSecondary, textAlign: 'center', lineHeight: 24, marginBottom: 24 },
     emptyPrefBtn: {
         flexDirection: 'row', alignItems: 'center', gap: 9,
         height: 52, paddingHorizontal: 28, borderRadius: 26,
@@ -1761,78 +1759,76 @@ const styles = StyleSheet.create({
     actionGroup: { gap: 10 },
     outlineBtn: {
         flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9,
-        paddingVertical: 16, borderRadius: 18, borderWidth: 1.5,
+        paddingVertical: 16, borderRadius: radius.md, borderWidth: 1.5,
         borderStyle: 'dashed', backgroundColor: '#FAFBFF', borderColor: '#C7D2FE',
     },
-    outlineBtnTxt: { fontSize: 14, fontWeight: '700', color: '#6366F1' },
+    outlineBtnTxt: { fontSize: 14, fontWeight: '700', color: colors.primary },
 
     // ── Uploads ──
     uploadCard: {
         flexDirection: 'row', alignItems: 'center', gap: 12,
-        backgroundColor: '#FFFFFF', borderRadius: 16, padding: 14,
-        borderWidth: 1, borderColor: '#F1F5F9',
+        backgroundColor: '#FFFFFF', borderRadius: radius.md, padding: 14,
+        borderWidth: 1, borderColor: colors.divider,
     },
-    uploadStatusBox: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+    uploadStatusBox: { width: 40, height: 40, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
     uploadName: { fontSize: 14, fontWeight: '700', color: '#0F172A' },
-    uploadDate: { fontSize: 12, color: '#64748B', marginTop: 2 },
+    uploadDate: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
     uploadStatus: { fontSize: 12, fontWeight: '700', textTransform: 'capitalize' },
 
     // ── FAB ──
     fab: {
         position: 'absolute',
-        bottom: Platform.OS === 'ios' ? 112 : 92,
-        right: 24, zIndex: 100,
+        right: 28, zIndex: 100,
     },
     fabBtn: {
         width: 58, height: 58, borderRadius: 29,
         alignItems: 'center', justifyContent: 'center',
-        shadowColor: '#4F46E5', shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.38, shadowRadius: 16, elevation: 10,
+        ...shadows.hero,
     },
 
     // ── Preferences modal ──
-    modalDesc: { fontSize: 14, color: '#64748B', lineHeight: 22, marginBottom: 20 },
+    modalDesc: { fontSize: 14, color: colors.textSecondary, lineHeight: 22, marginBottom: 20 },
     prefRow: {
         flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-        backgroundColor: '#F8FAFC', padding: 14, borderRadius: 16, marginBottom: 10,
+        backgroundColor: '#F8FAFC', padding: 14, borderRadius: radius.md, marginBottom: 10,
     },
-    prefIconBox: { width: 36, height: 36, borderRadius: 11, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
+    prefIconBox: { width: 36, height: 36, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
     prefLabel: { fontSize: 15, fontWeight: '700', color: '#1E293B' },
     timeBtn: {
         flexDirection: 'row', alignItems: 'center', gap: 6,
         paddingHorizontal: 13, paddingVertical: 9,
-        borderRadius: 12, borderWidth: 1, backgroundColor: '#FFF',
+        borderRadius: radius.md, borderWidth: 1, backgroundColor: '#FFF',
     },
     timeBtnTxt: { fontSize: 15, fontWeight: '700' },
 
     // ── Confirmation modal ──
     confirmOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(15,23,42,0.55)' },
     confirmSheet: {
-        backgroundColor: '#FFF', borderTopLeftRadius: 36, borderTopRightRadius: 36,
+        backgroundColor: '#FFF', borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl,
         padding: 28, paddingBottom: Platform.OS === 'ios' ? 52 : 28,
     },
-    sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: '#E2E8F0', alignSelf: 'center', marginBottom: 28 },
+    sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: colors.divider, alignSelf: 'center', marginBottom: 28 },
     confirmIconWrap: { width: 84, height: 84, borderRadius: 42, alignItems: 'center', justifyContent: 'center', marginBottom: 18 },
     confirmTitle: { fontSize: 26, fontWeight: '900', color: '#0F172A', textAlign: 'center', marginBottom: 10 },
-    confirmSub: { fontSize: 16, color: '#64748B', textAlign: 'center', lineHeight: 26, marginBottom: 2 },
+    confirmSub: { fontSize: 16, color: colors.textSecondary, textAlign: 'center', lineHeight: 26, marginBottom: 2 },
     dosagePill: {
         flexDirection: 'row', alignItems: 'center', gap: 6,
         marginTop: 12, backgroundColor: '#EEF2FF',
-        paddingHorizontal: 18, paddingVertical: 8, borderRadius: 22,
+        paddingHorizontal: 18, paddingVertical: 8, borderRadius: radius.full,
     },
-    dosageTxt: { fontSize: 14, fontWeight: '800', color: '#6366F1' },
+    dosageTxt: { fontSize: 14, fontWeight: '800', color: colors.primary },
     confirmYesBtn: {
-        height: 58, borderRadius: 18, overflow: 'hidden',
+        height: 58, borderRadius: radius.md, overflow: 'hidden',
         flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
         marginTop: 4, marginBottom: 10,
     },
     confirmYesTxt: { fontSize: 18, fontWeight: '800', color: '#FFF' },
     confirmNoBtn: {
-        height: 52, borderRadius: 18,
+        height: 52, borderRadius: radius.md,
         alignItems: 'center', justifyContent: 'center',
         backgroundColor: '#F8FAFC',
     },
-    confirmNoTxt: { fontSize: 16, fontWeight: '700', color: '#64748B' },
+    confirmNoTxt: { fontSize: 16, fontWeight: '700', color: colors.textSecondary },
 
     // ── Toast ──
     toast: {
@@ -1842,11 +1838,10 @@ const styles = StyleSheet.create({
     },
     toastInner: {
         flexDirection: 'row', alignItems: 'center',
-        backgroundColor: '#FFFFFF', padding: 16, borderRadius: 20,
-        shadowColor: '#000', shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.12, shadowRadius: 20, elevation: 8,
-        borderWidth: 1, borderColor: '#F1F5F9',
+        backgroundColor: '#FFFFFF', padding: 16, borderRadius: radius.md,
+        ...shadows.card,
+        borderWidth: 1, borderColor: colors.divider,
     },
     toastTitle: { fontSize: 14, fontWeight: '800', color: '#0F172A' },
-    toastMsg: { fontSize: 13, color: '#64748B', marginTop: 2 },
+    toastMsg: { fontSize: 13, color: colors.textSecondary, marginTop: 2 },
 });

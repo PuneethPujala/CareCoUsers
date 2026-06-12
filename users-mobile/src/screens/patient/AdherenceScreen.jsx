@@ -325,6 +325,7 @@ export default function AdherenceScreen({ navigation }) {
 
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
+    const [recapLoading, setRecapLoading] = useState(false);
     const [selectedDay, setSelectedDay] = useState(null);
     const [currentMonth, setCurrentMonth] = useState(new Date());
     const [activeRecapTab, setActiveRecapTab] = useState('weekly');
@@ -361,18 +362,29 @@ export default function AdherenceScreen({ navigation }) {
         useCallback(() => { loadData(); }, [loadData])
     );
 
-    const switchRecapTab = (tab) => {
+    const switchRecapTab = async (tab) => {
         const idx = RECAP_TABS.indexOf(tab);
         Animated.spring(tabSlideAnim, { toValue: idx * tabWidth, friction: 8, useNativeDriver: true }).start();
         setActiveRecapTab(tab);
-        fetchAdherenceRecap(tab);
+        
+        const cached = usePatientStore.getState().adherenceRecaps?.[tab];
+        if (!cached) {
+            setRecapLoading(true);
+            usePatientStore.setState({ adherenceRecap: null });
+        }
+        await fetchAdherenceRecap(tab);
+        setRecapLoading(false);
     };
 
     const handleRefresh = async () => {
         setRefreshing(true);
+        // Clear cache on pull-to-refresh
+        usePatientStore.setState({
+            adherenceRecaps: { weekly: null, monthly: null, yearly: null }
+        });
         await Promise.all([
             fetchAdherenceDetails(),
-            fetchAdherenceRecap(activeRecapTabRef.current),
+            fetchAdherenceRecap(activeRecapTabRef.current, true),
             usePatientStore.getState().fetchDashboard(true).catch(() => {}),
             usePatientStore.getState().fetchMedications().catch(() => {})
         ]);
@@ -587,7 +599,26 @@ export default function AdherenceScreen({ navigation }) {
                     </Animated.View>
 
                     {/* ── [2] Recap Stats ── */}
-                    {adherenceRecap && (
+                    {(recapLoading || !adherenceRecap) ? (
+                        <Animated.View style={anim(2)}>
+                            <View style={styles.card}>
+                                <View style={styles.cardHeaderRow}>
+                                    <Skeleton width={120} height={18} />
+                                    <Skeleton width={80} height={20} borderRadius={10} />
+                                </View>
+
+                                <View style={styles.recapStatsRow}>
+                                    {[1, 2, 3].map((_, i) => (
+                                        <View key={i} style={styles.recapStatItem}>
+                                            <Skeleton width={50} height={50} borderRadius={25} style={{ alignSelf: 'center' }} />
+                                            <Skeleton width={80} height={12} style={{ marginTop: 8, alignSelf: 'center' }} />
+                                        </View>
+                                    ))}
+                                </View>
+                                <Skeleton width={180} height={12} style={{ marginTop: 12 }} />
+                            </View>
+                        </Animated.View>
+                    ) : (
                         <Animated.View style={anim(2)}>
                             <View style={styles.card}>
                                 <View style={styles.cardHeaderRow}>

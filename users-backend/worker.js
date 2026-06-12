@@ -27,6 +27,8 @@ const { getRedisConnection } = require('./src/jobs/redisConnection');
 const { runMedicationReminders } = require('./src/jobs/medicationReminderJob');
 const { processPatients } = require('./src/jobs/notificationJob');
 const AIPredictionService = require('./src/services/aiPredictionService');
+const { recomputeAndCacheHealthState } = require('./src/services/patientHealthStateService');
+
 
 const connection = getRedisConnection();
 
@@ -102,10 +104,32 @@ async function start() {
         console.error(`[Worker] vitals-prediction ${job?.id} failed:`, err.message);
     });
 
+    // ── Worker 4: Health State Recompute (on-demand/debounced) ──
+    const healthWorker = new Worker(
+        'health-state-recompute',
+        async (job) => {
+            const { patientId } = job.data;
+            console.log(`[Worker] Processing health-state-recompute for patient ${patientId}`);
+            await recomputeAndCacheHealthState(patientId);
+        },
+        {
+            connection,
+            concurrency: 3,
+        }
+    );
+
+    healthWorker.on('completed', (job) => {
+        console.log(`[Worker] health-state-recompute ${job.id} completed`);
+    });
+    healthWorker.on('failed', (job, err) => {
+        console.error(`[Worker] health-state-recompute ${job?.id} failed:`, err.message);
+    });
+
     console.log('✅ All workers registered and listening for jobs');
     console.log('   📋 medication-reminders (every 1 min)');
     console.log('   🤖 ai-notifications     (every 60 min)');
     console.log('   🔮 vitals-prediction     (on-demand)');
+    console.log('   ❤️  health-state-recompute (on-demand/debounced)');
 
     // ── Graceful shutdown ───────────────────────────────────────
     const shutdown = async (signal) => {
@@ -114,6 +138,7 @@ async function start() {
             medWorker.close(),
             aiNotifWorker.close(),
             vitalsWorker.close(),
+            healthWorker.close(),
         ]);
         console.log('🔒 All workers stopped.');
         process.exit(0);

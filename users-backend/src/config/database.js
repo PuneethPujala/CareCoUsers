@@ -18,10 +18,22 @@ const connectDB = async () => {
     // Handle connection events
     mongoose.connection.on('error', (err) => {
       console.error('❌ MongoDB connection error:', err);
+      try {
+        const { triggerSystemAlert } = require('../services/observabilityService');
+        triggerSystemAlert('Critical', 'MongoDB Connection Error', err.message);
+      } catch (e) {
+        console.error('Failed to trigger MongoDB connection error alert:', e);
+      }
     });
 
     mongoose.connection.on('disconnected', () => {
       console.warn('⚠️ MongoDB disconnected');
+      try {
+        const { triggerSystemAlert } = require('../services/observabilityService');
+        triggerSystemAlert('Critical', 'MongoDB Disconnected', 'Mongoose has disconnected from the MongoDB database.');
+      } catch (e) {
+        console.error('Failed to trigger MongoDB disconnect alert:', e);
+      }
     });
 
     mongoose.connection.on('reconnected', () => {

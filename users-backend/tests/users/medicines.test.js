@@ -46,6 +46,8 @@ jest.mock('../../src/services/medicineAIService', () => ({
 }));
 jest.mock('../../src/services/patientHealthStateService', () => ({
     recomputeAndCacheHealthState: jest.fn().mockResolvedValue({}),
+    getCachedHealthState: jest.fn().mockResolvedValue({}),
+    enqueueHealthStateRecompute: jest.fn().mockResolvedValue({}),
 }));
 
 // ─── Imports ──────────────────────────────────────────────────────────────────

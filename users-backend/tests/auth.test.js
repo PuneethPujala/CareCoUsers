@@ -667,6 +667,57 @@ describe('Auth Routes', () => {
 
             expect(res.status).toBe(401);
         });
+
+        it('exports staff data successfully', async () => {
+            const profile = mockProfile({ _id: 'profile123', role: 'care_manager' });
+            mockAuthState.profile = profile;
+
+            Profile.findById = jest.fn().mockReturnValue({
+                select: jest.fn().mockReturnValue({
+                    lean: jest.fn().mockResolvedValue(profile),
+                }),
+            });
+
+            const res = await request(app).get('/api/auth/me/export');
+            console.log('STAFF EXPORT STATUS:', res.status);
+            console.log('STAFF EXPORT BODY:', res.body);
+            expect(res.status).toBe(200);
+        });
+
+        it('exports patient data successfully', async () => {
+            const patient = mockPatient({ _id: 'patient123', role: 'patient' });
+            mockAuthState.profile = patient;
+
+            Patient.findById = jest.fn().mockReturnValue({
+                lean: jest.fn().mockResolvedValue(patient),
+            });
+
+            // Mock other models
+            const CallLog = require('../src/models/CallLog');
+            const MedicineLog = require('../src/models/MedicineLog');
+            const VitalLog = require('../src/models/VitalLog');
+
+            CallLog.find = jest.fn().mockReturnValue({
+                select: jest.fn().mockReturnValue({
+                    lean: jest.fn().mockResolvedValue([{ notes: 'call 1' }]),
+                }),
+            });
+            MedicineLog.find = jest.fn().mockReturnValue({
+                select: jest.fn().mockReturnValue({
+                    lean: jest.fn().mockResolvedValue([{ date: 'today' }]),
+                }),
+            });
+            VitalLog.find = jest.fn().mockReturnValue({
+                select: jest.fn().mockReturnValue({
+                    lean: jest.fn().mockResolvedValue([{ heart_rate: 72 }]),
+                }),
+            });
+
+            const res = await request(app).get('/api/auth/me/export');
+            console.log('PATIENT EXPORT STATUS:', res.status);
+            console.log('PATIENT EXPORT BODY:', res.body);
+            expect(res.status).toBe(200);
+        });
     });
 
     // ── POST /api/auth/create-user ─────────────────────────────────────────────

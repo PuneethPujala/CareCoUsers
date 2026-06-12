@@ -44,6 +44,8 @@ jest.mock('../../src/middleware/authenticate', () => ({
 
 jest.mock('../../src/services/patientHealthStateService', () => ({
     recomputeAndCacheHealthState: jest.fn().mockResolvedValue({}),
+    getCachedHealthState: jest.fn().mockResolvedValue({}),
+    enqueueHealthStateRecompute: jest.fn().mockResolvedValue({}),
 }));
 
 jest.mock('../../src/models/Patient');
@@ -487,6 +489,22 @@ describe('User Patients Routes', () => {
 
             expect(res.status).toBe(500);
             expect(res.body.error).toBe('Failed to flag issue');
+        });
+    });
+
+    // ── POST /api/users/patients/initiate-payment ─────────────────────────────
+
+    describe('POST /api/users/patients/initiate-payment', () => {
+        it('returns paymentId, signature, and planId', async () => {
+            const res = await request(app)
+                .post('/api/users/patients/initiate-payment')
+                .send({ planId: 'premium_monthly' });
+
+            expect(res.status).toBe(200);
+            expect(res.body.success).toBe(true);
+            expect(res.body.paymentId).toBeDefined();
+            expect(res.body.signature).toBeDefined();
+            expect(res.body.planId).toBe('premium_monthly');
         });
     });
 

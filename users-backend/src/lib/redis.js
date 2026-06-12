@@ -17,6 +17,12 @@ redis.on('connect', () => {
 
 redis.on('error', (err) => {
     console.error('❌ Redis Connection Error:', err);
+    try {
+        const { triggerSystemAlert } = require('../services/observabilityService');
+        triggerSystemAlert('Critical', 'Redis Connection Error', err.message);
+    } catch (e) {
+        console.error('Failed to trigger Redis connection error alert:', e);
+    }
 });
 
 module.exports = redis;

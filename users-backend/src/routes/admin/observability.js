@@ -79,6 +79,42 @@ router.get('/system-health', authenticate, async (req, res) => {
             ]);
         }
 
+        const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);
+        const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+        const AIChatLog = require('../../models/AIChatLog');
+        const AuditLog = require('../../models/AuditLog');
+
+        const [
+            totalChats,
+            failedChats,
+            ocrTotal,
+            ocrFailed,
+            paymentTotal,
+            paymentFailed
+        ] = await Promise.all([
+            AIChatLog.countDocuments({ created_at: { $gte: fifteenMinutesAgo } }),
+            AIChatLog.countDocuments({
+                created_at: { $gte: fifteenMinutesAgo },
+                $or: [{ is_fallback: true }, { fallback_reason: { $ne: null } }]
+            }),
+            AuditLog.countDocuments({
+                action: { $in: ['ocr_extraction_success', 'ocr_extraction_failed'] },
+                createdAt: { $gte: fifteenMinutesAgo }
+            }),
+            AuditLog.countDocuments({
+                action: 'ocr_extraction_failed',
+                createdAt: { $gte: fifteenMinutesAgo }
+            }),
+            AuditLog.countDocuments({
+                action: { $in: ['payment_activation_success', 'payment_activation_failed'] },
+                createdAt: { $gte: twentyFourHoursAgo }
+            }),
+            AuditLog.countDocuments({
+                action: 'payment_activation_failed',
+                createdAt: { $gte: twentyFourHoursAgo }
+            })
+        ]);
+
         const response = {
             status: 'healthy',
             timestamp: new Date().toISOString(),
@@ -88,6 +124,23 @@ router.get('/system-health', authenticate, async (req, res) => {
                 delivered: successfullyDelivered,
                 failed: failedDelivery,
                 success_rate: totalSent > 0 ? ((successfullyDelivered / totalSent) * 100).toFixed(1) + '%' : '0%'
+            },
+            system_metrics: {
+                chatbot_15m: {
+                    total: totalChats,
+                    failed_or_fallback: failedChats,
+                    error_rate: totalChats > 0 ? ((failedChats / totalChats) * 100).toFixed(1) + '%' : '0%'
+                },
+                ocr_15m: {
+                    total: ocrTotal,
+                    failed: ocrFailed,
+                    failure_rate: ocrTotal > 0 ? ((ocrFailed / ocrTotal) * 100).toFixed(1) + '%' : '0%'
+                },
+                payment_24h: {
+                    total: paymentTotal,
+                    failed: paymentFailed,
+                    success_rate: paymentTotal > 0 ? (((paymentTotal - paymentFailed) / paymentTotal) * 100).toFixed(1) + '%' : '100%'
+                }
             },
             tokens: {
                 active: activeTokens,

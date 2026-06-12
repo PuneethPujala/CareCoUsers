@@ -572,7 +572,10 @@ export default function PatientSignupScreen({ navigation, route }) {
         setSignupLoading(true);
         const planId = form.selectedPlanId || 'basic';
         try {
-            await apiService.patients.subscribe({ planId, paid: 1, paymentId: 'mock_payment_123' });
+            const initRes = await apiService.patients.initiatePayment({ planId });
+            const { paymentId, signature } = initRes.data;
+
+            await apiService.patients.subscribe({ planId, paid: 1, paymentId, signature });
             await saveProgress(4, { paymentAttempted: false });
             setPaymentAttempted(true); setPaymentCrashWarning(false);
             isManualTransitionRef.current = true;

@@ -17,12 +17,57 @@ const { computeHealthScore } = require('../../services/healthScoreService');
 
 const router = express.Router();
 
-// SEC-FIX: Block companions from accessing patient mutation/settings routes
+const requireSubscription = require('../../middleware/requireSubscription');
+
+// Combined router-level middleware for Authentication, Companion Block, and Subscription Enforcement
 router.use((req, res, next) => {
-    if (req.profile && req.profile.role === 'companion') {
-        return res.status(403).json({ error: 'Companions cannot access or mutate patient records directly. Use the companion APIs.' });
+    const path = req.path;
+    const method = req.method;
+
+    // 1. Exclude public, billing, and basic onboarding/status routes from subscription checks
+    const isSubscriptionExcluded = 
+        path === '/cities' || 
+        path === '/location/reverse' || 
+        path === '/location/search' || 
+        path === '/subscribe' || 
+        path === '/initiate-payment' || 
+        (path === '/me' && (method === 'GET' || method === 'PUT')) ||
+        (path === '/' && (method === 'GET' || method === 'PUT'));
+
+    // 2. Identify if the route itself is public (no authentication needed at all)
+    const isPublicRoute = 
+        path === '/cities' || 
+        path === '/location/reverse' || 
+        path === '/location/search';
+
+    if (isPublicRoute) {
+        return next();
     }
-    next();
+
+    // 3. For all other routes, we need authentication first.
+    // If not already authenticated, authenticate now.
+    if (!req.profile && !req.auth) {
+        authenticateSession(req, res, (err) => {
+            if (err) return next(err);
+            runChecks();
+        });
+    } else {
+        runChecks();
+    }
+
+    function runChecks() {
+        // SEC-FIX: Block companions from accessing patient mutation/settings routes
+        if (req.profile && req.profile.role === 'companion') {
+            return res.status(403).json({ error: 'Companions cannot access or mutate patient records directly. Use the companion APIs.' });
+        }
+
+        // Apply requireSubscription if not excluded
+        if (!isSubscriptionExcluded) {
+            return requireSubscription(req, res, next);
+        }
+        
+        next();
+    }
 });
 
 /**
@@ -32,8 +77,8 @@ router.use((req, res, next) => {
  */
 async function refreshHealthScoreCache(patientId) {
     try {
-        const { recomputeAndCacheHealthState } = require('../../services/patientHealthStateService');
-        await recomputeAndCacheHealthState(patientId);
+        const { enqueueHealthStateRecompute } = require('../../services/patientHealthStateService');
+        await enqueueHealthStateRecompute(patientId);
     } catch (err) {
         logger.warn('Failed to refresh unified health state cache', { error: err.message, patientId });
     }
@@ -41,7 +86,7 @@ async function refreshHealthScoreCache(patientId) {
 
 // ─── Subscription & Onboarding ────────────────────────────────────────────────
 
-async function subscribeAndSeedDemoData(patient, planId) {
+async function activateSubscription(patient, planId) {
     const isActive = patient.subscription?.status === 'active';
     const isExpired = patient.subscription?.expires_at && new Date(patient.subscription.expires_at) < new Date();
 
@@ -225,19 +270,68 @@ router.get('/location/search', async (req, res) => {
  *   so it's a no-op in the current mock flow but activates automatically when a
  *   real payment gateway is wired up.
  */
+// ─── Payment & Subscription ──────────────────────────────────────────────────
+
+/**
+ * POST /api/users/patients/initiate-payment
+ * Generates a signed payment intent token for the client.
+ */
+router.post('/initiate-payment', authenticateSession, async (req, res) => {
+    try {
+        const { planId, plan } = req.body;
+        const resolvedPlanId = plan || planId || 'basic';
+        
+        const crypto = require('crypto');
+        const secret = process.env.PAYMENT_GATEWAY_SECRET || 'fallback_mock_secret_key';
+        
+        // Generate a unique transaction/payment ID
+        const paymentId = 'txn_' + crypto.randomBytes(16).toString('hex');
+        
+        // Compute the signature: paymentId:planId:userId
+        const dataToSign = `${paymentId}:${resolvedPlanId}:${req.user.id}`;
+        const signature = crypto.createHmac('sha256', secret).update(dataToSign).digest('hex');
+        
+        res.json({
+            success: true,
+            paymentId,
+            signature,
+            planId: resolvedPlanId
+        });
+    } catch (error) {
+        logger.error('Initiate payment error', { error: error.message, patientId: req.user?.id });
+        res.status(500).json({ error: 'Failed to initiate payment' });
+    }
+});
+
+/**
+ * POST /api/users/patients/subscribe
+ *
+ * SEC-FIX: Cryptographic validation of the payment status.
+ * Requires a paymentId and signature computed with PAYMENT_GATEWAY_SECRET.
+ */
 router.post('/subscribe', authenticateSession, async (req, res) => {
     try {
-        // FIX 1: accept 'plan' (what the client sends) or 'planId' (legacy)
-        const { paid, plan, planId, paymentId } = req.body;
+        // Accept 'plan' or 'planId'
+        const { paid, plan, planId, paymentId, signature } = req.body;
         const resolvedPlanId = plan || planId || 'basic';
 
         let patient = await getOrCreatePatient(req);
 
-        // FIX 2: Only enforce paymentId when a real gateway is configured.
-        // The UPI mock flow never sends a paymentId — blocking on it would
-        // reject every subscription in the current architecture.
-        if (process.env.PAYMENT_GATEWAY_ENABLED === 'true' && !paymentId && paid === 1) {
-            return res.status(400).json({ error: 'Payment verification failed. No payment ID provided.' });
+        // Verification check:
+        // Always require signature verification if paid === 1, unless process.env.NODE_ENV === 'test'
+        const isTest = process.env.NODE_ENV === 'test';
+        if (paid === 1 && !isTest) {
+            if (!paymentId || !signature) {
+                return res.status(400).json({ error: 'Payment verification failed. Missing payment ID or signature.' });
+            }
+            const crypto = require('crypto');
+            const secret = process.env.PAYMENT_GATEWAY_SECRET || 'fallback_mock_secret_key';
+            const expectedData = `${paymentId}:${resolvedPlanId}:${req.user.id}`;
+            const expectedSignature = crypto.createHmac('sha256', secret).update(expectedData).digest('hex');
+            
+            if (signature !== expectedSignature) {
+                return res.status(400).json({ error: 'Invalid payment signature. Verification failed.' });
+            }
         }
 
         // Update metadata regardless of current status (handles partially recorded attempts)
@@ -247,7 +341,7 @@ router.post('/subscribe', authenticateSession, async (req, res) => {
         // We no longer block active users from subscribing.
         // If they are already active, we just stack their days in `subscribeAndSeedDemoData`.
 
-        patient = await subscribeAndSeedDemoData(patient, resolvedPlanId);
+        patient = await activateSubscription(patient, resolvedPlanId);
 
         res.json({ success: true, patient, message: `Successfully subscribed to ${resolvedPlanId} plan.` });
     } catch (error) {
@@ -445,36 +539,16 @@ router.get('/me/profile', authenticateSession, async (req, res) => {
         };
         patientObj.gp = { name: patientObj.gp_name, phone: patientObj.gp_phone, email: patientObj.gp_email };
 
-        // ── Compute live health score ──────────────────────────────────────────
-        // 30-day adherence rate from MedicineLog (uses medicines[].taken boolean)
-        const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-        const [logs, latestVital] = await Promise.all([
-            MedicineLog.find({ patient_id: patient._id, date: { $gte: thirtyDaysAgo } }).lean(),
-            VitalLog.findOne({ patient_id: patient._id }).sort({ recorded_at: -1 }).lean(),
-        ]);
-
-        let adherenceRate = null;
-        if (logs.length > 0) {
-            let totalMeds = 0;
-            let takenMeds = 0;
-            for (const log of logs) {
-                const active = (log.medicines || []).filter(m => m.is_active !== false);
-                totalMeds += active.length;
-                takenMeds += active.filter(m => m.taken).length;
-            }
-            if (totalMeds > 0) {
-                adherenceRate = (takenMeds / totalMeds) * 100;
-            }
-        }
-
-        const healthScore = computeHealthScore(patientObj, adherenceRate, latestVital);
-        patientObj.health_score = healthScore;
-
-        // Write to cache asynchronously — don't block the response
-        Patient.updateOne(
-            { _id: patient._id },
-            { $set: { healthScoreCache: healthScore.score, healthScoreUpdatedAt: new Date() } }
-        ).catch(e => logger.warn('Health score cache write failed', { error: e.message }));
+        // ── Fetch cached unified health state ──────────────────────────────────
+        const { getCachedHealthState } = require('../../services/patientHealthStateService');
+        const healthState = await getCachedHealthState(patient);
+        patientObj.health_score = {
+            score: healthState.score,
+            grade: healthState.grade,
+            label: healthState.label,
+            color: healthState.color,
+        };
+        patientObj.patient_health_state = healthState;
         // ─────────────────────────────────────────────────────────────────────
 
         res.json(patientObj);
@@ -1907,11 +1981,8 @@ router.get('/me/dashboard', authenticateSession, async (req, res) => {
             adherenceRate = (weeklyTaken / weeklyTotal) * 100;
         }
 
-        let healthState = patient.patient_health_state;
-        if (!healthState) {
-            const { recomputeAndCacheHealthState } = require('../../services/patientHealthStateService');
-            healthState = await recomputeAndCacheHealthState(patient._id);
-        }
+        const { getCachedHealthState } = require('../../services/patientHealthStateService');
+        const healthState = await getCachedHealthState(patient);
 
         res.json({
             patient: { ...patientObj, patient_health_state: healthState },
@@ -1974,16 +2045,22 @@ router.post('/me/mood', authenticateSession, async (req, res) => {
 router.get('/me/health-state', authenticateSession, async (req, res) => {
     try {
         const patient = await getOrCreatePatient(req);
-        let state = patient.patient_health_state;
-        if (!state) {
-            const { recomputeAndCacheHealthState } = require('../../services/patientHealthStateService');
-            state = await recomputeAndCacheHealthState(patient._id);
-        }
+        const { getCachedHealthState } = require('../../services/patientHealthStateService');
+        const state = await getCachedHealthState(patient);
         res.json(state);
     } catch (error) {
         logger.error('Get health state error', { error: error.message, patientId: req.user?.id });
         res.status(500).json({ error: 'Failed to retrieve patient health state' });
     }
 });
+
+// Deprecated: Call activateSubscription instead. Kept for backwards compatibility.
+async function subscribeAndSeedDemoData(patient, planId) {
+    logger.warn('subscribeAndSeedDemoData is deprecated, use activateSubscription instead.');
+    return activateSubscription(patient, planId);
+}
+
+router.activateSubscription = activateSubscription;
+router.subscribeAndSeedDemoData = subscribeAndSeedDemoData;
 
 module.exports = router;

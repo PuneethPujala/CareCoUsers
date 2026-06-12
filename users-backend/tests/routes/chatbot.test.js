@@ -11,6 +11,7 @@ const mockAuthState = {
         _id:         fakeId('patient-profile-id'),
         supabaseUid: 'patient-user',
         role:        'patient',
+        subscription: { status: 'active', expires_at: new Date(Date.now() + 86400000) }
     },
 };
 

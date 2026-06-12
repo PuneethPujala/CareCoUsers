@@ -50,8 +50,22 @@ const vitalsPredictionQueue = new Queue('vitals-prediction', {
     },
 });
 
+// ── Health State Recomputation ──────────────────────────────────
+// On-demand/debounced. Recomputes patient health state.
+const healthStateQueue = new Queue('health-state-recompute', {
+    connection,
+    defaultJobOptions: {
+        removeOnComplete: true, // Crucial: remove immediately so same jobId can be added again on subsequent mutations
+        removeOnFail: true,     // Crucial: remove immediately so same jobId can be added again on subsequent mutations
+        attempts: 2,
+        backoff: { type: 'fixed', delay: 3000 },
+    },
+});
+
 module.exports = {
     medicationReminderQueue,
     aiNotificationQueue,
     vitalsPredictionQueue,
+    healthStateQueue,
 };
+

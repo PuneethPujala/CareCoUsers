@@ -75,8 +75,17 @@ export default function CheckoutBottomSheet({ visible, onClose, plan, onSuccess,
         try {
             await new Promise(res => setTimeout(res, 2800)); // Simulating UPI switch
             
-            // Backend Subscription Call
-            const response = await apiService.patients.subscribe({ plan: plan?.id || 'premium_monthly' });
+            const planId = plan?.id || 'premium_monthly';
+            // Backend Subscription Call (initiate then subscribe)
+            const initRes = await apiService.patients.initiatePayment({ planId });
+            const { paymentId, signature } = initRes.data;
+
+            const response = await apiService.patients.subscribe({ 
+                plan: planId, 
+                paid: 1, 
+                paymentId, 
+                signature 
+            });
             
             if (response.data?.patient?.subscription?.expires_at) {
                 const dateObj = new Date(response.data.patient.subscription.expires_at);

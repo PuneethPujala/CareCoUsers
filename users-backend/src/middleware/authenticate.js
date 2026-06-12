@@ -360,6 +360,7 @@ async function runAuthGuards(req, res, profile) {
 
 const authenticate = async (req, res, next) => {
   try {
+    if (req.profile && req.auth) return next();
     const authHeader = req.headers.authorization;
     if (!authHeader?.startsWith('Bearer ')) {
       return res.status(401).json({
@@ -427,6 +428,7 @@ const optionalAuthenticate = async (req, res, next) => {
 
 const authenticateSession = async (req, res, next) => {
   try {
+    if (req.profile || req.auth) return next();
     const authHeader = req.headers.authorization;
     if (!authHeader?.startsWith('Bearer ')) {
       return res.status(401).json({

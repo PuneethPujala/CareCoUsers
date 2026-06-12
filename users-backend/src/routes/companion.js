@@ -596,11 +596,8 @@ router.get('/patient-status', authenticate, async (req, res) => {
         // Log the activity
         await logEvent(req.user.id, 'companion_viewed_dashboard', 'profile', req.profile._id, req, { patientId: patient._id });
 
-        let healthState = patient.patient_health_state;
-        if (!healthState) {
-            const { recomputeAndCacheHealthState } = require('../services/patientHealthStateService');
-            healthState = await recomputeAndCacheHealthState(patient._id);
-        }
+        const { getCachedHealthState } = require('../services/patientHealthStateService');
+        let healthState = await getCachedHealthState(patient);
 
         // Fallback: if recomputation failed (returned null), build a minimal state
         // from legacy fields so the endpoint remains functional

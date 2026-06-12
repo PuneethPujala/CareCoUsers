@@ -36,6 +36,12 @@ jest.mock('../src/middleware/authenticate', () => ({
 
 jest.mock('../src/models/Patient');
 jest.mock('../src/models/Notification');
+jest.mock('../src/models/AIChatLog', () => ({
+    countDocuments: jest.fn().mockResolvedValue(0),
+}));
+jest.mock('../src/models/AuditLog', () => ({
+    countDocuments: jest.fn().mockResolvedValue(0),
+}));
 
 describe('Observability Routes - System Health', () => {
     beforeEach(() => {

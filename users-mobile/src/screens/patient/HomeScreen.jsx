@@ -13,7 +13,7 @@ import {
     AlertTriangle, WifiOff, Flame, Zap, Watch, Shield, MessageSquare, Trophy, ChevronDown
 } from 'lucide-react-native';
 import { handleAxiosError } from '../../lib/axiosInstance';
-import { colors, layout } from '../../theme';
+import { colors, layout, spacing, radius, shadows } from '../../theme';
 import { useAuth } from '../../context/AuthContext';
 import { apiService } from '../../lib/api';
 import { useFocusEffect } from '@react-navigation/native';
@@ -219,7 +219,7 @@ export default function PatientHomeScreen({ navigation }) {
                 title: t('advisor.hr_high_title', { defaultValue: 'Elevated Heart Rate' }),
                 desc: t('advisor.hr_high_desc', { hr, defaultValue: `Your heart rate is currently elevated at ${hr} bpm. Try to slow down what you're doing, sit down comfortably, and take slow, deep breaths for 2 minutes.` }),
                 type: 'warning',
-                color: '#EF4444',
+                color: colors.danger,
                 icon: Heart
             });
         } else if (hr > 0 && hr < 55) {
@@ -228,7 +228,7 @@ export default function PatientHomeScreen({ navigation }) {
                 title: t('advisor.hr_low_title', { defaultValue: 'Low Heart Rate' }),
                 desc: t('advisor.hr_low_desc', { hr, defaultValue: `Your heart rate is slightly low at ${hr} bpm. Ensure you are resting. If you feel dizzy or lightheaded, please sit or lie down and contact your doctor.` }),
                 type: 'warning',
-                color: '#3B82F6',
+                color: colors.primary,
                 icon: Heart
             });
         }
@@ -242,7 +242,7 @@ export default function PatientHomeScreen({ navigation }) {
                     ? t('advisor.spo2_low_smoker_desc', { spo2, defaultValue: `Your oxygen saturation is low at ${spo2}%. As a smoker, this is a critical reminder to step away from cigarettes immediately. Open windows to improve indoor airflow and step outside for fresh air.` })
                     : t('advisor.spo2_low_desc', { spo2, defaultValue: `Your oxygen saturation is low at ${spo2}%. Step outside for fresh air, open windows to improve ventilation, and practice deep, steady breathing. Sit upright, and contact your doctor if it continues to drop.` }),
                 type: 'critical',
-                color: '#EF4444',
+                color: colors.danger,
                 icon: Wind
             });
         }
@@ -254,7 +254,7 @@ export default function PatientHomeScreen({ navigation }) {
                 title: t('advisor.bp_high_title', { defaultValue: 'Elevated Blood Pressure' }),
                 desc: t('advisor.bp_high_desc', { sys, dia, defaultValue: `Your blood pressure is elevated at ${sys}/${dia} mmHg. Consider resting in a quiet space, drinking a glass of water, and avoiding high-sodium foods today.` }),
                 type: 'warning',
-                color: '#EF4444',
+                color: colors.danger,
                 icon: Activity
             });
         } else if (sys > 0 && sys < 90) {
@@ -263,7 +263,7 @@ export default function PatientHomeScreen({ navigation }) {
                 title: t('advisor.bp_low_title', { defaultValue: 'Low Blood Pressure' }),
                 desc: t('advisor.bp_low_desc', { sys, dia, defaultValue: `Your blood pressure is low at ${sys}/${dia} mmHg. Try to sit or lie down, drink a glass of water, and avoid rising too quickly from a seated position.` }),
                 type: 'warning',
-                color: '#3B82F6',
+                color: colors.primary,
                 icon: Activity
             });
         }
@@ -275,7 +275,7 @@ export default function PatientHomeScreen({ navigation }) {
                 title: t('advisor.hyd_low_title', { defaultValue: 'Dehydration Warning' }),
                 desc: t('advisor.hyd_low_desc', { hyd, defaultValue: `Your hydration level is low at ${hyd}%. Drink a large glass of water now to help restore your body's optimal fluid balance.` }),
                 type: 'info',
-                color: '#0EA5E9',
+                color: colors.accent,
                 icon: Droplets
             });
         }
@@ -639,7 +639,7 @@ export default function PatientHomeScreen({ navigation }) {
     };
     const nextDose = getNextDose();
 
-    const adherenceColor = adherencePct >= 80 ? '#10B981' : adherencePct >= 50 ? '#F59E0B' : '#EF4444';
+    const adherenceColor = adherencePct >= 80 ? colors.success : adherencePct >= 50 ? colors.warning : colors.danger;
     const hasContextualAlerts = !vitals || meds.some(m => !m.taken);
 
     const anim = (i) => ({
@@ -967,7 +967,7 @@ export default function PatientHomeScreen({ navigation }) {
             <View style={{ flex: 1, backgroundColor: '#F8FAFC' }}>
                 <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
                 <View style={styles.skeletonHeader}>
-                    <View style={{ paddingHorizontal: 24 }}>
+                    <View style={{ paddingHorizontal: spacing.screen }}>
                         <SkeletonItem width={180} height={28} borderRadius={10} style={{ marginBottom: 8 }} />
                         <SkeletonItem width={240} height={14} borderRadius={6} style={{ marginBottom: 28 }} />
                     </View>
@@ -1536,20 +1536,20 @@ export default function PatientHomeScreen({ navigation }) {
 // ══ STYLES ═══════════════════════════════════════════════════════════════════
 // ══════════════════════════════════════════════════════════════════════════════
 const styles = StyleSheet.create({
-    premiumBanner: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FAF5FF', borderRadius: 20, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: '#F3E8FF' },
+    premiumBanner: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FAF5FF', borderRadius: radius.lg, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: '#F3E8FF' },
     premiumBannerLeft: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
-    premiumBannerIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#F3E8FF', alignItems: 'center', justifyContent: 'center' },
+    premiumBannerIcon: { width: 40, height: 40, borderRadius: radius.md, backgroundColor: '#F3E8FF', alignItems: 'center', justifyContent: 'center' },
     premiumBannerTitle: { fontSize: 15, fontWeight: '800', color: '#6B21A8' },
     premiumBannerSub: { fontSize: 13, color: '#9333EA', fontWeight: '500', marginTop: 2, lineHeight: 18 },
 
     // ── Skeleton ──
-    skeletonHeader: { paddingTop: Platform.OS === 'ios' ? 60 : 44, paddingBottom: 20, backgroundColor: '#F8FAFC', paddingHorizontal: 24 },
+    skeletonHeader: { paddingTop: Platform.OS === 'ios' ? 60 : 44, paddingBottom: 20, backgroundColor: colors.background, paddingHorizontal: spacing.screen },
 
     // ── Header ──
     header: {
         paddingTop: Platform.OS === 'ios' ? 60 : 48,
-        paddingHorizontal: 24, paddingBottom: 14,
-        backgroundColor: '#F8FAFC',
+        paddingHorizontal: spacing.screen, paddingBottom: 14,
+        backgroundColor: colors.background,
     },
     mainHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
     greetingName: { fontSize: 28, fontWeight: '900', color: '#6366F1', letterSpacing: -1 },
@@ -1570,7 +1570,7 @@ const styles = StyleSheet.create({
     datePill: {
         flexDirection: 'row', alignItems: 'center', gap: 6,
         backgroundColor: '#FFFFFF', paddingHorizontal: 12, paddingVertical: 8,
-        borderRadius: 16, borderWidth: 1, borderColor: '#E2E8F0',
+        borderRadius: radius.md, borderWidth: 1, borderColor: '#E2E8F0',
         shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.03, shadowRadius: 4, elevation: 1
     },
@@ -1578,7 +1578,7 @@ const styles = StyleSheet.create({
     locationPill: {
         flexDirection: 'row', alignItems: 'center', gap: 6,
         backgroundColor: '#FFFFFF', paddingHorizontal: 12, paddingVertical: 8,
-        borderRadius: 16, borderWidth: 1, borderColor: '#E2E8F0',
+        borderRadius: radius.md, borderWidth: 1, borderColor: '#E2E8F0',
         shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.03, shadowRadius: 4, elevation: 1
     },
@@ -1613,11 +1613,7 @@ const styles = StyleSheet.create({
         backgroundColor: 'rgba(255, 255, 255, 0.78)',
         borderWidth: 1.5,
         borderColor: 'rgba(255, 255, 255, 0.85)',
-        shadowColor: '#6366F1',
-        shadowOffset: { width: 0, height: 12 },
-        shadowOpacity: 0.16,
-        shadowRadius: 20,
-        elevation: 8,
+        ...shadows.md,
         position: 'relative'
     },
     orbScoreText: {
@@ -1655,13 +1651,9 @@ const styles = StyleSheet.create({
     // ── Daily Check-In ──
     checkinCard: {
         backgroundColor: '#FFFFFF',
-        borderRadius: 28,
+        borderRadius: radius.lg,
         padding: 24,
-        shadowColor: '#6366F1',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.06,
-        shadowRadius: 20,
-        elevation: 4,
+        ...shadows.md,
     },
     checkinTitle: {
         fontSize: 15,
@@ -1717,15 +1709,11 @@ const styles = StyleSheet.create({
     // ── Health Pulse Card ──
     pulseCard: {
         backgroundColor: '#FFFFFF',
-        borderRadius: 20,
+        borderRadius: radius.md,
         padding: 16,
         borderWidth: 1,
         borderColor: '#E2E8F0',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.01,
-        shadowRadius: 6,
-        elevation: 1,
+        ...shadows.sm,
     },
     pulseHeader: {
         flexDirection: 'row',
@@ -1767,13 +1755,9 @@ const styles = StyleSheet.create({
 
     // ── AI Coach (Today's Insight) ──
     insightCard: {
-        borderRadius: 24,
+        borderRadius: radius.lg,
         padding: 22,
-        shadowColor: '#4F46E5',
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.25,
-        shadowRadius: 20,
-        elevation: 8,
+        ...shadows.hero,
     },
     insightHeaderRow: {
         flexDirection: 'row',
@@ -1860,15 +1844,11 @@ const styles = StyleSheet.create({
     // ── Next Goal Card ──
     goalCard: {
         backgroundColor: '#FFFFFF',
-        borderRadius: 24,
+        borderRadius: radius.lg,
         padding: 20,
         borderWidth: 1,
         borderColor: '#E2E8F0',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.02,
-        shadowRadius: 10,
-        elevation: 2,
+        ...shadows.card,
     },
     goalCardHeader: {
         flexDirection: 'row',
@@ -1914,14 +1894,10 @@ const styles = StyleSheet.create({
 
     // ── Medications Plan ──
     medSummaryCard: {
-        borderRadius: 24,
+        borderRadius: radius.lg,
         overflow: 'hidden',
         marginBottom: 14,
-        shadowColor: '#6366F1',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.12,
-        shadowRadius: 16,
-        elevation: 4,
+        ...shadows.hero,
     },
     medSummaryGradient: {
         padding: 20,
@@ -1993,15 +1969,11 @@ const styles = StyleSheet.create({
     vitalsCard: {
         width: 165,
         backgroundColor: '#FFFFFF',
-        borderRadius: 24,
+        borderRadius: radius.lg,
         padding: 16,
         borderWidth: 1,
         borderColor: '#E2E8F0',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.02,
-        shadowRadius: 10,
-        elevation: 2,
+        ...shadows.card,
     },
     vitalsCardTop: {
         flexDirection: 'row',
@@ -2067,15 +2039,11 @@ const styles = StyleSheet.create({
     // ── Health Journey ──
     journeyCard: {
         backgroundColor: '#FFFFFF',
-        borderRadius: 24,
+        borderRadius: radius.lg,
         padding: 20,
         borderWidth: 1,
         borderColor: '#E2E8F0',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.02,
-        shadowRadius: 10,
-        elevation: 2,
+        ...shadows.card,
     },
     journeyHeader: {
         flexDirection: 'row',
@@ -2144,7 +2112,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#F1F5F9',
         paddingHorizontal: 12,
         paddingVertical: 8,
-        borderRadius: 12,
+        borderRadius: radius.md,
         gap: 6,
         borderWidth: 1,
         borderColor: '#E2E8F0',
@@ -2156,14 +2124,14 @@ const styles = StyleSheet.create({
     },
 
     // ── tip card ──
-    tipCard: { borderRadius: 22, overflow: 'hidden', padding: 18, borderWidth: 1, borderColor: '#C7D2FE' },
+    tipCard: { borderRadius: radius.lg, overflow: 'hidden', padding: 18, borderWidth: 1, borderColor: '#C7D2FE' },
     tipHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
     tipIconBox: { width: 30, height: 30, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
     tipLabel: { fontSize: 11, fontWeight: '800', color: '#6366F1', letterSpacing: 1.2, textTransform: 'uppercase' },
     tipText: { fontSize: 14, color: '#3730A3', lineHeight: 22, fontWeight: '500' },
 
     // ── Scroll Content ──
-    scrollContent: { paddingHorizontal: 24, paddingTop: 16, paddingBottom: layout.TAB_BAR_CLEARANCE },
+    scrollContent: { paddingHorizontal: spacing.screen, paddingTop: 16, paddingBottom: layout.TAB_BAR_CLEARANCE },
 
     // ── Sections ──
     section: { marginBottom: 32 },
@@ -2185,10 +2153,9 @@ const styles = StyleSheet.create({
 
     // ── Mini Med cards ──
     medCard: {
-        backgroundColor: '#FFFFFF', borderRadius: 20, marginBottom: 10,
+        backgroundColor: '#FFFFFF', borderRadius: radius.md, marginBottom: 10,
         flexDirection: 'row', overflow: 'hidden',
-        shadowColor: '#000', shadowOffset: { width: 0, height: 3 },
-        shadowOpacity: 0.04, shadowRadius: 10, elevation: 3,
+        ...shadows.card,
         borderWidth: 1, borderColor: '#F1F5F9',
     },
     medCardTaken: { backgroundColor: '#F0FDF4', borderColor: '#DCFCE7' },
@@ -2203,8 +2170,8 @@ const styles = StyleSheet.create({
     // ── Sync Card ──
     syncCard: {
         flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-        backgroundColor: '#FFFFFF', borderRadius: 24, padding: 16, marginBottom: 14,
-        shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.02, shadowRadius: 8, elevation: 2,
+        backgroundColor: '#FFFFFF', borderRadius: radius.lg, padding: 16, marginBottom: 14,
+        ...shadows.card,
         overflow: 'hidden', borderWidth: 1, borderColor: '#E2E8F0',
     },
     syncCardConnected: { borderColor: '#DCFCE7' },
@@ -2217,8 +2184,8 @@ const styles = StyleSheet.create({
 
     // ── Generic Card ──
     card: {
-        backgroundColor: '#FFFFFF', borderRadius: 28, padding: 24,
-        shadowColor: '#6366F1', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.06, shadowRadius: 20, elevation: 4,
+        backgroundColor: '#FFFFFF', borderRadius: radius.lg, padding: 24,
+        ...shadows.md,
     },
     cardTitle: { fontSize: 16, fontWeight: '800', color: '#1E293B' },
     toggleBadge: { backgroundColor: 'rgba(99,102,241,0.1)', paddingHorizontal: 14, paddingVertical: 7, borderRadius: 10 },
@@ -2228,7 +2195,7 @@ const styles = StyleSheet.create({
     submitBtn: {
         borderRadius: 18, paddingVertical: 16, alignItems: 'center', marginTop: 20,
         overflow: 'hidden',
-        shadowColor: '#6366F1', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 10, elevation: 6,
+        ...shadows.md,
     },
     submitBtnText: { color: '#FFF', fontSize: 15, fontWeight: '700', letterSpacing: 0.3 },
     errorBanner: {
@@ -2240,9 +2207,9 @@ const styles = StyleSheet.create({
 
     // ── Empty State ──
     emptyCard: {
-        backgroundColor: '#FFFFFF', borderRadius: 24, padding: 28,
+        backgroundColor: '#FFFFFF', borderRadius: radius.lg, padding: 28,
         alignItems: 'center', borderWidth: 1, borderColor: '#E2E8F0',
-        shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.02, shadowRadius: 10, elevation: 2,
+        ...shadows.card,
     },
     emptyIconBox: {
         width: 56, height: 56, borderRadius: 18, backgroundColor: '#F1F5F9',
@@ -2257,11 +2224,7 @@ const styles = StyleSheet.create({
         right: 20,
         bottom: 20,
         borderRadius: 25,
-        shadowColor: '#6366F1',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.3,
-        shadowRadius: 12,
-        elevation: 6,
+        ...shadows.md,
         overflow: 'hidden',
     },
     floatingCoachGradient: {

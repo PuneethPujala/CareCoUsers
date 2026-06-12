@@ -13,7 +13,7 @@ import {
     Shield, Droplets, Calendar, User, Trash2, ShieldCheck as ShieldCheckIcon, Smartphone,
     Mail, TrendingUp
 } from 'lucide-react-native';
-import { colors, layout } from '../../theme';
+import { colors, layout, spacing, radius, shadows } from '../../theme';
 import { useAuth } from '../../context/AuthContext';
 import { apiService } from '../../lib/api';
 import { registerForPushNotificationsAsync } from '../../utils/notifications';
@@ -29,12 +29,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { handleAvatarPicker, deleteOldAvatar, pickRawImage, uploadCroppedAvatar } from '../../utils/avatarHelper';
 import AvatarSelectModal from '../../components/ui/AvatarSelectModal';
 import AvatarCropModal from '../../components/ui/AvatarCropModal';
-const C = {
-    primary: '#6366F1', primarySoft: '#EEF2FF', dark: '#0F172A', mid: '#334155',
-    muted: '#94A3B8', light: '#CBD5E1', border: '#F1F5F9', pageBg: '#F8FAFC',
-    white: '#FFFFFF', success: '#22C55E', successBg: '#F0FDF4', warning: '#F59E0B',
-    warningBg: '#FFFBEB', danger: '#EF4444', dangerBg: '#FFF1F2',
-};
+// Local constant C deprecated in favor of theme colors
 
 const GENDER_OPTIONS = ['male', 'female', 'other', 'prefer_not_to_say'];
 const GENDER_LABELS = { male: 'Male', female: 'Female', other: 'Other', prefer_not_to_say: 'Prefer not to say' };
@@ -617,15 +612,22 @@ export default function PatientProfileScreen({ navigation }) {
 
     /* ── Reusable Row ─────────────────────────── */
     const InfoRow = ({ icon: Icon, iconBg, iconColor, label, value, placeholder, onPress, rightElement, isLast }) => (
-        <Pressable style={[s.infoRow, isLast && { borderBottomWidth: 0 }]} onPress={onPress}>
+        <Pressable 
+            style={({ pressed }) => [
+                s.infoRow, 
+                isLast && { borderBottomWidth: 0 },
+                pressed && { backgroundColor: colors.background }
+            ]} 
+            onPress={onPress}
+        >
             <View style={[s.iconBox, { backgroundColor: iconBg }]}>
                 <Icon size={20} color={iconColor} strokeWidth={2} />
             </View>
             <View style={s.infoTextCol}>
                 <Text style={s.infoLabel}>{label}</Text>
-                <Text style={[s.infoValue, !value && { color: C.muted }]} numberOfLines={1}>{value || placeholder}</Text>
+                <Text style={[s.infoValue, !value && { color: colors.textMuted }]} numberOfLines={1}>{value || placeholder}</Text>
             </View>
-            {rightElement || <ChevronRight size={18} color={C.light} />}
+            {rightElement || <ChevronRight size={18} color={colors.borderLight} />}
         </Pressable>
     );
 
@@ -673,7 +675,7 @@ export default function PatientProfileScreen({ navigation }) {
                 <SkeletonItem width={150} height={28} borderRadius={12} style={{ marginBottom: 24 }} />
                 
                 {/* Profile Card Skeleton */}
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 24, padding: 16, backgroundColor: '#FFFFFF', borderRadius: 24 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 24, padding: 16, backgroundColor: '#FFFFFF', borderRadius: radius.lg }}>
                     <SkeletonItem width={60} height={60} borderRadius={30} style={{ marginRight: 16 }} />
                     <View>
                         <SkeletonItem width={140} height={20} borderRadius={10} style={{ marginBottom: 8 }} />
@@ -738,7 +740,7 @@ export default function PatientProfileScreen({ navigation }) {
                 {/* ── CareMyMed Plan Banner (Upgrade hidden) ── */}
                 <Animated.View style={anim(2)}>
                     <Text style={s.sectionTitle}>{t('profile.caremymed_plan', { defaultValue: 'CareMyMed PLAN' })}</Text>
-                    <Pressable style={s.premiumCard} onPress={() => navigation.navigate('PremiumShowcase', { isRenewal: !!patient?.subscription?.expires_at })}>
+                    <Pressable style={({ pressed }) => [s.premiumCard, pressed && { opacity: 0.8 }]} onPress={() => navigation.navigate('PremiumShowcase', { isRenewal: !!patient?.subscription?.expires_at })}>
                         <View style={s.premiumLeft}>
                             <View style={s.starBadge}><Star size={18} color="#FFF" fill="#FFF" /></View>
                             <View style={{ flexShrink: 1 }}>
@@ -758,9 +760,9 @@ export default function PatientProfileScreen({ navigation }) {
                     <View style={s.card}>
                         <InfoRow icon={User} iconBg="#EFF6FF" iconColor="#3B82F6" label={t('profile.full_name', { defaultValue: 'Full Name' })} value={patient?.name || displayName} placeholder={t('profile.add_name', { defaultValue: 'Add Name' })} onPress={() => { setEditName(patient?.name || ''); setEditAccountModalVisible(true); }} />
                         <InfoRow icon={Phone} iconBg="#F0FDF4" iconColor="#22C55E" label={t('profile.phone_number', { defaultValue: 'Phone Number' })} value={patient?.phone} placeholder={t('profile.add_phone', { defaultValue: 'Add Phone' })} onPress={() => { const p = parsePhoneWithCode(patient?.phone || ''); setEditPhoneCode(p.code); setEditPhone(p.number); setPhoneModalVisible(true); }}
-                            rightElement={patient?.phone ? <View style={s.verifiedBadge}><ShieldCheck size={16} color={C.success} /></View> : <ChevronRight size={18} color={C.light} />}
+                            rightElement={patient?.phone ? <View style={s.verifiedBadge}><ShieldCheck size={16} color={colors.success} /></View> : <ChevronRight size={18} color={colors.borderLight} />}
                         />
-                        <InfoRow icon={Mail} iconBg="#EFF6FF" iconColor="#6366F1" label={t('profile.email_address', { defaultValue: 'Email Address' })} value={userEmail} placeholder={t('profile.add_email', { defaultValue: 'Add Email' })} onPress={() => AlertManager.alert(t('profile.email_locked_title', { defaultValue: 'Email Locked' }), t('profile.email_locked_desc', { defaultValue: 'Your email is linked to your login credentials and cannot be changed. Contact support if you need assistance.' }))} rightElement={<View style={s.verifiedBadge}><LockIcon size={14} color={C.muted} /></View>} />
+                        <InfoRow icon={Mail} iconBg="#EFF6FF" iconColor="#6366F1" label={t('profile.email_address', { defaultValue: 'Email Address' })} value={userEmail} placeholder={t('profile.add_email', { defaultValue: 'Add Email' })} onPress={() => AlertManager.alert(t('profile.email_locked_title', { defaultValue: 'Email Locked' }), t('profile.email_locked_desc', { defaultValue: 'Your email is linked to your login credentials and cannot be changed. Contact support if you need assistance.' }))} rightElement={<View style={s.verifiedBadge}><LockIcon size={14} color={colors.textMuted} /></View>} />
                         <InfoRow icon={Calendar} iconBg="#EFF6FF" iconColor="#3B82F6" label={t('profile.dob', { defaultValue: 'Date of Birth' })} value={dobStr} placeholder={t('profile.add_dob', { defaultValue: 'Add DOB' })} onPress={() => setDobModalVisible(true)} />
                         <InfoRow icon={Users} iconBg="#EEF2FF" iconColor="#6366F1" label={t('profile.gender', { defaultValue: 'Gender' })} value={genderStr} placeholder={t('profile.not_specified', { defaultValue: 'Not specified' })} onPress={() => setGenderModalVisible(true)} />
                         <InfoRow icon={Droplets} iconBg="#FFF1F2" iconColor="#EF4444" label={t('profile.blood_group', { defaultValue: 'Blood Group' })} value={bloodStr} placeholder={t('profile.add_blood_group', { defaultValue: 'Add Blood Group' })} onPress={() => setBloodModalVisible(true)} />
@@ -806,7 +808,7 @@ export default function PatientProfileScreen({ navigation }) {
                             </View>
                             <View style={s.infoTextCol}>
                                 <Text style={s.infoLabel}>{t('profile.push_notifications', { defaultValue: 'Push Notifications' })}</Text>
-                                <Text style={[s.infoValue, { color: C.muted }]}>{pushEnabled ? t('profile.enabled', { defaultValue: 'Enabled' }) : t('profile.disabled', { defaultValue: 'Disabled' })}</Text>
+                                <Text style={[s.infoValue, { color: colors.textMuted }]}>{pushEnabled ? t('profile.enabled', { defaultValue: 'Enabled' }) : t('profile.disabled', { defaultValue: 'Disabled' })}</Text>
                             </View>
                             <Switch
                                 trackColor={{ false: '#E2E8F0', true: '#818CF8' }}
@@ -821,7 +823,7 @@ export default function PatientProfileScreen({ navigation }) {
                             </View>
                             <View style={s.infoTextCol}>
                                 <Text style={s.infoLabel}>{t('profile.medicine_reminders', { defaultValue: 'Medicine Reminders' })}</Text>
-                                <Text style={[s.infoValue, { color: C.muted }]}>{medReminders ? t('common.on', { defaultValue: 'On' }) : t('common.off', { defaultValue: 'Off' })}</Text>
+                                <Text style={[s.infoValue, { color: colors.textMuted }]}>{medReminders ? t('common.on', { defaultValue: 'On' }) : t('common.off', { defaultValue: 'Off' })}</Text>
                             </View>
                             <Switch
                                 trackColor={{ false: '#E2E8F0', true: '#818CF8' }}
@@ -854,7 +856,7 @@ export default function PatientProfileScreen({ navigation }) {
                             </View>
                             <View style={s.infoTextCol}>
                                 <Text style={s.infoLabel}>{t('profile.allow_screenshots', { defaultValue: 'Allow Screenshots' })}</Text>
-                                <Text style={[s.infoValue, { color: C.muted }]}>{patient?.allow_screenshots !== false ? t('profile.allowed', { defaultValue: 'Allowed' }) : t('profile.blocked_secure', { defaultValue: 'Blocked (Secure)' })}</Text>
+                                <Text style={[s.infoValue, { color: colors.textMuted }]}>{patient?.allow_screenshots !== false ? t('profile.allowed', { defaultValue: 'Allowed' }) : t('profile.blocked_secure', { defaultValue: 'Blocked (Secure)' })}</Text>
                             </View>
                             <Switch
                                 trackColor={{ false: '#E2E8F0', true: '#818CF8' }}
@@ -908,8 +910,8 @@ export default function PatientProfileScreen({ navigation }) {
                             }}
                             rightElement={
                                 mfaEnabled ?
-                                    <View style={s.verifiedBadge}><ShieldCheckIcon size={16} color={C.success} /></View> :
-                                    <ChevronRight size={18} color={C.light} />
+                                    <View style={s.verifiedBadge}><ShieldCheckIcon size={16} color={colors.success} /></View> :
+                                    <ChevronRight size={18} color={colors.borderLight} />
                             }
                         />
 
@@ -931,7 +933,10 @@ export default function PatientProfileScreen({ navigation }) {
                                 }
                             } catch (e) {
                                 console.warn('Export failed:', e);
-                                AlertManager.alert(t('common.error', { defaultValue: 'Error' }), 'Failed to generate image.');
+                                const errorMsg = String(e?.message || e);
+                                if (!errorMsg.toLowerCase().includes('cancel') && !errorMsg.toLowerCase().includes('dismiss')) {
+                                    AlertManager.alert(t('common.error', { defaultValue: 'Error' }), 'Failed to generate image.');
+                                }
                             } finally {
                                 setIsSharing(false);
                             }
@@ -964,7 +969,10 @@ export default function PatientProfileScreen({ navigation }) {
                                     }
                                 } catch (e) {
                                     console.warn('JSON export failed:', e);
-                                    AlertManager.alert(t('common.error', { defaultValue: 'Error' }), 'Failed to export health data.');
+                                    const errorMsg = String(e?.message || e);
+                                    if (!errorMsg.toLowerCase().includes('cancel') && !errorMsg.toLowerCase().includes('dismiss')) {
+                                        AlertManager.alert(t('common.error', { defaultValue: 'Error' }), 'Failed to export health data: ' + (e.response?.data?.error || e.response?.data?.message || e.message || e));
+                                    }
                                 } finally {
                                     setIsExporting(false);
                                 }
@@ -991,9 +999,9 @@ export default function PatientProfileScreen({ navigation }) {
                             </View>
                             <View style={s.infoTextCol}>
                                 <Text style={s.infoLabel}>{t('profile.sign_out', { defaultValue: 'Sign Out' })}</Text>
-                                <Text style={[s.infoValue, { color: C.muted }]}>{t('profile.sign_out_desc', { defaultValue: 'Log out of your account' })}</Text>
+                                <Text style={[s.infoValue, { color: colors.textMuted }]}>{t('profile.sign_out_desc', { defaultValue: 'Log out of your account' })}</Text>
                             </View>
-                            <ChevronRight size={18} color={C.light} />
+                            <ChevronRight size={18} color={colors.borderLight} />
                         </Pressable>
                         <Pressable
                             style={[s.infoRow, accountActionLoading && { opacity: 0.6 }]}
@@ -1029,9 +1037,9 @@ export default function PatientProfileScreen({ navigation }) {
                             </View>
                             <View style={s.infoTextCol}>
                                 <Text style={s.infoLabel}>{t('profile.deactivate', { defaultValue: 'Deactivate Account' })}</Text>
-                                <Text style={[s.infoValue, { color: C.muted }]}>{t('profile.deactivate_sub', { defaultValue: 'Pause your account temporarily' })}</Text>
+                                <Text style={[s.infoValue, { color: colors.textMuted }]}>{t('profile.deactivate_sub', { defaultValue: 'Pause your account temporarily' })}</Text>
                             </View>
-                            <ChevronRight size={18} color={C.light} />
+                            <ChevronRight size={18} color={colors.borderLight} />
                         </Pressable>
                         <Pressable
                             style={[s.infoRow, { borderBottomWidth: 0 }, accountActionLoading && { opacity: 0.6 }]}
@@ -1066,9 +1074,9 @@ export default function PatientProfileScreen({ navigation }) {
                             </View>
                             <View style={s.infoTextCol}>
                                 <Text style={[s.infoLabel, { color: '#DC2626' }]}>{t('profile.delete_account', { defaultValue: 'Delete Account Permanently' })}</Text>
-                                <Text style={[s.infoValue, { color: C.muted }]}>{t('profile.delete_account_desc', { defaultValue: 'Erase all data forever' })}</Text>
+                                <Text style={[s.infoValue, { color: colors.textMuted }]}>{t('profile.delete_account_desc', { defaultValue: 'Erase all data forever' })}</Text>
                             </View>
-                            <ChevronRight size={18} color={C.light} />
+                            <ChevronRight size={18} color={colors.borderLight} />
                         </Pressable>
                     </View>
                     <Pressable
@@ -1144,7 +1152,7 @@ export default function PatientProfileScreen({ navigation }) {
                         {GENDER_OPTIONS.map(g => (
                             <Pressable key={g} style={[s.optionRow, patient?.gender === g && s.optionRowActive]} onPress={() => handleSelectGender(g)}>
                                 <Text style={[s.optionTxt, patient?.gender === g && s.optionTxtActive]}>{GENDER_LABELS[g]}</Text>
-                                {patient?.gender === g && <ShieldCheck size={18} color={C.primary} />}
+                                {patient?.gender === g && <ShieldCheck size={18} color={colors.primary} />}
                             </Pressable>
                         ))}
                     </Pressable>
@@ -1184,7 +1192,7 @@ export default function PatientProfileScreen({ navigation }) {
                     <Pressable style={s.countryCodeBtn} onPress={() => openCountryCodePicker('personal')}>
                         <Text style={s.countryCodeFlag}>{COUNTRY_CODES.find(c => c.code === editPhoneCode)?.flag || '🌍'}</Text>
                         <Text style={s.countryCodeTxt}>{editPhoneCode}</Text>
-                        <ChevronDown size={14} color={C.muted} />
+                        <ChevronDown size={14} color={colors.textMuted} />
                     </Pressable>
                     <SmartInput value={editPhone} onChangeText={(t) => setEditPhone(t.replace(/[^0-9]/g, ''))} placeholder="Phone number" keyboardType="phone-pad" maxLength={COUNTRY_CODES.find(c => c.code === editPhoneCode)?.maxDigits || 12} style={{ flex: 1 }} />
                 </View>
@@ -1205,7 +1213,7 @@ export default function PatientProfileScreen({ navigation }) {
                     <Pressable style={s.countryCodeBtn} onPress={() => openCountryCodePicker('ec')}>
                         <Text style={s.countryCodeFlag}>{COUNTRY_CODES.find(c => c.code === ecPhoneCode)?.flag || '🌍'}</Text>
                         <Text style={s.countryCodeTxt}>{ecPhoneCode}</Text>
-                        <ChevronDown size={14} color={C.muted} />
+                        <ChevronDown size={14} color={colors.textMuted} />
                     </Pressable>
                     <SmartInput value={ecPhone} onChangeText={(t) => setEcPhone(t.replace(/[^0-9]/g, ''))} placeholder={t('caller.phone_placeholder', { defaultValue: 'Phone number' })} keyboardType="phone-pad" maxLength={COUNTRY_CODES.find(c => c.code === ecPhoneCode)?.maxDigits || 12} style={{ flex: 1 }} />
                 </View>
@@ -1387,7 +1395,7 @@ export default function PatientProfileScreen({ navigation }) {
                         {LANGUAGES.map(lang => (
                             <Pressable key={lang.code} style={[s.optionRow, selectedLang === lang.code && s.optionRowActive]} onPress={() => handleSelectLanguage(lang.code)}>
                                 <Text style={[s.optionTxt, selectedLang === lang.code && s.optionTxtActive]}>{lang.label}</Text>
-                                {selectedLang === lang.code && <ShieldCheck size={18} color={C.primary} />}
+                                {selectedLang === lang.code && <ShieldCheck size={18} color={colors.primary} />}
                             </Pressable>
                         ))}
                     </View>
@@ -1404,7 +1412,7 @@ export default function PatientProfileScreen({ navigation }) {
                         </View>
                         {savedAddresses.length === 0 ? (
                             <View style={s.emptyState}>
-                                <MapPin size={40} color={C.light} />
+                                <MapPin size={40} color={colors.borderLight} />
                                 <Text style={s.emptyTitle}>{t('common.no_addresses_saved', { defaultValue: 'No addresses saved' })}</Text>
                                 <Text style={s.emptyDesc}>{t('profile.no_addresses_desc', { defaultValue: 'Add your home, office, or family addresses for quick access.' })}</Text>
                             </View>
@@ -1420,13 +1428,13 @@ export default function PatientProfileScreen({ navigation }) {
                                             </View>
                                         </View>
                                         <Pressable onPress={() => AlertManager.alert(t('profile.delete_address_title', { defaultValue: 'Delete Address?' }), t('common.cannot_be_undone', { defaultValue: 'This cannot be undone.' }), [{ text: t('common.cancel', { defaultValue: 'Cancel' }) }, { text: t('common.delete', { defaultValue: 'Delete' }), style: 'destructive', onPress: () => handleDeleteAddress(addr._id) }])} hitSlop={8}>
-                                            <X size={18} color={C.danger} />
+                                            <X size={18} color={colors.danger} />
                                         </Pressable>
                                     </View>
                                 ))}
                             </ScrollView>
                         )}
-                        <Pressable style={s.saveBtn} onPress={() => { setAddressModalVisible(false); setAddAddressModalVisible(true); }}>
+                        <Pressable style={({ pressed }) => [s.saveBtn, pressed && { opacity: 0.8 }]} onPress={() => { setAddressModalVisible(false); setAddAddressModalVisible(true); }}>
                             <MapPin size={18} color="#FFFFFF" />
                             <Text style={s.saveBtnTxt}>{t('profile.add_new_address', { defaultValue: 'Add New Address' })}</Text>
                         </Pressable>
@@ -1538,7 +1546,7 @@ export default function PatientProfileScreen({ navigation }) {
                                                     </View>
                                                 </View>
                                                 <Pressable onPress={() => AlertManager.alert('Revoke Access?', 'They will no longer be able to monitor your adherence.', [{ text: 'Cancel' }, { text: 'Revoke', style: 'destructive', onPress: () => handleRevokeCompanion(comp._id) }])} hitSlop={8}>
-                                                    <X size={18} color={C.danger} />
+                                                    <X size={18} color={colors.danger} />
                                                 </Pressable>
                                             </View>
                                         );
@@ -1546,16 +1554,16 @@ export default function PatientProfileScreen({ navigation }) {
                                 </View>
                             ) : (
                                 <View style={s.emptyState}>
-                                    <Users size={40} color={C.light} />
+                                    <Users size={40} color={colors.borderLight} />
                                     <Text style={s.emptyTitle}>{t('common.no_companions_yet', { defaultValue: 'No family companions yet' })}</Text>
                                     <Text style={s.emptyDesc}>{t('profile.companion_empty_desc', { defaultValue: 'Invite family members so they can monitor your adherence and receive alerts if you miss your medication.' })}</Text>
                                 </View>
                             )}
 
                             {(inviteCode || (patient?.invite_code && new Date(patient.invite_code_expires_at) > new Date())) ? (
-                                <View style={[s.card, { backgroundColor: C.primarySoft, borderColor: C.primary, borderWidth: 1, padding: 20, alignItems: 'center' }]}>
-                                    <Text style={{ fontSize: 14, ...FONT.medium, color: C.primary, marginBottom: 8 }}>Your Invite Code (Expires in 24h)</Text>
-                                    <Text style={{ fontSize: 32, ...FONT.heavy, color: C.primary, letterSpacing: 4, marginBottom: 12 }}>{inviteCode || patient.invite_code}</Text>
+                                <View style={[s.card, { backgroundColor: colors.primarySoft, borderColor: colors.primary, borderWidth: 1, padding: 20, alignItems: 'center' }]}>
+                                    <Text style={{ fontSize: 14, ...FONT.medium, color: colors.primary, marginBottom: 8 }}>Your Invite Code (Expires in 24h)</Text>
+                                    <Text style={{ fontSize: 32, ...FONT.heavy, color: colors.primary, letterSpacing: 4, marginBottom: 12 }}>{inviteCode || patient.invite_code}</Text>
                                     
                                     <Pressable 
                                         style={[s.saveBtn, { width: '100%', marginTop: 4, marginBottom: 12 }]} 
@@ -1574,12 +1582,12 @@ export default function PatientProfileScreen({ navigation }) {
                                         <Text style={s.saveBtnTxt}>Share Invite Code</Text>
                                     </Pressable>
                                     
-                                    <Text style={{ fontSize: 13, color: C.mid, textAlign: 'center' }}>Your family member can use this code to join as a companion on the login screen.</Text>
+                                    <Text style={{ fontSize: 13, color: colors.textSecondary, textAlign: 'center' }}>Your family member can use this code to join as a companion on the login screen.</Text>
                                 </View>
                             ) : (
-                                <Pressable style={[s.saveBtn, { backgroundColor: C.primarySoft, marginTop: 10 }]} onPress={handleGenerateInvite} disabled={generatingInvite}>
-                                    <ShieldCheck size={18} color={C.primary} />
-                                    <Text style={[s.saveBtnTxt, { color: C.primary }]}>{generatingInvite ? 'Generating...' : t('profile.generate_invite_code', { defaultValue: 'Generate Invite Code' })}</Text>
+                                <Pressable style={[s.saveBtn, { backgroundColor: colors.primarySoft, marginTop: 10 }]} onPress={handleGenerateInvite} disabled={generatingInvite}>
+                                    <ShieldCheck size={18} color={colors.primary} />
+                                    <Text style={[s.saveBtnTxt, { color: colors.primary }]}>{generatingInvite ? 'Generating...' : t('profile.generate_invite_code', { defaultValue: 'Generate Invite Code' })}</Text>
                                 </Pressable>
                             )}
                         </ScrollView>
@@ -1604,10 +1612,10 @@ export default function PatientProfileScreen({ navigation }) {
                                             <Text style={{ fontSize: 22 }}>{cc.flag}</Text>
                                             <View>
                                                 <Text style={[s.optionTxt, isSelected && s.optionTxtActive]}>{cc.name}</Text>
-                                                <Text style={{ fontSize: 13, color: C.muted, fontWeight: '600', marginTop: 2 }}>{cc.code}</Text>
+                                                <Text style={{ fontSize: 13, color: colors.textMuted, fontWeight: '600', marginTop: 2 }}>{cc.code}</Text>
                                             </View>
                                         </View>
-                                        {isSelected && <ShieldCheck size={18} color={C.primary} />}
+                                        {isSelected && <ShieldCheck size={18} color={colors.primary} />}
                                     </Pressable>
                                 );
                             })}
@@ -1729,14 +1737,14 @@ export default function PatientProfileScreen({ navigation }) {
 
 /* ════════════════════  STYLES  ════════════════════ */
 const s = StyleSheet.create({
-    container: { flex: 1, backgroundColor: C.pageBg },
+    container: { flex: 1, backgroundColor: colors.background },
 
     /* Header */
-    header: { paddingTop: Platform.OS === 'ios' ? 70 : 50, paddingHorizontal: 24, paddingBottom: 16, backgroundColor: C.pageBg, elevation: 0, shadowOpacity: 0 },
+    header: { paddingTop: Platform.OS === 'ios' ? 70 : 50, paddingHorizontal: spacing.screen, paddingBottom: 16, backgroundColor: colors.background, elevation: 0, shadowOpacity: 0 },
     headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
     headerLeft: { flex: 1 },
-    heroLabel: { fontSize: 13, fontWeight: '800', color: C.primary, letterSpacing: 1.5, marginBottom: 4 },
-    headerTitle: { fontSize: 32, fontWeight: '800', color: C.dark, letterSpacing: -1 },
+    heroLabel: { fontSize: 13, fontWeight: '800', color: colors.primary, letterSpacing: 1.5, marginBottom: 4 },
+    headerTitle: { fontSize: 32, fontWeight: '800', color: colors.textPrimary, letterSpacing: -1 },
     headerBtn: {
         width: 42, height: 42, borderRadius: 21,
         backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0',
@@ -1746,127 +1754,127 @@ const s = StyleSheet.create({
 
     /* Scroll */
     scroll: { flex: 1 },
-    scrollContent: { paddingHorizontal: 20, paddingBottom: layout.TAB_BAR_CLEARANCE, paddingTop: 8 },
+    scrollContent: { paddingHorizontal: spacing.screen, paddingBottom: layout.TAB_BAR_CLEARANCE, paddingTop: 8 },
 
     /* Profile Card */
-    profileCard: { backgroundColor: C.white, borderRadius: 24, padding: 20, marginBottom: 24, shadowColor: '#4361EE', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.06, shadowRadius: 16, elevation: 4 },
+    profileCard: { backgroundColor: colors.surface, borderRadius: radius.xl, padding: 20, marginBottom: 24, ...shadows.card },
     profileMain: { flexDirection: 'row', alignItems: 'center' },
-    avatar: { width: 64, height: 64, borderRadius: 32, backgroundColor: C.primarySoft, alignItems: 'center', justifyContent: 'center', borderWidth: 2.5, borderColor: 'rgba(99,102,241,0.1)' },
+    avatar: { width: 64, height: 64, borderRadius: 32, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center', borderWidth: 2.5, borderColor: 'rgba(99,102,241,0.1)' },
     avatarImg: { width: 59, height: 59, borderRadius: 29.5 },
-    avatarTxt: { fontSize: 26, fontWeight: '800', color: C.primary },
-    editBadge: { position: 'absolute', bottom: -2, right: -2, width: 22, height: 22, borderRadius: 11, backgroundColor: C.primary, alignItems: 'center', justifyContent: 'center', borderWidth: 2.5, borderColor: '#FFF' },
+    avatarTxt: { fontSize: 26, fontWeight: '800', color: colors.primary },
+    editBadge: { position: 'absolute', bottom: -2, right: -2, width: 22, height: 22, borderRadius: 11, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center', borderWidth: 2.5, borderColor: '#FFF' },
     profileInfo: { flex: 1, marginLeft: 16 },
-    profileName: { fontSize: 20, fontWeight: '800', color: C.dark },
-    profileEmail: { fontSize: 13, color: C.muted, marginTop: 3, fontWeight: '500' },
+    profileName: { fontSize: 20, fontWeight: '800', color: colors.textPrimary },
+    profileEmail: { fontSize: 13, color: colors.textMuted, marginTop: 3, fontWeight: '500' },
 
     /* Section Title */
-    sectionTitle: { fontSize: 12, fontWeight: '800', color: C.muted, letterSpacing: 1.5, marginBottom: 12, marginLeft: 4, marginTop: 8 },
+    sectionTitle: { fontSize: 12, fontWeight: '800', color: colors.textMuted, letterSpacing: 1.5, marginBottom: 12, marginLeft: 4, marginTop: 8 },
 
     /* Premium Card */
-    premiumCard: { backgroundColor: C.white, borderRadius: 20, padding: 16, marginBottom: 24, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', shadowColor: '#4361EE', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 3 },
+    premiumCard: { backgroundColor: colors.surface, borderRadius: radius.lg, padding: 16, marginBottom: 24, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', ...shadows.card },
     premiumLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1, flexShrink: 1 },
-    starBadge: { width: 40, height: 40, borderRadius: 14, backgroundColor: '#F59E0B', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-    premiumPlan: { fontSize: 15, fontWeight: '700', color: C.dark },
-    premiumSub: { fontSize: 12, color: C.muted, fontWeight: '500', marginTop: 2 },
-    premiumBtn: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, flexShrink: 0, marginLeft: 8 },
+    starBadge: { width: 40, height: 40, borderRadius: radius.md, backgroundColor: '#F59E0B', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+    premiumPlan: { fontSize: 15, fontWeight: '700', color: colors.textPrimary },
+    premiumSub: { fontSize: 12, color: colors.textMuted, fontWeight: '500', marginTop: 2 },
+    premiumBtn: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: radius.md, flexShrink: 0, marginLeft: 8 },
     premiumBtnTxt: { fontSize: 13, fontWeight: '800' },
 
     /* Phone Input with Country Code */
     phoneInputRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-    countryCodeBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#F1F5F9', borderRadius: 16, paddingHorizontal: 14, paddingVertical: 14, minWidth: 100 },
+    countryCodeBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#F1F5F9', borderRadius: radius.lg, paddingHorizontal: 14, paddingVertical: 14, minWidth: 100 },
     countryCodeFlag: { fontSize: 20 },
-    countryCodeTxt: { fontSize: 15, fontWeight: '700', color: C.dark },
+    countryCodeTxt: { fontSize: 15, fontWeight: '700', color: colors.textPrimary },
 
     /* Card Group */
-    card: { backgroundColor: C.white, borderRadius: 20, marginBottom: 24, shadowColor: '#4361EE', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 3, overflow: 'hidden' },
+    card: { backgroundColor: colors.surface, borderRadius: radius.lg, marginBottom: 24, ...shadows.card, overflow: 'hidden' },
 
     /* Info Row */
-    infoRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 16, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: C.border },
-    iconBox: { width: 40, height: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginRight: 14 },
+    infoRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 16, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: colors.borderLight },
+    iconBox: { width: 40, height: 40, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', marginRight: 14 },
     infoTextCol: { flex: 1 },
-    infoLabel: { fontSize: 15, fontWeight: '700', color: C.dark },
-    infoValue: { fontSize: 13, color: C.muted, marginTop: 2, fontWeight: '500' },
-    verifiedBadge: { width: 28, height: 28, borderRadius: 14, backgroundColor: C.successBg, alignItems: 'center', justifyContent: 'center' },
+    infoLabel: { fontSize: 15, fontWeight: '700', color: colors.textPrimary },
+    infoValue: { fontSize: 13, color: colors.textMuted, marginTop: 2, fontWeight: '500' },
+    verifiedBadge: { width: 28, height: 28, borderRadius: radius.md, backgroundColor: colors.successLight, alignItems: 'center', justifyContent: 'center' },
 
     /* Logout */
-    logoutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, backgroundColor: '#FFF1F2', paddingVertical: 18, borderRadius: 100, marginTop: 16, borderWidth: 1.5, borderColor: '#FFE4E6' },
+    logoutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, backgroundColor: '#FFF1F2', paddingVertical: 18, borderRadius: radius.button, marginTop: 16, borderWidth: 1.5, borderColor: '#FFE4E6' },
     logoutTxt: { fontSize: 16, fontWeight: '800', color: '#E11D48' },
-    versionTxt: { textAlign: 'center', color: C.muted, fontSize: 12, marginTop: 20, fontWeight: '600' },
+    versionTxt: { textAlign: 'center', color: colors.textMuted, fontSize: 12, marginTop: 20, fontWeight: '600' },
 
     /* Modals */
     modalOverlay: { flex: 1, backgroundColor: 'rgba(15,23,42,0.6)', justifyContent: 'flex-end' },
-    modalContent: { backgroundColor: C.white, borderTopLeftRadius: 36, borderTopRightRadius: 36, padding: 24, paddingBottom: 40, maxHeight: '85%' },
+    modalContent: { backgroundColor: colors.surface, borderTopLeftRadius: 36, borderTopRightRadius: 36, padding: 24, paddingBottom: 40, maxHeight: '85%' },
     centeredOverlay: { flex: 1, backgroundColor: 'rgba(15,23,42,0.6)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
-    centeredContent: { backgroundColor: C.white, borderRadius: 28, padding: 24, width: '100%', maxWidth: 420 },
+    centeredContent: { backgroundColor: colors.surface, borderRadius: radius.lg, padding: 24, width: '100%', maxWidth: 420 },
     modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
-    modalTitle: { fontSize: 22, fontWeight: '800', color: C.dark },
-    modalSubTxt: { fontSize: 14, color: C.muted, marginBottom: 20 },
-    inputLabel: { fontSize: 13, fontWeight: '700', color: C.mid, marginBottom: 8, marginTop: 16, marginLeft: 2 },
-    input: { backgroundColor: '#FAFBFF', borderWidth: 1.5, borderColor: '#E2E8F0', borderRadius: 20, paddingHorizontal: 16, paddingVertical: 12, fontSize: 15, color: '#0F172A', fontWeight: '600', height: 48 },
-    saveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: C.primary, borderRadius: 100, paddingVertical: 16, marginTop: 32, shadowColor: C.primary, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.2, shadowRadius: 12, elevation: 8 },
+    modalTitle: { fontSize: 22, fontWeight: '800', color: colors.textPrimary },
+    modalSubTxt: { fontSize: 14, color: colors.textMuted, marginBottom: 20 },
+    inputLabel: { fontSize: 13, fontWeight: '700', color: colors.textSecondary, marginBottom: 8, marginTop: 16, marginLeft: 2 },
+    input: { backgroundColor: '#FAFBFF', borderWidth: 1.5, borderColor: '#E2E8F0', borderRadius: radius.md, paddingHorizontal: 16, paddingVertical: 12, fontSize: 15, color: '#0F172A', fontWeight: '600', height: 48 },
+    saveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: colors.primary, borderRadius: radius.button, paddingVertical: 16, marginTop: 32, shadowColor: colors.primary, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.2, shadowRadius: 12, elevation: 8 },
     saveBtnTxt: { color: '#FFFFFF', fontSize: 16, fontWeight: '800' },
 
     /* Detail Row */
     detailRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 14 },
-    detailLabel: { fontSize: 15, color: C.muted, fontWeight: '500' },
-    detailValue: { fontSize: 15, fontWeight: '700', color: C.dark },
-    line: { height: 1.5, backgroundColor: C.border, marginVertical: 4 },
+    detailLabel: { fontSize: 15, color: colors.textMuted, fontWeight: '500' },
+    detailValue: { fontSize: 15, fontWeight: '700', color: colors.textPrimary },
+    line: { height: 1.5, backgroundColor: colors.divider, marginVertical: spacing.md },
 
     /* Switch Rows */
     switchRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12 },
     switchTxtCol: { flex: 1, paddingRight: 16 },
-    switchTitle: { fontSize: 16, fontWeight: '700', color: C.dark, marginBottom: 4 },
-    switchDesc: { fontSize: 13, color: C.muted, fontWeight: '500', lineHeight: 18 },
+    switchTitle: { fontSize: 16, fontWeight: '700', color: colors.textPrimary, marginBottom: 4 },
+    switchDesc: { fontSize: 13, color: colors.textMuted, fontWeight: '500', lineHeight: 18 },
 
     /* Option Rows (Gender) */
-    optionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 16, paddingHorizontal: 16, borderRadius: 16, marginBottom: 8, backgroundColor: C.pageBg },
-    optionRowActive: { backgroundColor: C.primarySoft, borderWidth: 1.5, borderColor: C.primary },
-    optionTxt: { fontSize: 16, fontWeight: '600', color: C.mid },
-    optionTxtActive: { color: C.primary, fontWeight: '700' },
+    optionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 16, paddingHorizontal: 16, borderRadius: radius.lg, marginBottom: 8, backgroundColor: colors.background },
+    optionRowActive: { backgroundColor: colors.primarySoft, borderWidth: 1.5, borderColor: colors.primary },
+    optionTxt: { fontSize: 16, fontWeight: '600', color: colors.textSecondary },
+    optionTxtActive: { color: colors.primary, fontWeight: '700' },
 
     /* Blood Grid */
     bloodGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 8 },
-    bloodChip: { width: 72, height: 48, borderRadius: 16, backgroundColor: C.pageBg, alignItems: 'center', justifyContent: 'center' },
-    bloodChipActive: { backgroundColor: C.primarySoft, borderWidth: 1.5, borderColor: C.primary },
-    bloodChipTxt: { fontSize: 18, fontWeight: '700', color: C.mid },
-    bloodChipTxtActive: { color: C.primary },
+    bloodChip: { width: 72, height: 48, borderRadius: radius.lg, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center' },
+    bloodChipActive: { backgroundColor: colors.primarySoft, borderWidth: 1.5, borderColor: colors.primary },
+    bloodChipTxt: { fontSize: 18, fontWeight: '700', color: colors.textSecondary },
+    bloodChipTxtActive: { color: colors.primary },
 
     /* DOB Scroll Picker */
     pickerRow: { flexDirection: 'row', gap: 8, marginTop: 4 },
     pickerCol: { flex: 1 },
-    pickerLabel: { fontSize: 13, fontWeight: '700', color: C.muted, letterSpacing: 0.5, marginBottom: 8, textAlign: 'center' },
-    pickerScroll: { height: 200, backgroundColor: C.pageBg, borderRadius: 16, borderWidth: 1, borderColor: C.border },
-    pickerItem: { paddingVertical: 10, paddingHorizontal: 8, alignItems: 'center', borderRadius: 10, marginHorizontal: 4, marginVertical: 2 },
-    pickerItemActive: { backgroundColor: C.primary },
-    pickerItemTxt: { fontSize: 16, fontWeight: '600', color: C.mid },
+    pickerLabel: { fontSize: 13, fontWeight: '700', color: colors.textMuted, letterSpacing: 0.5, marginBottom: 8, textAlign: 'center' },
+    pickerScroll: { height: 200, backgroundColor: colors.background, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.borderLight },
+    pickerItem: { paddingVertical: 10, paddingHorizontal: 8, alignItems: 'center', borderRadius: radius.sm, marginHorizontal: 4, marginVertical: 2 },
+    pickerItemActive: { backgroundColor: colors.primary },
+    pickerItemTxt: { fontSize: 16, fontWeight: '600', color: colors.textSecondary },
     pickerItemTxtActive: { color: '#FFF', fontWeight: '800' },
-    pickerPreview: { backgroundColor: C.primarySoft, borderRadius: 16, padding: 14, marginTop: 16, alignItems: 'center' },
-    pickerPreviewTxt: { fontSize: 18, fontWeight: '800', color: C.primary, letterSpacing: 0.5 },
+    pickerPreview: { backgroundColor: colors.primarySoft, borderRadius: radius.lg, padding: 14, marginTop: 16, alignItems: 'center' },
+    pickerPreviewTxt: { fontSize: 18, fontWeight: '800', color: colors.primary, letterSpacing: 0.5 },
 
     /* Address */
-    addrCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 14, backgroundColor: C.pageBg, borderRadius: 16, marginBottom: 10 },
+    addrCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 14, backgroundColor: colors.background, borderRadius: radius.lg, marginBottom: 10 },
     addrCardLeft: { flexDirection: 'row', alignItems: 'center', flex: 1, gap: 10 },
-    addrLabel: { fontSize: 14, fontWeight: '700', color: C.dark },
-    addrLine: { fontSize: 12, color: C.muted, marginTop: 2, fontWeight: '500' },
+    addrLabel: { fontSize: 14, fontWeight: '700', color: colors.textPrimary },
+    addrLine: { fontSize: 12, color: colors.textMuted, marginTop: 2, fontWeight: '500' },
     labelRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
-    labelChip: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 14, backgroundColor: C.pageBg },
-    labelChipActive: { backgroundColor: C.primarySoft, borderWidth: 1.5, borderColor: C.primary },
-    labelChipTxt: { fontSize: 14, fontWeight: '600', color: C.mid },
-    labelChipTxtActive: { color: C.primary, fontWeight: '700' },
+    labelChip: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: radius.md, backgroundColor: colors.background },
+    labelChipActive: { backgroundColor: colors.primarySoft, borderWidth: 1.5, borderColor: colors.primary },
+    labelChipTxt: { fontSize: 14, fontWeight: '600', color: colors.textSecondary },
+    labelChipTxtActive: { color: colors.primary, fontWeight: '700' },
 
     /* Empty State */
     emptyState: { alignItems: 'center', paddingVertical: 32 },
-    emptyTitle: { fontSize: 17, fontWeight: '700', color: C.dark, marginTop: 16 },
-    emptyDesc: { fontSize: 14, color: C.muted, textAlign: 'center', marginTop: 8, lineHeight: 20, paddingHorizontal: 16 },
+    emptyTitle: { fontSize: 17, fontWeight: '700', color: colors.textPrimary, marginTop: 16 },
+    emptyDesc: { fontSize: 14, color: colors.textMuted, textAlign: 'center', marginTop: 8, lineHeight: 20, paddingHorizontal: 16 },
 
     /* Family Features */
     familyFeatures: { marginTop: 8, gap: 12 },
     featureRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-    featureTxt: { fontSize: 14, color: C.mid, fontWeight: '500' },
+    featureTxt: { fontSize: 14, color: colors.textSecondary, fontWeight: '500' },
     dobRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 },
     dobCol: { flex: 1, marginHorizontal: 4 },
     addrRow: { flexDirection: 'row', gap: 10, marginTop: 0 },
     addrCol: { flex: 1 },
-    fieldError: { fontSize: 12, color: C.danger, fontWeight: '600', marginTop: -6, marginBottom: 4, marginLeft: 2 },
-    closeBtn: { backgroundColor: '#F1F5F9', paddingVertical: 12, borderRadius: 12, alignItems: 'center', marginTop: 16 }
+    fieldError: { fontSize: 12, color: colors.danger, fontWeight: '600', marginTop: -6, marginBottom: 4, marginLeft: 2 },
+    closeBtn: { backgroundColor: '#F1F5F9', paddingVertical: 12, borderRadius: radius.md, alignItems: 'center', marginTop: 16 }
 });
