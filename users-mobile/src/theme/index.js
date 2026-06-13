@@ -160,4 +160,7 @@ export const layout = {
     TAB_BAR_CLEARANCE: 140, 
 };
 
-export default { colors, typography, radius, spacing, shadows, layout };
+import { motion, anim, useReduceMotion } from './motion';
+export { motion, anim, useReduceMotion };
+
+export default { colors, typography, radius, spacing, shadows, layout, motion, anim, useReduceMotion };

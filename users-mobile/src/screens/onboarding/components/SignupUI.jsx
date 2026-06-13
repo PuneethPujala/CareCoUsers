@@ -208,7 +208,7 @@ const OTPModal = React.memo(({ visible, onClose, otp, setOtp, onVerify, timer, r
                             onPress={onClose}
                             hitSlop={12}
                             disabled={otpLoading}
-                            style={styles.closeBtnBox}
+                            style={({ pressed }) => [styles.closeBtnBox, pressed && styles.pressed]}
                         >
                             <X size={18} color={C.mid} />
                         </Pressable>
@@ -244,7 +244,11 @@ const OTPModal = React.memo(({ visible, onClose, otp, setOtp, onVerify, timer, r
                         {timer > 0 ? (
                             <Text style={styles.timerText}>Resend code in {timer}s</Text>
                         ) : (
-                            <Pressable onPress={resend} disabled={otpLoading}>
+                            <Pressable
+                                onPress={resend}
+                                disabled={otpLoading}
+                                style={({ pressed }) => [pressed && styles.pressed]}
+                            >
                                 <Text style={[styles.resendAction, otpLoading && { opacity: 0.5 }]}>
                                     Resend Code
                                 </Text>
@@ -253,7 +257,11 @@ const OTPModal = React.memo(({ visible, onClose, otp, setOtp, onVerify, timer, r
                     </View>
 
                     <Pressable
-                        style={[styles.primaryBtnEnhanced, otpLoading && { opacity: 0.7 }]}
+                        style={({ pressed }) => [
+                            styles.primaryBtnEnhanced,
+                            otpLoading && { opacity: 0.7 },
+                            pressed && styles.pressed,
+                        ]}
                         onPress={onVerify}
                         disabled={otpLoading}
                     >
@@ -289,7 +297,11 @@ const UPIPaymentModal = React.memo(({ visible, onClose, onSuccess, planName, pla
                 }} />
                 <View style={styles.modalHeader}>
                     <Text style={styles.modalTitle}>Complete Payment</Text>
-                    <Pressable onPress={onClose} hitSlop={12} style={styles.closeBtnBox}>
+                    <Pressable
+                        onPress={onClose}
+                        hitSlop={12}
+                        style={({ pressed }) => [styles.closeBtnBox, pressed && styles.pressed]}
+                    >
                         <X size={18} color={C.mid} />
                     </Pressable>
                 </View>
@@ -302,7 +314,11 @@ const UPIPaymentModal = React.memo(({ visible, onClose, onSuccess, planName, pla
                 <Text style={styles.paySubtext}>Choose a UPI app to pay</Text>
 
                 {['Google Pay', 'PhonePe', 'Paytm'].map(app => (
-                    <Pressable key={app} style={styles.upiRow} onPress={onSuccess}>
+                    <Pressable
+                        key={app}
+                        style={({ pressed }) => [styles.upiRow, pressed && styles.pressed]}
+                        onPress={onSuccess}
+                    >
                         <View style={styles.upiIconBox}>
                             <Smartphone size={18} color={C.dark} />
                         </View>
@@ -313,7 +329,10 @@ const UPIPaymentModal = React.memo(({ visible, onClose, onSuccess, planName, pla
 
                 <View style={styles.payDivider} />
 
-                <Pressable style={styles.payManualBtn} onPress={onSuccess}>
+                <Pressable
+                    style={({ pressed }) => [styles.payManualBtn, pressed && styles.pressed]}
+                    onPress={onSuccess}
+                >
                     <CreditCard size={18} color="#FFFFFF" />
                     <Text style={styles.payManualText}>Pay with UPI ID</Text>
                 </Pressable>

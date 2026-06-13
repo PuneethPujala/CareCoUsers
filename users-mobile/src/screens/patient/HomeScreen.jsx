@@ -13,7 +13,7 @@ import {
     AlertTriangle, WifiOff, Flame, Zap, Watch, Shield, MessageSquare, Trophy, ChevronDown
 } from 'lucide-react-native';
 import { handleAxiosError } from '../../lib/axiosInstance';
-import { colors, layout, spacing, radius, shadows } from '../../theme';
+import { colors, layout, spacing, radius, shadows, motion, anim, useReduceMotion } from '../../theme';
 import { useAuth } from '../../context/AuthContext';
 import { apiService } from '../../lib/api';
 import { useFocusEffect } from '@react-navigation/native';
@@ -28,6 +28,7 @@ import Svg, { Path, Defs, LinearGradient as SvgLinearGradient, Stop, Circle as S
 import LottieView from 'lottie-react-native';
 
 const { width: SW } = Dimensions.get('window');
+const AnimatedCircle = Animated.createAnimatedComponent(SvgCircle);
 
 // ── Health tips ────────────────────────────────────────────────────────────
 const HEALTH_TIPS = [
@@ -416,14 +417,14 @@ export default function PatientHomeScreen({ navigation }) {
         enabled: false, connected: false, lastSync: null, readingsToday: 0, syncing: false,
     });
 
+    const reduceMotion = useReduceMotion();
     const staggerAnims = useRef([...Array(10)].map(() => new Animated.Value(0))).current;
 
     const runAnimations = useCallback(() => {
         staggerAnims.forEach(a => a.setValue(0));
-        Animated.stagger(80,
-            staggerAnims.map(a => Animated.spring(a, { toValue: 1, friction: 8, tension: 42, useNativeDriver: true }))
-        ).start();
-    }, [staggerAnims]);
+        const animations = staggerAnims.map(a => anim.slideUp(a, 1, reduceMotion));
+        anim.stagger(reduceMotion ? motion.instant : 60, animations).start();
+    }, [staggerAnims, reduceMotion]);
 
     const skipCacheRef = useRef(false);
 
@@ -642,9 +643,9 @@ export default function PatientHomeScreen({ navigation }) {
     const adherenceColor = adherencePct >= 80 ? colors.success : adherencePct >= 50 ? colors.warning : colors.danger;
     const hasContextualAlerts = !vitals || meds.some(m => !m.taken);
 
-    const anim = (i) => ({
+    const entranceStyle = (i) => ({
         opacity: staggerAnims[i],
-        transform: [{ translateY: staggerAnims[i].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }],
+        transform: [{ translateY: staggerAnims[i].interpolate({ inputRange: [0, 1], outputRange: [reduceMotion ? 0 : 20, 0] }) }],
     });
 
     const isNewUser = totalMeds === 0 && vitalsHistory.length === 0 && medicationStreak === 0;
@@ -662,11 +663,72 @@ export default function PatientHomeScreen({ navigation }) {
     const targetMilestone = Math.min(100, Math.ceil(healthScore / 5) * 5 + (healthScore % 5 === 0 ? 5 : 0));
     const milestoneProgress = healthScore / targetMilestone;
 
+    // Sequenced Score & Progress Animations refs
+    const lastScoreRef = useRef(null);
+    const badgeOpacityAnim = useRef(new Animated.Value(0)).current;
+    const ringProgressAnim = useRef(new Animated.Value(0)).current;
+    const scoreAnim = useRef(new Animated.Value(0)).current;
+    const [animatedScore, setAnimatedScore] = useState(0);
+
+    // Sync scoreAnim listener
+    useEffect(() => {
+        const listenerId = scoreAnim.addListener(({ value }) => {
+            setAnimatedScore(Math.round(value));
+        });
+        return () => {
+            scoreAnim.removeListener(listenerId);
+        };
+    }, [scoreAnim]);
+
+    // Score, Ring and Grade Badge premium sequenced animation
+    useEffect(() => {
+        const startScore = lastScoreRef.current !== null ? lastScoreRef.current : 0;
+        const targetScore = healthScore;
+        lastScoreRef.current = targetScore;
+
+        if (startScore === targetScore) {
+            scoreAnim.setValue(targetScore);
+            ringProgressAnim.setValue(targetScore / 100);
+            badgeOpacityAnim.setValue(1);
+            return;
+        }
+
+        if (reduceMotion) {
+            scoreAnim.setValue(targetScore);
+            ringProgressAnim.setValue(targetScore / 100);
+            badgeOpacityAnim.setValue(1);
+            return;
+        }
+
+        badgeOpacityAnim.setValue(0);
+        Animated.sequence([
+            // 1. Ring fills (using timing/spring, useNativeDriver: false since strokeDashoffset is not supported by native driver)
+            Animated.timing(ringProgressAnim, {
+                toValue: targetScore / 100,
+                duration: motion.slow,
+                useNativeDriver: false,
+            }),
+            // 2. Number counts up
+            Animated.timing(scoreAnim, {
+                toValue: targetScore,
+                duration: motion.normal,
+                useNativeDriver: false,
+            }),
+            // 3. Grade badge fades and scales in
+            Animated.timing(badgeOpacityAnim, {
+                toValue: 1,
+                duration: motion.fast,
+                useNativeDriver: true,
+            }),
+        ]).start();
+    }, [healthScore, reduceMotion]);
+
     // ── Sprint C Animation Effects ───────────────────────────────────────────
     // Health Orb Spring & Glow Pulse
     useEffect(() => {
         if (prevScoreRef.current !== null && healthScore > prevScoreRef.current) {
             HapticPatterns.milestone();
+            if (reduceMotion) return;
             Animated.parallel([
                 Animated.sequence([
                     Animated.spring(orbScaleAnim, {
@@ -697,13 +759,14 @@ export default function PatientHomeScreen({ navigation }) {
             ]).start();
         }
         prevScoreRef.current = healthScore;
-    }, [healthScore]);
+    }, [healthScore, reduceMotion]);
 
     // Perfect Day Card Scale (Adherence complete)
     useEffect(() => {
         const isCompleted = totalMeds > 0 && adherencePct === 100;
         if (prevMedsCompletedRef.current !== null && isCompleted && !prevMedsCompletedRef.current) {
             HapticPatterns.allDone();
+            if (reduceMotion) return;
             Animated.sequence([
                 Animated.spring(medsCardScaleAnim, {
                     toValue: 1.03,
@@ -720,7 +783,7 @@ export default function PatientHomeScreen({ navigation }) {
             ]).start();
         }
         prevMedsCompletedRef.current = isCompleted;
-    }, [adherencePct, totalMeds]);
+    }, [adherencePct, totalMeds, reduceMotion]);
 
     // Coach Card Insight text transition
     const targetInsightText = useMemo(() => {
@@ -1018,7 +1081,7 @@ export default function PatientHomeScreen({ navigation }) {
                     refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#4F46E5" />}
                 >
                     {/* Pills Row */}
-                    <Animated.View style={[anim(0), { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 20 }]}>
+                    <Animated.View style={[entranceStyle(0), { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 20 }]}>
                         <View style={styles.datePill}>
                             <CalendarDays size={12} color="#94A3B8" />
                             <Text style={styles.dateText}>{dateStr}</Text>
@@ -1058,7 +1121,7 @@ export default function PatientHomeScreen({ navigation }) {
                     )}
 
                     {/* ── 1. GLASS HEALTH ORB (Brand Focus, 60% Width) ── */}
-                    <Animated.View style={[anim(1), styles.orbContainer]}>
+                    <Animated.View style={[entranceStyle(1), styles.orbContainer]}>
                         <Animated.View style={[styles.orbWrapper, { transform: [{ scale: orbScaleAnim }] }]}>
                             <Svg width={210} height={210} viewBox="0 0 200 200" style={styles.orbSvg}>
                                 <Defs>
@@ -1074,7 +1137,7 @@ export default function PatientHomeScreen({ navigation }) {
                                 </Defs>
                                 <SvgCircle cx="100" cy="100" r="86" fill="url(#orbGlowGrad)" />
                                 <SvgCircle cx="100" cy="100" r="90" stroke="#F1F5F9" strokeWidth="6" fill="transparent" />
-                                <SvgCircle
+                                <AnimatedCircle
                                     cx="100"
                                     cy="100"
                                     r="90"
@@ -1082,7 +1145,10 @@ export default function PatientHomeScreen({ navigation }) {
                                     strokeWidth="6"
                                     fill="transparent"
                                     strokeDasharray="565.48"
-                                    strokeDashoffset={565.48 - (565.48 * healthScore) / 100}
+                                    strokeDashoffset={ringProgressAnim.interpolate({
+                                        inputRange: [0, 1],
+                                        outputRange: [565.48, 0],
+                                    })}
                                     strokeLinecap="round"
                                     transform="rotate(-90 100 100)"
                                 />
@@ -1102,12 +1168,25 @@ export default function PatientHomeScreen({ navigation }) {
                             </Animated.View>
 
                             <View style={styles.glassOrb}>
-                                <Text style={styles.orbScoreText}>{healthScore}</Text>
+                                <Text style={styles.orbScoreText}>{animatedScore}</Text>
                                 <Text style={[styles.orbLabelText, { color: healthColor }]}>{healthLabel.toUpperCase()}</Text>
                                 
-                                <View style={[styles.orbGradeBadge, { backgroundColor: healthColor + '10', borderColor: healthColor + '30' }]}>
+                                <Animated.View style={[
+                                    styles.orbGradeBadge,
+                                    {
+                                        opacity: badgeOpacityAnim,
+                                        backgroundColor: healthColor + '10',
+                                        borderColor: healthColor + '30',
+                                        transform: [{
+                                            scale: badgeOpacityAnim.interpolate({
+                                                inputRange: [0, 1],
+                                                outputRange: [0.8, 1],
+                                            })
+                                        }]
+                                    }
+                                ]}>
                                     <Text style={[styles.orbGradeText, { color: healthColor }]}>{healthGrade}</Text>
-                                </View>
+                                </Animated.View>
                             </View>
                         </Animated.View>
                         
@@ -1120,7 +1199,7 @@ export default function PatientHomeScreen({ navigation }) {
                     </Animated.View>
 
                     {/* ── 2. DAILY CHECK-IN (Directly under the Orb) ── */}
-                    <Animated.View style={[anim(2), styles.section]}>
+                    <Animated.View style={[entranceStyle(2), styles.section]}>
                         <View style={styles.checkinCard}>
                             {!moodLogged ? (
                                 <Animated.View style={{ opacity: moodFadeAnim }}>
@@ -1163,7 +1242,7 @@ export default function PatientHomeScreen({ navigation }) {
                     {/* Removed Health Pulse - combined with Vitals below */}
 
                     {/* ── 4. TODAY'S INSIGHT (AI Coach Guidance sliding carousel) ── */}
-                    <Animated.View style={[anim(4), styles.section]}>
+                    <Animated.View style={[entranceStyle(4), styles.section]}>
                         <LinearGradient
                             colors={['#1E1B4B', '#312E81']}
                             start={{ x: 0, y: 0 }}
@@ -1237,7 +1316,7 @@ export default function PatientHomeScreen({ navigation }) {
                     </Animated.View>
 
                     {/* ── 6. MEDICATIONS ── */}
-                    <Animated.View style={[anim(6), styles.section]}>
+                    <Animated.View style={[entranceStyle(6), styles.section]}>
                         <View style={styles.sectionTitleRow}>
                             <Text style={styles.sectionTitle}>{t('home.todays_plan', { defaultValue: "TODAY'S PLAN" })}</Text>
                             <Pressable style={styles.viewAllBtn} onPress={() => navigation.navigate('Medications')}>
@@ -1296,7 +1375,7 @@ export default function PatientHomeScreen({ navigation }) {
 
                     {/* ── 7. VITALS (Apple Health Style) ── */}
                     <Animated.View
-                        style={[anim(7), styles.section]}
+                        style={[entranceStyle(7), styles.section]}
                         onLayout={(e) => {
                             vitalsSectionY.current = e.nativeEvent.layout.y;
                         }}
@@ -1430,7 +1509,7 @@ export default function PatientHomeScreen({ navigation }) {
                     </Animated.View>
 
                     {/* ── 8. HEALTH JOURNEY & NEXT GOAL ── */}
-                    <Animated.View style={[anim(8), styles.section]}>
+                    <Animated.View style={[entranceStyle(8), styles.section]}>
                         <Pressable onPress={() => navigation.navigate('AdherenceDetails')} style={styles.journeyCard}>
                             <View style={styles.journeyHeader}>
                                 <Text style={styles.journeyTitle}>HEALTH JOURNEY</Text>
@@ -1485,7 +1564,7 @@ export default function PatientHomeScreen({ navigation }) {
                     </Animated.View>
 
                     {/* ── 9. QUICK ACTIONS (Visually De-emphasized Utility Chips) ── */}
-                    <Animated.View style={[anim(9), styles.section]}>
+                    <Animated.View style={[entranceStyle(9), styles.section]}>
                         <Text style={styles.sectionTitle}>{t('common.quick_actions', { defaultValue: 'QUICK ACTIONS' })}</Text>
                         <View style={styles.deemphasizedActionsRow}>
                             <Pressable style={styles.actionChip} onPress={() => navigation.navigate('AdherenceDetails')}>
@@ -1511,7 +1590,7 @@ export default function PatientHomeScreen({ navigation }) {
                     </Animated.View>
 
                     {/* ── 10. DAILY HEALTH TIP ── */}
-                    <Animated.View style={anim(9)}>
+                    <Animated.View style={entranceStyle(9)}>
                         <View style={styles.section}>
                             <LinearGradient colors={['#EEF2FF', '#E0E7FF']} style={styles.tipCard}>
                                 <View style={styles.tipHeader}>

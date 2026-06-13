@@ -20,6 +20,7 @@ import { apiService } from '../../lib/api';
 import { colors, spacing, radius, shadows, layout } from '../../theme';
 import usePatientStore from '../../store/usePatientStore';
 import AlertManager from '../../utils/AlertManager';
+import { motion, anim, useReduceMotion } from '../../theme';
 
 const { width: SW } = Dimensions.get('window');
 
@@ -39,6 +40,44 @@ const FONT = {
     heavy: { fontFamily: 'Inter_800ExtraBold' },
 };
 
+// ── Timeline Node Component with Mount Transition ──
+const TimelineNode = ({ time, desc, isLast, reduceMotion }) => {
+    const animVal = useRef(new Animated.Value(0)).current;
+
+    useEffect(() => {
+        Animated.timing(animVal, {
+            toValue: 1,
+            duration: reduceMotion ? motion.instant : motion.slow,
+            useNativeDriver: true,
+        }).start();
+    }, [reduceMotion]);
+
+    const animatedStyle = {
+        opacity: animVal,
+        transform: [
+            {
+                translateY: animVal.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [reduceMotion ? 0 : 12, 0],
+                }),
+            },
+        ],
+    };
+
+    return (
+        <Animated.View style={[styles.timelineNode, animatedStyle]}>
+            <View style={styles.timelineIndicator}>
+                <View style={[styles.timelineDot, isLast && { backgroundColor: colors.textMuted }]} />
+                {!isLast && <View style={styles.timelineLine} />}
+            </View>
+            <View style={styles.timelineContent}>
+                <Text style={styles.timelineTime}>{time}</Text>
+                <Text style={styles.timelineDesc}>{desc}</Text>
+            </View>
+        </Animated.View>
+    );
+};
+
 export default function HealthConnectSetupScreen({ navigation }) {
     const [status, setStatus] = useState('checking'); // 'checking' | 'unavailable' | 'denied' | 'granted'
     const [loading, setLoading] = useState(false);
@@ -46,33 +85,59 @@ export default function HealthConnectSetupScreen({ navigation }) {
     const [syncQuality, setSyncQuality] = useState(96);
     const [syncingNow, setSyncingNow] = useState(false);
     const [menuVisible, setMenuVisible] = useState(false);
+    const [timelineEvents, setTimelineEvents] = useState([
+        { id: '1', time: '08:14 AM', desc: 'Heart Rate Synced', type: 'hr' },
+        { id: '2', time: '08:12 AM', desc: 'Sleep Session Imported', type: 'sleep' },
+        { id: '3', time: '07:58 AM', desc: 'Steps & Activity Updated', type: 'steps' },
+        { id: '4', time: '07:45 AM', desc: 'Oxygen Saturation Recorded', type: 'spo2' },
+    ]);
     
     // Store variables for real-time vitals
     const vitals = usePatientStore((s) => s.vitals);
 
-    const fadeAnim = useRef(new Animated.Value(0)).current;
+    const reduceMotion = useReduceMotion();
+    const staggerAnims = useRef([...Array(5)].map(() => new Animated.Value(0))).current;
     const orbPulseAnim = useRef(new Animated.Value(1)).current;
     const orbRotateAnim = useRef(new Animated.Value(0)).current;
+
+    const entranceStyle = (index) => ({
+        opacity: staggerAnims[index],
+        transform: [
+            {
+                translateY: staggerAnims[index].interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [reduceMotion ? 0 : 20, 0]
+                })
+            }
+        ]
+    });
 
     useEffect(() => {
         checkCurrentStatus();
         
-        // Start layout fades
-        Animated.timing(fadeAnim, { toValue: 1, duration: 800, useNativeDriver: true }).start();
+        // Start layout stagger animations
+        staggerAnims.forEach(a => a.setValue(0));
+        const animations = staggerAnims.map(a => anim.slideUp(a, 1, reduceMotion));
+        anim.stagger(reduceMotion ? motion.instant : 60, animations).start();
 
-        // Pulsing loop for the Orb
-        Animated.loop(
-            Animated.sequence([
-                Animated.timing(orbPulseAnim, { toValue: 1.05, duration: 1500, useNativeDriver: true }),
-                Animated.timing(orbPulseAnim, { toValue: 1, duration: 1500, useNativeDriver: true }),
-            ])
-        ).start();
+        // Pulsing loop for the Orb (skip if reduced motion is enabled)
+        if (!reduceMotion) {
+            Animated.loop(
+                Animated.sequence([
+                    Animated.timing(orbPulseAnim, { toValue: 1.05, duration: 1500, useNativeDriver: true }),
+                    Animated.timing(orbPulseAnim, { toValue: 1, duration: 1500, useNativeDriver: true }),
+                ])
+            ).start();
 
-        // Rotating loop for the Orb glow border
-        Animated.loop(
-            Animated.timing(orbRotateAnim, { toValue: 1, duration: 8000, useNativeDriver: true })
-        ).start();
-    }, []);
+            // Rotating loop for the Orb glow border
+            Animated.loop(
+                Animated.timing(orbRotateAnim, { toValue: 1, duration: 8000, useNativeDriver: true })
+            ).start();
+        } else {
+            orbPulseAnim.setValue(1);
+            orbRotateAnim.setValue(0);
+        }
+    }, [reduceMotion]);
 
     const checkCurrentStatus = async () => {
         if (!isHealthSupported()) {
@@ -169,6 +234,16 @@ export default function HealthConnectSetupScreen({ navigation }) {
                 setSyncQuality(98);
                 // Refresh dashboard to display latest measurements
                 usePatientStore.getState().fetchDashboard(true);
+
+                // Add dynamic sync timeline node event with fade + slide animation
+                const nowTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                const newEvent = {
+                    id: String(Date.now()),
+                    time: nowTime,
+                    desc: 'Wearable Sync: Vitals updated',
+                    type: 'sync',
+                };
+                setTimelineEvents(prev => [newEvent, ...prev]);
             }
             AlertManager.alert('Sync Completed', 'All recent vital measurements have been imported.');
         } catch (e) {
@@ -204,7 +279,7 @@ export default function HealthConnectSetupScreen({ navigation }) {
 
             <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
                 {/* ── Health Sync Orb Hero ────────────────────────── */}
-                <Animated.View style={[styles.heroSection, { opacity: fadeAnim }]}>
+                <Animated.View style={[styles.heroSection, entranceStyle(0)]}>
                     <Animated.View style={[styles.orbWrapper, { transform: [{ scale: orbPulseAnim }] }]}>
                         {/* Glow and Ring */}
                         <Animated.View style={[styles.orbRingGlow, { transform: [{ rotate: rotateInterpolate }] }]}>
@@ -239,7 +314,7 @@ export default function HealthConnectSetupScreen({ navigation }) {
                 </Animated.View>
 
                 {/* ── Live Metrics Bento Grid ────────────────────── */}
-                <View style={styles.bentoSection}>
+                <Animated.View style={[styles.bentoSection, entranceStyle(1)]}>
                     <Text style={styles.sectionTitleLabel}>Live Metrics Bento</Text>
                     <View style={styles.bentoGrid}>
                         {/* Heart Rate */}
@@ -294,63 +369,26 @@ export default function HealthConnectSetupScreen({ navigation }) {
                             <Text style={styles.bentoLabel}>Oxygen Level</Text>
                         </Pressable>
                     </View>
-                </View>
+                </Animated.View>
 
                 {/* ── Today's Sync Timeline ──────────────────────── */}
-                <View style={styles.timelineSection}>
+                <Animated.View style={[styles.timelineSection, entranceStyle(2)]}>
                     <Text style={styles.sectionTitleLabel}>Today's Sync Timeline</Text>
                     <View style={styles.timelineCard}>
-                        {/* Timeline Node 1 */}
-                        <View style={styles.timelineNode}>
-                            <View style={styles.timelineIndicator}>
-                                <View style={styles.timelineDot} />
-                                <View style={styles.timelineLine} />
-                            </View>
-                            <View style={styles.timelineContent}>
-                                <Text style={styles.timelineTime}>08:14 AM</Text>
-                                <Text style={styles.timelineDesc}>Heart Rate Synced</Text>
-                            </View>
-                        </View>
-
-                        {/* Timeline Node 2 */}
-                        <View style={styles.timelineNode}>
-                            <View style={styles.timelineIndicator}>
-                                <View style={styles.timelineDot} />
-                                <View style={styles.timelineLine} />
-                            </View>
-                            <View style={styles.timelineContent}>
-                                <Text style={styles.timelineTime}>08:12 AM</Text>
-                                <Text style={styles.timelineDesc}>Sleep Session Imported</Text>
-                            </View>
-                        </View>
-
-                        {/* Timeline Node 3 */}
-                        <View style={styles.timelineNode}>
-                            <View style={styles.timelineIndicator}>
-                                <View style={styles.timelineDot} />
-                                <View style={styles.timelineLine} />
-                            </View>
-                            <View style={styles.timelineContent}>
-                                <Text style={styles.timelineTime}>07:58 AM</Text>
-                                <Text style={styles.timelineDesc}>Steps & Activity Updated</Text>
-                            </View>
-                        </View>
-
-                        {/* Timeline Node 4 */}
-                        <View style={styles.timelineNode}>
-                            <View style={styles.timelineIndicator}>
-                                <View style={[styles.timelineDot, { backgroundColor: colors.textMuted }]} />
-                            </View>
-                            <View style={styles.timelineContent}>
-                                <Text style={styles.timelineTime}>07:45 AM</Text>
-                                <Text style={styles.timelineDesc}>Oxygen Saturation Recorded</Text>
-                            </View>
-                        </View>
+                        {timelineEvents.map((item, index) => (
+                            <TimelineNode
+                                key={item.id}
+                                time={item.time}
+                                desc={item.desc}
+                                isLast={index === timelineEvents.length - 1}
+                                reduceMotion={reduceMotion}
+                            />
+                        ))}
                     </View>
-                </View>
+                </Animated.View>
 
                 {/* ── Connected Device Carousel ─────────────────── */}
-                <View style={styles.carouselSection}>
+                <Animated.View style={[styles.carouselSection, entranceStyle(3)]}>
                     <View style={styles.carouselHeader}>
                         <Text style={styles.sectionTitleLabel}>COMPATIBLE DEVICES</Text>
                         <Pressable onPress={() => AlertManager.alert('Supported Wearables', 'CareMyMed integrates with Apple Watch, Galaxy Watch, Fitbit, Pixel Watch, Garmin, Oura Ring, and more.')}>
@@ -408,23 +446,25 @@ export default function HealthConnectSetupScreen({ navigation }) {
                             </View>
                         </View>
                     </ScrollView>
-                </View>
+                </Animated.View>
 
-                {/* ── Health Connect Note Card ─────────────────── */}
-                <View style={styles.noteCard}>
-                    <ShieldCheck size={20} color={colors.primary} />
-                    <Text style={styles.noteCardText}>
-                        Any device that syncs to Google Health Connect or Apple Health will automatically work with CareMyMed.
-                    </Text>
-                </View>
+                <Animated.View style={entranceStyle(4)}>
+                    {/* ── Health Connect Note Card ─────────────────── */}
+                    <View style={styles.noteCard}>
+                        <ShieldCheck size={20} color={colors.primary} />
+                        <Text style={styles.noteCardText}>
+                            Any device that syncs to Google Health Connect or Apple Health will automatically work with CareMyMed.
+                        </Text>
+                    </View>
 
-                {/* ── Privacy Info ──────────────────────────────── */}
-                <View style={styles.privacySection}>
-                    <Lock size={14} color={colors.textMuted} />
-                    <Text style={styles.privacyText}>
-                        Your health metrics are encrypted end-to-end. CareMyMed only reads records to calculate real-time insights — we never modify your native records.
-                    </Text>
-                </View>
+                    {/* ── Privacy Info ──────────────────────────────── */}
+                    <View style={styles.privacySection}>
+                        <Lock size={14} color={colors.textMuted} />
+                        <Text style={styles.privacyText}>
+                            Your health metrics are encrypted end-to-end. CareMyMed only reads records to calculate real-time insights — we never modify your native records.
+                        </Text>
+                    </View>
+                </Animated.View>
             </ScrollView>
 
             {/* ── Floating Sync Control Bar ──────────────────── */}

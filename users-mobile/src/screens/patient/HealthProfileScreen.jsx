@@ -20,14 +20,16 @@ import { apiService } from '../../lib/api';
 import { initializeHealthPlatform, requestHealthPermissions, fetchDailyVitalsSummary, isHealthSupported } from '../../lib/healthIntegration';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { COUNTRY_CODES, parsePhoneWithCode, validatePhone } from '../../utils/phoneUtils';
-import { colors, layout, spacing, radius, shadows } from '../../theme';
+import { colors, layout, spacing, radius, shadows, motion, useReduceMotion } from '../../theme';
 import AlertManager from '../../utils/AlertManager';
 import {
     HealthCoachCard,
     HealthDrivers,
     MomentumCard,
     AchievementSection,
-    ScoreHeroCard
+    ScoreHeroCard,
+    PremiumTrendChart,
+    StreakCalendar
 } from '../../components/health';
 
 
@@ -88,8 +90,36 @@ const ChipSelector = ({ options, selected, onSelect, vertical = false }) => (
     </ScrollView>
 );
 
+const formatDate = (dateInput, formatStr) => {
+    if (!dateInput) return '';
+    const date = new Date(dateInput);
+    if (isNaN(date.getTime())) return '';
+    
+    const day = date.getDate();
+    const monthIndex = date.getMonth();
+    const year = date.getFullYear();
+    
+    const monthsShort = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const monthsFull = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    
+    if (formatStr === 'D MMM') {
+        return `${day} ${monthsShort[monthIndex]}`;
+    }
+    if (formatStr === 'YYYY-MM-DD') {
+        const mm = String(monthIndex + 1).padStart(2, '0');
+        const dd = String(day).padStart(2, '0');
+        return `${year}-${mm}-${dd}`;
+    }
+    if (formatStr === 'MMMM D, YYYY') {
+        return `${monthsFull[monthIndex]} ${day}, ${year}`;
+    }
+    
+    return date.toLocaleDateString();
+};
+
 export default function HealthProfileScreen({ navigation }) {
     const { t } = useTranslation();
+    const reduceMotion = useReduceMotion();
     const [profile, setProfile] = useState(null);
     const [loading, setLoading] = useState(true);
     const [isSyncing, setIsSyncing] = useState(false);
@@ -98,6 +128,32 @@ export default function HealthProfileScreen({ navigation }) {
     const [completenessExpanded, setCompletenessExpanded] = useState(false);
     const [unreadCount, setUnreadCount] = useState(0);
     const [refreshing, setRefreshing] = useState(false);
+    const [activeTab, setActiveTab] = useState('insights');
+    const [healthHistory, setHealthHistory] = useState(null);
+    const [timeline, setTimeline] = useState([]);
+    const [historyLoading, setHistoryLoading] = useState(false);
+
+    const loadHistoryAndTimeline = async () => {
+        setHistoryLoading(true);
+        try {
+            const [historyRes, timelineRes] = await Promise.all([
+                apiService.patients.getHealthHistory(),
+                apiService.patients.getHealthTimeline()
+            ]);
+            setHealthHistory(historyRes.data);
+            setTimeline(timelineRes.data?.timeline || []);
+        } catch (err) {
+            console.warn('Failed to load health history/timeline:', err.message);
+        } finally {
+            setHistoryLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        if (showScoreInfo) {
+            loadHistoryAndTimeline();
+        }
+    }, [showScoreInfo]);
 
     useEffect(() => {
         if (isHealthSupported()) {
@@ -156,13 +212,17 @@ export default function HealthProfileScreen({ navigation }) {
     const modalAnim = useRef(new Animated.Value(0)).current;
 
     const runAnimations = useCallback(() => {
-        staggerAnims.forEach(anim => anim.setValue(0));
+        staggerAnims.forEach(a => a.setValue(0));
+        if (reduceMotion) {
+            staggerAnims.forEach(a => a.setValue(1));
+            return;
+        }
         Animated.stagger(60,
-            staggerAnims.map(anim =>
-                Animated.spring(anim, { toValue: 1, friction: 8, tension: 45, useNativeDriver: true })
+            staggerAnims.map(a =>
+                Animated.spring(a, { toValue: 1, ...motion.springSoft, useNativeDriver: true })
             )
         ).start();
-    }, [staggerAnims]);
+    }, [staggerAnims, reduceMotion]);
 
     const loadProfile = async () => {
         try {
@@ -637,7 +697,7 @@ export default function HealthProfileScreen({ navigation }) {
         const a = staggerAnims[Math.floor(i)] || staggerAnims[0];
         return {
             opacity: a,
-            transform: [{ translateY: a.interpolate({ inputRange: [0, 1], outputRange: [24, 0] }) }],
+            transform: reduceMotion ? [] : [{ translateY: a.interpolate({ inputRange: [0, 1], outputRange: [24, 0] }) }],
         };
     };
 
@@ -1786,261 +1846,519 @@ export default function HealthProfileScreen({ navigation }) {
                                     </Pressable>
                                 </View>
 
-                                <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40, paddingHorizontal: spacing.screen }}>
-                                    
-                                    {/* ── SECTION 1: HERO CARD ── */}
-                                    <ScoreHeroCard
-                                        scoreData={{
-                                            hasScore,
-                                            activeScoreVal,
-                                            scoreColor,
-                                            scoreStatus,
-                                            hsGrade,
-                                            hsBracket,
-                                            bracketLabel,
-                                            lastSyncText
-                                        }}
-                                    />
-
-                                    {/* ── SECTION 2: HEALTH AGE WIDGET ── */}
-                                    {actualAge && healthAgeVal !== null && (
-                                        <View style={{
-                                            backgroundColor: '#FAFBFF',
-                                            borderRadius: radius.lg,
-                                            padding: 16,
-                                            borderWidth: 1,
-                                            borderColor: '#E0E7FF',
-                                            marginBottom: 20,
-                                            flexDirection: 'row',
-                                            justifyContent: 'space-between',
+                                {/* Tab Selector */}
+                                <View style={{ flexDirection: 'row', paddingHorizontal: spacing.screen, marginBottom: 12, gap: 8 }}>
+                                    <Pressable
+                                        onPress={() => setActiveTab('insights')}
+                                        style={{
+                                            flex: 1,
+                                            paddingVertical: 10,
+                                            borderRadius: radius.md,
                                             alignItems: 'center',
-                                        }}>
-                                            <View style={{ gap: 2 }}>
-                                                <Text style={{ fontSize: 12, ...FONT.heavy, color: '#6366F1', letterSpacing: 0.8, textTransform: 'uppercase' }}>HEALTH AGE</Text>
-                                                <Text style={{ fontSize: 20, ...FONT.heavy, color: '#0F172A' }}>{healthAgeVal} Years</Text>
-                                            </View>
-                                            <View style={{
-                                                backgroundColor: healthAgeDiff === 0 ? '#F1F5F9' : (healthAgeDiff < 0 ? '#ECFDF5' : '#FEF2F2'),
-                                                paddingHorizontal: 10,
-                                                paddingVertical: 6,
-                                                borderRadius: radius.md,
-                                            }}>
-                                                <Text style={{ fontSize: 12, ...FONT.bold, color: healthAgeDiff === 0 ? '#475569' : (healthAgeDiff < 0 ? '#10B981' : '#EF4444') }}>
-                                                    {healthAgeDiff === 0 ? 'Same as actual age' : (healthAgeDiff < 0 ? `${Math.abs(healthAgeDiff)} years younger` : `${healthAgeDiff} years older`)}
-                                                </Text>
-                                            </View>
-                                        </View>
-                                    )}
-
-                                    {/* ── SECTION 3: AI HEALTH COACH CARD ── */}
-                                    <HealthCoachCard
-                                        coachData={{
-                                            insight: {
-                                                action: coachAction,
-                                                topTip: topTip,
-                                                question: coachQuestion,
-                                                ctaText: coachCtaText,
-                                            },
-                                            score: {
-                                                value: activeScoreVal,
-                                                grade: hsGrade,
-                                                status: scoreStatus,
-                                                hasScore: hasScore,
-                                            },
-                                            projection: {
-                                                weakest: weakest,
-                                                boost: projectedBoost,
-                                                projectedScore: projectedScore,
-                                            }
+                                            justifyContent: 'center',
+                                            backgroundColor: activeTab === 'insights' ? colors.primarySoft : '#F1F5F9',
+                                            borderWidth: 1.5,
+                                            borderColor: activeTab === 'insights' ? colors.primary : 'transparent',
                                         }}
-                                        onPressCoach={() => {
-                                            setShowScoreInfo(false);
-                                            navigation.navigate('Chatbot', {
-                                                initialMessage: coachQuestion,
-                                                healthContext: {
-                                                    score: activeScoreVal,
-                                                    grade: hsGrade,
-                                                    label: scoreStatus,
-                                                    weakestDriver: weakest?.label || 'General',
-                                                    weakestScore: weakest?.pct ?? 0,
-                                                    projectedBoost,
-                                                    projectedScore,
-                                                    suggestedAction: coachAction
-                                                }
-                                            });
+                                    >
+                                        <Text style={{ fontSize: 13, ...FONT.bold, color: activeTab === 'insights' ? colors.primaryMid : colors.textSecondary }}>Insights</Text>
+                                    </Pressable>
+                                    <Pressable
+                                        onPress={() => setActiveTab('trends')}
+                                        style={{
+                                            flex: 1,
+                                            paddingVertical: 10,
+                                            borderRadius: radius.md,
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            backgroundColor: activeTab === 'trends' ? colors.primarySoft : '#F1F5F9',
+                                            borderWidth: 1.5,
+                                            borderColor: activeTab === 'trends' ? colors.primary : 'transparent',
                                         }}
-                                    />
+                                    >
+                                        <Text style={{ fontSize: 13, ...FONT.bold, color: activeTab === 'trends' ? colors.primaryMid : colors.textSecondary }}>Trends & Journey</Text>
+                                    </Pressable>
+                                </View>
 
-                                    {/* ── SECTION 4: OPPORTUNITY CARDS ── */}
-                                    <View style={{ marginBottom: 20 }}>
-                                        <Text style={{ fontSize: 12, ...FONT.heavy, color: '#64748B', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 12 }}>OPPORTUNITIES</Text>
+                                {activeTab === 'insights' ? (
+                                    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40, paddingHorizontal: spacing.screen }}>
                                         
-                                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingRight: 24 }}>
-                                            {activeMeds.length > 0 && (
-                                                <Pressable 
-                                                    onPress={() => { setShowScoreInfo(false); navigation.navigate('Medications'); }}
-                                                    style={{
-                                                        width: 150,
-                                                        backgroundColor: '#FFFFFF',
-                                                        borderRadius: radius.lg,
-                                                        padding: 16,
-                                                        borderWidth: 1,
-                                                        borderColor: '#E2E8F0',
-                                                        justifyContent: 'space-between',
-                                                        minHeight: 120,
-                                                        ...shadows.card,
-                                                    }}
-                                                >
-                                                    <View style={{ backgroundColor: '#ECFDF5', paddingHorizontal: 8, paddingVertical: 3, borderRadius: radius.sm, alignSelf: 'flex-start' }}>
-                                                        <Text style={{ fontSize: 10, ...FONT.heavy, color: '#10B981' }}>+5 Score</Text>
-                                                    </View>
-                                                    <Text style={{ fontSize: 13, ...FONT.bold, color: '#0F172A', marginTop: 8 }} numberOfLines={2}>Take morning meds</Text>
-                                                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', marginTop: 4 }}>
-                                                        <ChevronRight size={14} color="#6366F1" />
-                                                    </View>
-                                                </Pressable>
-                                            )}
+                                        {/* ── SECTION 1: HERO CARD ── */}
+                                        <ScoreHeroCard
+                                            scoreData={{
+                                                hasScore,
+                                                activeScoreVal,
+                                                scoreColor,
+                                                scoreStatus,
+                                                hsGrade,
+                                                hsBracket,
+                                                bracketLabel,
+                                                lastSyncText,
+                                                deltas: healthHistory?.deltas
+                                            }}
+                                        />
 
-                                            <Pressable 
-                                                onPress={() => { setShowScoreInfo(false); navigation.navigate('VitalsHistory'); }}
-                                                style={{
-                                                    width: 150,
-                                                    backgroundColor: '#FFFFFF',
-                                                    borderRadius: radius.lg,
-                                                    padding: 16,
-                                                    borderWidth: 1,
-                                                    borderColor: '#E2E8F0',
-                                                    justifyContent: 'space-between',
-                                                    minHeight: 120,
-                                                    ...shadows.card,
-                                                }}
-                                            >
-                                                <View style={{ backgroundColor: '#ECFDF5', paddingHorizontal: 8, paddingVertical: 3, borderRadius: radius.sm, alignSelf: 'flex-start' }}>
-                                                    <Text style={{ fontSize: 10, ...FONT.heavy, color: '#10B981' }}>+4 Score</Text>
+                                        {/* ── SECTION 2: HEALTH AGE WIDGET ── */}
+                                        {actualAge && healthAgeVal !== null && (
+                                            <View style={{
+                                                backgroundColor: '#FAFBFF',
+                                                borderRadius: radius.lg,
+                                                padding: 16,
+                                                borderWidth: 1,
+                                                borderColor: '#E0E7FF',
+                                                marginBottom: 20,
+                                                flexDirection: 'row',
+                                                justifyContent: 'space-between',
+                                                alignItems: 'center',
+                                            }}>
+                                                <View style={{ gap: 2 }}>
+                                                    <Text style={{ fontSize: 12, ...FONT.heavy, color: '#6366F1', letterSpacing: 0.8, textTransform: 'uppercase' }}>HEALTH AGE</Text>
+                                                    <Text style={{ fontSize: 20, ...FONT.heavy, color: '#0F172A' }}>{healthAgeVal} Years</Text>
                                                 </View>
-                                                <Text style={{ fontSize: 13, ...FONT.bold, color: '#0F172A', marginTop: 8 }} numberOfLines={2}>Log BP Reading</Text>
-                                                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', marginTop: 4 }}>
-                                                    <ChevronRight size={14} color="#6366F1" />
-                                                </View>
-                                            </Pressable>
-
-                                            {healthSdkReady && (
-                                                <Pressable 
-                                                    onPress={() => { setShowScoreInfo(false); handleWearableSync(); }}
-                                                    style={{
-                                                        width: 150,
-                                                        backgroundColor: '#FFFFFF',
-                                                        borderRadius: radius.lg,
-                                                        padding: 16,
-                                                        borderWidth: 1,
-                                                        borderColor: '#E2E8F0',
-                                                        justifyContent: 'space-between',
-                                                        minHeight: 120,
-                                                        ...shadows.card,
-                                                    }}
-                                                >
-                                                    <View style={{ backgroundColor: '#ECFDF5', paddingHorizontal: 8, paddingVertical: 3, borderRadius: radius.sm, alignSelf: 'flex-start' }}>
-                                                        <Text style={{ fontSize: 10, ...FONT.heavy, color: '#10B981' }}>+3 Score</Text>
-                                                    </View>
-                                                    <Text style={{ fontSize: 13, ...FONT.bold, color: '#0F172A', marginTop: 8 }} numberOfLines={2}>Sync Wearable</Text>
-                                                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', marginTop: 4 }}>
-                                                        <ChevronRight size={14} color="#6366F1" />
-                                                    </View>
-                                                </Pressable>
-                                            )}
-
-                                            {completionPct < 100 && (
-                                                <Pressable 
-                                                    onPress={() => { setShowScoreInfo(false); handleCompletionClick(); }}
-                                                    style={{
-                                                        width: 150,
-                                                        backgroundColor: '#FFFFFF',
-                                                        borderRadius: radius.lg,
-                                                        padding: 16,
-                                                        borderWidth: 1,
-                                                        borderColor: '#E2E8F0',
-                                                        justifyContent: 'space-between',
-                                                        minHeight: 120,
-                                                        ...shadows.card,
-                                                    }}
-                                                >
-                                                    <View style={{ backgroundColor: '#ECFDF5', paddingHorizontal: 8, paddingVertical: 3, borderRadius: radius.sm, alignSelf: 'flex-start' }}>
-                                                        <Text style={{ fontSize: 10, ...FONT.heavy, color: '#10B981' }}>+2 Score</Text>
-                                                    </View>
-                                                    <Text style={{ fontSize: 13, ...FONT.bold, color: '#0F172A', marginTop: 8 }} numberOfLines={2}>Complete Profile</Text>
-                                                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', marginTop: 4 }}>
-                                                        <ChevronRight size={14} color="#6366F1" />
-                                                    </View>
-                                                </Pressable>
-                                            )}
-                                        </ScrollView>
-                                    </View>
-
-                                    {/* ── SECTION 5: HEALTH DRIVERS ── */}
-                                    <HealthDrivers driverData={driverData} />
-
-                                    {/* ── SECTION 6: WEEKLY MOMENTUM & STREAK RINGS ── */}
-                                    <MomentumCard
-                                        streakDays={streakDays}
-                                        streakLabel={streakLabel}
-                                        daysOfWeek={daysOfWeek}
-                                        completedDays={completedDays}
-                                        todayIdx={todayIdx}
-                                    />
-
-                                    {/* ── SECTION 7: AI INSIGHT & PREDICTION CARD ── */}
-                                    {hasScore && (
-                                        <View style={{
-                                            backgroundColor: '#FAFBFF',
-                                            borderRadius: radius.lg,
-                                            padding: 20,
-                                            borderWidth: 1,
-                                            borderColor: '#E0E7FF',
-                                            marginBottom: 20,
-                                            gap: 12,
-                                        }}>
-                                            {(hs?.tips || []).length > 0 && (
-                                                <View style={{ gap: 4 }}>
-                                                    <Text style={{ fontSize: 12, ...FONT.heavy, color: '#6366F1', letterSpacing: 0.8, textTransform: 'uppercase' }}>AI INSIGHT</Text>
-                                                    <Text style={{ fontSize: 14, ...FONT.medium, color: '#334155', lineHeight: 20 }}>
-                                                        {hs.tips[0].body}
+                                                <View style={{
+                                                    backgroundColor: healthAgeDiff === 0 ? '#F1F5F9' : (healthAgeDiff < 0 ? '#ECFDF5' : '#FEF2F2'),
+                                                    paddingHorizontal: 10,
+                                                    paddingVertical: 6,
+                                                    borderRadius: radius.md,
+                                                }}>
+                                                    <Text style={{ fontSize: 12, ...FONT.bold, color: healthAgeDiff === 0 ? '#475569' : (healthAgeDiff < 0 ? '#10B981' : '#EF4444') }}>
+                                                        {healthAgeDiff === 0 ? 'Same as actual age' : (healthAgeDiff < 0 ? `${Math.abs(healthAgeDiff)} years younger` : `${healthAgeDiff} years older`)}
                                                     </Text>
                                                 </View>
-                                            )}
+                                            </View>
+                                        )}
+
+                                        {/* ── SECTION 3: AI HEALTH COACH CARD ── */}
+                                        <HealthCoachCard
+                                            coachData={{
+                                                insight: {
+                                                    action: coachAction,
+                                                    topTip: topTip,
+                                                    question: coachQuestion,
+                                                    ctaText: coachCtaText,
+                                                },
+                                                score: {
+                                                    value: activeScoreVal,
+                                                    grade: hsGrade,
+                                                    status: scoreStatus,
+                                                    hasScore: hasScore,
+                                                },
+                                                projection: {
+                                                    weakest: weakest,
+                                                    boost: projectedBoost,
+                                                    projectedScore: projectedScore,
+                                                }
+                                            }}
+                                            onPressCoach={() => {
+                                                setShowScoreInfo(false);
+                                                navigation.navigate('Chatbot', {
+                                                    initialMessage: coachQuestion,
+                                                    healthContext: {
+                                                        score: activeScoreVal,
+                                                        grade: hsGrade,
+                                                        label: scoreStatus,
+                                                        weakestDriver: weakest?.label || 'General',
+                                                        weakestScore: weakest?.pct ?? 0,
+                                                        projectedBoost,
+                                                        projectedScore,
+                                                        suggestedAction: coachAction
+                                                    }
+                                                });
+                                            }}
+                                        />
+
+                                        {/* ── SECTION 4: OPPORTUNITY CARDS ── */}
+                                        <View style={{ marginBottom: 20 }}>
+                                            <Text style={{ fontSize: 12, ...FONT.heavy, color: '#64748B', letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 12 }}>OPPORTUNITIES</Text>
                                             
-                                            {weakest && projectedScore && (
-                                                <>
-                                                    <View style={{ height: 1, backgroundColor: '#E0E7FF' }} />
+                                            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingRight: 24 }}>
+                                                {activeMeds.length > 0 && (
+                                                    <Pressable 
+                                                        onPress={() => { setShowScoreInfo(false); navigation.navigate('Medications'); }}
+                                                        style={{
+                                                            width: 150,
+                                                            backgroundColor: '#FFFFFF',
+                                                            borderRadius: radius.lg,
+                                                            padding: 16,
+                                                            borderWidth: 1,
+                                                            borderColor: '#E2E8F0',
+                                                            justifyContent: 'space-between',
+                                                            minHeight: 120,
+                                                            ...shadows.card,
+                                                        }}
+                                                    >
+                                                        <View style={{ backgroundColor: '#ECFDF5', paddingHorizontal: 8, paddingVertical: 3, borderRadius: radius.sm, alignSelf: 'flex-start' }}>
+                                                            <Text style={{ fontSize: 10, ...FONT.heavy, color: '#10B981' }}>+5 Score</Text>
+                                                        </View>
+                                                        <Text style={{ fontSize: 13, ...FONT.bold, color: '#0F172A', marginTop: 8 }} numberOfLines={2}>Take morning meds</Text>
+                                                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', marginTop: 4 }}>
+                                                            <ChevronRight size={14} color="#6366F1" />
+                                                        </View>
+                                                    </Pressable>
+                                                )}
+
+                                                <Pressable 
+                                                    onPress={() => { setShowScoreInfo(false); navigation.navigate('VitalsHistory'); }}
+                                                    style={{
+                                                        width: 150,
+                                                        backgroundColor: '#FFFFFF',
+                                                        borderRadius: radius.lg,
+                                                        padding: 16,
+                                                        borderWidth: 1,
+                                                        borderColor: '#E2E8F0',
+                                                        justifyContent: 'space-between',
+                                                        minHeight: 120,
+                                                        ...shadows.card,
+                                                    }}
+                                                >
+                                                    <View style={{ backgroundColor: '#ECFDF5', paddingHorizontal: 8, paddingVertical: 3, borderRadius: radius.sm, alignSelf: 'flex-start' }}>
+                                                        <Text style={{ fontSize: 10, ...FONT.heavy, color: '#10B981' }}>+4 Score</Text>
+                                                    </View>
+                                                    <Text style={{ fontSize: 13, ...FONT.bold, color: '#0F172A', marginTop: 8 }} numberOfLines={2}>Log BP Reading</Text>
+                                                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', marginTop: 4 }}>
+                                                        <ChevronRight size={14} color="#6366F1" />
+                                                    </View>
+                                                </Pressable>
+
+                                                {healthSdkReady && (
+                                                    <Pressable 
+                                                        onPress={() => { setShowScoreInfo(false); handleWearableSync(); }}
+                                                        style={{
+                                                            width: 150,
+                                                            backgroundColor: '#FFFFFF',
+                                                            borderRadius: radius.lg,
+                                                            padding: 16,
+                                                            borderWidth: 1,
+                                                            borderColor: '#E2E8F0',
+                                                            justifyContent: 'space-between',
+                                                            minHeight: 120,
+                                                            ...shadows.card,
+                                                        }}
+                                                    >
+                                                        <View style={{ backgroundColor: '#ECFDF5', paddingHorizontal: 8, paddingVertical: 3, borderRadius: radius.sm, alignSelf: 'flex-start' }}>
+                                                            <Text style={{ fontSize: 10, ...FONT.heavy, color: '#10B981' }}>+3 Score</Text>
+                                                        </View>
+                                                        <Text style={{ fontSize: 13, ...FONT.bold, color: '#0F172A', marginTop: 8 }} numberOfLines={2}>Sync Wearable</Text>
+                                                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', marginTop: 4 }}>
+                                                            <ChevronRight size={14} color="#6366F1" />
+                                                        </View>
+                                                    </Pressable>
+                                                )}
+
+                                                {completionPct < 100 && (
+                                                    <Pressable 
+                                                        onPress={() => { setShowScoreInfo(false); handleCompletionClick(); }}
+                                                        style={{
+                                                            width: 150,
+                                                            backgroundColor: '#FFFFFF',
+                                                            borderRadius: radius.lg,
+                                                            padding: 16,
+                                                            borderWidth: 1,
+                                                            borderColor: '#E2E8F0',
+                                                            justifyContent: 'space-between',
+                                                            minHeight: 120,
+                                                            ...shadows.card,
+                                                        }}
+                                                    >
+                                                        <View style={{ backgroundColor: '#ECFDF5', paddingHorizontal: 8, paddingVertical: 3, borderRadius: radius.sm, alignSelf: 'flex-start' }}>
+                                                            <Text style={{ fontSize: 10, ...FONT.heavy, color: '#10B981' }}>+2 Score</Text>
+                                                        </View>
+                                                        <Text style={{ fontSize: 13, ...FONT.bold, color: '#0F172A', marginTop: 8 }} numberOfLines={2}>Complete Profile</Text>
+                                                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', marginTop: 4 }}>
+                                                            <ChevronRight size={14} color="#6366F1" />
+                                                        </View>
+                                                    </Pressable>
+                                                )}
+                                            </ScrollView>
+                                        </View>
+
+                                        {/* ── SECTION 5: HEALTH DRIVERS ── */}
+                                        <HealthDrivers driverData={driverData} />
+
+                                        {/* ── SECTION 6: WEEKLY MOMENTUM & STREAK RINGS ── */}
+                                        <MomentumCard
+                                            streakDays={streakDays}
+                                            streakLabel={streakLabel}
+                                            daysOfWeek={daysOfWeek}
+                                            completedDays={completedDays}
+                                            todayIdx={todayIdx}
+                                        />
+
+                                        {/* ── SECTION 7: AI INSIGHT & PREDICTION CARD ── */}
+                                        {hasScore && (
+                                            <View style={{
+                                                backgroundColor: '#FAFBFF',
+                                                borderRadius: radius.lg,
+                                                padding: 20,
+                                                borderWidth: 1,
+                                                borderColor: '#E0E7FF',
+                                                marginBottom: 20,
+                                                gap: 12,
+                                            }}>
+                                                {(hs?.tips || []).length > 0 && (
                                                     <View style={{ gap: 4 }}>
-                                                        <Text style={{ fontSize: 12, ...FONT.heavy, color: '#6366F1', letterSpacing: 0.8, textTransform: 'uppercase' }}>PREDICTION</Text>
+                                                        <Text style={{ fontSize: 12, ...FONT.heavy, color: '#6366F1', letterSpacing: 0.8, textTransform: 'uppercase' }}>AI INSIGHT</Text>
                                                         <Text style={{ fontSize: 14, ...FONT.medium, color: '#334155', lineHeight: 20 }}>
-                                                            Improving your {weakest.label.toLowerCase()} score could boost your overall health score.
+                                                            {hs.tips[0].body}
                                                         </Text>
+                                                    </View>
+                                                )}
+                                                
+                                                {weakest && projectedScore && (
+                                                    <>
+                                                        <View style={{ height: 1, backgroundColor: '#E0E7FF' }} />
+                                                        <View style={{ gap: 4 }}>
+                                                            <Text style={{ fontSize: 12, ...FONT.heavy, color: '#6366F1', letterSpacing: 0.8, textTransform: 'uppercase' }}>PREDICTION</Text>
+                                                            <Text style={{ fontSize: 14, ...FONT.medium, color: '#334155', lineHeight: 20 }}>
+                                                                Improving your {weakest.label.toLowerCase()} score could boost your overall health score.
+                                                            </Text>
+                                                            <View style={{
+                                                                backgroundColor: '#EEF2FF',
+                                                                paddingHorizontal: 10,
+                                                                paddingVertical: 6,
+                                                                borderRadius: radius.md,
+                                                                alignSelf: 'flex-start',
+                                                                marginTop: 4,
+                                                            }}>
+                                                                <Text style={{ fontSize: 12, ...FONT.bold, color: '#4F46E5' }}>Projected Score: {projectedScore}</Text>
+                                                            </View>
+                                                        </View>
+                                                    </>
+                                                )}
+                                            </View>
+                                        )}
+
+                                        {/* ── SECTION 8: ACHIEVEMENTS & NEXT MILESTONE ── */}
+                                        <AchievementSection
+                                            nextMilestone={nextMilestone}
+                                            milestoneProgress={milestoneProgress}
+                                            milestoneTarget={milestoneTarget}
+                                            unlockedAchievements={unlockedAchievements}
+                                        />
+                                    </ScrollView>
+                                ) : (
+                                    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40, paddingHorizontal: spacing.screen }}>
+                                        {historyLoading ? (
+                                            <View style={{ paddingVertical: 80, alignItems: 'center', justifyContent: 'center' }}>
+                                                <ActivityIndicator size="large" color={colors.primary} />
+                                                <Text style={{ fontSize: 13, ...FONT.semibold, color: colors.textSecondary, marginTop: 12 }}>Loading trends & journey...</Text>
+                                            </View>
+                                        ) : (
+                                            <View style={{ gap: 20 }}>
+                                                {/* Health Momentum & Adherence Consistency Bento */}
+                                                {healthHistory?.predictive_health && (
+                                                    <View style={{ flexDirection: 'row', gap: 12 }}>
+                                                        {/* Momentum Card */}
                                                         <View style={{
-                                                            backgroundColor: '#EEF2FF',
-                                                            paddingHorizontal: 10,
-                                                            paddingVertical: 6,
-                                                            borderRadius: radius.md,
-                                                            alignSelf: 'flex-start',
-                                                            marginTop: 4,
+                                                            flex: 1,
+                                                            backgroundColor: '#FFFFFF',
+                                                            borderRadius: radius.lg,
+                                                            padding: 16,
+                                                            borderWidth: 1,
+                                                            borderColor: '#E2E8F0',
+                                                            justifyContent: 'space-between',
+                                                            minHeight: 130,
+                                                            ...shadows.card
                                                         }}>
-                                                            <Text style={{ fontSize: 12, ...FONT.bold, color: '#4F46E5' }}>Projected Score: {projectedScore}</Text>
+                                                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                                <Text style={{ fontSize: 11, ...FONT.heavy, color: '#64748B', letterSpacing: 0.8 }}>MOMENTUM</Text>
+                                                                <View style={{
+                                                                    backgroundColor: healthHistory.predictive_health.momentum.direction === 'improving' ? '#ECFDF5' : (healthHistory.predictive_health.momentum.direction === 'declining' ? '#FEF2F2' : '#F1F5F9'),
+                                                                    paddingHorizontal: 8,
+                                                                    paddingVertical: 3,
+                                                                    borderRadius: radius.sm,
+                                                                }}>
+                                                                    <Text style={{
+                                                                        fontSize: 10,
+                                                                        ...FONT.heavy,
+                                                                        color: healthHistory.predictive_health.momentum.direction === 'improving' ? '#10B981' : (healthHistory.predictive_health.momentum.direction === 'declining' ? '#EF4444' : '#64748B')
+                                                                    }}>
+                                                                        {healthHistory.predictive_health.momentum.direction === 'improving' ? 'Improving ↗' : (healthHistory.predictive_health.momentum.direction === 'declining' ? 'Declining ↘' : 'Stable ➔')}
+                                                                    </Text>
+                                                                </View>
+                                                            </View>
+                                                            <View style={{ flexDirection: 'row', alignItems: 'baseline', marginTop: 8 }}>
+                                                                <Text style={{ fontSize: 32, ...FONT.heavy, color: '#0F172A' }}>{healthHistory.predictive_health.momentum.score}</Text>
+                                                                <Text style={{ fontSize: 13, ...FONT.semibold, color: '#94A3B8', marginLeft: 4 }}>/100</Text>
+                                                            </View>
+                                                            <View style={{ marginTop: 8 }}>
+                                                                <Text style={{ fontSize: 11, ...FONT.semibold, color: '#64748B' }}>
+                                                                    30d Score: {healthHistory.predictive_health.momentum.score_change_30d >= 0 ? `+${healthHistory.predictive_health.momentum.score_change_30d}` : healthHistory.predictive_health.momentum.score_change_30d} pts
+                                                                </Text>
+                                                                <Text style={{ fontSize: 11, ...FONT.semibold, color: '#64748B', marginTop: 2 }}>
+                                                                    30d Adherence: {healthHistory.predictive_health.momentum.adherence_change_30d >= 0 ? `+${healthHistory.predictive_health.momentum.adherence_change_30d}` : healthHistory.predictive_health.momentum.adherence_change_30d}%
+                                                                </Text>
+                                                            </View>
+                                                        </View>
+
+                                                        {/* Consistency Card */}
+                                                        <View style={{
+                                                            flex: 1,
+                                                            backgroundColor: '#FFFFFF',
+                                                            borderRadius: radius.lg,
+                                                            padding: 16,
+                                                            borderWidth: 1,
+                                                            borderColor: '#E2E8F0',
+                                                            justifyContent: 'space-between',
+                                                            minHeight: 130,
+                                                            ...shadows.card
+                                                        }}>
+                                                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                                <Text style={{ fontSize: 11, ...FONT.heavy, color: '#64748B', letterSpacing: 0.8 }}>CONSISTENCY</Text>
+                                                                {healthHistory.predictive_health.consistency.score >= 80 && (
+                                                                    <View style={{
+                                                                        backgroundColor: '#EEF2FF',
+                                                                        paddingHorizontal: 6,
+                                                                        paddingVertical: 2,
+                                                                        borderRadius: radius.sm,
+                                                                        borderWidth: 0.5,
+                                                                        borderColor: '#C7D2FE',
+                                                                    }}>
+                                                                        <Text style={{ fontSize: 8, ...FONT.heavy, color: '#4F46E5' }}>★ HABIT HERO</Text>
+                                                                    </View>
+                                                                )}
+                                                            </View>
+                                                            <View style={{ flexDirection: 'row', alignItems: 'baseline', marginTop: 8 }}>
+                                                                <Text style={{ fontSize: 32, ...FONT.heavy, color: '#0F172A' }}>{healthHistory.predictive_health.consistency.score}%</Text>
+                                                            </View>
+                                                            <View style={{ marginTop: 8 }}>
+                                                                <Text style={{ fontSize: 12, ...FONT.bold, color: healthHistory.predictive_health.consistency.score >= 80 ? '#10B981' : (healthHistory.predictive_health.consistency.score >= 50 ? '#F59E0B' : '#EF4444') }}>
+                                                                    {healthHistory.predictive_health.consistency.score >= 80 ? 'Highly Consistent' : (healthHistory.predictive_health.consistency.score >= 50 ? 'Moderate Fluctuation' : 'Erratic Tracking')}
+                                                                </Text>
+                                                                <Text style={{ fontSize: 11, ...FONT.semibold, color: '#94A3B8', marginTop: 2 }}>
+                                                                    Avg Adherence: {healthHistory.predictive_health.consistency.average}%
+                                                                </Text>
+                                                            </View>
                                                         </View>
                                                     </View>
-                                                </>
-                                            )}
-                                        </View>
-                                    )}
+                                                )}
 
-                                    {/* ── SECTION 8: ACHIEVEMENTS & NEXT MILESTONE ── */}
-                                    <AchievementSection
-                                        nextMilestone={nextMilestone}
-                                        milestoneProgress={milestoneProgress}
-                                        milestoneTarget={milestoneTarget}
-                                        unlockedAchievements={unlockedAchievements}
-                                    />
+                                                {/* Score Trend Card */}
+                                                <View style={s.trendCard}>
+                                                    <View style={s.trendHeader}>
+                                                        <Activity size={18} color={colors.primary} />
+                                                        <Text style={s.trendTitle}>Overall Health Score</Text>
+                                                    </View>
+                                                    <PremiumTrendChart
+                                                        data={healthHistory?.history?.map(h => ({
+                                                            value: h.score,
+                                                            label: formatDate(h.date, 'D MMM')
+                                                        })) || []}
+                                                        type="area"
+                                                        color={colors.primary}
+                                                    />
+                                                </View>
 
-                                </ScrollView>
+                                                {/* Adherence Trend Card */}
+                                                <View style={s.trendCard}>
+                                                    <View style={s.trendHeader}>
+                                                        <Pill size={18} color="#10B981" />
+                                                        <Text style={s.trendTitle}>Medication Adherence</Text>
+                                                    </View>
+                                                    <PremiumTrendChart
+                                                        data={healthHistory?.history?.map(h => ({
+                                                            value: h.adherence?.today ?? 0,
+                                                            label: formatDate(h.date, 'D MMM')
+                                                        })) || []}
+                                                        type="line"
+                                                        color="#10B981"
+                                                        yMax={100}
+                                                    />
+                                                </View>
+
+                                                {/* Consistency Board */}
+                                                <StreakCalendar 
+                                                    dailyLog={healthHistory?.history?.map(h => ({
+                                                        date: formatDate(h.date, 'YYYY-MM-DD'),
+                                                        taken: h.adherence?.today === 100 ? 1 : 0,
+                                                        total: 1,
+                                                        rate: h.adherence?.today ?? 0
+                                                    })) || []}
+                                                    timezone={profile?.timezone || 'Asia/Kolkata'}
+                                                />
+
+                                                {/* Sleep Trend Card */}
+                                                <View style={s.trendCard}>
+                                                    <View style={s.trendHeader}>
+                                                        <Clock size={18} color="#6366F1" />
+                                                        <Text style={s.trendTitle}>Sleep Duration</Text>
+                                                    </View>
+                                                    <PremiumTrendChart
+                                                        data={healthHistory?.history?.map(h => ({
+                                                            value: h.sleepHours ?? 0,
+                                                            label: formatDate(h.date, 'D MMM')
+                                                        })) || []}
+                                                        type="bar"
+                                                        color="#6366F1"
+                                                        yMax={12}
+                                                    />
+                                                </View>
+
+                                                {/* Blood Pressure Trend Card */}
+                                                <View style={s.trendCard}>
+                                                    <View style={s.trendHeader}>
+                                                        <HeartPulse size={18} color="#EF4444" />
+                                                        <Text style={s.trendTitle}>Systolic Blood Pressure (Avg)</Text>
+                                                    </View>
+                                                    <PremiumTrendChart
+                                                        data={healthHistory?.history?.map(h => ({
+                                                            value: h.bpAvg?.systolic ?? 120,
+                                                            label: formatDate(h.date, 'D MMM')
+                                                        })).filter(h => h.value !== null) || []}
+                                                        type="line"
+                                                        color="#EF4444"
+                                                        yMin={80}
+                                                        yMax={160}
+                                                    />
+                                                </View>
+
+                                                {/* Mood Trend Card */}
+                                                <View style={s.trendCard}>
+                                                    <View style={s.trendHeader}>
+                                                        <Sparkles size={18} color="#F59E0B" />
+                                                        <Text style={s.trendTitle}>Mood History</Text>
+                                                    </View>
+                                                    <PremiumTrendChart
+                                                        data={healthHistory?.history?.map(h => {
+                                                            const moodValues = { sad: 25, okay: 50, good: 75, great: 100 };
+                                                            return {
+                                                                value: moodValues[h.mood] ?? 50,
+                                                                label: formatDate(h.date, 'D MMM')
+                                                            };
+                                                        }) || []}
+                                                        type="bar"
+                                                        color="#F59E0B"
+                                                        yMax={100}
+                                                    />
+                                                </View>
+
+                                                {/* Health Journey Timeline / Replay */}
+                                                <View style={s.timelineContainer}>
+                                                    <Text style={s.timelineHeading}>Health Journey Replay</Text>
+                                                    {timeline.length === 0 ? (
+                                                        <Text style={s.timelineEmpty}>Maintain consistency to unlock achievements & milestones!</Text>
+                                                    ) : (
+                                                        <View style={s.timelineList}>
+                                                            {timeline.map((item, index) => (
+                                                                <View key={item.id || index} style={s.timelineItem}>
+                                                                    <View style={s.timelineDotLine}>
+                                                                        <View style={[s.timelineDot, { backgroundColor: colors.primary }]} />
+                                                                        {index < timeline.length - 1 && <View style={s.timelineLine} />}
+                                                                    </View>
+                                                                    <View style={s.timelineContent}>
+                                                                        <Text style={s.timelineTitle}>{item.title}</Text>
+                                                                        <Text style={s.timelineDesc}>{item.description}</Text>
+                                                                        <Text style={s.timelineDate}>{formatDate(item.earned_at, 'MMMM D, YYYY')}</Text>
+                                                                    </View>
+                                                                </View>
+                                                            ))}
+                                                        </View>
+                                                    )}
+                                                </View>
+                                            </View>
+                                        )}
+                                    </ScrollView>
+                                )}
                             </View>
                         </View>
                     );
@@ -2670,5 +2988,93 @@ const s = StyleSheet.create({
         color: '#FFFFFF',
         fontSize: 15,
         ...FONT.bold,
+    },
+    trendCard: {
+        backgroundColor: colors.surface,
+        borderRadius: radius.card,
+        padding: spacing.md,
+        borderWidth: 1,
+        borderColor: colors.borderLight,
+        shadowColor: '#0A2463',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.04,
+        shadowRadius: 8,
+        elevation: 2,
+    },
+    trendHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        marginBottom: spacing.sm,
+    },
+    trendTitle: {
+        fontSize: 15,
+        ...FONT.bold,
+        color: colors.textPrimary,
+    },
+    timelineContainer: {
+        backgroundColor: colors.surface,
+        borderRadius: radius.card,
+        padding: spacing.md,
+        marginVertical: spacing.xs,
+        borderWidth: 1,
+        borderColor: colors.borderLight,
+    },
+    timelineHeading: {
+        fontSize: 16,
+        ...FONT.heavy,
+        color: colors.textPrimary,
+        marginBottom: spacing.md,
+    },
+    timelineEmpty: {
+        fontSize: 13,
+        ...FONT.medium,
+        color: colors.textMuted,
+        textAlign: 'center',
+        paddingVertical: 24,
+    },
+    timelineList: {
+        gap: 16,
+    },
+    timelineItem: {
+        flexDirection: 'row',
+        gap: 12,
+    },
+    timelineDotLine: {
+        alignItems: 'center',
+        width: 16,
+    },
+    timelineDot: {
+        width: 12,
+        height: 12,
+        borderRadius: 6,
+        marginTop: 4,
+    },
+    timelineLine: {
+        width: 2,
+        flex: 1,
+        backgroundColor: colors.borderLight,
+        marginVertical: 4,
+    },
+    timelineContent: {
+        flex: 1,
+    },
+    timelineTitle: {
+        fontSize: 14,
+        ...FONT.bold,
+        color: colors.textPrimary,
+    },
+    timelineDesc: {
+        fontSize: 13,
+        ...FONT.regular,
+        color: colors.textSecondary,
+        marginTop: 2,
+        lineHeight: 18,
+    },
+    timelineDate: {
+        fontSize: 11,
+        ...FONT.medium,
+        color: colors.textMuted,
+        marginTop: 4,
     },
 });

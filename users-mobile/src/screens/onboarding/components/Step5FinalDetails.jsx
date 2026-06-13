@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
     View, Text, Pressable, Animated, Platform, ActivityIndicator,
 } from 'react-native';
@@ -9,6 +9,8 @@ import {
 import { useFormContext, Controller } from 'react-hook-form';
 import { IconInput } from './SignupUI';
 import { styles, FONT, C } from './SignupStyles';
+import { HapticPatterns } from '../../../utils/haptics';
+import { useReduceMotion } from '../../../theme';
 
 const CELEBRATION_FEATURES = [
     { Icon: Heart, title: 'Personalised care', subtitle: 'Tailored daily health insights' },
@@ -22,15 +24,36 @@ const Step5FinalDetails = ({
     proceedToDashboard, userName,
 }) => {
     const { control, formState: { errors } } = useFormContext();
-    const [selectedDate, setSelectedDate] = React.useState(
+    const [selectedDate, setSelectedDate] = useState(
         new Date(new Date().getFullYear() - 30, 0, 1)
     );
+    const orbScale = useRef(new Animated.Value(0.3)).current;
+    const reduceMotion = useReduceMotion();
+
+    useEffect(() => {
+        if (showCelebration) {
+            HapticPatterns.allDone().catch(() => {});
+            if (reduceMotion) {
+                orbScale.setValue(1);
+            } else {
+                Animated.spring(orbScale, {
+                    toValue: 1,
+                    friction: 4,
+                    tension: 40,
+                    useNativeDriver: true,
+                }).start();
+            }
+        }
+    }, [showCelebration, reduceMotion]);
 
     // ─── Celebration view ─────────────────────────────────────────────────────
     if (showCelebration) {
         return (
             <View style={styles.finalState}>
-                <Animated.View style={[styles.successOrb, { opacity: staggerAnims[0] }]}>
+                <Animated.View style={[
+                    styles.successOrb,
+                    { opacity: staggerAnims[0], transform: [{ scale: orbScale }] }
+                ]}>
                     <CheckCircle2 size={72} color={C.primary} />
                 </Animated.View>
 
@@ -57,9 +80,12 @@ const Step5FinalDetails = ({
 
                 <Animated.View style={{
                     width: '100%', opacity: staggerAnims[4],
-                    transform: [{ translateY: staggerAnims[4].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }],
+                    transform: [{ translateY: staggerAnims[4].interpolate({ inputRange: [0, 1], outputRange: [reduceMotion ? 0 : 20, 0] }) }],
                 }}>
-                    <Pressable style={styles.primaryBtnEnhanced} onPress={proceedToDashboard}>
+                    <Pressable
+                        style={({ pressed }) => [styles.primaryBtnEnhanced, pressed && styles.pressed]}
+                        onPress={proceedToDashboard}
+                    >
                         <View style={styles.primaryBtnGradientEnhanced}>
                             <Text style={[styles.primaryBtnText, { flex: 1, textAlign: 'center' }]}>
                                 Go to dashboard
@@ -86,7 +112,7 @@ const Step5FinalDetails = ({
 
             <Animated.View style={{
                 width: '100%', opacity: staggerAnims[1],
-                transform: [{ translateY: staggerAnims[1].interpolate({ inputRange: [0, 1], outputRange: [16, 0] }) }],
+                transform: [{ translateY: staggerAnims[1].interpolate({ inputRange: [0, 1], outputRange: [reduceMotion ? 0 : 16, 0] }) }],
             }}>
                 {/* Date of Birth */}
                 <Controller
@@ -109,7 +135,10 @@ const Step5FinalDetails = ({
 
                         return (
                             <>
-                                <Pressable onPress={() => setShowPicker(true)}>
+                                <Pressable
+                                    onPress={() => setShowPicker(true)}
+                                    style={({ pressed }) => [pressed && styles.pressed]}
+                                >
                                     <View pointerEvents="none">
                                         <IconInput
                                             icon={Calendar}
@@ -150,7 +179,11 @@ const Step5FinalDetails = ({
                                 {['Male', 'Female', 'Other'].map(g => (
                                     <Pressable
                                         key={g}
-                                        style={[styles.genderBtn, value === g && styles.genderBtnActive]}
+                                        style={({ pressed }) => [
+                                            styles.genderBtn,
+                                            value === g && styles.genderBtnActive,
+                                            pressed && styles.pressed,
+                                        ]}
                                         onPress={() => onChange(g)}
                                     >
                                         <Text style={[styles.genderBtnText, value === g && { color: C.primary }]}>
@@ -182,10 +215,14 @@ const Step5FinalDetails = ({
             {/* Complete button */}
             <Animated.View style={{
                 width: '100%', opacity: staggerAnims[2],
-                transform: [{ translateY: staggerAnims[2].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }],
+                transform: [{ translateY: staggerAnims[2].interpolate({ inputRange: [0, 1], outputRange: [reduceMotion ? 0 : 20, 0] }) }],
             }}>
                 <Pressable
-                    style={[styles.primaryBtnEnhanced, signupLoading && { opacity: 0.7 }]}
+                    style={({ pressed }) => [
+                        styles.primaryBtnEnhanced,
+                        signupLoading && { opacity: 0.7 },
+                        pressed && styles.pressed
+                    ]}
                     onPress={() => handleCompleteSignUp(selectedDate.toISOString())}
                     disabled={signupLoading}
                 >

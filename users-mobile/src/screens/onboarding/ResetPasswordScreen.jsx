@@ -18,6 +18,7 @@ import analytics from '../../utils/analytics';
 import { useAuth } from '../../context/AuthContext';
 import { isRecoveryExpired } from '../../utils/authUtils';
 import SmartInput from '../../components/ui/SmartInput';
+import { colors, radius, spacing, shadows } from '../../theme';
 
 export default function ResetPasswordScreen({ navigation }) {
     const [newPassword, setNewPassword] = useState('');
@@ -95,7 +96,7 @@ export default function ResetPasswordScreen({ navigation }) {
                     </View>
                     <Text style={[styles.successTitle, { color: '#991B1B' }]}>Link Expired</Text>
                     <Text style={styles.successSub}>This password reset link has expired. Please request a new one.</Text>
-                    <Pressable style={styles.primaryBtn} onPress={handleGoToLogin}>
+                    <Pressable style={({ pressed }) => [styles.primaryBtn, pressed && styles.pressed]} onPress={handleGoToLogin}>
                         <LinearGradient colors={['#6366F1', '#4338CA']} style={styles.primaryBtnGradient}>
                             <Text style={styles.primaryBtnText}>Return to Login</Text>
                             <ChevronRight size={20} color="#FFFFFF" />
@@ -115,7 +116,7 @@ export default function ResetPasswordScreen({ navigation }) {
                     </View>
                     <Text style={styles.successTitle}>Password Updated!</Text>
                     <Text style={styles.successSub}>Your password has been changed. You can now log in with your new password.</Text>
-                    <Pressable style={styles.primaryBtn} onPress={handleGoToLogin}>
+                    <Pressable style={({ pressed }) => [styles.primaryBtn, pressed && styles.pressed]} onPress={handleGoToLogin}>
                         <LinearGradient colors={['#6366F1', '#4338CA']} style={styles.primaryBtnGradient}>
                             <Text style={styles.primaryBtnText}>Continue to Login</Text>
                             <ChevronRight size={20} color="#FFFFFF" />
@@ -157,7 +158,7 @@ export default function ResetPasswordScreen({ navigation }) {
                             textContentType="newPassword"
                             leftAccessory={<Lock size={18} color="#94A3B8" style={{ marginRight: 10 }} />}
                             rightAccessory={
-                                <Pressable onPress={() => setShowPassword(!showPassword)} hitSlop={12} style={{ paddingLeft: 8 }}>
+                                <Pressable style={({ pressed }) => [{ paddingLeft: 8 }, pressed && { opacity: 0.7 }]} onPress={() => setShowPassword(!showPassword)} hitSlop={12}>
                                     {showPassword ? <Eye size={18} color="#6366F1" /> : <EyeOff size={18} color="#94A3B8" />}
                                 </Pressable>
                             }
@@ -187,14 +188,18 @@ export default function ResetPasswordScreen({ navigation }) {
                             textContentType="newPassword"
                             leftAccessory={<Lock size={18} color="#94A3B8" style={{ marginRight: 10 }} />}
                             rightAccessory={
-                                <Pressable onPress={() => setShowConfirm(!showConfirm)} hitSlop={12} style={{ paddingLeft: 8 }}>
+                                <Pressable style={({ pressed }) => [{ paddingLeft: 8 }, pressed && { opacity: 0.7 }]} onPress={() => setShowConfirm(!showConfirm)} hitSlop={12}>
                                     {showConfirm ? <Eye size={18} color="#6366F1" /> : <EyeOff size={18} color="#94A3B8" />}
                                 </Pressable>
                             }
                         />
                     </View>
 
-                    <Pressable style={[styles.primaryBtn, loading && { opacity: 0.7 }]} onPress={handleResetPassword} disabled={loading}>
+                    <Pressable
+                        style={({ pressed }) => [styles.primaryBtn, loading && { opacity: 0.7 }, pressed && styles.pressed]}
+                        onPress={handleResetPassword}
+                        disabled={loading}
+                    >
                         <LinearGradient colors={['#6366F1', '#4338CA']} style={styles.primaryBtnGradient}>
                             {loading ? (
                                 <ActivityIndicator size="small" color="#FFFFFF" />
@@ -213,23 +218,24 @@ export default function ResetPasswordScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#F8FAFC' },
+    container: { flex: 1, backgroundColor: colors.background },
     hero: { height: 280, borderBottomLeftRadius: 40, borderBottomRightRadius: 40, alignItems: 'center', justifyContent: 'center', paddingTop: Platform.OS === 'ios' ? 60 : 40, overflow: 'hidden' },
     heroIconWrap: { width: 80, height: 80, borderRadius: 24, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center', marginBottom: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)' },
     heroTitle: { fontSize: 28, fontWeight: '800', color: '#FFFFFF', letterSpacing: -0.5 },
     heroSubtitle: { fontSize: 15, color: 'rgba(255,255,255,0.75)', marginTop: 4, fontWeight: '500' },
-    formCard: { marginTop: -30, marginHorizontal: 20, backgroundColor: '#FFFFFF', borderRadius: 36, paddingHorizontal: 24, paddingTop: 32, paddingBottom: 30, shadowColor: '#6366F1', shadowOffset: { width: 0, height: 20 }, shadowOpacity: 0.08, shadowRadius: 32, elevation: 12 },
-    errorBox: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#FFE4E6', borderRadius: 20, padding: 16, marginBottom: 20, borderWidth: 1, borderColor: '#FCA5A5' },
+    formCard: { marginTop: -30, marginHorizontal: 20, backgroundColor: colors.surface, borderRadius: 28, paddingHorizontal: 24, paddingTop: 32, paddingBottom: 30, ...shadows.modal },
+    errorBox: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.dangerLight, borderRadius: 20, padding: 16, marginBottom: 20 },
     errorMsg: { color: '#991B1B', fontSize: 13, flex: 1, fontWeight: '600' },
     fieldGroup: { marginBottom: 20 },
     reqWrap: { marginTop: -8, marginBottom: 20, marginLeft: 4, gap: 6 },
-    reqItem: { fontSize: 12, color: '#94A3B8', fontWeight: '500' },
-    reqMet: { color: '#22C55E', fontWeight: '700' },
-    primaryBtn: { borderRadius: 100, height: 64, overflow: 'hidden', shadowColor: '#6366F1', shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.3, shadowRadius: 20, elevation: 10, marginTop: 12 },
+    reqItem: { fontSize: 12, color: colors.textMuted, fontWeight: '500' },
+    reqMet: { color: colors.success, fontWeight: '700' },
+    primaryBtn: { borderRadius: 100, height: 64, overflow: 'hidden', ...shadows.hero, marginTop: 12 },
     primaryBtnGradient: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
     primaryBtnText: { color: '#FFFFFF', fontSize: 17, fontWeight: '700' },
     successCenter: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
-    successCircle: { width: 120, height: 120, borderRadius: 60, backgroundColor: '#F0FDF4', alignItems: 'center', justifyContent: 'center', marginBottom: 24, borderWidth: 1, borderColor: '#DCFCE7' },
+    successCircle: { width: 120, height: 120, borderRadius: 60, backgroundColor: colors.successLight, alignItems: 'center', justifyContent: 'center', marginBottom: 24 },
     successTitle: { fontSize: 28, fontWeight: '800', color: '#166534', marginBottom: 12, letterSpacing: -0.5 },
-    successSub: { fontSize: 16, color: '#475569', textAlign: 'center', lineHeight: 24, marginBottom: 40 },
+    successSub: { fontSize: 16, color: colors.textSecondary, textAlign: 'center', lineHeight: 24, marginBottom: 40 },
+    pressed: { opacity: 0.85, transform: [{ scale: 0.98 }] },
 });

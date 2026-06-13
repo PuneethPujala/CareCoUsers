@@ -2,16 +2,21 @@ const moment = require('moment-timezone');
 const Patient = require('../models/Patient');
 const MedicineLog = require('../models/MedicineLog');
 const VitalLog = require('../models/VitalLog');
+const SleepLog = require('../models/SleepLog');
+const PatientHealthStateHistory = require('../models/PatientHealthStateHistory');
+const AchievementEvent = require('../models/AchievementEvent');
 const { computeHealthScore } = require('./healthScoreService');
 const { buildMergedMeds, computeCurrentStreak } = require('../routes/users/medicines');
 const logger = require('../utils/logger');
 
 /**
- * Recomputes the health state for a patient and caches it to the patient record in the database.
+ * Recomputes the health state for a patient for a specific target date (or today)
+ * and caches it to the patient record in the database.
  * @param {string} patientId 
+ * @param {string|null} targetDate - Optional target date in 'YYYY-MM-DD' format
  * @returns {Promise<Object>} The computed patient_health_state object
  */
-async function recomputeAndCacheHealthState(patientId) {
+async function recomputeAndCacheHealthState(patientId, targetDate = null) {
     try {
         let patient = await Patient.findById(patientId);
         // Robust mock execution check for tests where Patient.findById returns a non-thenable query mock
@@ -21,10 +26,10 @@ async function recomputeAndCacheHealthState(patientId) {
         if (!patient) return null;
 
         const timezone = patient.timezone || 'Asia/Kolkata';
-        const todayStr = moment().tz(timezone).format('YYYY-MM-DD');
+        const todayStr = targetDate ? moment(targetDate).tz(timezone).format('YYYY-MM-DD') : moment().tz(timezone).format('YYYY-MM-DD');
         const todayUtc = new Date(`${todayStr}T00:00:00.000Z`);
         const todayEndUtc = new Date(`${todayStr}T23:59:59.999Z`);
-        const thirtyDaysAgo = new Date(`${moment().tz(timezone).subtract(30, 'days').format('YYYY-MM-DD')}T00:00:00.000Z`);
+        const thirtyDaysAgo = new Date(`${moment(todayUtc).tz(timezone).subtract(30, 'days').format('YYYY-MM-DD')}T00:00:00.000Z`);
 
         // 1. Fetch data in parallel
         const [
@@ -32,6 +37,7 @@ async function recomputeAndCacheHealthState(patientId) {
             vitalsHistory,
             todayMedLog,
             adherenceLogs,
+            todaySleep,
         ] = await Promise.all([
             (async () => {
                 let query = VitalLog.find({
@@ -112,6 +118,11 @@ async function recomputeAndCacheHealthState(patientId) {
                 if (typeof query.lean === 'function') query = query.lean();
                 return query;
             })(),
+
+            (async () => {
+                let log = await SleepLog.findOne({ patient_id: patient._id, date: todayUtc }).lean();
+                return log;
+            })(),
         ]);
 
         // Ensure arrays (auto-mocked models may return undefined)
@@ -146,7 +157,7 @@ async function recomputeAndCacheHealthState(patientId) {
             });
         }
 
-        const historyStartStr = moment().tz(timezone).subtract(30, 'days').format('YYYY-MM-DD');
+        const historyStartStr = moment(todayUtc).tz(timezone).subtract(30, 'days').format('YYYY-MM-DD');
         const streak = computeCurrentStreak(dailyLog, todayStr, historyStartStr);
         let adherenceRate = null;
         if (weeklyTotal > 0) {
@@ -316,6 +327,63 @@ async function recomputeAndCacheHealthState(patientId) {
             computed_at: new Date().toISOString(),
         };
 
+        // 10. Check for milestones and record AchievementEvents
+        const unlocked = patient.unlockedAchievements || [];
+        const newUnlocks = [];
+
+        // Perfect Day
+        if (todayAdherencePct === 100 && todayMedsTotal > 0 && !unlocked.includes('first_perfect_day')) {
+            newUnlocks.push('first_perfect_day');
+        }
+        // Streaks
+        if (streak >= 7 && !unlocked.includes('streak_7')) {
+            newUnlocks.push('streak_7');
+        }
+        if (streak >= 30 && !unlocked.includes('streak_30')) {
+            newUnlocks.push('streak_30');
+        }
+        // BP Stabilized
+        if (safeVitalsHistory.length >= 3) {
+            const last3 = safeVitalsHistory.slice(-3);
+            const allStable = last3.every(v => {
+                const sys = v.blood_pressure?.systolic ?? v.systolic;
+                const dia = v.blood_pressure?.diastolic ?? v.diastolic;
+                return sys && dia && sys <= 130 && dia <= 85;
+            });
+            if (allStable && !unlocked.includes('bp_stabilized')) {
+                newUnlocks.push('bp_stabilized');
+            }
+        }
+        // 30-day adherence
+        if (dailyLog.length >= 14) {
+            const totalMedsLog = dailyLog.reduce((sum, item) => sum + item.total, 0);
+            const takenMedsLog = dailyLog.reduce((sum, item) => sum + item.taken, 0);
+            if (totalMedsLog > 0 && (takenMedsLog / totalMedsLog) >= 0.9 && !unlocked.includes('adherence_30d_90')) {
+                newUnlocks.push('adherence_30d_90');
+            }
+        }
+        // Score +20
+        const firstHistoryEntry = await PatientHealthStateHistory.findOne({ patient_id: patient._id }).sort({ date: 1 }).lean();
+        if (firstHistoryEntry && (scoreDetails.score - firstHistoryEntry.score) >= 20 && !unlocked.includes('score_plus_20')) {
+            newUnlocks.push('score_plus_20');
+        }
+
+        if (newUnlocks.length > 0) {
+            patient.unlockedAchievements = [...unlocked, ...newUnlocks];
+            for (const key of newUnlocks) {
+                try {
+                    await AchievementEvent.create({
+                        patient_id: patient._id,
+                        achievement: key,
+                        earned_at: new Date()
+                    });
+                } catch (err) {
+                    // Ignore achievement creation errors in tests/failures
+                }
+            }
+            stateObj.achievements.unlocked = patient.unlockedAchievements;
+        }
+
         // Cache state back to patient document
         patient.patient_health_state = stateObj;
         // Also update legacy health score cache
@@ -324,6 +392,71 @@ async function recomputeAndCacheHealthState(patientId) {
 
         if (typeof patient.save === 'function') {
             await patient.save();
+        }
+
+        // 11. Save snapshot to PatientHealthStateHistory (60-day expiration)
+        try {
+            const historyExpiresAt = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000);
+            let bpSystolicSum = 0;
+            let bpDiastolicSum = 0;
+            let bpCount = 0;
+            for (const v of todayVitals) {
+                const sys = v.blood_pressure?.systolic ?? v.systolic;
+                const dia = v.blood_pressure?.diastolic ?? v.diastolic;
+                if (sys && dia) {
+                    bpSystolicSum += sys;
+                    bpDiastolicSum += dia;
+                    bpCount++;
+                }
+            }
+            const bpAvg = bpCount > 0 ? {
+                systolic: Math.round(bpSystolicSum / bpCount),
+                diastolic: Math.round(bpDiastolicSum / bpCount)
+            } : { systolic: null, diastolic: null };
+
+            await PatientHealthStateHistory.findOneAndUpdate(
+                { patient_id: patient._id, date: todayUtc },
+                {
+                    patient_id: patient._id,
+                    date: todayUtc,
+                    score: stateObj.score,
+                    score_breakdown: {
+                        medications: scoreDetails.breakdown?.adherence?.pts ?? 0,
+                        vitals: scoreDetails.breakdown?.vitals?.pts ?? 0,
+                        lifestyle: scoreDetails.breakdown?.lifestyle?.pts ?? 0,
+                        conditions: scoreDetails.breakdown?.conditions?.pts ?? 0
+                    },
+                    adherence: {
+                        today: stateObj.adherence.today,
+                        streak: stateObj.adherence.streak,
+                    },
+                    mood: stateObj.mood.today,
+                    sleepHours: todaySleep?.hours || 0,
+                    bpAvg,
+                    risk: patient.risk_level || (stateObj.vitals.status === 'critical' ? 'high' : stateObj.vitals.status === 'watch' ? 'medium' : 'low'),
+                    schema_version: 1,
+                    expires_at: historyExpiresAt
+                },
+                { upsert: true, new: true }
+            );
+        } catch (historyErr) {
+            logger.error('[PatientHealthStateService] Failed to save daily health state history', { error: historyErr.message, patientId });
+        }
+
+        // Trigger background companion insights generation (2-minute debounced) — only for live recomputations (no targetDate)
+        if (!targetDate) {
+            try {
+                const companionAiService = require('./companionAiService');
+                if (companionAiService && typeof companionAiService.enqueueCompanionInsights === 'function') {
+                    companionAiService.enqueueCompanionInsights(patientId).catch(err => {
+                        logger.warn('[PatientHealthStateService] Failed to enqueue companion insights', { error: err.message, patientId });
+                    });
+                } else {
+                    logger.warn('[PatientHealthStateService] companionAiService or enqueueCompanionInsights not fully loaded during circular dependency resolution');
+                }
+            } catch (enqueueErr) {
+                logger.error('[PatientHealthStateService] Error loading enqueueCompanionInsights', { error: enqueueErr.message });
+            }
         }
 
         return stateObj;
@@ -354,7 +487,6 @@ async function getCachedHealthState(patient) {
         }
     }
 
-    // If we have a lean document/plain object or missing fields, reload/recompute
     return recomputeAndCacheHealthState(patientId);
 }
 
@@ -380,7 +512,7 @@ async function enqueueHealthStateRecompute(patientId) {
             { patientId },
             {
                 jobId,
-                delay: 5000, // Debounce 5 seconds
+                delay: 5000,
             }
         );
         logger.info(`[PatientHealthStateService] Enqueued debounced health-state recompute for patient ${patientId}`);
@@ -390,9 +522,89 @@ async function enqueueHealthStateRecompute(patientId) {
     }
 }
 
+/**
+ * Retrieves the daily health snapshots for the past 30 days and calculates deltas.
+ * Triggers an asynchronous backfill if the history has fewer than 5 records.
+ * @param {string} patientId
+ * @param {string} timezone
+ * @returns {Promise<Object>} containing history list and delta calculations.
+ */
+async function getHealthHistory(patientId, timezone = 'Asia/Kolkata') {
+    // Find all history records for the patient, sorted by date ascending
+    let history = await PatientHealthStateHistory.find({ patient_id: patientId }).sort({ date: 1 }).lean();
+    
+    // If history is empty or low, trigger backfill asynchronously
+    if (history.length < 5) {
+        logger.info(`[PatientHealthStateService] History low (${history.length} records). Enqueuing background backfill job for patient ${patientId}`);
+        const { healthHistoryBackfillQueue } = require('../jobs/jobQueues');
+        if (healthHistoryBackfillQueue) {
+            await healthHistoryBackfillQueue.add(
+                'backfill',
+                { patientId, timezone },
+                { jobId: `backfill-${patientId}` }
+            ).catch(err => logger.warn('[PatientHealthStateService] Failed to enqueue backfill job', { error: err.message }));
+        } else {
+            // Fallback: run in background promise
+            backfillHealthStateHistory(patientId, timezone).catch(err => logger.error('[PatientHealthStateService] Background backfill failed', { error: err.message }));
+        }
+    }
+    
+    // Calculate deltas dynamically
+    let score_delta_7d = 0;
+    let score_delta_30d = 0;
+    let adherence_delta_30d = 0;
+    
+    if (history.length > 0) {
+        const latest = history[history.length - 1];
+        
+        // 7d delta
+        const target7d = moment().tz(timezone).subtract(7, 'days').startOf('day');
+        const entry7d = history.find(h => moment(h.date).isSameOrAfter(target7d));
+        if (entry7d) score_delta_7d = latest.score - entry7d.score;
+        
+        // 30d delta
+        const target30d = moment().tz(timezone).subtract(30, 'days').startOf('day');
+        const entry30d = history.find(h => moment(h.date).isSameOrAfter(target30d));
+        if (entry30d) {
+            score_delta_30d = latest.score - entry30d.score;
+            adherence_delta_30d = latest.adherence.today - entry30d.adherence.today;
+        }
+    }
+    
+    return {
+        history,
+        deltas: {
+            score_delta_7d,
+            score_delta_30d,
+            adherence_delta_30d
+        }
+    };
+}
+
+/**
+ * Sequential background backfill of daily health states for the past 30 days.
+ * @param {string} patientId
+ * @param {string} timezone
+ * @returns {Promise<void>}
+ */
+async function backfillHealthStateHistory(patientId, timezone) {
+    const today = moment().tz(timezone);
+    logger.info(`[PatientHealthStateService] Starting sequential 30-day history backfill for patient ${patientId}`);
+    for (let i = 30; i >= 0; i--) {
+        const targetDateStr = today.clone().subtract(i, 'days').format('YYYY-MM-DD');
+        try {
+            await recomputeAndCacheHealthState(patientId, targetDateStr);
+        } catch (err) {
+            logger.error(`[PatientHealthStateService] Backfill failed for day -${i} (${targetDateStr})`, { error: err.message, patientId });
+        }
+    }
+    logger.info(`[PatientHealthStateService] Finished sequential 30-day history backfill for patient ${patientId}`);
+}
+
 module.exports = {
     recomputeAndCacheHealthState,
     getCachedHealthState,
     enqueueHealthStateRecompute,
+    getHealthHistory,
+    backfillHealthStateHistory,
 };
-

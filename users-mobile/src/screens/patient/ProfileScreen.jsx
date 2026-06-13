@@ -13,7 +13,7 @@ import {
     Shield, Droplets, Calendar, User, Trash2, ShieldCheck as ShieldCheckIcon, Smartphone,
     Mail, TrendingUp
 } from 'lucide-react-native';
-import { colors, layout, spacing, radius, shadows } from '../../theme';
+import { colors, layout, spacing, radius, shadows, motion, useReduceMotion } from '../../theme';
 import { useAuth } from '../../context/AuthContext';
 import { apiService } from '../../lib/api';
 import { registerForPushNotificationsAsync } from '../../utils/notifications';
@@ -65,6 +65,7 @@ const SkeletonItem = ({ width, height, borderRadius = 8, style }) => {
 export default function PatientProfileScreen({ navigation }) {
     const { t } = useTranslation();
     const { signOut, displayName, userEmail } = useAuth();
+    const reduceMotion = useReduceMotion();
     const [patient, setPatient] = useState(null);
     const [loading, setLoading] = useState(true);
     const [mfaEnabled, setMfaEnabled] = useState(false);
@@ -179,10 +180,14 @@ export default function PatientProfileScreen({ navigation }) {
 
     const runAnimations = useCallback(() => {
         staggerAnims.forEach(a => a.setValue(0));
+        if (reduceMotion) {
+            staggerAnims.forEach(a => a.setValue(1));
+            return;
+        }
         Animated.stagger(60,
-            staggerAnims.map(a => Animated.spring(a, { toValue: 1, friction: 8, tension: 40, useNativeDriver: true }))
+            staggerAnims.map(a => Animated.spring(a, { toValue: 1, ...motion.springSoft, useNativeDriver: true }))
         ).start();
-    }, [staggerAnims]);
+    }, [staggerAnims, reduceMotion]);
 
     const hasAnimated = useRef(false);
 
@@ -664,7 +669,7 @@ export default function PatientProfileScreen({ navigation }) {
 
     const anim = (i) => ({
         opacity: staggerAnims[i],
-        transform: [{ translateY: staggerAnims[i].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }],
+        transform: reduceMotion ? [] : [{ translateY: staggerAnims[i].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }],
     });
 
     /* ── RENDER ───────────────────────────────── */

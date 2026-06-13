@@ -62,10 +62,37 @@ const healthStateQueue = new Queue('health-state-recompute', {
     },
 });
 
+// ── Companion Insights Debounced Generation ─────────────────────
+// Asynchronous background debounced generation queue for caregivers.
+const companionInsightsQueue = new Queue('companion-insights', {
+    connection,
+    defaultJobOptions: {
+        removeOnComplete: true,
+        removeOnFail: true,
+        attempts: 3,
+        backoff: { type: 'exponential', delay: 10000 },
+    },
+});
+
+// ── Health History Backfill ─────────────────────────────────────
+// Asynchronous background backfill of daily health states.
+const healthHistoryBackfillQueue = new Queue('health-history-backfill', {
+    connection,
+    defaultJobOptions: {
+        removeOnComplete: true,
+        removeOnFail: true,
+        attempts: 3,
+        backoff: { type: 'exponential', delay: 5000 },
+    },
+});
+
 module.exports = {
     medicationReminderQueue,
     aiNotificationQueue,
     vitalsPredictionQueue,
     healthStateQueue,
+    companionInsightsQueue,
+    healthHistoryBackfillQueue,
 };
+
 

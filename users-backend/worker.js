@@ -125,11 +125,57 @@ async function start() {
         console.error(`[Worker] health-state-recompute ${job?.id} failed:`, err.message);
     });
 
+    // ── Worker 5: Companion Insights (2-min debounced background task) ─
+    const companionWorker = new Worker(
+        'companion-insights',
+        async (job) => {
+            const { patientId } = job.data;
+            console.log(`[Worker] Processing companion-insights for patient ${patientId}`);
+            const companionAiService = require('./src/services/companionAiService');
+            await companionAiService.generateAndCacheInsights(patientId);
+        },
+        {
+            connection,
+            concurrency: 2,
+        }
+    );
+
+    companionWorker.on('completed', (job) => {
+        console.log(`[Worker] companion-insights ${job.id} completed`);
+    });
+    companionWorker.on('failed', (job, err) => {
+        console.error(`[Worker] companion-insights ${job?.id} failed:`, err.message);
+    });
+
+    // ── Worker 6: Health History Backfill (on-demand/background) ──────
+    const backfillWorker = new Worker(
+        'health-history-backfill',
+        async (job) => {
+            const { patientId, timezone } = job.data;
+            console.log(`[Worker] Processing health-history-backfill for patient ${patientId}`);
+            const { backfillHealthStateHistory } = require('./src/services/patientHealthStateService');
+            await backfillHealthStateHistory(patientId, timezone);
+        },
+        {
+            connection,
+            concurrency: 1, // Run sequentially so we don't spam database connections
+        }
+    );
+
+    backfillWorker.on('completed', (job) => {
+        console.log(`[Worker] health-history-backfill ${job.id} completed`);
+    });
+    backfillWorker.on('failed', (job, err) => {
+        console.error(`[Worker] health-history-backfill ${job?.id} failed:`, err.message);
+    });
+
     console.log('✅ All workers registered and listening for jobs');
     console.log('   📋 medication-reminders (every 1 min)');
     console.log('   🤖 ai-notifications     (every 60 min)');
     console.log('   🔮 vitals-prediction     (on-demand)');
     console.log('   ❤️  health-state-recompute (on-demand/debounced)');
+    console.log('   🧠 companion-insights     (2-min debounced)');
+    console.log('   📅 health-history-backfill (on-demand/background)');
 
     // ── Graceful shutdown ───────────────────────────────────────
     const shutdown = async (signal) => {
@@ -139,6 +185,8 @@ async function start() {
             aiNotifWorker.close(),
             vitalsWorker.close(),
             healthWorker.close(),
+            companionWorker.close(),
+            backfillWorker.close(),
         ]);
         console.log('🔒 All workers stopped.');
         process.exit(0);

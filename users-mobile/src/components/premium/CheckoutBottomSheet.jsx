@@ -8,6 +8,7 @@ import { X, Smartphone, Check, ShieldCheck, Sparkles, Activity } from 'lucide-re
 import { apiService } from '../../lib/api';
 import AlertManager from '../../utils/AlertManager';
 import { HapticPatterns } from '../../utils/haptics';
+import { useReduceMotion, motion, anim } from '../../theme';
 
 const { height: SH, width: SW } = Dimensions.get('window');
 
@@ -22,6 +23,7 @@ export default function CheckoutBottomSheet({ visible, onClose, plan, onSuccess,
     const [step, setStep] = useState('select'); // 'select' | 'processing' | 'success'
     const [selectedUpi, setSelectedUpi] = useState(null);
     const [newExpiry, setNewExpiry] = useState(null);
+    const reduceMotion = useReduceMotion();
     
     // Animations
     const slideAnim = useRef(new Animated.Value(SH)).current;
@@ -36,28 +38,41 @@ export default function CheckoutBottomSheet({ visible, onClose, plan, onSuccess,
             progressAnim.setValue(0);
             scaleAnim.setValue(0);
             insightAnim.setValue(0);
-            Animated.spring(slideAnim, {
-                toValue: 0,
-                friction: 8,
-                tension: 60,
-                useNativeDriver: true
-            }).start();
+            if (reduceMotion) {
+                slideAnim.setValue(0);
+            } else {
+                Animated.spring(slideAnim, {
+                    toValue: 0,
+                    friction: 8,
+                    tension: 60,
+                    useNativeDriver: true
+                }).start();
+            }
+        } else {
+            if (reduceMotion) {
+                slideAnim.setValue(SH);
+            } else {
+                Animated.timing(slideAnim, {
+                    toValue: SH,
+                    duration: 250,
+                    useNativeDriver: true
+                }).start();
+            }
+        }
+    }, [visible, reduceMotion]);
+
+    const closeSheet = () => {
+        if (step === 'processing') return; // block closing while processing
+        if (reduceMotion) {
+            slideAnim.setValue(SH);
+            onClose();
         } else {
             Animated.timing(slideAnim, {
                 toValue: SH,
                 duration: 250,
                 useNativeDriver: true
-            }).start();
+            }).start(() => onClose());
         }
-    }, [visible]);
-
-    const closeSheet = () => {
-        if (step === 'processing') return; // block closing while processing
-        Animated.timing(slideAnim, {
-            toValue: SH,
-            duration: 250,
-            useNativeDriver: true
-        }).start(() => onClose());
     };
 
     const handlePay = async (app) => {
@@ -95,28 +110,38 @@ export default function CheckoutBottomSheet({ visible, onClose, plan, onSuccess,
             // Success Celebration
             setStep('success');
             HapticPatterns.premiumUnlocked();
-            Animated.spring(scaleAnim, {
-                toValue: 1,
-                friction: 5,
-                tension: 40,
-                useNativeDriver: true
-            }).start();
-
-            // Trigger the reward loop insight slightly after the main celebration
-            setTimeout(() => {
-                Animated.spring(insightAnim, {
+            
+            if (reduceMotion) {
+                scaleAnim.setValue(1);
+                insightAnim.setValue(1);
+                setTimeout(() => {
+                    closeSheet();
+                    if (onSuccess) onSuccess();
+                }, 2500);
+            } else {
+                Animated.spring(scaleAnim, {
                     toValue: 1,
-                    friction: 6,
-                    tension: 50,
+                    friction: 5,
+                    tension: 40,
                     useNativeDriver: true
                 }).start();
-            }, 800);
 
-            // Wait a moment for celebration + reward insight, then pass success upstream
-            setTimeout(() => {
-                closeSheet();
-                if (onSuccess) onSuccess();
-            }, 3500);
+                // Trigger the reward loop insight slightly after the main celebration
+                setTimeout(() => {
+                    Animated.spring(insightAnim, {
+                        toValue: 1,
+                        friction: 6,
+                        tension: 50,
+                        useNativeDriver: true
+                    }).start();
+                }, 800);
+
+                // Wait a moment for celebration + reward insight, then pass success upstream
+                setTimeout(() => {
+                    closeSheet();
+                    if (onSuccess) onSuccess();
+                }, 3500);
+            }
 
         } catch (error) {
             console.error('Payment error', error);

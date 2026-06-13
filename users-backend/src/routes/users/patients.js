@@ -2054,6 +2054,185 @@ router.get('/me/health-state', authenticateSession, async (req, res) => {
     }
 });
 
+// ─── Get Health score history and deltas ─────────────────────────────────────
+router.get('/me/health-history', authenticateSession, async (req, res) => {
+    try {
+        const patient = await getOrCreatePatient(req);
+        const timezone = patient.timezone || 'Asia/Kolkata';
+        const { getHealthHistory } = require('../../services/patientHealthStateService');
+        const historyData = await getHealthHistory(patient._id, timezone);
+
+        const { calculateConsistency } = require('../../services/adherenceConsistencyService');
+        const { calculateMomentum } = require('../../services/healthMomentumService');
+        const { forecastTrajectory } = require('../../services/trajectoryForecastService');
+
+        const consistencyMetrics = calculateConsistency(historyData.history);
+        const momentumMetrics = calculateMomentum(historyData.history, patient.patient_health_state || {});
+        const trajectoryMetrics = forecastTrajectory(historyData.history, patient.patient_health_state?.score ?? 82);
+
+        res.json({
+            ...historyData,
+            predictive_health: {
+                momentum: {
+                    score: momentumMetrics.momentum_score,
+                    direction: momentumMetrics.momentum_direction,
+                    score_change_30d: momentumMetrics.score_change_30d,
+                    adherence_change_30d: momentumMetrics.adherence_change_30d,
+                    streak_change_30d: momentumMetrics.streak_change_30d
+                },
+                consistency: {
+                    score: consistencyMetrics.adherence_consistency,
+                    average: consistencyMetrics.adherence_average
+                },
+                forecast: {
+                    projected_score_14d: trajectoryMetrics.projected_score_14d,
+                    trajectory: trajectoryMetrics.trajectory
+                }
+            }
+        });
+    } catch (error) {
+        logger.error('Get health history error', { error: error.message, patientId: req.user?.id });
+        res.status(500).json({ error: 'Failed to fetch health history' });
+    }
+});
+
+const ACHIEVEMENT_METADATA = {
+    first_perfect_day: {
+        title: 'Perfect Day! 🎯',
+        description: 'Completed all your scheduled medications in a single day.',
+        icon: 'check-circle'
+    },
+    streak_7: {
+        title: '7-Day Streak! 🔥',
+        description: 'Maintained your medication compliance for 7 days in a row.',
+        icon: 'fire'
+    },
+    streak_30: {
+        title: '30-Day Warrior! 🏆',
+        description: 'Incredible dedication! 30 days of consistent compliance.',
+        icon: 'trophy'
+    },
+    bp_stabilized: {
+        title: 'BP Stabilized! ❤️',
+        description: 'Kept blood pressure within standard normal ranges for 3 consecutive logs.',
+        icon: 'heart'
+    },
+    adherence_30d_90: {
+        title: 'Compliance Champ! ⭐',
+        description: 'Achieved an average medication compliance rate of 90%+ over 30 days.',
+        icon: 'star'
+    },
+    score_plus_20: {
+        title: 'Major Improvement! 📈',
+        description: 'Increased your overall health score by 20 points from your starting baseline.',
+        icon: 'trending-up'
+    }
+};
+
+// ─── Get Achievements timeline ───────────────────────────────────────────────
+router.get('/me/health-timeline', authenticateSession, async (req, res) => {
+    try {
+        const patient = await getOrCreatePatient(req);
+        const AchievementEvent = require('../../models/AchievementEvent');
+        const events = await AchievementEvent.find({ patient_id: patient._id }).sort({ earned_at: -1 }).lean();
+        
+        const timeline = events.map(event => {
+            const meta = ACHIEVEMENT_METADATA[event.achievement] || {
+                title: 'Achievement Unlocked!',
+                description: 'You unlocked a new health milestone.',
+                icon: 'award'
+            };
+            return {
+                id: event._id,
+                achievement: event.achievement,
+                earned_at: event.earned_at,
+                title: meta.title,
+                description: meta.description,
+                icon: meta.icon
+            };
+        });
+
+        res.json({ timeline });
+    } catch (error) {
+        logger.error('Get health timeline error', { error: error.message, patientId: req.user?.id });
+        res.status(500).json({ error: 'Failed to fetch health timeline' });
+    }
+});
+
+// ─── Get Sleep logs ──────────────────────────────────────────────────────────
+router.get('/me/sleep', authenticateSession, async (req, res) => {
+    try {
+        const patient = await getOrCreatePatient(req);
+        const timezone = patient.timezone || 'Asia/Kolkata';
+        const { start_date, end_date } = req.query;
+        const query = { patient_id: patient._id };
+        const SleepLog = require('../../models/SleepLog');
+
+        if (start_date || end_date) {
+            query.date = {};
+            if (start_date) {
+                const sd = moment.tz(start_date, 'YYYY-MM-DD', timezone).startOf('day').toDate();
+                query.date.$gte = sd;
+            }
+            if (end_date) {
+                const ed = moment.tz(end_date, 'YYYY-MM-DD', timezone).endOf('day').toDate();
+                query.date.$lte = ed;
+            }
+        } else {
+            const thirtyDaysAgoStr = moment().tz(timezone).subtract(30, 'days').format('YYYY-MM-DD');
+            query.date = { $gte: new Date(`${thirtyDaysAgoStr}T00:00:00.000Z`) };
+        }
+
+        const sleepLogs = await SleepLog.find(query).sort({ date: 1 }).lean();
+        res.json({ sleep: sleepLogs });
+    } catch (error) {
+        logger.error('Get sleep logs error', { error: error.message, patientId: req.user?.id });
+        res.status(500).json({ error: 'Failed to fetch sleep logs' });
+    }
+});
+
+// ─── Post Sleep log ──────────────────────────────────────────────────────────
+router.post('/me/sleep', authenticateSession, async (req, res) => {
+    try {
+        const patient = await getOrCreatePatient(req);
+        const { date, hours, quality, deep_sleep_hours, rem_sleep_hours, source } = req.body;
+
+        if (hours === undefined || hours === null) {
+            return res.status(400).json({ error: 'Hours of sleep is required' });
+        }
+
+        const timezone = patient.timezone || 'Asia/Kolkata';
+        const dateStr = date ? moment(date).tz(timezone).format('YYYY-MM-DD') : moment().tz(timezone).format('YYYY-MM-DD');
+        const targetDate = new Date(`${dateStr}T00:00:00.000Z`);
+        const expiresAt = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000);
+        const SleepLog = require('../../models/SleepLog');
+
+        const updateData = {
+            hours,
+            quality,
+            deep_sleep_hours,
+            rem_sleep_hours,
+            source: source || 'manual',
+            expires_at: expiresAt,
+        };
+
+        const sleepLog = await SleepLog.findOneAndUpdate(
+            { patient_id: patient._id, date: targetDate },
+            { $set: updateData },
+            { upsert: true, new: true, runValidators: true }
+        );
+
+        logger.info('Sleep logged', { patientId: patient._id, date: dateStr });
+        refreshHealthScoreCache(patient._id).catch(() => {});
+
+        res.status(201).json({ message: 'Sleep logged successfully', sleep: sleepLog });
+    } catch (error) {
+        logger.error('Log sleep error', { error: error.message, patientId: req.user?.id });
+        if (error.name === 'ValidationError') return res.status(400).json({ error: error.message });
+        res.status(500).json({ error: 'Failed to log sleep' });
+    }
+});
+
 // Deprecated: Call activateSubscription instead. Kept for backwards compatibility.
 async function subscribeAndSeedDemoData(patient, planId) {
     logger.warn('subscribeAndSeedDemoData is deprecated, use activateSubscription instead.');

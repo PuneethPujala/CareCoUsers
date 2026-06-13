@@ -54,9 +54,12 @@ const Step3Membership = ({
                 transform: [{ translateY: staggerAnims[1].interpolate({ inputRange: [0, 1], outputRange: [16, 0] }) }],
             }}>
                 <Pressable
-                    style={[styles.planCardEnhanced, selectedPlanId === 'basic' && styles.planCardActive]}
+                    style={({ pressed }) => [
+                        styles.planCardEnhanced,
+                        selectedPlanId === 'basic' && styles.planCardActive,
+                        pressed && styles.pressed,
+                    ]}
                     onPress={() => setValue('selectedPlanId', 'basic')}
-                    activeOpacity={0.92}
                 >
                     <View style={styles.planCardGradient}>
                         {/* Card header */}
@@ -95,9 +98,10 @@ const Step3Membership = ({
 
                         {/* Action button */}
                         <Pressable
-                            style={[
+                            style={({ pressed }) => [
                                 styles.planActionBtn,
                                 selectedPlanId === 'basic' ? styles.btnActive : styles.btnInactive,
+                                pressed && styles.pressed,
                             ]}
                             onPress={handleSelectAndPay}
                         >
@@ -116,7 +120,7 @@ const Step3Membership = ({
                 transform: [{ translateY: staggerAnims[0].interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) }],
             }}>
                 <Pressable
-                    style={styles.planCardGhost}
+                    style={({ pressed }) => [styles.planCardGhost, pressed && styles.pressed]}
                     onPress={() => setFeaturesModalVisible(true)}
                 >
                     <View style={styles.ghostIconWrap}>

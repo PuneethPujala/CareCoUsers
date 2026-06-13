@@ -8,6 +8,7 @@ import {
     X, Pill, Heart, Calendar, AlertCircle, MessageSquare,
     BellOff, PhoneMissed, CheckCheck, Bell, ShieldAlert,
 } from 'lucide-react-native';
+import { colors, motion, useReduceMotion } from '../../theme';
 import { apiService } from '../../lib/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as IntentLauncher from 'expo-intent-launcher';
@@ -26,21 +27,7 @@ const SkeletonItem = ({ width, height, borderRadius = 8, style }) => {
     return <Animated.View style={[{ width, height, borderRadius, backgroundColor: '#E2E8F0', opacity: anim }, style]} />;
 };
 
-const C = {
-    primary: '#6366F1',
-    dark: '#0F172A',
-    mid: '#334155',
-    muted: '#94A3B8',
-    light: '#CBD5E1',
-    border: '#F1F5F9',
-    borderMid: '#E2E8F0',
-    danger: '#F43F5E',
-    success: '#22C55E',
-    warning: '#F59E0B',
-    info: '#3B82F6',
-    pageBg: '#FFFFFF',
-    contentBg: '#F8FAFC',
-};
+
 
 const FONT = {
     regular: { fontFamily: 'Inter_400Regular' },
@@ -53,6 +40,7 @@ const FONT = {
 const GROUP_ORDER = ["Today's Activity", 'Messages & Updates', 'Upcoming', 'System Alerts'];
 
 export default function NotificationsScreen({ navigation }) {
+    const reduceMotion = useReduceMotion();
     const [activeTab, setActiveTab] = useState('all');
     const [loading, setLoading] = useState(true);
     const [markingAll, setMarkingAll] = useState(false);
@@ -61,6 +49,30 @@ export default function NotificationsScreen({ navigation }) {
     const notificationsRef = useRef([]);
     const [showBatteryPrompt, setShowBatteryPrompt] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
+
+    // ── Staggered group entrance ──
+    const STAGGER_COUNT = 6;
+    const staggerAnims = useRef([...Array(STAGGER_COUNT)].map(() => new Animated.Value(0))).current;
+    const hasStaggered = useRef(false);
+
+    const runStagger = useCallback(() => {
+        if (hasStaggered.current) return;
+        hasStaggered.current = true;
+        if (reduceMotion) {
+            staggerAnims.forEach(a => a.setValue(1));
+            return;
+        }
+        Animated.stagger(80,
+            staggerAnims.map(a =>
+                Animated.spring(a, { toValue: 1, ...motion.springSoft, useNativeDriver: true })
+            )
+        ).start();
+    }, [staggerAnims, reduceMotion]);
+
+    const groupAnim = (i) => ({
+        opacity: staggerAnims[Math.min(i, STAGGER_COUNT - 1)],
+        transform: reduceMotion ? [] : [{ translateY: staggerAnims[Math.min(i, STAGGER_COUNT - 1)].interpolate({ inputRange: [0, 1], outputRange: [14, 0] }) }],
+    });
 
     // ─── Fetch all notification data ─────────────────────────────────────────
     const fetchContext = useCallback(async () => {
@@ -125,8 +137,8 @@ export default function NotificationsScreen({ navigation }) {
                     action: b.message,
                     time: timeStr,
                     Icon,
-                    color: b.is_read ? C.muted : C.primary,
-                    bg: b.is_read ? C.border : '#EEF2FF',
+                    color: b.is_read ? colors.textMuted : colors.primary,
+                    bg: b.is_read ? '#F1F5F9' : '#EEF2FF',
                     target,
                     actionTxt: b.is_read ? 'Open' : 'View',
                 });
@@ -190,7 +202,7 @@ export default function NotificationsScreen({ navigation }) {
                             action: `Time to take ${m.medicine_name || m.name}. Scheduled at ${timePref}.`,
                             time: timeLabel,
                             Icon: Pill,
-                            color: diffHours < -0.5 ? C.danger : C.info,
+                            color: diffHours < -0.5 ? colors.danger : '#3B82F6',
                             bg: diffHours < -0.5 ? '#FFE4E6' : '#DBEAFE',
                             target: 'Medications',
                             actionTxt: 'View',
@@ -259,7 +271,7 @@ export default function NotificationsScreen({ navigation }) {
                         action: `Your premium plan expires in ${daysLeft === 0 ? 'today' : `${daysLeft} day${daysLeft !== 1 ? 's' : ''}`}. Renew to keep full access.`,
                         time: daysLeft === 0 ? 'Today' : `${daysLeft}d`,
                         Icon: AlertCircle,
-                        color: C.warning,
+                        color: colors.warning,
                         bg: '#FEF3C7',
                         target: 'PatientHome',
                         actionTxt: 'Renew',
@@ -273,6 +285,7 @@ export default function NotificationsScreen({ navigation }) {
             console.warn('[NotificationsScreen] Fetch failed:', err.message);
         } finally {
             setLoading(false);
+            runStagger();
         }
     }, []);
 
@@ -307,7 +320,7 @@ export default function NotificationsScreen({ navigation }) {
             setNotifications(prev =>
                 prev.map(n =>
                     n.id === item.id
-                        ? { ...n, isRead: true, color: C.muted, bg: C.border, actionTxt: 'Open' }
+                        ? { ...n, isRead: true, color: colors.textMuted, bg: '#F1F5F9', actionTxt: 'Open' }
                         : n
                 )
             );
@@ -318,7 +331,7 @@ export default function NotificationsScreen({ navigation }) {
                 setNotifications(prev =>
                     prev.map(n =>
                         n.id === item.id
-                            ? { ...n, isRead: false, color: C.primary, bg: '#EEF2FF', actionTxt: 'View' }
+                            ? { ...n, isRead: false, color: colors.primary, bg: '#EEF2FF', actionTxt: 'View' }
                             : n
                     )
                 );
@@ -345,7 +358,7 @@ export default function NotificationsScreen({ navigation }) {
             setNotifications(prev =>
                 prev.map(n =>
                     n.isBackend
-                        ? { ...n, isRead: true, color: C.muted, bg: C.border, actionTxt: 'Open' }
+                        ? { ...n, isRead: true, color: colors.textMuted, bg: '#F1F5F9', actionTxt: 'Open' }
                         : n
                 )
             );
@@ -391,7 +404,7 @@ export default function NotificationsScreen({ navigation }) {
 
     return (
         <View style={s.container}>
-            <StatusBar barStyle="dark-content" backgroundColor={C.pageBg} />
+            <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
             {/* ── Header ── */}
             <View style={s.header}>
@@ -414,7 +427,7 @@ export default function NotificationsScreen({ navigation }) {
                         </Pressable>
                     )}
                     <Pressable style={s.closeBtn} onPress={() => navigation.goBack()}>
-                        <X size={20} color={C.dark} strokeWidth={2.5} />
+                        <X size={20} color={colors.textPrimary} strokeWidth={2.5} />
                     </Pressable>
                 </View>
             </View>
@@ -511,13 +524,13 @@ export default function NotificationsScreen({ navigation }) {
                         </Text>
                     </View>
                 ) : (
-                    GROUP_ORDER.map(group => {
+                    GROUP_ORDER.map((group, groupIdx) => {
                         const groupItems = notifications.filter(n => n.group === group);
                         const filtered = getFilteredItems(groupItems);
                         if (filtered.length === 0) return null;
 
                         return (
-                            <View key={group} style={s.groupSection}>
+                            <Animated.View key={group} style={[s.groupSection, groupAnim(groupIdx)]}>
                                 <Text style={s.groupHeader}>{group.toUpperCase()}</Text>
                                 {filtered.map(item => (
                                     <NotificationCard
@@ -526,7 +539,7 @@ export default function NotificationsScreen({ navigation }) {
                                         onPress={handleNotificationPress}
                                     />
                                 ))}
-                            </View>
+                            </Animated.View>
                         );
                     })
                 )}
@@ -566,7 +579,7 @@ const NotificationCard = React.memo(({ item, onPress }) => (
 ));
 
 const s = StyleSheet.create({
-    container: { flex: 1, backgroundColor: C.pageBg },
+    container: { flex: 1, backgroundColor: '#FFFFFF' },
 
     // ── Header ──
     header: {
@@ -574,33 +587,33 @@ const s = StyleSheet.create({
         paddingTop: Platform.OS === 'ios' ? 60 : 44,
         paddingHorizontal: 24,
         paddingBottom: 20,
-        backgroundColor: C.pageBg,
+        backgroundColor: '#FFFFFF',
         borderBottomWidth: 1,
-        borderBottomColor: C.border,
+        borderBottomColor: '#F1F5F9',
     },
-    headerLabel: { fontSize: 11, fontWeight: '800', color: C.muted, letterSpacing: 2, marginBottom: 4 },
-    headerTitle: { fontSize: 28, fontWeight: '900', color: C.dark, letterSpacing: -0.8 },
+    headerLabel: { fontSize: 11, fontWeight: '800', color: colors.textMuted, letterSpacing: 2, marginBottom: 4 },
+    headerTitle: { fontSize: 28, fontWeight: '900', color: colors.textPrimary, letterSpacing: -0.8 },
     headerActions: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingBottom: 2 },
     markAllBtn: {
         flexDirection: 'row', alignItems: 'center', gap: 6,
         backgroundColor: '#EEF2FF', paddingHorizontal: 12, paddingVertical: 8,
         borderRadius: 12, borderWidth: 1, borderColor: '#C7D2FE',
     },
-    markAllTxt: { fontSize: 12, fontWeight: '700', color: C.primary },
+    markAllTxt: { fontSize: 12, fontWeight: '700', color: colors.primary },
     closeBtn: {
         width: 40, height: 40, borderRadius: 20,
-        backgroundColor: C.contentBg, borderWidth: 1, borderColor: C.borderMid,
+        backgroundColor: colors.background, borderWidth: 1, borderColor: colors.borderLight,
         alignItems: 'center', justifyContent: 'center',
     },
 
     // ── Tabs ──
     tabsWrap: { paddingHorizontal: 24, paddingTop: 20, paddingBottom: 8 },
-    tabsBg: { flexDirection: 'row', backgroundColor: C.contentBg, borderRadius: 16, padding: 4, borderWidth: 1, borderColor: C.borderMid },
+    tabsBg: { flexDirection: 'row', backgroundColor: colors.background, borderRadius: 16, padding: 4, borderWidth: 1, borderColor: colors.borderLight },
     tab: { flex: 1, flexDirection: 'row', paddingVertical: 10, alignItems: 'center', justifyContent: 'center', borderRadius: 12, gap: 6 },
-    tabActive: { backgroundColor: C.pageBg, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4, elevation: 2 },
-    tabText: { fontSize: 13, fontWeight: '600', color: C.muted },
-    tabTextActive: { color: C.dark, fontWeight: '800' },
-    tabBadge: { backgroundColor: C.primary, borderRadius: 10, minWidth: 18, height: 18, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
+    tabActive: { backgroundColor: '#FFFFFF', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4, elevation: 2 },
+    tabText: { fontSize: 13, fontWeight: '600', color: colors.textMuted },
+    tabTextActive: { color: colors.textPrimary, fontWeight: '800' },
+    tabBadge: { backgroundColor: colors.primary, borderRadius: 10, minWidth: 18, height: 18, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
     tabBadgeTxt: { fontSize: 10, fontWeight: '800', color: '#FFF' },
 
     // ── List ──
@@ -610,21 +623,21 @@ const s = StyleSheet.create({
     skeletonRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 24 },
 
     groupSection: { marginBottom: 32 },
-    groupHeader: { fontSize: 11, fontWeight: '800', color: C.muted, marginBottom: 12, letterSpacing: 1.5 },
+    groupHeader: { fontSize: 11, fontWeight: '800', color: colors.textMuted, marginBottom: 12, letterSpacing: 1.5 },
 
     // ── Card ──
     card: {
         flexDirection: 'row', alignItems: 'center',
-        backgroundColor: C.pageBg, borderRadius: 18,
+        backgroundColor: '#FFFFFF', borderRadius: 18,
         padding: 14, marginBottom: 10,
-        borderWidth: 1, borderColor: C.border,
+        borderWidth: 1, borderColor: '#F1F5F9',
         shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
         shadowOpacity: 0.03, shadowRadius: 6, elevation: 1,
     },
     unreadDot: {
         position: 'absolute', top: 14, left: 8,
         width: 6, height: 6, borderRadius: 3,
-        backgroundColor: C.primary,
+        backgroundColor: colors.primary,
     },
     iconAvatar: {
         width: 44, height: 44, borderRadius: 14,
@@ -633,10 +646,10 @@ const s = StyleSheet.create({
     },
     cardBody: { flex: 1, marginRight: 10 },
     cardTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 3 },
-    cardName: { fontSize: 13, fontWeight: '600', color: C.mid, flex: 1, marginRight: 6 },
-    cardNameUnread: { fontWeight: '800', color: C.dark },
-    cardAction: { fontSize: 12, fontWeight: '500', color: C.muted, lineHeight: 17 },
-    timeTxt: { fontSize: 10, fontWeight: '700', color: C.light, flexShrink: 0 },
+    cardName: { fontSize: 13, fontWeight: '600', color: colors.textSecondary, flex: 1, marginRight: 6 },
+    cardNameUnread: { fontWeight: '800', color: colors.textPrimary },
+    cardAction: { fontSize: 12, fontWeight: '500', color: colors.textMuted, lineHeight: 17 },
+    timeTxt: { fontSize: 10, fontWeight: '700', color: '#CBD5E1', flexShrink: 0 },
     actionBtn: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, flexShrink: 0 },
     actionBtnTxt: { fontSize: 11, fontWeight: '800' },
 
@@ -644,11 +657,11 @@ const s = StyleSheet.create({
     emptyWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40, marginTop: 80 },
     emptyIconWrap: {
         width: 96, height: 96, borderRadius: 48,
-        backgroundColor: C.contentBg, borderWidth: 1, borderColor: C.borderMid,
+        backgroundColor: colors.background, borderWidth: 1, borderColor: colors.borderLight,
         alignItems: 'center', justifyContent: 'center', marginBottom: 24,
     },
-    emptyTitle: { fontSize: 18, fontWeight: '800', color: C.dark, marginBottom: 8, textAlign: 'center' },
-    emptyBody: { fontSize: 14, fontWeight: '500', color: C.muted, textAlign: 'center', lineHeight: 22 },
+    emptyTitle: { fontSize: 18, fontWeight: '800', color: colors.textPrimary, marginBottom: 8, textAlign: 'center' },
+    emptyBody: { fontSize: 14, fontWeight: '500', color: colors.textMuted, textAlign: 'center', lineHeight: 22 },
 
     // ── Battery Banner ──
     batteryBanner: {

@@ -297,6 +297,10 @@ export const apiService = {
         getVitals: (params) => api.get('/users/patients/me/vitals', { params }),
         logVitals: (data) => api.post('/users/patients/me/vitals', data),
         logMood: (value) => api.post('/users/patients/me/mood', { value }),
+        getHealthHistory: () => api.get('/users/patients/me/health-history'),
+        getHealthTimeline: () => api.get('/users/patients/me/health-timeline'),
+        getSleep: (params) => api.get('/users/patients/me/sleep', { params }),
+        logSleep: (data) => api.post('/users/patients/me/sleep', data),
         getTrustedContacts: () => api.get('/users/patients/me/trusted-contacts'),
         addTrustedContact: (data) => api.post('/users/patients/me/trusted-contacts', data),
         updateTrustedContact: (id, data) => api.put(`/users/patients/me/trusted-contacts/${id}`, data),
@@ -342,6 +346,7 @@ export const apiService = {
         nudge: (data) => api.post('/companion/nudge', data),
         requestBP: (data) => api.post('/companion/request-bp', data),
         generateInviteCode: (patientId) => api.post(`/companion/patients/${patientId}/invite-code`),
+        refreshInsights: (data) => api.post('/companion/patient-status/refresh-insights', data),
     },
 
     callers: {

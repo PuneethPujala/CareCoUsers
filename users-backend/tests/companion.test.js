@@ -75,6 +75,10 @@ jest.mock('../src/models/VitalLog');
 jest.mock('../src/models/Alert');
 jest.mock('../src/models/Notification');
 jest.mock('../src/models/Medication');
+jest.mock('../src/models/RiskTransition');
+jest.mock('../src/models/SleepLog');
+jest.mock('../src/models/PatientHealthStateHistory');
+jest.mock('../src/models/AchievementEvent');
 jest.mock('../src/utils/pushNotifications', () => ({
     sendPush: jest.fn().mockResolvedValue({ success: true })
 }));
@@ -91,6 +95,10 @@ const Alert = require('../src/models/Alert');
 const Medication = require('../src/models/Medication');
 const Notification = require('../src/models/Notification');
 const PushNotificationService = require('../src/utils/pushNotifications');
+const RiskTransition = require('../src/models/RiskTransition');
+const SleepLog = require('../src/models/SleepLog');
+const PatientHealthStateHistory = require('../src/models/PatientHealthStateHistory');
+const AchievementEvent = require('../src/models/AchievementEvent');
 
 describe('Companion Routes', () => {
 
@@ -102,6 +110,28 @@ describe('Companion Routes', () => {
             supabaseUid: 'companion-user',
             role:        'companion',
         };
+        RiskTransition.find = jest.fn().mockReturnValue({
+            sort: jest.fn().mockReturnThis(),
+            lean: jest.fn().mockResolvedValue([])
+        });
+        SleepLog.findOne = jest.fn().mockReturnValue({
+            lean: jest.fn().mockResolvedValue(null)
+        });
+        SleepLog.find = jest.fn().mockReturnValue({
+            lean: jest.fn().mockResolvedValue([])
+        });
+        PatientHealthStateHistory.findOne = jest.fn().mockReturnValue({
+            sort: jest.fn().mockReturnThis(),
+            lean: jest.fn().mockResolvedValue(null)
+        });
+        PatientHealthStateHistory.findOneAndUpdate = jest.fn().mockResolvedValue({});
+        PatientHealthStateHistory.find = jest.fn().mockReturnValue({
+            sort: jest.fn().mockReturnThis(),
+            lean: jest.fn().mockResolvedValue([])
+        });
+        AchievementEvent.find = jest.fn().mockReturnValue({
+            lean: jest.fn().mockResolvedValue([])
+        });
     });
 
     describe('POST /api/companion/join', () => {

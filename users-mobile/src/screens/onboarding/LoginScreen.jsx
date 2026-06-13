@@ -12,20 +12,21 @@ import analytics from '../../utils/analytics';
 import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 import SmartInput from '../../components/ui/SmartInput';
 import { OTPBoxes } from './components';
+import { colors, radius, spacing, shadows } from '../../theme';
 
 const C = {
-    bg: '#F4F7FB',
-    surface: '#FFFFFF',
-    primary: '#6366F1',
-    primaryDark: '#4F46E5',
-    primarySoft: '#EEF2FF',
-    dark: '#1A202C',
-    mid: '#4A5568',
-    muted: '#94A3B8',
-    border: '#E2E8F0',
-    inputBg: '#FAFBFF',
-    danger: '#EF4444',
-    dangerBg: '#FEF2F2',
+    bg: colors.background,
+    surface: colors.surface,
+    primary: colors.primary,
+    primaryDark: colors.primaryMid,
+    primarySoft: colors.primarySoft,
+    dark: colors.textPrimary,
+    mid: colors.textSecondary,
+    muted: colors.textMuted,
+    border: colors.borderLight,
+    inputBg: colors.background,
+    danger: colors.danger,
+    dangerBg: colors.dangerLight,
     tabTrack: '#E8EDF5',
 };
 
@@ -138,7 +139,7 @@ const ResetPasswordModal = ({ visible, onClose, email }) => {
                             <Text style={rs.title}>
                                 {step === 'request' ? 'Reset Password' : step === 'otp' ? 'Enter Code & New Password' : 'Success'}
                             </Text>
-                            <Pressable onPress={onClose} hitSlop={12}><X size={22} color="#64748B" /></Pressable>
+                            <Pressable style={({ pressed }) => pressed && { opacity: 0.7 }} onPress={onClose} hitSlop={12}><X size={22} color="#64748B" /></Pressable>
                         </View>
 
                         {success ? (
@@ -165,7 +166,7 @@ const ResetPasswordModal = ({ visible, onClose, email }) => {
                                     keyboardType="email-address"
                                     leftAccessory={<Mail size={18} color={C.muted} style={{ marginRight: 8 }} />}
                                 />
-                                <Pressable style={[rs.btn, loading && { opacity: 0.7 }]} onPress={handleSendCode} disabled={loading}>
+                                <Pressable style={({ pressed }) => [rs.btn, loading && { opacity: 0.7 }, pressed && rs.pressed]} onPress={handleSendCode} disabled={loading}>
                                     {loading ? <ActivityIndicator size="small" color="#FFF" /> : <Text style={rs.btnText}>Send Reset Code</Text>}
                                 </Pressable>
                             </>
@@ -190,7 +191,7 @@ const ResetPasswordModal = ({ visible, onClose, email }) => {
                                     {resendTimer > 0 ? (
                                         <Text style={rs.timerText}>Resend in {resendTimer}s</Text>
                                     ) : (
-                                        <Pressable onPress={handleResend} disabled={loading}>
+                                        <Pressable style={({ pressed }) => pressed && { opacity: 0.7 }} onPress={handleResend} disabled={loading}>
                                             <Text style={rs.resendAction}>Resend Code</Text>
                                         </Pressable>
                                     )}
@@ -203,7 +204,7 @@ const ResetPasswordModal = ({ visible, onClose, email }) => {
                                     secureTextEntry={!showPass}
                                     leftAccessory={<Lock size={18} color={C.muted} style={{ marginRight: 8 }} />}
                                     rightAccessory={
-                                        <Pressable onPress={() => setShowPass(!showPass)} hitSlop={12} style={{ paddingLeft: 8 }}>
+                                        <Pressable style={({ pressed }) => [{ paddingLeft: 8 }, pressed && { opacity: 0.7 }]} onPress={() => setShowPass(!showPass)} hitSlop={12}>
                                             {showPass ? <Eye size={18} color={C.primary} /> : <EyeOff size={18} color={C.muted} />}
                                         </Pressable>
                                     }
@@ -218,7 +219,7 @@ const ResetPasswordModal = ({ visible, onClose, email }) => {
                                     style={{ marginBottom: 14 }}
                                 />
                                 <Pressable
-                                    style={[rs.btn, (loading || otp.length < 6) && { opacity: 0.6 }]}
+                                    style={({ pressed }) => [rs.btn, (loading || otp.length < 6) && { opacity: 0.6 }, pressed && rs.pressed]}
                                     onPress={handleVerifyAndReset}
                                     disabled={loading || otp.length < 6}
                                 >
@@ -235,7 +236,7 @@ const ResetPasswordModal = ({ visible, onClose, email }) => {
 
 const rs = StyleSheet.create({
     overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 },
-    sheet: { width: '100%', maxWidth: 420, backgroundColor: '#FFFFFF', borderRadius: 24, padding: 28, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 20, elevation: 10 },
+    sheet: { width: '100%', maxWidth: 420, backgroundColor: colors.surface, borderRadius: 28, padding: 28, ...shadows.modal },
     header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
     title: { fontSize: 20, ...FONT.heavy, color: C.dark },
     subtitle: { fontSize: 14, ...FONT.medium, color: C.muted, lineHeight: 22, marginBottom: 20 },
@@ -248,6 +249,7 @@ const rs = StyleSheet.create({
     resendRow: { alignItems: 'center', marginBottom: 16, marginTop: -4 },
     timerText: { fontSize: 13, ...FONT.bold, color: C.muted },
     resendAction: { fontSize: 14, ...FONT.heavy, color: C.primary },
+    pressed: { opacity: 0.85, transform: [{ scale: 0.98 }] },
 });
 
 // ─── Main LoginScreen ─────────────────────────────────────────────────────
@@ -544,13 +546,19 @@ export default function LoginScreen({ navigation }) {
                     {/* Tab switcher */}
                     <View style={styles.tabTrack}>
                         <Pressable
-                            style={activeTab === 'email' ? styles.tabActive : styles.tabInactive}
+                            style={({ pressed }) => [
+                                activeTab === 'email' ? styles.tabActive : styles.tabInactive,
+                                pressed && styles.pressed
+                            ]}
                             onPress={() => { setActiveTab('email'); setErrorText(''); setPhoneError(''); }}
                         >
                             <Text style={activeTab === 'email' ? styles.tabActiveText : styles.tabInactiveText}>Email</Text>
                         </Pressable>
                         <Pressable
-                            style={activeTab === 'phone' ? styles.tabActive : styles.tabInactive}
+                            style={({ pressed }) => [
+                                activeTab === 'phone' ? styles.tabActive : styles.tabInactive,
+                                pressed && styles.pressed
+                            ]}
                             onPress={() => { setActiveTab('phone'); setErrorText(''); setPhoneError(''); }}
                         >
                             <Text style={activeTab === 'phone' ? styles.tabActiveText : styles.tabInactiveText}>Phone</Text>
@@ -581,7 +589,11 @@ export default function LoginScreen({ navigation }) {
 
                             <View style={styles.passwordLabelRow}>
                                 <Text style={styles.fieldLabel}>PASSWORD</Text>
-                                <Pressable onPress={() => setResetModalVisible(true)} hitSlop={10}>
+                                <Pressable
+                                    style={({ pressed }) => pressed && { opacity: 0.7 }}
+                                    onPress={() => setResetModalVisible(true)}
+                                    hitSlop={10}
+                                >
                                     <Text style={styles.forgotLink}>Forgot?</Text>
                                 </Pressable>
                             </View>
@@ -602,7 +614,11 @@ export default function LoginScreen({ navigation }) {
                             />
 
                             <Pressable
-                                style={[styles.signInBtn, loading && { opacity: 0.7 }]}
+                                style={({ pressed }) => [
+                                    styles.signInBtn,
+                                    loading && { opacity: 0.7 },
+                                    pressed && styles.pressed
+                                ]}
                                 onPress={handleLogin}
                                 disabled={loading}
                             >
@@ -640,7 +656,11 @@ export default function LoginScreen({ navigation }) {
                             />
 
                             <Pressable
-                                style={[styles.signInBtn, phoneOtpLoading && { opacity: 0.7 }]}
+                                style={({ pressed }) => [
+                                    styles.signInBtn,
+                                    phoneOtpLoading && { opacity: 0.7 },
+                                    pressed && styles.pressed
+                                ]}
                                 onPress={handleSendPhoneOtp}
                                 disabled={phoneOtpLoading}
                             >
@@ -663,7 +683,11 @@ export default function LoginScreen({ navigation }) {
                     </View>
 
                     {/* Google */}
-                    <Pressable style={styles.socialBtn} onPress={handleGooglePress} disabled={loading}>
+                    <Pressable
+                        style={({ pressed }) => [styles.socialBtn, pressed && styles.pressed]}
+                        onPress={handleGooglePress}
+                        disabled={loading}
+                    >
                         <View style={styles.googleIconBox}>
                             <Text style={styles.googleIconText}>G</Text>
                         </View>
@@ -671,7 +695,10 @@ export default function LoginScreen({ navigation }) {
                     </Pressable>
 
                     {/* Apple — coming soon */}
-                    <Pressable style={[styles.socialBtn, styles.socialBtnDisabled]} disabled>
+                    <Pressable
+                        style={({ pressed }) => [styles.socialBtn, styles.socialBtnDisabled, pressed && styles.pressed]}
+                        disabled
+                    >
                         <View style={styles.appleIconBox}>
                             <Text style={styles.appleIconText}>a</Text>
                         </View>
@@ -681,14 +708,17 @@ export default function LoginScreen({ navigation }) {
                     {/* Sign up row */}
                     <View style={styles.signupRow}>
                         <Text style={styles.signupText}>Don't have an account? </Text>
-                        <Pressable onPress={() => navigation.navigate('PatientSignup')}>
+                        <Pressable
+                            style={({ pressed }) => pressed && { opacity: 0.7 }}
+                            onPress={() => navigation.navigate('PatientSignup')}
+                        >
                             <Text style={styles.signupLink}>Sign up</Text>
                         </Pressable>
                     </View>
 
                     {/* Companion Mode Entry */}
                     <Pressable 
-                        style={styles.companionBtn} 
+                        style={({ pressed }) => [styles.companionBtn, pressed && styles.pressed]} 
                         onPress={() => navigation.navigate('CompanionSignup')}
                     >
                         <Text style={styles.companionBtnText}>Join as Family Companion</Text>
@@ -727,7 +757,7 @@ export default function LoginScreen({ navigation }) {
                                     onPress={() => setPhoneOtpVisible(false)}
                                     hitSlop={12}
                                     disabled={phoneOtpLoading}
-                                    style={phoneOtpSt.closeBtn}
+                                    style={({ pressed }) => [phoneOtpSt.closeBtn, pressed && phoneOtpSt.pressed]}
                                 >
                                     <X size={18} color={C.mid} />
                                 </Pressable>
@@ -752,14 +782,18 @@ export default function LoginScreen({ navigation }) {
                                 {phoneOtpTimer > 0 ? (
                                     <Text style={phoneOtpSt.timerText}>Resend in {phoneOtpTimer}s</Text>
                                 ) : (
-                                    <Pressable onPress={handleResendPhoneOtp} disabled={phoneOtpLoading}>
+                                    <Pressable style={({ pressed }) => pressed && { opacity: 0.7 }} onPress={handleResendPhoneOtp} disabled={phoneOtpLoading}>
                                         <Text style={[phoneOtpSt.resendLink, phoneOtpLoading && { opacity: 0.5 }]}>Resend Code</Text>
                                     </Pressable>
                                 )}
                             </View>
 
                             <Pressable
-                                style={[phoneOtpSt.btn, (phoneOtpLoading || phoneOtpCode.length < 6) && { opacity: 0.6 }]}
+                                style={({ pressed }) => [
+                                    phoneOtpSt.btn,
+                                    (phoneOtpLoading || phoneOtpCode.length < 6) && { opacity: 0.6 },
+                                    pressed && phoneOtpSt.pressed
+                                ]}
                                 onPress={handleVerifyPhoneOtp}
                                 disabled={phoneOtpLoading || phoneOtpCode.length < 6}
                             >
@@ -782,7 +816,7 @@ const phoneOtpSt = StyleSheet.create({
     card: {
         backgroundColor: C.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28,
         padding: 28, paddingBottom: 40,
-        shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 24, shadowOffset: { width: 0, height: -4 }, elevation: 16,
+        ...shadows.modal,
     },
     header: { flexDirection: 'row', alignItems: 'center', marginBottom: 20, gap: 12 },
     iconCircle: {
@@ -807,6 +841,7 @@ const phoneOtpSt = StyleSheet.create({
         shadowColor: C.primaryDark, shadowOpacity: 0.3, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 6,
     },
     btnText: { color: '#FFF', fontSize: 16, ...FONT.bold },
+    pressed: { opacity: 0.85, transform: [{ scale: 0.98 }] },
 });
 
 const styles = StyleSheet.create({
@@ -999,13 +1034,12 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: C.surface,
-        borderWidth: 1.5,
-        borderColor: C.border,
         borderRadius: 14,
         height: 54,
         paddingHorizontal: 20,
         gap: 14,
         marginBottom: 12,
+        ...shadows.sm,
     },
     socialBtnDisabled: {
         opacity: 0.5,
@@ -1072,5 +1106,9 @@ const styles = StyleSheet.create({
         color: C.primaryDark,
         fontSize: 14,
         ...FONT.bold,
+    },
+    pressed: {
+        opacity: 0.85,
+        transform: [{ scale: 0.98 }],
     }
 });

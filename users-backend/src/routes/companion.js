@@ -406,7 +406,10 @@ router.get('/patient-status', authenticate, async (req, res) => {
             medicationsRaw,
             vitalsHistory,
             todayMedicineLog,
-            allAlerts
+            allAlerts,
+            aiPrediction,
+            companionInsights,
+            riskTimeline
         ] = await Promise.all([
             MedicineLog.find({ patient_id: patient._id, date: { $gte: weekAgo } }).lean(),
             VitalLog.findOne({ patient_id: patient._id }).sort({ date: -1 }).lean(),
@@ -414,7 +417,19 @@ router.get('/patient-status', authenticate, async (req, res) => {
             buildMergedMeds(patient),
             VitalLog.find({ patient_id: patient._id, date: { $gte: fourteenDaysAgo } }).sort({ date: 1 }).lean(),
             MedicineLog.findOne({ patient_id: patient._id, date: { $gte: startOfToday, $lte: endOfToday } }).lean(),
-            Alert.find({ patient_id: patient._id }).populate('acknowledged_by').sort({ created_at: -1 }).limit(10).lean()
+            Alert.find({ patient_id: patient._id }).populate('acknowledged_by').sort({ created_at: -1 }).limit(10).lean(),
+            (async () => {
+                const AIVitalPrediction = require('../models/AIVitalPrediction');
+                return AIVitalPrediction.findOne({ patient_id: patient._id }).lean().catch(() => null);
+            })(),
+            (async () => {
+                const companionAiService = require('../services/companionAiService');
+                return companionAiService.getOrGenerateInsights(patient._id).catch(() => null);
+            })(),
+            (async () => {
+                const RiskTransition = require('../models/RiskTransition');
+                return RiskTransition.find({ patient_id: patient._id }).sort({ date: -1 }).lean();
+            })()
         ]);
 
         const medications = medicationsRaw.filter(m => m.is_active !== false);
@@ -660,7 +675,10 @@ router.get('/patient-status', authenticate, async (req, res) => {
                         health_score: linkedState.score ?? a.patient_id.healthScoreCache ?? 82,
                         current_streak: linkedState.adherence?.streak ?? a.patient_id.gamification?.current_streak ?? 0
                     };
-                })
+                }),
+            ai_predictions: aiPrediction,
+            companion_insights: companionInsights,
+            risk_timeline: riskTimeline
         });
 
     } catch (err) {
@@ -1005,6 +1023,64 @@ router.put('/profile', authenticate, async (req, res) => {
     } catch (err) {
         logger.error('Update companion profile error', { error: err.message });
         res.status(500).json({ error: 'Failed to update profile.' });
+    }
+});
+
+/**
+ * POST /api/companion/patient-status/refresh-insights
+ * Force regenerates companion insights for a patient.
+ * Rate-limited (debounced) to once every 5 minutes using the cached generated_at timestamp.
+ */
+router.post('/patient-status/refresh-insights', authenticate, async (req, res) => {
+    try {
+        if (!req.profile || req.profile.role !== 'companion') {
+            return res.status(403).json({ error: 'Access denied.' });
+        }
+
+        const patientId = req.body.patientId;
+        if (!patientId) {
+            return res.status(400).json({ error: 'Patient ID is required.' });
+        }
+
+        // Validate active care circle permission
+        const CompanionAccess = require('../models/CompanionAccess');
+        const access = await CompanionAccess.findOne({
+            companion_id: req.profile._id,
+            patient_id: patientId,
+            is_active: true,
+            status: 'accepted'
+        });
+
+        if (!access) {
+            return res.status(403).json({ error: 'You do not have active access to this patient.' });
+        }
+
+        // Check 5-minute manual refresh rate limit
+        const CompanionAiInsight = require('../models/CompanionAiInsight');
+        const cached = await CompanionAiInsight.findOne({ patient_id: patientId });
+        
+        if (cached && cached.generated_at) {
+            const ageMs = Date.now() - new Date(cached.generated_at).getTime();
+            if (ageMs < 5 * 60 * 1000) {
+                return res.status(429).json({
+                    error: 'Insights can only be refreshed once every 5 minutes.',
+                    retryAfterSeconds: Math.ceil((5 * 60 * 1000 - ageMs) / 1000)
+                });
+            }
+        }
+
+        // Synchronously generate fresh insights
+        const companionAiService = require('../services/companionAiService');
+        const freshInsights = await companionAiService.generateAndCacheInsights(patientId, true);
+
+        if (!freshInsights) {
+            return res.status(500).json({ error: 'Failed to regenerate insights.' });
+        }
+
+        res.json({ success: true, companion_insights: freshInsights });
+    } catch (err) {
+        logger.error('Companion refresh-insights error', { error: err.message });
+        res.status(500).json({ error: 'Failed to refresh insights.' });
     }
 });
 

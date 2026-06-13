@@ -9,20 +9,22 @@ import { TERMS_VERSION, PRIVACY_VERSION } from '../../constants/legalContent';
 
 import { OTPBoxes } from './components';
 import { parseError } from '../../utils/parseError';
+import { colors, radius, spacing, shadows } from '../../theme';
+import { HapticPatterns } from '../../utils/haptics';
 
 const C = {
-    bg: '#F8FAFC',
-    surface: '#FFFFFF',
-    primary: '#0EA5E9',
-    primaryDark: '#0369A1',
-    primarySoft: '#E0F2FE',
-    dark: '#0F172A',
-    mid: '#475569',
-    muted: '#94A3B8',
-    danger: '#EF4444',
-    border: '#E2E8F0',
-    success: '#10B981',
-    successSoft: '#D1FAE5',
+    bg: colors.background,
+    surface: colors.surface,
+    primary: colors.primary,
+    primaryDark: colors.primaryMid,
+    primarySoft: colors.primarySoft,
+    dark: colors.textPrimary,
+    mid: colors.textSecondary,
+    muted: colors.textMuted,
+    danger: colors.danger,
+    border: colors.borderLight,
+    success: colors.success,
+    successSoft: colors.successLight,
 };
 
 const FONT = {
@@ -108,6 +110,7 @@ export default function CompanionSignupScreen({ navigation }) {
             });
             
             if (res.data.session && res.data.profile) {
+                await HapticPatterns.caregiverConnected().catch(() => {});
                 await injectSession(res.data.session, res.data.profile);
             }
         } catch (err) {
@@ -133,6 +136,7 @@ export default function CompanionSignupScreen({ navigation }) {
             });
             
             if (res.data.session && res.data.profile) {
+                await HapticPatterns.caregiverConnected().catch(() => {});
                 await injectSession(res.data.session, res.data.profile);
             }
         } catch (err) {
@@ -145,7 +149,11 @@ export default function CompanionSignupScreen({ navigation }) {
     return (
         <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
             <View style={styles.header}>
-                <Pressable onPress={() => { step > 1 ? setStep(step - 1) : navigation.goBack() }} style={styles.backBtn} hitSlop={15}>
+                <Pressable
+                    onPress={() => { step > 1 ? setStep(step - 1) : navigation.goBack() }}
+                    style={({ pressed }) => [styles.backBtn, pressed && styles.pressed]}
+                    hitSlop={15}
+                >
                     <ChevronLeft color={C.dark} size={24} />
                 </Pressable>
                 <View style={styles.progressContainer}>
@@ -182,7 +190,11 @@ export default function CompanionSignupScreen({ navigation }) {
                             style={{ marginBottom: 24 }}
                         />
 
-                        <Pressable style={[styles.btn, loading && { opacity: 0.7 }]} onPress={handleNextStep1} disabled={loading}>
+                        <Pressable
+                            style={({ pressed }) => [styles.btn, loading && { opacity: 0.7 }, pressed && styles.pressed]}
+                            onPress={handleNextStep1}
+                            disabled={loading}
+                        >
                             {loading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.btnText}>Continue</Text>}
                         </Pressable>
                     </View>
@@ -223,13 +235,16 @@ export default function CompanionSignupScreen({ navigation }) {
 
                         {/* Terms & Conditions Checkbox */}
                         <Pressable
-                            style={{
-                                flexDirection: 'row',
-                                alignItems: 'flex-start',
-                                gap: 10,
-                                paddingVertical: 8,
-                                marginBottom: 16,
-                            }}
+                            style={({ pressed }) => [
+                                {
+                                    flexDirection: 'row',
+                                    alignItems: 'flex-start',
+                                    gap: 10,
+                                    paddingVertical: 8,
+                                    marginBottom: 16,
+                                },
+                                pressed && styles.pressed
+                            ]}
                             onPress={() => {
                                 setTermsAccepted(!termsAccepted);
                                 setError('');
@@ -299,7 +314,11 @@ export default function CompanionSignupScreen({ navigation }) {
                             </Text>
                         </Pressable>
 
-                        <Pressable style={[styles.btn, loading && { opacity: 0.7 }]} onPress={handleJoinNew} disabled={loading}>
+                        <Pressable
+                            style={({ pressed }) => [styles.btn, loading && { opacity: 0.7 }, pressed && styles.pressed]}
+                            onPress={handleJoinNew}
+                            disabled={loading}
+                        >
                             {loading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.btnText}>Create Account</Text>}
                         </Pressable>
                     </View>
@@ -321,7 +340,11 @@ export default function CompanionSignupScreen({ navigation }) {
                             editable={!loading}
                         />
 
-                        <Pressable style={[styles.btn, { marginTop: 20 }, loading && { opacity: 0.7 }]} onPress={handleJoinExisting} disabled={loading}>
+                        <Pressable
+                            style={({ pressed }) => [styles.btn, { marginTop: 20 }, loading && { opacity: 0.7 }, pressed && styles.pressed]}
+                            onPress={handleJoinExisting}
+                            disabled={loading}
+                        >
                             {loading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.btnText}>Log In</Text>}
                         </Pressable>
                     </View>
@@ -370,4 +393,5 @@ const styles = StyleSheet.create({
     badgeText: { color: C.primaryDark, fontSize: 12, ...FONT.bold, textTransform: 'uppercase', letterSpacing: 0.5 },
     successBadgeBox: { backgroundColor: C.successSoft, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, alignSelf: 'flex-start', marginBottom: 12 },
     successBadgeText: { color: '#065F46', fontSize: 12, ...FONT.bold, textTransform: 'uppercase', letterSpacing: 0.5 },
+    pressed: { opacity: 0.85, transform: [{ scale: 0.98 }] },
 });

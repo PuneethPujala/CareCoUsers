@@ -41,7 +41,11 @@ const Step2Locality = ({
 
             {/* Auto-detect button */}
             <Pressable
-                style={[styles.locationPrimaryBtn, detectingLocation && { opacity: 0.7 }]}
+                style={({ pressed }) => [
+                    styles.locationPrimaryBtn,
+                    detectingLocation && { opacity: 0.7 },
+                    pressed && styles.pressed
+                ]}
                 onPress={handleDetectLocation}
                 disabled={detectingLocation}
             >
@@ -60,11 +64,15 @@ const Step2Locality = ({
                 <View style={styles.locationSuccessToast}>
                     <CheckCircle2 size={18} color={C.success} />
                     <Text style={styles.locationSuccessText}>{locationAddress}</Text>
-                    <Pressable onPress={() => {
-                        onCitySelect({ name: '', state: '' });
-                        setSearchQuery('');
-                        setShowSearch(false);
-                    }} hitSlop={10}>
+                    <Pressable
+                        onPress={() => {
+                            onCitySelect({ name: '', state: '' });
+                            setSearchQuery('');
+                            setShowSearch(false);
+                        }}
+                        hitSlop={10}
+                        style={({ pressed }) => [pressed && styles.pressed]}
+                    >
                         <X size={16} color={C.success} />
                     </Pressable>
                 </View>
@@ -80,12 +88,21 @@ const Step2Locality = ({
             {/* City search toggle */}
             {!showSearch ? (
                 <Pressable
-                    style={[styles.locationSecondaryBtn, {
-                        flexDirection: 'row', alignItems: 'center',
-                        backgroundColor: C.surface, borderRadius: 14,
-                        borderWidth: 1.5, borderColor: C.border, height: 52,
-                        paddingHorizontal: 16, justifyContent: 'center', gap: 10,
-                    }]}
+                    style={({ pressed }) => [
+                        styles.locationSecondaryBtn,
+                        {
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            backgroundColor: C.surface,
+                            borderRadius: 14,
+                            height: 52,
+                            paddingHorizontal: 16,
+                            justifyContent: 'center',
+                            gap: 10,
+                            ...shadows.sm,
+                        },
+                        pressed && styles.pressed,
+                    ]}
                     onPress={() => setShowSearch(true)}
                     disabled={loadingCities || detectingLocation}
                 >
@@ -109,11 +126,19 @@ const Step2Locality = ({
                             autoFocus
                         />
                         {searchQuery.length > 0 ? (
-                            <Pressable onPress={() => setSearchQuery('')} hitSlop={10}>
+                            <Pressable
+                                onPress={() => setSearchQuery('')}
+                                hitSlop={10}
+                                style={({ pressed }) => [pressed && styles.pressed]}
+                            >
                                 <X size={16} color={C.muted} />
                             </Pressable>
                         ) : (
-                            <Pressable onPress={() => setShowSearch(false)} hitSlop={10}>
+                            <Pressable
+                                onPress={() => setShowSearch(false)}
+                                hitSlop={10}
+                                style={({ pressed }) => [pressed && styles.pressed]}
+                            >
                                 <X size={16} color={C.muted} />
                             </Pressable>
                         )}
@@ -133,7 +158,11 @@ const Step2Locality = ({
                         return (
                             <Pressable
                                 key={city.id || city._id || city.name}
-                                style={[styles.cityRow, isActive && styles.cityRowActive]}
+                                style={({ pressed }) => [
+                                    styles.cityRow,
+                                    isActive && styles.cityRowActive,
+                                    pressed && styles.pressed,
+                                ]}
                                 onPress={() => {
                                     onCitySelect(city);
                                     setShowSearch(false);
@@ -189,7 +218,12 @@ const Step2Locality = ({
             {/* Continue button — only shows when city is selected */}
             {locationAddress ? (
                 <Pressable
-                    style={[styles.primaryBtnEnhanced, { marginTop: 24 }, signupLoading && { opacity: 0.5 }]}
+                    style={({ pressed }) => [
+                        styles.primaryBtnEnhanced,
+                        { marginTop: 24 },
+                        signupLoading && { opacity: 0.5 },
+                        pressed && styles.pressed
+                    ]}
                     onPress={handleStep2Continue}
                     disabled={signupLoading}
                 >

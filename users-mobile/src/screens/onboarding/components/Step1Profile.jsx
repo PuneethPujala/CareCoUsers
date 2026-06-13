@@ -41,7 +41,11 @@ const Step1Profile = ({
             <Text style={styles.stepTitleLine2}>SAMVAYA account</Text>
 
             {/* Google signup */}
-            <Pressable style={styles.googleBtnEnhanced} onPress={handleGooglePress} disabled={googleLoading}>
+            <Pressable
+                style={({ pressed }) => [styles.googleBtnEnhanced, pressed && styles.pressed]}
+                onPress={handleGooglePress}
+                disabled={googleLoading}
+            >
                 <View style={{ width: 26, height: 26, borderRadius: 7, backgroundColor: '#4285F4', alignItems: 'center', justifyContent: 'center' }}>
                     <Text style={{ fontSize: 14, color: '#FFF', ...FONT.heavy }}>G</Text>
                 </View>
@@ -135,7 +139,11 @@ const Step1Profile = ({
                             onSubmitEditing={() => confirmPassRef?.current?.focus()}
                             error={errors.password?.message}
                             rightIcon={
-                                <Pressable onPress={toggleShowPass} hitSlop={10}>
+                                <Pressable
+                                    onPress={toggleShowPass}
+                                    hitSlop={10}
+                                    style={({ pressed }) => [pressed && styles.pressed]}
+                                >
                                     {showPass
                                         ? <Eye size={18} color={C.primary} />
                                         : <EyeOff size={18} color={C.muted} />
@@ -169,7 +177,11 @@ const Step1Profile = ({
                             passwordsMatch
                                 ? <CheckCircle2 size={18} color={C.success} />
                                 : (
-                                    <Pressable onPress={toggleShowConfirm} hitSlop={10}>
+                                    <Pressable
+                                        onPress={toggleShowConfirm}
+                                        hitSlop={10}
+                                        style={({ pressed }) => [pressed && styles.pressed]}
+                                    >
                                         {showConfirm
                                             ? <Eye size={18} color={C.primary} />
                                             : <EyeOff size={18} color={C.muted} />
@@ -200,12 +212,15 @@ const Step1Profile = ({
                 render={({ field: { onChange, value } }) => (
                     <View style={{ marginBottom: 8, marginTop: 12 }}>
                         <Pressable
-                            style={{
-                                flexDirection: 'row',
-                                alignItems: 'flex-start',
-                                gap: 10,
-                                paddingVertical: 8,
-                            }}
+                            style={({ pressed }) => [
+                                {
+                                    flexDirection: 'row',
+                                    alignItems: 'flex-start',
+                                    gap: 10,
+                                    paddingVertical: 8,
+                                },
+                                pressed && styles.pressed
+                            ]}
                             onPress={() => onChange(!value)}
                         >
                             <View style={{ marginTop: 2 }}>
@@ -288,7 +303,12 @@ const Step1Profile = ({
 
             {/* Continue button */}
             <Pressable
-                style={[styles.primaryBtnEnhanced, { marginTop: 16 }, signupLoading && { opacity: 0.7 }]}
+                style={({ pressed }) => [
+                    styles.primaryBtnEnhanced,
+                    { marginTop: 16 },
+                    signupLoading && { opacity: 0.7 },
+                    pressed && styles.pressed
+                ]}
                 onPress={handleStep1Submit}
                 disabled={signupLoading}
             >

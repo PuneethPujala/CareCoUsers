@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, Pressable, Animated, ActivityIndicator } from 'react-native';
 import { CheckCircle2, Shield, Zap, Smartphone, Sparkles, ChevronRight } from 'lucide-react-native';
 import { styles, FONT, C } from './SignupStyles';
+import { HapticPatterns } from '../../../utils/haptics';
+import { useReduceMotion } from '../../../theme';
 
 const JOURNEY_ITEMS = [
     { Icon: Shield, text: 'Collect your full health profile details' },
@@ -11,6 +13,22 @@ const JOURNEY_ITEMS = [
 
 const Step4Verification = ({ staggerAnims, handleGoToStep5 }) => {
     const [proceeding, setProceeding] = useState(false);
+    const checkScale = useRef(new Animated.Value(0.3)).current;
+    const reduceMotion = useReduceMotion();
+
+    useEffect(() => {
+        HapticPatterns.premiumUnlocked().catch(() => {});
+        if (reduceMotion) {
+            checkScale.setValue(1);
+        } else {
+            Animated.spring(checkScale, {
+                toValue: 1,
+                friction: 4,
+                tension: 40,
+                useNativeDriver: true,
+            }).start();
+        }
+    }, [reduceMotion]);
 
     const handlePress = async () => {
         if (proceeding) return;
@@ -39,11 +57,13 @@ const Step4Verification = ({ staggerAnims, handleGoToStep5 }) => {
             {/* Success card */}
             <Animated.View style={{
                 opacity: staggerAnims[0],
-                transform: [{ translateY: staggerAnims[0].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }],
+                transform: [{ translateY: staggerAnims[0].interpolate({ inputRange: [0, 1], outputRange: [reduceMotion ? 0 : 20, 0] }) }],
             }}>
                 <View style={styles.successCelebrationCard}>
                     <View style={styles.largeSuccessCircle}>
-                        <CheckCircle2 size={52} color={C.success} strokeWidth={2} />
+                        <Animated.View style={{ transform: [{ scale: checkScale }] }}>
+                            <CheckCircle2 size={52} color={C.success} strokeWidth={2} />
+                        </Animated.View>
                     </View>
                     <Text style={styles.successTitle}>Payment Successful!</Text>
                     <Text style={styles.successSubtitle}>Welcome to the CareMyMed family.</Text>
@@ -53,7 +73,7 @@ const Step4Verification = ({ staggerAnims, handleGoToStep5 }) => {
             {/* Next steps card */}
             <Animated.View style={{
                 opacity: staggerAnims[1],
-                transform: [{ translateY: staggerAnims[1].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }],
+                transform: [{ translateY: staggerAnims[1].interpolate({ inputRange: [0, 1], outputRange: [reduceMotion ? 0 : 20, 0] }) }],
             }}>
                 <View style={styles.nextStepsCard}>
                     <View style={styles.nextStepsHeader}>
@@ -71,7 +91,7 @@ const Step4Verification = ({ staggerAnims, handleGoToStep5 }) => {
                                     opacity: staggerAnims[i + 2],
                                     transform: [{
                                         translateX: staggerAnims[i + 2].interpolate({
-                                            inputRange: [0, 1], outputRange: [-12, 0],
+                                            inputRange: [0, 1], outputRange: [reduceMotion ? 0 : -12, 0],
                                         }),
                                     }],
                                 }}
@@ -96,7 +116,11 @@ const Step4Verification = ({ staggerAnims, handleGoToStep5 }) => {
                     : undefined,
             }}>
                 <Pressable
-                    style={[styles.primaryBtnEnhanced, proceeding && { opacity: 0.7 }]}
+                    style={({ pressed }) => [
+                        styles.primaryBtnEnhanced,
+                        proceeding && { opacity: 0.7 },
+                        pressed && styles.pressed
+                    ]}
                     onPress={handlePress}
                     disabled={proceeding}
                 >

@@ -15,6 +15,7 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { parseError } from '../../utils/parseError';
 import analytics from '../../utils/analytics';
+import { colors, radius, spacing, shadows } from '../../theme';
 
 const RESEND_COOLDOWN = 60; // seconds
 
@@ -109,7 +110,11 @@ export default function VerifyEmailScreen({ navigation, route }) {
                             Resend available in {resendTimer}s
                         </Text>
                     ) : (
-                        <Pressable style={styles.resendBtn} onPress={handleResend} disabled={resending}>
+                        <Pressable
+                            style={({ pressed }) => [styles.resendBtn, pressed && styles.pressed]}
+                            onPress={handleResend}
+                            disabled={resending}
+                        >
                             {resending ? (
                                 <ActivityIndicator size="small" color="#6366F1" />
                             ) : (
@@ -126,7 +131,10 @@ export default function VerifyEmailScreen({ navigation, route }) {
                 </View>
 
                 {/* Back to Login */}
-                <Pressable style={styles.secondaryBtn} onPress={handleGoBack}>
+                <Pressable
+                    style={({ pressed }) => [styles.secondaryBtn, pressed && styles.pressed]}
+                    onPress={handleGoBack}
+                >
                     <Text style={styles.secondaryBtnText}>Back to Login</Text>
                 </Pressable>
             </View>
@@ -135,22 +143,23 @@ export default function VerifyEmailScreen({ navigation, route }) {
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#F8FAFC' },
+    container: { flex: 1, backgroundColor: colors.background },
     hero: { height: 280, borderBottomLeftRadius: 40, borderBottomRightRadius: 40, alignItems: 'center', justifyContent: 'center', paddingTop: Platform.OS === 'ios' ? 60 : 40, overflow: 'hidden' },
     iconCircle: { width: 80, height: 80, borderRadius: 24, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center', marginBottom: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)' },
     heroTitle: { fontSize: 28, fontWeight: '800', color: '#FFFFFF', letterSpacing: -0.5 },
     heroSubtitle: { fontSize: 15, color: 'rgba(255,255,255,0.75)', marginTop: 4, fontWeight: '500' },
-    formCard: { marginTop: -30, marginHorizontal: 20, backgroundColor: '#FFFFFF', borderRadius: 36, padding: 28, shadowColor: '#6366F1', shadowOffset: { width: 0, height: 20 }, shadowOpacity: 0.08, shadowRadius: 32, elevation: 12 },
-    emailBadge: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#EEF2FF', paddingVertical: 14, paddingHorizontal: 18, borderRadius: 20, marginBottom: 24, borderWidth: 1, borderColor: '#C7D2FE' },
-    emailText: { fontSize: 14, fontWeight: '700', color: '#4338CA' },
-    instructions: { fontSize: 15, color: '#475569', lineHeight: 24, marginBottom: 28, textAlign: 'center' },
-    errorBox: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#FFE4E6', borderRadius: 20, padding: 16, marginBottom: 20, borderWidth: 1, borderColor: '#FCA5A5' },
+    formCard: { marginTop: -30, marginHorizontal: 20, backgroundColor: colors.surface, borderRadius: 28, padding: 28, ...shadows.modal },
+    emailBadge: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.primarySoft, paddingVertical: 14, paddingHorizontal: 18, borderRadius: 20, marginBottom: 24, borderWidth: 1, borderColor: colors.borderLight },
+    emailText: { fontSize: 14, fontWeight: '700', color: colors.primary },
+    instructions: { fontSize: 15, color: colors.textSecondary, lineHeight: 24, marginBottom: 28, textAlign: 'center' },
+    errorBox: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.dangerLight, borderRadius: 20, padding: 16, marginBottom: 20, borderWidth: 1, borderColor: '#FCA5A5' },
     errorMsg: { color: '#991B1B', fontSize: 13, flex: 1, fontWeight: '600' },
     resendRow: { alignItems: 'center', marginBottom: 28 },
-    timerText: { fontSize: 14, color: '#94A3B8', fontWeight: '600' },
+    timerText: { fontSize: 14, color: colors.textMuted, fontWeight: '600' },
     resendBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 12 },
-    resendText: { fontSize: 15, fontWeight: '700', color: '#6366F1' },
-    attemptsText: { fontSize: 12, color: '#94A3B8', marginTop: 8, fontWeight: '500' },
-    secondaryBtn: { alignItems: 'center', paddingVertical: 16, borderWidth: 1.5, borderColor: '#E2E8F0', borderRadius: 100 },
-    secondaryBtnText: { fontSize: 15, fontWeight: '700', color: '#64748B' },
+    resendText: { fontSize: 15, fontWeight: '700', color: colors.primary },
+    attemptsText: { fontSize: 12, color: colors.textMuted, marginTop: 8, fontWeight: '500' },
+    secondaryBtn: { alignItems: 'center', paddingVertical: 16, borderWidth: 1.5, borderColor: colors.borderLight, borderRadius: 100 },
+    secondaryBtnText: { fontSize: 15, fontWeight: '700', color: colors.textSecondary },
+    pressed: { opacity: 0.85, transform: [{ scale: 0.98 }] },
 });

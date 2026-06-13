@@ -23,6 +23,7 @@ import { step1Schema, stepPhoneSchema, step2Schema, step3Schema, step5Schema } f
 
 import { OTPModal } from './components';
 import CheckoutBottomSheet from '../../components/premium/CheckoutBottomSheet';
+import { colors, radius, spacing, shadows, useReduceMotion } from '../../theme';
 import { styles, FONT, C } from './components/SignupStyles';
 import { HapticPatterns } from '../../utils/haptics';
 import Step1Profile from './components/Step1Profile';
@@ -150,10 +151,19 @@ export default function PatientSignupScreen({ navigation, route }) {
     const syncRotateAnim = useRef(new Animated.Value(0)).current;
     const staggerAnims = useRef([...Array(10)].map(() => new Animated.Value(0))).current;
 
+    const reduceMotion = useReduceMotion();
+
     const animateIn = useCallback(() => {
         staggerAnims.forEach(a => { a.stopAnimation(); a.setValue(0); });
         fadeAnim.stopAnimation(); fadeAnim.setValue(0);
-        slideAnim.stopAnimation(); slideAnim.setValue(18);
+        slideAnim.stopAnimation(); slideAnim.setValue(reduceMotion ? 0 : 18);
+
+        if (reduceMotion) {
+            fadeAnim.setValue(1);
+            slideAnim.setValue(0);
+            staggerAnims.forEach(a => a.setValue(1));
+            return;
+        }
 
         Animated.parallel([
             Animated.timing(fadeAnim, { toValue: 1, duration: 260, useNativeDriver: true }),
@@ -162,7 +172,7 @@ export default function PatientSignupScreen({ navigation, route }) {
                 Animated.timing(a, { toValue: 1, duration: 360, useNativeDriver: true })
             )),
         ]).start();
-    }, [fadeAnim, slideAnim, staggerAnims]);
+    }, [fadeAnim, slideAnim, staggerAnims, reduceMotion]);
 
     useEffect(() => {
         animateIn();
@@ -660,7 +670,11 @@ export default function PatientSignupScreen({ navigation, route }) {
                     <View style={{ width: 40, height: 4, borderRadius: 2, backgroundColor: C.border, alignSelf: 'center', marginBottom: 20 }} />
                     <View style={styles.modalHeader}>
                         <Text style={styles.modalTitle}>Free features</Text>
-                        <Pressable onPress={() => setFeaturesModalVisible(false)} hitSlop={12} style={styles.closeBtnBox}>
+                        <Pressable
+                            onPress={() => setFeaturesModalVisible(false)}
+                            hitSlop={12}
+                            style={({ pressed }) => [styles.closeBtnBox, pressed && styles.pressed]}
+                        >
                             <X size={18} color={C.mid} />
                         </Pressable>
                     </View>
@@ -684,7 +698,7 @@ export default function PatientSignupScreen({ navigation, route }) {
                             </View>
                         ))}
                         <Pressable
-                            style={[styles.primaryBtnEnhanced, { marginTop: 8 }]}
+                            style={({ pressed }) => [styles.primaryBtnEnhanced, { marginTop: 8 }, pressed && styles.pressed]}
                             onPress={() => setFeaturesModalVisible(false)}
                         >
                             <View style={styles.primaryBtnGradientEnhanced}>
@@ -715,7 +729,11 @@ export default function PatientSignupScreen({ navigation, route }) {
                     {/* ── Flat header ── */}
                     <View style={sc.headerRow}>
                         {step > 1 && step < 5 ? (
-                            <Pressable style={sc.backBtn} onPress={handleBack} hitSlop={10}>
+                            <Pressable
+                                style={({ pressed }) => [sc.backBtn, pressed && styles.pressed]}
+                                onPress={handleBack}
+                                hitSlop={10}
+                            >
                                 <ChevronLeft size={22} color={C.dark} strokeWidth={2.5} />
                             </Pressable>
                         ) : (
@@ -810,7 +828,10 @@ export default function PatientSignupScreen({ navigation, route }) {
                     {step === 1 && !signupLoading && (
                         <View style={sc.footer}>
                             <Text style={sc.footerText}>Already have an account? </Text>
-                            <Pressable onPress={() => navigation.navigate('Login')}>
+                            <Pressable
+                                onPress={() => navigation.navigate('Login')}
+                                style={({ pressed }) => [pressed && styles.pressed]}
+                            >
                                 <Text style={sc.footerLink}>Sign In</Text>
                             </Pressable>
                         </View>
@@ -849,7 +870,7 @@ export default function PatientSignupScreen({ navigation, route }) {
 
 // ── Screen-level styles (not shared) ──────────────────────────────────────────
 const sc = StyleSheet.create({
-    container: { flex: 1, backgroundColor: C.bg },
+    container: { flex: 1, backgroundColor: colors.background },
     scroll: { flex: 1 },
     content: { paddingBottom: 48 },
     stepWrap: { paddingHorizontal: 24, paddingTop: 4, paddingBottom: 16 },
@@ -864,30 +885,30 @@ const sc = StyleSheet.create({
     },
     backBtn: {
         width: 40, height: 40, borderRadius: 12,
-        backgroundColor: C.surface, borderWidth: 1.5, borderColor: C.border,
+        backgroundColor: colors.surface, borderWidth: 1.5, borderColor: colors.borderLight,
         alignItems: 'center', justifyContent: 'center',
     },
     backBtnPlaceholder: { width: 40, height: 40 },
     stepCounter: {
-        fontSize: 13, ...FONT.semibold, color: C.mid,
+        fontSize: 13, ...FONT.semibold, color: colors.textSecondary,
     },
     dotsRow: { flexDirection: 'row', gap: 5, alignItems: 'center' },
-    dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: C.border },
-    dotFilled: { backgroundColor: C.primary, opacity: 0.4 },
-    dotActive: { backgroundColor: C.primary, opacity: 1, width: 18, borderRadius: 3 },
+    dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.borderLight },
+    dotFilled: { backgroundColor: colors.primary, opacity: 0.4 },
+    dotActive: { backgroundColor: colors.primary, opacity: 1, width: 18, borderRadius: 3 },
 
     progressTrack: {
-        height: 3, backgroundColor: C.border,
+        height: 3, backgroundColor: colors.borderLight,
         marginHorizontal: 20, borderRadius: 2, marginBottom: 8,
     },
     progressFill: {
-        height: 3, backgroundColor: C.primary, borderRadius: 2,
+        height: 3, backgroundColor: colors.primary, borderRadius: 2,
     },
 
     footer: {
         flexDirection: 'row', justifyContent: 'center', alignItems: 'center',
         paddingHorizontal: 24, paddingBottom: 24, paddingTop: 4,
     },
-    footerText: { fontSize: 14, ...FONT.medium, color: C.mid },
-    footerLink: { fontSize: 14, ...FONT.heavy, color: C.primary },
+    footerText: { fontSize: 14, ...FONT.medium, color: colors.textSecondary },
+    footerLink: { fontSize: 14, ...FONT.heavy, color: colors.primary },
 });

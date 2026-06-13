@@ -14,8 +14,22 @@ export default function ScoreHeroCard({ scoreData }) {
         hsGrade,
         hsBracket,
         bracketLabel,
-        lastSyncText
+        lastSyncText,
+        deltas
     } = scoreData || {};
+
+    const renderDelta = () => {
+        if (!deltas || deltas.score_delta_30d === undefined) return null;
+        const deltaVal = deltas.score_delta_30d;
+        const arrow = deltaVal > 0 ? '↗' : deltaVal < 0 ? '↘' : '→';
+        const color = deltaVal > 0 ? colors.success : deltaVal < 0 ? colors.danger : colors.textMuted;
+        const text = deltaVal > 0 ? `+${deltaVal}` : deltaVal < 0 ? `${deltaVal}` : 'stable';
+        return (
+            <Text style={{ fontSize: 12, color, fontWeight: '700', marginLeft: 6 }}>
+                {arrow} {text} this month
+            </Text>
+        );
+    };
 
     return (
         <View style={s.card}>
@@ -65,6 +79,7 @@ export default function ScoreHeroCard({ scoreData }) {
                         <View style={s.gradeRow}>
                             <TrendingUp size={14} color={scoreColor} />
                             <Text style={[s.gradeText, { color: scoreColor }]}>{hsGrade} Grade</Text>
+                            {renderDelta()}
                         </View>
                         {hsBracket && <Text style={s.bracketText}>Adjusted for {bracketLabel}</Text>}
                         <Text style={s.syncText}>{lastSyncText}</Text>

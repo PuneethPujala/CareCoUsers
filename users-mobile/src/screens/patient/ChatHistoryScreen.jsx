@@ -1,29 +1,19 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
     View, Text, StyleSheet, Pressable, FlatList, ActivityIndicator,
-    Vibration, StatusBar, Image
+    Vibration, StatusBar, Image, Animated
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { ArrowLeft, MessageSquare, Plus, ChevronRight, Bot, Trash2, Sparkles, AlertCircle, Calendar } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, layout } from '../../theme';
+import { colors, layout, motion, anim, useReduceMotion } from '../../theme';
 import { useAuth } from '../../context/AuthContext';
 import usePatientStore from '../../store/usePatientStore';
 import { apiService, handleApiError } from '../../lib/api';
 import AlertManager from '../../utils/AlertManager';
 
-const C = {
-    bg: '#F8FAFC',
-    surface: '#FFFFFF',
-    primary: '#6366F1',
-    primaryLight: '#E0E7FF',
-    dark: '#0F172A',
-    mid: '#475569',
-    light: '#94A3B8',
-    border: '#E2E8F0',
-    danger: '#EF4444',
-};
+
 
 let cachedSessions = null;
 
@@ -31,6 +21,7 @@ export default function ChatHistoryScreen() {
     const navigation = useNavigation();
     const insets = useSafeAreaInsets();
     const { userRole, displayName } = useAuth();
+    const reduceMotion = useReduceMotion();
     
     const patient = usePatientStore(state => state.patient);
     const companionSelectedPatientId = usePatientStore(state => state.companionSelectedPatientId);
@@ -41,6 +32,20 @@ export default function ChatHistoryScreen() {
     const [sessions, setSessions] = useState(cachedSessions || []);
     const [isLoading, setIsLoading] = useState(!cachedSessions);
     const [isCreating, setIsCreating] = useState(false);
+
+    // ── Entrance animation for hero + list ──
+    const heroAnim = useRef(new Animated.Value(0)).current;
+    const hasAnimated = useRef(false);
+
+    const runEntrance = useCallback(() => {
+        if (hasAnimated.current) return;
+        hasAnimated.current = true;
+        if (reduceMotion) {
+            heroAnim.setValue(1);
+            return;
+        }
+        Animated.spring(heroAnim, { toValue: 1, ...motion.springSoft, useNativeDriver: true }).start();
+    }, [reduceMotion, heroAnim]);
 
     const loadSessions = useCallback(async () => {
         if (!targetPatientId) {
@@ -67,8 +72,8 @@ export default function ChatHistoryScreen() {
 
     useFocusEffect(
         useCallback(() => {
-            loadSessions();
-        }, [loadSessions])
+            loadSessions().then(() => runEntrance());
+        }, [loadSessions, runEntrance])
     );
 
     const handleCreateSession = async () => {
@@ -194,7 +199,7 @@ export default function ChatHistoryScreen() {
                     </Text>
                 </View>
                 
-                <ChevronRight size={18} color={C.light} />
+                <ChevronRight size={18} color={colors.textMuted} />
             </Pressable>
         );
     };
@@ -238,7 +243,7 @@ export default function ChatHistoryScreen() {
             {/* ── Content ── */}
             {isLoading ? (
                 <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color={C.primary} />
+                    <ActivityIndicator size="large" color={colors.primary} />
                     <Text style={styles.loadingText}>Loading conversations...</Text>
                 </View>
             ) : (
@@ -253,10 +258,11 @@ export default function ChatHistoryScreen() {
                     showsVerticalScrollIndicator={false}
                     ListHeaderComponent={
                         <Pressable onPress={handleCreateSession} disabled={isCreating}>
+                            <Animated.View style={{ opacity: heroAnim, transform: reduceMotion ? [] : [{ translateY: heroAnim.interpolate({ inputRange: [0, 1], outputRange: [16, 0] }) }] }}>
                             <LinearGradient colors={['#EEF2FF', '#E0E7FF']} style={styles.heroCard}>
                                 <View style={styles.heroHeader}>
                                     <View style={styles.heroIconBox}>
-                                        <Sparkles size={20} color={C.primary} strokeWidth={2.5} />
+                                        <Sparkles size={20} color={colors.primary} strokeWidth={2.5} />
                                     </View>
                                     <Text style={styles.heroTitle}>Start a New Chat</Text>
                                 </View>
@@ -264,11 +270,12 @@ export default function ChatHistoryScreen() {
                                     Ask the Care Assistant about {isCompanion ? "the patient's" : "your"} medications, vitals history, or adherence trends.
                                 </Text>
                             </LinearGradient>
+                            </Animated.View>
                         </Pressable>
                     }
                     ListEmptyComponent={
                         <View style={styles.emptyContainer}>
-                            <Bot size={48} color={C.light} strokeWidth={1.5} />
+                            <Bot size={48} color={colors.textMuted} strokeWidth={1.5} />
                             <Text style={styles.emptyTitle}>No conversations yet</Text>
                             <Text style={styles.emptySub}>
                                 Tap the plus button or the card above to start chatting with the Care Assistant.
@@ -282,11 +289,11 @@ export default function ChatHistoryScreen() {
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: C.bg },
+    container: { flex: 1, backgroundColor: colors.background },
     header: { 
         paddingHorizontal: 24, 
         paddingBottom: 16, 
-        backgroundColor: C.surface,
+        backgroundColor: colors.surface,
         borderBottomWidth: 1,
         borderBottomColor: '#F1F5F9',
         flexDirection: 'row',
@@ -306,16 +313,16 @@ const styles = StyleSheet.create({
     headerSub: {
         fontSize: 11,
         fontWeight: '600',
-        color: C.primary,
+        color: colors.primary,
         textTransform: 'uppercase',
         letterSpacing: 1,
     },
-    title: { fontSize: 24, fontWeight: '800', color: C.dark },
+    title: { fontSize: 24, fontWeight: '800', color: colors.textPrimary },
     newChatBtn: {
         width: 44, height: 44, borderRadius: 22,
-        backgroundColor: C.primary,
+        backgroundColor: colors.primary,
         alignItems: 'center', justifyContent: 'center',
-        shadowColor: C.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 8, elevation: 4
+        shadowColor: colors.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 8, elevation: 4
     },
     
     listContent: { padding: 20, gap: 16 },
@@ -351,16 +358,16 @@ const styles = StyleSheet.create({
     },
 
     loadingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
-    loadingText: { color: C.mid, fontSize: 14, fontWeight: '500' },
+    loadingText: { color: colors.textSecondary, fontSize: 14, fontWeight: '500' },
 
     sessionRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: C.surface,
+        backgroundColor: colors.surface,
         padding: 16,
         borderRadius: 18,
         borderWidth: 1,
-        borderColor: C.border,
+        borderColor: colors.borderLight,
         gap: 12,
         shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.02, shadowRadius: 4, elevation: 1
     },
@@ -383,19 +390,19 @@ const styles = StyleSheet.create({
     sessionTitle: {
         fontSize: 15,
         fontWeight: '700',
-        color: C.dark,
+        color: colors.textPrimary,
         flex: 1,
         marginRight: 8,
     },
     sessionTime: {
         fontSize: 11,
         fontWeight: '500',
-        color: C.light,
+        color: colors.textMuted,
     },
     sessionSub: {
         fontSize: 12,
         fontWeight: '500',
-        color: C.light,
+        color: colors.textMuted,
     },
 
     emptyContainer: {
@@ -408,11 +415,11 @@ const styles = StyleSheet.create({
     emptyTitle: {
         fontSize: 16,
         fontWeight: '700',
-        color: C.dark,
+        color: colors.textPrimary,
     },
     emptySub: {
         fontSize: 13,
-        color: C.light,
+        color: colors.textMuted,
         textAlign: 'center',
         lineHeight: 18,
     }

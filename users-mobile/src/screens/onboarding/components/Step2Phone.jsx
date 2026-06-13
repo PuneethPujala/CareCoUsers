@@ -51,7 +51,11 @@ const Step2Phone = ({
                     <AlertCircle size={15} color={C.danger} />
                     <Text style={local.errorText}>{phoneError}</Text>
                     {onRetry ? (
-                        <Pressable onPress={onRetry} style={local.retryBtn} hitSlop={8}>
+                        <Pressable
+                            onPress={onRetry}
+                            style={({ pressed }) => [local.retryBtn, pressed && styles.pressed]}
+                            hitSlop={8}
+                        >
                             <RefreshCcw size={14} color={C.primary} />
                             <Text style={local.retryText}>Retry</Text>
                         </Pressable>
@@ -103,7 +107,11 @@ const Step2Phone = ({
             {/* Send OTP button */}
             {!isPhoneVerified && (
                 <Pressable
-                    style={[styles.primaryBtnEnhanced, (otpLoading || signupLoading) && { opacity: 0.7 }]}
+                    style={({ pressed }) => [
+                        styles.primaryBtnEnhanced,
+                        (otpLoading || signupLoading) && { opacity: 0.7 },
+                        pressed && styles.pressed
+                    ]}
                     onPress={onSendOtp}
                     disabled={otpLoading || signupLoading}
                 >
