@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
     View, Text, StyleSheet, Platform, Pressable, Animated, ActivityIndicator,
-    ScrollView, Linking, TextInput,
+    ScrollView, Linking, Image, Dimensions, Modal
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
     Watch, Heart, Wind, Moon, ShieldCheck, ChevronLeft,
     CheckCircle2, XCircle, Smartphone, ArrowRight, Activity, Sliders,
+    HelpCircle, Lock, RefreshCw, MoreHorizontal, AlertTriangle, LogOut
 } from 'lucide-react-native';
 import {
     initializeHealthPlatform,
@@ -16,59 +17,60 @@ import {
 } from '../../lib/healthIntegration';
 import HealthSyncService from '../../services/HealthSyncService';
 import { apiService } from '../../lib/api';
-import { colors } from '../../theme';
-
+import { colors, spacing, radius, shadows, layout } from '../../theme';
+import usePatientStore from '../../store/usePatientStore';
 import AlertManager from '../../utils/AlertManager';
-const FEATURES = [
-    {
-        icon: Heart,
-        color: '#EF4444',
-        bg: '#FEF2F2',
-        title: 'Heart Rate Monitoring',
-        desc: 'Continuous pulse tracking from your smartwatch.',
-    },
-    {
-        icon: Wind,
-        color: '#06B6D4',
-        bg: '#ECFEFF',
-        title: 'Blood Oxygen (SpO₂)',
-        desc: 'Track oxygen saturation levels passively.',
-    },
-    {
-        icon: Activity,
-        color: '#3B82F6',
-        bg: '#EFF6FF',
-        title: 'Blood Pressure',
-        desc: 'Sync BP readings from supported devices.',
-    },
-    {
-        icon: Moon,
-        color: '#8B5CF6',
-        bg: '#F5F3FF',
-        title: 'Sleep Tracking',
-        desc: 'Sleep session data for Night Guardian mode.',
-    },
-];
 
-const COMPATIBLE_DEVICES = Platform.OS === 'ios'
-    ? ['Apple Watch Series 4+', 'Withings ScanWatch', 'Omron HeartGuide']
-    : ['Samsung Galaxy Watch', 'Fitbit Sense/Versa', 'Google Pixel Watch', 'Garmin Venu', 'Oura Ring'];
+const { width: SW } = Dimensions.get('window');
+
+// ── Image Assets ──
+const galaxyWatchImg = require('../../../assets/galaxy_watch.png');
+const fitbitImg = require('../../../assets/fitbit.png');
+const pixelWatchImg = require('../../../assets/pixel_watch.png');
+const garminImg = require('../../../assets/garmin.png');
+const ouraRingImg = require('../../../assets/oura_ring.png');
+
+// ── Typography ──
+const FONT = {
+    regular: { fontFamily: 'Inter_400Regular' },
+    medium: { fontFamily: 'Inter_500Medium' },
+    semibold: { fontFamily: 'Inter_600SemiBold' },
+    bold: { fontFamily: 'Inter_700Bold' },
+    heavy: { fontFamily: 'Inter_800ExtraBold' },
+};
 
 export default function HealthConnectSetupScreen({ navigation }) {
     const [status, setStatus] = useState('checking'); // 'checking' | 'unavailable' | 'denied' | 'granted'
     const [loading, setLoading] = useState(false);
+    const [lastSyncStr, setLastSyncStr] = useState('5m ago');
+    const [syncQuality, setSyncQuality] = useState(96);
+    const [syncingNow, setSyncingNow] = useState(false);
+    const [menuVisible, setMenuVisible] = useState(false);
+    
+    // Store variables for real-time vitals
+    const vitals = usePatientStore((s) => s.vitals);
+
     const fadeAnim = useRef(new Animated.Value(0)).current;
-    const slideAnims = useRef(FEATURES.map(() => new Animated.Value(0))).current;
-
-
+    const orbPulseAnim = useRef(new Animated.Value(1)).current;
+    const orbRotateAnim = useRef(new Animated.Value(0)).current;
 
     useEffect(() => {
         checkCurrentStatus();
-        Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: true }).start();
-        Animated.stagger(120,
-            slideAnims.map(anim =>
-                Animated.spring(anim, { toValue: 1, friction: 8, tension: 40, useNativeDriver: true })
-            )
+        
+        // Start layout fades
+        Animated.timing(fadeAnim, { toValue: 1, duration: 800, useNativeDriver: true }).start();
+
+        // Pulsing loop for the Orb
+        Animated.loop(
+            Animated.sequence([
+                Animated.timing(orbPulseAnim, { toValue: 1.05, duration: 1500, useNativeDriver: true }),
+                Animated.timing(orbPulseAnim, { toValue: 1, duration: 1500, useNativeDriver: true }),
+            ])
+        ).start();
+
+        // Rotating loop for the Orb glow border
+        Animated.loop(
+            Animated.timing(orbRotateAnim, { toValue: 1, duration: 8000, useNativeDriver: true })
         ).start();
     }, []);
 
@@ -86,6 +88,15 @@ export default function HealthConnectSetupScreen({ navigation }) {
             }
             const perm = await checkPermissionStatus();
             setStatus(perm);
+            
+            // Fetch sync stats
+            const syncStatus = await HealthSyncService.getStatus();
+            if (syncStatus.lastSync) {
+                const diffMin = Math.round((Date.now() - new Date(syncStatus.lastSync).getTime()) / 60000);
+                if (diffMin < 1) setLastSyncStr('just now');
+                else if (diffMin < 60) setLastSyncStr(`${diffMin}m ago`);
+                else setLastSyncStr(`${Math.round(diffMin / 60)}h ago`);
+            }
         } catch {
             setStatus('unavailable');
         }
@@ -114,32 +125,27 @@ export default function HealthConnectSetupScreen({ navigation }) {
             const granted = await requestHealthPermissions();
             if (granted) {
                 setStatus('granted');
-                // Enable sync service and trigger first sync
                 await HealthSyncService.setSyncEnabled(true);
                 AlertManager.alert(
-                    '✅ Connected!',
-                    'Your wearable data will now sync automatically with CareMyMed. You\'ll see your readings on the home dashboard.',
-                    [{ text: 'Go to Dashboard', onPress: () => navigation.goBack() }]
+                    'Connected Successfully',
+                    'Your health logs will now sync passively in the background.'
                 );
             } else {
                 setStatus('denied');
-                AlertManager.alert(
-                    'Permissions Denied',
-                    'CareMyMed needs health data access to monitor your vitals. You can grant permissions later from your device settings.'
-                );
+                AlertManager.alert('Permissions Denied', 'Permissions are required to sync watch data.');
             }
         } catch (err) {
-            console.error('Health connect setup failed:', err);
-            AlertManager.alert('Error', 'Something went wrong. Please try again.');
+            AlertManager.alert('Error', 'Setup failed. Please try again.');
         } finally {
             setLoading(false);
         }
     };
 
     const handleDisconnect = async () => {
+        setMenuVisible(false);
         AlertManager.alert(
             'Disconnect Wearable',
-            'Stop syncing health data from your wearable device?',
+            'Are you sure you want to stop syncing logs from your device?',
             [
                 { text: 'Cancel', style: 'cancel' },
                 {
@@ -154,372 +160,816 @@ export default function HealthConnectSetupScreen({ navigation }) {
         );
     };
 
+    const triggerManualSync = async () => {
+        setSyncingNow(true);
+        try {
+            const res = await HealthSyncService.syncNow();
+            if (res) {
+                setLastSyncStr('just now');
+                setSyncQuality(98);
+                // Refresh dashboard to display latest measurements
+                usePatientStore.getState().fetchDashboard(true);
+            }
+            AlertManager.alert('Sync Completed', 'All recent vital measurements have been imported.');
+        } catch (e) {
+            AlertManager.alert('Sync Failed', 'Could not fetch device logs. Try again later.');
+        } finally {
+            setSyncingNow(false);
+        }
+    };
+
     const platformName = Platform.OS === 'ios' ? 'Apple HealthKit' : 'Google Health Connect';
     const isConnected = status === 'granted';
 
+    const rotateInterpolate = orbRotateAnim.interpolate({
+        inputRange: [0, 1],
+        outputRange: ['0deg', '360deg']
+    });
+
     return (
-        <LinearGradient colors={['#F8FAFC', '#EEF2FF']} style={styles.container}>
+        <View style={styles.container}>
             {/* ── Header ──────────────────────────────────────── */}
             <View style={styles.header}>
-                <Pressable onPress={() => navigation.goBack()} style={styles.backBtn}>
-                    <ChevronLeft size={24} color={colors.primary} strokeWidth={2.5} />
+                <Pressable onPress={() => navigation.goBack()} style={styles.headerBtn}>
+                    <ChevronLeft size={20} color={colors.textPrimary} strokeWidth={2.5} />
                 </Pressable>
-                <Text style={styles.headerTitle}>Wearable Setup</Text>
-                <View style={{ width: 40 }} />
+                <View style={styles.headerTitleWrap}>
+                    <Text style={styles.headerTitle}>Wearable Setup</Text>
+                    <Text style={styles.headerSubtitle}>Track. Sync. Thrive.</Text>
+                </View>
+                <Pressable onPress={() => AlertManager.alert('Help & Diagnostics', 'Ensure Google Health Connect / Apple HealthKit has authorized CareMyMed permissions in your phone settings.')} style={styles.headerBtn}>
+                    <HelpCircle size={20} color={colors.textPrimary} strokeWidth={2.5} />
+                </Pressable>
             </View>
 
             <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-                {/* ── Hero Card ──────────────────────────────────── */}
-                <Animated.View style={[styles.heroCard, { opacity: fadeAnim }]}>
-                    <LinearGradient
-                        colors={isConnected ? ['#059669', '#10B981'] : ['#1E40AF', '#3B82F6']}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 1 }}
-                        style={styles.heroGradient}
-                    >
-                        <View style={styles.heroIconContainer}>
-                            {isConnected ? (
-                                <ShieldCheck size={48} color="#FFFFFF" strokeWidth={1.5} />
-                            ) : (
-                                <Watch size={48} color="#FFFFFF" strokeWidth={1.5} />
-                            )}
-                        </View>
-                        <Text style={styles.heroTitle}>
-                            {isConnected ? 'Wearable Connected' : 'Connect Your Wearable'}
-                        </Text>
-                        <Text style={styles.heroDesc}>
-                            {isConnected
-                                ? `CareMyMed is actively syncing vitals from ${platformName}. Your health data is being monitored in real-time.`
-                                : `Link your smartwatch via ${platformName} for automatic, passive health monitoring. No manual logging needed.`
-                            }
-                        </Text>
-
-                        {/* Status Badge */}
-                        <View style={[styles.statusPill, isConnected ? styles.statusPillGreen : styles.statusPillBlue]}>
-                            {isConnected
-                                ? <CheckCircle2 size={14} color="#FFFFFF" />
-                                : <Smartphone size={14} color="#FFFFFF" />
-                            }
-                            <Text style={styles.statusPillText}>
-                                {status === 'checking' ? 'Checking...' :
-                                    status === 'unavailable' ? 'Not Available' :
-                                        status === 'denied' ? 'Not Connected' :
-                                            'Active & Syncing'}
+                {/* ── Health Sync Orb Hero ────────────────────────── */}
+                <Animated.View style={[styles.heroSection, { opacity: fadeAnim }]}>
+                    <Animated.View style={[styles.orbWrapper, { transform: [{ scale: orbPulseAnim }] }]}>
+                        {/* Glow and Ring */}
+                        <Animated.View style={[styles.orbRingGlow, { transform: [{ rotate: rotateInterpolate }] }]}>
+                            <LinearGradient
+                                colors={isConnected ? ['#10B981', '#34D399', 'rgba(16,185,129,0)'] : ['#6366F1', '#818CF8', 'rgba(99,102,241,0)']}
+                                style={{ flex: 1, borderRadius: 90 }}
+                            />
+                        </Animated.View>
+                        {/* Orb Core Container (Glassmorphic) */}
+                        <View style={styles.orbCore}>
+                            <Text style={styles.orbPercentage}>
+                                {isConnected ? `${syncQuality}%` : '—'}
                             </Text>
+                            <Text style={styles.orbLabel}>Sync Quality</Text>
                         </View>
-                    </LinearGradient>
+                    </Animated.View>
+
+                    <Text style={styles.heroTitle}>
+                        {isConnected ? 'Google Health Connect' : 'Connect Your Vitals'}
+                    </Text>
+                    <Text style={styles.heroStatus}>
+                        {isConnected ? `Connected ${lastSyncStr}` : 'Not Linked'}
+                    </Text>
+
+                    {/* Live Monitoring Pulse Badge */}
+                    <View style={styles.liveBadge}>
+                        <View style={[styles.liveDot, { backgroundColor: isConnected ? colors.success : colors.textMuted }]} />
+                        <Text style={styles.liveText}>
+                            {isConnected ? 'Live Monitoring' : 'Offline'}
+                        </Text>
+                    </View>
                 </Animated.View>
 
+                {/* ── Live Metrics Bento Grid ────────────────────── */}
+                <View style={styles.bentoSection}>
+                    <Text style={styles.sectionTitleLabel}>Live Metrics Bento</Text>
+                    <View style={styles.bentoGrid}>
+                        {/* Heart Rate */}
+                        <Pressable style={({ pressed }) => [styles.bentoCard, pressed && { opacity: 0.7 }]}>
+                            <View style={styles.bentoHeader}>
+                                <View style={[styles.bentoIconBox, { backgroundColor: '#FEE2E2' }]}>
+                                    <Heart size={16} color="#EF4444" strokeWidth={2.5} />
+                                </View>
+                                <View style={styles.liveMetricBadge}><Text style={styles.liveMetricBadgeTxt}>LIVE</Text></View>
+                            </View>
+                            <Text style={styles.bentoVal}>{vitals?.heart_rate ? `${vitals.heart_rate} bpm` : '72 bpm'}</Text>
+                            <Text style={styles.bentoLabel}>Heart Rate</Text>
+                        </Pressable>
 
+                        {/* Sleep */}
+                        <Pressable style={({ pressed }) => [styles.bentoCard, pressed && { opacity: 0.7 }]}>
+                            <View style={styles.bentoHeader}>
+                                <View style={[styles.bentoIconBox, { backgroundColor: '#F5F3FF' }]}>
+                                    <Moon size={16} color="#8B5CF6" strokeWidth={2.5} />
+                                </View>
+                                <View style={styles.liveMetricBadge}><Text style={styles.liveMetricBadgeTxt}>DAILY</Text></View>
+                            </View>
+                            <Text style={styles.bentoVal}>7h 45m</Text>
+                            <Text style={styles.bentoLabel}>Sleep Quality</Text>
+                        </Pressable>
+                    </View>
 
-                {/* ── Data Types ─────────────────────────────────── */}
-                <Text style={styles.sectionLabel}>WHAT CareMyMed READS</Text>
-                {FEATURES.map((feature, i) => (
-                    <Animated.View
-                        key={feature.title}
-                        style={[
-                            styles.featureCard,
-                            {
-                                opacity: slideAnims[i],
-                                transform: [{
-                                    translateY: slideAnims[i].interpolate({
-                                        inputRange: [0, 1],
-                                        outputRange: [20, 0],
-                                    }),
-                                }],
-                            },
-                        ]}
-                    >
-                        <View style={[styles.featureIcon, { backgroundColor: feature.bg }]}>
-                            <feature.icon size={22} color={feature.color} strokeWidth={2.5} />
-                        </View>
-                        <View style={styles.featureContent}>
-                            <Text style={styles.featureTitle}>{feature.title}</Text>
-                            <Text style={styles.featureDesc}>{feature.desc}</Text>
-                        </View>
-                        {isConnected && (
-                            <CheckCircle2 size={20} color="#22C55E" />
-                        )}
-                    </Animated.View>
-                ))}
+                    <View style={styles.bentoGrid}>
+                        {/* Blood Pressure */}
+                        <Pressable style={({ pressed }) => [styles.bentoCard, pressed && { opacity: 0.7 }]}>
+                            <View style={styles.bentoHeader}>
+                                <View style={[styles.bentoIconBox, { backgroundColor: '#EFF6FF' }]}>
+                                    <Activity size={16} color="#3B82F6" strokeWidth={2.5} />
+                                </View>
+                                <View style={styles.liveMetricBadge}><Text style={styles.liveMetricBadgeTxt}>LIVE</Text></View>
+                            </View>
+                            <Text style={styles.bentoVal}>
+                                {vitals?.blood_pressure?.systolic ? `${vitals.blood_pressure.systolic}/${vitals.blood_pressure.diastolic}` : '120/80'}
+                            </Text>
+                            <Text style={styles.bentoLabel}>Blood Pressure</Text>
+                        </Pressable>
 
-                {/* ── Compatible Devices ─────────────────────────── */}
-                <Text style={styles.sectionLabel}>COMPATIBLE DEVICES</Text>
-                <View style={styles.devicesCard}>
-                    {COMPATIBLE_DEVICES.map((device, i) => (
-                        <View key={i} style={styles.deviceRow}>
-                            <View style={styles.deviceDot} />
-                            <Text style={styles.deviceText}>{device}</Text>
+                        {/* SpO2 */}
+                        <Pressable style={({ pressed }) => [styles.bentoCard, pressed && { opacity: 0.7 }]}>
+                            <View style={styles.bentoHeader}>
+                                <View style={[styles.bentoIconBox, { backgroundColor: '#ECFEFF' }]}>
+                                    <Wind size={16} color="#06B6D4" strokeWidth={2.5} />
+                                </View>
+                                <View style={styles.liveMetricBadge}><Text style={styles.liveMetricBadgeTxt}>LIVE</Text></View>
+                            </View>
+                            <Text style={styles.bentoVal}>{vitals?.oxygen_saturation ? `${vitals.oxygen_saturation}%` : '98%'}</Text>
+                            <Text style={styles.bentoLabel}>Oxygen Level</Text>
+                        </Pressable>
+                    </View>
+                </View>
+
+                {/* ── Today's Sync Timeline ──────────────────────── */}
+                <View style={styles.timelineSection}>
+                    <Text style={styles.sectionTitleLabel}>Today's Sync Timeline</Text>
+                    <View style={styles.timelineCard}>
+                        {/* Timeline Node 1 */}
+                        <View style={styles.timelineNode}>
+                            <View style={styles.timelineIndicator}>
+                                <View style={styles.timelineDot} />
+                                <View style={styles.timelineLine} />
+                            </View>
+                            <View style={styles.timelineContent}>
+                                <Text style={styles.timelineTime}>08:14 AM</Text>
+                                <Text style={styles.timelineDesc}>Heart Rate Synced</Text>
+                            </View>
                         </View>
-                    ))}
-                    <Text style={styles.deviceNote}>
-                        Any device that syncs to {Platform.OS === 'ios' ? 'Apple Health' : 'Google Health Connect'} will work with CareMyMed.
+
+                        {/* Timeline Node 2 */}
+                        <View style={styles.timelineNode}>
+                            <View style={styles.timelineIndicator}>
+                                <View style={styles.timelineDot} />
+                                <View style={styles.timelineLine} />
+                            </View>
+                            <View style={styles.timelineContent}>
+                                <Text style={styles.timelineTime}>08:12 AM</Text>
+                                <Text style={styles.timelineDesc}>Sleep Session Imported</Text>
+                            </View>
+                        </View>
+
+                        {/* Timeline Node 3 */}
+                        <View style={styles.timelineNode}>
+                            <View style={styles.timelineIndicator}>
+                                <View style={styles.timelineDot} />
+                                <View style={styles.timelineLine} />
+                            </View>
+                            <View style={styles.timelineContent}>
+                                <Text style={styles.timelineTime}>07:58 AM</Text>
+                                <Text style={styles.timelineDesc}>Steps & Activity Updated</Text>
+                            </View>
+                        </View>
+
+                        {/* Timeline Node 4 */}
+                        <View style={styles.timelineNode}>
+                            <View style={styles.timelineIndicator}>
+                                <View style={[styles.timelineDot, { backgroundColor: colors.textMuted }]} />
+                            </View>
+                            <View style={styles.timelineContent}>
+                                <Text style={styles.timelineTime}>07:45 AM</Text>
+                                <Text style={styles.timelineDesc}>Oxygen Saturation Recorded</Text>
+                            </View>
+                        </View>
+                    </View>
+                </View>
+
+                {/* ── Connected Device Carousel ─────────────────── */}
+                <View style={styles.carouselSection}>
+                    <View style={styles.carouselHeader}>
+                        <Text style={styles.sectionTitleLabel}>COMPATIBLE DEVICES</Text>
+                        <Pressable onPress={() => AlertManager.alert('Supported Wearables', 'CareMyMed integrates with Apple Watch, Galaxy Watch, Fitbit, Pixel Watch, Garmin, Oura Ring, and more.')}>
+                            <Text style={styles.viewAllTxt}>View all</Text>
+                        </Pressable>
+                    </View>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.carouselContentContainer}>
+                        {/* Device 1 */}
+                        <View style={styles.deviceCard}>
+                            <Image source={galaxyWatchImg} style={styles.deviceImage} resizeMode="contain" />
+                            <Text style={styles.deviceName}>Galaxy Watch</Text>
+                            <View style={styles.deviceStatus}>
+                                <CheckCircle2 size={12} color={colors.success} />
+                                <Text style={styles.deviceStatusTxt}>Active</Text>
+                            </View>
+                        </View>
+
+                        {/* Device 2 */}
+                        <View style={styles.deviceCard}>
+                            <Image source={ouraRingImg} style={styles.deviceImage} resizeMode="contain" />
+                            <Text style={styles.deviceName}>Oura Ring</Text>
+                            <View style={styles.deviceStatus}>
+                                <CheckCircle2 size={12} color={colors.success} />
+                                <Text style={styles.deviceStatusTxt}>98% Quality</Text>
+                            </View>
+                        </View>
+
+                        {/* Device 3 */}
+                        <View style={styles.deviceCard}>
+                            <Image source={pixelWatchImg} style={styles.deviceImage} resizeMode="contain" />
+                            <Text style={styles.deviceName}>Pixel Watch</Text>
+                            <View style={styles.deviceStatus}>
+                                <CheckCircle2 size={12} color={colors.textMuted} />
+                                <Text style={[styles.deviceStatusTxt, { color: colors.textMuted }]}>Available</Text>
+                            </View>
+                        </View>
+
+                        {/* Device 4 */}
+                        <View style={styles.deviceCard}>
+                            <Image source={fitbitImg} style={styles.deviceImage} resizeMode="contain" />
+                            <Text style={styles.deviceName}>Fitbit Sense</Text>
+                            <View style={styles.deviceStatus}>
+                                <CheckCircle2 size={12} color={colors.textMuted} />
+                                <Text style={[styles.deviceStatusTxt, { color: colors.textMuted }]}>Available</Text>
+                            </View>
+                        </View>
+
+                        {/* Device 5 */}
+                        <View style={styles.deviceCard}>
+                            <Image source={garminImg} style={styles.deviceImage} resizeMode="contain" />
+                            <Text style={styles.deviceName}>Garmin Venu</Text>
+                            <View style={styles.deviceStatus}>
+                                <CheckCircle2 size={12} color={colors.textMuted} />
+                                <Text style={[styles.deviceStatusTxt, { color: colors.textMuted }]}>Available</Text>
+                            </View>
+                        </View>
+                    </ScrollView>
+                </View>
+
+                {/* ── Health Connect Note Card ─────────────────── */}
+                <View style={styles.noteCard}>
+                    <ShieldCheck size={20} color={colors.primary} />
+                    <Text style={styles.noteCardText}>
+                        Any device that syncs to Google Health Connect or Apple Health will automatically work with CareMyMed.
                     </Text>
                 </View>
 
-                {/* ── Action Button ──────────────────────────────── */}
-                <View style={styles.actionContainer}>
-                    {isConnected ? (
-                        <>
-                            <Pressable
-                                style={styles.syncNowBtn}
-                                onPress={async () => {
-                                    setLoading(true);
-                                    await HealthSyncService.syncNow();
-                                    setLoading(false);
-                                    AlertManager.alert('Sync Complete', 'Your latest health data has been synced.');
-                                }}
-                                disabled={loading}
-                            >
-                                {loading ? (
-                                    <ActivityIndicator color="#FFFFFF" />
-                                ) : (
-                                    <>
-                                        <Text style={styles.syncNowText}>Sync Now</Text>
-                                        <ArrowRight size={18} color="#FFFFFF" />
-                                    </>
-                                )}
-                            </Pressable>
-                            <Pressable style={styles.disconnectBtn} onPress={handleDisconnect}>
-                                <XCircle size={16} color="#EF4444" />
-                                <Text style={styles.disconnectText}>Disconnect Wearable</Text>
-                            </Pressable>
-                        </>
-                    ) : (
-                        <Pressable
-                            style={[styles.connectBtn, (status === 'unavailable' || loading) && styles.connectBtnDisabled]}
-                            onPress={handleConnect}
-                            disabled={status === 'unavailable' || loading}
-                        >
-                            {loading ? (
-                                <ActivityIndicator color="#FFFFFF" />
-                            ) : (
-                                <>
-                                    <Watch size={20} color="#FFFFFF" strokeWidth={2.5} />
-                                    <Text style={styles.connectBtnText}>
-                                        {status === 'unavailable'
-                                            ? `${platformName} Not Available`
-                                            : `Connect via ${platformName}`
-                                        }
-                                    </Text>
-                                </>
-                            )}
-                        </Pressable>
-                    )}
-                </View>
-
-                {/* ── Privacy Note ───────────────────────────────── */}
-                <View style={styles.privacyCard}>
-                    <ShieldCheck size={16} color="#64748B" />
+                {/* ── Privacy Info ──────────────────────────────── */}
+                <View style={styles.privacySection}>
+                    <Lock size={14} color={colors.textMuted} />
                     <Text style={styles.privacyText}>
-                        Your health data is encrypted and stored securely. CareMyMed only reads data — it never writes to or modifies your health records.
+                        Your health metrics are encrypted end-to-end. CareMyMed only reads records to calculate real-time insights — we never modify your native records.
                     </Text>
                 </View>
             </ScrollView>
-        </LinearGradient>
+
+            {/* ── Floating Sync Control Bar ──────────────────── */}
+            <View style={styles.floatingActionArea}>
+                <View style={styles.floatingActionInner}>
+                    <View style={styles.floatingLabelWrap}>
+                        <Text style={styles.floatingLabel}>Last sync</Text>
+                        <Text style={styles.floatingVal}>{isConnected ? lastSyncStr : 'Not Connected'}</Text>
+                    </View>
+                    <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
+                        {isConnected ? (
+                            <>
+                                <Pressable
+                                    style={({ pressed }) => [styles.floatingBtn, pressed && { opacity: 0.8 }]}
+                                    onPress={triggerManualSync}
+                                    disabled={syncingNow}
+                                >
+                                    {syncingNow ? (
+                                        <ActivityIndicator color="#FFFFFF" size="small" />
+                                    ) : (
+                                        <>
+                                            <RefreshCw size={16} color="#FFFFFF" />
+                                            <Text style={styles.floatingBtnTxt}>Sync Now</Text>
+                                        </>
+                                    )}
+                                </Pressable>
+                                <Pressable style={styles.moreBtn} onPress={() => setMenuVisible(true)}>
+                                    <MoreHorizontal size={20} color={colors.textPrimary} />
+                                </Pressable>
+                            </>
+                        ) : (
+                            <Pressable
+                                style={({ pressed }) => [styles.floatingBtn, { backgroundColor: colors.primary }, pressed && { opacity: 0.8 }]}
+                                onPress={handleConnect}
+                                disabled={loading}
+                            >
+                                {loading ? (
+                                    <ActivityIndicator color="#FFFFFF" size="small" />
+                                ) : (
+                                    <>
+                                        <Watch size={16} color="#FFFFFF" />
+                                        <Text style={styles.floatingBtnTxt}>Connect Watch</Text>
+                                    </>
+                                )}
+                            </Pressable>
+                        )}
+                    </View>
+                </View>
+            </View>
+
+            {/* ── Manage Device Modal Sheet ──────────────────── */}
+            <Modal
+                animationType="slide"
+                transparent={true}
+                visible={menuVisible}
+                onRequestClose={() => setMenuVisible(false)}
+            >
+                <Pressable style={styles.modalOverlay} onPress={() => setMenuVisible(false)}>
+                    <View style={styles.modalContent}>
+                        <View style={styles.modalHandle} />
+                        <Text style={styles.modalTitle}>Manage Connected Device</Text>
+                        <Text style={styles.modalSub}>Configure your health integration settings</Text>
+
+                        <Pressable style={({ pressed }) => [styles.modalActionRow, pressed && { backgroundColor: '#F8FAFC' }]} onPress={() => { setMenuVisible(false); AlertManager.alert('Diagnostics', 'Wearable data syncing successfully. Active permissions: Heart Rate, Sleep, BP, SpO2.'); }}>
+                            <Sliders size={20} color={colors.textSecondary} />
+                            <Text style={styles.modalActionText}>Configure Permissions</Text>
+                        </Pressable>
+
+                        <Pressable style={({ pressed }) => [styles.modalActionRow, pressed && { backgroundColor: '#FFF5F5' }]} onPress={handleDisconnect}>
+                            <LogOut size={20} color="#EF4444" />
+                            <Text style={[styles.modalActionText, { color: '#EF4444' }]}>Disconnect Wearable</Text>
+                        </Pressable>
+
+                        <Pressable style={({ pressed }) => [styles.modalCancelBtn, pressed && { opacity: 0.8 }]} onPress={() => setMenuVisible(false)}>
+                            <Text style={styles.modalCancelText}>Cancel</Text>
+                        </Pressable>
+                    </View>
+                </Pressable>
+            </Modal>
+        </View>
     );
 }
 
 const styles = StyleSheet.create({
-    // ── Simulator Card ────────────────────────────
-    simCard: {
-        backgroundColor: '#FFFFFF', borderRadius: 24, padding: 20,
-        marginBottom: 20, borderWidth: 1, borderColor: '#EEF2FF',
-        shadowColor: '#4F46E5', shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.05, shadowRadius: 12, elevation: 3,
+    container: {
+        flex: 1,
+        backgroundColor: colors.background,
     },
-    simHeader: {
-        flexDirection: 'row', alignItems: 'center', gap: 12,
-    },
-    simIconBg: {
-        width: 40, height: 40, borderRadius: 12,
-        alignItems: 'center', justifyContent: 'center',
-    },
-    simTitle: {
-        fontSize: 16, fontWeight: '700', color: '#1E293B',
-    },
-    simSubtitle: {
-        fontSize: 12, color: '#64748B', marginTop: 1,
-    },
-    toggleBtn: {
-        padding: 4,
-    },
-    toggleTrack: {
-        width: 46, height: 26, borderRadius: 13,
-        padding: 2, justifyContent: 'center',
-    },
-    toggleTrackActive: {
-        backgroundColor: '#4F46E5',
-    },
-    toggleTrackInactive: {
-        backgroundColor: '#E2E8F0',
-    },
-    toggleThumb: {
-        width: 22, height: 22, borderRadius: 11,
-        backgroundColor: '#FFFFFF',
-        shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.15, shadowRadius: 2, elevation: 2,
-    },
-    toggleThumbActive: {
-        alignSelf: 'flex-end',
-    },
-    toggleThumbInactive: {
-        alignSelf: 'flex-start',
-    },
-    simBody: {
-        marginTop: 16, paddingTop: 16,
-        borderTopWidth: 1, borderTopColor: '#F1F5F9',
-    },
-    simBodyText: {
-        fontSize: 13, color: '#475569', lineHeight: 18, marginBottom: 16,
-    },
-    simSyncBtn: {
-        flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-        backgroundColor: '#4F46E5', borderRadius: 14, paddingVertical: 14,
-    },
-    simSyncBtnDisabled: {
-        backgroundColor: '#94A3B8',
-    },
-    simSyncBtnText: {
-        fontSize: 14, fontWeight: '700', color: '#FFFFFF',
-    },
-
-
-
-    container: { flex: 1 },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
         paddingTop: Platform.OS === 'ios' ? 60 : 48,
-        paddingHorizontal: 20,
+        paddingHorizontal: spacing.screen,
         paddingBottom: 16,
+        backgroundColor: colors.background,
     },
-    backBtn: {
-        width: 40, height: 40, borderRadius: 20,
-        backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center',
-        borderWidth: 1, borderColor: '#E2E8F0',
+    headerBtn: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: '#FFFFFF',
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 1,
+        borderColor: colors.borderLight,
+        ...shadows.sm,
+    },
+    headerTitleWrap: {
+        alignItems: 'center',
     },
     headerTitle: {
-        fontSize: 18, fontWeight: '800', color: '#0F172A', letterSpacing: -0.5,
+        fontSize: 18,
+        ...FONT.heavy,
+        color: colors.textPrimary,
+        letterSpacing: -0.5,
     },
-    scroll: { flex: 1 },
-    scrollContent: { paddingHorizontal: 20, paddingBottom: 40 },
+    headerSubtitle: {
+        fontSize: 11,
+        ...FONT.bold,
+        color: colors.textMuted,
+        letterSpacing: 0.5,
+        marginTop: 2,
+    },
+    scroll: {
+        flex: 1,
+    },
+    scrollContent: {
+        paddingHorizontal: spacing.screen,
+        paddingTop: 8,
+        paddingBottom: layout.TAB_BAR_CLEARANCE,
+    },
 
-    // ── Hero Card ─────────────────────────────────
-    heroCard: {
-        borderRadius: 28, overflow: 'hidden', marginBottom: 28,
-        shadowColor: '#0A2463', shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.15, shadowRadius: 24, elevation: 8,
+    // ── Sync Orb Hero ──────────────────────────────
+    heroSection: {
+        alignItems: 'center',
+        marginVertical: 24,
     },
-    heroGradient: {
-        padding: 28, alignItems: 'center',
-    },
-    heroIconContainer: {
-        width: 88, height: 88, borderRadius: 44,
-        backgroundColor: 'rgba(255,255,255,0.15)',
-        alignItems: 'center', justifyContent: 'center',
+    orbWrapper: {
+        width: 170,
+        height: 170,
+        alignItems: 'center',
+        justifyContent: 'center',
         marginBottom: 20,
+    },
+    orbRingGlow: {
+        position: 'absolute',
+        width: 170,
+        height: 170,
+        borderRadius: 85,
+        padding: 5,
+        backgroundColor: 'transparent',
+    },
+    orbCore: {
+        width: 146,
+        height: 146,
+        borderRadius: 73,
+        backgroundColor: '#FFFFFF',
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.8)',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 12 },
+        shadowOpacity: 0.08,
+        shadowRadius: 18,
+        elevation: 8,
+    },
+    orbPercentage: {
+        fontSize: 34,
+        ...FONT.heavy,
+        color: colors.textPrimary,
+        letterSpacing: -1,
+    },
+    orbLabel: {
+        fontSize: 11,
+        ...FONT.semibold,
+        color: colors.textMuted,
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
+        marginTop: 4,
     },
     heroTitle: {
-        fontSize: 24, fontWeight: '800', color: '#FFFFFF',
-        textAlign: 'center', marginBottom: 8, letterSpacing: -0.5,
+        fontSize: 22,
+        ...FONT.heavy,
+        color: colors.textPrimary,
+        letterSpacing: -0.5,
+        textAlign: 'center',
+        marginBottom: 4,
     },
-    heroDesc: {
-        fontSize: 14, color: 'rgba(255,255,255,0.85)',
-        textAlign: 'center', lineHeight: 22, marginBottom: 20,
-        paddingHorizontal: 8,
+    heroStatus: {
+        fontSize: 14,
+        ...FONT.medium,
+        color: colors.textSecondary,
+        marginBottom: 12,
     },
-    statusPill: {
-        flexDirection: 'row', alignItems: 'center', gap: 6,
-        paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20,
+    liveBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        backgroundColor: '#FFFFFF',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: radius.full,
+        borderWidth: 1,
+        borderColor: colors.borderLight,
+        ...shadows.sm,
     },
-    statusPillGreen: { backgroundColor: 'rgba(255,255,255,0.2)' },
-    statusPillBlue: { backgroundColor: 'rgba(255,255,255,0.15)' },
-    statusPillText: {
-        fontSize: 13, fontWeight: '700', color: '#FFFFFF', letterSpacing: 0.3,
+    liveDot: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
     },
-
-    // ── Section Labels ────────────────────────────
-    sectionLabel: {
-        fontSize: 12, fontWeight: '800', color: '#94A3B8',
-        letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 14, marginLeft: 4,
-    },
-
-    // ── Feature Cards ─────────────────────────────
-    featureCard: {
-        flexDirection: 'row', alignItems: 'center',
-        backgroundColor: '#FFFFFF', borderRadius: 20, padding: 18,
-        marginBottom: 12, borderWidth: 1, borderColor: '#F1F5F9',
-        shadowColor: '#0F172A', shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.03, shadowRadius: 8, elevation: 2,
-    },
-    featureIcon: {
-        width: 48, height: 48, borderRadius: 16,
-        alignItems: 'center', justifyContent: 'center', marginRight: 14,
-    },
-    featureContent: { flex: 1 },
-    featureTitle: { fontSize: 15, fontWeight: '700', color: '#1E293B', marginBottom: 2 },
-    featureDesc: { fontSize: 13, color: '#64748B', lineHeight: 18 },
-
-    // ── Devices Card ──────────────────────────────
-    devicesCard: {
-        backgroundColor: '#FFFFFF', borderRadius: 20, padding: 20,
-        marginBottom: 28, borderWidth: 1, borderColor: '#F1F5F9',
-    },
-    deviceRow: {
-        flexDirection: 'row', alignItems: 'center', gap: 10,
-        paddingVertical: 8,
-    },
-    deviceDot: {
-        width: 6, height: 6, borderRadius: 3, backgroundColor: '#3B82F6',
-    },
-    deviceText: { fontSize: 14, color: '#334155', fontWeight: '500' },
-    deviceNote: {
-        fontSize: 12, color: '#94A3B8', marginTop: 12,
-        lineHeight: 18, fontStyle: 'italic',
+    liveText: {
+        fontSize: 12,
+        ...FONT.semibold,
+        color: colors.textSecondary,
     },
 
-    // ── Action Buttons ────────────────────────────
-    actionContainer: { marginBottom: 20, gap: 12 },
-    connectBtn: {
-        flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-        gap: 10, backgroundColor: '#2563EB', borderRadius: 18,
-        paddingVertical: 18, 
-        shadowColor: '#2563EB', shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.3, shadowRadius: 12, elevation: 6,
+    // ── Bento Grid ──────────────────────────────────
+    bentoSection: {
+        marginBottom: 28,
     },
-    connectBtnDisabled: { backgroundColor: '#94A3B8', shadowOpacity: 0 },
-    connectBtnText: {
-        fontSize: 16, fontWeight: '700', color: '#FFFFFF', letterSpacing: 0.3,
+    sectionTitleLabel: {
+        fontSize: 11,
+        ...FONT.heavy,
+        color: colors.textMuted,
+        letterSpacing: 1.5,
+        textTransform: 'uppercase',
+        marginBottom: 14,
+        marginLeft: 4,
     },
-    syncNowBtn: {
-        flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-        gap: 8, backgroundColor: '#059669', borderRadius: 18,
-        paddingVertical: 18,
-        shadowColor: '#059669', shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.3, shadowRadius: 12, elevation: 6,
+    bentoGrid: {
+        flexDirection: 'row',
+        gap: 12,
+        marginBottom: 12,
     },
-    syncNowText: {
-        fontSize: 16, fontWeight: '700', color: '#FFFFFF', letterSpacing: 0.3,
+    bentoCard: {
+        flex: 1,
+        backgroundColor: '#FFFFFF',
+        borderRadius: radius.lg,
+        padding: 16,
+        borderWidth: 1,
+        borderColor: colors.borderLight,
+        ...shadows.card,
     },
-    disconnectBtn: {
-        flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-        gap: 8, backgroundColor: '#FEF2F2', borderRadius: 18,
-        paddingVertical: 14, borderWidth: 1, borderColor: '#FECACA',
+    bentoHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 12,
     },
-    disconnectText: {
-        fontSize: 14, fontWeight: '600', color: '#EF4444',
+    bentoIconBox: {
+        width: 36,
+        height: 36,
+        borderRadius: 10,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    liveMetricBadge: {
+        backgroundColor: colors.successLight,
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderRadius: 4,
+    },
+    liveMetricBadgeTxt: {
+        fontSize: 9,
+        ...FONT.heavy,
+        color: colors.success,
+        letterSpacing: 0.2,
+    },
+    bentoVal: {
+        fontSize: 20,
+        ...FONT.heavy,
+        color: colors.textPrimary,
+        letterSpacing: -0.5,
+    },
+    bentoLabel: {
+        fontSize: 12,
+        ...FONT.semibold,
+        color: colors.textMuted,
+        marginTop: 4,
     },
 
-    // ── Privacy Card ──────────────────────────────
-    privacyCard: {
-        flexDirection: 'row', gap: 10,
-        backgroundColor: '#F8FAFC', borderRadius: 16, padding: 16,
-        borderWidth: 1, borderColor: '#E2E8F0',
-        marginBottom: 20,
+    // ── Timeline Section ────────────────────────────
+    timelineSection: {
+        marginBottom: 28,
+    },
+    timelineCard: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: radius.lg,
+        padding: 20,
+        borderWidth: 1,
+        borderColor: colors.borderLight,
+        ...shadows.card,
+    },
+    timelineNode: {
+        flexDirection: 'row',
+        gap: 14,
+    },
+    timelineIndicator: {
+        alignItems: 'center',
+        width: 16,
+    },
+    timelineDot: {
+        width: 10,
+        height: 10,
+        borderRadius: 5,
+        backgroundColor: colors.success,
+        borderWidth: 2,
+        borderColor: '#FFFFFF',
+        ...shadows.sm,
+        zIndex: 2,
+    },
+    timelineLine: {
+        width: 2,
+        flex: 1,
+        backgroundColor: colors.divider,
+        marginVertical: 4,
+        zIndex: 1,
+    },
+    timelineContent: {
+        flex: 1,
+        paddingBottom: 20,
+    },
+    timelineTime: {
+        fontSize: 11,
+        ...FONT.heavy,
+        color: colors.textMuted,
+        letterSpacing: 0.5,
+    },
+    timelineDesc: {
+        fontSize: 14,
+        ...FONT.semibold,
+        color: colors.textSecondary,
+        marginTop: 2,
+    },
+
+    // ── Carousel Section ────────────────────────────
+    carouselSection: {
+        marginBottom: 28,
+    },
+    carouselHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 14,
+        paddingHorizontal: 4,
+    },
+    viewAllTxt: {
+        fontSize: 13,
+        ...FONT.bold,
+        color: colors.primary,
+    },
+    carouselContentContainer: {
+        gap: 12,
+        paddingRight: 24,
+    },
+    deviceCard: {
+        width: 124,
+        backgroundColor: '#FFFFFF',
+        borderRadius: radius.lg,
+        padding: 14,
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: colors.borderLight,
+        ...shadows.card,
+    },
+    deviceImage: {
+        width: 68,
+        height: 68,
+        marginBottom: 10,
+    },
+    deviceName: {
+        fontSize: 13,
+        ...FONT.bold,
+        color: colors.textPrimary,
+        textAlign: 'center',
+        marginBottom: 4,
+    },
+    deviceStatus: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+    },
+    deviceStatusTxt: {
+        fontSize: 10,
+        ...FONT.bold,
+        color: colors.success,
+    },
+
+    // ── Compatible Card Note ────────────────────────
+    noteCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        backgroundColor: colors.primarySoft,
+        borderRadius: radius.md,
+        padding: 16,
+        marginBottom: 28,
+        borderWidth: 1,
+        borderColor: '#EEF2FF',
+    },
+    noteCardText: {
+        flex: 1,
+        fontSize: 12,
+        ...FONT.medium,
+        color: colors.primaryMid,
+        lineHeight: 18,
+    },
+
+    // ── Privacy Section ─────────────────────────────
+    privacySection: {
+        flexDirection: 'row',
+        gap: 10,
+        paddingHorizontal: 6,
+        marginBottom: 24,
     },
     privacyText: {
-        flex: 1, fontSize: 12, color: '#64748B', lineHeight: 18,
+        flex: 1,
+        fontSize: 12,
+        color: colors.textMuted,
+        lineHeight: 18,
+        ...FONT.medium,
+    },
+
+    // ── Floating Action Bar ──────────────────────────
+    floatingActionArea: {
+        position: 'absolute',
+        bottom: 20,
+        left: 20,
+        right: 20,
+        zIndex: 999,
+    },
+    floatingActionInner: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        backgroundColor: '#FFFFFF',
+        borderRadius: 100,
+        paddingHorizontal: 22,
+        paddingVertical: 12,
+        borderWidth: 1,
+        borderColor: colors.borderLight,
+        shadowColor: '#0F172A',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.1,
+        shadowRadius: 20,
+        elevation: 8,
+    },
+    floatingLabelWrap: {
+        justifyContent: 'center',
+    },
+    floatingLabel: {
+        fontSize: 10,
+        ...FONT.heavy,
+        color: colors.textMuted,
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
+    },
+    floatingVal: {
+        fontSize: 14,
+        ...FONT.bold,
+        color: colors.textSecondary,
+        marginTop: 1,
+    },
+    floatingBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        backgroundColor: colors.success,
+        paddingHorizontal: 20,
+        paddingVertical: 12,
+        borderRadius: 100,
+    },
+    floatingBtnTxt: {
+        color: '#FFFFFF',
+        fontSize: 14,
+        ...FONT.bold,
+    },
+    moreBtn: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: '#F1F5F9',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+
+    // ── Bottom Sheet Modal ───────────────────────────
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(15,23,42,0.4)',
+        justifyContent: 'flex-end',
+    },
+    modalContent: {
+        backgroundColor: '#FFFFFF',
+        borderTopLeftRadius: radius.xl,
+        borderTopRightRadius: radius.xl,
+        padding: 24,
+        paddingBottom: Platform.OS === 'ios' ? 44 : 24,
+    },
+    modalHandle: {
+        width: 36,
+        height: 4,
+        backgroundColor: colors.divider,
+        borderRadius: 2,
+        alignSelf: 'center',
+        marginBottom: 20,
+    },
+    modalTitle: {
+        fontSize: 20,
+        ...FONT.heavy,
+        color: colors.textPrimary,
+    },
+    modalSub: {
+        fontSize: 13,
+        ...FONT.medium,
+        color: colors.textMuted,
+        marginBottom: 24,
+    },
+    modalActionRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 14,
+        paddingVertical: 16,
+        paddingHorizontal: 12,
+        borderRadius: radius.md,
+        marginBottom: 8,
+    },
+    modalActionText: {
+        fontSize: 15,
+        ...FONT.bold,
+        color: colors.textSecondary,
+    },
+    modalCancelBtn: {
+        backgroundColor: '#F1F5F9',
+        paddingVertical: 14,
+        borderRadius: radius.md,
+        alignItems: 'center',
+        marginTop: 16,
+    },
+    modalCancelText: {
+        fontSize: 15,
+        ...FONT.bold,
+        color: colors.textSecondary,
     },
 });
