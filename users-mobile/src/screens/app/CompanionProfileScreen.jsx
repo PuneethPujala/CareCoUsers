@@ -6,25 +6,12 @@ import { LogOut, ShieldCheck, Heart, User, Settings, ArrowRight, UserCheck, Shar
 import { handleAvatarPicker, deleteOldAvatar, pickRawImage, uploadCroppedAvatar } from '../../utils/avatarHelper';
 import AvatarSelectModal from '../../components/ui/AvatarSelectModal';
 import AvatarCropModal from '../../components/ui/AvatarCropModal';
-import { layout } from '../../theme';
+import { colors, radius, spacing, shadows, layout } from '../../theme';
 import AlertManager from '../../utils/AlertManager';
 import { useNavigation } from '@react-navigation/native';
 import LegalModal from '../../components/ui/LegalModal';
 
-const C = {
-    bg: '#F8FAFC',
-    surface: '#FFFFFF',
-    primary: '#0EA5E9',
-    primaryLight: '#E0F2FE',
-    dark: '#0F172A',
-    mid: '#475569',
-    light: '#94A3B8',
-    danger: '#EF4444',
-    dangerLight: '#FEE2E2',
-    success: '#10B981',
-    successLight: '#D1FAE5',
-    border: '#F1F5F9',
-};
+
 
 const FONT = {
     medium: { fontFamily: 'Inter_500Medium' },
@@ -133,7 +120,7 @@ export default function CompanionProfileScreen() {
     if (loading) {
         return (
             <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={C.primary} />
+                <ActivityIndicator size="large" color={colors.primary} />
             </View>
         );
     }
@@ -145,7 +132,7 @@ export default function CompanionProfileScreen() {
         <View style={styles.container}>
             <View style={styles.header}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                    <Pressable onPress={() => navigation.goBack()} style={{ padding: 4, marginLeft: -4 }}>
+                    <Pressable onPress={() => navigation.goBack()} style={({ pressed }) => [{ padding: 4, marginLeft: -4 }, pressed && { opacity: 0.6 }]}>
                         <ChevronLeft color={C.dark} size={28} />
                     </Pressable>
                     <View>
@@ -158,7 +145,7 @@ export default function CompanionProfileScreen() {
             <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
                 {/* 1. Profile Identity Card */}
                 <View style={styles.profileCard}>
-                    <Pressable style={styles.avatar} onPress={handleAvatarPress}>
+                    <Pressable style={({ pressed }) => [styles.avatar, pressed && { opacity: 0.85 }]} onPress={handleAvatarPress}>
                         {profile?.avatarUrl ? (
                             <Image source={{ uri: profile.avatarUrl }} style={styles.avatarImg} />
                         ) : (
@@ -200,11 +187,11 @@ export default function CompanionProfileScreen() {
                                     {p.health_score !== undefined && (
                                         <View style={[
                                             styles.scoreChip,
-                                            { backgroundColor: p.health_score > 70 ? C.successLight : '#FEF3C7' }
+                                            { backgroundColor: p.health_score > 70 ? colors.successLight : '#FEF3C7' }
                                         ]}>
                                             <Text style={[
                                                 styles.scoreChipText,
-                                                { color: p.health_score > 70 ? C.success : '#D97706' }
+                                                { color: p.health_score > 70 ? colors.success : '#D97706' }
                                             ]}>
                                                 Score: {p.health_score}
                                             </Text>
@@ -215,7 +202,7 @@ export default function CompanionProfileScreen() {
                         })
                     ) : (
                         <View style={styles.emptyCircle}>
-                            <Heart color={C.light} size={28} />
+                            <Heart color={colors.textMuted} size={28} />
                             <Text style={styles.emptyCircleText}>No family members linked yet.</Text>
                         </View>
                     )}
@@ -232,12 +219,12 @@ export default function CompanionProfileScreen() {
                         <Switch
                             value={pushEnabled}
                             onValueChange={setPushEnabled}
-                            trackColor={{ false: '#E2E8F0', true: C.primaryLight }}
-                            thumbColor={pushEnabled ? C.primary : '#94A3B8'}
+                            trackColor={{ false: '#E2E8F0', true: colors.primarySoft }}
+                            thumbColor={pushEnabled ? colors.primary : '#94A3B8'}
                         />
                     </View>
 
-                    <Pressable style={styles.actionRow} onPress={handleShareInviteCode}>
+                    <Pressable style={({ pressed }) => [styles.actionRow, pressed && { opacity: 0.7 }]} onPress={handleShareInviteCode}>
                         <View style={{ flex: 1 }}>
                             <Text style={styles.actionLabel}>Share Companion Link</Text>
                             <Text style={styles.actionDesc}>Invite another family member to join</Text>
@@ -255,7 +242,7 @@ export default function CompanionProfileScreen() {
                         </View>
                     </View>
 
-                    <Pressable style={styles.actionRow} onPress={() => { setLegalType('privacy'); setLegalVisible(true); }}>
+                    <Pressable style={({ pressed }) => [styles.actionRow, pressed && { opacity: 0.7 }]} onPress={() => { setLegalType('privacy'); setLegalVisible(true); }}>
                         <View style={{ flex: 1 }}>
                             <Text style={styles.actionLabel}>Privacy Policy</Text>
                             <Text style={styles.actionDesc}>Read our privacy policy</Text>
@@ -263,7 +250,7 @@ export default function CompanionProfileScreen() {
                         <ArrowRight size={18} color={C.light} />
                     </Pressable>
 
-                    <Pressable style={[styles.actionRow, { borderBottomWidth: 0 }]} onPress={() => { setLegalType('terms'); setLegalVisible(true); }}>
+                    <Pressable style={({ pressed }) => [styles.actionRow, { borderBottomWidth: 0 }, pressed && { opacity: 0.7 }]} onPress={() => { setLegalType('terms'); setLegalVisible(true); }}>
                         <View style={{ flex: 1 }}>
                             <Text style={styles.actionLabel}>Terms & Conditions</Text>
                             <Text style={styles.actionDesc}>Read our terms and conditions</Text>
@@ -273,8 +260,8 @@ export default function CompanionProfileScreen() {
                 </View>
 
                 {/* 4. Logout Button */}
-                <Pressable style={styles.logoutBtn} onPress={handleLogout}>
-                    <LogOut size={18} color={C.danger} />
+                <Pressable style={({ pressed }) => [styles.logoutBtn, pressed && { opacity: 0.8 }]} onPress={handleLogout}>
+                    <LogOut size={18} color={colors.danger} />
                     <Text style={styles.logoutText}>Sign Out from Companion Account</Text>
                 </Pressable>
 
@@ -327,44 +314,41 @@ export default function CompanionProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: C.bg },
-    loadingContainer: { flex: 1, backgroundColor: C.bg, alignItems: 'center', justifyContent: 'center' },
+    container: { flex: 1, backgroundColor: colors.background },
+    loadingContainer: { flex: 1, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center' },
     header: { 
         paddingTop: 60, 
         paddingHorizontal: 24, 
         paddingBottom: 20, 
-        backgroundColor: C.surface,
-        borderBottomWidth: 1,
-        borderBottomColor: '#F8FAFC',
+        backgroundColor: colors.surface,
     },
     headerSub: {
         fontSize: 12,
         ...FONT.semibold,
-        color: C.primary,
+        color: colors.primary,
         textTransform: 'uppercase',
         letterSpacing: 1,
     },
-    title: { fontSize: 24, ...FONT.heavy, color: C.dark },
+    title: { fontSize: 24, ...FONT.heavy, color: colors.textPrimary },
     
     scroll: { flex: 1 },
     content: { padding: 20, gap: 20, paddingBottom: layout.TAB_BAR_CLEARANCE },
 
     // Identity Card
     profileCard: {
-        backgroundColor: C.surface,
+        backgroundColor: colors.surface,
         borderRadius: 28,
         padding: 24,
         flexDirection: 'row',
         alignItems: 'center',
         gap: 20,
-        borderWidth: 1,
-        borderColor: C.border,
+        ...shadows.card,
     },
     avatar: {
         width: 72,
         height: 72,
         borderRadius: 36,
-        backgroundColor: C.primaryLight,
+        backgroundColor: colors.primarySoft,
         alignItems: 'center',
         justifyContent: 'center',
         position: 'relative',
@@ -382,20 +366,20 @@ const styles = StyleSheet.create({
     avatarText: {
         fontSize: 22,
         ...FONT.bold,
-        color: C.primary,
+        color: colors.primary,
     },
     badgeIcon: {
         position: 'absolute',
         bottom: -2,
         right: -2,
-        backgroundColor: C.primary,
+        backgroundColor: colors.primary,
         width: 22,
         height: 22,
         borderRadius: 11,
         alignItems: 'center',
         justifyContent: 'center',
         borderWidth: 2,
-        borderColor: C.surface,
+        borderColor: colors.surface,
     },
     profileDetails: {
         flex: 1,
@@ -404,12 +388,12 @@ const styles = StyleSheet.create({
     companionName: {
         fontSize: 18,
         ...FONT.bold,
-        color: C.dark,
+        color: colors.textPrimary,
     },
     companionEmail: {
         fontSize: 13,
         ...FONT.medium,
-        color: C.light,
+        color: colors.textMuted,
     },
     roleBadge: {
         flexDirection: 'row',
@@ -420,23 +404,22 @@ const styles = StyleSheet.create({
     roleText: {
         fontSize: 12,
         ...FONT.bold,
-        color: C.primary,
+        color: colors.primary,
     },
 
     // Care Circle
     sectionTitle: {
         fontSize: 15,
         ...FONT.bold,
-        color: C.dark,
+        color: colors.textPrimary,
         marginBottom: 2,
         paddingLeft: 4,
     },
     card: {
-        backgroundColor: C.surface,
+        backgroundColor: colors.surface,
         borderRadius: 24,
-        borderWidth: 1,
-        borderColor: C.border,
         paddingHorizontal: 20,
+        ...shadows.card,
     },
     patientItem: {
         flexDirection: 'row',
@@ -444,7 +427,7 @@ const styles = StyleSheet.create({
         gap: 14,
         paddingVertical: 16,
         borderBottomWidth: 1,
-        borderBottomColor: C.border,
+        borderBottomColor: colors.divider,
     },
     patientAvatar: {
         width: 44,
@@ -453,23 +436,21 @@ const styles = StyleSheet.create({
         backgroundColor: '#F8FAFC',
         alignItems: 'center',
         justifyContent: 'center',
-        borderWidth: 1,
-        borderColor: C.border,
     },
     patientAvatarText: {
         fontSize: 14,
         ...FONT.bold,
-        color: C.mid,
+        color: colors.textSecondary,
     },
     patientName: {
         fontSize: 14,
         ...FONT.bold,
-        color: C.dark,
+        color: colors.textPrimary,
     },
     patientRelation: {
         fontSize: 11,
         ...FONT.semibold,
-        color: C.light,
+        color: colors.textMuted,
         marginTop: 2,
     },
     scoreChip: {
@@ -490,7 +471,7 @@ const styles = StyleSheet.create({
     emptyCircleText: {
         fontSize: 13,
         ...FONT.medium,
-        color: C.light,
+        color: colors.textMuted,
     },
 
     // Preferences & Settings
@@ -500,7 +481,7 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         paddingVertical: 16,
         borderBottomWidth: 1,
-        borderBottomColor: C.border,
+        borderBottomColor: colors.divider,
     },
     settingTextCol: {
         flex: 1,
@@ -509,12 +490,12 @@ const styles = StyleSheet.create({
     settingLabel: {
         fontSize: 14,
         ...FONT.bold,
-        color: C.dark,
+        color: colors.textPrimary,
     },
     settingDesc: {
         fontSize: 12,
         ...FONT.medium,
-        color: C.light,
+        color: colors.textMuted,
     },
     actionRow: {
         flexDirection: 'row',
@@ -522,21 +503,21 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         paddingVertical: 16,
         borderBottomWidth: 1,
-        borderBottomColor: C.border,
+        borderBottomColor: colors.divider,
     },
     actionLabel: {
         fontSize: 14,
         ...FONT.bold,
-        color: C.dark,
+        color: colors.textPrimary,
         marginBottom: 3,
     },
     actionDesc: {
         fontSize: 12,
         ...FONT.medium,
-        color: C.light,
+        color: colors.textMuted,
     },
     statusPill: {
-        backgroundColor: C.successLight,
+        backgroundColor: colors.successLight,
         paddingHorizontal: 10,
         paddingVertical: 5,
         borderRadius: 8,
@@ -544,7 +525,7 @@ const styles = StyleSheet.create({
     statusPillText: {
         fontSize: 11,
         ...FONT.bold,
-        color: C.success,
+        color: colors.success,
     },
 
     // Logout
@@ -556,19 +537,17 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         gap: 10,
-        borderWidth: 1,
-        borderColor: '#FEE2E2',
         marginTop: 10,
     },
     logoutText: {
-        color: C.danger,
+        color: colors.danger,
         fontSize: 14,
         ...FONT.bold,
     },
     versionText: {
         fontSize: 11,
         ...FONT.bold,
-        color: C.light,
+        color: colors.textMuted,
         textAlign: 'center',
         marginTop: 10,
     },

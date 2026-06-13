@@ -3,30 +3,14 @@ import { View, Text, StyleSheet, ScrollView, RefreshControl, Pressable, Dimensio
 import { apiService } from '../../lib/api';
 import { HeartPulse, Activity, Bell, Phone, Send, ChevronRight, MessageSquare, ShieldCheck, AlertCircle, ChevronLeft, RefreshCw, Bluetooth } from 'lucide-react-native';
 import AlertManager from '../../utils/AlertManager';
-import { layout } from '../../theme';
+import { colors, radius, spacing, shadows, layout } from '../../theme';
 import usePatientStore from '../../store/usePatientStore';
 import { useNavigation } from '@react-navigation/native';
 import Svg, { Path, Circle, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
 
 const { width } = Dimensions.get('window');
 
-const C = {
-    bg: '#F8FAFC',
-    surface: '#FFFFFF',
-    primary: '#0EA5E9',
-    primaryLight: '#E0F2FE',
-    dark: '#0F172A',
-    mid: '#475569',
-    light: '#94A3B8',
-    danger: '#EF4444',
-    dangerLight: '#FEE2E2',
-    warning: '#F59E0B',
-    warningLight: '#FEF3C7',
-    success: '#10B981',
-    successLight: '#D1FAE5',
-    border: '#F1F5F9',
-    cardBorder: '#E2E8F0',
-};
+
 
 const FONT = {
     medium: { fontFamily: 'Inter_500Medium' },
@@ -144,66 +128,61 @@ export default function CompanionDashboardScreen() {
                     <Path d="M0 620 C60 700, 140 720, 220 850 L0 850 Z" fill="url(#bottomBg)" />
 
                     {/* Top-right overlapping wavy contours */}
-                    <Path d="M220 0 C280 80, 320 100, 400 70" stroke="#0EA5E9" strokeWidth="0.8" fill="none" opacity="0.08" />
-                    <Path d="M200 0 C265 95, 310 115, 400 90" stroke="#0EA5E9" strokeWidth="0.8" fill="none" opacity="0.08" />
-                    <Path d="M180 0 C250 110, 300 130, 400 110" stroke="#0EA5E9" strokeWidth="0.8" fill="none" opacity="0.08" />
-                    <Path d="M160 0 C235 125, 290 145, 400 130" stroke="#0EA5E9" strokeWidth="0.8" fill="none" opacity="0.08" />
-                    <Path d="M140 0 C220 140, 280 160, 400 150" stroke="#E2E8F0" strokeWidth="0.8" fill="none" opacity="0.12" />
-                    <Path d="M120 0 C205 155, 270 175, 400 170" stroke="#E2E8F0" strokeWidth="0.8" fill="none" opacity="0.12" />
+                    <Path d="M220 0 C280 80, 320 100, 400 70" stroke={colors.primary} strokeWidth="0.8" fill="none" opacity="0.08" />
+                    <Path d="M200 0 C265 95, 310 115, 400 90" stroke={colors.primary} strokeWidth="0.8" fill="none" opacity="0.08" />
+                    <Path d="M180 0 C250 110, 300 130, 400 110" stroke={colors.primary} strokeWidth="0.8" fill="none" opacity="0.08" />
+                    <Path d="M160 0 C235 125, 290 145, 400 130" stroke={colors.primary} strokeWidth="0.8" fill="none" opacity="0.08" />
+                    <Path d="M140 0 C220 140, 280 160, 400 150" stroke={colors.borderLight} strokeWidth="0.8" fill="none" opacity="0.12" />
+                    <Path d="M120 0 C205 155, 270 175, 400 170" stroke={colors.borderLight} strokeWidth="0.8" fill="none" opacity="0.12" />
 
                     {/* Bottom-left overlapping wavy contours */}
-                    <Path d="M0 640 C60 670, 100 710, 160 850" stroke="#EF4444" strokeWidth="0.8" fill="none" opacity="0.08" />
-                    <Path d="M0 620 C70 655, 115 700, 185 850" stroke="#EF4444" strokeWidth="0.8" fill="none" opacity="0.08" />
-                    <Path d="M0 600 C80 640, 130 690, 210 850" stroke="#EF4444" strokeWidth="0.8" fill="none" opacity="0.08" />
-                    <Path d="M0 580 C90 625, 145 680, 235 850" stroke="#E2E8F0" strokeWidth="0.8" fill="none" opacity="0.12" />
-                    <Path d="M0 560 C100 610, 160 670, 260 850" stroke="#E2E8F0" strokeWidth="0.8" fill="none" opacity="0.12" />
+                    <Path d="M0 640 C60 670, 100 710, 160 850" stroke={colors.danger} strokeWidth="0.8" fill="none" opacity="0.08" />
+                    <Path d="M0 620 C70 655, 115 700, 185 850" stroke={colors.danger} strokeWidth="0.8" fill="none" opacity="0.08" />
+                    <Path d="M0 600 C80 640, 130 690, 210 850" stroke={colors.danger} strokeWidth="0.8" fill="none" opacity="0.08" />
+                    <Path d="M0 580 C90 625, 145 680, 235 850" stroke={colors.borderLight} strokeWidth="0.8" fill="none" opacity="0.12" />
+                    <Path d="M0 560 C100 610, 160 670, 260 850" stroke={colors.borderLight} strokeWidth="0.8" fill="none" opacity="0.12" />
 
                     {/* Stylized sweeping curve lines */}
-                    <Path d="M-20 180 C80 230, 180 150, 280 230 C340 280, 380 250, 420 310" stroke="#E2E8F0" strokeWidth="1.5" fill="none" opacity="0.4" />
-                    <Path d="M-40 210 C60 260, 160 180, 260 260 C320 310, 360 280, 400 340" stroke="#E2E8F0" strokeWidth="1" fill="none" opacity="0.25" />
+                    <Path d="M-20 180 C80 230, 180 150, 280 230 C340 280, 380 250, 420 310" stroke={colors.borderLight} strokeWidth="1.5" fill="none" opacity="0.4" />
+                    <Path d="M-40 210 C60 260, 160 180, 260 260 C320 310, 360 280, 400 340" stroke={colors.borderLight} strokeWidth="1" fill="none" opacity="0.25" />
 
                     {/* Premium Floral Outline Petals (Top Right Corner) */}
-                    <Path d="M360 -10 C330 40, 290 60, 260 80 C290 90, 340 80, 370 40 Z" fill="none" stroke="#0EA5E9" strokeWidth="1" opacity="0.15" />
-                    <Path d="M390 20 C360 60, 320 90, 290 110 C310 120, 360 100, 390 60 Z" fill="none" stroke="#0EA5E9" strokeWidth="1.2" opacity="0.12" />
+                    <Path d="M360 -10 C330 40, 290 60, 260 80 C290 90, 340 80, 370 40 Z" fill="none" stroke={colors.primary} strokeWidth="1" opacity="0.15" />
+                    <Path d="M390 20 C360 60, 320 90, 290 110 C310 120, 360 100, 390 60 Z" fill="none" stroke={colors.primary} strokeWidth="1.2" opacity="0.12" />
 
                     {/* Premium Floral Outline Petals (Bottom Left Corner) */}
-                    <Path d="M-10 780 C40 750, 60 710, 80 680 C90 710, 80 760, 40 790 Z" fill="none" stroke="#EF4444" strokeWidth="1" opacity="0.15" />
-                    <Path d="M20 810 C60 780, 90 740, 110 710 C120 730, 100 780, 60 810 Z" fill="none" stroke="#EF4444" strokeWidth="1.2" opacity="0.12" />
+                    <Path d="M-10 780 C40 750, 60 710, 80 680 C90 710, 80 760, 40 790 Z" fill="none" stroke={colors.danger} strokeWidth="1" opacity="0.15" />
+                    <Path d="M20 810 C60 780, 90 740, 110 710 C120 730, 100 780, 60 810 Z" fill="none" stroke={colors.danger} strokeWidth="1.2" opacity="0.12" />
                     
                     {/* Concentric abstract rings */}
-                    <Circle cx="320" cy="480" r="130" stroke="#E2E8F0" strokeWidth="1" fill="none" opacity="0.2" />
-                    <Circle cx="320" cy="480" r="90" stroke="#E2E8F0" strokeWidth="1.2" fill="none" opacity="0.1" />
+                    <Circle cx="320" cy="480" r="130" stroke={colors.borderLight} strokeWidth="1" fill="none" opacity="0.2" />
+                    <Circle cx="320" cy="480" r="90" stroke={colors.borderLight} strokeWidth="1.2" fill="none" opacity="0.1" />
                 </Svg>
             </View>
 
             <View style={styles.header}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                    <Pressable onPress={() => navigation.goBack()} style={{ padding: 4, marginLeft: -4 }}>
-                        <ChevronLeft color={C.dark} size={28} />
-                    </Pressable>
+                    <Pressable onPress={() => navigation.goBack()} style={({ pressed }) => [{ padding: 4, marginLeft: -4 }, pressed && { opacity: 0.6 }]}><ChevronLeft color={colors.textPrimary} size={28} /></Pressable>
                     <View>
                         <Text style={styles.headerSub}>Family Care Portal</Text>
                         <Text style={styles.title}>{data.patient.name}'s Health</Text>
                     </View>
                 </View>
-                <Pressable 
-                    style={styles.bellButton}
-                    onPress={() => navigation.navigate('CompanionAlerts')}
-                >
-                    <Bell color={C.dark} size={20} />
+                <Pressable style={({ pressed }) => [styles.bellButton, pressed && { opacity: 0.7 }]} onPress={() => navigation.navigate('CompanionAlerts')}>
+                    <Bell color={colors.textPrimary} size={20} />
                     {data.recent_alerts?.length > 0 && <View style={styles.bellDot} />}
                 </Pressable>
             </View>
 
             <ScrollView 
                 contentContainerStyle={styles.content}
-                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.primary} />}
+                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
             >
                 {/* Top Summary Card (Mockup Style) */}
                 <View style={styles.summaryCard}>
                     <View style={styles.summaryCol}>
                         <View style={styles.summaryColRow}>
-                            <ShieldCheck color={(data.recent_alerts && data.recent_alerts.length > 0) ? C.danger : C.success} size={20} />
+                            <ShieldCheck color={(data.recent_alerts && data.recent_alerts.length > 0) ? colors.danger : colors.success} size={20} />
                             <View style={{ marginLeft: 6 }}>
                                 <Text style={styles.summaryColTitle}>
                                     {(data.recent_alerts && data.recent_alerts.length > 0) ? 'Action Needed' : 'Stable Today'}
@@ -222,7 +201,7 @@ export default function CompanionDashboardScreen() {
                         <Text 
                             style={[
                                 styles.summaryColValue, 
-                                { color: adherence > 75 ? C.success : adherence > 50 ? C.warning : C.danger }
+                                { color: adherence > 75 ? colors.success : adherence > 50 ? colors.warning : colors.danger }
                             ]}
                             numberOfLines={1}
                             adjustsFontSizeToFit
@@ -243,7 +222,7 @@ export default function CompanionDashboardScreen() {
                                 {hasVitals ? '2h ago' : '8m ago'}
                             </Text>
                             <Pressable onPress={() => loadData()}>
-                                <RefreshCw size={12} color={C.primary} />
+                                <RefreshCw size={12} color={colors.primary} />
                             </Pressable>
                         </View>
                     </View>
@@ -253,7 +232,7 @@ export default function CompanionDashboardScreen() {
                 {data.refill_alerts && data.refill_alerts.length > 0 && (
                     <View style={styles.refillBanner}>
                         <View style={styles.refillBannerHeader}>
-                            <AlertCircle color={C.warning} size={18} />
+                            <AlertCircle color={colors.warning} size={18} />
                             <Text style={styles.refillBannerTitle}>Low Medication Stock Alert</Text>
                         </View>
                         <ScrollView style={styles.refillList} nestedScrollEnabled={true}>
@@ -261,14 +240,14 @@ export default function CompanionDashboardScreen() {
                                 <View key={alert.medication_id} style={styles.refillItem}>
                                     <Text style={styles.refillMedName}>{alert.name}</Text>
                                     <Text style={styles.refillMedStock}>
-                                        Only <Text style={{ color: C.danger, ...FONT.bold }}>{alert.remaining_doses}</Text> doses left!
+                                        Only <Text style={{ color: colors.danger, ...FONT.bold }}>{alert.remaining_doses}</Text> doses left!
                                     </Text>
                                     {alert.pharmacy_phone ? (
                                         <Pressable 
                                             style={styles.refillCallBtn}
                                             onPress={() => Linking.openURL(`tel:${alert.pharmacy_phone}`)}
                                         >
-                                            <Phone size={12} color={C.primary} />
+                                            <Phone size={12} color={colors.primary} />
                                             <Text style={styles.refillCallText}>Order</Text>
                                         </Pressable>
                                     ) : null}
@@ -280,32 +259,32 @@ export default function CompanionDashboardScreen() {
 
                 {/* 1. Quick Actions Bar */}
                 <View style={styles.actionsContainer}>
-                    <Pressable style={styles.actionButton} onPress={handleNudge} disabled={nudging}>
-                        <View style={[styles.actionIconContainer, { backgroundColor: C.primaryLight }]}>
+                    <Pressable style={({ pressed }) => [styles.actionButton, pressed && { opacity: 0.7 }]} onPress={handleNudge} disabled={nudging}>
+                        <View style={[styles.actionIconContainer, { backgroundColor: colors.primarySoft }]}>
                             {nudging ? (
-                                <ActivityIndicator size="small" color={C.primary} />
+                                <ActivityIndicator size="small" color={colors.primary} />
                             ) : (
-                                <Send color={C.primary} size={18} />
+                                <Send color={colors.primary} size={18} />
                             )}
                         </View>
                         <Text style={styles.actionLabel}>Nudge</Text>
                         <Text style={styles.actionSubLabel}>Send reminder</Text>
                     </Pressable>
 
-                    <Pressable style={styles.actionButton} onPress={handleCall}>
-                        <View style={[styles.actionIconContainer, { backgroundColor: C.successLight }]}>
-                            <Phone color={C.success} size={18} />
+                    <Pressable style={({ pressed }) => [styles.actionButton, pressed && { opacity: 0.7 }]} onPress={handleCall}>
+                        <View style={[styles.actionIconContainer, { backgroundColor: colors.successLight }]}>
+                            <Phone color={colors.success} size={18} />
                         </View>
                         <Text style={styles.actionLabel}>Call</Text>
                         <Text style={styles.actionSubLabel}>Call {data.patient.name.split(' ')[0]}</Text>
                     </Pressable>
 
-                    <Pressable style={styles.actionButton} onPress={handleRequestBP} disabled={requestingBP}>
-                        <View style={[styles.actionIconContainer, { backgroundColor: C.dangerLight }]}>
+                    <Pressable style={({ pressed }) => [styles.actionButton, pressed && { opacity: 0.7 }]} onPress={handleRequestBP} disabled={requestingBP}>
+                        <View style={[styles.actionIconContainer, { backgroundColor: colors.dangerLight }]}>
                             {requestingBP ? (
-                                <ActivityIndicator size="small" color={C.danger} />
+                                <ActivityIndicator size="small" color={colors.danger} />
                             ) : (
-                                <HeartPulse color={C.danger} size={18} />
+                                <HeartPulse color={colors.danger} size={18} />
                             )}
                         </View>
                         <Text style={styles.actionLabel}>Request BP</Text>
@@ -316,8 +295,8 @@ export default function CompanionDashboardScreen() {
                 {/* 2. Adherence Meter Card */}
                 <View style={styles.card}>
                     <View style={styles.cardHeader}>
-                        <View style={[styles.iconBox, { backgroundColor: C.primaryLight }]}>
-                            <Activity color={C.primary} size={18} />
+                        <View style={[styles.iconBox, { backgroundColor: colors.primarySoft }]}>
+                            <Activity color={colors.primary} size={18} />
                         </View>
                         <View>
                             <Text style={styles.cardTitle}>Medication Adherence</Text>
@@ -339,7 +318,7 @@ export default function CompanionDashboardScreen() {
                         <View style={styles.circularProgressPlaceholder}>
                             <View style={[
                                 styles.circleSegment, 
-                                { borderColor: adherence > 75 ? C.success : adherence > 50 ? C.warning : C.danger }
+                                { borderColor: adherence > 75 ? colors.success : adherence > 50 ? colors.warning : colors.danger }
                             ]}>
                                 <Text style={styles.circleInsideText}>
                                     {adherence > 75 ? 'Good' : adherence > 50 ? 'Fair' : 'Low'}
@@ -351,11 +330,11 @@ export default function CompanionDashboardScreen() {
                     {/* Dynamic Status Banner */}
                     <View style={[
                         styles.statusBanner,
-                        { backgroundColor: adherence > 75 ? C.successLight : adherence > 50 ? C.warningLight : C.dangerLight }
+                        { backgroundColor: adherence > 75 ? colors.successLight : adherence > 50 ? colors.warningLight : colors.dangerLight }
                     ]}>
                         <Text style={[
                             styles.statusBannerText,
-                            { color: adherence > 75 ? C.success : adherence > 50 ? C.warning : C.danger }
+                            { color: adherence > 75 ? colors.success : adherence > 50 ? colors.warning : colors.danger }
                         ]}>
                             {adherence > 75 ? 'Adherence is stable. Keep it up!' : 'Some medicines were missed today.'}
                         </Text>
@@ -372,7 +351,7 @@ export default function CompanionDashboardScreen() {
                                             styles.barFill, 
                                             { 
                                                 height: `${item.rate}%`,
-                                                backgroundColor: item.rate > 75 ? C.success : item.rate > 50 ? C.warning : C.danger 
+                                                backgroundColor: item.rate > 75 ? colors.success : item.rate > 50 ? colors.warning : colors.danger 
                                             }
                                         ]} />
                                     </View>
@@ -387,8 +366,8 @@ export default function CompanionDashboardScreen() {
                 {data.medication_schedule && data.medication_schedule.length > 0 && (
                     <View style={styles.card}>
                         <View style={styles.cardHeader}>
-                            <View style={[styles.iconBox, { backgroundColor: C.successLight }]}>
-                                <Activity color={C.success} size={18} />
+                            <View style={[styles.iconBox, { backgroundColor: colors.successLight }]}>
+                                <Activity color={colors.success} size={18} />
                             </View>
                             <View>
                                 <Text style={styles.cardTitle}>Today's Dose Timeline</Text>
@@ -416,27 +395,27 @@ export default function CompanionDashboardScreen() {
                                             </Text>
                                             <View style={styles.timelineLineContainer}>
                                                 <View style={[styles.timelineNode, { 
-                                                    backgroundColor: item.taken ? C.success : C.light,
-                                                    borderColor: item.taken ? C.successLight : C.border 
+                                                    backgroundColor: item.taken ? colors.success : colors.textMuted,
+                                                    borderColor: item.taken ? colors.successLight : colors.borderLight 
                                                 }]} />
                                                 {!isLast && <View style={[styles.timelineLine, { 
-                                                    backgroundColor: item.taken ? C.success : C.border 
+                                                    backgroundColor: item.taken ? colors.success : colors.borderLight 
                                                 }]} />}
                                             </View>
                                         </View>
                                         
-                                        <Pressable style={[styles.timelineCard, item.taken ? styles.timelineCardTaken : null]}>
+                                        <Pressable style={({ pressed }) => [styles.timelineCard, item.taken ? styles.timelineCardTaken : null, pressed && { opacity: 0.7 }]}>
                                             <View style={{ flex: 1, paddingRight: 8 }}>
                                                 <Text style={styles.timelineMedName} numberOfLines={1} adjustsFontSizeToFit>{item.name}</Text>
                                                 <Text style={styles.timelineMedDosage} numberOfLines={1} adjustsFontSizeToFit>{item.dosage} • {item.route}</Text>
                                             </View>
                                             <View style={[
                                                 styles.timelineStatusBadge, 
-                                                { backgroundColor: item.taken ? C.successLight : C.warningLight }
+                                                { backgroundColor: item.taken ? colors.successLight : colors.warningLight }
                                             ]}>
                                                 <Text style={[
                                                     styles.timelineStatusText, 
-                                                    { color: item.taken ? C.success : C.warning }
+                                                    { color: item.taken ? colors.success : colors.warning }
                                                 ]}>
                                                     {item.taken ? 'Taken' : 'Pending'}
                                                 </Text>
@@ -453,8 +432,8 @@ export default function CompanionDashboardScreen() {
                 {/* 3. Vitals Card (with beautiful elegant empty states) */}
                 <View style={styles.card}>
                     <View style={styles.cardHeader}>
-                        <View style={[styles.iconBox, { backgroundColor: C.dangerLight }]}>
-                            <HeartPulse color={C.danger} size={18} />
+                        <View style={[styles.iconBox, { backgroundColor: colors.dangerLight }]}>
+                            <HeartPulse color={colors.danger} size={18} />
                         </View>
                         <View>
                             <Text style={styles.cardTitle}>Vitals Status</Text>
@@ -476,8 +455,8 @@ export default function CompanionDashboardScreen() {
 
                             <View style={styles.vitalMetricsBox}>
                                 <Text style={styles.vitalLabel}>Status</Text>
-                                <View style={[styles.vitalBadge, { backgroundColor: C.successLight }]}>
-                                    <Text style={[styles.vitalBadgeText, { color: C.success }]}>Normal</Text>
+                                <View style={[styles.vitalBadge, { backgroundColor: colors.successLight }]}>
+                                    <Text style={[styles.vitalBadgeText, { color: colors.success }]}>Normal</Text>
                                 </View>
                                 <Text style={styles.vitalTime}>Synced 2h ago</Text>
                             </View>
@@ -499,7 +478,7 @@ export default function CompanionDashboardScreen() {
                             {/* Right Side: Status, Description, and Sync Actions */}
                             <View style={styles.vitalsEmptyRight}>
                                 <View style={styles.vitalsStatusBadgeRow}>
-                                    <Bluetooth size={14} color={C.primary} />
+                                    <Bluetooth size={14} color={colors.primary} />
                                     <Text style={styles.vitalsStatusBadgeText}>All vitals normal</Text>
                                 </View>
                                 
@@ -525,8 +504,8 @@ export default function CompanionDashboardScreen() {
                 {data.vitals_history && data.vitals_history.length > 0 && (
                     <View style={styles.card}>
                         <View style={styles.cardHeader}>
-                            <View style={[styles.iconBox, { backgroundColor: C.primaryLight }]}>
-                                <Activity color={C.primary} size={18} />
+                            <View style={[styles.iconBox, { backgroundColor: colors.primarySoft }]}>
+                                <Activity color={colors.primary} size={18} />
                             </View>
                             <View>
                                 <Text style={styles.cardTitle}>Vitals Analytics (7-Day Trend)</Text>
@@ -568,7 +547,7 @@ export default function CompanionDashboardScreen() {
                                                     <View style={[styles.barTrack, { backgroundColor: '#F1F5F9' }]}>
                                                         <View style={[styles.barFill, { height: '8%', backgroundColor: '#CBD5E1' }]} />
                                                     </View>
-                                                    <Text style={[styles.barLabel, { color: C.light }]}>{dayLabel}</Text>
+                                                    <Text style={[styles.barLabel, { color: colors.textMuted }]}>{dayLabel}</Text>
                                                 </View>
                                             );
                                         }
@@ -583,11 +562,11 @@ export default function CompanionDashboardScreen() {
                                                         styles.barFill, 
                                                         { 
                                                             height: `${pct}%`,
-                                                            backgroundColor: rate > 100 || rate < 50 ? C.danger : C.primary 
+                                                            backgroundColor: rate > 100 || rate < 50 ? colors.danger : colors.primary 
                                                         }
                                                     ]} />
                                                 </View>
-                                                <Text style={[styles.barLabel, { color: C.dark, ...FONT.bold }]}>{dayLabel}</Text>
+                                                <Text style={[styles.barLabel, { color: colors.textPrimary, ...FONT.bold }]}>{dayLabel}</Text>
                                             </View>
                                         );
                                     });
@@ -600,19 +579,19 @@ export default function CompanionDashboardScreen() {
                                 
                                 const avg = Math.round(validLogs.reduce((acc, curr) => acc + curr.heart_rate, 0) / validLogs.length);
                                 let status = "Stable.";
-                                let statusColor = C.success;
-                                let statusBg = C.successLight;
+                                let statusColor = colors.success;
+                                let statusBg = colors.successLight;
                                 let Icon = ShieldCheck;
                                 
                                 if (avg > 100 || avg < 50) {
                                     status = "Attention required.";
-                                    statusColor = C.danger;
-                                    statusBg = C.dangerLight;
+                                    statusColor = colors.danger;
+                                    statusBg = colors.dangerLight;
                                     Icon = AlertCircle;
                                 } else if (avg > 90 || avg < 60) {
                                     status = "Monitor closely.";
-                                    statusColor = C.warning;
-                                    statusBg = C.warningLight;
+                                    statusColor = colors.warning;
+                                    statusBg = colors.warningLight;
                                     Icon = AlertCircle;
                                 }
 
@@ -633,8 +612,8 @@ export default function CompanionDashboardScreen() {
                 {data.recent_alerts?.length > 0 ? (
                     <View style={styles.card}>
                         <View style={styles.cardHeader}>
-                            <View style={[styles.iconBox, { backgroundColor: C.dangerLight }]}>
-                                <Bell color={C.danger} size={18} />
+                            <View style={[styles.iconBox, { backgroundColor: colors.dangerLight }]}>
+                                <Bell color={colors.danger} size={18} />
                             </View>
                             <View>
                                 <Text style={styles.cardTitle}>Critical Alerts</Text>
@@ -653,7 +632,7 @@ export default function CompanionDashboardScreen() {
                     </View>
                 ) : (
                     <View style={styles.noAlertsCard}>
-                        <ShieldCheck color={C.success} size={24} />
+                        <ShieldCheck color={colors.success} size={24} />
                         <Text style={styles.noAlertsText}>All systems normal. No active alerts.</Text>
                     </View>
                 )}
@@ -663,252 +642,33 @@ export default function CompanionDashboardScreen() {
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: C.bg },
+    container: { flex: 1, backgroundColor: colors.background },
     header: { 
         paddingTop: 60, 
         paddingHorizontal: 24, 
         paddingBottom: 16, 
-        backgroundColor: C.surface,
+        backgroundColor: colors.surface,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        borderBottomWidth: 1,
-        borderBottomColor: '#F8FAFC',
     },
     headerSub: {
         fontSize: 12,
         ...FONT.semibold,
-        color: C.primary,
+        color: colors.primary,
         textTransform: 'uppercase',
         letterSpacing: 1,
     },
-    title: { fontSize: 24, ...FONT.heavy, color: C.dark },
+    title: { fontSize: 24, ...FONT.heavy, color: colors.textPrimary },
     bellButton: {
         width: 44,
         height: 44,
         borderRadius: 22,
-        backgroundColor: '#F8FAFC',
+        backgroundColor: '#FFFFFF',
         alignItems: 'center',
         justifyContent: 'center',
         position: 'relative',
-    },
-    bellDot: {
-        position: 'absolute',
-        top: 12,
-        right: 12,
-        width: 8,
-        height: 8,
-        borderRadius: 4,
-        backgroundColor: C.danger,
-    },
-    
-    // Link Container Styles
-    linkContainer: {
-        backgroundColor: C.surface,
-        paddingHorizontal: 24,
-        paddingBottom: 20,
-    },
-    linkTitle: {
-        fontSize: 14,
-        ...FONT.bold,
-        color: C.dark,
-        marginBottom: 12,
-    },
-    linkInputRow: {
-        flexDirection: 'row',
-        gap: 12,
-    },
-    linkInput: {
-        flex: 1,
-        height: 48,
-        backgroundColor: C.bg,
-        borderWidth: 1,
-        borderColor: C.cardBorder,
-        borderRadius: 12,
-        paddingHorizontal: 16,
-        fontSize: 14,
-        ...FONT.medium,
-        color: C.dark,
-        textTransform: 'uppercase',
-    },
-    linkBtn: {
-        backgroundColor: C.primary,
-        borderRadius: 12,
-        paddingHorizontal: 20,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    linkBtnText: {
-        color: '#FFF',
-        fontSize: 14,
-        ...FONT.bold,
-    },
-
-    // Switcher Styles
-    switcherContainer: {
-        backgroundColor: C.surface,
-        borderBottomWidth: 1,
-        borderBottomColor: C.border,
-        paddingBottom: 14,
-    },
-    switcherScroll: {
-        paddingHorizontal: 24,
-        gap: 16,
-    },
-    avatarWrapper: {
-        alignItems: 'center',
-        gap: 6,
-        opacity: 0.6,
-    },
-    activeAvatarWrapper: {
-        opacity: 1,
-    },
-    avatar: {
-        width: 60,
-        height: 60,
-        borderRadius: 30,
-        backgroundColor: '#F8FAFC',
-        alignItems: 'center',
-        justifyContent: 'center',
-        borderWidth: 2,
-        borderColor: 'transparent',
-        position: 'relative',
-    },
-    activeAvatar: {
-        borderColor: C.primary,
-        backgroundColor: C.primaryLight,
-    },
-    avatarText: {
-        fontSize: 16,
-        ...FONT.bold,
-        color: C.mid,
-    },
-    activeAvatarText: {
-        color: C.primary,
-    },
-    avatarName: {
-        fontSize: 12,
-        ...FONT.semibold,
-        color: C.mid,
-        maxWidth: 68,
-        textAlign: 'center',
-    },
-    activeAvatarName: {
-        color: C.dark,
-        ...FONT.bold,
-    },
-    scoreBadge: {
-        position: 'absolute',
-        bottom: -2,
-        right: -2,
-        paddingHorizontal: 5,
-        paddingVertical: 1,
-        borderRadius: 8,
-        borderWidth: 1.5,
-        borderColor: C.surface,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    scoreText: {
-        color: C.surface,
-        fontSize: 9,
-        fontWeight: 'bold',
-    },
-
-    // Actions Styles
-    actionsContainer: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginBottom: 8,
-    },
-    actionButton: {
-        flex: 1,
-        backgroundColor: C.surface,
-        paddingVertical: 14,
-        borderRadius: 20,
-        alignItems: 'center',
-        gap: 8,
-        marginHorizontal: 4,
-        borderWidth: 1,
-        borderColor: C.border,
-    },
-    actionIconContainer: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    actionLabel: {
-        fontSize: 12,
-        ...FONT.semibold,
-        color: C.dark,
-    },
-    actionSubLabel: {
-        fontSize: 10,
-        ...FONT.medium,
-        color: C.light,
-        textAlign: 'center',
-        marginTop: -2,
-    },
-
-    content: { padding: 20, gap: 16, paddingBottom: layout.TAB_BAR_CLEARANCE },
-    
-    // Premium Card Styles
-    card: { 
-        backgroundColor: C.surface, 
-        padding: 24, 
-        borderRadius: 28, 
-        borderWidth: 1,
-        borderColor: C.border,
-        shadowColor: C.dark, 
-        shadowOpacity: 0.03, 
-        shadowRadius: 16, 
-        shadowOffset: { width: 0, height: 6 }, 
-        elevation: 1 
-    },
-    cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 20 },
-    iconBox: {
-        width: 36,
-        height: 36,
-        borderRadius: 12,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    cardTitle: { fontSize: 16, ...FONT.bold, color: C.dark },
-    cardSub: { fontSize: 12, ...FONT.medium, color: C.mid },
-    
-    // Meter Styles
-    meterRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 20,
-    },
-    largeValue: { fontSize: 44, ...FONT.heavy, color: C.dark },
-    streakBadge: {
-        backgroundColor: C.warningLight,
-        paddingHorizontal: 10,
-        paddingVertical: 4,
-        borderRadius: 10,
-        alignSelf: 'flex-start',
-        marginTop: 4,
-    },
-    streakText: {
-        color: '#D97706',
-        fontSize: 12,
-        ...FONT.bold,
-    },
-    
-    // Segmented indicator approximation
-    circularProgressPlaceholder: {
-        width: 80,
-        height: 80,
-        borderRadius: 40,
-        borderWidth: 6,
-        borderColor: '#F1F5F9',
-        alignItems: 'center',
-        justifyContent: 'center',
+        ...shadows.sm,
     },
     circleSegment: {
         width: 78,
@@ -922,7 +682,7 @@ const styles = StyleSheet.create({
     circleInsideText: {
         fontSize: 14,
         ...FONT.bold,
-        color: C.dark,
+        color: colors.textPrimary,
     },
 
     statusBanner: {
@@ -939,13 +699,13 @@ const styles = StyleSheet.create({
     // Micro-Chart Styles
     chartContainer: {
         borderTopWidth: 1,
-        borderTopColor: C.border,
+        borderTopColor: colors.borderLight,
         paddingTop: 20,
     },
     chartTitle: {
         fontSize: 13,
         ...FONT.bold,
-        color: C.mid,
+        color: colors.textSecondary,
         marginBottom: 16,
     },
     barChart: {
@@ -973,7 +733,7 @@ const styles = StyleSheet.create({
     barLabel: {
         fontSize: 10,
         ...FONT.semibold,
-        color: C.light,
+        color: colors.textMuted,
     },
 
     // Vitals section
@@ -989,23 +749,23 @@ const styles = StyleSheet.create({
     vitalLabel: {
         fontSize: 12,
         ...FONT.semibold,
-        color: C.mid,
+        color: colors.textSecondary,
         marginBottom: 6,
     },
     vitalBigValue: {
         fontSize: 32,
         ...FONT.heavy,
-        color: C.dark,
+        color: colors.textPrimary,
     },
     vitalUnit: {
         fontSize: 11,
         ...FONT.medium,
-        color: C.light,
+        color: colors.textMuted,
     },
     vitalDivider: {
         width: 1,
         height: 60,
-        backgroundColor: C.border,
+        backgroundColor: colors.borderLight,
     },
     vitalBadge: {
         paddingHorizontal: 12,
@@ -1019,7 +779,7 @@ const styles = StyleSheet.create({
     },
     vitalTime: {
         fontSize: 10,
-        color: C.light,
+        color: colors.textMuted,
         ...FONT.medium,
     },
 
@@ -1032,26 +792,26 @@ const styles = StyleSheet.create({
     emptyVitalsText: {
         fontSize: 16,
         ...FONT.bold,
-        color: C.dark,
+        color: colors.textPrimary,
         marginTop: 12,
     },
     emptyVitalsSub: {
         fontSize: 12,
         ...FONT.medium,
-        color: C.mid,
+        color: colors.textSecondary,
         textAlign: 'center',
         marginTop: 6,
         lineHeight: 18,
     },
     emptyVitalsButton: {
-        backgroundColor: C.primary,
+        backgroundColor: colors.primary,
         paddingHorizontal: 20,
         paddingVertical: 8,
         borderRadius: 14,
         marginTop: 16,
     },
     emptyVitalsButtonText: {
-        color: C.surface,
+        color: colors.surface,
         fontSize: 12,
         ...FONT.bold,
     },
@@ -1063,7 +823,7 @@ const styles = StyleSheet.create({
     alertItem: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: C.dangerLight,
+        backgroundColor: colors.dangerLight,
         paddingVertical: 12,
         paddingHorizontal: 16,
         borderRadius: 16,
@@ -1073,40 +833,36 @@ const styles = StyleSheet.create({
         width: 6,
         height: 6,
         borderRadius: 3,
-        backgroundColor: C.danger,
+        backgroundColor: colors.danger,
     },
     alertDescription: {
         fontSize: 13,
         ...FONT.semibold,
-        color: C.danger,
+        color: colors.danger,
         flex: 1,
     },
 
     // No Alerts card
     noAlertsCard: {
-        backgroundColor: C.successLight,
+        backgroundColor: colors.successLight,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
         paddingVertical: 16,
         borderRadius: 24,
         gap: 10,
-        borderWidth: 1,
-        borderColor: '#A7F3D0',
     },
     noAlertsText: {
         fontSize: 13,
         ...FONT.bold,
-        color: C.success,
+        color: colors.success,
     },
 
     // Low Pill Stock Refill Banner
     refillBanner: {
-        backgroundColor: C.warningLight,
+        backgroundColor: colors.warningLight,
         borderRadius: 24,
         padding: 16,
-        borderWidth: 1,
-        borderColor: '#FDE68A',
         gap: 10,
     },
     refillBannerHeader: {
@@ -1125,32 +881,30 @@ const styles = StyleSheet.create({
     refillItem: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: C.surface,
+        backgroundColor: colors.surface,
         borderRadius: 16,
         paddingVertical: 10,
         paddingHorizontal: 14,
         marginVertical: 4,
         gap: 8,
-        borderWidth: 1,
-        borderColor: C.border,
     },
     refillMedName: {
         fontSize: 12,
         ...FONT.bold,
-        color: C.dark,
+        color: colors.textPrimary,
         flex: 1.5,
     },
     refillMedStock: {
         fontSize: 11,
         ...FONT.medium,
-        color: C.mid,
+        color: colors.textSecondary,
         flex: 2,
     },
     refillCallBtn: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 4,
-        backgroundColor: C.primaryLight,
+        backgroundColor: colors.primarySoft,
         paddingHorizontal: 10,
         paddingVertical: 6,
         borderRadius: 10,
@@ -1158,7 +912,7 @@ const styles = StyleSheet.create({
     refillCallText: {
         fontSize: 10,
         ...FONT.bold,
-        color: C.primary,
+        color: colors.primary,
     },
 
     // Daily Medication Timeline Styles
@@ -1179,7 +933,7 @@ const styles = StyleSheet.create({
     timelineTime: {
         fontSize: 10,
         ...FONT.bold,
-        color: C.light,
+        color: colors.textMuted,
         textAlign: 'center',
     },
     timelineLineContainer: {
@@ -1213,22 +967,19 @@ const styles = StyleSheet.create({
         paddingVertical: 12,
         flexDirection: 'row',
         alignItems: 'center',
-        borderWidth: 1,
-        borderColor: C.border,
     },
     timelineCardTaken: {
-        backgroundColor: C.successLight + '33',
-        borderColor: '#A7F3D0',
+        backgroundColor: colors.successLight + '33',
     },
     timelineMedName: {
         fontSize: 13,
         ...FONT.bold,
-        color: C.dark,
+        color: colors.textPrimary,
     },
     timelineMedDosage: {
         fontSize: 10,
         ...FONT.medium,
-        color: C.light,
+        color: colors.textMuted,
         marginTop: 2,
     },
     timelineStatusBadge: {
@@ -1260,19 +1011,13 @@ const styles = StyleSheet.create({
     // Summary Card Styles
     summaryCard: {
         flexDirection: 'row',
-        backgroundColor: C.surface,
-        borderRadius: 24,
-        borderWidth: 1,
-        borderColor: C.border,
+        backgroundColor: colors.surface,
+        borderRadius: radius.xl,
         paddingVertical: 16,
         paddingHorizontal: 16,
         alignItems: 'center',
         justifyContent: 'space-between',
-        shadowColor: C.dark,
-        shadowOpacity: 0.02,
-        shadowRadius: 10,
-        shadowOffset: { width: 0, height: 4 },
-        elevation: 1,
+        ...shadows.card,
     },
     summaryCol: {
         flex: 1,
@@ -1285,18 +1030,18 @@ const styles = StyleSheet.create({
     summaryColTitle: {
         fontSize: 13,
         ...FONT.bold,
-        color: C.dark,
+        color: colors.textPrimary,
     },
     summaryColSub: {
         fontSize: 10,
         ...FONT.semibold,
-        color: C.light,
+        color: colors.textMuted,
         marginTop: 2,
     },
     summaryColLabel: {
         fontSize: 11,
         ...FONT.bold,
-        color: C.light,
+        color: colors.textMuted,
     },
     summaryColValue: {
         fontSize: 16,
@@ -1306,18 +1051,18 @@ const styles = StyleSheet.create({
     summaryColValueSmall: {
         fontSize: 12,
         ...FONT.bold,
-        color: C.dark,
+        color: colors.textPrimary,
     },
     summaryColLabelSub: {
         fontSize: 10,
         ...FONT.semibold,
-        color: C.mid,
+        color: colors.textSecondary,
         marginTop: 1,
     },
     summaryDivider: {
         width: 1,
         height: 32,
-        backgroundColor: C.border,
+        backgroundColor: colors.borderLight,
         marginHorizontal: 8,
     },
 
@@ -1366,12 +1111,12 @@ const styles = StyleSheet.create({
     vitalsStatusBadgeText: {
         fontSize: 13,
         ...FONT.bold,
-        color: C.success,
+        color: colors.success,
     },
     vitalsEmptyDesc: {
         fontSize: 12,
         ...FONT.medium,
-        color: C.mid,
+        color: colors.textSecondary,
         lineHeight: 18,
     },
     vitalsSyncBtn: {

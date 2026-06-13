@@ -1,27 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, RefreshControl, Pressable, TextInput, ActivityIndicator } from 'react-native';
 import { apiService } from '../../lib/api';
-import { layout } from '../../theme';
+import { colors, spacing, radius, shadows, layout } from '../../theme';
 import { ShieldCheck, UserPlus, ChevronRight, LogOut } from 'lucide-react-native';
 import AlertManager from '../../utils/AlertManager';
 import usePatientStore from '../../store/usePatientStore';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
-
-const C = {
-    bg: '#F8FAFC',
-    surface: '#FFFFFF',
-    primary: '#0EA5E9',
-    primaryLight: '#E0F2FE',
-    dark: '#0F172A',
-    mid: '#475569',
-    light: '#94A3B8',
-    danger: '#EF4444',
-    success: '#10B981',
-    warning: '#F59E0B',
-    border: '#F1F5F9',
-};
 
 const FONT = {
     medium: { fontFamily: 'Inter_500Medium' },
@@ -95,7 +81,7 @@ export default function CompanionHomeScreen() {
                         <Text style={styles.title}>Welcome!</Text>
                     </View>
                     <Pressable 
-                        style={styles.logoutBtn} 
+                        style={({ pressed }) => [styles.logoutBtn, pressed && { opacity: 0.7 }]} 
                         onPress={async () => {
                             AlertManager.alert(
                                 'Logout',
@@ -120,37 +106,41 @@ export default function CompanionHomeScreen() {
                             );
                         }}
                     >
-                        <LogOut color={C.danger} size={22} />
+                        <LogOut color={colors.danger} size={22} />
                     </Pressable>
                 </View>
             </View>
 
             <ScrollView 
                 contentContainerStyle={styles.content}
-                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.primary} />}
+                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
             >
                 {/* Link New Patient Container */}
                 <View style={styles.linkContainer}>
                     <View style={styles.linkHeader}>
-                        <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', shadowColor: C.primary, shadowOpacity: 0.1, shadowRadius: 4, elevation: 1 }}>
-                            <UserPlus color={C.primary} size={16} />
+                        <View style={{ width: 32, height: 32, borderRadius: 10, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', shadowColor: colors.primary, shadowOpacity: 0.1, shadowRadius: 4, elevation: 1 }}>
+                            <UserPlus color={colors.primary} size={16} />
                         </View>
                         <View>
                             <Text style={styles.linkTitle}>Link a Patient</Text>
-                            <Text style={{ fontSize: 12, ...FONT.medium, color: C.mid, marginTop: 2 }}>Enter their 6-digit invite code</Text>
+                            <Text style={{ fontSize: 12, ...FONT.medium, color: colors.textSecondary, marginTop: 2 }}>Enter their 6-digit invite code</Text>
                         </View>
                     </View>
                     <View style={styles.linkInputRow}>
                         <TextInput
                             style={styles.linkInput}
                             placeholder="Enter 6-char Invite Code"
-                            placeholderTextColor={C.light}
+                            placeholderTextColor={colors.textMuted}
                             value={linkCode}
                             onChangeText={(v) => setLinkCode(v.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6))}
                             autoCapitalize="characters"
                         />
                         <Pressable 
-                            style={[styles.linkBtn, (!linkCode || linkCode.length < 6 || linking) && { opacity: 0.7 }]} 
+                            style={({ pressed }) => [
+                                styles.linkBtn, 
+                                (!linkCode || linkCode.length < 6 || linking) && { opacity: 0.7 },
+                                pressed && { opacity: 0.5 }
+                            ]} 
                             onPress={handleLinkPatient}
                             disabled={!linkCode || linkCode.length < 6 || linking}
                         >
@@ -164,7 +154,7 @@ export default function CompanionHomeScreen() {
                 
                 {(!data.linked_patients || data.linked_patients.length === 0) ? (
                     <View style={styles.emptyStateContainer}>
-                        <ShieldCheck size={64} color={C.primaryLight} style={{ marginBottom: 20 }} />
+                        <ShieldCheck size={64} color={colors.primarySoft} style={{ marginBottom: 20 }} />
                         <Text style={styles.emptyStateTitle}>No Patients Linked</Text>
                         <Text style={styles.emptyStateDesc}>Enter an invite code above to start monitoring your loved one's health.</Text>
                     </View>
@@ -175,7 +165,7 @@ export default function CompanionHomeScreen() {
                             return (
                                 <Pressable
                                     key={p.id}
-                                    style={styles.patientCard}
+                                    style={({ pressed }) => [styles.patientCard, pressed && { opacity: 0.7 }]}
                                     onPress={() => handleSelectPatient(p)}
                                 >
                                     <View style={styles.avatar}>
@@ -183,7 +173,7 @@ export default function CompanionHomeScreen() {
                                         {p.health_score !== undefined && (
                                             <View style={[
                                                 styles.scoreBadge,
-                                                { backgroundColor: p.health_score > 70 ? C.success : C.warning }
+                                                { backgroundColor: p.health_score > 70 ? colors.success : colors.warning }
                                             ]}>
                                                 <Text style={styles.scoreText}>{p.health_score}</Text>
                                             </View>
@@ -198,7 +188,7 @@ export default function CompanionHomeScreen() {
                                         )}
                                     </View>
                                     <View style={styles.arrowBox}>
-                                        <ChevronRight color={C.mid} size={20} />
+                                        <ChevronRight color={colors.textSecondary} size={20} />
                                     </View>
                                 </Pressable>
                             );
@@ -211,13 +201,11 @@ export default function CompanionHomeScreen() {
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: C.bg },
+    container: { flex: 1, backgroundColor: colors.background },
     header: { 
         paddingHorizontal: 24, 
         paddingBottom: 24, 
-        backgroundColor: C.surface,
-        borderBottomWidth: 1,
-        borderBottomColor: '#F8FAFC',
+        backgroundColor: colors.surface,
     },
     headerRow: {
         flexDirection: 'row',
@@ -228,34 +216,26 @@ const styles = StyleSheet.create({
         width: 44,
         height: 44,
         borderRadius: 14,
-        backgroundColor: '#FEF2F2',
+        backgroundColor: colors.dangerLight,
         alignItems: 'center',
         justifyContent: 'center',
-        borderWidth: 1,
-        borderColor: '#FEE2E2',
     },
     headerSub: {
         fontSize: 12,
         ...FONT.semibold,
-        color: C.primary,
+        color: colors.primary,
         textTransform: 'uppercase',
         letterSpacing: 1,
     },
-    title: { fontSize: 24, ...FONT.heavy, color: C.dark },
+    title: { fontSize: 24, ...FONT.heavy, color: colors.textPrimary },
     content: { padding: 24, gap: 24 },
     
     // Link Container Styles
     linkContainer: {
-        backgroundColor: '#F0F9FF', // C.primaryLight but softer
+        backgroundColor: colors.primarySoft,
         borderRadius: 24,
         padding: 20,
-        borderWidth: 1,
-        borderColor: '#E0F2FE',
-        shadowColor: C.primary,
-        shadowOpacity: 0.04,
-        shadowRadius: 12,
-        shadowOffset: { width: 0, height: 6 },
-        elevation: 2,
+        ...shadows.card,
     },
     linkHeader: {
         flexDirection: 'row',
@@ -266,7 +246,7 @@ const styles = StyleSheet.create({
     linkTitle: {
         fontSize: 16,
         ...FONT.heavy,
-        color: '#0369A1',
+        color: colors.primary,
     },
     linkInputRow: {
         flexDirection: 'row',
@@ -275,25 +255,25 @@ const styles = StyleSheet.create({
     linkInput: {
         flex: 1,
         height: 52,
-        backgroundColor: '#FFFFFF',
+        backgroundColor: colors.surface,
         borderRadius: 16,
         paddingHorizontal: 16,
         fontSize: 15,
         ...FONT.bold,
-        color: C.dark,
+        color: colors.textPrimary,
         borderWidth: 1,
-        borderColor: '#BAE6FD',
+        borderColor: colors.borderLight,
         letterSpacing: 2,
         textAlign: 'center',
     },
     linkBtn: {
         height: 52,
-        backgroundColor: C.primary,
+        backgroundColor: colors.primary,
         paddingHorizontal: 28,
         borderRadius: 16,
         alignItems: 'center',
         justifyContent: 'center',
-        shadowColor: C.primary,
+        shadowColor: colors.primary,
         shadowOpacity: 0.2,
         shadowRadius: 6,
         shadowOffset: { width: 0, height: 3 },
@@ -309,7 +289,7 @@ const styles = StyleSheet.create({
     sectionTitle: {
         fontSize: 18,
         ...FONT.heavy,
-        color: C.dark,
+        color: colors.textPrimary,
         marginTop: 8,
     },
     patientsList: {
@@ -318,33 +298,27 @@ const styles = StyleSheet.create({
     patientCard: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: C.surface,
+        backgroundColor: colors.surface,
         padding: 16,
         borderRadius: 20,
-        borderWidth: 1,
-        borderColor: C.border,
-        shadowColor: C.dark,
-        shadowOpacity: 0.02,
-        shadowRadius: 8,
-        shadowOffset: { width: 0, height: 2 },
-        elevation: 1,
+        ...shadows.card,
         gap: 16,
     },
     avatar: {
         width: 56,
         height: 56,
         borderRadius: 28,
-        backgroundColor: C.primaryLight,
+        backgroundColor: colors.primarySoft,
         alignItems: 'center',
         justifyContent: 'center',
         borderWidth: 2,
-        borderColor: C.primary,
+        borderColor: colors.primary,
         position: 'relative',
     },
     avatarText: {
         fontSize: 18,
         ...FONT.bold,
-        color: C.primary,
+        color: colors.primary,
     },
     scoreBadge: {
         position: 'absolute',
@@ -354,12 +328,12 @@ const styles = StyleSheet.create({
         paddingVertical: 2,
         borderRadius: 8,
         borderWidth: 1.5,
-        borderColor: C.surface,
+        borderColor: colors.surface,
         alignItems: 'center',
         justifyContent: 'center',
     },
     scoreText: {
-        color: C.surface,
+        color: colors.surface,
         fontSize: 9,
         fontWeight: 'bold',
     },
@@ -370,12 +344,12 @@ const styles = StyleSheet.create({
     patientName: {
         fontSize: 16,
         ...FONT.bold,
-        color: C.dark,
+        color: colors.textPrimary,
     },
     patientStatus: {
         fontSize: 13,
         ...FONT.medium,
-        color: C.mid,
+        color: colors.textSecondary,
     },
     arrowBox: {
         width: 36,
@@ -396,14 +370,14 @@ const styles = StyleSheet.create({
     emptyStateTitle: {
         fontSize: 18,
         ...FONT.bold,
-        color: C.dark,
+        color: colors.textPrimary,
         textAlign: 'center',
         marginBottom: 8,
     },
     emptyStateDesc: {
         fontSize: 14,
         ...FONT.medium,
-        color: C.mid,
+        color: colors.textSecondary,
         textAlign: 'center',
         lineHeight: 22,
     },

@@ -1,27 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, RefreshControl, Pressable, Linking, Image } from 'react-native';
 import { apiService } from '../../lib/api';
-import { layout } from '../../theme';
+import { colors, radius, spacing, shadows, layout } from '../../theme';
 import { Bell, CheckCircle2, ShieldCheck, ShieldAlert, Phone, Clock, ChevronRight, Activity, Check, ChevronLeft, Shield, MessageSquare } from 'lucide-react-native';
 import usePatientStore from '../../store/usePatientStore';
 import { useNavigation } from '@react-navigation/native';
 import AlertManager from '../../utils/AlertManager';
 import Svg, { Path, Circle, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
 
-const C = {
-    bg: '#F8FAFC',
-    surface: '#FFFFFF',
-    primary: '#0EA5E9',
-    primaryLight: '#E0F2FE',
-    dark: '#0F172A',
-    mid: '#475569',
-    light: '#94A3B8',
-    danger: '#EF4444',
-    dangerLight: '#FEE2E2',
-    success: '#10B981',
-    successLight: '#D1FAE5',
-    border: '#F1F5F9',
-};
+
 
 const FONT = {
     medium: { fontFamily: 'Inter_500Medium' },
@@ -149,13 +136,13 @@ export default function CompanionAlertsScreen() {
     const getActivityIcon = (category) => {
         switch (category) {
             case 'alert':
-                return <ShieldAlert color={C.danger} size={16} />;
+                return <ShieldAlert color={colors.danger} size={16} />;
             case 'vital':
-                return <Activity color={C.primary} size={16} />;
+                return <Activity color={colors.primary} size={16} />;
             case 'medicine':
-                return <Check color={C.success} size={16} />;
+                return <Check color={colors.success} size={16} />;
             default:
-                return <Clock color={C.mid} size={16} />;
+                return <Clock color={colors.textSecondary} size={16} />;
         }
     };
 
@@ -209,17 +196,17 @@ export default function CompanionAlertsScreen() {
                     <Path d="M0 620 C60 700, 140 720, 220 850 L0 850 Z" fill="url(#bottomBg)" />
 
                     {/* Stylized high-end wavy/curved lines */}
-                    <Path d="M-20 180 C80 230, 180 150, 280 230 C340 280, 380 250, 420 310" stroke="#E2E8F0" strokeWidth="1.5" fill="none" opacity="0.6" />
+                    <Path d="M-20 180 C80 230, 180 150, 280 230 C340 280, 380 250, 420 310" stroke={colors.borderLight} strokeWidth="1.5" fill="none" opacity="0.6" />
                     <Path d="M-40 210 C60 260, 160 180, 260 260 C320 310, 360 280, 400 340" stroke="#E2E8F0" strokeWidth="1" fill="none" opacity="0.35" />
 
                     {/* Premium Floral Outline Petals (Top Right Corner) */}
-                    <Path d="M360 -10 C330 40, 290 60, 260 80 C290 90, 340 80, 370 40 Z" fill="none" stroke="#0EA5E9" strokeWidth="1" opacity="0.15" />
-                    <Path d="M330 -20 C300 20, 260 40, 230 50 C260 60, 310 50, 340 20 Z" fill="none" stroke="#0EA5E9" strokeWidth="0.8" opacity="0.1" />
+                    <Path d="M360 -10 C330 40, 290 60, 260 80 C290 90, 340 80, 370 40 Z" fill="none" stroke={colors.primary} strokeWidth="1" opacity="0.15" />
+                    <Path d="M330 -20 C300 20, 260 40, 230 50 C260 60, 310 50, 340 20 Z" fill="none" stroke={colors.primary} strokeWidth="0.8" opacity="0.1" />
                     <Path d="M390 20 C360 60, 320 90, 290 110 C310 120, 360 100, 390 60 Z" fill="none" stroke="#0EA5E9" strokeWidth="1.2" opacity="0.12" />
 
                     {/* Premium Floral Outline Petals (Bottom Left Corner) */}
-                    <Path d="M-10 780 C40 750, 60 710, 80 680 C90 710, 80 760, 40 790 Z" fill="none" stroke="#EF4444" strokeWidth="1" opacity="0.15" />
-                    <Path d="M-20 750 C20 720, 40 680, 50 650 C60 680, 50 730, 20 760 Z" fill="none" stroke="#EF4444" strokeWidth="0.8" opacity="0.1" />
+                    <Path d="M-10 780 C40 750, 60 710, 80 680 C90 710, 80 760, 40 790 Z" fill="none" stroke={colors.danger} strokeWidth="1" opacity="0.15" />
+                    <Path d="M-20 750 C20 720, 40 680, 50 650 C60 680, 50 730, 20 760 Z" fill="none" stroke={colors.danger} strokeWidth="0.8" opacity="0.1" />
                     <Path d="M20 810 C60 780, 90 740, 110 710 C120 730, 100 780, 60 810 Z" fill="none" stroke="#EF4444" strokeWidth="1.2" opacity="0.12" />
                     
                     {/* Concentric abstract rings (Center background) */}
@@ -280,7 +267,7 @@ export default function CompanionAlertsScreen() {
 
             <ScrollView 
                 contentContainerStyle={styles.content}
-                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.primary} />}
+                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
             >
                 {/* 1. Active Alerts Section */}
                 {alerts.length > 0 ? (
@@ -317,11 +304,11 @@ export default function CompanionAlertsScreen() {
                                 
                                 {/* Bottom Action Buttons */}
                                 <View style={styles.alertActionsRow}>
-                                    <Pressable style={styles.callNowBtn} onPress={handleCall}>
+                                    <Pressable style={({ pressed }) => [styles.callNowBtn, pressed && { opacity: 0.75 }]} onPress={handleCall}>
                                         <Phone color="#FFF" size={16} />
                                         <Text style={styles.callNowBtnText}>Call Now</Text>
                                     </Pressable>
-                                    <Pressable style={styles.dismissBtn} onPress={() => acknowledgeAlert(a._id)}>
+                                    <Pressable style={({ pressed }) => [styles.dismissBtn, pressed && { opacity: 0.7 }]} onPress={() => acknowledgeAlert(a._id)}>
                                         <CheckCircle2 color="#0F172A" size={16} />
                                         <Text style={styles.dismissBtnText}>Dismiss</Text>
                                     </Pressable>
@@ -333,7 +320,7 @@ export default function CompanionAlertsScreen() {
                     // Beautiful Guardian Shield Empty State Card
                     <View style={styles.guardianCard}>
                         <View style={styles.shieldBackground}>
-                            <ShieldCheck color={C.success} size={40} />
+                            <ShieldCheck color={colors.success} size={40} />
                         </View>
                         <Text style={styles.guardianTitle}>Care Circle is Secured</Text>
                         <Text style={styles.guardianDesc}>
@@ -360,7 +347,7 @@ export default function CompanionAlertsScreen() {
                         {(() => {
                             const active = data.medication_schedule && data.medication_schedule.length > 0;
                             return (
-                                <Pressable style={styles.checkupItemRow}>
+                                <Pressable style={({ pressed }) => [styles.checkupItemRow, pressed && { opacity: 0.7 }]}>
                                     <View style={styles.iconWithBadgeWrapper}>
                                         <View style={[styles.checkupIconBox, { backgroundColor: '#E8F5E9' }]}>
                                             <Activity color="#10B981" size={20} />
@@ -520,7 +507,7 @@ export default function CompanionAlertsScreen() {
                                     </View>
 
                                     {/* Content Card Column */}
-                                    <Pressable style={styles.timelineContentCard}>
+                                    <Pressable style={({ pressed }) => [styles.timelineContentCard, pressed && { opacity: 0.7 }]}>
                                         <View style={[styles.timelineIconContainer, { backgroundColor: badgeBg }]}>
                                             {h.category === 'alert' ? (
                                                 <ShieldAlert color="#E11D48" size={16} />
@@ -559,26 +546,24 @@ export default function CompanionAlertsScreen() {
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: C.bg },
+    container: { flex: 1, backgroundColor: colors.background },
     header: { 
         paddingTop: 60, 
         paddingHorizontal: 24, 
         paddingBottom: 16, 
-        backgroundColor: C.surface,
+        backgroundColor: colors.surface,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        borderBottomWidth: 1,
-        borderBottomColor: '#F8FAFC',
     },
     headerSub: {
         fontSize: 12,
         ...FONT.semibold,
-        color: C.primary,
+        color: colors.primary,
         textTransform: 'uppercase',
         letterSpacing: 1,
     },
-    title: { fontSize: 24, ...FONT.heavy, color: C.dark },
+    title: { fontSize: 24, ...FONT.heavy, color: colors.textPrimary },
     miniCommIcon: {
         width: 44,
         height: 44,
@@ -605,14 +590,8 @@ const styles = StyleSheet.create({
         backgroundColor: '#FFFFFF',
         alignItems: 'center',
         justifyContent: 'center',
-        borderWidth: 1,
-        borderColor: '#F1F5F9',
         position: 'relative',
-        shadowColor: '#000',
-        shadowOpacity: 0.04,
-        shadowRadius: 6,
-        shadowOffset: { width: 0, height: 2 },
-        elevation: 1,
+        ...shadows.sm,
     },
     bellDot: {
         position: 'absolute',
@@ -628,7 +607,7 @@ const styles = StyleSheet.create({
     sectionTitle: {
         fontSize: 15,
         ...FONT.bold,
-        color: C.dark,
+        color: colors.textPrimary,
         marginBottom: 4,
         paddingLeft: 4,
     },
@@ -638,8 +617,6 @@ const styles = StyleSheet.create({
         backgroundColor: '#FFF0F2',
         borderRadius: 28,
         padding: 24,
-        borderWidth: 1,
-        borderColor: '#FECDD3',
         gap: 16,
     },
     alertContentRow: {
@@ -715,8 +692,6 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         gap: 8,
         backgroundColor: '#FFF',
-        borderWidth: 1,
-        borderColor: '#E2E8F0',
         paddingVertical: 12,
         borderRadius: 14,
     },
@@ -728,23 +703,17 @@ const styles = StyleSheet.create({
 
     // Guardian Shield empty card
     guardianCard: {
-        backgroundColor: C.surface,
-        borderWidth: 1,
-        borderColor: C.border,
+        backgroundColor: colors.surface,
         borderRadius: 28,
         padding: 24,
         alignItems: 'center',
-        shadowColor: C.dark,
-        shadowOpacity: 0.02,
-        shadowRadius: 10,
-        shadowOffset: { width: 0, height: 4 },
-        elevation: 1,
+        ...shadows.card,
     },
     shieldBackground: {
         width: 80,
         height: 80,
         borderRadius: 40,
-        backgroundColor: C.successLight,
+        backgroundColor: colors.successLight,
         alignItems: 'center',
         justifyContent: 'center',
         marginBottom: 16,
@@ -752,13 +721,13 @@ const styles = StyleSheet.create({
     guardianTitle: {
         fontSize: 18,
         ...FONT.bold,
-        color: C.dark,
+        color: colors.textPrimary,
         marginBottom: 8,
     },
     guardianDesc: {
         fontSize: 13,
         ...FONT.medium,
-        color: C.mid,
+        color: colors.textSecondary,
         textAlign: 'center',
         lineHeight: 20,
         paddingHorizontal: 8,
@@ -769,13 +738,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#FFF',
         borderRadius: 28,
         padding: 24,
-        borderWidth: 1,
-        borderColor: '#F1F5F9',
-        shadowColor: '#000',
-        shadowOpacity: 0.01,
-        shadowRadius: 10,
-        shadowOffset: { width: 0, height: 4 },
-        elevation: 1,
+        ...shadows.card,
     },
     securityCheckupHeader: {
         flexDirection: 'row',
@@ -786,12 +749,12 @@ const styles = StyleSheet.create({
     checkupCardTitle: {
         fontSize: 15,
         ...FONT.bold,
-        color: C.dark,
+        color: colors.textPrimary,
     },
     checkupCardSub: {
         fontSize: 12,
         ...FONT.medium,
-        color: C.mid,
+        color: colors.textSecondary,
         marginTop: 2,
     },
     allGoodBadge: {
@@ -843,12 +806,12 @@ const styles = StyleSheet.create({
     checkupItemName: {
         fontSize: 13,
         ...FONT.bold,
-        color: C.dark,
+        color: colors.textPrimary,
     },
     checkupItemDesc: {
         fontSize: 11,
         ...FONT.medium,
-        color: C.light,
+        color: colors.textMuted,
     },
     statusBadge: {
         paddingHorizontal: 8,
@@ -898,9 +861,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#FFF',
         borderRadius: 28,
         padding: 20,
-        borderWidth: 1,
-        borderColor: '#F1F5F9',
-        gap: 16,
+        ...shadows.card,
     },
     timelineRow: {
         flexDirection: 'row',
@@ -915,12 +876,12 @@ const styles = StyleSheet.create({
     timelineTimeText: {
         fontSize: 11,
         ...FONT.bold,
-        color: C.dark,
+        color: colors.textPrimary,
     },
     timelineDateText: {
         fontSize: 9,
         ...FONT.medium,
-        color: C.light,
+        color: colors.textMuted,
         marginTop: 2,
     },
     timelineLineCol: {
@@ -955,8 +916,6 @@ const styles = StyleSheet.create({
         borderRadius: 20,
         paddingHorizontal: 10,
         paddingVertical: 12,
-        borderWidth: 1,
-        borderColor: '#F1F5F9',
     },
     timelineIconContainer: {
         width: 32,
@@ -968,18 +927,18 @@ const styles = StyleSheet.create({
     timelineItemTitle: {
         fontSize: 12,
         ...FONT.bold,
-        color: C.dark,
+        color: colors.textPrimary,
     },
     timelineItemDesc: {
         fontSize: 10,
         ...FONT.medium,
-        color: C.mid,
+        color: colors.textSecondary,
         lineHeight: 14,
     },
     timelineItemSub: {
         fontSize: 9,
         ...FONT.bold,
-        color: C.light,
+        color: colors.textMuted,
         marginTop: 1,
     },
     timelineBadge: {
