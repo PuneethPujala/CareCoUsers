@@ -967,7 +967,7 @@ export default function PatientHomeScreen({ navigation }) {
             <View style={{ flex: 1, backgroundColor: '#F8FAFC' }}>
                 <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
                 <View style={styles.skeletonHeader}>
-                    <View style={{ paddingHorizontal: spacing.screen }}>
+                    <View style={{ paddingHorizontal: spacing.heroScreen }}>
                         <SkeletonItem width={180} height={28} borderRadius={10} style={{ marginBottom: 8 }} />
                         <SkeletonItem width={240} height={14} borderRadius={6} style={{ marginBottom: 28 }} />
                     </View>
@@ -1543,12 +1543,12 @@ const styles = StyleSheet.create({
     premiumBannerSub: { fontSize: 13, color: '#9333EA', fontWeight: '500', marginTop: 2, lineHeight: 18 },
 
     // ── Skeleton ──
-    skeletonHeader: { paddingTop: Platform.OS === 'ios' ? 60 : 44, paddingBottom: 20, backgroundColor: colors.background, paddingHorizontal: spacing.screen },
+    skeletonHeader: { paddingTop: Platform.OS === 'ios' ? 60 : 44, paddingBottom: 20, backgroundColor: colors.background, paddingHorizontal: spacing.heroScreen },
 
     // ── Header ──
     header: {
         paddingTop: Platform.OS === 'ios' ? 60 : 48,
-        paddingHorizontal: spacing.screen, paddingBottom: 14,
+        paddingHorizontal: spacing.heroScreen, paddingBottom: 14,
         backgroundColor: colors.background,
     },
     mainHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
@@ -2131,7 +2131,7 @@ const styles = StyleSheet.create({
     tipText: { fontSize: 14, color: '#3730A3', lineHeight: 22, fontWeight: '500' },
 
     // ── Scroll Content ──
-    scrollContent: { paddingHorizontal: spacing.screen, paddingTop: 16, paddingBottom: layout.TAB_BAR_CLEARANCE },
+    scrollContent: { paddingHorizontal: spacing.heroScreen, paddingTop: 16, paddingBottom: layout.TAB_BAR_CLEARANCE },
 
     // ── Sections ──
     section: { marginBottom: 32 },
