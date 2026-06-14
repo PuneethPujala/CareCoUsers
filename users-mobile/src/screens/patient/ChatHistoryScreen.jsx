@@ -13,6 +13,7 @@ import usePatientStore from '../../store/usePatientStore';
 import { apiService, handleApiError } from '../../lib/api';
 import AlertManager from '../../utils/AlertManager';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import CompanionHeader from '../../components/ui/CompanionHeader';
 
 export const globalChatCache = {}; // Keyed by sessionId: { messages, title, updatedAt, sessionId }
 let cachedSessions = null;
@@ -259,12 +260,36 @@ export default function ChatHistoryScreen() {
     };
 
     const canGoBack = navigation.canGoBack();
+    const useCompanionHeader = isCompanion;
 
     return (
-        <View style={[styles.container, { paddingTop: canGoBack ? insets.top : 50 }]}>
-            <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+        <View style={[styles.container, { paddingTop: useCompanionHeader ? 0 : (canGoBack ? insets.top : 50) }]}>
+            {!useCompanionHeader && <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />}
             
             {/* ── Header ── */}
+            {useCompanionHeader ? (
+                <CompanionHeader
+                    subtitle="Care Assistant"
+                    title="Conversations"
+                    onBack={canGoBack ? () => navigation.goBack() : null}
+                    right={(
+                        <Pressable
+                            onPress={handleCreateSession}
+                            disabled={isCreating}
+                            style={({ pressed }) => [
+                                styles.newChatBtn,
+                                pressed && { opacity: 0.85 }
+                            ]}
+                        >
+                            {isCreating ? (
+                                <ActivityIndicator size="small" color="#FFFFFF" />
+                            ) : (
+                                <Plus size={22} color="#FFF" strokeWidth={2.5} />
+                            )}
+                        </Pressable>
+                    )}
+                />
+            ) : (
             <View style={styles.header}>
                 <View style={styles.headerTitleContainer}>
                     {canGoBack && (
@@ -293,6 +318,7 @@ export default function ChatHistoryScreen() {
                     )}
                 </Pressable>
             </View>
+            )}
 
             {/* ── Content ── */}
             {isLoading ? (
@@ -307,7 +333,7 @@ export default function ChatHistoryScreen() {
                     keyExtractor={item => item._id}
                     contentContainerStyle={[
                         styles.listContent,
-                        { paddingBottom: canGoBack ? 40 : layout.TAB_BAR_CLEARANCE }
+                        { paddingBottom: isCompanion ? layout.TAB_BAR_CLEARANCE + 72 : (canGoBack ? 40 : layout.TAB_BAR_CLEARANCE) }
                     ]}
                     showsVerticalScrollIndicator={false}
                     ListHeaderComponent={

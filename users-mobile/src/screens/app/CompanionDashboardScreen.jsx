@@ -1,12 +1,13 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, RefreshControl, Pressable, Dimensions, Linking, ActivityIndicator, Image, Animated } from 'react-native';
 import { apiService } from '../../lib/api';
-import { HeartPulse, Activity, Bell, Phone, Send, ChevronRight, MessageSquare, ShieldCheck, AlertCircle, ChevronLeft, RefreshCw, Bluetooth, Lightbulb, Sparkles, TrendingUp, Calendar } from 'lucide-react-native';
+import { HeartPulse, Activity, Bell, Phone, Send, ChevronRight, MessageSquare, ShieldCheck, AlertCircle, RefreshCw, Bluetooth, Lightbulb, Sparkles, TrendingUp, Calendar } from 'lucide-react-native';
 import AlertManager from '../../utils/AlertManager';
 import { colors, radius, spacing, shadows, layout, motion, anim, useReduceMotion } from '../../theme';
 import usePatientStore from '../../store/usePatientStore';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import Svg, { Path, Circle, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
+import CompanionHeader from '../../components/ui/CompanionHeader';
 
 const { width } = Dimensions.get('window');
 
@@ -15,6 +16,11 @@ const FONT = {
     semibold: { fontFamily: 'Inter_600SemiBold' },
     bold: { fontFamily: 'Inter_700Bold' },
     heavy: { fontFamily: 'Inter_800ExtraBold' },
+};
+
+const sanitizePhoneForLink = (phone) => {
+    if (!phone) return '';
+    return String(phone).replace(/[^\d+]/g, '');
 };
 
 const formatDate = (dateInput, formatStr) => {
@@ -72,9 +78,9 @@ export default function CompanionDashboardScreen() {
         return [
             'summary',
             (data.refill_alerts && data.refill_alerts.length > 0) ? 'refill' : null,
+            'intervention_center',
             'briefing',
             (priorityActions && priorityActions.length > 0) ? 'needs_attention' : null,
-            'intervention_center',
             'intelligence_center',
             'refresh',
             'quick_actions',
@@ -209,8 +215,9 @@ export default function CompanionDashboardScreen() {
 
     const handleCall = () => {
         const phone = data.patient.phone;
-        if (phone) {
-            Linking.openURL(`tel:${phone}`);
+        const dialablePhone = sanitizePhoneForLink(phone);
+        if (dialablePhone) {
+            Linking.openURL(`tel:${dialablePhone}`);
         } else {
             AlertManager.alert('No Phone Number', `${data.patient.name} does not have a phone number configured.`);
         }
@@ -345,19 +352,17 @@ export default function CompanionDashboardScreen() {
                 </Svg>
             </View>
 
-            <View style={styles.header}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                    <Pressable onPress={() => navigation.goBack()} style={({ pressed }) => [{ padding: 4, marginLeft: -4 }, pressed && { opacity: 0.6 }]}><ChevronLeft color={colors.textPrimary} size={28} /></Pressable>
-                    <View>
-                        <Text style={styles.headerSub}>Family Care Portal</Text>
-                        <Text style={styles.title}>{data.patient.name}'s Health</Text>
-                    </View>
-                </View>
-                <Pressable style={({ pressed }) => [styles.bellButton, pressed && { opacity: 0.7 }]} onPress={() => navigation.navigate('CompanionAlerts')}>
-                    <Bell color={colors.textPrimary} size={20} />
-                    {data.recent_alerts?.length > 0 && <View style={styles.bellDot} />}
-                </Pressable>
-            </View>
+            <CompanionHeader
+                subtitle="Family Care Portal"
+                title={`${data.patient.name}'s Health`}
+                onBack={() => navigation.goBack()}
+                right={(
+                    <Pressable style={({ pressed }) => [styles.bellButton, pressed && { opacity: 0.7 }]} onPress={() => navigation.navigate('CompanionAlerts')}>
+                        <Bell color={colors.textPrimary} size={20} />
+                        {data.recent_alerts?.length > 0 && <View style={styles.bellDot} />}
+                    </Pressable>
+                )}
+            />
 
             <ScrollView 
                 contentContainerStyle={styles.content}
@@ -460,10 +465,22 @@ export default function CompanionDashboardScreen() {
 
                 {/* Card 2: Needs Attention */}
                 {visibleSections.includes('needs_attention') && (
-                    <Animated.View style={[styles.card, { borderColor: colors.primarySoft, borderWidth: 1.5 }, sectionAnimForKey('needs_attention')]}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                            <AlertCircle color={colors.danger} size={18} />
-                            <Text style={[styles.cardTitle, { color: colors.danger }]}>Needs Attention</Text>
+                    <Animated.View style={[styles.attentionCard, sectionAnimForKey('needs_attention')]}>
+                        <View style={styles.attentionHeader}>
+                            <View style={styles.attentionTitleRow}>
+                                <View style={styles.attentionIconBox}>
+                                    <AlertCircle color={colors.danger} size={18} />
+                                </View>
+                                <View>
+                                    <Text style={styles.attentionEyebrow}>Priority Queue</Text>
+                                    <Text style={styles.attentionTitle}>Needs Attention</Text>
+                                </View>
+                            </View>
+                            <View style={styles.attentionCountBadge}>
+                                <Text style={styles.attentionCountText}>
+                                    {priorityActions.length} issue{priorityActions.length === 1 ? '' : 's'}
+                                </Text>
+                            </View>
                         </View>
                         <View style={styles.priorityActionsList}>
                             {priorityActions.map((action, idx) => {
@@ -903,23 +920,6 @@ export default function CompanionDashboardScreen() {
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
-    header: { 
-        paddingTop: 60, 
-        paddingHorizontal: 24, 
-        paddingBottom: 16, 
-        backgroundColor: colors.surface,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-    },
-    headerSub: {
-        fontSize: 12,
-        ...FONT.semibold,
-        color: colors.primary,
-        textTransform: 'uppercase',
-        letterSpacing: 1,
-    },
-    title: { fontSize: 24, ...FONT.heavy, color: colors.textPrimary },
     bellButton: {
         width: 44,
         height: 44,
@@ -941,7 +941,8 @@ const styles = StyleSheet.create({
     },
     content: {
         paddingHorizontal: spacing.screen,
-        paddingBottom: layout.TAB_BAR_CLEARANCE,
+        paddingTop: 20,
+        paddingBottom: layout.TAB_BAR_CLEARANCE + 72,
         gap: 16,
     },
     card: {

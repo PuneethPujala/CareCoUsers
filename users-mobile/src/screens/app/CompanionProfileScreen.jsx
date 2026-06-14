@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Switch, Share, Image } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import { apiService } from '../../lib/api';
-import { LogOut, ShieldCheck, Heart, User, Settings, ArrowRight, UserCheck, Share2, Phone, ChevronLeft } from 'lucide-react-native';
+import { LogOut, ShieldCheck, Heart, User, Settings, ArrowRight, UserCheck, Share2, Phone } from 'lucide-react-native';
 import { handleAvatarPicker, deleteOldAvatar, pickRawImage, uploadCroppedAvatar } from '../../utils/avatarHelper';
 import AvatarSelectModal from '../../components/ui/AvatarSelectModal';
 import AvatarCropModal from '../../components/ui/AvatarCropModal';
@@ -10,6 +10,7 @@ import { colors, radius, spacing, shadows, layout } from '../../theme';
 import AlertManager from '../../utils/AlertManager';
 import { useNavigation } from '@react-navigation/native';
 import LegalModal from '../../components/ui/LegalModal';
+import CompanionHeader from '../../components/ui/CompanionHeader';
 
 
 
@@ -146,17 +147,11 @@ export default function CompanionProfileScreen() {
 
     return (
         <View style={styles.container}>
-            <View style={styles.header}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                    <Pressable onPress={() => navigation.goBack()} style={({ pressed }) => [{ padding: 4, marginLeft: -4 }, pressed && { opacity: 0.6 }]}>
-                        <ChevronLeft color={C.dark} size={28} />
-                    </Pressable>
-                    <View>
-                        <Text style={styles.headerSub}>Account Setting</Text>
-                        <Text style={styles.title}>Companion Profile</Text>
-                    </View>
-                </View>
-            </View>
+            <CompanionHeader
+                subtitle="Account Setting"
+                title="Companion Profile"
+                onBack={() => navigation.goBack()}
+            />
 
             <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
                 {/* 1. Profile Identity Card */}
@@ -332,23 +327,8 @@ export default function CompanionProfileScreen() {
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
     loadingContainer: { flex: 1, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center' },
-    header: { 
-        paddingTop: 60, 
-        paddingHorizontal: 24, 
-        paddingBottom: 20, 
-        backgroundColor: colors.surface,
-    },
-    headerSub: {
-        fontSize: 12,
-        ...FONT.semibold,
-        color: colors.primary,
-        textTransform: 'uppercase',
-        letterSpacing: 1,
-    },
-    title: { fontSize: 24, ...FONT.heavy, color: colors.textPrimary },
-    
     scroll: { flex: 1 },
-    content: { padding: 20, gap: 20, paddingBottom: layout.TAB_BAR_CLEARANCE },
+    content: { padding: 20, gap: 20, paddingBottom: layout.TAB_BAR_CLEARANCE + 72 },
 
     // Identity Card
     profileCard: {

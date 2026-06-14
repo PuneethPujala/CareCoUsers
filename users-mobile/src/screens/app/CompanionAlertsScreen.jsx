@@ -2,11 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, RefreshControl, Pressable, Linking, Image } from 'react-native';
 import { apiService } from '../../lib/api';
 import { colors, radius, spacing, shadows, layout } from '../../theme';
-import { Bell, CheckCircle2, ShieldCheck, ShieldAlert, Phone, Clock, ChevronRight, Activity, Check, ChevronLeft, Shield, MessageSquare } from 'lucide-react-native';
+import { Bell, CheckCircle2, ShieldCheck, ShieldAlert, Phone, Clock, ChevronRight, Activity, Check, Shield, MessageSquare } from 'lucide-react-native';
 import usePatientStore from '../../store/usePatientStore';
 import { useNavigation } from '@react-navigation/native';
 import AlertManager from '../../utils/AlertManager';
 import Svg, { Path, Circle, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
+import CompanionHeader from '../../components/ui/CompanionHeader';
 
 const C = {
     bg: colors.background,
@@ -29,6 +30,12 @@ const FONT = {
     semibold: { fontFamily: 'Inter_600SemiBold' },
     bold: { fontFamily: 'Inter_700Bold' },
     heavy: { fontFamily: 'Inter_800ExtraBold' },
+};
+
+const sanitizePhoneForLink = (phone, allowPlus = true) => {
+    if (!phone) return '';
+    const pattern = allowPlus ? /[^\d+]/g : /[^\d]/g;
+    return String(phone).replace(pattern, '');
 };
 
 const getAlertTitle = (type) => {
@@ -122,8 +129,9 @@ export default function CompanionAlertsScreen() {
 
     const handleCall = () => {
         const phone = data?.patient?.phone;
-        if (phone) {
-            Linking.openURL(`tel:${phone}`);
+        const dialablePhone = sanitizePhoneForLink(phone);
+        if (dialablePhone) {
+            Linking.openURL(`tel:${dialablePhone}`);
         } else {
             AlertManager.alert('No Phone Number', `${data?.patient?.name || 'The patient'} does not have a phone number configured.`);
         }
@@ -229,55 +237,44 @@ export default function CompanionAlertsScreen() {
                 </Svg>
             </View>
 
-            <View style={styles.header}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
-                    <Pressable onPress={() => navigation.goBack()} style={{ padding: 4, marginLeft: -4 }}>
-                        <ChevronLeft color={C.dark} size={28} />
-                    </Pressable>
-                    <View style={{ flex: 1 }}>
-                        <Text style={styles.headerSub}>Alert Center</Text>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                            <Text style={styles.title} numberOfLines={1} adjustsFontSizeToFit>{data.patient.name}'s Alerts</Text>
-                            {alerts.length > 0 && (
-                                <View style={styles.headerBadge}>
-                                    <Text style={styles.headerBadgeText}>{alerts.length} Active</Text>
-                                </View>
-                            )}
-                        </View>
-                    </View>
-                </View>
-                
-                {/* Header Actions Row */}
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <Pressable 
-                        onPress={() => {
-                            const phone = data?.patient?.phone;
-                            if (phone) {
-                                Linking.openURL(`https://wa.me/${phone.replace(/[^0-9]/g, '')}`);
-                            } else {
-                                AlertManager.alert('No Phone Number', `${data.patient.name} does not have a phone number configured.`);
-                            }
-                        }} 
-                        style={[styles.miniCommIcon, { backgroundColor: '#ECFDF5' }]}
-                    >
-                        <MessageSquare color="#10B981" size={18} strokeWidth={2.5} />
-                    </Pressable>
-                    <Pressable 
-                        onPress={handleCall} 
-                        style={[styles.miniCommIcon, { backgroundColor: '#EFF6FF' }]}
-                    >
-                        <Phone color="#3B82F6" size={18} strokeWidth={2.5} />
-                    </Pressable>
-                    
-                    <Pressable 
-                        style={styles.bellButton}
-                        onPress={() => loadData()}
-                    >
-                        <Bell color={C.dark} size={20} />
-                        {alerts.length > 0 && <View style={styles.bellDot} />}
-                    </Pressable>
-                </View>
-            </View>
+            <CompanionHeader
+                subtitle="Alert Center"
+                title={`${data.patient.name}'s Alerts`}
+                badge={alerts.length > 0 ? `${alerts.length} Active` : null}
+                onBack={() => navigation.goBack()}
+                right={(
+                    <>
+                        <Pressable
+                            onPress={() => {
+                                const phone = data?.patient?.phone;
+                                const whatsappPhone = sanitizePhoneForLink(phone, false);
+                                if (whatsappPhone) {
+                                    Linking.openURL(`https://wa.me/${whatsappPhone}`);
+                                } else {
+                                    AlertManager.alert('No Phone Number', `${data.patient.name} does not have a phone number configured.`);
+                                }
+                            }}
+                            style={[styles.miniCommIcon, { backgroundColor: '#ECFDF5' }]}
+                        >
+                            <MessageSquare color="#10B981" size={18} strokeWidth={2.5} />
+                        </Pressable>
+                        <Pressable
+                            onPress={handleCall}
+                            style={[styles.miniCommIcon, { backgroundColor: '#EFF6FF' }]}
+                        >
+                            <Phone color="#3B82F6" size={18} strokeWidth={2.5} />
+                        </Pressable>
+
+                        <Pressable
+                            style={styles.bellButton}
+                            onPress={() => loadData()}
+                        >
+                            <Bell color={C.dark} size={20} />
+                            {alerts.length > 0 && <View style={styles.bellDot} />}
+                        </Pressable>
+                    </>
+                )}
+            />
 
             <ScrollView 
                 contentContainerStyle={styles.content}
@@ -291,14 +288,14 @@ export default function CompanionAlertsScreen() {
                             <View key={a._id} style={styles.premiumAlertCard}>
                                 <View style={styles.alertContentRow}>
                                     {/* Left: Shield Icon & Content */}
-                                    <View style={{ flex: 1, gap: 6 }}>
-                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                                    <View style={styles.alertTextColumn}>
+                                        <View style={styles.alertTitleRow}>
                                             <View style={styles.alertIconCircle}>
                                                 <ShieldAlert color="#E11D48" size={22} />
                                             </View>
-                                            <View>
+                                            <View style={styles.alertHeaderText}>
                                                 <Text style={styles.priorityLabel}>HIGH PRIORITY</Text>
-                                                <Text style={styles.alertTitleText}>{getAlertTitle(a.type)}</Text>
+                                                <Text style={styles.alertTitleText} numberOfLines={2}>{getAlertTitle(a.type)}</Text>
                                             </View>
                                         </View>
                                         <Text style={styles.alertDescText}>{a.description}</Text>
@@ -561,46 +558,17 @@ export default function CompanionAlertsScreen() {
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
-    header: { 
-        paddingTop: 60, 
-        paddingHorizontal: 24, 
-        paddingBottom: 16, 
-        backgroundColor: colors.surface,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-    },
-    headerSub: {
-        fontSize: 12,
-        ...FONT.semibold,
-        color: colors.primary,
-        textTransform: 'uppercase',
-        letterSpacing: 1,
-    },
-    title: { fontSize: 24, ...FONT.heavy, color: colors.textPrimary },
     miniCommIcon: {
-        width: 44,
-        height: 44,
-        borderRadius: 22,
+        width: 40,
+        height: 40,
+        borderRadius: 20,
         alignItems: 'center',
         justifyContent: 'center',
     },
-    headerBadge: {
-        backgroundColor: '#FFF0F2',
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-        borderRadius: 12,
-        alignSelf: 'center',
-    },
-    headerBadgeText: {
-        color: '#E11D48',
-        fontSize: 11,
-        ...FONT.bold,
-    },
     bellButton: {
-        width: 44,
-        height: 44,
-        borderRadius: 22,
+        width: 42,
+        height: 42,
+        borderRadius: 21,
         backgroundColor: '#FFFFFF',
         alignItems: 'center',
         justifyContent: 'center',
@@ -616,7 +584,7 @@ const styles = StyleSheet.create({
         borderRadius: 4,
         backgroundColor: '#E11D48',
     },
-    content: { padding: 20, gap: 20, paddingBottom: layout.TAB_BAR_CLEARANCE },
+    content: { padding: 20, gap: 20, paddingBottom: layout.TAB_BAR_CLEARANCE + 72 },
     section: { gap: 12 },
     sectionTitle: {
         fontSize: 15,
@@ -629,19 +597,34 @@ const styles = StyleSheet.create({
     // Premium Alert Card Styles
     premiumAlertCard: {
         backgroundColor: '#FFF0F2',
-        borderRadius: 28,
-        padding: 24,
-        gap: 16,
+        borderRadius: 24,
+        padding: 20,
+        gap: 14,
     },
     alertContentRow: {
         flexDirection: 'row',
+        alignItems: 'flex-start',
+        gap: 10,
+    },
+    alertTextColumn: {
+        flex: 1,
+        minWidth: 0,
+        gap: 8,
+    },
+    alertTitleRow: {
+        flexDirection: 'row',
         alignItems: 'center',
-        gap: 12,
+        gap: 10,
+        minWidth: 0,
+    },
+    alertHeaderText: {
+        flex: 1,
+        minWidth: 0,
     },
     alertIconCircle: {
-        width: 44,
-        height: 44,
-        borderRadius: 22,
+        width: 42,
+        height: 42,
+        borderRadius: 21,
         backgroundColor: '#FFE4E6',
         alignItems: 'center',
         justifyContent: 'center',
@@ -653,9 +636,10 @@ const styles = StyleSheet.create({
         letterSpacing: 0.5,
     },
     alertTitleText: {
-        fontSize: 18,
+        fontSize: 17,
         ...FONT.bold,
         color: '#9F1239',
+        lineHeight: 22,
     },
     alertDescText: {
         fontSize: 13,
@@ -675,14 +659,15 @@ const styles = StyleSheet.create({
         color: '#9F1239',
     },
     calendarIllusImage: {
-        width: 80,
-        height: 80,
-        borderRadius: 16,
+        width: 68,
+        height: 68,
+        borderRadius: 14,
         overflow: 'hidden',
+        marginTop: 8,
     },
     alertActionsRow: {
         flexDirection: 'row',
-        gap: 12,
+        gap: 10,
     },
     callNowBtn: {
         flex: 1,
@@ -691,7 +676,8 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         gap: 8,
         backgroundColor: '#E11D48',
-        paddingVertical: 12,
+        minHeight: 48,
+        paddingVertical: 11,
         borderRadius: 14,
     },
     callNowBtnText: {
@@ -706,7 +692,8 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         gap: 8,
         backgroundColor: '#FFF',
-        paddingVertical: 12,
+        minHeight: 48,
+        paddingVertical: 11,
         borderRadius: 14,
     },
     dismissBtnText: {
