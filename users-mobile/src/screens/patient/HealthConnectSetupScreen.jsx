@@ -25,11 +25,11 @@ import { motion, anim, useReduceMotion } from '../../theme';
 const { width: SW } = Dimensions.get('window');
 
 // ── Image Assets ──
-const galaxyWatchImg = require('../../../assets/galaxy_watch.png');
-const fitbitImg = require('../../../assets/fitbit.png');
-const pixelWatchImg = require('../../../assets/pixel_watch.png');
-const garminImg = require('../../../assets/garmin.png');
-const ouraRingImg = require('../../../assets/oura_ring.png');
+const galaxyWatchImg = require('../../../assets/galaxy_watch.jpg');
+const fitbitImg = require('../../../assets/fitbit.jpg');
+const pixelWatchImg = require('../../../assets/pixel_watch.jpg');
+const garminImg = require('../../../assets/garmin.jpg');
+const ouraRingImg = require('../../../assets/oura_ring.jpg');
 
 // ── Typography ──
 const FONT = {
