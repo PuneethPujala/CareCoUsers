@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, Dimensions } from 'react-native';
 import Svg, { Path, Rect, Circle, Line, Text as SvgText, Defs, LinearGradient, Stop, G } from 'react-native-svg';
 import { colors, typography } from '../../theme';
 
@@ -18,8 +18,45 @@ const PremiumTrendChart = ({
     paddingTop = 15,
     paddingBottom = 25,
     projectionValue, // 14-day projection value
+    emptyIcon,
+    emptyLabel,
+    emptySubLabel,
 }) => {
     if (!data || data.length === 0) {
+        if (emptyIcon || emptyLabel) {
+            const chartW = SCREEN_WIDTH - 48;
+            // Faint mock graph path — an organic-looking wave at 8% opacity
+            const mockH = height;
+            const mockPath = `M 0 ${mockH * 0.65} Q ${chartW * 0.12} ${mockH * 0.55}, ${chartW * 0.22} ${mockH * 0.6} T ${chartW * 0.42} ${mockH * 0.45} T ${chartW * 0.62} ${mockH * 0.52} T ${chartW * 0.82} ${mockH * 0.35} T ${chartW} ${mockH * 0.42}`;
+            const mockArea = `${mockPath} L ${chartW} ${mockH} L 0 ${mockH} Z`;
+            return (
+                <View style={[styles.container, styles.emptyContainer, { height }]}>
+                    {/* Faint ghost chart */}
+                    <View style={StyleSheet.absoluteFill}>
+                        <Svg width="100%" height="100%">
+                            <Defs>
+                                <LinearGradient id="emptyGrad" x1="0" y1="0" x2="0" y2="1">
+                                    <Stop offset="0%" stopColor={color} stopOpacity="0.06" />
+                                    <Stop offset="100%" stopColor={color} stopOpacity="0.00" />
+                                </LinearGradient>
+                            </Defs>
+                            <Path d={mockArea} fill="url(#emptyGrad)" />
+                            <Path d={mockPath} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" opacity="0.10" />
+                            {/* Faint grid lines */}
+                            {[0.3, 0.5, 0.7].map((pct, i) => (
+                                <Line key={i} x1={0} y1={mockH * pct} x2={chartW} y2={mockH * pct} stroke={colors.borderLight} strokeWidth="1" strokeDasharray="3 3" opacity="0.4" />
+                            ))}
+                        </Svg>
+                    </View>
+                    {/* Centered label overlay */}
+                    <View style={styles.emptyOverlay}>
+                        {emptyIcon ? <Text style={styles.emptyIcon}>{emptyIcon}</Text> : null}
+                        {emptyLabel ? <Text style={styles.emptyLabel}>{emptyLabel}</Text> : null}
+                        {emptySubLabel ? <Text style={styles.emptySubLabel}>{emptySubLabel}</Text> : null}
+                    </View>
+                </View>
+            );
+        }
         return <View style={[styles.container, { height }]} />;
     }
 
@@ -250,6 +287,35 @@ const styles = StyleSheet.create({
     container: {
         width: '100%',
         marginVertical: 8,
+    },
+    emptyContainer: {
+        justifyContent: 'center',
+        alignItems: 'center',
+        overflow: 'hidden',
+    },
+    emptyOverlay: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingHorizontal: 24,
+    },
+    emptyIcon: {
+        fontSize: 28,
+        marginBottom: 8,
+    },
+    emptyLabel: {
+        fontSize: 13,
+        fontFamily: 'Inter_600SemiBold',
+        color: '#64748B',
+        textAlign: 'center',
+        lineHeight: 18,
+    },
+    emptySubLabel: {
+        fontSize: 11,
+        fontFamily: 'Inter_500Medium',
+        color: '#94A3B8',
+        textAlign: 'center',
+        marginTop: 4,
+        lineHeight: 16,
     },
 });
 

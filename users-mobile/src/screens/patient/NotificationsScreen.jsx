@@ -29,6 +29,22 @@ const SkeletonItem = ({ width, height, borderRadius = 8, style }) => {
 
 
 
+const C = {
+    bg: colors.background,
+    surface: colors.surface,
+    primary: colors.primary,
+    primaryDark: colors.primaryMid,
+    primarySoft: colors.primarySoft,
+    dark: colors.textPrimary,
+    mid: colors.textSecondary,
+    muted: colors.textMuted,
+    danger: colors.danger,
+    border: colors.borderLight,
+    success: colors.success,
+    successSoft: colors.successLight,
+    light: colors.textMuted,
+};
+
 const FONT = {
     regular: { fontFamily: 'Inter_400Regular' },
     medium: { fontFamily: 'Inter_500Medium' },

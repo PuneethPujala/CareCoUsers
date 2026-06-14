@@ -16,6 +16,7 @@ import { getApiTokens } from '../../lib/tokenStorage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { apiService, handleApiError } from '../../lib/api';
 import AlertManager from '../../utils/AlertManager';
+import { globalChatCache } from './ChatHistoryScreen';
 
 const INITIAL_SUGGESTIONS = [
     '📋 What should I do today?',
@@ -290,6 +291,54 @@ const getMascotForMessage = (text) => {
     return require('../../../assets/doctor_mascot.jpg');
 };
 
+// ── Skeleton message loaders ────────────────────────────────────────────────
+export const SKELETON_MESSAGES = [
+    { id: 'sk-1', isSkeleton: true, isUser: false, width: '75%' },
+    { id: 'sk-2', isSkeleton: true, isUser: false, width: '45%' },
+    { id: 'sk-3', isSkeleton: true, isUser: true, width: '60%' },
+    { id: 'sk-4', isSkeleton: true, isUser: false, width: '90%' },
+];
+
+function ChatBubbleSkeleton({ isUser, width }) {
+    const pulseAnim = useRef(new Animated.Value(0.3)).current;
+    
+    useEffect(() => {
+        const anim = Animated.loop(
+            Animated.sequence([
+                Animated.timing(pulseAnim, { toValue: 1, duration: 1000, useNativeDriver: true }),
+                Animated.timing(pulseAnim, { toValue: 0.3, duration: 1000, useNativeDriver: true })
+            ])
+        );
+        anim.start();
+        return () => anim.stop();
+    }, [pulseAnim]);
+
+    return (
+        <View style={[styles.bubbleRow, isUser && styles.bubbleRowUser]}>
+            {!isUser && (
+                <View style={[styles.botAvatarCircle, { backgroundColor: '#E2E8F0', justifyContent: 'center', alignItems: 'center' }]} />
+            )}
+            <Animated.View 
+                style={[
+                    styles.bubble, 
+                    isUser ? styles.bubbleUser : styles.bubbleBot,
+                    { 
+                        opacity: pulseAnim, 
+                        width: width || '70%', 
+                        height: 55,
+                        backgroundColor: isUser ? '#E0E7FF' : '#E2E8F0',
+                        borderRadius: 16,
+                        borderWidth: 0,
+                    }
+                ]}
+            />
+            {isUser && (
+                <View style={[styles.avatarCircleUser, { backgroundColor: '#E2E8F0' }]} />
+            )}
+        </View>
+    );
+}
+
 // ── Single chat bubble ─────────────────────────────────────────────────────
 function ChatBubble({ message, isUser }) {
     const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -562,35 +611,77 @@ export default function ChatbotScreen({ navigation, route }) {
     
     const isCompanion = userRole === 'companion' || profile?.role === 'companion';
     const targetPatientId = isCompanion ? companionSelectedPatientId : patient?._id;
-    const sessionId = route.params?.sessionId;
+    
+    const routeSessionId = route.params?.sessionId;
+    const [activeSessionId, setActiveSessionId] = useState(routeSessionId);
+
+    // Sync local state if navigation route params change (e.g. user opens a different chat)
+    useEffect(() => {
+        setActiveSessionId(routeSessionId);
+    }, [routeSessionId]);
 
     // Companion specific data fetching
     const [companionData, setCompanionData] = useState(null);
     const [isCompanionLoading, setIsCompanionLoading] = useState(isCompanion);
 
-    // Auto-create chat session if no sessionId is provided
+    const [isHydrating, setIsHydrating] = useState(false);
+    const [lastSyncedAt, setLastSyncedAt] = useState(null);
+
+    const sessionCreationPromiseRef = useRef(null);
+    const sessionAbortRef = useRef(null);
+
+    // Auto-create chat session in the background if no sessionId is provided
     useEffect(() => {
-        if (!sessionId && targetPatientId) {
-            const autoCreate = async () => {
-                try {
-                    setIsLoadingSession(true);
-                    const data = isCompanion ? { patientId: targetPatientId } : {};
+        if (!activeSessionId && targetPatientId) {
+            const initBackgroundCreation = async () => {
+                const data = isCompanion ? { patientId: targetPatientId } : {};
+                
+                // 5-second timeout safeguard for session creation
+                const timeoutPromise = new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error('Session creation timed out')), 5000)
+                );
+                
+                const createPromise = (async () => {
                     const res = await apiService.chatbot.createSession(data);
-                    const newSessionId = res.data._id;
-                    navigation.replace('Chatbot', {
-                        sessionId: newSessionId,
-                        initialMessage: route.params?.initialMessage,
-                        initialQuery: route.params?.initialQuery,
-                        healthContext: route.params?.healthContext
-                    });
+                    return res.data;
+                })();
+                
+                const promise = Promise.race([createPromise, timeoutPromise]);
+                sessionCreationPromiseRef.current = promise;
+                
+                try {
+                    const newSession = await promise;
+                    const newSessionId = newSession._id;
+                    setActiveSessionId(newSessionId);
+                    navigation.setParams({ sessionId: newSessionId });
+                    
+                    // Cache the disclaimer and session structure returned by backend
+                    const sessionMessages = (newSession.messages || []).map(m => ({
+                        id: m._id || String(Math.random()),
+                        text: m.text,
+                        isUser: m.role === 'user',
+                        timestamp: new Date(m.timestamp).getTime(),
+                        cards: m.cards || [],
+                        suggestions: m.suggestions || [],
+                        image: m.image,
+                        audio: m.audio
+                    }));
+                    const sessionData = {
+                        messages: sessionMessages,
+                        title: newSession.title,
+                        updatedAt: newSession.updated_at || newSession.created_at,
+                        sessionId: newSessionId
+                    };
+                    await AsyncStorage.setItem(`chatbot_session_${newSessionId}`, JSON.stringify(sessionData));
                 } catch (err) {
-                    console.warn('Failed to auto-create chatbot session:', err);
-                    setIsLoadingSession(false);
+                    console.warn('[ChatbotScreen] Background session creation failed/timed out:', err.message);
+                } finally {
+                    sessionCreationPromiseRef.current = null;
                 }
             };
-            autoCreate();
+            initBackgroundCreation();
         }
-    }, [sessionId, targetPatientId, isCompanion]);
+    }, [activeSessionId, targetPatientId, isCompanion]);
 
     useEffect(() => {
         const fetchCompanionPatientData = async () => {
@@ -668,8 +759,27 @@ export default function ChatbotScreen({ navigation, route }) {
 
     const firstName = displayName?.split(' ')[0] || 'there';
 
-    const [messages, setMessages] = useState([]);
-    const [isLoadingSession, setIsLoadingSession] = useState(true);
+    const getInitialMessages = () => {
+        if (!routeSessionId) {
+            return [
+                {
+                    id: 'disclaimer-msg',
+                    text: 'CareMyMed AI provides educational guidance and assistance. It does not replace a licensed medical professional. For emergencies, contact emergency services or your healthcare provider immediately.',
+                    isUser: false,
+                    timestamp: Date.now(),
+                    cards: [],
+                    suggestions: []
+                }
+            ];
+        }
+        if (globalChatCache[routeSessionId]) {
+            return globalChatCache[routeSessionId].messages;
+        }
+        return SKELETON_MESSAGES;
+    };
+
+    const [messages, setMessages] = useState(getInitialMessages);
+    const [isLoadingSession, setIsLoadingSession] = useState(false);
 
     const scrollToBottom = useCallback(() => {
         setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
@@ -677,21 +787,57 @@ export default function ChatbotScreen({ navigation, route }) {
 
     useEffect(() => { scrollToBottom(); }, [messages, isTyping]);
 
-    // Load Chat Session from Backend
+    // Load Chat Session from Cache and then Backend
     useEffect(() => {
-        setMessages([]);
-        setFollowUpSuggestions([]);
-        
+        // Abort previous in-flight session loading
+        if (sessionAbortRef.current) {
+            sessionAbortRef.current.abort();
+            sessionAbortRef.current = null;
+        }
+
+        if (!activeSessionId) {
+            // New chat session is already initialized with the disclaimer message in state
+            setIsHydrating(false);
+            setLastSyncedAt(null);
+            setFollowUpSuggestions([]);
+            return;
+        }
+
+        const abortController = new AbortController();
+        sessionAbortRef.current = abortController;
+
         const loadSession = async () => {
-            if (!sessionId) {
-                setIsLoadingSession(false);
-                return;
+            setIsHydrating(true);
+
+            // If we are currently showing skeleton messages (because we didn't have memory cache),
+            // check AsyncStorage first before the network response completes.
+            const isShowingSkeletons = messages.length > 0 && messages[0].isSkeleton;
+            if (isShowingSkeletons) {
+                try {
+                    const localCachedStr = await AsyncStorage.getItem(`chatbot_session_${activeSessionId}`);
+                    if (localCachedStr && !abortController.signal.aborted) {
+                        const localCached = JSON.parse(localCachedStr);
+                        setMessages(localCached.messages);
+                        globalChatCache[activeSessionId] = localCached;
+                        
+                        if (localCached.messages.length > 0) {
+                            const lastMsg = localCached.messages[localCached.messages.length - 1];
+                            if (!lastMsg.isUser && lastMsg.suggestions && lastMsg.suggestions.length > 0) {
+                                setFollowUpSuggestions(lastMsg.suggestions);
+                            }
+                        }
+                    }
+                } catch (err) {
+                    console.warn('[ChatbotScreen] AsyncStorage read failed:', err);
+                }
             }
+
             try {
-                setIsLoadingSession(true);
                 const params = isCompanion ? { patientId: targetPatientId } : {};
-                const res = await apiService.chatbot.getSession(sessionId, params);
+                const res = await apiService.chatbot.getSession(activeSessionId, params, { signal: abortController.signal });
                 
+                if (abortController.signal.aborted) return;
+
                 const sessionMessages = (res.data.messages || []).map(m => ({
                     id: m._id || String(Math.random()),
                     text: m.text,
@@ -702,8 +848,9 @@ export default function ChatbotScreen({ navigation, route }) {
                     image: m.image,
                     audio: m.audio
                 }));
-                
+
                 setMessages(sessionMessages);
+                setLastSyncedAt(Date.now());
                 
                 // Set suggestions from last assistant message
                 if (sessionMessages.length > 0) {
@@ -712,31 +859,57 @@ export default function ChatbotScreen({ navigation, route }) {
                         setFollowUpSuggestions(lastMsg.suggestions);
                     }
                 }
+
+                // Update the memory and local caches
+                const sessionData = {
+                    messages: sessionMessages,
+                    title: res.data.title,
+                    updatedAt: res.data.updated_at || res.data.created_at,
+                    sessionId: activeSessionId
+                };
+                globalChatCache[activeSessionId] = sessionData;
+                await AsyncStorage.setItem(`chatbot_session_${activeSessionId}`, JSON.stringify(sessionData));
                 
                 setTimeout(() => scrollToBottom(), 300);
             } catch (err) {
-                console.warn('Failed to load chat session:', err);
-                AlertManager.alert('Error', 'Could not load conversation messages.', [{ text: 'OK' }], { type: 'error' });
+                if (err.name === 'AbortError' || err.message === 'canceled') {
+                    return; // Ignore abort exceptions
+                }
+                console.warn('[ChatbotScreen] Failed to load chat session from network:', err);
+                
+                // Show error alert only if we have no messages rendered at all (still showing skeletons)
+                const currentIsShowingSkeletons = messages.length > 0 && messages[0].isSkeleton;
+                if (currentIsShowingSkeletons) {
+                    AlertManager.alert('Error', 'Could not load conversation messages.', [{ text: 'OK' }], { type: 'error' });
+                }
             } finally {
-                setIsLoadingSession(false);
+                if (!abortController.signal.aborted) {
+                    setIsHydrating(false);
+                }
             }
         };
+
         loadSession();
-    }, [sessionId, targetPatientId, isCompanion]);
+
+        return () => {
+            if (sessionAbortRef.current) {
+                sessionAbortRef.current.abort();
+                sessionAbortRef.current = null;
+            }
+        };
+    }, [activeSessionId, targetPatientId, isCompanion]);
 
     const hasAutoSent = useRef(false);
 
     useEffect(() => {
-        if (!isLoadingSession && sessionId && !hasAutoSent.current) {
-            const initMsg = route.params?.initialMessage || route.params?.initialQuery;
-            if (initMsg) {
-                hasAutoSent.current = true;
-                setTimeout(() => {
-                    handleSend(initMsg);
-                }, 500);
-            }
+        const initMsg = route.params?.initialMessage || route.params?.initialQuery;
+        if (initMsg && !hasAutoSent.current) {
+            hasAutoSent.current = true;
+            setTimeout(() => {
+                handleSend(initMsg);
+            }, 500);
         }
-    }, [isLoadingSession, sessionId, route.params, handleSend]);
+    }, [route.params, handleSend]);
 
     // Cleanup audio and abort active stream on unmount
     useEffect(() => {
@@ -779,7 +952,7 @@ export default function ChatbotScreen({ navigation, route }) {
     }, [isTyping]); // Don't include typingStage as a dependency to avoid resetting the interval
 
     // ── SSE Streaming API Integration ────────────
-    const streamFromBackend = (userMsg, botMessageId, isAudio = false, recordingUri = null) => {
+    const streamFromBackend = (userMsg, botMessageId, isAudio = false, recordingUri = null, currentSessionId) => {
         return new Promise(async (resolve, reject) => {
             try {
                 // Abort any previous in-flight stream
@@ -802,8 +975,8 @@ export default function ChatbotScreen({ navigation, route }) {
                 if (targetPatientId) {
                     formData.append('patientId', targetPatientId);
                 }
-                if (sessionId) {
-                    formData.append('sessionId', sessionId);
+                if (currentSessionId) {
+                    formData.append('sessionId', currentSessionId);
                 }
 
                 if (isAudio && recordingUri) {
@@ -1010,10 +1183,10 @@ export default function ChatbotScreen({ navigation, route }) {
             timestamp: Date.now(),
         };
         
+        // Optimistically insert user message and bot placeholder instantly
         setMessages(prev => [...prev, userMessage, botPlaceholder]);
         setInputText('');
         setIsTyping(true);
-        // Start the sequential text processing state
         if (isAudioMsg) {
             setTypingStage('🎤 Listening...');
         } else {
@@ -1021,8 +1194,36 @@ export default function ChatbotScreen({ navigation, route }) {
         }
         setFollowUpSuggestions([]);
 
+        let currentSessionId = activeSessionId;
+
         try {
-            await streamFromBackend(msg, botMessageId, isAudioMsg, currentRecordingUri);
+            // Await background session creation if it's currently running
+            if (!currentSessionId && sessionCreationPromiseRef.current) {
+                try {
+                    const newSession = await sessionCreationPromiseRef.current;
+                    currentSessionId = newSession._id;
+                    setActiveSessionId(currentSessionId);
+                    navigation.setParams({ sessionId: currentSessionId });
+                } catch (e) {
+                    console.warn('[ChatbotScreen] Awaiting background session creation failed:', e.message);
+                }
+            }
+
+            // Fallback: If creation failed or timed out previously, create it now
+            if (!currentSessionId) {
+                try {
+                    const data = isCompanion ? { patientId: targetPatientId } : {};
+                    const res = await apiService.chatbot.createSession(data);
+                    currentSessionId = res.data._id;
+                    setActiveSessionId(currentSessionId);
+                    navigation.setParams({ sessionId: currentSessionId });
+                } catch (err) {
+                    console.warn('[ChatbotScreen] Fallback session creation in handleSend failed:', err.message);
+                    throw new Error('Could not initialize conversation session. Please try again.');
+                }
+            }
+
+            await streamFromBackend(msg, botMessageId, isAudioMsg, currentRecordingUri, currentSessionId);
         } catch (error) {
             setMessages(prev =>
                 prev.map(m =>
@@ -1035,8 +1236,25 @@ export default function ChatbotScreen({ navigation, route }) {
         } finally {
             setIsTyping(false);
             setTypingStage('');
+
+            // Synchronize the completed message list with global memory and AsyncStorage caches
+            if (currentSessionId) {
+                setMessages(prev => {
+                    const sessionData = {
+                        messages: prev,
+                        title: route.params?.title || 'Active Chat',
+                        updatedAt: Date.now(),
+                        sessionId: currentSessionId
+                    };
+                    globalChatCache[currentSessionId] = sessionData;
+                    AsyncStorage.setItem(`chatbot_session_${currentSessionId}`, JSON.stringify(sessionData)).catch(e => {
+                        console.warn('[ChatbotScreen] Failed to save chat cache after stream finish:', e.message);
+                    });
+                    return prev;
+                });
+            }
         }
-    }, [inputText, recording, user, patient, isCompanion, companionData, targetPatientId]);
+    }, [inputText, recording, user, patient, isCompanion, companionData, targetPatientId, activeSessionId, route.params]);
 
     const [isCreating, setIsCreating] = useState(false);
 
@@ -1068,7 +1286,7 @@ export default function ChatbotScreen({ navigation, route }) {
     };
 
     const handleDeleteChat = () => {
-        if (!sessionId) return;
+        if (!activeSessionId) return;
         Vibration.vibrate(50);
         AlertManager.alert(
             'Delete Conversation 🗑️',
@@ -1081,7 +1299,12 @@ export default function ChatbotScreen({ navigation, route }) {
                     onPress: async () => {
                         try {
                             const params = isCompanion ? { patientId: targetPatientId } : {};
-                            await apiService.chatbot.deleteSession(sessionId, params);
+                            await apiService.chatbot.deleteSession(activeSessionId, params);
+                            
+                            // Delete local caches
+                            delete globalChatCache[activeSessionId];
+                            await AsyncStorage.removeItem(`chatbot_session_${activeSessionId}`);
+                            
                             navigation.goBack();
                         } catch (err) {
                             console.warn('Failed to delete chat session:', err);
@@ -1213,20 +1436,14 @@ export default function ChatbotScreen({ navigation, route }) {
         })
     ).current;
 
-    const renderMessage = useCallback(({ item }) => (
-        <ChatBubble message={item} isUser={item.isUser} />
-    ), []);
+    const renderMessage = useCallback(({ item }) => {
+        if (item.isSkeleton) {
+            return <ChatBubbleSkeleton isUser={item.isUser} width={item.width} />;
+        }
+        return <ChatBubble message={item} isUser={item.isUser} />;
+    }, []);
 
     const keyExtractor = useCallback((item) => item.id, []);
-
-    if (isLoadingSession) {
-        return (
-            <View style={{ flex: 1, backgroundColor: '#F8FAFC', alignItems: 'center', justifyContent: 'center' }}>
-                <ActivityIndicator size="large" color="#6366F1" />
-                <Text style={{ marginTop: 12, color: '#475569', fontSize: 14, fontWeight: '500' }}>Loading conversation...</Text>
-            </View>
-        );
-    }
 
     return (
         <View style={[styles.screen, { paddingTop: insets.top }]}>
@@ -1245,8 +1462,14 @@ export default function ChatbotScreen({ navigation, route }) {
                     <View>
                         <Text style={styles.headerTitle}>Care Assistant</Text>
                         <View style={styles.onlineRow}>
-                            <View style={styles.onlineDot} />
-                            <Text style={styles.onlineText}>Online</Text>
+                            {isHydrating ? (
+                                <ActivityIndicator size="small" color="#6366F1" style={{ marginRight: 2, transform: [{ scale: 0.7 }] }} />
+                            ) : (
+                                <View style={styles.onlineDot} />
+                            )}
+                            <Text style={styles.onlineText}>
+                                {isHydrating ? 'Syncing...' : lastSyncedAt ? 'Updated just now' : 'Online'}
+                            </Text>
                         </View>
                     </View>
                 </View>
@@ -1282,7 +1505,7 @@ export default function ChatbotScreen({ navigation, route }) {
             {/* ── Messages ── */}
             <KeyboardAvoidingView 
                 style={{ flex: 1 }} 
-                behavior={Platform.OS === 'ios' ? 'padding' : undefined} 
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
             >
                 <FlatList
                     ref={flatListRef}

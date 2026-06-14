@@ -333,6 +333,7 @@ export const apiService = {
         requestCallback: (sid) => api.post(`/users/patients/me/calls/${sid}/callback-request`),
         sendSecureMessageFallback: (sid, text, priority) => api.post(`/users/patients/me/calls/${sid}/secure-message`, { text, priority }),
         submitFeedback: (sid, rating, notes) => api.post(`/users/patients/me/calls/${sid}/feedback`, { rating, notes }),
+        getCopilotContext: () => api.get('/users/patients/copilot/context'),
     },
 
     companion: {
@@ -347,6 +348,9 @@ export const apiService = {
         requestBP: (data) => api.post('/companion/request-bp', data),
         generateInviteCode: (patientId) => api.post(`/companion/patients/${patientId}/invite-code`),
         refreshInsights: (data) => api.post('/companion/patient-status/refresh-insights', data),
+        getInterventions: (params) => api.get('/companion/interventions', { params }),
+        completeIntervention: (data) => api.post('/companion/interventions', data),
+        getExtendedAnalytics: (params) => api.get('/companion/analytics-extended', { params }),
     },
 
     callers: {
@@ -377,7 +381,7 @@ export const apiService = {
     chatbot: {
         getSessions: (params) => api.get('/chatbot/sessions', { params }),
         createSession: (data) => api.post('/chatbot/sessions', data),
-        getSession: (id, params) => api.get(`/chatbot/sessions/${id}`, { params }),
+        getSession: (id, params, config) => api.get(`/chatbot/sessions/${id}`, { params, ...config }),
         deleteSession: (id, params) => api.delete(`/chatbot/sessions/${id}`, { params }),
     },
 };

@@ -13,6 +13,8 @@ const AIChatLog = require('../models/AIChatLog');
 const { performance } = require('perf_hooks');
 const fs = require('fs');
 const path = require('path');
+const { classifyIntent: classifyDeterministicIntent, resolveDeterministicIntent } = require('./intentClassifier');
+
 
 const OLLAMA_URL = process.env.OLLAMA_URL || 'http://localhost:11434';
 const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'llama3:8b';
@@ -525,6 +527,70 @@ async function streamPoCResponse(patientId, userQuery, targetLanguage, res, tran
         return;
     }
 
+    // 1.5 Deterministic Intent Classifier Interceptor (bypasses LLM query entirely)
+    const detIntent = classifyDeterministicIntent(userQuery);
+    if (detIntent) {
+        const resolved = await resolveDeterministicIntent(patientId, detIntent);
+        if (transcribedText) {
+            sendEvent('meta', { transcribedText });
+        }
+        if (resolved.cards && resolved.cards.length > 0) {
+            sendEvent('cards', { items: resolved.cards });
+        }
+        sendEvent('chunk', { text: resolved.text });
+        sendEvent('suggestions', { items: resolved.suggestions });
+        sendEvent('done', {});
+
+        try {
+            await AIChatLog.create({
+                patient_id: patientId,
+                session_id: sessionId || null,
+                prompt: userQuery,
+                retrieved_chunks: [],
+                response: resolved.text,
+                emergency_escalation_triggered: false,
+                translated_language: targetLanguage || 'en',
+                provider: 'deterministic-classifier',
+                model: detIntent,
+                llm_latency_ms: 0,
+                retrieval_latency_ms: 0,
+                end_to_end_latency_ms: Math.round(performance.now() - requestStart),
+                streaming_first_token_ms: 0,
+                prompt_tokens: 0,
+                completion_tokens: 0,
+                total_tokens: 0,
+                retrieved_chunks_count: 0,
+                retrieval_similarity_avg: 0
+            });
+        } catch (logErr) {
+            console.error('[PoC] Deterministic chat log error:', logErr.message);
+        }
+
+        if (sessionId) {
+            try {
+                const AIChatSession = require('../models/AIChatSession');
+                await AIChatSession.updateOne(
+                    { _id: sessionId, patient_id: patientId },
+                    {
+                        $push: {
+                            messages: {
+                                role: 'assistant',
+                                text: resolved.text,
+                                suggestions: resolved.suggestions,
+                                timestamp: new Date()
+                            }
+                        },
+                        $inc: { message_count: 1 }
+                    }
+                );
+            } catch (dbErr) {
+                console.error('[PoC] Deterministic session update failed:', dbErr.message);
+            }
+        }
+        return;
+    }
+
+
     let matchedGuidelines = [];
     let retrievalLatency = 0;
     let retrievedChunksCount = 0;
@@ -910,6 +976,44 @@ async function generatePoCResponse(patientId, userQuery, targetLanguage) {
             contextTokensEstimate: 0
         };
     }
+
+    // 1.5 Deterministic Intent Classifier Interceptor (bypasses LLM query entirely)
+    const detIntent = classifyDeterministicIntent(userQuery);
+    if (detIntent) {
+        const resolved = await resolveDeterministicIntent(patientId, detIntent);
+        try {
+            await AIChatLog.create({
+                patient_id: patientId,
+                prompt: userQuery,
+                retrieved_chunks: [],
+                response: resolved.text,
+                emergency_escalation_triggered: false,
+                translated_language: targetLanguage || 'en',
+                provider: 'deterministic-classifier',
+                model: detIntent,
+                llm_latency_ms: 0,
+                retrieval_latency_ms: 0,
+                end_to_end_latency_ms: Math.round(performance.now() - requestStart),
+                streaming_first_token_ms: 0,
+                prompt_tokens: 0,
+                completion_tokens: 0,
+                total_tokens: 0,
+                retrieved_chunks_count: 0,
+                retrieval_similarity_avg: 0
+            });
+        } catch (logErr) {
+            console.error('[PoC] Deterministic chat log error:', logErr.message);
+        }
+        return {
+            success: true,
+            model: detIntent,
+            response: resolved.text,
+            suggestions: resolved.suggestions,
+            contextTokensEstimate: 0,
+            cards: resolved.cards
+        };
+    }
+
 
     let matchedGuidelines = [];
     let retrievalLatency = 0;

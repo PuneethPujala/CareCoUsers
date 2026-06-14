@@ -23,7 +23,7 @@ import { Lock as LockIcon } from 'lucide-react-native';
 import LegalModal from '../../components/ui/LegalModal';
 import usePatientStore from '../../store/usePatientStore';
 import * as Sharing from 'expo-sharing';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import ViewShot from 'react-native-view-shot';
 import { LinearGradient } from 'expo-linear-gradient';
 import { handleAvatarPicker, deleteOldAvatar, pickRawImage, uploadCroppedAvatar } from '../../utils/avatarHelper';

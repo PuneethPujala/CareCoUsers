@@ -74,7 +74,7 @@ async function buildMergedMeds(patient) {
     const searchIds = [];
     if (patient._id) searchIds.push(patient._id.toString());
     if (patient.profile_id) searchIds.push(patient.profile_id.toString());
-    let query = Medication.find({ patientId: { $in: searchIds }, isActive: true });
+    let query = Medication.find({ patientId: { $in: searchIds } });
     if (query && typeof query.lean === 'function') {
         query = query.lean();
     }
@@ -118,6 +118,8 @@ async function buildMergedMeds(patient) {
                 is_active: extMed.isActive,
                 times: mappedTimes,
                 refillInfo: refillInfo,
+                startDate: extMed.startDate || extMed.createdAt,
+                endDate: extMed.endDate || extMed.discontinuedAt || null,
             });
         }
     }
@@ -140,6 +142,8 @@ async function buildMergedMeds(patient) {
 
             const medObj = typeof med.toObject === 'function' ? med.toObject() : { ...med };
             medObj.refillInfo = refillInfo;
+            medObj.startDate = medObj.startDate || patient.created_at || patient.createdAt;
+            medObj.endDate = medObj.endDate || null;
 
             allMedsRaw.push(medObj);
         }
@@ -773,64 +777,18 @@ router.get('/adherence/monthly', authenticateSession, async (req, res) => {
     }
 });
 
-/**
- * GET /api/users/medicines/adherence/details
- */
 router.get('/adherence/details', authenticateSession, async (req, res) => {
     try {
         const patient = await getOrCreatePatient(req);
 
-        const VitalLog = require('../../models/VitalLog');
         const timezone = patient.timezone || 'Asia/Kolkata';
 
         // Fetch 180 days of history to support calendar scrolling
         const { todayStr } = getTodayUtcMidnight(timezone);
-        const historyStart = getDaysAgoUtcMidnight(timezone, 180);
         const historyStartStr = moment().tz(timezone).subtract(180, 'days').format('YYYY-MM-DD');
 
-        const logs = await MedicineLog.find({
-            patient_id: patient._id,
-            date: { $gte: historyStart },
-        }).sort({ date: 1 });
-
-        const vitals = await VitalLog.find({
-            patient_id: patient._id,
-            date: { $gte: historyStart },
-        }).sort({ date: 1 });
-
-        const vitalsMap = {};
-        for (const v of vitals) {
-            const dateStr = v.date.toISOString().slice(0, 10);
-            vitalsMap[dateStr] = v;
-        }
-
-        const dailyLog = logs.map(log => {
-            const dateStr = log.date.toISOString().slice(0, 10);
-            const activeMeds = log.medicines.filter(m => m.is_active !== false);
-            const total = activeMeds.length;
-            const taken = activeMeds.filter(m => m.taken).length;
-            const rate = total > 0 ? Math.round((taken / total) * 100) : 0;
-            let status = 'none';
-            if (total === 0) status = 'none';
-            else if (rate === 100) status = 'complete';
-            else if (rate > 0) status = 'partial';
-            else status = 'missed';
-            return {
-                date: dateStr,
-                taken,
-                total,
-                rate,
-                status,
-                medicines: activeMeds.map(m => ({ name: m.medicine_name, taken: m.taken, time: m.scheduled_time })),
-                vitals: vitalsMap[dateStr] ? {
-                    heart_rate: vitalsMap[dateStr].heart_rate,
-                    systolic: vitalsMap[dateStr].blood_pressure?.systolic,
-                    diastolic: vitalsMap[dateStr].blood_pressure?.diastolic,
-                    oxygen_saturation: vitalsMap[dateStr].oxygen_saturation,
-                    hydration: vitalsMap[dateStr].hydration,
-                } : null,
-            };
-        });
+        const { buildDailyAdherenceTimeline } = require('../../services/adherenceGapFillService');
+        const dailyLog = await buildDailyAdherenceTimeline(patient, historyStartStr, todayStr);
 
         const last7 = dailyLog.slice(-7);
         const last30 = dailyLog.slice(-30);
@@ -893,21 +851,21 @@ router.get('/adherence/details', authenticateSession, async (req, res) => {
             return false;
         })();
 
-        // BUG 7 FIX: only considers logs that actually have morning entries
-        const logsWithMorningMeds = logs.filter(log =>
-            log.medicines.some(m => m.scheduled_time === 'morning' && m.is_active !== false)
+        // BUG 7 FIX: only considers logs that actually have morning/night entries
+        const logsWithMorningMeds = dailyLog.filter(log =>
+            log.medicines.some(m => m.time === 'morning')
         );
         const morningLogs = logsWithMorningMeds.length >= 1 && logsWithMorningMeds.every(log =>
             log.medicines
-                .filter(m => m.scheduled_time === 'morning' && m.is_active !== false)
+                .filter(m => m.time === 'morning')
                 .every(m => m.taken)
         );
-        const logsWithNightMeds = logs.filter(log =>
-            log.medicines.some(m => m.scheduled_time === 'night' && m.is_active !== false)
+        const logsWithNightMeds = dailyLog.filter(log =>
+            log.medicines.some(m => m.time === 'night')
         );
         const nightLogs = logsWithNightMeds.length >= 1 && logsWithNightMeds.every(log =>
             log.medicines
-                .filter(m => m.scheduled_time === 'night' && m.is_active !== false)
+                .filter(m => m.time === 'night')
                 .every(m => m.taken)
         );
         const vitalsLoggedDays = dailyLog.filter(d => d.vitals).length;
@@ -974,11 +932,11 @@ router.get('/adherence/details', authenticateSession, async (req, res) => {
             insights.push("Excellent consistency! Your medication routine is well-established.");
         } else {
             const times = { morning: { total: 0, taken: 0 }, afternoon: { total: 0, taken: 0 }, night: { total: 0, taken: 0 } };
-            logs.forEach(log => {
+            dailyLog.forEach(log => {
                 log.medicines.forEach(m => {
-                    if (m.is_active !== false && times[m.scheduled_time]) {
-                        times[m.scheduled_time].total++;
-                        if (m.taken) times[m.scheduled_time].taken++;
+                    if (m.is_active !== false && times[m.time]) {
+                        times[m.time].total++;
+                        if (m.taken) times[m.time].taken++;
                     }
                 });
             });
@@ -1036,7 +994,6 @@ router.get('/adherence/recap', authenticateSession, async (req, res) => {
     try {
         const patient = await getOrCreatePatient(req);
 
-        const VitalLog = require('../../models/VitalLog');
         const timezone = patient.timezone || 'Asia/Kolkata';
 
         const period = req.query.period || 'weekly';
@@ -1062,25 +1019,8 @@ router.get('/adherence/recap', authenticateSession, async (req, res) => {
             }
         }
 
-        const logs = await MedicineLog.find({
-            patient_id: patient._id,
-            date: { $gte: startDate },
-        }).sort({ date: 1 });
-
-        const vitals = await VitalLog.find({ patient_id: patient._id, date: { $gte: startDate } });
-
-        const dailyEntries = logs.map(log => {
-            const activeMeds = log.medicines.filter(m => m.is_active !== false);
-            const total = activeMeds.length;
-            const taken = activeMeds.filter(m => m.taken).length;
-            return {
-                date: log.date.toISOString().slice(0, 10),
-                total,
-                taken,
-                rate: total > 0 ? Math.round((taken / total) * 100) : 0,
-                medicines: activeMeds,
-            };
-        });
+        const { buildDailyAdherenceTimeline } = require('../../services/adherenceGapFillService');
+        const dailyEntries = await buildDailyAdherenceTimeline(patient, startDateStr, todayStr);
 
         let totalScheduled = 0, totalTaken = 0;
         dailyEntries.forEach(d => { totalScheduled += d.total; totalTaken += d.taken; });
@@ -1096,8 +1036,8 @@ router.get('/adherence/recap', authenticateSession, async (req, res) => {
         }
 
         const times = { morning: { total: 0, taken: 0 }, afternoon: { total: 0, taken: 0 }, night: { total: 0, taken: 0 } };
-        logs.forEach(log => {
-            log.medicines.forEach(m => {
+        dailyEntries.forEach(entry => {
+            entry.medicines.forEach(m => {
                 if (m.is_active !== false && times[m.scheduled_time]) {
                     times[m.scheduled_time].total++;
                     if (m.taken) times[m.scheduled_time].taken++;
@@ -1122,8 +1062,8 @@ router.get('/adherence/recap', authenticateSession, async (req, res) => {
         else level = { key: 'beginner', label: 'Beginner', emoji: '🌱' };
 
         const medStats = {};
-        logs.forEach(log => {
-            log.medicines.forEach(m => {
+        dailyEntries.forEach(entry => {
+            entry.medicines.forEach(m => {
                 if (m.is_active === false) return;
                 if (!medStats[m.medicine_name]) medStats[m.medicine_name] = { total: 0, taken: 0 };
                 medStats[m.medicine_name].total++;
@@ -1136,15 +1076,12 @@ router.get('/adherence/recap', authenticateSession, async (req, res) => {
             if (r > topRate) { topRate = r; topMed = { name, rate: r }; }
         });
 
-        const prevStart = new Date(startDate);
-        prevStart.setDate(prevStart.getDate() - daysBack);
-        const prevLogs = await MedicineLog.find({ patient_id: patient._id, date: { $gte: prevStart, $lt: startDate } });
+        const prevStartStr = now.clone().subtract(daysBack * 2, 'days').format('YYYY-MM-DD');
+        const prevEndStr = moment(startDateStr).subtract(1, 'day').format('YYYY-MM-DD');
+        const prevEntries = await buildDailyAdherenceTimeline(patient, prevStartStr, prevEndStr);
+
         let prevTotal = 0, prevTaken = 0;
-        prevLogs.forEach(log => {
-            log.medicines.forEach(m => {
-                if (m.is_active !== false) { prevTotal++; if (m.taken) prevTaken++; }
-            });
-        });
+        prevEntries.forEach(d => { prevTotal += d.total; prevTaken += d.taken; });
         const prevRate = prevTotal > 0 ? Math.round((prevTaken / prevTotal) * 100) : 0;
         const improvement = adherenceRate - prevRate;
 
@@ -1191,6 +1128,8 @@ router.get('/adherence/recap', authenticateSession, async (req, res) => {
             });
         }
 
+        const vitalsLoggedDays = dailyEntries.filter(d => d.vitals).length;
+
         res.json({
             period,
             is_all_time_fallback: isAllTimeFallback,
@@ -1207,7 +1146,7 @@ router.get('/adherence/recap', authenticateSession, async (req, res) => {
             level,
             top_medication: topMed,
             improvement_vs_previous: improvement,
-            vitals_logged_days: vitals.length,
+            vitals_logged_days: vitalsLoggedDays,
             badges_earned: badgesEarned,
             motivational_message: motivationalMessage,
             weekly_trend: weeklyTrend,

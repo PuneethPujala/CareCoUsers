@@ -1120,6 +1120,30 @@ export default function PatientHomeScreen({ navigation }) {
                         </View>
                     )}
 
+                    {/* Morning Health Brief Banner */}
+                    <Animated.View style={[entranceStyle(1)]}>
+                        <Pressable 
+                            style={styles.morningBriefBanner} 
+                            onPress={() => navigation.navigate('HealthCopilot')}
+                        >
+                            <LinearGradient
+                                colors={['#EEF2FF', '#E0E7FF']}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 1 }}
+                                style={styles.morningBriefGradient}
+                            >
+                                <View style={styles.morningBriefIconContainer}>
+                                    <Sparkles size={16} color="#6366F1" />
+                                </View>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={styles.morningBriefTitle}>✨ Morning Health Brief</Text>
+                                    <Text style={styles.morningBriefSub}>Your daily care focus & weekly targets are ready. Tap to view.</Text>
+                                </View>
+                                <ChevronRight size={18} color="#6366F1" />
+                            </LinearGradient>
+                        </Pressable>
+                    </Animated.View>
+
                     {/* ── 1. GLASS HEALTH ORB (Brand Focus, 60% Width) ── */}
                     <Animated.View style={[entranceStyle(1), styles.orbContainer]}>
                         <Animated.View style={[styles.orbWrapper, { transform: [{ scale: orbScaleAnim }] }]}>
@@ -1615,6 +1639,39 @@ export default function PatientHomeScreen({ navigation }) {
 // ══ STYLES ═══════════════════════════════════════════════════════════════════
 // ══════════════════════════════════════════════════════════════════════════════
 const styles = StyleSheet.create({
+    morningBriefBanner: {
+        borderRadius: radius.lg,
+        overflow: 'hidden',
+        borderWidth: 1,
+        borderColor: '#C7D2FE',
+        marginBottom: 16,
+    },
+    morningBriefGradient: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 16,
+        gap: 12,
+    },
+    morningBriefIconContainer: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: '#FFFFFF',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    morningBriefTitle: {
+        fontSize: 14,
+        fontWeight: '900',
+        color: '#1E293B',
+    },
+    morningBriefSub: {
+        fontSize: 12,
+        color: '#4F46E5',
+        fontWeight: '600',
+        marginTop: 2,
+        lineHeight: 16,
+    },
     premiumBanner: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FAF5FF', borderRadius: radius.lg, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: '#F3E8FF' },
     premiumBannerLeft: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
     premiumBannerIcon: { width: 40, height: 40, borderRadius: radius.md, backgroundColor: '#F3E8FF', alignItems: 'center', justifyContent: 'center' },

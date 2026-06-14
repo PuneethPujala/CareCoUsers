@@ -12,10 +12,58 @@ import { useAuth } from '../../context/AuthContext';
 import usePatientStore from '../../store/usePatientStore';
 import { apiService, handleApiError } from '../../lib/api';
 import AlertManager from '../../utils/AlertManager';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-
-
+export const globalChatCache = {}; // Keyed by sessionId: { messages, title, updatedAt, sessionId }
 let cachedSessions = null;
+
+const preloadRecentSessions = async (recentSessions, isCompanion, targetPatientId) => {
+    if (!recentSessions || recentSessions.length === 0) return;
+    const topSessions = recentSessions.slice(0, 5);
+    for (const session of topSessions) {
+        const sessionId = session._id;
+        
+        // 1. Try to load from AsyncStorage to warm global memory cache immediately
+        try {
+            const cacheKey = `chatbot_session_${sessionId}`;
+            const cachedDataStr = await AsyncStorage.getItem(cacheKey);
+            if (cachedDataStr) {
+                const cachedData = JSON.parse(cachedDataStr);
+                globalChatCache[sessionId] = cachedData;
+            }
+        } catch (err) {
+            console.warn(`[Preload] Failed to read AsyncStorage for session ${sessionId}:`, err);
+        }
+
+        // 2. Fetch fresh data in background to refresh cache silently
+        try {
+            const params = isCompanion ? { patientId: targetPatientId } : {};
+            const res = await apiService.chatbot.getSession(sessionId, params);
+            if (res.data) {
+                const sessionMessages = (res.data.messages || []).map(m => ({
+                    id: m._id || String(Math.random()),
+                    text: m.text,
+                    isUser: m.role === 'user',
+                    timestamp: new Date(m.timestamp).getTime(),
+                    cards: m.cards || [],
+                    suggestions: m.suggestions || [],
+                    image: m.image,
+                    audio: m.audio
+                }));
+                const sessionData = {
+                    messages: sessionMessages,
+                    title: res.data.title,
+                    updatedAt: res.data.updated_at || res.data.created_at,
+                    sessionId: sessionId
+                };
+                globalChatCache[sessionId] = sessionData;
+                await AsyncStorage.setItem(`chatbot_session_${sessionId}`, JSON.stringify(sessionData));
+            }
+        } catch (err) {
+            console.warn(`[Preload] Failed to fetch session ${sessionId}:`, err);
+        }
+    }
+};
 
 export default function ChatHistoryScreen() {
     const navigation = useNavigation();
@@ -61,6 +109,9 @@ export default function ChatHistoryScreen() {
             const fetched = res.data || [];
             setSessions(fetched);
             cachedSessions = fetched;
+            
+            // Fire off background preloading
+            preloadRecentSessions(fetched, isCompanion, targetPatientId);
         } catch (err) {
             console.warn('Failed to load chat sessions:', err);
             const apiErr = handleApiError(err);
@@ -132,6 +183,9 @@ export default function ChatHistoryScreen() {
                                 cachedSessions = next;
                                 return next;
                             });
+                            // Clear caches
+                            delete globalChatCache[session._id];
+                            await AsyncStorage.removeItem(`chatbot_session_${session._id}`);
                         } catch (err) {
                             console.warn('Failed to delete session:', err);
                             const apiErr = handleApiError(err);

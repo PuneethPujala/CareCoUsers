@@ -117,6 +117,38 @@ const formatDate = (dateInput, formatStr) => {
     return date.toLocaleDateString();
 };
 
+const badgeLabels = {
+    // Bronze tier (from medicines.js)
+    first_dose: '💊 First Dose',
+    first_perfect_day: '🌟 Perfect Day',
+    '3_day_consistent': '⚡ Hat Trick',
+    never_missed_morning: '🌅 Early Bird',
+    // Silver tier
+    weekly_90: '🎯 Weekly Star',
+    '7_perfect_days': '💎 Perfect Week',
+    night_owl: '🦉 Night Owl',
+    vitals_tracker: '❤️‍🔥 Vitals Pro',
+    // Gold tier
+    streak_14: '🔥 Two-Week Warrior',
+    monthly_consistent: '🏆 Monthly Legend',
+    '100_doses': '💯 Century Club',
+    '30_perfect_days': '👑 Unstoppable',
+    // Health state milestones (from patientHealthStateService.js)
+    streak_7: '🔥 7-Day Streak',
+    streak_30: '🔥 30-Day Streak',
+    bp_stabilized: '❤️ BP Stabilized',
+    adherence_30d_90: '⭐ Compliance Champ',
+    score_plus_20: '📈 Major Improvement',
+    // Legacy / profile-derived
+    first_vital: '🩺 First Vital Logged',
+    profile_complete: '✅ Profile Complete',
+};
+
+const getBadgeLabel = (key) =>
+    badgeLabels[key] ?? key
+        .replace(/_/g, ' ')
+        .replace(/\b\w/g, c => c.toUpperCase());
+
 export default function HealthProfileScreen({ navigation }) {
     const { t } = useTranslation();
     const reduceMotion = useReduceMotion();
@@ -1760,16 +1792,8 @@ export default function HealthProfileScreen({ navigation }) {
 
                     // Achievements: use real persistent badges from backend + profile-derived ones
                     const backendBadges = profile?.unlockedAchievements || [];
-                    const badgeLabels = {
-                        first_perfect_day: '🌟 First Perfect Day',
-                        weekly_90: '📅 Weekly 90% Adherence',
-                        streak_7: '🔥 7-Day Streak',
-                        streak_30: '🔥 30-Day Streak',
-                        first_vital: '🩺 First Vital Logged',
-                        profile_complete: '✅ Profile Complete',
-                    };
                     const unlockedAchievements = [
-                        ...backendBadges.map(key => badgeLabels[key] || key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())),
+                        ...backendBadges.map(key => getBadgeLabel(key)),
                     ];
                     // Supplement with profile-derived badges (only if not already covered by backend)
                     if (backendBadges.length === 0) {
@@ -1829,6 +1853,9 @@ export default function HealthProfileScreen({ navigation }) {
                         coachCtaText = ctaMap[weakest.label] || 'Ask AI Coach';
                     }
 
+                    // Check if history backfill is pending
+                    const historyPending = !historyLoading && (!healthHistory?.history || healthHistory.history.length < 5);
+
                     return (
                         <View style={s.tipsBackdrop}>
                             <View style={[s.tipsSheet, { maxHeight: '95%' }]}>
@@ -1841,9 +1868,19 @@ export default function HealthProfileScreen({ navigation }) {
                                         <Text style={{ fontSize: 24, ...FONT.heavy, color: '#0F172A', letterSpacing: -0.5, marginBottom: 2 }}>AI Health Score Coach</Text>
                                         <Text style={{ fontSize: 13, ...FONT.medium, color: '#64748B' }}>Your personalized health insights</Text>
                                     </View>
-                                    <Pressable onPress={() => setShowScoreInfo(false)} hitSlop={12} style={{ backgroundColor: '#F1F5F9', padding: 6, borderRadius: radius.lg, borderWidth: 1, borderColor: '#E2E8F0' }}>
-                                        <X size={18} color="#64748B" />
-                                    </Pressable>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                        <Pressable
+                                            onPress={loadHistoryAndTimeline}
+                                            disabled={historyLoading}
+                                            hitSlop={12}
+                                            style={{ backgroundColor: '#F1F5F9', padding: 6, borderRadius: radius.lg, borderWidth: 1, borderColor: '#E2E8F0' }}
+                                        >
+                                            <RefreshCw size={18} color={historyLoading ? '#94A3B8' : '#64748B'} />
+                                        </Pressable>
+                                        <Pressable onPress={() => setShowScoreInfo(false)} hitSlop={12} style={{ backgroundColor: '#F1F5F9', padding: 6, borderRadius: radius.lg, borderWidth: 1, borderColor: '#E2E8F0' }}>
+                                            <X size={18} color="#64748B" />
+                                        </Pressable>
+                                    </View>
                                 </View>
 
                                 {/* Tab Selector */}
@@ -2145,6 +2182,39 @@ export default function HealthProfileScreen({ navigation }) {
                                             </View>
                                         ) : (
                                             <View style={{ gap: 20 }}>
+                                                {/* History pending/backfilling banner */}
+                                                {historyPending && (
+                                                    <View style={{
+                                                        backgroundColor: '#EFF6FF',
+                                                        borderRadius: radius.lg,
+                                                        padding: 16,
+                                                        borderWidth: 1,
+                                                        borderColor: '#BFDBFE',
+                                                        flexDirection: 'row',
+                                                        alignItems: 'center',
+                                                        gap: 12,
+                                                    }}>
+                                                        <ActivityIndicator size="small" color="#3B82F6" />
+                                                        <View style={{ flex: 1 }}>
+                                                            <Text style={{ fontSize: 13, ...FONT.bold, color: '#1E3A8A' }}>Analyzing Health History...</Text>
+                                                            <Text style={{ fontSize: 11, ...FONT.medium, color: '#1E40AF', marginTop: 2 }}>
+                                                                We are analyzing your 30-day historical logs. This will take a few moments.
+                                                            </Text>
+                                                        </View>
+                                                        <Pressable
+                                                            onPress={loadHistoryAndTimeline}
+                                                            style={{
+                                                                backgroundColor: '#3B82F6',
+                                                                paddingHorizontal: 10,
+                                                                paddingVertical: 6,
+                                                                borderRadius: radius.md,
+                                                            }}
+                                                        >
+                                                            <Text style={{ fontSize: 11, ...FONT.bold, color: '#FFFFFF' }}>Refresh</Text>
+                                                        </Pressable>
+                                                    </View>
+                                                )}
+
                                                 {/* Health Momentum & Adherence Consistency Bento */}
                                                 {healthHistory?.predictive_health && (
                                                     <View style={{ flexDirection: 'row', gap: 12 }}>
@@ -2246,6 +2316,9 @@ export default function HealthProfileScreen({ navigation }) {
                                                         })) || []}
                                                         type="area"
                                                         color={colors.primary}
+                                                        emptyIcon="📈"
+                                                        emptyLabel="No health score data yet"
+                                                        emptySubLabel="Score history builds as you track daily. Check back soon!"
                                                     />
                                                 </View>
 
@@ -2263,6 +2336,9 @@ export default function HealthProfileScreen({ navigation }) {
                                                         type="line"
                                                         color="#10B981"
                                                         yMax={100}
+                                                        emptyIcon="💊"
+                                                        emptyLabel="No medication logs yet"
+                                                        emptySubLabel="Keep logging your medications to see adherence trends here."
                                                     />
                                                 </View>
 
@@ -2291,6 +2367,9 @@ export default function HealthProfileScreen({ navigation }) {
                                                         type="bar"
                                                         color="#6366F1"
                                                         yMax={12}
+                                                        emptyIcon="😴"
+                                                        emptyLabel="No sleep logs yet"
+                                                        emptySubLabel="Log your sleep to see duration trends over time."
                                                     />
                                                 </View>
 
@@ -2309,6 +2388,9 @@ export default function HealthProfileScreen({ navigation }) {
                                                         color="#EF4444"
                                                         yMin={80}
                                                         yMax={160}
+                                                        emptyIcon="🩺"
+                                                        emptyLabel="No blood pressure readings yet"
+                                                        emptySubLabel="Log your blood pressure to see trends here."
                                                     />
                                                 </View>
 
@@ -2329,6 +2411,9 @@ export default function HealthProfileScreen({ navigation }) {
                                                         type="bar"
                                                         color="#F59E0B"
                                                         yMax={100}
+                                                        emptyIcon="✨"
+                                                        emptyLabel="No mood logs yet"
+                                                        emptySubLabel="Log your mood daily to track emotional patterns."
                                                     />
                                                 </View>
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { render } from '@testing-library/react-native';
+import { render, act } from '@testing-library/react-native';
 import HealthProfileScreen from '../../src/screens/patient/HealthProfileScreen';
 
 // Mock translation hook
@@ -81,6 +81,7 @@ jest.mock('lucide-react-native', () => {
   const { View } = require('react-native');
   return {
     TriangleAlert: () => React.createElement(View),
+    AlertTriangle: () => React.createElement(View),
     ShieldCheck: () => React.createElement(View),
     HeartPulse: () => React.createElement(View),
     Activity: () => React.createElement(View),
@@ -91,6 +92,7 @@ jest.mock('lucide-react-native', () => {
     X: () => React.createElement(View),
     Trash2: () => React.createElement(View),
     CircleCheck: () => React.createElement(View),
+    CheckCircle2: () => React.createElement(View),
     RefreshCw: () => React.createElement(View),
     ChevronDown: () => React.createElement(View),
     Upload: () => React.createElement(View),
@@ -119,28 +121,35 @@ describe('HealthProfileScreen', () => {
     jest.clearAllMocks();
   });
 
-  it('renders correctly', async () => {
+  const renderScreen = async (mockProfileValue) => {
+    if (mockProfileValue !== undefined) {
+      apiService.patients.getProfile.mockResolvedValueOnce(mockProfileValue);
+    }
     const navigationMock = { navigate: jest.fn() };
-    const { toJSON } = render(<HealthProfileScreen navigation={navigationMock} />);
+    const renderResult = render(<HealthProfileScreen navigation={navigationMock} />);
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
+    return renderResult;
+  };
+
+  it('renders correctly', async () => {
+    const { toJSON } = await renderScreen();
     expect(toJSON()).toBeTruthy();
   });
 
   it('renders correctly when profile is null', async () => {
-    apiService.patients.getProfile.mockResolvedValueOnce({ data: null });
-    const navigationMock = { navigate: jest.fn() };
-    const { toJSON } = render(<HealthProfileScreen navigation={navigationMock} />);
+    const { toJSON } = await renderScreen({ data: null });
     expect(toJSON()).toBeTruthy();
   });
 
   it('renders correctly when profile is empty object', async () => {
-    apiService.patients.getProfile.mockResolvedValueOnce({ data: {} });
-    const navigationMock = { navigate: jest.fn() };
-    const { toJSON } = render(<HealthProfileScreen navigation={navigationMock} />);
+    const { toJSON } = await renderScreen({ data: {} });
     expect(toJSON()).toBeTruthy();
   });
 
   it('renders correctly when profile sub-objects (lifestyle, gp, conditions, allergies) are null', async () => {
-    apiService.patients.getProfile.mockResolvedValueOnce({
+    const { toJSON } = await renderScreen({
       data: {
         blood_type: 'O+',
         conditions: null,
@@ -153,13 +162,11 @@ describe('HealthProfileScreen', () => {
         gp: null,
       },
     });
-    const navigationMock = { navigate: jest.fn() };
-    const { toJSON } = render(<HealthProfileScreen navigation={navigationMock} />);
     expect(toJSON()).toBeTruthy();
   });
 
   it('renders correctly when BMI fields (height, weight) are null', async () => {
-    apiService.patients.getProfile.mockResolvedValueOnce({
+    const { toJSON } = await renderScreen({
       data: {
         blood_type: 'O+',
         lifestyle: {
@@ -173,13 +180,11 @@ describe('HealthProfileScreen', () => {
         },
       },
     });
-    const navigationMock = { navigate: jest.fn() };
-    const { toJSON } = render(<HealthProfileScreen navigation={navigationMock} />);
     expect(toJSON()).toBeTruthy();
   });
 
   it('renders correctly when profile contains malformed data types', async () => {
-    apiService.patients.getProfile.mockResolvedValueOnce({
+    const { toJSON } = await renderScreen({
       data: {
         conditions: {},
         allergies: 'penicillin',
@@ -191,13 +196,11 @@ describe('HealthProfileScreen', () => {
         appointments: 'tomorrow',
       },
     });
-    const navigationMock = { navigate: jest.fn() };
-    const { toJSON } = render(<HealthProfileScreen navigation={navigationMock} />);
     expect(toJSON()).toBeTruthy();
   });
 
   it('renders correctly and parses BMI fields when units are appended to strings', async () => {
-    apiService.patients.getProfile.mockResolvedValueOnce({
+    const { toJSON } = await renderScreen({
       data: {
         blood_type: 'O+',
         lifestyle: {
@@ -206,8 +209,6 @@ describe('HealthProfileScreen', () => {
         },
       },
     });
-    const navigationMock = { navigate: jest.fn() };
-    const { toJSON } = render(<HealthProfileScreen navigation={navigationMock} />);
     expect(toJSON()).toBeTruthy();
   });
 });

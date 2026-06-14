@@ -9,7 +9,7 @@ import {
 import usePatientStore from '../../store/usePatientStore';
 import OfflineSyncService from '../../lib/OfflineSyncService';
 import Constants from 'expo-constants';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import * as Device from 'expo-device';
 import * as IntentLauncher from 'expo-intent-launcher';

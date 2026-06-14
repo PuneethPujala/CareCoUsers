@@ -59,6 +59,7 @@ const MedicineLog = require('../../src/models/MedicineLog');
 const Medication = require('../../src/models/Medication');
 const Notification = require('../../src/models/Notification');
 const TempMedication = require('../../src/models/TempMedication');
+const VitalLog = require('../../src/models/VitalLog');
 const { lookupMedicine } = require('../../src/services/medicineAIService');
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -114,6 +115,12 @@ describe('User Medicines Routes', () => {
         Patient.findById = jest.fn().mockReturnValue({
             select: jest.fn().mockImplementation(() => Promise.resolve(makePatient())),
         });
+        Patient.updateOne = jest.fn().mockImplementation(() => ({
+            catch: jest.fn().mockImplementation((cb) => {
+                // Return a chainable object/promise to prevent crashes
+                return Promise.resolve();
+            })
+        }));
 
         Medication.find = jest.fn().mockResolvedValue([]);
         Medication.findOne = jest.fn().mockResolvedValue(null);
@@ -426,6 +433,80 @@ describe('User Medicines Routes', () => {
                 expect(res.status).toBe(200);
                 expect(TempMedication.findOneAndUpdate).toHaveBeenCalled();
             });
+        });
+    });
+
+    // ── Adherence Dynamic Gap-Filling ──────────────────────────────────────────
+    describe('Adherence Dynamic Gap-Filling', () => {
+        const moment = require('moment-timezone');
+
+        it('backfills past date gaps with missed entries and respects medication active range', async () => {
+            // Patient created 3 days ago (e.g. yesterday - 2 days)
+            const timezone = 'Asia/Kolkata';
+            const yesterdayStr = moment().tz(timezone).subtract(1, 'day').format('YYYY-MM-DD');
+            const twoDaysAgoStr = moment().tz(timezone).subtract(2, 'days').format('YYYY-MM-DD');
+            const threeDaysAgoStr = moment().tz(timezone).subtract(3, 'days').format('YYYY-MM-DD');
+            const fourDaysAgoStr = moment().tz(timezone).subtract(4, 'days').format('YYYY-MM-DD');
+
+            const createdDate = moment().tz(timezone).subtract(3, 'days').toDate();
+            const patient = makePatient({
+                created_at: createdDate,
+                timezone,
+                medications: [
+                    {
+                        name: 'Metformin',
+                        times: ['morning'],
+                        startDate: moment().tz(timezone).subtract(2, 'days').toDate(), // active starting 2 days ago
+                        endDate: null,
+                        is_active: true
+                    }
+                ]
+            });
+
+            Patient.findOne = jest.fn().mockResolvedValue(patient);
+            
+            // Only 1 log exists (two days ago perfect log)
+            // Yesterday has no log, so it should be backfilled as missed
+            // 3 days ago had no log, but Metformin hadn't started yet, so it should be 'no_medications'
+            // 4 days ago is before patient creation date, so it shouldn't be backfilled or should be 'no_medications' if queried
+            const logTwoDaysAgo = {
+                date: new Date(`${twoDaysAgoStr}T00:00:00.000Z`),
+                medicines: [{ medicine_name: 'Metformin', scheduled_time: 'morning', taken: true, is_active: true }]
+            };
+
+            MedicineLog.find = jest.fn().mockReturnValue({
+                sort: jest.fn().mockResolvedValue([logTwoDaysAgo])
+            });
+            VitalLog.find = jest.fn().mockReturnValue({
+                sort: jest.fn().mockResolvedValue([])
+            });
+
+            const res = await request(app).get('/api/users/medicines/adherence/details');
+
+            expect(res.status).toBe(200);
+            
+            const dailyLog = res.body.daily_log;
+            
+            // Two days ago should be complete
+            const entryTwoDaysAgo = dailyLog.find(d => d.date === twoDaysAgoStr);
+            expect(entryTwoDaysAgo).toBeDefined();
+            expect(entryTwoDaysAgo.status).toBe('complete');
+            expect(entryTwoDaysAgo.rate).toBe(100);
+
+            // Yesterday should be backfilled as missed
+            const entryYesterday = dailyLog.find(d => d.date === yesterdayStr);
+            expect(entryYesterday).toBeDefined();
+            expect(entryYesterday.status).toBe('missed');
+            expect(entryYesterday.rate).toBe(0);
+            expect(entryYesterday.medicines).toHaveLength(1);
+            expect(entryYesterday.medicines[0].name).toBe('Metformin');
+
+            // Three days ago should be no_medications (Metformin not started yet)
+            const entryThreeDaysAgo = dailyLog.find(d => d.date === threeDaysAgoStr);
+            if (entryThreeDaysAgo) {
+                expect(entryThreeDaysAgo.status).toBe('no_medications');
+                expect(entryThreeDaysAgo.total).toBe(0);
+            }
         });
     });
 });

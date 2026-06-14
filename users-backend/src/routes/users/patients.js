@@ -2159,6 +2159,38 @@ router.get('/me/health-timeline', authenticateSession, async (req, res) => {
     }
 });
 
+// ─── Health Copilot Context ────────────────────────────────────────────────
+router.get('/copilot/context', authenticateSession, async (req, res) => {
+    try {
+        const patient = await getOrCreatePatient(req);
+        const patientId = patient._id;
+
+        const { generateMorningBrief } = require('../../services/dailyBriefService');
+        const { getOrGenerateCarePlan } = require('../../services/carePlanService');
+        const { getOrGenerateInsights } = require('../../services/companionAiService');
+        const AchievementEvent = require('../../models/AchievementEvent');
+
+        const [morningBrief, carePlan, insights, achievements] = await Promise.all([
+            generateMorningBrief(patientId),
+            getOrGenerateCarePlan(patientId),
+            getOrGenerateInsights(patientId),
+            AchievementEvent.find({ patient_id: patientId }).sort({ earned_at: -1 }).lean()
+        ]);
+
+        res.json({
+            morning_brief: morningBrief,
+            care_plan: carePlan,
+            predictive_health: insights?.predictive_health || {},
+            achievements: achievements || [],
+            current_streak: patient.current_streak || 0,
+            adherence_rate: patient.adherence_rate ?? 100
+        });
+    } catch (error) {
+        logger.error('Get copilot context error', { error: error.message, patientId: req.user?.id });
+        res.status(500).json({ error: 'Failed to fetch copilot context' });
+    }
+});
+
 // ─── Get Sleep logs ──────────────────────────────────────────────────────────
 router.get('/me/sleep', authenticateSession, async (req, res) => {
     try {

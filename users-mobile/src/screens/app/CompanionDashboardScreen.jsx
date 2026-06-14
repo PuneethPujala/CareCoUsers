@@ -1,7 +1,7 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, RefreshControl, Pressable, Dimensions, Linking, ActivityIndicator, Image, Animated } from 'react-native';
 import { apiService } from '../../lib/api';
-import { HeartPulse, Activity, Bell, Phone, Send, ChevronRight, MessageSquare, ShieldCheck, AlertCircle, ChevronLeft, RefreshCw, Bluetooth } from 'lucide-react-native';
+import { HeartPulse, Activity, Bell, Phone, Send, ChevronRight, MessageSquare, ShieldCheck, AlertCircle, ChevronLeft, RefreshCw, Bluetooth, Lightbulb, Sparkles, TrendingUp, Calendar } from 'lucide-react-native';
 import AlertManager from '../../utils/AlertManager';
 import { colors, radius, spacing, shadows, layout, motion, anim, useReduceMotion } from '../../theme';
 import usePatientStore from '../../store/usePatientStore';
@@ -57,32 +57,85 @@ export default function CompanionDashboardScreen() {
     const [nudging, setNudging] = useState(false);
     const [requestingBP, setRequestingBP] = useState(false);
     
+    const [pendingInterventionsCount, setPendingInterventionsCount] = useState(0);
+    
     const selectedPatientId = usePatientStore(s => s.companionSelectedPatientId);
     const navigation = useNavigation();
     const reduceMotion = useReduceMotion();
 
+    const visibleSections = useMemo(() => {
+        if (!data || !data.patient) return [];
+        
+        const insights = data.companion_insights || {};
+        const priorityActions = insights.priority_actions || [];
+        
+        return [
+            'summary',
+            (data.refill_alerts && data.refill_alerts.length > 0) ? 'refill' : null,
+            'briefing',
+            (priorityActions && priorityActions.length > 0) ? 'needs_attention' : null,
+            'intervention_center',
+            'intelligence_center',
+            'refresh',
+            'quick_actions',
+            'adherence',
+            (data.medication_schedule && data.medication_schedule.length > 0) ? 'timeline' : null,
+            'vitals',
+            'alerts',
+        ].filter(Boolean);
+    }, [data]);
+
     // ── Staggered Entrance Animations ──
-    const SECTION_COUNT = 9;
-    const staggerAnims = useRef([...Array(SECTION_COUNT)].map(() => new Animated.Value(0))).current;
+    const staggerAnims = useRef([...Array(15)].map(() => new Animated.Value(0))).current;
     const hasAnimated = useRef(false);
+    const activeAnimation = useRef(null);
 
     const runEntranceAnimations = useCallback(() => {
+        if (activeAnimation.current) {
+            activeAnimation.current.stop();
+        }
         staggerAnims.forEach(a => a.setValue(0));
         if (reduceMotion) {
             staggerAnims.forEach(a => a.setValue(1));
             return;
         }
-        Animated.stagger(70,
-            staggerAnims.map(a =>
-                Animated.spring(a, { toValue: 1, ...motion.springSoft, useNativeDriver: true })
-            )
-        ).start();
-    }, [staggerAnims, reduceMotion]);
 
-    const sectionAnim = (i) => ({
-        opacity: staggerAnims[i],
-        transform: reduceMotion ? [] : [{ translateY: staggerAnims[i].interpolate({ inputRange: [0, 1], outputRange: [18, 0] }) }],
-    });
+        const animations = visibleSections.map((sectionKey, idx) => {
+            const val = staggerAnims[idx];
+            if (!val) return null;
+            
+            let duration = motion.normal;
+            if (sectionKey === 'summary' || sectionKey === 'briefing' || sectionKey === 'needs_attention') {
+                duration = motion.fast;
+            } else if (sectionKey === 'forecasts' || sectionKey === 'recommendations') {
+                duration = motion.normal;
+            } else if (sectionKey === 'journey' || sectionKey === 'health_status') {
+                duration = motion.slow;
+            }
+            
+            return Animated.timing(val, {
+                toValue: 1,
+                duration: duration,
+                useNativeDriver: true,
+            });
+        }).filter(Boolean);
+
+        activeAnimation.current = Animated.stagger(70, animations);
+        activeAnimation.current.start(() => {
+            activeAnimation.current = null;
+        });
+    }, [staggerAnims, reduceMotion, visibleSections]);
+
+    const sectionAnimForKey = (sectionKey) => {
+        const idx = visibleSections.indexOf(sectionKey);
+        if (idx === -1 || idx >= staggerAnims.length) {
+            return { opacity: 1 };
+        }
+        return {
+            opacity: staggerAnims[idx],
+            transform: reduceMotion ? [] : [{ translateY: staggerAnims[idx].interpolate({ inputRange: [0, 1], outputRange: [18, 0] }) }],
+        };
+    };
 
     // Mock weekly data to render a stunning micro-chart (since backend is real-time only)
     const mockWeeklyAdherence = [
@@ -100,6 +153,14 @@ export default function CompanionDashboardScreen() {
             if (!selectedPatientId) return;
             const res = await apiService.companion.getPatientStatus({ patientId: selectedPatientId });
             setData(res.data);
+            
+            // Fetch pending interventions count
+            try {
+                const intRes = await apiService.companion.getInterventions({ patientId: selectedPatientId });
+                setPendingInterventionsCount(intRes.data.active_interventions?.length || 0);
+            } catch (intErr) {
+                console.warn('Failed to fetch interventions for count', intErr);
+            }
         } catch (err) {
             console.warn('Failed to load companion dashboard', err);
         }
@@ -303,7 +364,8 @@ export default function CompanionDashboardScreen() {
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
             >
                 {/* Top Summary Card (Mockup Style) */}
-                <Animated.View style={[styles.summaryCard, sectionAnim(0)]}>
+                {visibleSections.includes('summary') && (
+                    <Animated.View style={[styles.summaryCard, sectionAnimForKey('summary')]}>
                     <View style={styles.summaryCol}>
                         <View style={styles.summaryColRow}>
                             <ShieldCheck color={(data.recent_alerts && data.recent_alerts.length > 0) ? colors.danger : colors.success} size={20} />
@@ -350,11 +412,12 @@ export default function CompanionDashboardScreen() {
                             </Pressable>
                         </View>
                     </View>
-                </Animated.View>
+                    </Animated.View>
+                )}
 
                 {/* Low Pill Stock Refill Warning Banner */}
-                {data.refill_alerts && data.refill_alerts.length > 0 && (
-                    <Animated.View style={[styles.refillBanner, sectionAnim(1)]}>
+                {visibleSections.includes('refill') && (
+                    <Animated.View style={[styles.refillBanner, sectionAnimForKey('refill')]}>
                         <View style={styles.refillBannerHeader}>
                             <AlertCircle color={colors.warning} size={18} />
                             <Text style={styles.refillBannerTitle}>Low Medication Stock Alert</Text>
@@ -380,617 +443,290 @@ export default function CompanionDashboardScreen() {
                         </ScrollView>
                     </Animated.View>
                 )}
-
-                {/* AI Companion Intelligence Hub Card */}
-                <Animated.View style={[styles.hubCard, sectionAnim(2)]}>
-                    <View style={styles.hubHeader}>
-                        <View style={styles.hubTitleRow}>
-                            <Activity color={colors.primary} size={20} />
-                            <Text style={styles.hubTitle}>AI Companion Intelligence Hub</Text>
-                        </View>
-                    </View>
-
-                    {/* Section A: Risk, Trend, Visibility Header & Last Stable */}
-                    <View style={styles.metricRow}>
-                        <View style={styles.badgeRow}>
-                            {/* Risk badge */}
-                            <View style={[
-                                styles.badge,
-                                riskLevel === 'high' ? styles.riskBadgeHigh :
-                                riskLevel === 'medium' ? styles.riskBadgeMedium :
-                                riskLevel === 'low' ? styles.riskBadgeLow : styles.riskBadgeUnknown
-                            ]}>
-                                <Text style={[
-                                    styles.riskBadgeText,
-                                    { color: riskLevel === 'high' ? colors.danger :
-                                             riskLevel === 'medium' ? colors.warning :
-                                             riskLevel === 'low' ? colors.success : '#64748B' }
-                                ]}>
-                                    {riskLevel === 'high' ? 'High Risk' :
-                                     riskLevel === 'medium' ? 'Medium Risk' :
-                                     riskLevel === 'low' ? 'Low Risk' : 'Status Unknown'}
-                                </Text>
-                            </View>
-
-                            {/* Trend indicator (only when risk level is known) */}
-                            {riskLevel !== 'unknown' && (
-                                <Text style={[
-                                    styles.trendText,
-                                    { color: trendDirection === 'improving' ? colors.success :
-                                             trendDirection === 'worsening' ? colors.danger : colors.textSecondary }
-                                ]}>
-                                    {trendDirection === 'improving' ? 'Improving ↓' :
-                                     trendDirection === 'worsening' ? 'Worsening ↑' : 'Stable →'}
-                                </Text>
-                            )}
-
-                            {/* Confidence badge */}
-                            <View style={[styles.badge, styles.confidenceBadge]}>
-                                <Text style={[styles.confidenceBadgeText, { color: confidenceLabel === 'High' ? colors.success : confidenceLabel === 'Medium' ? colors.warning : colors.danger }]}>
-                                    Confidence: {confidenceLabel} ({confidenceScore}%)
-                                </Text>
-                            </View>
-                        </View>
-
-                        {/* Last Stable Streaks / Relative Offsets */}
-                        <View style={{ marginTop: 8 }}>
-                            {(() => {
-                                if (lastStable.currently_stable) {
-                                    return (
-                                        <Text style={styles.lastStableText}>
-                                            🟢 Stable for <Text style={FONT.bold}>{lastStable.stable_days}</Text> consecutive days
-                                        </Text>
-                                    );
-                                } else if (lastStable.last_stable_at) {
-                                    const diffMs = Date.now() - new Date(lastStable.last_stable_at).getTime();
-                                    const diffDays = Math.max(1, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
-                                    return (
-                                        <Text style={styles.lastStableText}>
-                                            ⚠️ Last stable <Text style={FONT.bold}>{diffDays}</Text> {diffDays === 1 ? 'day' : 'days'} ago
-                                        </Text>
-                                    );
-                                } else {
-                                    return (
-                                        <Text style={styles.lastStableText}>
-                                            ⚠️ Patient status currently unstable
-                                        </Text>
-                                    );
-                                }
-                            })()}
-                        </View>
-
-                        {/* Visibility Breakdown score bar & grid */}
-                        <View style={styles.visibilityContainer}>
-                            <View style={styles.visibilityHeaderRow}>
-                                <Text style={styles.visibilityLabel}>Care Visibility</Text>
-                                <Text style={[styles.visibilityScoreText, { color: visibilityScore >= 80 ? colors.success : visibilityScore >= 50 ? colors.warning : colors.danger }]}>
-                                    {visibilityScore}% ({visibilityLabel})
-                                </Text>
-                            </View>
-                            <View style={styles.progressBarContainer}>
-                                <View style={[
-                                    styles.progressBarFill,
-                                    {
-                                        width: `${visibilityScore}%`,
-                                        backgroundColor: visibilityScore >= 80 ? colors.success : visibilityScore >= 50 ? colors.warning : colors.danger
-                                    }
-                                ]} />
-                            </View>
-
-                            {/* Grid of ticks/warnings */}
-                            <View style={styles.breakdownGrid}>
-                                {(() => {
-                                    const bd = insights.visibility_breakdown || { medications: 0, vitals: 0, wearable: 0, mood: 0 };
-                                    return (
-                                        <>
-                                            {renderBreakdownItem('Medications', bd.medications, 35)}
-                                            {renderBreakdownItem('Vitals Log', bd.vitals, 35)}
-                                            {renderBreakdownItem('Wearable', bd.wearable, 15)}
-                                            {renderBreakdownItem('Mood Log', bd.mood, 15)}
-                                        </>
-                                    );
-                                })()}
-                            </View>
-                        </View>
-
-                        {/* Risk Contributors stacked bar chart */}
-                        {(() => {
-                            const riskBreakdown = insights.risk_breakdown || { adherence: 30, vitals: 40, mood: 15, visibility: 15 };
-                            const totalBreakdown = (riskBreakdown.adherence || 0) + (riskBreakdown.vitals || 0) + (riskBreakdown.mood || 0) + (riskBreakdown.visibility || 0) || 1;
-                            const pctAdherence = Math.round(((riskBreakdown.adherence || 0) / totalBreakdown) * 100);
-                            const pctVitals = Math.round(((riskBreakdown.vitals || 0) / totalBreakdown) * 100);
-                            const pctMood = Math.round(((riskBreakdown.mood || 0) / totalBreakdown) * 100);
-                            const pctVisibility = Math.round(((riskBreakdown.visibility || 0) / totalBreakdown) * 100);
-
-                            return (
-                                <View style={styles.riskBreakdownContainer}>
-                                    <Text style={styles.visibilityLabel}>Risk Contributors</Text>
-                                    <View style={styles.stackedBar}>
-                                        {pctAdherence > 0 && <View style={[styles.stackedBarSegment, { width: `${pctAdherence}%`, backgroundColor: '#10B981', borderTopLeftRadius: 4, borderBottomLeftRadius: 4 }]} />}
-                                        {pctVitals > 0 && <View style={[styles.stackedBarSegment, { width: `${pctVitals}%`, backgroundColor: '#EF4444' }]} />}
-                                        {pctMood > 0 && <View style={[styles.stackedBarSegment, { width: `${pctMood}%`, backgroundColor: '#F59E0B' }]} />}
-                                        {pctVisibility > 0 && <View style={[styles.stackedBarSegment, { width: `${pctVisibility}%`, backgroundColor: '#6366F1', borderTopRightRadius: 4, borderBottomRightRadius: 4 }]} />}
-                                    </View>
-                                    <View style={styles.legendGrid}>
-                                        <View style={styles.legendItem}>
-                                            <View style={[styles.legendDot, { backgroundColor: '#10B981' }]} />
-                                            <Text style={styles.legendText}>Meds ({pctAdherence}%)</Text>
-                                        </View>
-                                        <View style={styles.legendItem}>
-                                            <View style={[styles.legendDot, { backgroundColor: '#EF4444' }]} />
-                                            <Text style={styles.legendText}>Vitals ({pctVitals}%)</Text>
-                                        </View>
-                                        <View style={styles.legendItem}>
-                                            <View style={[styles.legendDot, { backgroundColor: '#F59E0B' }]} />
-                                            <Text style={styles.legendText}>Wellness ({pctMood}%)</Text>
-                                        </View>
-                                        <View style={styles.legendItem}>
-                                            <View style={[styles.legendDot, { backgroundColor: '#6366F1' }]} />
-                                            <Text style={styles.legendText}>Visibility ({pctVisibility}%)</Text>
-                                        </View>
-                                    </View>
-                                </View>
-                            );
-                        })()}
-                    </View>
-
-                    {/* Section A.5: Recovery & Early Warning Alerts */}
-                    {((insights.predictive_health?.recovery?.status) || 
-                      (insights.predictive_health?.risk_trends?.velocity > 0 || insights.predictive_health?.forecast?.trajectory === 'negative')) && (
-                        <View style={{ marginBottom: 16, paddingBottom: 16, borderBottomWidth: 1, borderBottomColor: colors.borderLight }}>
-                            {/* Recovery Banner */}
-                            {insights.predictive_health?.recovery?.status && (
-                                <View style={{
-                                    backgroundColor: '#ECFDF5',
-                                    borderWidth: 1,
-                                    borderColor: '#A7F3D0',
-                                    borderRadius: 12,
-                                    padding: 12,
-                                    marginBottom: (insights.predictive_health?.risk_trends?.velocity > 0 || insights.predictive_health?.forecast?.trajectory === 'negative') ? 12 : 0,
-                                    flexDirection: 'row',
-                                    alignItems: 'center',
-                                    gap: 8
-                                }}>
-                                    <ShieldCheck size={20} color="#10B981" />
-                                    <View style={{ flex: 1 }}>
-                                        <Text style={{ fontSize: 13, ...FONT.bold, color: '#065F46' }}>Patient is recovering</Text>
-                                        <Text style={{ fontSize: 11, ...FONT.medium, color: '#047857', marginTop: 2 }}>
-                                            Risk has decreased for {insights.predictive_health.recovery.days} consecutive days (Confidence: {insights.predictive_health.recovery.confidence}%).
-                                        </Text>
-                                    </View>
-                                </View>
-                            )}
-
-                            {/* Early Warning Alert */}
-                            {(insights.predictive_health?.risk_trends?.velocity > 0 || insights.predictive_health?.forecast?.trajectory === 'negative') && (
-                                <View style={{
-                                    backgroundColor: '#FEF2F2',
-                                    borderWidth: 1,
-                                    borderColor: '#FCA5A5',
-                                    borderRadius: 12,
-                                    padding: 12,
-                                    flexDirection: 'row',
-                                    alignItems: 'flex-start',
-                                    gap: 8
-                                }}>
-                                    <AlertCircle size={20} color="#EF4444" style={{ marginTop: 2 }} />
-                                    <View style={{ flex: 1 }}>
-                                        <Text style={{ fontSize: 13, ...FONT.bold, color: '#991B1B' }}>Early Warning Alert</Text>
-                                        <Text style={{ fontSize: 11, ...FONT.medium, color: '#B91C1C', marginTop: 2, lineHeight: 15 }}>
-                                            {insights.predictive_health.risk_trends.velocity > 0
-                                                ? `Risk velocity is increasing (Velocity: +${insights.predictive_health.risk_trends.velocity.toFixed(2)}, Accel: +${insights.predictive_health.risk_trends.acceleration.toFixed(2)}). `
-                                                : ''}
-                                            {insights.predictive_health.forecast.trajectory === 'negative'
-                                                ? `Trajectory forecast projects a decline in health score to ${insights.predictive_health.forecast.projected_score_14d} within 14 days.`
-                                                : ''}
-                                        </Text>
-                                    </View>
-                                </View>
-                            )}
-                        </View>
-                    )}
-
-                    {/* Section B: AI Caregiver Briefing (Mascot Balloon) */}
-                    <View style={styles.briefingContainer}>
+                 {/* Card 1: AI Companion Briefing (Mascot Overlapping Speech Bubble) */}
+                {visibleSections.includes('briefing') && (
+                    <Animated.View style={[styles.briefingContainerStandalone, sectionAnimForKey('briefing')]}>
                         <Image 
                             source={require('../../../assets/doctor_mascot_insights.jpg')} 
-                            style={styles.mascotImage}
+                            style={styles.mascotOverlappingImage}
                             resizeMode="cover"
                         />
-                        <View style={styles.speechBubble}>
-                            <View style={styles.speechArrow} />
-                            <Text style={styles.briefingTitle}>AI Companion Briefing</Text>
+                        <View style={styles.speechBubbleOverlapping}>
+                            <Text style={styles.briefingTitleOverlapping}>AI Companion Briefing</Text>
                             <Text style={styles.briefingText}>{insights.summary || 'AI has not generated a briefing for today yet.'}</Text>
                         </View>
-                    </View>
+                    </Animated.View>
+                )}
 
-                    {/* Section C: Priority Actions list */}
-                    <View style={styles.priorityActionsContainer}>
-                        <Text style={styles.sectionHeading}>⚠️ Needs Attention</Text>
-                        {priorityActions.length === 0 ? (
-                            <View style={styles.noActionsBox}>
-                                <ShieldCheck color={colors.success} size={18} />
-                                <Text style={styles.noActionsText}>No priority actions required at this time.</Text>
-                            </View>
-                        ) : (
-                            <View style={styles.priorityActionsList}>
-                                {priorityActions.map((action, idx) => {
-                                    const isCritical = action.severity === 'critical';
-                                    const isWarning = action.severity === 'warning';
-                                    const bulletText = isCritical ? '🔴' : isWarning ? '🟡' : '🔵';
-                                    
-                                    let btnText = '';
-                                    let btnHandler = null;
-                                    if (action.action_type === 'medication' || action.action_type === 'critical_vital') {
-                                        btnText = 'Nudge';
-                                        btnHandler = handleNudge;
-                                    } else if (action.action_type === 'vital_sync') {
-                                        btnText = 'Request BP';
-                                        btnHandler = handleRequestBP;
-                                    } else if (action.action_type === 'call_patient') {
-                                        btnText = 'Call';
-                                        btnHandler = handleCall;
-                                    }
-
-                                    return (
-                                        <View key={idx} style={styles.priorityActionItem}>
-                                            <View style={styles.priorityActionContent}>
-                                                <Text style={styles.priorityBullet}>{bulletText}</Text>
-                                                <Text style={styles.priorityActionMessage}>{action.message}</Text>
-                                            </View>
-                                            {btnHandler && (
-                                                <Pressable
-                                                    style={({ pressed }) => [
-                                                        styles.priorityActionBtn,
-                                                        isCritical ? styles.priorityActionBtnCritical : null,
-                                                        pressed && { opacity: 0.7 }
-                                                    ]}
-                                                    onPress={btnHandler}
-                                                >
-                                                    <Text style={styles.priorityActionBtnText}>{btnText}</Text>
-                                                </Pressable>
-                                            )}
-                                        </View>
-                                    );
-                                })}
-                            </View>
-                        )}
-                    </View>
-
-                    {/* Section D: AI Vitals Forecast (Predictions timeline) */}
-                    <View style={styles.forecastContainer}>
-                        <Text style={styles.sectionHeading}>🔮 3-Day Vital Forecast</Text>
-                        <View style={styles.forecastContent}>
-                            {(() => {
-                                const predData = predictions.predictions || [];
-                                if (predData.length === 0) {
-                                    return <Text style={styles.noForecastText}>No forecasting metrics synchronized yet.</Text>;
+                {/* Card 2: Needs Attention */}
+                {visibleSections.includes('needs_attention') && (
+                    <Animated.View style={[styles.card, { borderColor: colors.primarySoft, borderWidth: 1.5 }, sectionAnimForKey('needs_attention')]}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                            <AlertCircle color={colors.danger} size={18} />
+                            <Text style={[styles.cardTitle, { color: colors.danger }]}>Needs Attention</Text>
+                        </View>
+                        <View style={styles.priorityActionsList}>
+                            {priorityActions.map((action, idx) => {
+                                const isCritical = action.severity === 'critical';
+                                const isWarning = action.severity === 'warning';
+                                const bulletText = isCritical ? '🔴' : isWarning ? '🟡' : '🔵';
+                                
+                                let btnText = '';
+                                let btnHandler = null;
+                                if (action.action_type === 'medication' || action.action_type === 'critical_vital') {
+                                    btnText = 'Nudge';
+                                    btnHandler = handleNudge;
+                                } else if (action.action_type === 'vital_sync') {
+                                    btnText = 'Request BP';
+                                    btnHandler = handleRequestBP;
+                                } else if (action.action_type === 'call_patient') {
+                                    btnText = 'Call';
+                                    btnHandler = handleCall;
                                 }
+
                                 return (
-                                    <View style={styles.forecastRow}>
-                                        {predData.slice(0, 3).map((pred, idx) => {
-                                            const dayLabel = idx === 0 ? 'Tomorrow' : idx === 1 ? 'Day 2' : 'Day 3';
-                                            return (
-                                                <View key={idx} style={styles.forecastBox}>
-                                                    <Text style={styles.forecastDayLabel}>{dayLabel}</Text>
-                                                    <View style={styles.forecastStats}>
-                                                        <Text style={styles.forecastStatVal}>
-                                                            {pred.blood_pressure?.systolic || 120}/{pred.blood_pressure?.diastolic || 80}
-                                                        </Text>
-                                                        <Text style={styles.forecastStatLabel}>BP (mmHg)</Text>
-                                                        
-                                                        <Text style={[styles.forecastStatVal, { marginTop: 6 }]}>
-                                                            {pred.heart_rate || 75}
-                                                        </Text>
-                                                        <Text style={styles.forecastStatLabel}>HR (bpm)</Text>
-                                                    </View>
-                                                </View>
-                                            );
-                                        })}
+                                    <View key={action.id || action.message || idx} style={styles.priorityActionItem}>
+                                        <View style={styles.priorityActionContent}>
+                                            <Text style={styles.priorityBullet}>{bulletText}</Text>
+                                            <Text style={styles.priorityActionMessage}>{action.message}</Text>
+                                        </View>
+                                        {btnHandler && (
+                                            <Pressable
+                                                style={({ pressed }) => [
+                                                    styles.priorityActionBtn,
+                                                    isCritical ? styles.priorityActionBtnCritical : null,
+                                                    pressed && { opacity: 0.7 }
+                                                ]}
+                                                onPress={btnHandler}
+                                            >
+                                                <Text style={styles.priorityActionBtnText}>{btnText}</Text>
+                                            </Pressable>
+                                        )}
                                     </View>
                                 );
-                            })()}
-                            
-                            {/* Forecast Warning Overlay for Low Confidence */}
-                            {confidenceLabel === 'Low' && (
-                                <View style={styles.forecastWarningOverlay}>
-                                    <AlertCircle color={colors.danger} size={18} />
-                                    <Text style={styles.forecastWarningText}>
-                                        Forecast quality limited due to low visibility. Request vital log to update predictions.
+                            })}
+                        </View>
+                    </Animated.View>
+                )}
+
+                {/* ⚡ Intervention Center CTA Card */}
+                {visibleSections.includes('intervention_center') && (
+                    <Animated.View style={[styles.ctaCard, { marginTop: 12, borderColor: '#FED7AA' }, sectionAnimForKey('intervention_center')]}>
+                        <Pressable 
+                            style={({ pressed }) => [styles.ctaCardPressable, pressed && { opacity: 0.95 }]}
+                            onPress={() => navigation.navigate('InterventionCenter')}
+                        >
+                            <View style={styles.ctaCardHeader}>
+                                <Text style={styles.ctaEmoji}>⚡</Text>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={styles.ctaTitle}>Proactive Intervention Center</Text>
+                                    <Text style={styles.ctaSubtitle}>
+                                        {pendingInterventionsCount > 0 
+                                            ? `${pendingInterventionsCount} care intervention${pendingInterventionsCount > 1 ? 's' : ''} recommended`
+                                            : 'No immediate actions needed today'}
                                     </Text>
+                                </View>
+                                {pendingInterventionsCount > 0 && (
+                                    <View style={styles.activeBadgeContainer}>
+                                        <Text style={styles.activeBadgeText}>{pendingInterventionsCount}</Text>
+                                    </View>
+                                )}
+                                <ChevronRight color={colors.primary} size={20} />
+                            </View>
+                            <View style={styles.ctaViewDetailsRow}>
+                                <Text style={styles.ctaViewDetailsText}>Open Action Center</Text>
+                                <ChevronRight size={14} color={colors.primary} />
+                            </View>
+                        </Pressable>
+                    </Animated.View>
+                )}
+
+                {/* 🧠 Health Intelligence Center CTA Card */}
+                {visibleSections.includes('intelligence_center') && (
+                    <Animated.View style={[styles.ctaCard, sectionAnimForKey('intelligence_center')]}>
+                        <Pressable 
+                            style={({ pressed }) => [styles.ctaCardPressable, pressed && { opacity: 0.95 }]}
+                            onPress={() => navigation.navigate('CompanionAnalytics')}
+                        >
+                            <View style={styles.ctaCardHeader}>
+                                <Text style={styles.ctaEmoji}>🧠</Text>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={styles.ctaTitle}>Health Intelligence Center</Text>
+                                    <Text style={styles.ctaSubtitle}>Forecasts • Trends • AI Insights</Text>
+                                </View>
+                                <ChevronRight color={colors.primary} size={20} />
+                            </View>
+
+                            {/* Preview Chips */}
+                            <View style={styles.ctaChipsRow}>
+                                <View style={[
+                                    styles.ctaChip,
+                                    riskLevel === 'high' ? styles.chipHigh :
+                                    riskLevel === 'medium' ? styles.chipMedium :
+                                    riskLevel === 'low' ? styles.chipLow : styles.chipUnknown
+                                ]}>
+                                    <Text style={[
+                                        styles.ctaChipText,
+                                        { color: riskLevel === 'high' ? colors.danger :
+                                                 riskLevel === 'medium' ? colors.warning :
+                                                 riskLevel === 'low' ? colors.success : '#64748B' }
+                                    ]}>
+                                        Risk: {riskLevel === 'high' ? 'High' : riskLevel === 'medium' ? 'Medium' : riskLevel === 'low' ? 'Low' : 'Unknown'}
+                                    </Text>
+                                </View>
+
+                                <View style={[styles.ctaChip, { backgroundColor: '#E0F2FE' }]}>
+                                    <Text style={[styles.ctaChipText, { color: colors.primary }]}>
+                                        Forecast: {trendDirection === 'improving' ? 'Improving' : trendDirection === 'worsening' ? 'Declining' : 'Stable'}
+                                    </Text>
+                                </View>
+
+                                <View style={[styles.ctaChip, { backgroundColor: '#F1F5F9' }]}>
+                                    <Text style={[styles.ctaChipText, { color: '#475569' }]}>
+                                        Confidence: {confidenceScore}%
+                                    </Text>
+                                </View>
+                            </View>
+
+                            <View style={styles.ctaViewDetailsRow}>
+                                <Text style={styles.ctaViewDetailsText}>View Details</Text>
+                                <ChevronRight size={14} color={colors.primary} />
+                            </View>
+                        </Pressable>
+                    </Animated.View>
+                )}
+
+                {/* Refresh AI Insights Button */}
+                {visibleSections.includes('refresh') && (
+                    <Animated.View style={[sectionAnimForKey('refresh')]}>
+                        <Pressable 
+                            style={({ pressed }) => [styles.refreshInsightsBtn, pressed && { opacity: 0.8 }]}
+                            onPress={handleManualRefresh}
+                            disabled={refreshing}
+                        >
+                            {refreshing ? (
+                                <ActivityIndicator size="small" color="#FFF" />
+                            ) : (
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                    <RefreshCw size={14} color="#FFF" />
+                                    <Text style={styles.refreshInsightsBtnText}>Refresh Insights</Text>
                                 </View>
                             )}
-                        </View>
-                    </View>
+                        </Pressable>
+                    </Animated.View>
+                )}
+                {/* 1. Quick Actions Bar */}
+                {visibleSections.includes('quick_actions') && (
+                    <Animated.View style={[styles.actionsContainer, sectionAnimForKey('quick_actions')]}>
+                        <Pressable style={({ pressed }) => [styles.actionButton, pressed && { opacity: 0.7 }]} onPress={handleNudge} disabled={nudging}>
+                            <View style={[styles.actionIconContainer, { backgroundColor: colors.primarySoft }]}>
+                                {nudging ? (
+                                    <ActivityIndicator size="small" color={colors.primary} />
+                                ) : (
+                                    <Send color={colors.primary} size={18} />
+                                )}
+                            </View>
+                            <Text style={styles.actionLabel}>Nudge</Text>
+                            <Text style={styles.actionSubLabel}>Send reminder</Text>
+                        </Pressable>
 
-                    {/* Section D2: 14-Day Trajectory Forecast */}
-                    {insights.predictive_health?.forecast && (
-                        <View style={{
-                            marginBottom: 16,
-                            paddingBottom: 16,
-                            borderBottomWidth: 1,
-                            borderBottomColor: colors.borderLight
-                        }}>
-                            <Text style={styles.sectionHeading}>🔮 14-Day Health Trajectory</Text>
-                            <View style={{
-                                backgroundColor: '#F8FAFC',
-                                borderWidth: 1,
-                                borderColor: colors.borderLight,
-                                borderRadius: 16,
-                                padding: 14,
-                                flexDirection: 'row',
-                                alignItems: 'center',
-                                justifyContent: 'space-between',
-                                gap: 12,
-                                marginTop: 8
-                            }}>
-                                <View style={{ flex: 1, gap: 4 }}>
-                                    <Text style={{ fontSize: 10, ...FONT.bold, color: colors.textMuted }}>PROJECTED HEALTH SCORE</Text>
-                                    <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
-                                        <Text style={{ fontSize: 28, ...FONT.heavy, color: colors.textPrimary }}>
-                                            {insights.predictive_health.forecast.projected_score_14d}
-                                        </Text>
-                                        <Text style={{ fontSize: 13, ...FONT.semibold, color: colors.textMuted, marginLeft: 4 }}>/100</Text>
-                                    </View>
-                                    <Text style={{ fontSize: 11, ...FONT.medium, color: colors.textSecondary }}>
-                                        Current Score: {data.patient.health_score ?? 82}
-                                    </Text>
+                        <Pressable style={({ pressed }) => [styles.actionButton, pressed && { opacity: 0.7 }]} onPress={handleCall}>
+                            <View style={[styles.actionIconContainer, { backgroundColor: colors.successLight }]}>
+                                <Phone color={colors.success} size={18} />
+                            </View>
+                            <Text style={styles.actionLabel}>Call</Text>
+                            <Text style={styles.actionSubLabel}>Call {data.patient.name.split(' ')[0]}</Text>
+                        </Pressable>
+
+                        <Pressable style={({ pressed }) => [styles.actionButton, pressed && { opacity: 0.7 }]} onPress={handleRequestBP} disabled={requestingBP}>
+                            <View style={[styles.actionIconContainer, { backgroundColor: colors.dangerLight }]}>
+                                {requestingBP ? (
+                                    <ActivityIndicator size="small" color={colors.danger} />
+                                ) : (
+                                    <HeartPulse color={colors.danger} size={18} />
+                                )}
+                            </View>
+                            <Text style={styles.actionLabel}>Request BP</Text>
+                            <Text style={styles.actionSubLabel}>Ask for reading</Text>
+                        </Pressable>
+                    </Animated.View>
+                )}
+
+                {/* 2. Adherence Meter Card */}
+                {visibleSections.includes('adherence') && (
+                    <Animated.View style={[styles.card, sectionAnimForKey('adherence')]}>
+                        <View style={styles.cardHeader}>
+                            <View style={[styles.iconBox, { backgroundColor: colors.primarySoft }]}>
+                                <Activity color={colors.primary} size={18} />
+                            </View>
+                            <View>
+                                <Text style={styles.cardTitle}>Medication Adherence</Text>
+                                <Text style={styles.cardSub}>Today's completed schedule</Text>
+                            </View>
+                        </View>
+
+                        <View style={styles.meterRow}>
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.largeValue} numberOfLines={1} adjustsFontSizeToFit>
+                                    {data.patient.adherence_rate !== null ? `${data.patient.adherence_rate}%` : 'N/A'}
+                                </Text>
+                                <View style={styles.streakBadge}>
+                                    <Text style={styles.streakText}>🔥 {data.patient.current_streak} Day Streak</Text>
                                 </View>
-                                
-                                <View style={{ alignItems: 'center', gap: 6 }}>
-                                    <View style={{
-                                        backgroundColor: insights.predictive_health.forecast.trajectory === 'positive' ? '#ECFDF5' : (insights.predictive_health.forecast.trajectory === 'negative' ? '#FEF2F2' : '#F1F5F9'),
-                                        paddingHorizontal: 10,
-                                        paddingVertical: 5,
-                                        borderRadius: 8,
-                                        borderWidth: 1,
-                                        borderColor: insights.predictive_health.forecast.trajectory === 'positive' ? '#A7F3D0' : (insights.predictive_health.forecast.trajectory === 'negative' ? '#FCA5A5' : '#E2E8F0')
-                                    }}>
-                                        <Text style={{
-                                            fontSize: 11,
-                                            ...FONT.bold,
-                                            color: insights.predictive_health.forecast.trajectory === 'positive' ? '#10B981' : (insights.predictive_health.forecast.trajectory === 'negative' ? '#EF4444' : '#64748B')
-                                        }}>
-                                            {insights.predictive_health.forecast.trajectory === 'positive' ? 'Improving ↗' : (insights.predictive_health.forecast.trajectory === 'negative' ? 'Declining ↘' : 'Stable ➔')}
-                                        </Text>
-                                    </View>
+                            </View>
+
+                            {/* Custom Pure-CSS Circular Progress Approximation */}
+                            <View style={styles.circularProgressPlaceholder}>
+                                <View style={[
+                                    styles.circleSegment, 
+                                    { borderColor: adherence > 75 ? colors.success : adherence > 50 ? colors.warning : colors.danger }
+                                ]}>
+                                    <Text style={styles.circleInsideText}>
+                                        {adherence > 75 ? 'Good' : adherence > 50 ? 'Fair' : 'Low'}
+                                    </Text>
                                 </View>
                             </View>
                         </View>
-                    )}
 
-                    {/* Section E: AI Recommendations */}
-                    {recommendations.length > 0 && (
-                        <View style={styles.recommendationsContainer}>
-                            <Text style={styles.sectionHeading}>💡 AI Caregiver Recommendations</Text>
-                            <View style={styles.recommendationsList}>
-                                {recommendations.map((rec, idx) => (
-                                    <View key={idx} style={styles.recRow}>
-                                        <Text style={styles.recBullet}>✦</Text>
-                                        <Text style={styles.recText}>{rec}</Text>
+                        {/* Dynamic Status Banner */}
+                        <View style={[
+                            styles.statusBanner,
+                            { backgroundColor: adherence > 75 ? colors.successLight : adherence > 50 ? colors.warningLight : colors.dangerLight }
+                        ]}>
+                            <Text style={[
+                                styles.statusBannerText,
+                                { color: adherence > 75 ? colors.success : adherence > 50 ? colors.warning : colors.danger }
+                            ]}>
+                                {adherence > 75 ? 'Adherence is stable. Keep it up!' : 'Some medicines were missed today.'}
+                            </Text>
+                        </View>
+
+                        {/* Custom Weekly Progress Micro-Chart */}
+                        <View style={styles.chartContainer}>
+                            <Text style={styles.chartTitle}>Weekly Adherence Trend</Text>
+                            <View style={styles.barChart}>
+                                {(data?.weekly_adherence || mockWeeklyAdherence).map((item, idx) => (
+                                    <View key={idx} style={styles.barWrapper}>
+                                        <View style={styles.barTrack}>
+                                            <View style={[
+                                                styles.barFill, 
+                                                { 
+                                                    height: `${item.rate}%`,
+                                                    backgroundColor: item.rate > 75 ? colors.success : item.rate > 50 ? colors.warning : colors.danger 
+                                                }
+                                            ]} />
+                                        </View>
+                                        <Text style={styles.barLabel}>{item.day}</Text>
                                     </View>
                                 ))}
                             </View>
                         </View>
-                    )}
-
-                    {/* Section E2: Patient Journey Progression */}
-                    <View style={styles.journeyProgressionContainer}>
-                        <Text style={styles.sectionHeading}>📈 Patient Journey Progression</Text>
-                        <View style={styles.journeyGrid}>
-                            {/* Column 1: Risk Progress */}
-                            <View style={styles.journeyGridCard}>
-                                <Text style={styles.journeyGridLabel}>Risk Status</Text>
-                                <Text style={[
-                                    styles.journeyGridVal,
-                                    { color: riskLevel === 'high' ? colors.danger :
-                                             riskLevel === 'medium' ? colors.warning :
-                                             riskLevel === 'low' ? colors.success : '#64748B' }
-                                ]}>
-                                    {riskLevel === 'high' ? 'High' :
-                                     riskLevel === 'medium' ? 'Medium' :
-                                     riskLevel === 'low' ? 'Low' : 'Unknown'}
-                                </Text>
-                                <Text style={styles.journeyGridSub}>
-                                    {trendDirection === 'improving' ? '↗ Improving' :
-                                     trendDirection === 'worsening' ? '↘ Worsening' : '→ Stable'}
-                                </Text>
-                            </View>
-
-                            {/* Column 2: Care Visibility */}
-                            <View style={styles.journeyGridCard}>
-                                <Text style={styles.journeyGridLabel}>Care Visibility</Text>
-                                <Text style={[
-                                    styles.journeyGridVal,
-                                    { color: visibilityScore >= 80 ? colors.success : visibilityScore >= 50 ? colors.warning : colors.danger }
-                                ]}>
-                                    {visibilityScore}%
-                                </Text>
-                                <Text style={styles.journeyGridSub}>{visibilityLabel} Coverage</Text>
-                            </View>
-
-                            {/* Column 3: Adherence Streak */}
-                            <View style={styles.journeyGridCard}>
-                                <Text style={styles.journeyGridLabel}>Medication Streak</Text>
-                                <Text style={[styles.journeyGridVal, { color: colors.primary }]}>
-                                    {data.patient.current_streak} Days
-                                </Text>
-                                <Text style={styles.journeyGridSub}>{adherence}% Adherence</Text>
-                            </View>
-                        </View>
-                    </View>
-
-                    {/* Section E3: Caregiver Risk Timeline */}
-                    <View style={styles.riskTimelineContainer}>
-                        <Text style={styles.sectionHeading}>📅 Caregiver Risk Timeline</Text>
-                        {(!data.risk_timeline || data.risk_timeline.length === 0) ? (
-                            <View style={styles.emptyTimelineBox}>
-                                <ShieldCheck color={colors.success} size={18} />
-                                <Text style={styles.emptyTimelineText}>No risk transitions recorded. Patient has been consistently stable.</Text>
-                            </View>
-                        ) : (
-                            <View style={styles.timelineList}>
-                                {data.risk_timeline.slice(0, 5).map((item, idx) => {
-                                    const isLast = idx === Math.min(data.risk_timeline.length, 5) - 1;
-                                    const dateStr = formatDate(item.date, 'D MMM, h:mm a');
-                                    
-                                    const getRiskColor = (lvl) => {
-                                        if (lvl === 'high') return colors.danger;
-                                        if (lvl === 'medium') return colors.warning;
-                                        if (lvl === 'low') return colors.success;
-                                        return '#64748B';
-                                    };
-
-                                    return (
-                                        <View key={item._id || idx} style={styles.timelineRowItem}>
-                                            <View style={styles.timelineLineCol}>
-                                                <View style={[styles.timelineMarkerDot, { backgroundColor: getRiskColor(item.to) }]} />
-                                                {!isLast && <View style={styles.timelineVerticalLinkLine} />}
-                                            </View>
-                                            <View style={styles.timelineContentCol}>
-                                                <View style={styles.timelineTransitionRow}>
-                                                    <Text style={[styles.timelineRiskText, { color: getRiskColor(item.from) }]}>
-                                                        {item.from.toUpperCase()}
-                                                    </Text>
-                                                    <Text style={styles.timelineTransitionArrow}>➔</Text>
-                                                    <Text style={[styles.timelineRiskText, { color: getRiskColor(item.to), ...FONT.bold }]}>
-                                                        {item.to.toUpperCase()}
-                                                    </Text>
-                                                </View>
-                                                <Text style={styles.timelineTransitionDate}>{dateStr}</Text>
-                                            </View>
-                                        </View>
-                                    );
-                                })}
-                            </View>
-                        )}
-                    </View>
-
-                    {/* Section F: Manual Refresh button */}
-                    <Pressable 
-                        style={({ pressed }) => [styles.refreshInsightsBtn, pressed && { opacity: 0.8 }]}
-                        onPress={handleManualRefresh}
-                        disabled={refreshing}
-                    >
-                        {refreshing ? (
-                            <ActivityIndicator size="small" color="#FFF" />
-                        ) : (
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                                <RefreshCw size={14} color="#FFF" />
-                                <Text style={styles.refreshInsightsBtnText}>Refresh Insights</Text>
-                            </View>
-                        )}
-                    </Pressable>
-                </Animated.View>
-
-                {/* 1. Quick Actions Bar */}
-                <Animated.View style={[styles.actionsContainer, sectionAnim(3)]}>
-                    <Pressable style={({ pressed }) => [styles.actionButton, pressed && { opacity: 0.7 }]} onPress={handleNudge} disabled={nudging}>
-                        <View style={[styles.actionIconContainer, { backgroundColor: colors.primarySoft }]}>
-                            {nudging ? (
-                                <ActivityIndicator size="small" color={colors.primary} />
-                            ) : (
-                                <Send color={colors.primary} size={18} />
-                            )}
-                        </View>
-                        <Text style={styles.actionLabel}>Nudge</Text>
-                        <Text style={styles.actionSubLabel}>Send reminder</Text>
-                    </Pressable>
-
-                    <Pressable style={({ pressed }) => [styles.actionButton, pressed && { opacity: 0.7 }]} onPress={handleCall}>
-                        <View style={[styles.actionIconContainer, { backgroundColor: colors.successLight }]}>
-                            <Phone color={colors.success} size={18} />
-                        </View>
-                        <Text style={styles.actionLabel}>Call</Text>
-                        <Text style={styles.actionSubLabel}>Call {data.patient.name.split(' ')[0]}</Text>
-                    </Pressable>
-
-                    <Pressable style={({ pressed }) => [styles.actionButton, pressed && { opacity: 0.7 }]} onPress={handleRequestBP} disabled={requestingBP}>
-                        <View style={[styles.actionIconContainer, { backgroundColor: colors.dangerLight }]}>
-                            {requestingBP ? (
-                                <ActivityIndicator size="small" color={colors.danger} />
-                            ) : (
-                                <HeartPulse color={colors.danger} size={18} />
-                            )}
-                        </View>
-                        <Text style={styles.actionLabel}>Request BP</Text>
-                        <Text style={styles.actionSubLabel}>Ask for reading</Text>
-                    </Pressable>
-                </Animated.View>
-
-                {/* 2. Adherence Meter Card */}
-                <Animated.View style={[styles.card, sectionAnim(4)]}>
-                    <View style={styles.cardHeader}>
-                        <View style={[styles.iconBox, { backgroundColor: colors.primarySoft }]}>
-                            <Activity color={colors.primary} size={18} />
-                        </View>
-                        <View>
-                            <Text style={styles.cardTitle}>Medication Adherence</Text>
-                            <Text style={styles.cardSub}>Today's completed schedule</Text>
-                        </View>
-                    </View>
-
-                    <View style={styles.meterRow}>
-                        <View style={{ flex: 1 }}>
-                            <Text style={styles.largeValue} numberOfLines={1} adjustsFontSizeToFit>
-                                {data.patient.adherence_rate !== null ? `${data.patient.adherence_rate}%` : 'N/A'}
-                            </Text>
-                            <View style={styles.streakBadge}>
-                                <Text style={styles.streakText}>🔥 {data.patient.current_streak} Day Streak</Text>
-                            </View>
-                        </View>
-
-                        {/* Custom Pure-CSS Circular Progress Approximation */}
-                        <View style={styles.circularProgressPlaceholder}>
-                            <View style={[
-                                styles.circleSegment, 
-                                { borderColor: adherence > 75 ? colors.success : adherence > 50 ? colors.warning : colors.danger }
-                            ]}>
-                                <Text style={styles.circleInsideText}>
-                                    {adherence > 75 ? 'Good' : adherence > 50 ? 'Fair' : 'Low'}
-                                </Text>
-                            </View>
-                        </View>
-                    </View>
-
-                    {/* Dynamic Status Banner */}
-                    <View style={[
-                        styles.statusBanner,
-                        { backgroundColor: adherence > 75 ? colors.successLight : adherence > 50 ? colors.warningLight : colors.dangerLight }
-                    ]}>
-                        <Text style={[
-                            styles.statusBannerText,
-                            { color: adherence > 75 ? colors.success : adherence > 50 ? colors.warning : colors.danger }
-                        ]}>
-                            {adherence > 75 ? 'Adherence is stable. Keep it up!' : 'Some medicines were missed today.'}
-                        </Text>
-                    </View>
-
-                    {/* Custom Weekly Progress Micro-Chart */}
-                    <View style={styles.chartContainer}>
-                        <Text style={styles.chartTitle}>Weekly Adherence Trend</Text>
-                        <View style={styles.barChart}>
-                            {(data?.weekly_adherence || mockWeeklyAdherence).map((item, idx) => (
-                                <View key={idx} style={styles.barWrapper}>
-                                    <View style={styles.barTrack}>
-                                        <View style={[
-                                            styles.barFill, 
-                                            { 
-                                                height: `${item.rate}%`,
-                                                backgroundColor: item.rate > 75 ? colors.success : item.rate > 50 ? colors.warning : colors.danger 
-                                            }
-                                        ]} />
-                                    </View>
-                                    <Text style={styles.barLabel}>{item.day}</Text>
-                                </View>
-                            ))}
-                        </View>
-                    </View>
-                </Animated.View>
+                    </Animated.View>
+                )}
 
                 {/* 2b. Daily Medication Timeline Checklist */}
-                {data.medication_schedule && data.medication_schedule.length > 0 && (
-                    <Animated.View style={[styles.card, sectionAnim(5)]}>
+                {visibleSections.includes('timeline') && (
+                    <Animated.View style={[styles.card, sectionAnimForKey('timeline')]}>
                         <View style={styles.cardHeader}>
                             <View style={[styles.iconBox, { backgroundColor: colors.successLight }]}>
                                 <Activity color={colors.success} size={18} />
@@ -1056,211 +792,109 @@ export default function CompanionDashboardScreen() {
                 )}
 
                 {/* 3. Vitals Card (with beautiful elegant empty states) */}
-                <Animated.View style={[styles.card, sectionAnim(6)]}>
-                    <View style={styles.cardHeader}>
-                        <View style={[styles.iconBox, { backgroundColor: colors.dangerLight }]}>
-                            <HeartPulse color={colors.danger} size={18} />
-                        </View>
-                        <View>
-                            <Text style={styles.cardTitle}>Vitals Status</Text>
-                            <Text style={styles.cardSub}>Latest biometric sync</Text>
-                        </View>
-                    </View>
-
-                    {hasVitals ? (
-                        <View style={styles.vitalsRow}>
-                            <View style={styles.vitalMetricsBox}>
-                                <Text style={styles.vitalLabel}>Blood Pressure</Text>
-                                <Text style={styles.vitalBigValue} numberOfLines={1} adjustsFontSizeToFit>
-                                    {data.latest_vital.bp_systolic}/{data.latest_vital.bp_diastolic}
-                                </Text>
-                                <Text style={styles.vitalUnit}>mmHg</Text>
-                            </View>
-                            
-                            <View style={styles.vitalDivider} />
-
-                            <View style={styles.vitalMetricsBox}>
-                                <Text style={styles.vitalLabel}>Status</Text>
-                                <View style={[styles.vitalBadge, { backgroundColor: colors.successLight }]}>
-                                    <Text style={[styles.vitalBadgeText, { color: colors.success }]}>Normal</Text>
-                                </View>
-                                <Text style={styles.vitalTime}>Synced 2h ago</Text>
-                            </View>
-                        </View>
-                    ) : (
-                        <View style={styles.vitalsEmptyContainer}>
-                            {/* Left Side: Illustrative Blood Pressure Monitor */}
-                            <View style={styles.vitalsEmptyLeft}>
-                                <Image 
-                                    source={require('../../../assets/bp_monitor_illus.jpg')} 
-                                    style={styles.bpMonitorImage}
-                                    resizeMode="cover"
-                                />
-                                <View style={styles.bluetoothBadgeOverlay}>
-                                    <Bluetooth size={14} color="#FFF" />
-                                </View>
-                            </View>
-
-                            {/* Right Side: Status, Description, and Sync Actions */}
-                            <View style={styles.vitalsEmptyRight}>
-                                <View style={styles.vitalsStatusBadgeRow}>
-                                    <Bluetooth size={14} color={colors.primary} />
-                                    <Text style={styles.vitalsStatusBadgeText}>All vitals normal</Text>
-                                </View>
-                                
-                                <Text style={styles.vitalsEmptyDesc}>
-                                    No BP logs recorded today. Vitals sync when {data.patient.name.split(' ')[0]} connects a BP monitor.
-                                </Text>
-
-                                <Pressable style={styles.vitalsSyncBtn} onPress={() => loadData()}>
-                                    <Text style={styles.vitalsSyncBtnText}>Sync Now</Text>
-                                </Pressable>
-
-                                <Pressable style={styles.vitalsConnectBtn} onPress={() => {
-                                    AlertManager.alert('Connect Device', 'Searching for nearby Bluetooth blood pressure monitors...');
-                                }}>
-                                    <Text style={styles.vitalsConnectBtnText}>Connect Device</Text>
-                                </Pressable>
-                            </View>
-                        </View>
-                    )}
-                </Animated.View>
-
-                {/* 3b. Vitals 7-Day Analytics Trends Graph */}
-                {data.vitals_history && data.vitals_history.length > 0 && (
-                    <Animated.View style={[styles.card, sectionAnim(7)]}>
-                        <View style={styles.cardHeader}>
-                            <View style={[styles.iconBox, { backgroundColor: colors.primarySoft }]}>
-                                <Activity color={colors.primary} size={18} />
-                            </View>
-                            <View>
-                                <Text style={styles.cardTitle}>Vitals Analytics (7-Day Trend)</Text>
-                                <Text style={styles.cardSub}>Chronological health monitoring</Text>
-                            </View>
-                        </View>
-
-                        <View style={styles.chartContainer}>
-                            <Text style={styles.chartTitle}>Heart Rate Trend (bpm)</Text>
-                            <View style={styles.barChart}>
-                                {(() => {
-                                    const daysToShow = 7;
-                                    const history = data.vitals_history || [];
-                                    const last7Days = [];
-                                    const today = new Date();
-                                    
-                                    for (let i = daysToShow - 1; i >= 0; i--) {
-                                        const d = new Date(today);
-                                        d.setDate(d.getDate() - i);
-                                        last7Days.push(d);
-                                    }
-
-                                    const historyByDate = {};
-                                    history.forEach(log => {
-                                        if (log.date) {
-                                            const dStr = new Date(log.date).toISOString().slice(0, 10);
-                                            historyByDate[dStr] = log;
-                                        }
-                                    });
-
-                                    return last7Days.map((dateObj, idx) => {
-                                        const dStr = dateObj.toISOString().slice(0, 10);
-                                        const log = historyByDate[dStr];
-                                        const dayLabel = dateObj.toLocaleDateString(undefined, { weekday: 'narrow' });
-
-                                        if (!log || !log.heart_rate) {
-                                            return (
-                                                <View key={`empty-${idx}`} style={styles.barWrapper}>
-                                                    <View style={[styles.barTrack, { backgroundColor: '#F1F5F9' }]}>
-                                                        <View style={[styles.barFill, { height: '8%', backgroundColor: '#CBD5E1' }]} />
-                                                    </View>
-                                                    <Text style={[styles.barLabel, { color: colors.textMuted }]}>{dayLabel}</Text>
-                                                </View>
-                                            );
-                                        }
-
-                                        const rate = log.heart_rate;
-                                        const pct = Math.min(100, Math.max(20, (rate / 120) * 100));
-                                        
-                                        return (
-                                            <View key={idx} style={styles.barWrapper}>
-                                                <View style={[styles.barTrack, { backgroundColor: '#E0F2FE' }]}>
-                                                    <View style={[
-                                                        styles.barFill, 
-                                                        { 
-                                                            height: `${pct}%`,
-                                                            backgroundColor: rate > 100 || rate < 50 ? colors.danger : colors.primary 
-                                                        }
-                                                    ]} />
-                                                </View>
-                                                <Text style={[styles.barLabel, { color: colors.textPrimary, ...FONT.bold }]}>{dayLabel}</Text>
-                                            </View>
-                                        );
-                                    });
-                                })()}
-                            </View>
-                            
-                            {(() => {
-                                const validLogs = data.vitals_history.filter(l => l.heart_rate);
-                                if (validLogs.length === 0) return null;
-                                
-                                const avg = Math.round(validLogs.reduce((acc, curr) => acc + curr.heart_rate, 0) / validLogs.length);
-                                let status = "Stable.";
-                                let statusColor = colors.success;
-                                let statusBg = colors.successLight;
-                                let Icon = ShieldCheck;
-                                
-                                if (avg > 100 || avg < 50) {
-                                    status = "Attention required.";
-                                    statusColor = colors.danger;
-                                    statusBg = colors.dangerLight;
-                                    Icon = AlertCircle;
-                                } else if (avg > 90 || avg < 60) {
-                                    status = "Monitor closely.";
-                                    statusColor = colors.warning;
-                                    statusBg = colors.warningLight;
-                                    Icon = AlertCircle;
-                                }
-
-                                return (
-                                    <View style={[styles.vitalTrendSummary, { backgroundColor: statusBg }]}>
-                                        <Icon color={statusColor} size={14} />
-                                        <Text style={[styles.vitalTrendSummaryText, { color: statusColor }]}>
-                                            Heart rate averaged {avg} bpm. {status}
-                                        </Text>
-                                    </View>
-                                );
-                            })()}
-                        </View>
-                    </Animated.View>
-                )}
-                
-                {/* 4. Alerts Card */}
-                {data.recent_alerts?.length > 0 ? (
-                    <Animated.View style={[styles.card, sectionAnim(8)]}>
+                {visibleSections.includes('vitals') && (
+                    <Animated.View style={[styles.card, sectionAnimForKey('vitals')]}>
                         <View style={styles.cardHeader}>
                             <View style={[styles.iconBox, { backgroundColor: colors.dangerLight }]}>
-                                <Bell color={colors.danger} size={18} />
+                                <HeartPulse color={colors.danger} size={18} />
                             </View>
                             <View>
-                                <Text style={styles.cardTitle}>Critical Alerts</Text>
-                                <Text style={styles.cardSub}>Attention required immediately</Text>
+                                <Text style={styles.cardTitle}>Vitals Status</Text>
+                                <Text style={styles.cardSub}>Latest biometric sync</Text>
                             </View>
                         </View>
 
-                        <View style={styles.alertsList}>
-                            {data.recent_alerts.map(a => (
-                                <View key={a._id} style={styles.alertItem}>
-                                    <View style={styles.alertDot} />
-                                    <Text style={styles.alertDescription}>{a.description}</Text>
+                        {hasVitals ? (
+                            <View style={styles.vitalsRow}>
+                                <View style={styles.vitalMetricsBox}>
+                                    <Text style={styles.vitalLabel}>Blood Pressure</Text>
+                                    <Text style={styles.vitalBigValue} numberOfLines={1} adjustsFontSizeToFit>
+                                        {data.latest_vital.bp_systolic}/{data.latest_vital.bp_diastolic}
+                                    </Text>
+                                    <Text style={styles.vitalUnit}>mmHg</Text>
                                 </View>
-                            ))}
-                        </View>
+                                
+                                <View style={styles.vitalDivider} />
+
+                                <View style={styles.vitalMetricsBox}>
+                                    <Text style={styles.vitalLabel}>Status</Text>
+                                    <View style={[styles.vitalBadge, { backgroundColor: colors.successLight }]}>
+                                        <Text style={[styles.vitalBadgeText, { color: colors.success }]}>Normal</Text>
+                                    </View>
+                                    <Text style={styles.vitalTime}>Synced 2h ago</Text>
+                                </View>
+                            </View>
+                        ) : (
+                            <View style={styles.vitalsEmptyContainer}>
+                                {/* Left Side: Illustrative Blood Pressure Monitor */}
+                                <View style={styles.vitalsEmptyLeft}>
+                                    <Image 
+                                        source={require('../../../assets/bp_monitor_illus.jpg')} 
+                                        style={styles.bpMonitorImage}
+                                        resizeMode="cover"
+                                    />
+                                    <View style={styles.bluetoothBadgeOverlay}>
+                                        <Bluetooth size={14} color="#FFF" />
+                                    </View>
+                                </View>
+
+                                {/* Right Side: Status, Description, and Sync Actions */}
+                                <View style={styles.vitalsEmptyRight}>
+                                    <View style={styles.vitalsStatusBadgeRow}>
+                                        <Bluetooth size={14} color={colors.primary} />
+                                        <Text style={styles.vitalsStatusBadgeText}>All vitals normal</Text>
+                                    </View>
+                                    
+                                    <Text style={styles.vitalsEmptyDesc}>
+                                        No BP logs recorded today. Vitals sync when {data.patient.name.split(' ')[0]} connects a BP monitor.
+                                    </Text>
+
+                                    <Pressable style={styles.vitalsSyncBtn} onPress={() => loadData()}>
+                                        <Text style={styles.vitalsSyncBtnText}>Sync Now</Text>
+                                    </Pressable>
+
+                                    <Pressable style={styles.vitalsConnectBtn} onPress={() => {
+                                        AlertManager.alert('Connect Device', 'Searching for nearby Bluetooth blood pressure monitors...');
+                                    }}>
+                                        <Text style={styles.vitalsConnectBtnText}>Connect Device</Text>
+                                    </Pressable>
+                                </View>
+                            </View>
+                        )}
                     </Animated.View>
-                ) : (
-                    <Animated.View style={[styles.noAlertsCard, sectionAnim(8)]}>
-                        <ShieldCheck color={colors.success} size={24} />
-                        <Text style={styles.noAlertsText}>All systems normal. No active alerts.</Text>
-                    </Animated.View>
+                )}
+
+
+                
+                {/* 4. Alerts Card */}
+                {visibleSections.includes('alerts') && (
+                    data.recent_alerts?.length > 0 ? (
+                        <Animated.View style={[styles.card, sectionAnimForKey('alerts')]}>
+                            <View style={styles.cardHeader}>
+                                <View style={[styles.iconBox, { backgroundColor: colors.dangerLight }]}>
+                                    <Bell color={colors.danger} size={18} />
+                                </View>
+                                <View>
+                                    <Text style={styles.cardTitle}>Critical Alerts</Text>
+                                    <Text style={styles.cardSub}>Attention required immediately</Text>
+                                </View>
+                            </View>
+
+                            <View style={styles.alertsList}>
+                                {data.recent_alerts.map(a => (
+                                    <View key={a._id} style={styles.alertItem}>
+                                        <View style={styles.alertDot} />
+                                        <Text style={styles.alertDescription}>{a.description}</Text>
+                                    </View>
+                                ))}
+                            </View>
+                        </Animated.View>
+                    ) : (
+                        <Animated.View style={[styles.noAlertsCard, sectionAnimForKey('alerts')]}>
+                            <ShieldCheck color={colors.success} size={24} />
+                            <Text style={styles.noAlertsText}>All systems normal. No active alerts.</Text>
+                        </Animated.View>
+                    )
                 )}
             </ScrollView>
         </View>
@@ -2390,5 +2024,115 @@ const styles = StyleSheet.create({
         ...FONT.medium,
         color: colors.textMuted,
         marginTop: 2,
+    },
+    briefingContainerStandalone: {
+        position: 'relative',
+        marginTop: 24,
+        marginBottom: 16,
+    },
+    mascotOverlappingImage: {
+        position: 'absolute',
+        top: -20,
+        left: 20,
+        width: 50,
+        height: 50,
+        borderRadius: 25,
+        borderWidth: 2,
+        borderColor: '#FFF',
+        zIndex: 10,
+        ...shadows.sm,
+    },
+    speechBubbleOverlapping: {
+        backgroundColor: colors.primarySoft,
+        borderRadius: radius.xl,
+        paddingTop: 36,
+        paddingHorizontal: 16,
+        paddingBottom: 16,
+        borderWidth: 1.5,
+        borderColor: colors.primarySoft,
+    },
+    briefingTitleOverlapping: {
+        fontSize: 11,
+        ...FONT.bold,
+        color: colors.primaryMid,
+        marginBottom: 4,
+        textTransform: 'uppercase',
+    },
+    ctaCard: {
+        backgroundColor: colors.surface,
+        borderRadius: radius.xl,
+        borderWidth: 1.5,
+        borderColor: colors.primarySoft,
+        ...shadows.card,
+    },
+    ctaCardPressable: {
+        padding: spacing.md,
+    },
+    ctaCardHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+    },
+    ctaEmoji: {
+        fontSize: 28,
+    },
+    ctaTitle: {
+        fontSize: 15,
+        ...FONT.bold,
+        color: colors.textPrimary,
+    },
+    ctaSubtitle: {
+        fontSize: 11,
+        ...FONT.medium,
+        color: colors.textMuted,
+        marginTop: 1,
+    },
+    ctaChipsRow: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+        marginTop: 16,
+        borderTopWidth: 1,
+        borderTopColor: colors.borderLight,
+        paddingTop: 12,
+    },
+    ctaChip: {
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 8,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    ctaChipText: {
+        fontSize: 10,
+        ...FONT.bold,
+    },
+    chipHigh: { backgroundColor: colors.dangerLight },
+    chipMedium: { backgroundColor: colors.warningLight },
+    chipLow: { backgroundColor: colors.successLight },
+    chipUnknown: { backgroundColor: '#F1F5F9' },
+    ctaViewDetailsRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'flex-end',
+        gap: 4,
+        marginTop: 12,
+    },
+    ctaViewDetailsText: {
+        fontSize: 11,
+        ...FONT.bold,
+        color: colors.primary,
+    },
+    activeBadgeContainer: {
+        backgroundColor: colors.danger,
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        borderRadius: 10,
+        marginRight: 4,
+    },
+    activeBadgeText: {
+        color: '#FFFFFF',
+        fontSize: 10,
+        ...FONT.bold,
     },
 });

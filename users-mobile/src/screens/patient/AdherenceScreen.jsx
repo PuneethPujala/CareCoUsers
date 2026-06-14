@@ -59,6 +59,7 @@ const STATUS_COLORS = {
     partial: '#F59E0B',
     missed: '#F43F5E',
     none: '#E2E8F0',
+    no_medications: '#E2E8F0',
 };
 
 // ── Animated Circular Progress ─────────────────────────────────
@@ -181,9 +182,9 @@ const CalendarDay = ({ date, status, isCurrentMonth, onPress }) => {
                 styles.dayCell,
                 {
                     opacity: isCurrentMonth ? 1 : 0.25,
-                    backgroundColor: status && status !== 'none' ? bg + '22' : todayFlag ? C.primarySoft : 'transparent',
-                    borderWidth: todayFlag ? 2 : status && status !== 'none' ? 1.5 : 0,
-                    borderColor: todayFlag ? C.primary : status && status !== 'none' ? bg + '60' : 'transparent',
+                    backgroundColor: status && status !== 'none' && status !== 'no_medications' ? bg + '22' : todayFlag ? C.primarySoft : 'transparent',
+                    borderWidth: todayFlag ? 2 : status && status !== 'none' && status !== 'no_medications' ? 1.5 : 0,
+                    borderColor: todayFlag ? C.primary : status && status !== 'none' && status !== 'no_medications' ? bg + '60' : 'transparent',
                     transform: [{ scale: scaleAnim }],
                 },
             ]}>

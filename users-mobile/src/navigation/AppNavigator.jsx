@@ -42,6 +42,7 @@ import CompanionDashboardScreen from '../screens/app/CompanionDashboardScreen';
 import CompanionAlertsScreen from '../screens/app/CompanionAlertsScreen';
 import CompanionProfileScreen from '../screens/app/CompanionProfileScreen';
 import CompanionChatListScreen from '../screens/app/CompanionChatListScreen';
+import CompanionAnalyticsScreen from '../screens/app/CompanionAnalyticsScreen';
 
 import PatientHomeScreen from "../screens/patient/HomeScreen";
 import MyCallerScreen from "../screens/patient/MyCallerScreen";
@@ -61,6 +62,8 @@ import CallHistoryScreen from "../screens/patient/CallHistoryScreen";
 import PremiumShowcaseScreen from "../screens/patient/PremiumShowcaseScreen";
 import PrescriptionVerificationScreen from "../screens/patient/PrescriptionVerificationScreen";
 import ChatFAB from "../components/ui/ChatFAB";
+import HealthCopilotScreen from "../screens/patient/HealthCopilotScreen";
+import InterventionCenterScreen from "../screens/app/InterventionCenterScreen";
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -153,8 +156,10 @@ const CompanionMainStack = () => (
     <Stack.Navigator screenOptions={{ headerShown: false, animation: "fade" }}>
         <Stack.Screen name="CompanionHome" component={CompanionHomeScreen} />
         <Stack.Screen name="CompanionTabs" component={CompanionTabNavigator} />
+        <Stack.Screen name="CompanionAnalytics" component={CompanionAnalyticsScreen} />
         <Stack.Screen name="ChatHistory" component={ChatHistoryScreen} options={{ presentation: "modal", animation: "slide_from_bottom", headerShown: false }} />
         <Stack.Screen name="Chatbot" component={ChatbotScreen} options={{ presentation: "modal", animation: "slide_from_bottom", headerShown: false }} />
+        <Stack.Screen name="InterventionCenter" component={InterventionCenterScreen} />
     </Stack.Navigator>
 );
 
@@ -193,6 +198,7 @@ const MainAppStack = () => (
         <Stack.Screen name="MFASetup" component={MFASetupScreen} options={{ presentation: "modal", animation: "slide_from_bottom" }} />
         <Stack.Screen name="DeveloperObservability" component={DeveloperObservabilityScreen} options={{ presentation: "modal", animation: "slide_from_bottom" }} />
         <Stack.Screen name="PatientDiagnostics" component={PatientDiagnosticsScreen} options={{ presentation: "modal", animation: "slide_from_bottom" }} />
+        <Stack.Screen name="HealthCopilot" component={HealthCopilotScreen} />
     </Stack.Navigator>
 );
 

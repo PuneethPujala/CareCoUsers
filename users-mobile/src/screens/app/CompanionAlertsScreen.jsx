@@ -8,7 +8,21 @@ import { useNavigation } from '@react-navigation/native';
 import AlertManager from '../../utils/AlertManager';
 import Svg, { Path, Circle, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
 
-
+const C = {
+    bg: colors.background,
+    surface: colors.surface,
+    primary: colors.primary,
+    primaryDark: colors.primaryMid,
+    primarySoft: colors.primarySoft,
+    dark: colors.textPrimary,
+    mid: colors.textSecondary,
+    muted: colors.textMuted,
+    danger: colors.danger,
+    border: colors.borderLight,
+    success: colors.success,
+    successSoft: colors.successLight,
+    light: colors.textMuted,
+};
 
 const FONT = {
     medium: { fontFamily: 'Inter_500Medium' },

@@ -15,8 +15,9 @@ import {
     Maximize2, X, Plus, Zap, Watch, CheckCircle2, AlertCircle
 } from 'lucide-react-native';
 import Svg, { Line, Path, Circle } from 'react-native-svg';
+import axios from 'axios';
 import axiosInstance, { handleAxiosError } from '../../lib/axiosInstance';
-import { apiService } from '../../lib/api';
+import api, { apiService } from '../../lib/api';
 import { colors, layout } from '../../theme';
 import SmartInput from '../../components/ui/SmartInput';
 import OfflineSyncService from '../../lib/OfflineSyncService';
@@ -138,20 +139,36 @@ const METRIC_CHIPS = [
 ];
 
 export default function VitalsHistoryScreen({ navigation }) {
-    // ─── State (unchanged) ──────────────────────────────────────
+    // ─── State & Refs (Decoupled and Upgraded) ───────────────────
     const [vitals, setVitals] = useState([]);
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(false); // represents chartLoading
     const [initialLoading, setInitialLoading] = useState(true);
-    const [dataRefreshing, setDataRefreshing] = useState(false);
-    const [error, setError] = useState(null);
+    const [dataRefreshing, setDataRefreshing] = useState(false); // represents chartRefreshing
+    const [error, setError] = useState(null); // represents chartError
     const [isOffline, setIsOffline] = useState(false);
 
     const [rangeMode, setRangeMode] = useState('single');
     const [startDate, setStartDate] = useState(new Date());
     const [endDate, setEndDate] = useState(new Date());
+    const [displayedStartDate, setDisplayedStartDate] = useState(new Date());
+    const [displayedEndDate, setDisplayedEndDate] = useState(new Date());
 
     const [historyLogs, setHistoryLogs] = useState([]);
     const [historyDate, setHistoryDate] = useState(new Date());
+    const [displayedHistoryDate, setDisplayedHistoryDate] = useState(new Date());
+
+    const [historyLoading, setHistoryLoading] = useState(true);
+    const [historyRefreshing, setHistoryRefreshing] = useState(false);
+    const [historyError, setHistoryError] = useState(null);
+
+    // Request tracking & Abort controllers
+    const chartRequestRef = useRef(0);
+    const historyRequestRef = useRef(0);
+    const chartAbortControllerRef = useRef(null);
+    const historyAbortControllerRef = useRef(null);
+
+    // Animation values
+    const historyFadeAnim = useRef(new Animated.Value(1)).current;
 
     const { width: windowW, height: windowH } = useWindowDimensions();
     const isLandscape = windowW > windowH;
@@ -371,53 +388,133 @@ export default function VitalsHistoryScreen({ navigation }) {
         const unsub = NetInfo.addEventListener(state => setIsOffline(!state.isConnected));
         return () => unsub();
     }, []);
-
-    // ─── Fetch (unchanged) ──────────────────────────────────────
-    const lastRequestRef = useRef(0);
-    const fetchAllData = useCallback(async () => {
+    // ─── Fetch Upgrades ──────────────────────────────────────────
+    const fetchChartData = useCallback(async () => {
         if (isOffline) {
             setError('You are offline. Please connect to the internet to view your vitals history.');
             setLoading(false);
             return;
         }
-        const now = Date.now();
-        if (now - lastRequestRef.current < 400) return;
-        lastRequestRef.current = now;
+
+        // Abort previous in-flight chart request
+        if (chartAbortControllerRef.current) {
+            chartAbortControllerRef.current.abort();
+        }
+        const controller = new AbortController();
+        chartAbortControllerRef.current = controller;
+
+        const requestId = Date.now();
+        chartRequestRef.current = requestId;
         setError(null);
+
         try {
             if (initialLoading) setLoading(true);
             else {
                 setDataRefreshing(true);
-                Animated.timing(dataFadeAnim, { toValue: 0.4, duration: 150, useNativeDriver: true }).start();
+                Animated.timing(dataFadeAnim, { toValue: 0.3, duration: 150, useNativeDriver: true }).start();
             }
-            const [vitalsRes, historyRes] = await Promise.all([
-                apiService.patients.getVitals({
+
+            const res = await api.get('/users/patients/me/vitals', {
+                params: {
                     start_date: startDate.toISOString(),
                     end_date: rangeMode === 'single' ? startDate.toISOString() : endDate.toISOString(),
-                }),
-                apiService.patients.getVitals({
+                },
+                signal: controller.signal,
+            });
+
+            if (requestId === chartRequestRef.current) {
+                setVitals(res.data.vitals || []);
+                setDisplayedStartDate(startDate);
+                setDisplayedEndDate(endDate);
+            }
+        } catch (err) {
+            if (axios.isCancel(err)) {
+                return; // Stale request was aborted
+            }
+            if (requestId === chartRequestRef.current) {
+                setError(handleAxiosError(err));
+            }
+        } finally {
+            if (requestId === chartRequestRef.current) {
+                setLoading(false);
+                setInitialLoading(false);
+                setDataRefreshing(false);
+                Animated.timing(dataFadeAnim, { toValue: 1, duration: 200, useNativeDriver: true }).start();
+            }
+        }
+    }, [startDate, endDate, rangeMode, isOffline, initialLoading, dataFadeAnim]);
+
+    const fetchHistoryData = useCallback(async () => {
+        if (isOffline) {
+            setHistoryError('Offline mode active.');
+            setHistoryLoading(false);
+            return;
+        }
+
+        // Abort previous in-flight history request
+        if (historyAbortControllerRef.current) {
+            historyAbortControllerRef.current.abort();
+        }
+        const controller = new AbortController();
+        historyAbortControllerRef.current = controller;
+
+        const requestId = Date.now();
+        historyRequestRef.current = requestId;
+        setHistoryError(null);
+
+        try {
+            if (historyLoading) setHistoryLoading(true);
+            else {
+                setHistoryRefreshing(true);
+                Animated.timing(historyFadeAnim, { toValue: 0.3, duration: 150, useNativeDriver: true }).start();
+            }
+
+            const res = await api.get('/users/patients/me/vitals', {
+                params: {
                     start_date: historyDate.toISOString(),
                     end_date: historyDate.toISOString(),
-                })
-            ]);
-            setVitals(vitalsRes.data.vitals || []);
-            setHistoryLogs(historyRes.data.vitals || []);
-        } catch (err) {
-            setError(handleAxiosError(err));
-        } finally {
-            setLoading(false);
-            setInitialLoading(false);
-            setDataRefreshing(false);
-            Animated.timing(dataFadeAnim, { toValue: 1, duration: 200, useNativeDriver: true }).start();
-        }
-    }, [startDate, endDate, rangeMode, historyDate, isOffline, initialLoading, dataFadeAnim]);
+                },
+                signal: controller.signal,
+            });
 
-    const debounceRef = useRef(null);
+            if (requestId === historyRequestRef.current) {
+                setHistoryLogs(res.data.vitals || []);
+                setDisplayedHistoryDate(historyDate);
+            }
+        } catch (err) {
+            if (axios.isCancel(err)) {
+                return; // Stale request was aborted
+            }
+            if (requestId === historyRequestRef.current) {
+                setHistoryError(handleAxiosError(err));
+            }
+        } finally {
+            if (requestId === historyRequestRef.current) {
+                setHistoryLoading(false);
+                setHistoryRefreshing(false);
+                Animated.timing(historyFadeAnim, { toValue: 1, duration: 200, useNativeDriver: true }).start();
+            }
+        }
+    }, [historyDate, isOffline, historyLoading, historyFadeAnim]);
+
+    const fetchAllData = useCallback(() => {
+        fetchChartData();
+        fetchHistoryData();
+    }, [fetchChartData, fetchHistoryData]);
+
+    const debounceChartRef = useRef(null);
     useEffect(() => {
-        if (debounceRef.current) clearTimeout(debounceRef.current);
-        debounceRef.current = setTimeout(() => fetchAllData(), 300);
-        return () => clearTimeout(debounceRef.current);
-    }, [fetchAllData]);
+        if (debounceChartRef.current) clearTimeout(debounceChartRef.current);
+        debounceChartRef.current = setTimeout(() => fetchChartData(), 300);
+        return () => clearTimeout(debounceChartRef.current);
+    }, [fetchChartData]);
+
+    const debounceHistoryRef = useRef(null);
+    useEffect(() => {
+        if (debounceHistoryRef.current) clearTimeout(debounceHistoryRef.current);
+        debounceHistoryRef.current = setTimeout(() => fetchHistoryData(), 300);
+        return () => clearTimeout(debounceHistoryRef.current);
+    }, [fetchHistoryData]);
 
     useEffect(() => {
         fetchSyncStatus();
@@ -425,12 +522,10 @@ export default function VitalsHistoryScreen({ navigation }) {
 
     useEffect(() => {
         const sub1 = DeviceEventEmitter.addListener('VITALS_UPDATED', () => {
-            lastRequestRef.current = 0;
             fetchAllData();
             fetchSyncStatus();
         });
         const sub2 = DeviceEventEmitter.addListener('VITALS_SYNCED', () => {
-            lastRequestRef.current = 0;
             fetchAllData();
             fetchSyncStatus();
         });
@@ -495,8 +590,15 @@ export default function VitalsHistoryScreen({ navigation }) {
         }
     };
 
-    // ─── Date helpers (unchanged) ────────────────────────────────
+    // ─── Date helpers (upgraded) ─────────────────────────────────
     const adjustDate = (setter, days) => {
+        if (setter === setStartDate || setter === setEndDate) {
+            setDataRefreshing(true);
+            Animated.timing(dataFadeAnim, { toValue: 0.3, duration: 100, useNativeDriver: true }).start();
+        } else if (setter === setHistoryDate) {
+            setHistoryRefreshing(true);
+            Animated.timing(historyFadeAnim, { toValue: 0.3, duration: 100, useNativeDriver: true }).start();
+        }
         setter(prev => { const d = new Date(prev); d.setDate(d.getDate() + days); return d; });
     };
     const formatDate = (d) => d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -531,6 +633,8 @@ export default function VitalsHistoryScreen({ navigation }) {
         const end = new Date();
         const start = new Date();
         start.setDate(start.getDate() - days + 1);
+        setDataRefreshing(true);
+        Animated.timing(dataFadeAnim, { toValue: 0.3, duration: 100, useNativeDriver: true }).start();
         setRangeMode('range');
         setStartDate(start);
         setEndDate(end);
@@ -1009,15 +1113,113 @@ export default function VitalsHistoryScreen({ navigation }) {
         );
     };
 
-    // ─── Render: Skeleton ────────────────────────────────────────
-    const renderSkeleton = () => (
-        <View style={{ gap: 20 }}>
-            <SkeletonItem width="100%" height={140} borderRadius={24} />
-            <SkeletonItem width="100%" height={110} borderRadius={24} />
-            <SkeletonItem width="60%" height={28} borderRadius={10} />
-            <SkeletonItem width="100%" height={260} borderRadius={24} />
-            <SkeletonItem width="100%" height={80} borderRadius={20} />
-            <SkeletonItem width="100%" height={80} borderRadius={20} />
+    // ─── Render: Skeletons ────────────────────────────────────────
+    const renderHeroCardSkeleton = () => (
+        <View style={[styles.skeletonHeroCard, { marginBottom: 20 }]}>
+            <View style={styles.skeletonHeroTop}>
+                <View style={{ gap: 8 }}>
+                    <SkeletonItem width={100} height={12} borderRadius={4} />
+                    <SkeletonItem width={140} height={18} borderRadius={6} />
+                    <SkeletonItem width={110} height={14} borderRadius={4} />
+                </View>
+                <SkeletonItem width={60} height={22} borderRadius={11} />
+            </View>
+            <View style={styles.skeletonHeroChips}>
+                {[...Array(4)].map((_, i) => (
+                    <View key={i} style={styles.skeletonHeroChip}>
+                        <SkeletonItem width={20} height={20} borderRadius={10} style={{ marginBottom: 6 }} />
+                        <SkeletonItem width={35} height={10} borderRadius={3} style={{ marginBottom: 6 }} />
+                        <SkeletonItem width={40} height={14} borderRadius={4} />
+                    </View>
+                ))}
+            </View>
+        </View>
+    );
+
+    const renderSummaryStatsSkeleton = () => (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.statsScroll} style={{ marginBottom: 20 }}>
+            {[...Array(3)].map((_, i) => (
+                <View key={i} style={[styles.skeletonStatCard, { borderTopColor: '#E2E8F0' }]}>
+                    <SkeletonItem width={60} height={10} borderRadius={3} style={{ marginBottom: 10 }} />
+                    <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4, marginBottom: 12 }}>
+                        <SkeletonItem width={70} height={32} borderRadius={6} />
+                        <SkeletonItem width={30} height={14} borderRadius={4} />
+                    </View>
+                    <SkeletonItem width={80} height={16} borderRadius={4} />
+                </View>
+            ))}
+        </ScrollView>
+    );
+
+    const renderAIHealthCoachSkeleton = () => (
+        <View style={[styles.coachCard, { marginBottom: 20 }]}>
+            <View style={styles.coachHeader}>
+                <View style={styles.coachTitleGroup}>
+                    <View style={styles.coachIconBubble}>
+                        <SkeletonItem width={16} height={16} borderRadius={8} />
+                    </View>
+                    <SkeletonItem width={100} height={14} borderRadius={4} />
+                </View>
+                <SkeletonItem width={70} height={20} borderRadius={8} />
+            </View>
+            <View style={styles.coachBody}>
+                <SkeletonItem width="100%" height={16} borderRadius={4} style={{ marginBottom: 8 }} />
+                <SkeletonItem width="90%" height={16} borderRadius={4} style={{ marginBottom: 8 }} />
+                <SkeletonItem width="60%" height={16} borderRadius={4} style={{ marginBottom: 12 }} />
+                <View style={styles.coachDivider} />
+                <View style={styles.coachAdherenceRow}>
+                    <SkeletonItem width={14} height={14} borderRadius={7} style={{ marginRight: 6 }} />
+                    <SkeletonItem width="80%" height={12} borderRadius={3} />
+                </View>
+            </View>
+        </View>
+    );
+
+    const renderChartCardSkeleton = () => (
+        <View style={[styles.chartCard, { borderTopColor: '#E2E8F0' }]}>
+            <View style={styles.chartTitleRow}>
+                <View style={[styles.chartIconPill, { backgroundColor: '#F1F5F9' }]}>
+                    <SkeletonItem width={20} height={20} borderRadius={10} />
+                </View>
+                <View style={{ flex: 1, gap: 4 }}>
+                    <SkeletonItem width={120} height={14} borderRadius={4} />
+                    <SkeletonItem width={80} height={10} borderRadius={3} />
+                </View>
+                <SkeletonItem width={34} height={34} borderRadius={10} />
+            </View>
+            <View style={[styles.emptyChartBox, { height: 220, borderStyle: 'solid' }]}>
+                <ActivityIndicator color="#6366F1" size="small" />
+            </View>
+        </View>
+    );
+
+    const renderHistorySkeleton = () => (
+        <View style={styles.timelineContainer}>
+            <View style={styles.timelineLine} />
+            {[...Array(2)].map((_, idx) => (
+                <View key={idx} style={styles.timelineItem}>
+                    <View style={styles.timelineDotOuter}>
+                        <View style={[styles.timelineDotInner, { backgroundColor: '#CBD5E1' }]} />
+                    </View>
+                    <View style={styles.timelineContent}>
+                        <View style={styles.timelineHeader}>
+                            <View style={styles.timelineTimeRow}>
+                                <SkeletonItem width={60} height={12} borderRadius={4} />
+                                <SkeletonItem width={80} height={10} borderRadius={3} />
+                            </View>
+                            <SkeletonItem width={30} height={16} borderRadius={8} />
+                        </View>
+                        <View style={styles.timelineMetricsRow}>
+                            {[...Array(4)].map((_, i) => (
+                                <View key={i} style={styles.timelineMetricBadge}>
+                                    <SkeletonItem width={12} height={12} borderRadius={6} style={{ marginRight: 4 }} />
+                                    <SkeletonItem width={60} height={10} borderRadius={3} />
+                                </View>
+                            ))}
+                        </View>
+                    </View>
+                </View>
+            ))}
         </View>
     );
 
@@ -1043,6 +1245,9 @@ export default function VitalsHistoryScreen({ navigation }) {
     // ─── Main Render ─────────────────────────────────────────────
     const def = CHART_DEFS.find(c => c.id === activeMetricId);
 
+    const isChartLoadingState = loading || dataRefreshing || displayedStartDate.toDateString() !== startDate.toDateString() || (rangeMode === 'range' && displayedEndDate.toDateString() !== endDate.toDateString());
+    const isHistoryLoadingState = historyLoading || historyRefreshing || displayedHistoryDate.toDateString() !== historyDate.toDateString();
+
     return (
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
             {renderFullscreenChart()}
@@ -1055,11 +1260,10 @@ export default function VitalsHistoryScreen({ navigation }) {
                     onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
                     scrollEventThrottle={16}
                 >
-                    {initialLoading ? renderSkeleton() : (
-                        <>
+                    <>
 
-                            {/* ── Hero Summary Card ───────────── */}
-                            {renderHeroCard()}
+                        {/* ── Hero Summary Card ───────────── */}
+                        {isChartLoadingState ? renderHeroCardSkeleton() : renderHeroCard()}
 
                             {/* ── Log Vitals Card ─────────────── */}
                             <Animated.View style={[styles.chartCard, { borderTopColor: '#6366F1', opacity: staggerAnims[0], transform: [{ translateY: staggerAnims[0].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }]}>
@@ -1185,13 +1389,19 @@ export default function VitalsHistoryScreen({ navigation }) {
                             </Animated.View>
 
                             {/* ── Metric Tabs ─────────────────── */}
-                            {vitals.length > 0 && renderMetricTabs()}
+                            {(vitals.length > 0 || isChartLoadingState) && renderMetricTabs()}
 
                             {/* ── Error / Offline ─────────────── */}
                             {renderErrorBanner()}
 
-                            {/* ── Empty State ─────────────────── */}
-                            {!loading && !error && vitals.length === 0 && (
+                            {/* ── Empty State / Stats / Chart / AI Coach ── */}
+                            {isChartLoadingState ? (
+                                <>
+                                    {renderSummaryStatsSkeleton()}
+                                    {vitals.length > 0 ? renderChartCard(def) : renderChartCardSkeleton()}
+                                    {renderAIHealthCoachSkeleton()}
+                                </>
+                            ) : vitals.length === 0 ? (
                                 <View style={styles.emptyState}>
                                     <LinearGradient colors={['#EEF2FF', '#E0E7FF']} style={styles.emptyIconCircle}>
                                         <Heart size={34} color="#6366F1" />
@@ -1199,19 +1409,16 @@ export default function VitalsHistoryScreen({ navigation }) {
                                     <Text style={styles.emptyTitle}>No vitals recorded</Text>
                                     <Text style={styles.emptySub}>Log your first entry above to start tracking your health trends.</Text>
                                 </View>
+                            ) : (
+                                <>
+                                    {renderSummaryStats()}
+                                    {renderChartCard(def)}
+                                    {renderAIHealthCoach(def)}
+                                </>
                             )}
 
-                            {/* ── Summary Stats ───────────────── */}
-                            {!loading && vitals.length > 0 && renderSummaryStats()}
-
-                            {/* ── Chart ───────────────────────── */}
-                            {!loading && vitals.length > 0 && renderChartCard(def)}
-
-                            {/* ── AI Health Coach ──────────────── */}
-                            {renderAIHealthCoach(def)}
-
                             {/* ── History List ────────────────── */}
-                            <Animated.View style={[{ opacity: staggerAnims[3], transform: [{ translateY: staggerAnims[3].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }, { marginTop: 8 }]}>
+                            <Animated.View style={[{ opacity: Animated.multiply(staggerAnims[3], historyFadeAnim), transform: [{ translateY: staggerAnims[3].interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }, { marginTop: 8 }]}>
                                 <View style={styles.historySectionHeader}>
                                     <Text style={styles.historyTitle}>Recent Logs</Text>
                                     <View style={styles.historyDateControl}>
@@ -1229,10 +1436,19 @@ export default function VitalsHistoryScreen({ navigation }) {
 
                                 {showHistoryPicker && (
                                     <DateTimePicker value={historyDate} mode="date" display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                                        onChange={(e, d) => { setShowHistoryPicker(false); if (d) setHistoryDate(d); }} />
+                                        onChange={(e, d) => {
+                                            setShowHistoryPicker(false);
+                                            if (d) {
+                                                setHistoryRefreshing(true);
+                                                Animated.timing(historyFadeAnim, { toValue: 0.3, duration: 100, useNativeDriver: true }).start();
+                                                setHistoryDate(d);
+                                            }
+                                        }} />
                                 )}
 
-                                {historyLogs.length === 0 ? (
+                                {isHistoryLoadingState ? (
+                                    renderHistorySkeleton()
+                                ) : historyLogs.length === 0 ? (
                                     <View style={styles.historyEmpty}>
                                         <Text style={styles.historyEmptyText}>No logs recorded on this date.</Text>
                                     </View>
@@ -1284,7 +1500,6 @@ export default function VitalsHistoryScreen({ navigation }) {
                                 )}
                             </Animated.View>
                         </>
-                    )}
                 </Animated.ScrollView>
             </View>
         </KeyboardAvoidingView>
