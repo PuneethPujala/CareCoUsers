@@ -669,37 +669,54 @@ export default function CompanionDashboardScreen() {
                             {priorityActions.map((action, idx) => {
                                 const isCritical = action.severity === 'critical';
                                 const isWarning = action.severity === 'warning';
-                                const bulletText = isCritical ? '🔴' : isWarning ? '🟡' : '🔵';
                                 
                                 let btnText = '';
                                 let btnHandler = null;
+                                let btnBgStyle = {};
+                                let btnTextStyle = {};
+                                
                                 if (action.action_type === 'medication' || action.action_type === 'critical_vital') {
                                     btnText = 'Nudge';
                                     btnHandler = handleNudge;
+                                    btnBgStyle = { backgroundColor: colors.dangerLight };
+                                    btnTextStyle = { color: colors.danger };
                                 } else if (action.action_type === 'vital_sync') {
                                     btnText = 'Request BP';
                                     btnHandler = handleRequestBP;
+                                    btnBgStyle = { backgroundColor: colors.primarySoft };
+                                    btnTextStyle = { color: colors.primaryMid };
                                 } else if (action.action_type === 'call_patient') {
                                     btnText = 'Call';
                                     btnHandler = handleCall;
+                                    btnBgStyle = { backgroundColor: colors.successLight };
+                                    btnTextStyle = { color: colors.success };
                                 }
 
                                 return (
-                                    <View key={action.id || action.message || idx} style={styles.priorityActionItem}>
+                                    <View 
+                                        key={action.id || action.message || idx} 
+                                        style={[
+                                            styles.priorityActionItem,
+                                            { borderLeftColor: isCritical ? colors.danger : isWarning ? colors.warning : colors.primary }
+                                        ]}
+                                    >
                                         <View style={styles.priorityActionContent}>
-                                            <Text style={styles.priorityBullet}>{bulletText}</Text>
+                                            <View style={[
+                                                styles.priorityBullet,
+                                                isCritical ? styles.bulletCritical : isWarning ? styles.bulletWarning : styles.bulletInfo
+                                            ]} />
                                             <Text style={styles.priorityActionMessage}>{action.message}</Text>
                                         </View>
                                         {btnHandler && (
                                             <Pressable
                                                 style={({ pressed }) => [
                                                     styles.priorityActionBtn,
-                                                    isCritical ? styles.priorityActionBtnCritical : null,
+                                                    btnBgStyle,
                                                     pressed && { opacity: 0.7 }
                                                 ]}
                                                 onPress={btnHandler}
                                             >
-                                                <Text style={styles.priorityActionBtnText}>{btnText}</Text>
+                                                <Text style={[styles.priorityActionBtnText, btnTextStyle]}>{btnText}</Text>
                                             </Pressable>
                                         )}
                                     </View>
@@ -1949,10 +1966,11 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         backgroundColor: '#F8FAFC',
         borderRadius: 12,
-        paddingVertical: 8,
+        paddingVertical: 10,
         paddingHorizontal: 12,
         borderWidth: 1,
         borderColor: colors.borderLight,
+        borderLeftWidth: 4,
     },
     priorityActionContent: {
         flexDirection: 'row',
@@ -1961,7 +1979,19 @@ const styles = StyleSheet.create({
         gap: 8,
     },
     priorityBullet: {
-        fontSize: 12,
+        width: 10,
+        height: 10,
+        borderRadius: 5,
+        marginRight: 2,
+    },
+    bulletCritical: {
+        backgroundColor: colors.danger,
+    },
+    bulletWarning: {
+        backgroundColor: colors.warning,
+    },
+    bulletInfo: {
+        backgroundColor: colors.primary,
     },
     priorityActionMessage: {
         fontSize: 12,
@@ -1971,18 +2001,14 @@ const styles = StyleSheet.create({
         paddingRight: 6,
     },
     priorityActionBtn: {
-        backgroundColor: colors.primary,
-        paddingHorizontal: 10,
+        paddingHorizontal: 12,
         paddingVertical: 6,
         borderRadius: 8,
         justifyContent: 'center',
         alignItems: 'center',
-    },
-    priorityActionBtnCritical: {
-        backgroundColor: colors.danger,
+        minWidth: 72,
     },
     priorityActionBtnText: {
-        color: '#FFF',
         fontSize: 10,
         ...FONT.bold,
     },
@@ -2348,5 +2374,56 @@ const styles = StyleSheet.create({
         color: '#FFFFFF',
         fontSize: 10,
         ...FONT.bold,
+    },
+    attentionCard: {
+        backgroundColor: colors.surface,
+        borderRadius: radius.xl,
+        borderWidth: 1.5,
+        borderColor: '#FCA5A5',
+        padding: spacing.md,
+        ...shadows.card,
+    },
+    attentionHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: 16,
+    },
+    attentionTitleRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+    },
+    attentionIconBox: {
+        width: 32,
+        height: 32,
+        borderRadius: 8,
+        backgroundColor: '#FEE2E2',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    attentionEyebrow: {
+        fontSize: 10,
+        ...FONT.bold,
+        color: colors.danger,
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
+    },
+    attentionTitle: {
+        fontSize: 15,
+        ...FONT.bold,
+        color: colors.textPrimary,
+        marginTop: 1,
+    },
+    attentionCountBadge: {
+        backgroundColor: '#FEE2E2',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 8,
+    },
+    attentionCountText: {
+        fontSize: 10,
+        ...FONT.bold,
+        color: colors.danger,
     },
 });
