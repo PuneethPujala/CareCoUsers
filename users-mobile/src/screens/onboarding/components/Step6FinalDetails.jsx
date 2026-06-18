@@ -18,7 +18,7 @@ const CELEBRATION_FEATURES = [
     { Icon: Users, title: 'Always here to help', subtitle: '24/7 dedicated care management' },
 ];
 
-const Step5FinalDetails = ({
+const Step6FinalDetails = ({
     staggerAnims, handleCompleteSignUp,
     signupLoading, showCelebration,
     proceedToDashboard, userName,
@@ -246,4 +246,4 @@ const Step5FinalDetails = ({
     );
 };
 
-export default React.memo(Step5FinalDetails);
+export default React.memo(Step6FinalDetails);

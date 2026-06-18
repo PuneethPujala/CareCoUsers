@@ -29,10 +29,10 @@ import { styles, FONT, C } from './components/SignupStyles';
 import { HapticPatterns } from '../../utils/haptics';
 import Step1Profile from './components/Step1Profile';
 import Step2Phone from './components/Step2Phone';
-import Step2Locality from './components/Step2Locality';
-import Step3Membership from './components/Step3Membership';
-import Step4Verification from './components/Step4Verification';
-import Step5FinalDetails from './components/Step5FinalDetails';
+import Step3Locality from './components/Step3Locality';
+import Step4Membership from './components/Step4Membership';
+import Step5Verification from './components/Step5Verification';
+import Step6FinalDetails from './components/Step6FinalDetails';
 
 import AlertManager from '../../utils/AlertManager';
 const ONBOARDING_STORAGE_KEY = 'CareMyMed_onboarding_progress';
@@ -67,7 +67,7 @@ export default function PatientSignupScreen({ navigation, route }) {
         defaultValues: {
             fullName: '', email: '', phoneNumber: '', city: '',
             password: '', confirmPassword: '', age: '', gender: '',
-            selectedPlanId: 'basic',
+            selectedPlanId: 'premium_monthly',
             termsAccepted: false,
         },
         mode: 'onChange',
@@ -100,7 +100,7 @@ export default function PatientSignupScreen({ navigation, route }) {
         return e;
     }, [methods.formState.errors]);
 
-    const [selectedPlan, setSelectedPlan] = useState({ id: 'basic', name: 'Basic Plan', price: '₹500/mo' });
+    const [selectedPlan, setSelectedPlan] = useState({ id: 'premium_monthly', name: 'Monthly Plan', price: '₹800/mo' });
 
     const [otpVisible, setOtpVisible] = useState(false);
     const [verificationField, setVerificationField] = useState(null);
@@ -377,7 +377,9 @@ export default function PatientSignupScreen({ navigation, route }) {
 
     const handleVerifyPress = useCallback(async (field) => {
         const e = {};
-        const value = field === 'email' ? form.email.trim().toLowerCase() : form.phoneNumber.trim();
+        const value = field === 'email' 
+            ? (form.email || '').trim().toLowerCase() 
+            : (form.phoneNumber || '').trim();
         if (field === 'email') {
             if (!value) e.email = 'Email not entered';
             else if (!/\S+@\S+\.\S+/.test(value)) e.email = 'Enter a valid email address';
@@ -410,7 +412,7 @@ export default function PatientSignupScreen({ navigation, route }) {
     const executeSignup = useCallback(async () => {
         if (isSubmittingRef.current) return;
         isSubmittingRef.current = true;
-        if (user && user.email?.toLowerCase().trim() === form.email.toLowerCase().trim()) {
+        if (user && user.email?.toLowerCase().trim() === (form.email || '').toLowerCase().trim()) {
             try {
                 const profileRes = await apiService.auth.getProfile();
                 if (profileRes.data?.profile) {
@@ -422,9 +424,9 @@ export default function PatientSignupScreen({ navigation, route }) {
         }
         setSignupLoading(true);
         try {
-            const cleanEmail = form.email.trim().toLowerCase();
+            const cleanEmail = (form.email || '').trim().toLowerCase();
             await clearProgress();
-            await signUp(cleanEmail, form.password, form.fullName.trim(), 'patient', {
+            await signUp(cleanEmail, form.password, (form.fullName || '').trim(), 'patient', {
                 acceptedTermsVersion: TERMS_VERSION,
                 acceptedTermsAt: new Date().toISOString(),
                 acceptedPrivacyVersion: PRIVACY_VERSION,
@@ -617,8 +619,8 @@ export default function PatientSignupScreen({ navigation, route }) {
             }
         }, 15000);
         try {
-            const dobToSend = actualDob || new Date(new Date().getFullYear() - parseInt(form.age), 0, 1).toISOString();
-            await apiService.patients.updateMe({ date_of_birth: dobToSend, gender: form.gender.toLowerCase(), profile_complete: true }, { signal: abortRef.current.signal });
+            const dobToSend = actualDob || new Date(new Date().getFullYear() - parseInt(form.age || '0', 10), 0, 1).toISOString();
+            await apiService.patients.updateMe({ date_of_birth: dobToSend, gender: (form.gender || '').toLowerCase(), profile_complete: true }, { signal: abortRef.current.signal });
             await clearProgress();
             setShowCelebration(true);
             setSignupLoading(false);
@@ -806,7 +808,7 @@ export default function PatientSignupScreen({ navigation, route }) {
                                     />
                                 )}
                                 {step === 3 && (
-                                    <Step2Locality
+                                    <Step3Locality
                                         staggerAnims={staggerAnims}
                                         detectingLocation={detectingLocation}
                                         handleDetectLocation={handleDetectLocation}
@@ -819,7 +821,7 @@ export default function PatientSignupScreen({ navigation, route }) {
                                     />
                                 )}
                                 {step === 4 && (
-                                    <Step3Membership
+                                    <Step4Membership
                                         paymentCrashWarning={paymentCrashWarning}
                                         staggerAnims={staggerAnims}
                                         setFeaturesModalVisible={setFeaturesModalVisible}
@@ -829,19 +831,19 @@ export default function PatientSignupScreen({ navigation, route }) {
                                     />
                                 )}
                                 {step === 5 && (
-                                    <Step4Verification
+                                    <Step5Verification
                                         staggerAnims={staggerAnims}
                                         handleGoToStep5={handleGoToStep6}
                                     />
                                 )}
                                 {step === 6 && (
-                                    <Step5FinalDetails
+                                    <Step6FinalDetails
                                         staggerAnims={staggerAnims}
                                         handleCompleteSignUp={handleCompleteSignUp}
                                         signupLoading={signupLoading}
                                         showCelebration={showCelebration}
                                         proceedToDashboard={proceedToDashboard}
-                                        userName={form.fullName.split(' ')[0]}
+                                        userName={(form.fullName || '').split(' ')[0] || ''}
                                     />
                                 )}
                             </>

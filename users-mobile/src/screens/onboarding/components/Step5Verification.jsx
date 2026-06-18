@@ -11,7 +11,7 @@ const JOURNEY_ITEMS = [
     { Icon: Smartphone, text: 'Assign your dedicated care caller' },
 ];
 
-const Step4Verification = ({ staggerAnims, handleGoToStep5 }) => {
+const Step5Verification = ({ staggerAnims, handleGoToStep5 }) => {
     const [proceeding, setProceeding] = useState(false);
     const checkScale = useRef(new Animated.Value(0.3)).current;
     const reduceMotion = useReduceMotion();
@@ -142,5 +142,5 @@ const Step4Verification = ({ staggerAnims, handleGoToStep5 }) => {
     );
 };
 
-Step4Verification.displayName = 'Step4Verification';
-export default React.memo(Step4Verification);
+Step5Verification.displayName = 'Step5Verification';
+export default React.memo(Step5Verification);

@@ -2,7 +2,7 @@ export { PasswordStrength, PasswordRequirements, StepIndicator, IconInput, OTPBo
 export { styles, FONT, C } from './SignupStyles';
 export { default as Step1Profile } from './Step1Profile';
 export { default as Step2Phone } from './Step2Phone';
-export { default as Step2Locality } from './Step2Locality';
-export { default as Step3Membership } from './Step3Membership';
-export { default as Step4Verification } from './Step4Verification';
-export { default as Step5FinalDetails } from './Step5FinalDetails';
+export { default as Step3Locality } from './Step3Locality';
+export { default as Step4Membership } from './Step4Membership';
+export { default as Step5Verification } from './Step5Verification';
+export { default as Step6FinalDetails } from './Step6FinalDetails';

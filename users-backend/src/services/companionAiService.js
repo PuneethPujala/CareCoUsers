@@ -26,7 +26,7 @@ const GROQ_MODEL = 'llama-3.3-70b-versatile';
  * Implements a 2-minute debounce delay and job-replacement behavior.
  * @param {string} patientId 
  */
-async function enqueueCompanionInsights(patientId) {
+async function enqueueCompanionInsights(patientId, delay = 120000) {
     try {
         const { companionInsightsQueue } = require('../jobs/jobQueues');
         if (!companionInsightsQueue) {
@@ -44,13 +44,13 @@ async function enqueueCompanionInsights(patientId) {
             logger.info(`[CompanionAIService] Removed existing delayed job for patient ${patientId}`);
         }
 
-        // Add fresh job with a 2-minute delay
+        // Add fresh job with a custom delay
         await companionInsightsQueue.add(
             'generate',
             { patientId },
             {
                 jobId,
-                delay: 120000, // 2 minutes debounce
+                delay,
             }
         );
         logger.info(`[CompanionAIService] Enqueued debounced companion-insights generation for patient ${patientId} (2-minute delay)`);
@@ -67,7 +67,7 @@ async function enqueueCompanionInsights(patientId) {
  * @param {boolean} isManualRefresh
  * @returns {Promise<Object>} The generated/cached CompanionAiInsight document
  */
-async function generateAndCacheInsights(patientId, isManualRefresh = false) {
+async function generateAndCacheInsights(patientId, isManualRefresh = false, skipLlmCall = false) {
     try {
         const patient = await Patient.findById(patientId);
         if (!patient) return null;
@@ -477,7 +477,7 @@ async function generateAndCacheInsights(patientId, isManualRefresh = false) {
             fallback_used: true
         };
 
-        if (GROQ_API_KEY) {
+        if (GROQ_API_KEY && !skipLlmCall) {
             const prompt = `
 You are CareMyMed's Caregiver AI decision support assistant.
 You are generating a caregiver briefing and specific recommendations for ${patient.name}'s family companion.
@@ -656,15 +656,34 @@ JSON Schema:
 async function getOrGenerateInsights(patientId, forceRefresh = false) {
     if (!patientId) return null;
 
+    const cached = await CompanionAiInsight.findOne({ patient_id: patientId });
+
     if (!forceRefresh) {
-        const cached = await CompanionAiInsight.findOne({ patient_id: patientId });
         // Fresh if generated within past 6 hours
         if (cached && cached.generated_at && (Date.now() - new Date(cached.generated_at).getTime() < 6 * 60 * 60 * 1000)) {
             return cached;
         }
     }
 
-    return generateAndCacheInsights(patientId);
+    // If cached is stale but exists, return cached immediately to prevent blocking, and trigger background refresh (delayed)
+    if (cached) {
+        logger.info(`[CompanionAIService] Cached insights found (stale). Returning immediately and enqueuing background refresh for patient ${patientId}`);
+        enqueueCompanionInsights(patientId, 120000).catch(err => {
+            logger.warn('[CompanionAIService] Failed to enqueue background insights update:', err.message);
+        });
+        return cached;
+    }
+
+    // If no cache exists at all, generate rule-based fallback instantly (non-blocking on LLM) and enqueue background Groq LLM immediately
+    logger.info(`[CompanionAIService] No insights cache. Generating instant rule-based fallback and enqueuing background LLM generation for patient ${patientId}`);
+    
+    const fallbackInsight = await generateAndCacheInsights(patientId, false, true);
+    
+    enqueueCompanionInsights(patientId, 0).catch(err => {
+        logger.warn('[CompanionAIService] Failed to enqueue background insights generation:', err.message);
+    });
+
+    return fallbackInsight;
 }
 
 module.exports = {

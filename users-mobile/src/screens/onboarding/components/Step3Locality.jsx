@@ -7,7 +7,7 @@ import { useFormContext } from 'react-hook-form';
 import { styles, FONT, C } from './SignupStyles';
 import { shadows } from '../../../theme';
 
-const Step2Locality = ({
+const Step3Locality = ({
     detectingLocation, handleDetectLocation,
     loadingCities, availableCities,
     locationAddress,
@@ -22,9 +22,10 @@ const Step2Locality = ({
 
     const filteredCities = useMemo(() => {
         const q = searchQuery.toLowerCase().trim();
-        if (!q) return availableCities.slice(0, 6);
-        return availableCities.filter(c =>
-            c.name.toLowerCase().includes(q) || c.state?.toLowerCase().includes(q)
+        const citiesList = Array.isArray(availableCities) ? availableCities : [];
+        if (!q) return citiesList.slice(0, 6);
+        return citiesList.filter(c =>
+            (c.name || '').toLowerCase().includes(q) || (c.state || '').toLowerCase().includes(q)
         ).slice(0, 6);
     }, [availableCities, searchQuery]);
 
@@ -248,4 +249,4 @@ const Step2Locality = ({
     );
 };
 
-export default React.memo(Step2Locality);
+export default React.memo(Step3Locality);

@@ -177,16 +177,18 @@ export default function CompanionDashboardScreen() {
     const loadData = async () => {
         try {
             if (!selectedPatientId) return;
-            const res = await apiService.companion.getPatientStatus({ patientId: selectedPatientId });
-            setData(res.data);
             
-            // Fetch pending interventions count
-            try {
-                const intRes = await apiService.companion.getInterventions({ patientId: selectedPatientId });
-                setPendingInterventionsCount(intRes.data.active_interventions?.length || 0);
-            } catch (intErr) {
-                console.warn('Failed to fetch interventions for count', intErr);
-            }
+            // Fetch status and interventions in parallel to speed up load time
+            const [res, intRes] = await Promise.all([
+                apiService.companion.getPatientStatus({ patientId: selectedPatientId }),
+                apiService.companion.getInterventions({ patientId: selectedPatientId }).catch(intErr => {
+                    console.warn('Failed to fetch interventions for count', intErr);
+                    return { data: { active_interventions: [] } };
+                })
+            ]);
+            
+            setData(res.data);
+            setPendingInterventionsCount(intRes.data.active_interventions?.length || 0);
         } catch (err) {
             console.warn('Failed to load companion dashboard', err);
         }
@@ -367,8 +369,8 @@ export default function CompanionDashboardScreen() {
 
                     {/* Briefing Skeleton */}
                     <View style={styles.briefingContainerStandalone}>
-                        <SkeletonItem width={96} height={96} borderRadius={48} style={{ marginRight: -12, zIndex: 2 }} />
-                        <View style={[styles.speechBubbleOverlapping, { flex: 1, gap: 10, paddingVertical: 20 }]}>
+                        <SkeletonItem style={styles.mascotOverlappingImage} />
+                        <View style={[styles.speechBubbleOverlapping, { gap: 10 }]}>
                             <SkeletonItem width={120} height={16} />
                             <SkeletonItem width="100%" height={12} />
                             <SkeletonItem width="90%" height={12} />
