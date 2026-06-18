@@ -15,10 +15,14 @@ export default function CompanionHeader({
     right,
     badge,
     titleNumberOfLines = 1,
+    style,
 }) {
+    const isTransparent = style?.backgroundColor === 'transparent';
+    const statusBarBg = isTransparent ? 'transparent' : (style?.backgroundColor || colors.surface);
+
     return (
-        <View style={styles.header}>
-            <StatusBar barStyle="dark-content" backgroundColor={colors.surface} translucent={false} />
+        <View style={[styles.header, style]}>
+            <StatusBar barStyle="dark-content" backgroundColor={statusBarBg} translucent={isTransparent} />
             <View style={styles.leftGroup}>
                 {onBack && (
                     <Pressable

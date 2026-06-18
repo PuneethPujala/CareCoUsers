@@ -31,6 +31,19 @@ export const FONT = {
 };
 
 export const styles = StyleSheet.create({
+    glassFormCard: {
+        backgroundColor: 'rgba(255, 255, 255, 0.82)',
+        borderRadius: 28,
+        padding: 20,
+        borderWidth: 1.5,
+        borderColor: 'rgba(255, 255, 255, 0.65)',
+        shadowColor: '#000',
+        shadowOpacity: 0.08,
+        shadowRadius: 10,
+        shadowOffset: { width: 0, height: 4 },
+        elevation: 3,
+        marginBottom: 24,
+    },
     // ─── Outer shell ─────────────────────────────
     container: { flex: 1, backgroundColor: C.bg },
     scroll: { flex: 1 },

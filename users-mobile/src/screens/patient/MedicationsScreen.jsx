@@ -934,6 +934,24 @@ export default function MedicationsScreen({ navigation }) {
         <View style={styles.root}>
             <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
 
+            {/* Top-concentrated curvy background waves (restricted to 220px high, fades completely) */}
+            <View style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 220, overflow: 'hidden' }} pointerEvents="none">
+                <Svg height="220" width="100%" viewBox="0 0 400 220" preserveAspectRatio="none">
+                    <Defs>
+                        <SvgLinearGradient id="medsTopBg" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <Stop offset="0%" stopColor="#EEF2FF" stopOpacity="0.8" />
+                            <Stop offset="100%" stopColor="#F8FAFC" stopOpacity="0" />
+                        </SvgLinearGradient>
+                        <SvgLinearGradient id="medsTopBg2" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <Stop offset="0%" stopColor="#E0F2FE" stopOpacity="0.65" />
+                            <Stop offset="100%" stopColor="#F8FAFC" stopOpacity="0" />
+                        </SvgLinearGradient>
+                    </Defs>
+                    <Path d="M0 0 C120 150, 280 170, 400 120 L400 0 Z" fill="url(#medsTopBg)" opacity="0.85" />
+                    <Path d="M0 0 C150 100, 250 210, 400 140 L400 0 Z" fill="url(#medsTopBg2)" opacity="0.6" />
+                </Svg>
+            </View>
+
             {/* ── SIMPLE HEADER (like care team) ── */}
             <View style={styles.header}>
                 <View style={styles.headerRow}>

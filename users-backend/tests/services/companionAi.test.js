@@ -11,6 +11,8 @@ jest.mock('axios');
 jest.mock('../../src/models/Patient');
 jest.mock('../../src/models/CompanionAiInsight');
 jest.mock('../../src/models/CompanionAiInsightHistory');
+jest.mock('../../src/models/PatientHealthStateHistory');
+jest.mock('../../src/models/RiskTransition');
 jest.mock('../../src/models/AIVitalPrediction');
 jest.mock('../../src/models/VitalLog');
 jest.mock('../../src/models/MedicineLog');
@@ -28,6 +30,8 @@ const companionAiService = require('../../src/services/companionAiService');
 const Patient = require('../../src/models/Patient');
 const CompanionAiInsight = require('../../src/models/CompanionAiInsight');
 const CompanionAiInsightHistory = require('../../src/models/CompanionAiInsightHistory');
+const PatientHealthStateHistory = require('../../src/models/PatientHealthStateHistory');
+const RiskTransition = require('../../src/models/RiskTransition');
 const AIVitalPrediction = require('../../src/models/AIVitalPrediction');
 const VitalLog = require('../../src/models/VitalLog');
 const MedicineLog = require('../../src/models/MedicineLog');
@@ -49,6 +53,23 @@ describe('CompanionAiService', () => {
             save: jest.fn().mockResolvedValue(true),
         };
         Patient.findById.mockResolvedValue(mockPatient);
+
+        // Mock PatientHealthStateHistory chained query functions
+        PatientHealthStateHistory.find.mockReturnValue({
+            sort: jest.fn().mockReturnValue({
+                limit: jest.fn().mockReturnValue({
+                    lean: jest.fn().mockResolvedValue([])
+                })
+            })
+        });
+
+        // Mock RiskTransition create and query functions
+        RiskTransition.create.mockResolvedValue({ id: 'transition_123' });
+        RiskTransition.find.mockReturnValue({
+            sort: jest.fn().mockReturnValue({
+                lean: jest.fn().mockResolvedValue([])
+            })
+        });
     });
 
     // ═══════════════════════════════════════════════════════════════════════════

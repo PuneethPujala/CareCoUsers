@@ -4,6 +4,7 @@ import {
   Pressable, ActivityIndicator, Linking, Animated,
   Modal, TouchableOpacity, TouchableWithoutFeedback, TextInput, Keyboard, KeyboardAvoidingView, FlatList, Switch, Image
 } from 'react-native';
+import Svg, { Path, Defs, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg';
 import SmartInput from '../../components/ui/SmartInput';
 import PremiumFormModal from '../../components/ui/PremiumFormModal';
 import {
@@ -317,6 +318,24 @@ export default function MyCallerScreen({ navigation }) {
   // ── RENDER ───────────────────────────────────────────────────────────────
   return (
     <View style={s.container}>
+      {/* Top-concentrated curvy background waves (restricted to 200px high, fades completely) */}
+      <View style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 200, overflow: 'hidden' }} pointerEvents="none">
+        <Svg height="200" width="100%" viewBox="0 0 400 200" preserveAspectRatio="none">
+          <Defs>
+            <SvgLinearGradient id="myCallerTopBg" x1="0%" y1="0%" x2="100%" y2="100%">
+              <Stop offset="0%" stopColor="#EEF2FF" stopOpacity="0.85" />
+              <Stop offset="100%" stopColor="#F8FAFC" stopOpacity="0" />
+            </SvgLinearGradient>
+            <SvgLinearGradient id="myCallerTopBg2" x1="0%" y1="0%" x2="0%" y2="100%">
+              <Stop offset="0%" stopColor="#E0F2FE" stopOpacity="0.6" />
+              <Stop offset="100%" stopColor="#F8FAFC" stopOpacity="0" />
+            </SvgLinearGradient>
+          </Defs>
+          <Path d="M0 0 C150 130, 250 150, 400 100 L400 0 Z" fill="url(#myCallerTopBg)" opacity="0.85" />
+          <Path d="M0 0 C180 80, 220 180, 400 120 L400 0 Z" fill="url(#myCallerTopBg2)" opacity="0.6" />
+        </Svg>
+      </View>
+
       {/* ── Header ─────────────────────────────────────────────────────── */}
       <Animated.View style={[s.header, anim(0)]}>
         <View>

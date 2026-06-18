@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Lock, Eye, EyeOff, ShieldCheck, CheckCircle2, ChevronRight, AlertCircle } from 'lucide-react-native';
+import Svg, { Path, Circle, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
 import { auth } from '../../lib/supabase';
 import { parseError } from '../../utils/parseError';
 import analytics from '../../utils/analytics';
@@ -87,11 +88,36 @@ export default function ResetPasswordScreen({ navigation }) {
         await signOut();
     };
 
+    const renderSvgBackground = () => (
+        <View style={StyleSheet.absoluteFill}>
+            <Svg height="100%" width="100%" viewBox="0 0 400 850" preserveAspectRatio="none">
+                <Defs>
+                    <SvgGradient id="topBg" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <Stop offset="0%" stopColor="#E0F2FE" stopOpacity="0.75" />
+                        <Stop offset="100%" stopColor="#F8FAFC" stopOpacity="0" />
+                    </SvgGradient>
+                    <SvgGradient id="bottomBg" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <Stop offset="0%" stopColor="#FFF1F2" stopOpacity="0.75" />
+                        <Stop offset="100%" stopColor="#F8FAFC" stopOpacity="0" />
+                    </SvgGradient>
+                </Defs>
+                
+                <Path d="M180 0 C260 120, 320 150, 400 120 L400 0 Z" fill="url(#topBg)" />
+                <Path d="M0 620 C60 700, 140 720, 220 850 L0 850 Z" fill="url(#bottomBg)" />
+                <Path d="M-20 180 C80 230, 180 150, 280 230 C340 280, 380 250, 420 310" stroke="#E2E8F0" strokeWidth="1.5" fill="none" opacity="0.6" />
+                <Path d="M-40 210 C60 260, 160 180, 260 260 C320 310, 360 280, 400 340" stroke="#E2E8F0" strokeWidth="1" fill="none" opacity="0.35" />
+                <Circle cx="320" cy="480" r="130" stroke="#E2E8F0" strokeWidth="1" fill="none" opacity="0.28" />
+                <Circle cx="320" cy="480" r="90" stroke="#E2E8F0" strokeWidth="1.2" fill="none" opacity="0.18" />
+            </Svg>
+        </View>
+    );
+
     if (isExpired) {
         return (
             <View style={styles.container}>
+                {renderSvgBackground()}
                 <View style={styles.successCenter}>
-                    <View style={[styles.successCircle, { backgroundColor: '#FEF2F2', borderColor: '#FEE2E2' }]}>
+                    <View style={[styles.successCircle, { backgroundColor: '#FEF2F2', borderColor: '#FEE2E2', borderWidth: 1.5 }]}>
                         <AlertCircle size={64} color="#DC2626" strokeWidth={1.5} />
                     </View>
                     <Text style={[styles.successTitle, { color: '#991B1B' }]}>Link Expired</Text>
@@ -110,8 +136,9 @@ export default function ResetPasswordScreen({ navigation }) {
     if (success) {
         return (
             <View style={styles.container}>
+                {renderSvgBackground()}
                 <View style={styles.successCenter}>
-                    <View style={styles.successCircle}>
+                    <View style={[styles.successCircle, { backgroundColor: '#F0FDF4', borderColor: '#DCFCE7', borderWidth: 1.5 }]}>
                         <CheckCircle2 size={64} color="#22C55E" strokeWidth={1.5} />
                     </View>
                     <Text style={styles.successTitle}>Password Updated!</Text>
@@ -129,18 +156,22 @@ export default function ResetPasswordScreen({ navigation }) {
 
     return (
         <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-            <ScrollView contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled" bounces={false}>
-                {/* Hero */}
-                <LinearGradient colors={['#4338CA', '#38BDF8']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.hero}>
-                    <View style={styles.heroIconWrap}>
-                        <ShieldCheck size={48} color="#FFFFFF" strokeWidth={1.5} />
-                    </View>
-                    <Text style={styles.heroTitle}>Set New Password</Text>
-                    <Text style={styles.heroSubtitle}>Create a strong, secure password</Text>
-                </LinearGradient>
+            {renderSvgBackground()}
+            <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled" bounces={false} showsVerticalScrollIndicator={false}>
+                
+                {/* Welcome/Security badge */}
+                <View style={styles.welcomeBadge}>
+                    <View style={styles.welcomeDot} />
+                    <Text style={styles.welcomeBadgeText}>Security</Text>
+                </View>
+
+                {/* Title */}
+                <Text style={styles.titleLine1}>Set New</Text>
+                <Text style={styles.titleAppName}>Password</Text>
+                <Text style={styles.subtitle}>Create a strong, secure password for your account</Text>
 
                 {/* Form */}
-                <View style={styles.formCard}>
+                <View style={styles.glassFormCard}>
                     {error ? (
                         <View style={styles.errorBox}>
                             <AlertCircle size={16} color="#DC2626" />
@@ -219,11 +250,64 @@ export default function ResetPasswordScreen({ navigation }) {
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
-    hero: { height: 280, borderBottomLeftRadius: 40, borderBottomRightRadius: 40, alignItems: 'center', justifyContent: 'center', paddingTop: Platform.OS === 'ios' ? 60 : 40, overflow: 'hidden' },
-    heroIconWrap: { width: 80, height: 80, borderRadius: 24, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center', marginBottom: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)' },
-    heroTitle: { fontSize: 28, fontWeight: '800', color: '#FFFFFF', letterSpacing: -0.5 },
-    heroSubtitle: { fontSize: 15, color: 'rgba(255,255,255,0.75)', marginTop: 4, fontWeight: '500' },
-    formCard: { marginTop: -30, marginHorizontal: 20, backgroundColor: colors.surface, borderRadius: 28, paddingHorizontal: 24, paddingTop: 32, paddingBottom: 30, ...shadows.modal },
+    scrollContent: {
+        flexGrow: 1,
+        paddingHorizontal: 28,
+        paddingTop: Platform.OS === 'ios' ? 72 : 52,
+        paddingBottom: 48,
+    },
+    welcomeBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        alignSelf: 'flex-start',
+        backgroundColor: colors.primarySoft,
+        borderRadius: 999,
+        paddingHorizontal: 14,
+        paddingVertical: 7,
+        marginBottom: 22,
+        gap: 7,
+    },
+    welcomeDot: {
+        width: 7,
+        height: 7,
+        borderRadius: 999,
+        backgroundColor: colors.primary,
+    },
+    welcomeBadgeText: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: colors.primary,
+    },
+    titleLine1: {
+        fontSize: 30,
+        fontWeight: '800',
+        color: colors.textPrimary,
+        lineHeight: 36,
+    },
+    titleAppName: {
+        fontSize: 34,
+        fontWeight: '800',
+        color: colors.primary,
+        lineHeight: 42,
+        marginBottom: 8,
+        letterSpacing: -0.5,
+    },
+    subtitle: {
+        fontSize: 14,
+        fontWeight: '500',
+        color: colors.textSecondary,
+        marginBottom: 30,
+        lineHeight: 20,
+    },
+    glassFormCard: {
+        backgroundColor: 'rgba(255, 255, 255, 0.82)',
+        borderRadius: 28,
+        padding: 20,
+        borderWidth: 1.5,
+        borderColor: 'rgba(255, 255, 255, 0.65)',
+        ...shadows.md,
+        marginBottom: 24,
+    },
     errorBox: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.dangerLight, borderRadius: 20, padding: 16, marginBottom: 20 },
     errorMsg: { color: '#991B1B', fontSize: 13, flex: 1, fontWeight: '600' },
     fieldGroup: { marginBottom: 20 },

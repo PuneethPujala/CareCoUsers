@@ -9,6 +9,9 @@ jest.mock('../../src/models/Patient');
 jest.mock('../../src/models/MedicineLog');
 jest.mock('../../src/models/VitalLog');
 jest.mock('../../src/models/Medication');
+jest.mock('../../src/models/SleepLog');
+jest.mock('../../src/models/PatientHealthStateHistory');
+jest.mock('../../src/models/AchievementEvent');
 jest.mock('../../src/jobs/jobQueues', () => ({
     healthStateQueue: {
         add: jest.fn(),
@@ -19,6 +22,8 @@ const Patient = require('../../src/models/Patient');
 const MedicineLog = require('../../src/models/MedicineLog');
 const VitalLog = require('../../src/models/VitalLog');
 const Medication = require('../../src/models/Medication');
+const SleepLog = require('../../src/models/SleepLog');
+const PatientHealthStateHistory = require('../../src/models/PatientHealthStateHistory');
 const { healthStateQueue } = require('../../src/jobs/jobQueues');
 
 const {
@@ -43,6 +48,14 @@ describe('Patient Health State V2 & Event-Driven Queue', () => {
         Medication.find.mockReturnValue({
             lean: jest.fn().mockResolvedValue([]),
         });
+        SleepLog.findOne.mockReturnValue({
+            lean: jest.fn().mockResolvedValue(null),
+        });
+        PatientHealthStateHistory.findOne.mockReturnValue({
+            sort: jest.fn().mockReturnThis(),
+            lean: jest.fn().mockResolvedValue(null),
+        });
+        PatientHealthStateHistory.findOneAndUpdate.mockResolvedValue({});
     });
 
     describe('enqueueHealthStateRecompute', () => {

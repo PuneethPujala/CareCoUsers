@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Mail, RefreshCw, CheckCircle2, ChevronRight, AlertCircle } from 'lucide-react-native';
+import Svg, { Path, Circle, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { parseError } from '../../utils/parseError';
@@ -78,65 +79,94 @@ export default function VerifyEmailScreen({ navigation, route }) {
 
     return (
         <View style={styles.container}>
-            <LinearGradient colors={['#4338CA', '#38BDF8']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.hero}>
-                <View style={styles.iconCircle}>
-                    <Mail size={48} color="#FFFFFF" strokeWidth={1.5} />
+            {/* Ambient Background Decorations */}
+            <View style={StyleSheet.absoluteFill}>
+                <Svg height="100%" width="100%" viewBox="0 0 400 850" preserveAspectRatio="none">
+                    <Defs>
+                        <SvgGradient id="topBg" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <Stop offset="0%" stopColor="#E0F2FE" stopOpacity="0.75" />
+                            <Stop offset="100%" stopColor="#F8FAFC" stopOpacity="0" />
+                        </SvgGradient>
+                        <SvgGradient id="bottomBg" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <Stop offset="0%" stopColor="#FFF1F2" stopOpacity="0.75" />
+                            <Stop offset="100%" stopColor="#F8FAFC" stopOpacity="0" />
+                        </SvgGradient>
+                    </Defs>
+                    
+                    <Path d="M180 0 C260 120, 320 150, 400 120 L400 0 Z" fill="url(#topBg)" />
+                    <Path d="M0 620 C60 700, 140 720, 220 850 L0 850 Z" fill="url(#bottomBg)" />
+                    <Path d="M-20 180 C80 230, 180 150, 280 230 C340 280, 380 250, 420 310" stroke="#E2E8F0" strokeWidth="1.5" fill="none" opacity="0.6" />
+                    <Path d="M-40 210 C60 260, 160 180, 260 260 C320 310, 360 280, 400 340" stroke="#E2E8F0" strokeWidth="1" fill="none" opacity="0.35" />
+                    <Circle cx="320" cy="480" r="130" stroke="#E2E8F0" strokeWidth="1" fill="none" opacity="0.28" />
+                    <Circle cx="320" cy="480" r="90" stroke="#E2E8F0" strokeWidth="1.2" fill="none" opacity="0.18" />
+                </Svg>
+            </View>
+
+            <View style={styles.scrollContent}>
+                
+                {/* Welcome/Security badge */}
+                <View style={styles.welcomeBadge}>
+                    <View style={styles.welcomeDot} />
+                    <Text style={styles.welcomeBadgeText}>Security</Text>
                 </View>
-                <Text style={styles.heroTitle}>Check Your Email</Text>
-                <Text style={styles.heroSubtitle}>We sent a verification link</Text>
-            </LinearGradient>
 
-            <View style={styles.formCard}>
-                <View style={styles.emailBadge}>
-                    <Mail size={16} color="#6366F1" />
-                    <Text style={styles.emailText}>{email}</Text>
-                </View>
+                {/* Title */}
+                <Text style={styles.titleLine1}>Verify</Text>
+                <Text style={styles.titleAppName}>Your Email</Text>
+                <Text style={styles.subtitle}>We sent a verification link to your inbox</Text>
 
-                <Text style={styles.instructions}>
-                    We've sent a verification link to your email. Please click it to confirm your account. If you don't see it, check your spam folder.
-                </Text>
-
-                {error ? (
-                    <View style={styles.errorBox}>
-                        <AlertCircle size={16} color="#DC2626" />
-                        <Text style={styles.errorMsg}>{error}</Text>
+                <View style={styles.glassFormCard}>
+                    <View style={styles.emailBadge}>
+                        <Mail size={16} color="#6366F1" />
+                        <Text style={styles.emailText}>{email}</Text>
                     </View>
-                ) : null}
 
-                {/* Resend */}
-                <View style={styles.resendRow}>
-                    {resendTimer > 0 ? (
-                        <Text style={styles.timerText}>
-                            Resend available in {resendTimer}s
-                        </Text>
-                    ) : (
-                        <Pressable
-                            style={({ pressed }) => [styles.resendBtn, pressed && styles.pressed]}
-                            onPress={handleResend}
-                            disabled={resending}
-                        >
-                            {resending ? (
-                                <ActivityIndicator size="small" color="#6366F1" />
-                            ) : (
-                                <>
-                                    <RefreshCw size={16} color="#6366F1" />
-                                    <Text style={styles.resendText}>Resend Verification Email</Text>
-                                </>
-                            )}
-                        </Pressable>
-                    )}
-                    {resendCount > 0 && (
-                        <Text style={styles.attemptsText}>{3 - resendCount} resend(s) remaining</Text>
-                    )}
+                    <Text style={styles.instructions}>
+                        We've sent a verification link to your email. Please click it to confirm your account. If you don't see it, check your spam folder.
+                    </Text>
+
+                    {error ? (
+                        <View style={styles.errorBox}>
+                            <AlertCircle size={16} color="#DC2626" />
+                            <Text style={styles.errorMsg}>{error}</Text>
+                        </View>
+                    ) : null}
+
+                    {/* Resend */}
+                    <View style={styles.resendRow}>
+                        {resendTimer > 0 ? (
+                            <Text style={styles.timerText}>
+                                Resend available in {resendTimer}s
+                            </Text>
+                        ) : (
+                            <Pressable
+                                style={({ pressed }) => [styles.resendBtn, pressed && styles.pressed]}
+                                onPress={handleResend}
+                                disabled={resending}
+                            >
+                                {resending ? (
+                                    <ActivityIndicator size="small" color="#6366F1" />
+                                ) : (
+                                    <>
+                                        <RefreshCw size={16} color="#6366F1" />
+                                        <Text style={styles.resendText}>Resend Verification Email</Text>
+                                    </>
+                                )}
+                            </Pressable>
+                        )}
+                        {resendCount > 0 && (
+                            <Text style={styles.attemptsText}>{3 - resendCount} resend(s) remaining</Text>
+                        )}
+                    </View>
+
+                    {/* Back to Login */}
+                    <Pressable
+                        style={({ pressed }) => [styles.secondaryBtn, pressed && styles.pressed]}
+                        onPress={handleGoBack}
+                    >
+                        <Text style={styles.secondaryBtnText}>Back to Login</Text>
+                    </Pressable>
                 </View>
-
-                {/* Back to Login */}
-                <Pressable
-                    style={({ pressed }) => [styles.secondaryBtn, pressed && styles.pressed]}
-                    onPress={handleGoBack}
-                >
-                    <Text style={styles.secondaryBtnText}>Back to Login</Text>
-                </Pressable>
             </View>
         </View>
     );
@@ -144,12 +174,65 @@ export default function VerifyEmailScreen({ navigation, route }) {
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
-    hero: { height: 280, borderBottomLeftRadius: 40, borderBottomRightRadius: 40, alignItems: 'center', justifyContent: 'center', paddingTop: Platform.OS === 'ios' ? 60 : 40, overflow: 'hidden' },
-    iconCircle: { width: 80, height: 80, borderRadius: 24, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center', marginBottom: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)' },
-    heroTitle: { fontSize: 28, fontWeight: '800', color: '#FFFFFF', letterSpacing: -0.5 },
-    heroSubtitle: { fontSize: 15, color: 'rgba(255,255,255,0.75)', marginTop: 4, fontWeight: '500' },
-    formCard: { marginTop: -30, marginHorizontal: 20, backgroundColor: colors.surface, borderRadius: 28, padding: 28, ...shadows.modal },
-    emailBadge: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.primarySoft, paddingVertical: 14, paddingHorizontal: 18, borderRadius: 20, marginBottom: 24, borderWidth: 1, borderColor: colors.borderLight },
+    scrollContent: {
+        flex: 1,
+        paddingHorizontal: 28,
+        paddingTop: Platform.OS === 'ios' ? 72 : 52,
+        paddingBottom: 48,
+    },
+    welcomeBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        alignSelf: 'flex-start',
+        backgroundColor: colors.primarySoft,
+        borderRadius: 999,
+        paddingHorizontal: 14,
+        paddingVertical: 7,
+        marginBottom: 22,
+        gap: 7,
+    },
+    welcomeDot: {
+        width: 7,
+        height: 7,
+        borderRadius: 999,
+        backgroundColor: colors.primary,
+    },
+    welcomeBadgeText: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: colors.primary,
+    },
+    titleLine1: {
+        fontSize: 30,
+        fontWeight: '800',
+        color: colors.textPrimary,
+        lineHeight: 36,
+    },
+    titleAppName: {
+        fontSize: 34,
+        fontWeight: '800',
+        color: colors.primary,
+        lineHeight: 42,
+        marginBottom: 8,
+        letterSpacing: -0.5,
+    },
+    subtitle: {
+        fontSize: 14,
+        fontWeight: '500',
+        color: colors.textSecondary,
+        marginBottom: 30,
+        lineHeight: 20,
+    },
+    glassFormCard: {
+        backgroundColor: 'rgba(255, 255, 255, 0.82)',
+        borderRadius: 28,
+        padding: 24,
+        borderWidth: 1.5,
+        borderColor: 'rgba(255, 255, 255, 0.65)',
+        ...shadows.md,
+        marginBottom: 24,
+    },
+    emailBadge: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.primarySoft, paddingVertical: 14, paddingHorizontal: 18, borderRadius: 20, marginBottom: 24, borderWidth: 1.5, borderColor: 'rgba(99, 102, 241, 0.2)' },
     emailText: { fontSize: 14, fontWeight: '700', color: colors.primary },
     instructions: { fontSize: 15, color: colors.textSecondary, lineHeight: 24, marginBottom: 28, textAlign: 'center' },
     errorBox: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.dangerLight, borderRadius: 20, padding: 16, marginBottom: 20, borderWidth: 1, borderColor: '#FCA5A5' },

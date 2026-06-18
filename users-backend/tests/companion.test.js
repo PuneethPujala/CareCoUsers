@@ -82,6 +82,13 @@ jest.mock('../src/models/AchievementEvent');
 jest.mock('../src/utils/pushNotifications', () => ({
     sendPush: jest.fn().mockResolvedValue({ success: true })
 }));
+jest.mock('../src/services/interventionEngineService', () => ({
+    generateInterventions: jest.fn(),
+    completeIntervention: jest.fn()
+}));
+jest.mock('../src/services/companionAiService', () => ({
+    getOrGenerateInsights: jest.fn().mockResolvedValue({})
+}));
 
 const request = require('supertest');
 const app = require('../src/server');
@@ -99,6 +106,8 @@ const RiskTransition = require('../src/models/RiskTransition');
 const SleepLog = require('../src/models/SleepLog');
 const PatientHealthStateHistory = require('../src/models/PatientHealthStateHistory');
 const AchievementEvent = require('../src/models/AchievementEvent');
+const { generateInterventions, completeIntervention } = require('../src/services/interventionEngineService');
+const { getOrGenerateInsights } = require('../src/services/companionAiService');
 
 describe('Companion Routes', () => {
 
@@ -405,6 +414,100 @@ describe('Companion Routes', () => {
             expect(res.status).toBe(200);
             expect(res.body.patient.name).toBe('John Patient');
             expect(res.body.linked_patients).toHaveLength(2);
+        });
+    });
+
+    describe('GET /api/companion/interventions', () => {
+        it('returns 403 if user role is not companion', async () => {
+            mockAuthState.profile.role = 'patient';
+            const res = await request(app).get('/api/companion/interventions');
+            expect(res.status).toBe(403);
+        });
+
+        it('returns active interventions and completed feed for a companion', async () => {
+            const mockAccess = {
+                companion_id: fakeId('companion-profile-id'),
+                patient_id: fakeId('patient-123'),
+                is_active: true,
+                status: 'accepted'
+            };
+            CompanionAccess.findOne = jest.fn().mockResolvedValue(mockAccess);
+            generateInterventions.mockResolvedValue([{ _id: 'int-123', type: 'medication_reminder', status: 'generated' }]);
+            
+            const mockFind = jest.fn().mockReturnValue({
+                sort: jest.fn().mockReturnThis(),
+                limit: jest.fn().mockReturnThis(),
+                lean: jest.fn().mockResolvedValue([{ _id: 'int-completed', type: 'bp_request', status: 'completed' }])
+            });
+            const Intervention = require('../src/models/Intervention');
+            Intervention.find = mockFind;
+
+            const res = await request(app)
+                .get('/api/companion/interventions')
+                .query({ patientId: 'patient-123' });
+
+            expect(res.status).toBe(200);
+            expect(res.body.active_interventions).toHaveLength(1);
+            expect(res.body.completed_feed).toHaveLength(1);
+        });
+    });
+
+    describe('POST /api/companion/interventions', () => {
+        it('returns 403 if user role is not companion', async () => {
+            mockAuthState.profile.role = 'patient';
+            const res = await request(app).post('/api/companion/interventions');
+            expect(res.status).toBe(403);
+        });
+
+        it('returns 400 if interventionId is missing', async () => {
+            const res = await request(app).post('/api/companion/interventions').send({});
+            expect(res.status).toBe(400);
+        });
+
+        it('returns 404 if intervention not found', async () => {
+            const Intervention = require('../src/models/Intervention');
+            Intervention.findById = jest.fn().mockResolvedValue(null);
+
+            const res = await request(app)
+                .post('/api/companion/interventions')
+                .send({ interventionId: 'nonexistent' });
+            expect(res.status).toBe(404);
+        });
+
+        it('completes intervention successfully', async () => {
+            const mockIntervention = {
+                _id: 'int-123',
+                patient_id: fakeId('patient-123'),
+                type: 'medication_reminder',
+                status: 'generated'
+            };
+            const Intervention = require('../src/models/Intervention');
+            Intervention.findById = jest.fn().mockResolvedValue(mockIntervention);
+
+            const mockAccess = {
+                companion_id: fakeId('companion-profile-id'),
+                patient_id: fakeId('patient-123'),
+                is_active: true,
+                status: 'accepted'
+            };
+            CompanionAccess.findOne = jest.fn().mockResolvedValue(mockAccess);
+            completeIntervention.mockResolvedValue(mockIntervention);
+
+            const mockPatientObj = {
+                _id: fakeId('patient-123'),
+                name: 'Jane Patient',
+                expo_push_token: 'ExponentPushToken[some-token]'
+            };
+            Patient.findById = jest.fn().mockResolvedValue(mockPatientObj);
+            Notification.create = jest.fn().mockResolvedValue({});
+
+            const res = await request(app)
+                .post('/api/companion/interventions')
+                .send({ interventionId: 'int-123' });
+
+            expect(res.status).toBe(200);
+            expect(res.body.success).toBe(true);
+            expect(completeIntervention).toHaveBeenCalledWith('int-123', mockAuthState.profile._id);
         });
     });
 

@@ -110,136 +110,138 @@ const Step5FinalDetails = ({
             <Text style={styles.stepTitleLine1}>A few more</Text>
             <Text style={styles.stepTitleLine2}>details</Text>
 
-            <Animated.View style={{
-                width: '100%', opacity: staggerAnims[1],
-                transform: [{ translateY: staggerAnims[1].interpolate({ inputRange: [0, 1], outputRange: [reduceMotion ? 0 : 16, 0] }) }],
-            }}>
-                {/* Date of Birth */}
-                <Controller
-                    control={control}
-                    name="age"
-                    render={({ field: { onChange, value } }) => {
-                        const [showPicker, setShowPicker] = React.useState(false);
-
-                        const handleDateChange = (event, date) => {
-                            setShowPicker(false);
-                            if (date) {
-                                setSelectedDate(date);
-                                const today = new Date();
-                                let age = today.getFullYear() - date.getFullYear();
-                                const m = today.getMonth() - date.getMonth();
-                                if (m < 0 || (m === 0 && today.getDate() < date.getDate())) age--;
-                                onChange(age.toString());
-                            }
-                        };
-
-                        return (
-                            <>
-                                <Pressable
-                                    onPress={() => setShowPicker(true)}
-                                    style={({ pressed }) => [pressed && styles.pressed]}
-                                >
-                                    <View pointerEvents="none">
-                                        <IconInput
-                                            icon={Calendar}
-                                            label="DATE OF BIRTH"
-                                            placeholder="Tap to select your birth date"
-                                            value={value
-                                                ? `${selectedDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })}  (Age ${value})`
-                                                : ''
-                                            }
-                                            error={errors.age?.message}
-                                            editable={false}
-                                        />
-                                    </View>
-                                </Pressable>
-                                {showPicker && (
-                                    require('@react-native-community/datetimepicker').default &&
-                                    React.createElement(require('@react-native-community/datetimepicker').default, {
-                                        value: selectedDate,
-                                        mode: 'date',
-                                        display: Platform.OS === 'ios' ? 'spinner' : 'default',
-                                        maximumDate: new Date(),
-                                        onChange: handleDateChange,
-                                    })
-                                )}
-                            </>
-                        );
-                    }}
-                />
-
-                {/* Gender */}
-                <View style={{ marginBottom: 20 }}>
-                    <Text style={[styles.label, { marginBottom: 10 }]}>GENDER</Text>
+            <View style={styles.glassFormCard}>
+                <Animated.View style={{
+                    width: '100%', opacity: staggerAnims[1],
+                    transform: [{ translateY: staggerAnims[1].interpolate({ inputRange: [0, 1], outputRange: [reduceMotion ? 0 : 16, 0] }) }],
+                }}>
+                    {/* Date of Birth */}
                     <Controller
                         control={control}
-                        name="gender"
-                        render={({ field: { onChange, value } }) => (
-                            <View style={{ flexDirection: 'row', gap: 10 }}>
-                                {['Male', 'Female', 'Other'].map(g => (
+                        name="age"
+                        render={({ field: { onChange, value } }) => {
+                            const [showPicker, setShowPicker] = React.useState(false);
+
+                            const handleDateChange = (event, date) => {
+                                setShowPicker(false);
+                                if (date) {
+                                    setSelectedDate(date);
+                                    const today = new Date();
+                                    let age = today.getFullYear() - date.getFullYear();
+                                    const m = today.getMonth() - date.getMonth();
+                                    if (m < 0 || (m === 0 && today.getDate() < date.getDate())) age--;
+                                    onChange(age.toString());
+                                }
+                            };
+
+                            return (
+                                <>
                                     <Pressable
-                                        key={g}
-                                        style={({ pressed }) => [
-                                            styles.genderBtn,
-                                            value === g && styles.genderBtnActive,
-                                            pressed && styles.pressed,
-                                        ]}
-                                        onPress={() => onChange(g)}
+                                        onPress={() => setShowPicker(true)}
+                                        style={({ pressed }) => [pressed && styles.pressed]}
                                     >
-                                        <Text style={[styles.genderBtnText, value === g && { color: C.primary }]}>
-                                            {g}
-                                        </Text>
+                                        <View pointerEvents="none">
+                                            <IconInput
+                                                icon={Calendar}
+                                                label="DATE OF BIRTH"
+                                                placeholder="Tap to select your birth date"
+                                                value={value
+                                                    ? `${selectedDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })}  (Age ${value})`
+                                                    : ''
+                                                }
+                                                error={errors.age?.message}
+                                                editable={false}
+                                            />
+                                        </View>
                                     </Pressable>
-                                ))}
-                            </View>
-                        )}
+                                    {showPicker && (
+                                        require('@react-native-community/datetimepicker').default &&
+                                        React.createElement(require('@react-native-community/datetimepicker').default, {
+                                            value: selectedDate,
+                                            mode: 'date',
+                                            display: Platform.OS === 'ios' ? 'spinner' : 'default',
+                                            maximumDate: new Date(),
+                                            onChange: handleDateChange,
+                                        })
+                                    )}
+                                </>
+                            );
+                        }}
                     />
-                    {errors.gender && (
-                        <Text style={[styles.fieldErrorEnhanced, { marginTop: 6, marginLeft: 4 }]}>
-                            {errors.gender.message}
-                        </Text>
-                    )}
-                </View>
-            </Animated.View>
 
-            {/* General error */}
-            {errors.general ? (
-                <View style={styles.errorBoxEnhanced}>
-                    <AlertCircle size={16} color={C.danger} />
-                    <Text style={styles.errorMsgEnhanced}>
-                        {errors.general.message || errors.general}
-                    </Text>
-                </View>
-            ) : null}
-
-            {/* Complete button */}
-            <Animated.View style={{
-                width: '100%', opacity: staggerAnims[2],
-                transform: [{ translateY: staggerAnims[2].interpolate({ inputRange: [0, 1], outputRange: [reduceMotion ? 0 : 20, 0] }) }],
-            }}>
-                <Pressable
-                    style={({ pressed }) => [
-                        styles.primaryBtnEnhanced,
-                        signupLoading && { opacity: 0.7 },
-                        pressed && styles.pressed
-                    ]}
-                    onPress={() => handleCompleteSignUp(selectedDate.toISOString())}
-                    disabled={signupLoading}
-                >
-                    <View style={styles.primaryBtnGradientEnhanced}>
-                        {signupLoading ? (
-                            <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, justifyContent: 'center', gap: 10 }}>
-                                <ActivityIndicator size="small" color="#FFFFFF" />
-                                <Text style={styles.primaryBtnText}>Saving...</Text>
-                            </View>
-                        ) : (
-                            <Text style={[styles.primaryBtnText, { flex: 1, textAlign: 'center' }]}>
-                                Complete setup
+                    {/* Gender */}
+                    <View style={{ marginBottom: 20 }}>
+                        <Text style={[styles.label, { marginBottom: 10 }]}>GENDER</Text>
+                        <Controller
+                            control={control}
+                            name="gender"
+                            render={({ field: { onChange, value } }) => (
+                                <View style={{ flexDirection: 'row', gap: 10 }}>
+                                    {['Male', 'Female', 'Other'].map(g => (
+                                        <Pressable
+                                            key={g}
+                                            style={({ pressed }) => [
+                                                styles.genderBtn,
+                                                value === g && styles.genderBtnActive,
+                                                pressed && styles.pressed,
+                                            ]}
+                                            onPress={() => onChange(g)}
+                                        >
+                                            <Text style={[styles.genderBtnText, value === g && { color: C.primary }]}>
+                                                {g}
+                                            </Text>
+                                        </Pressable>
+                                    ))}
+                                </View>
+                            )}
+                        />
+                        {errors.gender && (
+                            <Text style={[styles.fieldErrorEnhanced, { marginTop: 6, marginLeft: 4 }]}>
+                                {errors.gender.message}
                             </Text>
                         )}
                     </View>
-                </Pressable>
-            </Animated.View>
+                </Animated.View>
+
+                {/* General error */}
+                {errors.general ? (
+                    <View style={styles.errorBoxEnhanced}>
+                        <AlertCircle size={16} color={C.danger} />
+                        <Text style={styles.errorMsgEnhanced}>
+                            {errors.general.message || errors.general}
+                        </Text>
+                    </View>
+                ) : null}
+
+                {/* Complete button */}
+                <Animated.View style={{
+                    width: '100%', opacity: staggerAnims[2],
+                    transform: [{ translateY: staggerAnims[2].interpolate({ inputRange: [0, 1], outputRange: [reduceMotion ? 0 : 20, 0] }) }],
+                }}>
+                    <Pressable
+                        style={({ pressed }) => [
+                            styles.primaryBtnEnhanced,
+                            signupLoading && { opacity: 0.7 },
+                            pressed && styles.pressed
+                        ]}
+                        onPress={() => handleCompleteSignUp(selectedDate.toISOString())}
+                        disabled={signupLoading}
+                    >
+                        <View style={styles.primaryBtnGradientEnhanced}>
+                            {signupLoading ? (
+                                <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, justifyContent: 'center', gap: 10 }}>
+                                    <ActivityIndicator size="small" color="#FFFFFF" />
+                                    <Text style={styles.primaryBtnText}>Saving...</Text>
+                                </View>
+                            ) : (
+                                <Text style={[styles.primaryBtnText, { flex: 1, textAlign: 'center' }]}>
+                                    Complete setup
+                                </Text>
+                            )}
+                        </View>
+                    </Pressable>
+                </Animated.View>
+            </View>
         </View>
     );
 };

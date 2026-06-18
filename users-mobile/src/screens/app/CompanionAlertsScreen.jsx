@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, RefreshControl, Pressable, Linking, Image } from 'react-native';
+import React, { useEffect, useState, useRef } from 'react';
+import { View, Text, StyleSheet, ScrollView, RefreshControl, Pressable, Linking, Image, Animated } from 'react-native';
 import { apiService } from '../../lib/api';
 import { colors, radius, spacing, shadows, layout } from '../../theme';
 import { Bell, CheckCircle2, ShieldCheck, ShieldAlert, Phone, Clock, ChevronRight, Activity, Check, Shield, MessageSquare } from 'lucide-react-native';
@@ -69,6 +69,64 @@ const getAlertTitle = (type) => {
                 .map(word => word.charAt(0).toUpperCase() + word.slice(1))
                 .join(' ');
     }
+};
+
+const getAlertPriority = (type) => {
+    switch (type) {
+        case 'unresponsive_7days':
+        case 'medicine_refusal':
+        case 'patient_unreachable_3attempts':
+            return 'critical';
+        case 'medication_missed':
+        case 'missed_call':
+            return 'warning';
+        default:
+            return 'info';
+    }
+};
+
+const getAlertPriorityStyles = (type) => {
+    const priority = getAlertPriority(type);
+    switch (priority) {
+        case 'critical':
+            return {
+                accent: '#E11D48',
+                bg: '#FFF8F8',
+                border: '#FFE4E6',
+                text: '#9F1239',
+                label: 'CRITICAL',
+            };
+        case 'warning':
+            return {
+                accent: '#D97706',
+                bg: '#FFFDF3',
+                border: '#FEF3C7',
+                text: '#92400E',
+                label: 'WARNING',
+            };
+        case 'info':
+        default:
+            return {
+                accent: '#4F46E5',
+                bg: '#F8FAFF',
+                border: '#E0E7FF',
+                text: '#3730A3',
+                label: 'INFO',
+            };
+    }
+};
+
+const SkeletonItem = ({ width, height, borderRadius = 8, style }) => {
+    const anim = useRef(new Animated.Value(0.3)).current;
+    useEffect(() => {
+        Animated.loop(
+            Animated.sequence([
+                Animated.timing(anim, { toValue: 1, duration: 800, useNativeDriver: true }),
+                Animated.timing(anim, { toValue: 0.3, duration: 800, useNativeDriver: true }),
+            ])
+        ).start();
+    }, [anim]);
+    return <Animated.View style={[{ width, height, borderRadius, backgroundColor: '#E2E8F0', opacity: anim }, style]} />;
 };
 
 export default function CompanionAlertsScreen() {
@@ -181,7 +239,107 @@ export default function CompanionAlertsScreen() {
         }
     };
 
-    if (!data || !data.patient) return <View style={styles.container} />;
+    if (!data || !data.patient) {
+        return (
+            <View style={styles.container}>
+                {/* Ambient Background Decorations */}
+                <View style={StyleSheet.absoluteFill}>
+                    <Svg height="100%" width="100%" viewBox="0 0 400 850" preserveAspectRatio="none">
+                        <Defs>
+                            <SvgGradient id="topBg" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <Stop offset="0%" stopColor="#E0F2FE" stopOpacity="0.75" />
+                                <Stop offset="100%" stopColor="#F8FAFC" stopOpacity="0" />
+                            </SvgGradient>
+                            <SvgGradient id="bottomBg" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <Stop offset="0%" stopColor="#FFF1F2" stopOpacity="0.75" />
+                                <Stop offset="100%" stopColor="#F8FAFC" stopOpacity="0" />
+                            </SvgGradient>
+                        </Defs>
+                        
+                        <Path d="M180 0 C260 120, 320 150, 400 120 L400 0 Z" fill="url(#topBg)" />
+                        <Path d="M0 620 C60 700, 140 720, 220 850 L0 850 Z" fill="url(#bottomBg)" />
+                        <Path d="M-20 180 C80 230, 180 150, 280 230 C340 280, 380 250, 420 310" stroke={colors.borderLight} strokeWidth="1.5" fill="none" opacity="0.6" />
+                        <Path d="M-40 210 C60 260, 160 180, 260 260 C320 310, 360 280, 400 340" stroke="#E2E8F0" strokeWidth="1" fill="none" opacity="0.35" />
+                        <Circle cx="320" cy="480" r="130" stroke="#E2E8F0" strokeWidth="1" fill="none" opacity="0.28" />
+                        <Circle cx="320" cy="480" r="90" stroke="#E2E8F0" strokeWidth="1.2" fill="none" opacity="0.18" />
+                    </Svg>
+                </View>
+
+                <CompanionHeader
+                    style={{ backgroundColor: 'transparent', borderBottomWidth: 0, shadowColor: 'transparent', elevation: 0 }}
+                    subtitle="Alert Center"
+                    title="Patient's Alerts"
+                    onBack={() => navigation.goBack()}
+                    right={(
+                        <View style={styles.bellButton}>
+                            <Bell color={C.dark} size={20} />
+                        </View>
+                    )}
+                />
+
+                <ScrollView contentContainerStyle={styles.content}>
+                    {/* Quick Connect Skeleton */}
+                    <View style={styles.quickConnectRow}>
+                        <SkeletonItem width={90} height={14} />
+                        <View style={styles.quickConnectButtons}>
+                            <SkeletonItem width={80} height={30} borderRadius={12} />
+                            <SkeletonItem width={90} height={30} borderRadius={12} />
+                        </View>
+                    </View>
+
+                    {/* Active Alerts Skeleton */}
+                    <View style={styles.section}>
+                        <SkeletonItem width={180} height={16} style={{ marginBottom: 4, marginLeft: 4 }} />
+                        
+                        <View style={[styles.premiumAlertCard, { backgroundColor: '#F8FAFC', borderColor: '#E2E8F0' }]}>
+                            <View style={styles.alertContentRow}>
+                                <View style={styles.alertTextColumn}>
+                                    <View style={styles.alertTitleRow}>
+                                        <SkeletonItem width={42} height={42} borderRadius={21} />
+                                        <View style={{ flex: 1, gap: 4 }}>
+                                            <SkeletonItem width={80} height={10} />
+                                            <SkeletonItem width={120} height={16} />
+                                        </View>
+                                    </View>
+                                    <SkeletonItem width="100%" height={12} style={{ marginTop: 8 }} />
+                                    <SkeletonItem width="90%" height={12} />
+                                    <SkeletonItem width={130} height={10} style={{ marginTop: 8 }} />
+                                </View>
+                            </View>
+                            <View style={styles.alertActionsRow}>
+                                <SkeletonItem width="48%" height={40} borderRadius={12} style={{ flex: 1 }} />
+                                <SkeletonItem width="48%" height={40} borderRadius={12} style={{ flex: 1 }} />
+                            </View>
+                        </View>
+                    </View>
+
+                    {/* Security Checkup Skeleton */}
+                    <View style={styles.securityCheckupCard}>
+                        <View style={styles.securityCheckupHeader}>
+                            <View style={{ flex: 1, gap: 4 }}>
+                                <SkeletonItem width={120} height={16} />
+                                <SkeletonItem width={200} height={12} />
+                            </View>
+                            <SkeletonItem width={70} height={24} borderRadius={12} />
+                        </View>
+
+                        <View style={styles.checkupList}>
+                            {[1, 2, 3].map((item) => (
+                                <View key={item} style={styles.checkupItemRow}>
+                                    <SkeletonItem width={40} height={40} borderRadius={20} />
+                                    <View style={{ flex: 1, gap: 4 }}>
+                                        <SkeletonItem width={180} height={12} />
+                                        <SkeletonItem width={140} height={10} />
+                                    </View>
+                                    <SkeletonItem width={50} height={20} borderRadius={8} />
+                                </View>
+                            ))}
+                        </View>
+                    </View>
+                </ScrollView>
+            </View>
+        );
+    }
 
     // Mock resolved alerts history to populate the screen beautifully if activity_logs is empty
     const mockHistory = [
@@ -238,12 +396,30 @@ export default function CompanionAlertsScreen() {
             </View>
 
             <CompanionHeader
+                style={{ backgroundColor: 'transparent', borderBottomWidth: 0, shadowColor: 'transparent', elevation: 0 }}
                 subtitle="Alert Center"
                 title={`${data.patient.name}'s Alerts`}
                 badge={alerts.length > 0 ? `${alerts.length} Active` : null}
                 onBack={() => navigation.goBack()}
                 right={(
-                    <>
+                    <Pressable
+                        style={styles.bellButton}
+                        onPress={() => loadData()}
+                    >
+                        <Bell color={C.dark} size={20} />
+                        {alerts.length > 0 && <View style={styles.bellDot} />}
+                    </Pressable>
+                )}
+            />
+
+            <ScrollView 
+                contentContainerStyle={styles.content}
+                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
+            >
+                {/* Quick Connect Row */}
+                <View style={styles.quickConnectRow}>
+                    <Text style={styles.quickConnectLabel}>Quick Connect:</Text>
+                    <View style={styles.quickConnectButtons}>
                         <Pressable
                             onPress={() => {
                                 const phone = data?.patient?.phone;
@@ -254,78 +430,76 @@ export default function CompanionAlertsScreen() {
                                     AlertManager.alert('No Phone Number', `${data.patient.name} does not have a phone number configured.`);
                                 }
                             }}
-                            style={[styles.miniCommIcon, { backgroundColor: '#ECFDF5' }]}
+                            style={[styles.quickConnectPill, { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' }]}
                         >
-                            <MessageSquare color="#10B981" size={18} strokeWidth={2.5} />
+                            <MessageSquare color="#059669" size={14} strokeWidth={2.5} />
+                            <Text style={[styles.quickConnectText, { color: '#059669' }]}>WhatsApp</Text>
                         </Pressable>
+
                         <Pressable
                             onPress={handleCall}
-                            style={[styles.miniCommIcon, { backgroundColor: '#EFF6FF' }]}
+                            style={[styles.quickConnectPill, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]}
                         >
-                            <Phone color="#3B82F6" size={18} strokeWidth={2.5} />
+                            <Phone color="#2563EB" size={14} strokeWidth={2.5} />
+                            <Text style={[styles.quickConnectText, { color: '#2563EB' }]}>Call Patient</Text>
                         </Pressable>
-
-                        <Pressable
-                            style={styles.bellButton}
-                            onPress={() => loadData()}
-                        >
-                            <Bell color={C.dark} size={20} />
-                            {alerts.length > 0 && <View style={styles.bellDot} />}
-                        </Pressable>
-                    </>
-                )}
-            />
-
-            <ScrollView 
-                contentContainerStyle={styles.content}
-                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
-            >
+                    </View>
+                </View>
                 {/* 1. Active Alerts Section */}
                 {alerts.length > 0 ? (
                     <View style={styles.section}>
                         <Text style={styles.sectionTitle}>Active Alerts Requiring Actions</Text>
-                        {alerts.map(a => (
-                            <View key={a._id} style={styles.premiumAlertCard}>
-                                <View style={styles.alertContentRow}>
-                                    {/* Left: Shield Icon & Content */}
-                                    <View style={styles.alertTextColumn}>
-                                        <View style={styles.alertTitleRow}>
-                                            <View style={styles.alertIconCircle}>
-                                                <ShieldAlert color="#E11D48" size={22} />
+                        {alerts.map(a => {
+                            const styleCfg = getAlertPriorityStyles(a.type);
+                            return (
+                                <View key={a._id} style={[styles.premiumAlertCard, { backgroundColor: styleCfg.bg, borderColor: styleCfg.border }]}>
+                                    {/* Accent strip */}
+                                    <View style={{
+                                        position: 'absolute',
+                                        left: 0,
+                                        top: 0,
+                                        bottom: 0,
+                                        width: 4,
+                                        backgroundColor: styleCfg.accent,
+                                    }} />
+
+                                    <View style={styles.alertContentRow}>
+                                        {/* Left: Shield Icon & Content */}
+                                        <View style={styles.alertTextColumn}>
+                                            <View style={styles.alertTitleRow}>
+                                                <View style={[styles.alertIconCircle, { backgroundColor: styleCfg.border }]}>
+                                                    <ShieldAlert color={styleCfg.accent} size={22} />
+                                                </View>
+                                                <View style={styles.alertHeaderText}>
+                                                    {/* Tiny severity label pill */}
+                                                    <View style={[styles.severityPill, { backgroundColor: styleCfg.accent }]}>
+                                                        <Text style={styles.severityPillText}>{styleCfg.label}</Text>
+                                                    </View>
+                                                    <Text style={[styles.alertTitleText, { color: styleCfg.text }]} numberOfLines={2}>{getAlertTitle(a.type)}</Text>
+                                                </View>
                                             </View>
-                                            <View style={styles.alertHeaderText}>
-                                                <Text style={styles.priorityLabel}>HIGH PRIORITY</Text>
-                                                <Text style={styles.alertTitleText} numberOfLines={2}>{getAlertTitle(a.type)}</Text>
+                                            <Text style={[styles.alertDescText, { color: styleCfg.text }]}>{a.description}</Text>
+                                            <View style={styles.alertTimeRow}>
+                                                <Clock size={12} color={styleCfg.accent} />
+                                                <Text style={[styles.alertTimeText, { color: styleCfg.text }]}>Triggered: Today, 9:15 AM</Text>
                                             </View>
-                                        </View>
-                                        <Text style={styles.alertDescText}>{a.description}</Text>
-                                        <View style={styles.alertTimeRow}>
-                                            <Clock size={12} color="#881337" />
-                                            <Text style={styles.alertTimeText}>Triggered: Today, 9:15 AM</Text>
                                         </View>
                                     </View>
                                     
-                                    {/* Right: Calendar 3D Image */}
-                                    <Image 
-                                        source={require('../../../assets/calendar_alert_illus.jpg')} 
-                                        style={styles.calendarIllusImage}
-                                        resizeMode="cover"
-                                    />
+                                    {/* Bottom Action Buttons */}
+                                    <View style={styles.alertActionsRow}>
+                                        <Pressable style={({ pressed }) => [styles.callNowBtn, { backgroundColor: styleCfg.accent }, pressed && { opacity: 0.75 }]} onPress={handleCall}>
+                                            <Phone color="#FFF" size={16} />
+                                            <Text style={styles.callNowBtnText}>Call Now</Text>
+                                        </Pressable>
+                                        <Pressable style={({ pressed }) => [styles.dismissBtn, pressed && { opacity: 0.7 }]} onPress={() => acknowledgeAlert(a._id)}>
+                                            <CheckCircle2 color="#475569" size={16} />
+                                            <Text style={styles.dismissBtnText}>Dismiss</Text>
+                                        </Pressable>
+                                    </View>
                                 </View>
-                                
-                                {/* Bottom Action Buttons */}
-                                <View style={styles.alertActionsRow}>
-                                    <Pressable style={({ pressed }) => [styles.callNowBtn, pressed && { opacity: 0.75 }]} onPress={handleCall}>
-                                        <Phone color="#FFF" size={16} />
-                                        <Text style={styles.callNowBtnText}>Call Now</Text>
-                                    </Pressable>
-                                    <Pressable style={({ pressed }) => [styles.dismissBtn, pressed && { opacity: 0.7 }]} onPress={() => acknowledgeAlert(a._id)}>
-                                        <CheckCircle2 color="#0F172A" size={16} />
-                                        <Text style={styles.dismissBtnText}>Dismiss</Text>
-                                    </Pressable>
-                                </View>
-                            </View>
-                        ))}
+                            );
+                        })}
                     </View>
                 ) : (
                     // Beautiful Guardian Shield Empty State Card
@@ -558,6 +732,40 @@ export default function CompanionAlertsScreen() {
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
+    quickConnectRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        backgroundColor: '#FFFFFF',
+        borderRadius: 20,
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        borderWidth: 1,
+        borderColor: '#F1F5F9',
+        ...shadows.sm,
+    },
+    quickConnectLabel: {
+        fontSize: 13,
+        ...FONT.bold,
+        color: colors.textSecondary,
+    },
+    quickConnectButtons: {
+        flexDirection: 'row',
+        gap: 8,
+    },
+    quickConnectPill: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 12,
+        borderWidth: 1,
+    },
+    quickConnectText: {
+        fontSize: 12,
+        ...FONT.bold,
+    },
     miniCommIcon: {
         width: 40,
         height: 40,
@@ -596,10 +804,13 @@ const styles = StyleSheet.create({
 
     // Premium Alert Card Styles
     premiumAlertCard: {
-        backgroundColor: '#FFF0F2',
         borderRadius: 24,
-        padding: 20,
-        gap: 14,
+        padding: 16,
+        gap: 12,
+        borderWidth: 1,
+        position: 'relative',
+        overflow: 'hidden',
+        ...shadows.sm,
     },
     alertContentRow: {
         flexDirection: 'row',
@@ -625,7 +836,6 @@ const styles = StyleSheet.create({
         width: 42,
         height: 42,
         borderRadius: 21,
-        backgroundColor: '#FFE4E6',
         alignItems: 'center',
         justifyContent: 'center',
     },
@@ -635,16 +845,27 @@ const styles = StyleSheet.create({
         color: '#E11D48',
         letterSpacing: 0.5,
     },
+    severityPill: {
+        alignSelf: 'flex-start',
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        borderRadius: 6,
+        marginBottom: 6,
+    },
+    severityPillText: {
+        fontSize: 9,
+        ...FONT.heavy,
+        color: '#FFF',
+        letterSpacing: 0.5,
+    },
     alertTitleText: {
-        fontSize: 17,
+        fontSize: 16,
         ...FONT.bold,
-        color: '#9F1239',
         lineHeight: 22,
     },
     alertDescText: {
         fontSize: 13,
         ...FONT.semibold,
-        color: '#9F1239',
         lineHeight: 18,
     },
     alertTimeRow: {
@@ -656,14 +877,6 @@ const styles = StyleSheet.create({
     alertTimeText: {
         fontSize: 11,
         ...FONT.semibold,
-        color: '#9F1239',
-    },
-    calendarIllusImage: {
-        width: 68,
-        height: 68,
-        borderRadius: 14,
-        overflow: 'hidden',
-        marginTop: 8,
     },
     alertActionsRow: {
         flexDirection: 'row',
@@ -675,14 +888,12 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         gap: 8,
-        backgroundColor: '#E11D48',
-        minHeight: 48,
-        paddingVertical: 11,
-        borderRadius: 14,
+        height: 40,
+        borderRadius: 12,
     },
     callNowBtnText: {
         color: '#FFF',
-        fontSize: 13,
+        fontSize: 12,
         ...FONT.bold,
     },
     dismissBtn: {
@@ -691,14 +902,15 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         gap: 8,
-        backgroundColor: '#FFF',
-        minHeight: 48,
-        paddingVertical: 11,
-        borderRadius: 14,
+        backgroundColor: 'transparent',
+        height: 40,
+        borderWidth: 1,
+        borderColor: '#CBD5E1',
+        borderRadius: 12,
     },
     dismissBtnText: {
-        color: '#0F172A',
-        fontSize: 13,
+        color: '#475569',
+        fontSize: 12,
         ...FONT.bold,
     },
 

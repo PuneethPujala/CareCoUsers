@@ -99,8 +99,8 @@ async function activateSubscription(patient, planId) {
 
         // Map plan pricing correctly
         const planAmounts = {
-            'premium_monthly': 499,
-            'premium_annual': 4199,
+            'premium_monthly': 800,
+            'premium_annual': 8000,
             'basic': 99,
         };
         const resolvedPlan = planId || patient.pending_plan || 'basic';

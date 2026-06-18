@@ -1051,7 +1051,27 @@ export default function PatientHomeScreen({ navigation }) {
     return (
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
             <View style={{ flex: 1, backgroundColor: '#F8FAFC' }}>
-                <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
+                <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
+
+                {/* Top-concentrated curvy background waves (restricted to 280px high, fades completely) */}
+                <View style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 280, overflow: 'hidden' }}>
+                    <Svg height="280" width="100%" viewBox="0 0 400 280" preserveAspectRatio="none">
+                        <Defs>
+                            <SvgLinearGradient id="homeTopBg" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <Stop offset="0%" stopColor="#E0F2FE" stopOpacity="0.8" />
+                                <Stop offset="100%" stopColor="#F8FAFC" stopOpacity="0" />
+                            </SvgLinearGradient>
+                            <SvgLinearGradient id="homeTopBg2" x1="0%" y1="0%" x2="0%" y2="100%">
+                                <Stop offset="0%" stopColor="#EEF2FF" stopOpacity="0.7" />
+                                <Stop offset="100%" stopColor="#F8FAFC" stopOpacity="0" />
+                            </SvgLinearGradient>
+                        </Defs>
+                        
+                        <Path d="M0 0 C120 180, 280 200, 400 150 L400 0 Z" fill="url(#homeTopBg)" opacity="0.85" />
+                        <Path d="M0 0 C150 120, 250 250, 400 180 L400 0 Z" fill="url(#homeTopBg2)" opacity="0.6" />
+                        <Path d="M-20 120 C80 170, 180 90, 280 170 C340 220, 380 190, 420 250" stroke="#E2E8F0" strokeWidth="1.5" fill="none" opacity="0.5" />
+                    </Svg>
+                </View>
 
                 {/* ── HEADER ── */}
                 <View style={styles.header}>
@@ -1683,9 +1703,9 @@ const styles = StyleSheet.create({
 
     // ── Header ──
     header: {
-        paddingTop: Platform.OS === 'ios' ? 60 : 48,
+        paddingTop: Platform.OS === 'ios' ? 60 : 56,
         paddingHorizontal: spacing.heroScreen, paddingBottom: 14,
-        backgroundColor: colors.background,
+        backgroundColor: 'transparent',
     },
     mainHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
     greetingName: { fontSize: 28, fontWeight: '900', color: '#6366F1', letterSpacing: -1 },

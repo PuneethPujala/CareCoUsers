@@ -10,16 +10,16 @@ const PLANS = [
     {
         id: 'premium_annual',
         name: 'Annual Premium',
-        price: '₹4,199/yr',
+        price: '₹8,000/yr',
         subtitle: 'Billed yearly',
-        badge: 'SAVE 30%',
+        badge: 'SAVE 17%',
         color: '#A855F7',
         gradient: ['#A855F7', '#7E22CE']
     },
     {
         id: 'premium_monthly',
         name: 'Monthly Premium',
-        price: '₹499/mo',
+        price: '₹800/mo',
         subtitle: 'Billed monthly',
         color: '#64748B',
         gradient: ['#64748B', '#475569']

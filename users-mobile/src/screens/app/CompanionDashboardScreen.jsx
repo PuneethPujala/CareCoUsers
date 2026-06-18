@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, RefreshControl, Pressable, Dimensions, Linking, ActivityIndicator, Image, Animated } from 'react-native';
 import { apiService } from '../../lib/api';
-import { HeartPulse, Activity, Bell, Phone, Send, ChevronRight, MessageSquare, ShieldCheck, AlertCircle, RefreshCw, Bluetooth, Lightbulb, Sparkles, TrendingUp, Calendar } from 'lucide-react-native';
+import { HeartPulse, Activity, Bell, Phone, Send, ChevronRight, MessageSquare, ShieldCheck, AlertCircle, RefreshCw, Bluetooth, Lightbulb, Sparkles, TrendingUp, Calendar, ChevronDown, ChevronUp } from 'lucide-react-native';
 import AlertManager from '../../utils/AlertManager';
 import { colors, radius, spacing, shadows, layout, motion, anim, useReduceMotion } from '../../theme';
 import usePatientStore from '../../store/usePatientStore';
@@ -57,6 +57,19 @@ const formatDate = (dateInput, formatStr) => {
     return date.toLocaleDateString();
 };
 
+const SkeletonItem = ({ width, height, borderRadius = 8, style }) => {
+    const anim = useRef(new Animated.Value(0.3)).current;
+    useEffect(() => {
+        Animated.loop(
+            Animated.sequence([
+                Animated.timing(anim, { toValue: 1, duration: 800, useNativeDriver: true }),
+                Animated.timing(anim, { toValue: 0.3, duration: 800, useNativeDriver: true }),
+            ])
+        ).start();
+    }, [anim]);
+    return <Animated.View style={[{ width, height, borderRadius, backgroundColor: '#E2E8F0', opacity: anim }, style]} />;
+};
+
 export default function CompanionDashboardScreen() {
     const [data, setData] = useState(null);
     const [refreshing, setRefreshing] = useState(false);
@@ -64,6 +77,8 @@ export default function CompanionDashboardScreen() {
     const [requestingBP, setRequestingBP] = useState(false);
     
     const [pendingInterventionsCount, setPendingInterventionsCount] = useState(0);
+    const [expandedBriefing, setExpandedBriefing] = useState(false);
+    const [entranceAnimationFinished, setEntranceAnimationFinished] = useState(false);
     
     const selectedPatientId = usePatientStore(s => s.companionSelectedPatientId);
     const navigation = useNavigation();
@@ -103,6 +118,7 @@ export default function CompanionDashboardScreen() {
         staggerAnims.forEach(a => a.setValue(0));
         if (reduceMotion) {
             staggerAnims.forEach(a => a.setValue(1));
+            setEntranceAnimationFinished(true);
             return;
         }
 
@@ -129,17 +145,21 @@ export default function CompanionDashboardScreen() {
         activeAnimation.current = Animated.stagger(70, animations);
         activeAnimation.current.start(() => {
             activeAnimation.current = null;
+            setEntranceAnimationFinished(true);
         });
     }, [staggerAnims, reduceMotion, visibleSections]);
 
     const sectionAnimForKey = (sectionKey) => {
+        if (entranceAnimationFinished || reduceMotion) {
+            return { opacity: 1 };
+        }
         const idx = visibleSections.indexOf(sectionKey);
         if (idx === -1 || idx >= staggerAnims.length) {
             return { opacity: 1 };
         }
         return {
             opacity: staggerAnims[idx],
-            transform: reduceMotion ? [] : [{ translateY: staggerAnims[idx].interpolate({ inputRange: [0, 1], outputRange: [18, 0] }) }],
+            transform: [{ translateY: staggerAnims[idx].interpolate({ inputRange: [0, 1], outputRange: [18, 0] }) }],
         };
     };
 
@@ -282,7 +302,135 @@ export default function CompanionDashboardScreen() {
         );
     };
 
-    if (!data || !data.patient) return <View style={styles.container} />;
+    if (!data || !data.patient) {
+        return (
+            <View style={styles.container}>
+                {/* Ambient Background Decorations */}
+                <View style={StyleSheet.absoluteFill}>
+                    <Svg height="100%" width="100%" viewBox="0 0 400 850" preserveAspectRatio="none">
+                        <Defs>
+                            <SvgGradient id="topBg" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <Stop offset="0%" stopColor="#E0F2FE" stopOpacity="0.75" />
+                                <Stop offset="100%" stopColor="#F8FAFC" stopOpacity="0" />
+                            </SvgGradient>
+                            <SvgGradient id="bottomBg" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <Stop offset="0%" stopColor="#FFF1F2" stopOpacity="0.75" />
+                                <Stop offset="100%" stopColor="#F8FAFC" stopOpacity="0" />
+                            </SvgGradient>
+                        </Defs>
+                        
+                        <Path d="M180 0 C260 120, 320 150, 400 120 L400 0 Z" fill="url(#topBg)" />
+                        <Path d="M0 620 C60 700, 140 720, 220 850 L0 850 Z" fill="url(#bottomBg)" />
+                        <Path d="M-20 180 C80 230, 180 150, 280 230 C340 280, 380 250, 420 310" stroke={colors.borderLight} strokeWidth="1.5" fill="none" opacity="0.4" />
+                        <Path d="M-40 210 C60 260, 160 180, 260 260 C320 310, 360 280, 400 340" stroke={colors.borderLight} strokeWidth="1" fill="none" opacity="0.25" />
+                        <Circle cx="320" cy="480" r="130" stroke={colors.borderLight} strokeWidth="1" fill="none" opacity="0.2" />
+                        <Circle cx="320" cy="480" r="90" stroke={colors.borderLight} strokeWidth="1.2" fill="none" opacity="0.1" />
+                    </Svg>
+                </View>
+
+                <CompanionHeader
+                    style={{ backgroundColor: 'transparent', borderBottomWidth: 0, shadowColor: 'transparent', elevation: 0 }}
+                    subtitle="Family Care Portal"
+                    title="Patient's Health"
+                    onBack={() => navigation.goBack()}
+                    right={(
+                        <View style={styles.bellButton}>
+                            <Bell color={colors.textMuted} size={20} />
+                        </View>
+                    )}
+                />
+
+                <ScrollView contentContainerStyle={styles.content}>
+                    {/* Summary Card Skeleton */}
+                    <View style={styles.summaryCard}>
+                        <View style={styles.summaryCol}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                <SkeletonItem width={20} height={20} borderRadius={10} />
+                                <View style={{ gap: 4 }}>
+                                    <SkeletonItem width={70} height={12} />
+                                    <SkeletonItem width={100} height={10} />
+                                </View>
+                            </View>
+                        </View>
+                        <View style={styles.summaryDivider} />
+                        <View style={[styles.summaryCol, { alignItems: 'center', gap: 4 }]}>
+                            <SkeletonItem width={50} height={10} />
+                            <SkeletonItem width={40} height={24} />
+                            <SkeletonItem width={30} height={10} />
+                        </View>
+                        <View style={styles.summaryDivider} />
+                        <View style={[styles.summaryCol, { alignItems: 'center', gap: 4 }]}>
+                            <SkeletonItem width={50} height={10} />
+                            <SkeletonItem width={55} height={16} />
+                        </View>
+                    </View>
+
+                    {/* Briefing Skeleton */}
+                    <View style={styles.briefingContainerStandalone}>
+                        <SkeletonItem width={96} height={96} borderRadius={48} style={{ marginRight: -12, zIndex: 2 }} />
+                        <View style={[styles.speechBubbleOverlapping, { flex: 1, gap: 10, paddingVertical: 20 }]}>
+                            <SkeletonItem width={120} height={16} />
+                            <SkeletonItem width="100%" height={12} />
+                            <SkeletonItem width="90%" height={12} />
+                            <SkeletonItem width="60%" height={12} />
+                        </View>
+                    </View>
+
+                    {/* CTA Cards Skeletons */}
+                    <View style={[styles.card, { height: 86, justifyContent: 'center', paddingHorizontal: 20 }]}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                            <SkeletonItem width={24} height={24} borderRadius={12} />
+                            <View style={{ flex: 1, gap: 6 }}>
+                                <SkeletonItem width={160} height={14} />
+                                <SkeletonItem width={100} height={10} />
+                            </View>
+                            <SkeletonItem width={14} height={14} borderRadius={7} />
+                        </View>
+                    </View>
+
+                    <View style={[styles.card, { height: 86, justifyContent: 'center', paddingHorizontal: 20 }]}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                            <SkeletonItem width={24} height={24} borderRadius={12} />
+                            <View style={{ flex: 1, gap: 6 }}>
+                                <SkeletonItem width={180} height={14} />
+                                <SkeletonItem width={120} height={10} />
+                            </View>
+                            <SkeletonItem width={14} height={14} borderRadius={7} />
+                        </View>
+                    </View>
+
+                    {/* Adherence Card Skeleton */}
+                    <View style={styles.card}>
+                        <View style={styles.cardHeader}>
+                            <SkeletonItem width={18} height={18} borderRadius={4} style={{ marginRight: 8 }} />
+                            <View style={{ gap: 4 }}>
+                                <SkeletonItem width={140} height={14} />
+                                <SkeletonItem width={100} height={10} />
+                            </View>
+                        </View>
+                        <View style={[styles.meterRow, { marginVertical: 12 }]}>
+                            <View style={{ flex: 1, gap: 8 }}>
+                                <SkeletonItem width={60} height={28} />
+                                <SkeletonItem width={90} height={16} borderRadius={8} />
+                            </View>
+                            <SkeletonItem width={80} height={80} borderRadius={40} />
+                        </View>
+                        <View style={styles.chartContainer}>
+                            <SkeletonItem width={120} height={12} style={{ marginBottom: 12 }} />
+                            <View style={[styles.barChart, { height: 80, alignItems: 'flex-end' }]}>
+                                {[60, 90, 40, 80, 100, 30, 70].map((h, i) => (
+                                    <View key={i} style={{ alignItems: 'center', gap: 6 }}>
+                                        <SkeletonItem width={14} height={h * 0.6} borderRadius={4} />
+                                        <SkeletonItem width={12} height={10} />
+                                    </View>
+                                ))}
+                            </View>
+                        </View>
+                    </View>
+                </ScrollView>
+            </View>
+        );
+    }
 
     const adherence = data.patient.adherence_rate !== null ? data.patient.adherence_rate : 0;
     
@@ -304,6 +452,15 @@ export default function CompanionDashboardScreen() {
     const lastStable = insights.last_stable || { stable_days: 0, currently_stable: false };
     const priorityActions = insights.priority_actions || [];
     const recommendations = insights.recommendations || [];
+
+    const summaryText = insights.summary || 'AI has not generated a briefing for today yet.';
+    const splitIndex = summaryText.indexOf('. ');
+    let shortSummary = summaryText;
+    let briefDetails = '';
+    if (splitIndex !== -1) {
+        shortSummary = summaryText.substring(0, splitIndex + 1);
+        briefDetails = summaryText.substring(splitIndex + 2);
+    }
 
     return (
         <View style={styles.container}>
@@ -353,6 +510,7 @@ export default function CompanionDashboardScreen() {
             </View>
 
             <CompanionHeader
+                style={{ backgroundColor: 'transparent', borderBottomWidth: 0, shadowColor: 'transparent', elevation: 0 }}
                 subtitle="Family Care Portal"
                 title={`${data.patient.name}'s Health`}
                 onBack={() => navigation.goBack()}
@@ -449,19 +607,42 @@ export default function CompanionDashboardScreen() {
                     </Animated.View>
                 )}
                  {/* Card 1: AI Companion Briefing (Mascot Overlapping Speech Bubble) */}
-                {visibleSections.includes('briefing') && (
-                    <Animated.View style={[styles.briefingContainerStandalone, sectionAnimForKey('briefing')]}>
-                        <Image 
-                            source={require('../../../assets/doctor_mascot_insights.jpg')} 
-                            style={styles.mascotOverlappingImage}
-                            resizeMode="cover"
-                        />
-                        <View style={styles.speechBubbleOverlapping}>
-                            <Text style={styles.briefingTitleOverlapping}>AI Companion Briefing</Text>
-                            <Text style={styles.briefingText}>{insights.summary || 'AI has not generated a briefing for today yet.'}</Text>
-                        </View>
-                    </Animated.View>
-                )}
+                 {visibleSections.includes('briefing') && (
+                     <Animated.View style={[styles.briefingContainerStandalone, sectionAnimForKey('briefing')]}>
+                         <Image 
+                             source={require('../../../assets/doctor_mascot_insights.jpg')} 
+                             style={styles.mascotOverlappingImage}
+                             resizeMode="cover"
+                         />
+                         <View style={styles.speechBubbleOverlapping}>
+                             <Text style={styles.briefingTitleOverlapping}>AI Companion Briefing</Text>
+                             <Text style={styles.briefingText}>{shortSummary}</Text>
+
+                             {expandedBriefing && briefDetails ? (
+                                 <View style={styles.expandedBriefingContainer}>
+                                     <View style={styles.briefingDivider} />
+                                     <Text style={styles.briefingTextDetails}>{briefDetails}</Text>
+                                 </View>
+                             ) : null}
+
+                             {briefDetails ? (
+                                 <Pressable 
+                                     style={({ pressed }) => [styles.briefingToggleBtn, pressed && { opacity: 0.7 }]}
+                                     onPress={() => setExpandedBriefing(!expandedBriefing)}
+                                 >
+                                     <Text style={styles.briefingToggleText}>
+                                         {expandedBriefing ? 'Show Less' : 'Read Full Briefing'}
+                                     </Text>
+                                     {expandedBriefing ? (
+                                         <ChevronUp size={14} color={colors.primary} style={{ marginLeft: 2 }} />
+                                     ) : (
+                                         <ChevronDown size={14} color={colors.primary} style={{ marginLeft: 2 }} />
+                                     )}
+                                 </Pressable>
+                             ) : null}
+                         </View>
+                     </Animated.View>
+                 )}
 
                 {/* Card 2: Needs Attention */}
                 {visibleSections.includes('needs_attention') && (
@@ -1701,6 +1882,36 @@ const styles = StyleSheet.create({
         ...FONT.medium,
         color: colors.textPrimary,
         lineHeight: 18,
+    },
+    expandedBriefingContainer: {
+        marginTop: 8,
+    },
+    briefingDivider: {
+        height: 1,
+        backgroundColor: colors.primaryMid + '20',
+        marginVertical: 8,
+        borderStyle: 'dashed',
+        borderWidth: 1,
+        borderRadius: 1,
+    },
+    briefingTextDetails: {
+        fontSize: 11.5,
+        ...FONT.medium,
+        color: colors.textSecondary,
+        lineHeight: 16,
+    },
+    briefingToggleBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 4,
+        marginTop: 10,
+        alignSelf: 'flex-start',
+    },
+    briefingToggleText: {
+        fontSize: 11,
+        ...FONT.bold,
+        color: colors.primary,
     },
     priorityActionsContainer: {
         marginBottom: 16,

@@ -20,6 +20,7 @@ import { useForm, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { TERMS_VERSION, PRIVACY_VERSION } from '../../constants/legalContent';
 import { step1Schema, stepPhoneSchema, step2Schema, step3Schema, step5Schema } from './signupSchema';
+import Svg, { Path, Circle, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
 
 import { OTPModal } from './components';
 import CheckoutBottomSheet from '../../components/premium/CheckoutBottomSheet';
@@ -719,6 +720,29 @@ export default function PatientSignupScreen({ navigation, route }) {
                 style={sc.container}
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             >
+                {/* Ambient Background Decorations */}
+                <View style={StyleSheet.absoluteFill}>
+                    <Svg height="100%" width="100%" viewBox="0 0 400 850" preserveAspectRatio="none">
+                        <Defs>
+                            <SvgGradient id="topBg" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <Stop offset="0%" stopColor="#E0F2FE" stopOpacity="0.75" />
+                                <Stop offset="100%" stopColor="#F8FAFC" stopOpacity="0" />
+                            </SvgGradient>
+                            <SvgGradient id="bottomBg" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <Stop offset="0%" stopColor="#FFF1F2" stopOpacity="0.75" />
+                                <Stop offset="100%" stopColor="#F8FAFC" stopOpacity="0" />
+                            </SvgGradient>
+                        </Defs>
+                        
+                        <Path d="M180 0 C260 120, 320 150, 400 120 L400 0 Z" fill="url(#topBg)" />
+                        <Path d="M0 620 C60 700, 140 720, 220 850 L0 850 Z" fill="url(#bottomBg)" />
+                        <Path d="M-20 180 C80 230, 180 150, 280 230 C340 280, 380 250, 420 310" stroke="#E2E8F0" strokeWidth="1.5" fill="none" opacity="0.6" />
+                        <Path d="M-40 210 C60 260, 160 180, 260 260 C320 310, 360 280, 400 340" stroke="#E2E8F0" strokeWidth="1" fill="none" opacity="0.35" />
+                        <Circle cx="320" cy="480" r="130" stroke="#E2E8F0" strokeWidth="1" fill="none" opacity="0.28" />
+                        <Circle cx="320" cy="480" r="90" stroke="#E2E8F0" strokeWidth="1.2" fill="none" opacity="0.18" />
+                    </Svg>
+                </View>
+
                 <ScrollView
                     ref={mainScrollRef}
                     style={sc.scroll}

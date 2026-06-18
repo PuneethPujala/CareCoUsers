@@ -27,108 +27,110 @@ const Step2Phone = ({
             <Text style={styles.stepTitleLine1}>Add your</Text>
             <Text style={styles.stepTitleLine2}>phone number</Text>
 
-            {/* Info card */}
-            <View style={local.infoCard}>
-                <View style={local.infoIconBox}>
-                    <Smartphone size={20} color={C.primary} />
+            <View style={styles.glassFormCard}>
+                {/* Info card */}
+                <View style={local.infoCard}>
+                    <View style={local.infoIconBox}>
+                        <Smartphone size={20} color={C.primary} />
+                    </View>
+                    <Text style={local.infoText}>
+                        Used for care alerts and OTP-based account recovery.
+                    </Text>
                 </View>
-                <Text style={local.infoText}>
-                    Used for care alerts and OTP-based account recovery.
-                </Text>
-            </View>
 
-            {/* Field validation error */}
-            {fieldError ? (
-                <View style={local.errorBox}>
-                    <AlertCircle size={15} color={C.danger} />
-                    <Text style={local.errorText}>{fieldError}</Text>
-                </View>
-            ) : null}
+                {/* Field validation error */}
+                {fieldError ? (
+                    <View style={local.errorBox}>
+                        <AlertCircle size={15} color={C.danger} />
+                        <Text style={local.errorText}>{fieldError}</Text>
+                    </View>
+                ) : null}
 
-            {/* Save error with retry */}
-            {phoneError && !fieldError ? (
-                <View style={local.errorBox}>
-                    <AlertCircle size={15} color={C.danger} />
-                    <Text style={local.errorText}>{phoneError}</Text>
-                    {onRetry ? (
-                        <Pressable
-                            onPress={onRetry}
-                            style={({ pressed }) => [local.retryBtn, pressed && styles.pressed]}
-                            hitSlop={8}
-                        >
-                            <RefreshCcw size={14} color={C.primary} />
-                            <Text style={local.retryText}>Retry</Text>
-                        </Pressable>
-                    ) : null}
-                </View>
-            ) : null}
+                {/* Save error with retry */}
+                {phoneError && !fieldError ? (
+                    <View style={local.errorBox}>
+                        <AlertCircle size={15} color={C.danger} />
+                        <Text style={local.errorText}>{phoneError}</Text>
+                        {onRetry ? (
+                            <Pressable
+                                onPress={onRetry}
+                                style={({ pressed }) => [local.retryBtn, pressed && styles.pressed]}
+                                hitSlop={8}
+                            >
+                                <RefreshCcw size={14} color={C.primary} />
+                                <Text style={local.retryText}>Retry</Text>
+                            </Pressable>
+                        ) : null}
+                    </View>
+                ) : null}
 
-            {/* Phone input */}
-            <Controller
-                control={control}
-                name="phoneNumber"
-                render={({ field: { onChange, value } }) => (
-                    <View style={[
-                        local.inputWrap,
-                        isPhoneVerified && local.inputVerifiedWrap,
-                        fieldError && local.inputErrorWrap,
-                    ]}>
-                        <Smartphone size={18} color={isPhoneVerified ? C.success : C.muted} />
-                        <Text style={local.prefix}>+91</Text>
-                        <TextInput
-                            style={local.input}
-                            placeholder="10-digit mobile number"
-                            placeholderTextColor={C.muted}
-                            value={value}
-                            onChangeText={(v) => onChange(v.replace(/\D/g, '').slice(0, 10))}
-                            keyboardType="phone-pad"
-                            maxLength={10}
-                            editable={!isPhoneVerified}
-                        />
-                        {isPhoneVerified && <CheckCircle2 size={18} color={C.success} />}
+                {/* Phone input */}
+                <Controller
+                    control={control}
+                    name="phoneNumber"
+                    render={({ field: { onChange, value } }) => (
+                        <View style={[
+                            local.inputWrap,
+                            isPhoneVerified && local.inputVerifiedWrap,
+                            fieldError && local.inputErrorWrap,
+                        ]}>
+                            <Smartphone size={18} color={isPhoneVerified ? C.success : C.muted} />
+                            <Text style={local.prefix}>+91</Text>
+                            <TextInput
+                                style={local.input}
+                                placeholder="10-digit mobile number"
+                                placeholderTextColor={C.muted}
+                                value={value}
+                                onChangeText={(v) => onChange(v.replace(/\D/g, '').slice(0, 10))}
+                                keyboardType="phone-pad"
+                                maxLength={10}
+                                editable={!isPhoneVerified}
+                            />
+                            {isPhoneVerified && <CheckCircle2 size={18} color={C.success} />}
+                        </View>
+                    )}
+                />
+
+                {/* Verified badge */}
+                {isPhoneVerified && (
+                    <View style={local.verifiedBadge}>
+                        <CheckCircle2 size={20} color={C.success} />
+                        <View style={{ flex: 1 }}>
+                            <Text style={local.verifiedTitle}>Phone number verified</Text>
+                            <Text style={local.verifiedSub}>
+                                {signupLoading ? 'Saving your details...' : 'Ready to continue'}
+                            </Text>
+                        </View>
+                        {signupLoading && <ActivityIndicator size="small" color={C.success} />}
                     </View>
                 )}
-            />
 
-            {/* Verified badge */}
-            {isPhoneVerified && (
-                <View style={local.verifiedBadge}>
-                    <CheckCircle2 size={20} color={C.success} />
-                    <View style={{ flex: 1 }}>
-                        <Text style={local.verifiedTitle}>Phone number verified</Text>
-                        <Text style={local.verifiedSub}>
-                            {signupLoading ? 'Saving your details...' : 'Ready to continue'}
-                        </Text>
-                    </View>
-                    {signupLoading && <ActivityIndicator size="small" color={C.success} />}
-                </View>
-            )}
-
-            {/* Send OTP button */}
-            {!isPhoneVerified && (
-                <Pressable
-                    style={({ pressed }) => [
-                        styles.primaryBtnEnhanced,
-                        (otpLoading || signupLoading) && { opacity: 0.7 },
-                        pressed && styles.pressed
-                    ]}
-                    onPress={onSendOtp}
-                    disabled={otpLoading || signupLoading}
-                >
-                    <View style={styles.primaryBtnGradientEnhanced}>
-                        {otpLoading || signupLoading ? (
-                            <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, justifyContent: 'center', gap: 10 }}>
-                                <ActivityIndicator size="small" color="#FFFFFF" />
-                                <Text style={styles.primaryBtnText}>Sending OTP...</Text>
-                            </View>
-                        ) : (
-                            <Text style={[styles.primaryBtnText, { flex: 1, textAlign: 'center' }]}>
-                                Send OTP
-                            </Text>
-                        )}
-                    </View>
-                </Pressable>
-            )}
+                {/* Send OTP button */}
+                {!isPhoneVerified && (
+                    <Pressable
+                        style={({ pressed }) => [
+                            styles.primaryBtnEnhanced,
+                            (otpLoading || signupLoading) && { opacity: 0.7 },
+                            pressed && styles.pressed
+                        ]}
+                        onPress={onSendOtp}
+                        disabled={otpLoading || signupLoading}
+                    >
+                        <View style={styles.primaryBtnGradientEnhanced}>
+                            {otpLoading || signupLoading ? (
+                                <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, justifyContent: 'center', gap: 10 }}>
+                                    <ActivityIndicator size="small" color="#FFFFFF" />
+                                    <Text style={styles.primaryBtnText}>Sending OTP...</Text>
+                                </View>
+                            ) : (
+                                <Text style={[styles.primaryBtnText, { flex: 1, textAlign: 'center' }]}>
+                                    Send OTP
+                                </Text>
+                            )}
+                        </View>
+                    </Pressable>
+                )}
+            </View>
         </View>
     );
 };
