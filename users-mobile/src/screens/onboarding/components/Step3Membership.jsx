@@ -22,7 +22,7 @@ const Step3Membership = ({
 
     const handleSelectAndPay = () => {
         setValue('selectedPlanId', 'basic');
-        setSelectedPlan({ id: 'basic', name: 'Basic Plan', price: '₹500/mo' });
+        setSelectedPlan({ id: 'basic', name: 'Basic Plan', price: '₹800/mo' });
         setUpiModalVisible(true);
     };
 
@@ -70,7 +70,7 @@ const Step3Membership = ({
                             <View style={styles.planPriceCol}>
                                 <Text style={styles.planTitleEnhanced}>Basic Plan</Text>
                                 <Text style={styles.planPriceEnhanced}>
-                                    ₹500<Text style={styles.planPriceSub}>/mo</Text>
+                                    ₹800<Text style={styles.planPriceSub}>/mo</Text>
                                 </Text>
                             </View>
                             {selectedPlanId === 'basic' && (
@@ -106,7 +106,7 @@ const Step3Membership = ({
                             onPress={handleSelectAndPay}
                         >
                             <Text style={selectedPlanId === 'basic' ? styles.txtActive : styles.txtInactive}>
-                                {selectedPlanId === 'basic' ? 'Subscribe — Pay ₹500' : 'Select Basic Plan'}
+                                {selectedPlanId === 'basic' ? 'Subscribe — Pay ₹800' : 'Select Basic Plan'}
                             </Text>
                             <ChevronRight size={18} color={selectedPlanId === 'basic' ? '#FFFFFF' : C.mid} />
                         </Pressable>

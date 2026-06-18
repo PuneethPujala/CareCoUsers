@@ -101,10 +101,10 @@ async function activateSubscription(patient, planId) {
         const planAmounts = {
             'premium_monthly': 800,
             'premium_annual': 8000,
-            'basic': 99,
+            'basic': 800,
         };
         const resolvedPlan = planId || patient.pending_plan || 'basic';
-        const amount = planAmounts[resolvedPlan] || 499;
+        const amount = planAmounts[resolvedPlan] || 800;
         const durationDays = resolvedPlan === 'premium_annual' ? 365 : 30;
         
         let newExpiresAt;
