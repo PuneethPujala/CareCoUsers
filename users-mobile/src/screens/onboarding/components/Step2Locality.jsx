@@ -5,6 +5,7 @@ import {
 import { MapPin, Navigation, CheckCircle2, Search, X, ShieldCheck } from 'lucide-react-native';
 import { useFormContext } from 'react-hook-form';
 import { styles, FONT, C } from './SignupStyles';
+import { shadows } from '../../../theme';
 
 const Step2Locality = ({
     detectingLocation, handleDetectLocation,
