@@ -961,7 +961,7 @@ export default function PatientProfileScreen({ navigation }) {
                                     const jsonString = JSON.stringify(response.data, null, 2);
                                     
                                     const fileUri = FileSystem.cacheDirectory + 'caremymed-health-data.json';
-                                    await FileSystem.writeAsStringAsync(fileUri, jsonString, { encoding: FileSystem.EncodingType.UTF8 });
+                                    await FileSystem.writeAsStringAsync(fileUri, jsonString, { encoding: 'utf8' });
                                     
                                     const isAvailable = await Sharing.isAvailableAsync();
                                     if (isAvailable) {

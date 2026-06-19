@@ -300,12 +300,17 @@ const styles = StyleSheet.create({
         lineHeight: 20,
     },
     glassFormCard: {
-        backgroundColor: 'rgba(255, 255, 255, 0.82)',
+        backgroundColor: '#FFFFFF',
         borderRadius: 28,
         padding: 20,
         borderWidth: 1.5,
-        borderColor: 'rgba(255, 255, 255, 0.65)',
-        ...shadows.md,
+        borderColor: '#E2E8F0',
+        ...Platform.select({
+            ios: shadows.md,
+            android: {
+                elevation: 0,
+            },
+        }),
         marginBottom: 24,
     },
     errorBox: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.dangerLight, borderRadius: 20, padding: 16, marginBottom: 20 },

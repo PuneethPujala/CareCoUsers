@@ -594,12 +594,27 @@ router.get('/patient-status', authenticate, async (req, res) => {
                 const totalCount = medLog.medicines.length;
                 const percent = totalCount > 0 ? Math.round((takenCount / totalCount) * 100) : 100;
                 
+                let badge = 'Success';
+                let title = 'Adherence Met';
+                
+                if (percent === 0) {
+                    badge = 'Poor Adherence';
+                    title = 'Adherence Missed';
+                } else if (percent < 50) {
+                    badge = 'Poor Adherence';
+                    title = 'Adherence Poor';
+                } else if (percent < 100) {
+                    badge = 'Warning';
+                    title = 'Adherence Partial';
+                }
+                
                 activity_logs.push({
                     id: `med-${medLog._id}`,
-                    title: percent === 100 ? 'Adherence Met' : 'Adherence Logged',
+                    title: title,
                     desc: `${patient.name.split(' ')[0]} completed ${takenCount}/${totalCount} (${percent}%) of doses for the day.`,
                     date: medLog.date || new Date(),
-                    category: 'medicine'
+                    category: 'medicine',
+                    badge: badge
                 });
             }
         }

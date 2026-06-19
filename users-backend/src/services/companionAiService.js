@@ -147,7 +147,8 @@ async function generateAndCacheInsights(patientId, isManualRefresh = false, skip
         let riskScore = 15; // Baseline low risk score
 
         const todayAdherence = patientContext.patient_health_state?.adherence?.today ?? 0;
-        const weeklyAdherence = patientContext.recent_adherence?.rate ? parseInt(patientContext.recent_adherence.rate) : 100;
+        const weeklyAdherenceRaw = patientContext.recent_adherence?.rate ? parseInt(patientContext.recent_adherence.rate, 10) : 100;
+        const weeklyAdherence = isNaN(weeklyAdherenceRaw) ? 100 : weeklyAdherenceRaw;
         const vitalStatus = patientContext.patient_health_state?.vitals?.status || 'stable';
         const predictedStatus = latestPrediction?.health_label || 'Normal';
         const moodTrend = patientContext.patient_health_state?.mood?.trend || 'stable';

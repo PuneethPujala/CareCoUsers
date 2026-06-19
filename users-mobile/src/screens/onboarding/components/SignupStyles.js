@@ -32,16 +32,23 @@ export const FONT = {
 
 export const styles = StyleSheet.create({
     glassFormCard: {
-        backgroundColor: 'rgba(255, 255, 255, 0.82)',
+        backgroundColor: '#FFFFFF',
         borderRadius: 28,
         padding: 20,
         borderWidth: 1.5,
-        borderColor: 'rgba(255, 255, 255, 0.65)',
-        shadowColor: '#000',
-        shadowOpacity: 0.08,
-        shadowRadius: 10,
-        shadowOffset: { width: 0, height: 4 },
-        elevation: 3,
+        borderColor: '#E2E8F0',
+        ...Platform.select({
+            ios: {
+                shadowColor: '#000',
+                shadowOpacity: 0.08,
+                shadowRadius: 10,
+                shadowOffset: { width: 0, height: 4 },
+            },
+            android: {
+                // Avoid shadow rendering artifacts when combining borderWidth and elevation on Android
+                elevation: 0,
+            },
+        }),
         marginBottom: 24,
     },
     // ─── Outer shell ─────────────────────────────
@@ -806,8 +813,15 @@ export const styles = StyleSheet.create({
     },
     inputFocusedEnhanced: {
         borderColor: C.primary,
-        shadowColor: C.primary, shadowOpacity: 0.1, shadowRadius: 10,
-        shadowOffset: { width: 0, height: 3 }, elevation: 3,
+        ...Platform.select({
+            ios: {
+                shadowColor: C.primary, shadowOpacity: 0.1, shadowRadius: 10,
+                shadowOffset: { width: 0, height: 3 },
+            },
+            android: {
+                elevation: 0,
+            },
+        }),
     },
     inputErrorEnhanced: { borderColor: C.danger, backgroundColor: C.dangerBg },
     textInputEnhanced: {

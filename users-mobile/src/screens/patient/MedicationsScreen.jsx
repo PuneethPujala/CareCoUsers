@@ -15,7 +15,7 @@ import {
     ChevronDown, ChevronUp, Info, Upload, Shield, TrendingUp, Zap, Trash2,
 } from 'lucide-react-native';
 import { Swipeable } from 'react-native-gesture-handler';
-import Svg, { Circle as SvgCircle, Defs, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg';
+import Svg, { Circle as SvgCircle, Path, Defs, LinearGradient as SvgLinearGradient, Stop } from 'react-native-svg';
 import { colors, layout, spacing, radius, shadows } from '../../theme';
 import { apiService } from '../../lib/api';
 import * as ImagePicker from 'expo-image-picker';
@@ -934,23 +934,24 @@ export default function MedicationsScreen({ navigation }) {
         <View style={styles.root}>
             <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
 
-            {/* Top-concentrated curvy background waves (restricted to 220px high, fades completely) */}
-            <View style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 220, overflow: 'hidden' }} pointerEvents="none">
-                <Svg height="220" width="100%" viewBox="0 0 400 220" preserveAspectRatio="none">
+            {/* Ambient Background Decorations (Level 3: Light-Medium) */}
+            <View style={StyleSheet.absoluteFill} pointerEvents="none">
+                <Svg height="100%" width="100%" viewBox="0 0 400 850" preserveAspectRatio="none">
                     <Defs>
                         <SvgLinearGradient id="medsTopBg" x1="0%" y1="0%" x2="100%" y2="100%">
-                            <Stop offset="0%" stopColor="#EEF2FF" stopOpacity="0.8" />
-                            <Stop offset="100%" stopColor="#F8FAFC" stopOpacity="0" />
-                        </SvgLinearGradient>
-                        <SvgLinearGradient id="medsTopBg2" x1="0%" y1="0%" x2="0%" y2="100%">
                             <Stop offset="0%" stopColor="#E0F2FE" stopOpacity="0.65" />
                             <Stop offset="100%" stopColor="#F8FAFC" stopOpacity="0" />
                         </SvgLinearGradient>
                     </Defs>
-                    <Path d="M0 0 C120 150, 280 170, 400 120 L400 0 Z" fill="url(#medsTopBg)" opacity="0.85" />
-                    <Path d="M0 0 C150 100, 250 210, 400 140 L400 0 Z" fill="url(#medsTopBg2)" opacity="0.6" />
+                    
+                    {/* Top right curvy gradient backdrop */}
+                    <Path d="M180 0 C260 120, 320 150, 400 120 L400 0 Z" fill="url(#medsTopBg)" />
+
+                    {/* Stylized sweeping curve line */}
+                    <Path d="M-20 180 C80 230, 180 150, 280 230 C340 280, 380 250, 420 310" stroke={colors.borderLight} strokeWidth="1" fill="none" opacity="0.15" />
                 </Svg>
             </View>
+
 
             {/* ── SIMPLE HEADER (like care team) ── */}
             <View style={styles.header}>

@@ -322,9 +322,16 @@ const styles = StyleSheet.create({
         borderWidth: 1, borderColor: 'rgba(255,255,255,0.8)',
         borderRadius: 36,
         paddingHorizontal: 24, paddingTop: 28, paddingBottom: 28,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 16 },
-        shadowOpacity: 0.12, shadowRadius: 32, elevation: 12,
+        ...Platform.select({
+            ios: {
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 16 },
+                shadowOpacity: 0.12, shadowRadius: 32,
+            },
+            android: {
+                elevation: 0,
+            },
+        }),
         zIndex: 5,
     },
 

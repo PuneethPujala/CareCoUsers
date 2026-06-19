@@ -269,7 +269,7 @@ export default function CompanionSignupScreen({ navigation }) {
                                         borderRadius: 5,
                                         borderWidth: 1.5,
                                         borderColor: error && !termsAccepted ? C.danger : C.muted,
-                                        backgroundColor: '#FAFBFF',
+                                        backgroundColor: '#FFFFFF',
                                     }} />
                                 )}
                             </View>

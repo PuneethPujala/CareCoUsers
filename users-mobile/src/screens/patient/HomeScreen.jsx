@@ -1053,23 +1053,48 @@ export default function PatientHomeScreen({ navigation }) {
             <View style={{ flex: 1, backgroundColor: '#F8FAFC' }}>
                 <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
 
-                {/* Top-concentrated curvy background waves (restricted to 280px high, fades completely) */}
-                <View style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 280, overflow: 'hidden' }}>
-                    <Svg height="280" width="100%" viewBox="0 0 400 280" preserveAspectRatio="none">
+                {/* Ambient Background Decorations */}
+                <View style={StyleSheet.absoluteFill}>
+                    <Svg height="100%" width="100%" viewBox="0 0 400 850" preserveAspectRatio="none">
                         <Defs>
-                            <SvgLinearGradient id="homeTopBg" x1="0%" y1="0%" x2="100%" y2="100%">
-                                <Stop offset="0%" stopColor="#E0F2FE" stopOpacity="0.8" />
+                            <SvgLinearGradient id="topBg" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <Stop offset="0%" stopColor="#E0F2FE" stopOpacity="0.75" />
                                 <Stop offset="100%" stopColor="#F8FAFC" stopOpacity="0" />
                             </SvgLinearGradient>
-                            <SvgLinearGradient id="homeTopBg2" x1="0%" y1="0%" x2="0%" y2="100%">
-                                <Stop offset="0%" stopColor="#EEF2FF" stopOpacity="0.7" />
+                            <SvgLinearGradient id="bottomBg" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <Stop offset="0%" stopColor="#FFF1F2" stopOpacity="0.75" />
                                 <Stop offset="100%" stopColor="#F8FAFC" stopOpacity="0" />
                             </SvgLinearGradient>
                         </Defs>
                         
-                        <Path d="M0 0 C120 180, 280 200, 400 150 L400 0 Z" fill="url(#homeTopBg)" opacity="0.85" />
-                        <Path d="M0 0 C150 120, 250 250, 400 180 L400 0 Z" fill="url(#homeTopBg2)" opacity="0.6" />
-                        <Path d="M-20 120 C80 170, 180 90, 280 170 C340 220, 380 190, 420 250" stroke="#E2E8F0" strokeWidth="1.5" fill="none" opacity="0.5" />
+                        {/* Top right curvy gradient backdrop */}
+                        <Path d="M180 0 C260 120, 320 150, 400 120 L400 0 Z" fill="url(#topBg)" />
+                        
+                        {/* Bottom left curvy gradient backdrop */}
+                        <Path d="M0 620 C60 700, 140 720, 220 850 L0 850 Z" fill="url(#bottomBg)" />
+
+                        {/* Top-right overlapping wavy contours */}
+                        <Path d="M220 0 C280 80, 320 100, 400 70" stroke={colors.primary} strokeWidth="0.8" fill="none" opacity="0.08" />
+                        <Path d="M200 0 C265 95, 310 115, 400 90" stroke={colors.primary} strokeWidth="0.8" fill="none" opacity="0.08" />
+                        <Path d="M180 0 C250 110, 300 130, 400 110" stroke={colors.primary} strokeWidth="0.8" fill="none" opacity="0.08" />
+                        <Path d="M160 0 C235 125, 290 145, 400 130" stroke={colors.primary} strokeWidth="0.8" fill="none" opacity="0.08" />
+                        <Path d="M140 0 C220 140, 280 160, 400 150" stroke={colors.borderLight} strokeWidth="0.8" fill="none" opacity="0.12" />
+                        <Path d="M120 0 C205 155, 270 175, 400 170" stroke={colors.borderLight} strokeWidth="0.8" fill="none" opacity="0.12" />
+
+                        {/* Bottom-left overlapping wavy contours */}
+                        <Path d="M0 640 C60 670, 100 710, 160 850" stroke={colors.danger} strokeWidth="0.8" fill="none" opacity="0.08" />
+                        <Path d="M0 620 C70 655, 115 700, 185 850" stroke={colors.danger} strokeWidth="0.8" fill="none" opacity="0.08" />
+                        <Path d="M0 600 C80 640, 130 690, 210 850" stroke={colors.danger} strokeWidth="0.8" fill="none" opacity="0.08" />
+                        <Path d="M0 580 C90 625, 145 680, 235 850" stroke={colors.borderLight} strokeWidth="0.8" fill="none" opacity="0.12" />
+                        <Path d="M0 560 C100 610, 160 670, 260 850" stroke={colors.borderLight} strokeWidth="0.8" fill="none" opacity="0.12" />
+
+                        {/* Stylized sweeping curve lines */}
+                        <Path d="M-20 180 C80 230, 180 150, 280 230 C340 280, 380 250, 420 310" stroke={colors.borderLight} strokeWidth="1.5" fill="none" opacity="0.4" />
+                        <Path d="M-40 210 C60 260, 160 180, 260 260 C320 310, 360 280, 400 340" stroke={colors.borderLight} strokeWidth="1" fill="none" opacity="0.25" />
+
+                        {/* Concentric abstract rings */}
+                        <SvgCircle cx="320" cy="480" r="130" stroke={colors.borderLight} strokeWidth="1" fill="none" opacity="0.2" />
+                        <SvgCircle cx="320" cy="480" r="90" stroke={colors.borderLight} strokeWidth="1.2" fill="none" opacity="0.1" />
                     </Svg>
                 </View>
 

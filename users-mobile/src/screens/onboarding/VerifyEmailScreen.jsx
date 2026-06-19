@@ -224,12 +224,17 @@ const styles = StyleSheet.create({
         lineHeight: 20,
     },
     glassFormCard: {
-        backgroundColor: 'rgba(255, 255, 255, 0.82)',
+        backgroundColor: '#FFFFFF',
         borderRadius: 28,
         padding: 24,
         borderWidth: 1.5,
-        borderColor: 'rgba(255, 255, 255, 0.65)',
-        ...shadows.md,
+        borderColor: '#E2E8F0',
+        ...Platform.select({
+            ios: shadows.md,
+            android: {
+                elevation: 0,
+            },
+        }),
         marginBottom: 24,
     },
     emailBadge: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.primarySoft, paddingVertical: 14, paddingHorizontal: 18, borderRadius: 20, marginBottom: 24, borderWidth: 1.5, borderColor: 'rgba(99, 102, 241, 0.2)' },

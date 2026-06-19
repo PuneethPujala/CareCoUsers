@@ -433,7 +433,7 @@ export default function InterventionCenterScreen({ navigation }) {
             />
             
             {loading && !refreshing ? (
-                <ScrollView contentContainerStyle={styles.listContent}>
+                <ScrollView contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 20 }]}>
                     {/* Care Status Hero Skeleton */}
                     <View style={[styles.heroContainerAttention, { backgroundColor: '#F8FAFC', borderColor: '#E2E8F0', gap: 12 }]}>
                         <View style={styles.heroHeaderRow}>
@@ -495,7 +495,7 @@ export default function InterventionCenterScreen({ navigation }) {
                     data={activeTab === 'pending' ? pendingInterventions : completedFeed}
                     keyExtractor={item => item._id}
                     renderItem={activeTab === 'pending' ? renderPendingItem : renderHistoryItem}
-                    contentContainerStyle={styles.listContent}
+                    contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 20 }]}
                     refreshControl={
                         <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.primary} />
                     }

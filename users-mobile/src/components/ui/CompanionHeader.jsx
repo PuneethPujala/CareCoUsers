@@ -2,6 +2,7 @@ import React from 'react';
 import { Pressable, StatusBar, StyleSheet, Text, View } from 'react-native';
 import { ChevronLeft } from 'lucide-react-native';
 import { colors } from '../../theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const FONT = {
     semibold: { fontFamily: 'Inter_600SemiBold' },
@@ -17,11 +18,12 @@ export default function CompanionHeader({
     titleNumberOfLines = 1,
     style,
 }) {
+    const insets = useSafeAreaInsets();
     const isTransparent = style?.backgroundColor === 'transparent';
     const statusBarBg = isTransparent ? 'transparent' : (style?.backgroundColor || colors.surface);
 
     return (
-        <View style={[styles.header, style]}>
+        <View style={[styles.header, { paddingTop: Math.max(52, insets.top + 16) }, style]}>
             <StatusBar barStyle="dark-content" backgroundColor={statusBarBg} translucent={isTransparent} />
             <View style={styles.leftGroup}>
                 {onBack && (

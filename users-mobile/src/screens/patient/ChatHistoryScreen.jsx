@@ -1,13 +1,13 @@
 import React, { useState, useCallback, useRef } from 'react';
 import {
     View, Text, StyleSheet, Pressable, FlatList, ActivityIndicator,
-    Vibration, StatusBar, Image, Animated
+    Vibration, StatusBar, Animated
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import { ArrowLeft, MessageSquare, Plus, ChevronRight, Bot, Trash2, Sparkles, AlertCircle, Calendar } from 'lucide-react-native';
+import { ArrowLeft, MessageSquare, Plus, ChevronRight, Bot, Sparkles, Pill, Activity, TrendingUp } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, layout, motion, anim, useReduceMotion } from '../../theme';
+import { colors, layout, motion, useReduceMotion, shadows } from '../../theme';
 import { useAuth } from '../../context/AuthContext';
 import usePatientStore from '../../store/usePatientStore';
 import { apiService, handleApiError } from '../../lib/api';
@@ -69,7 +69,7 @@ const preloadRecentSessions = async (recentSessions, isCompanion, targetPatientI
 export default function ChatHistoryScreen() {
     const navigation = useNavigation();
     const insets = useSafeAreaInsets();
-    const { userRole, displayName } = useAuth();
+    const { userRole } = useAuth();
     const reduceMotion = useReduceMotion();
     
     const patient = usePatientStore(state => state.patient);
@@ -81,6 +81,47 @@ export default function ChatHistoryScreen() {
     const [sessions, setSessions] = useState(cachedSessions || []);
     const [isLoading, setIsLoading] = useState(!cachedSessions);
     const [isCreating, setIsCreating] = useState(false);
+
+    const renderChatAvatar = (item) => {
+        const title = (item.title || '').toLowerCase();
+        
+        let IconComponent = MessageSquare;
+        let bgGradient = ['#EEF2FF', '#E0E7FF']; 
+        let iconColor = colors.primary;
+
+        if (title.includes('medicat') || title.includes('pill') || title.includes('medicin') || title.includes('dose') || title.includes('adher')) {
+            IconComponent = Pill;
+            bgGradient = ['#ECFDF5', '#D1FAE5'];
+            iconColor = '#059669'; 
+        } else if (title.includes('vital') || title.includes('bp') || title.includes('pressure') || title.includes('heart') || title.includes('spo2') || title.includes('oxygen')) {
+            IconComponent = Activity;
+            bgGradient = ['#FFF1F2', '#FECDD3'];
+            iconColor = '#E11D48'; 
+        } else if (title.includes('trend') || title.includes('chart') || title.includes('weekly') || title.includes('history') || title.includes('progression')) {
+            IconComponent = TrendingUp;
+            bgGradient = ['#FEF3C7', '#FDE68A'];
+            iconColor = '#D97706'; 
+        } else if (title.includes('app') || title.includes('what') || title.includes('how') || title.includes('help') || title.includes('info')) {
+            IconComponent = Bot;
+            bgGradient = ['#EFF6FF', '#BFDBFE'];
+            iconColor = '#2563EB';
+        } else {
+            IconComponent = Sparkles;
+            bgGradient = ['#F5F3FF', '#EDE9FE'];
+            iconColor = '#7C3AED';
+        }
+
+        return (
+            <LinearGradient
+                colors={bgGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.avatarGradient}
+            >
+                <IconComponent size={20} color={iconColor} strokeWidth={2.2} />
+            </LinearGradient>
+        );
+    };
 
     // ── Entrance animation for hero + list ──
     const heroAnim = useRef(new Animated.Value(0)).current;
@@ -224,26 +265,32 @@ export default function ChatHistoryScreen() {
         return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
     };
 
-    const renderSessionItem = ({ item }) => {
+    const renderSessionItem = ({ item, index }) => {
+        const isRecent = index === 0;
         return (
             <Pressable
                 onPress={() => handleSessionPress(item)}
                 onLongPress={() => handleDeleteSession(item)}
                 style={({ pressed }) => [
                     styles.sessionRow,
+                    isRecent && styles.sessionRowRecent,
                     pressed && styles.sessionRowPressed
                 ]}
             >
-                <Image 
-                    source={require('../../../assets/doctor_mascot.jpg')} 
-                    style={styles.mascotAvatar} 
-                />
+                {renderChatAvatar(item)}
                 
                 <View style={styles.sessionDetails}>
                     <View style={styles.sessionHeaderRow}>
-                        <Text style={styles.sessionTitle} numberOfLines={1}>
-                            {item.title}
-                        </Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1, marginRight: 8 }}>
+                            <Text style={styles.sessionTitle} numberOfLines={1}>
+                                {item.title}
+                            </Text>
+                            {isRecent && (
+                                <View style={styles.recentBadge}>
+                                    <Text style={styles.recentBadgeText}>Active</Text>
+                                </View>
+                            )}
+                        </View>
                         <Text style={styles.sessionTime}>
                             {formatRelativeTime(item.updated_at || item.created_at)}
                         </Text>
@@ -359,8 +406,8 @@ export default function ChatHistoryScreen() {
                             <Text style={styles.emptyTitle}>No conversations yet</Text>
                             <Text style={styles.emptySub}>
                                 Tap the plus button or the card above to start chatting with the Care Assistant.
-                            </Text>
-                        </View>
+                             </Text>
+                         </View>
                     }
                 />
             )}
@@ -455,8 +502,37 @@ const styles = StyleSheet.create({
         backgroundColor: '#F8FAFC',
         transform: [{ scale: 0.99 }]
     },
-    mascotAvatar: {
-        width: 44, height: 44, borderRadius: 22,
+    avatarGradient: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 1.5,
+        borderColor: '#FFFFFF',
+        ...shadows.sm,
+    },
+    sessionRowRecent: {
+        borderColor: colors.primarySoft,
+        backgroundColor: '#FCFDFF',
+        borderWidth: 1.5,
+        shadowColor: colors.primary,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.05,
+        shadowRadius: 10,
+        elevation: 2,
+    },
+    recentBadge: {
+        backgroundColor: colors.primarySoft,
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderRadius: 6,
+    },
+    recentBadgeText: {
+        fontSize: 9,
+        fontWeight: '700',
+        color: colors.primary,
+        textTransform: 'uppercase',
     },
     sessionDetails: {
         flex: 1,

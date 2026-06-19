@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, RefreshControl, Pressable, Dimensions, ActivityIndicator, Image, Animated, Linking } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { apiService } from '../../lib/api';
 import { HeartPulse, Activity, Bell, ShieldCheck, AlertCircle, ChevronLeft, RefreshCw, Lightbulb, Sparkles, Calendar, TrendingUp, Pill, Phone, ChevronRight, Eye, Flame, ArrowUpRight, Clock } from 'lucide-react-native';
 import AlertManager from '../../utils/AlertManager';
@@ -75,6 +76,7 @@ export default function CompanionAnalyticsScreen() {
     const selectedPatientId = usePatientStore(s => s.companionSelectedPatientId);
     const navigation = useNavigation();
     const reduceMotion = useReduceMotion();
+    const insets = useSafeAreaInsets();
 
     // Stagger animation states for sub-elements
     const journeyAnims = useRef([...Array(3)].map(() => new Animated.Value(0))).current;
@@ -315,6 +317,15 @@ export default function CompanionAnalyticsScreen() {
         };
     };
 
+    const journeyAnimStyle = (idx) => {
+        const val = journeyAnims[idx];
+        if (!val) return { opacity: 1 };
+        return {
+            opacity: val,
+            transform: reduceMotion ? [] : [{ translateY: val.interpolate({ inputRange: [0, 1], outputRange: [15, 0] }) }],
+        };
+    };
+
     const renderBreakdownItem = (label, score, maxScore) => {
         const isFull = score === maxScore;
         return (
@@ -486,7 +497,7 @@ export default function CompanionAnalyticsScreen() {
             />
 
                         <ScrollView 
-                contentContainerStyle={styles.content}
+                contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 20 }]}
                 refreshControl={
                     <RefreshControl 
                         refreshing={refreshing} 

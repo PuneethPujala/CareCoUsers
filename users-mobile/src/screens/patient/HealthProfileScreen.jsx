@@ -740,23 +740,21 @@ export default function HealthProfileScreen({ navigation }) {
         <View style={s.root}>
             <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
 
-            {/* Top-concentrated curvy background waves (restricted to 220px high, fades completely) */}
-            <View style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 220, overflow: 'hidden' }} pointerEvents="none">
-                <Svg height="220" width="100%" viewBox="0 0 400 220" preserveAspectRatio="none">
+            {/* Ambient Background Decorations (Level 3: Light) */}
+            <View style={StyleSheet.absoluteFill} pointerEvents="none">
+                <Svg height="100%" width="100%" viewBox="0 0 400 850" preserveAspectRatio="none">
                     <Defs>
                         <SvgLinearGradient id="healthProfileTopBg" x1="0%" y1="0%" x2="100%" y2="100%">
-                            <Stop offset="0%" stopColor="#EEF2FF" stopOpacity="0.8" />
-                            <Stop offset="100%" stopColor="#F8FAFC" stopOpacity="0" />
-                        </SvgLinearGradient>
-                        <SvgLinearGradient id="healthProfileTopBg2" x1="0%" y1="0%" x2="0%" y2="100%">
-                            <Stop offset="0%" stopColor="#E0F2FE" stopOpacity="0.65" />
+                            <Stop offset="0%" stopColor="#E0F2FE" stopOpacity="0.4" />
                             <Stop offset="100%" stopColor="#F8FAFC" stopOpacity="0" />
                         </SvgLinearGradient>
                     </Defs>
-                    <Path d="M0 0 C130 140, 270 160, 400 110 L400 0 Z" fill="url(#healthProfileTopBg)" opacity="0.85" />
-                    <Path d="M0 0 C160 90, 240 200, 400 130 L400 0 Z" fill="url(#healthProfileTopBg2)" opacity="0.6" />
+                    
+                    {/* Top right curvy gradient backdrop */}
+                    <Path d="M180 0 C260 120, 320 150, 400 120 L400 0 Z" fill="url(#healthProfileTopBg)" />
                 </Svg>
             </View>
+
 
             {/* ── Simple Header (like care team) ── */}
             <View style={s.header}>

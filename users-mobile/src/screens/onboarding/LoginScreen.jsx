@@ -996,11 +996,17 @@ const styles = StyleSheet.create({
     },
     inputFocused: {
         borderColor: C.primary,
-        shadowColor: C.primary,
-        shadowOpacity: 0.12,
-        shadowRadius: 12,
-        shadowOffset: { width: 0, height: 3 },
-        elevation: 3,
+        ...Platform.select({
+            ios: {
+                shadowColor: C.primary,
+                shadowOpacity: 0.12,
+                shadowRadius: 12,
+                shadowOffset: { width: 0, height: 3 },
+            },
+            android: {
+                elevation: 0,
+            },
+        }),
     },
     passwordLabelRow: {
         flexDirection: 'row',
@@ -1015,12 +1021,17 @@ const styles = StyleSheet.create({
     },
 
     glassFormCard: {
-        backgroundColor: 'rgba(255, 255, 255, 0.82)',
+        backgroundColor: '#FFFFFF',
         borderRadius: 28,
         padding: 20,
         borderWidth: 1.5,
-        borderColor: 'rgba(255, 255, 255, 0.65)',
-        ...shadows.md,
+        borderColor: '#E2E8F0',
+        ...Platform.select({
+            ios: shadows.md,
+            android: {
+                elevation: 0,
+            },
+        }),
         marginBottom: 24,
     },
     // ─── Sign In button ───────────────────────────

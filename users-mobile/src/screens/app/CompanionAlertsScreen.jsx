@@ -8,6 +8,7 @@ import { useNavigation } from '@react-navigation/native';
 import AlertManager from '../../utils/AlertManager';
 import Svg, { Path, Circle, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
 import CompanionHeader from '../../components/ui/CompanionHeader';
+import PremiumFormModal from '../../components/ui/PremiumFormModal';
 
 const C = {
     bg: colors.background,
@@ -133,6 +134,7 @@ export default function CompanionAlertsScreen() {
     const [data, setData] = useState(null);
     const [alerts, setAlerts] = useState([]);
     const [refreshing, setRefreshing] = useState(false);
+    const [showLogsModal, setShowLogsModal] = useState(false);
 
     const selectedPatientId = usePatientStore(s => s.companionSelectedPatientId);
     const navigation = useNavigation();
@@ -204,13 +206,33 @@ export default function CompanionAlertsScreen() {
         const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
         const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
-        if (diffMins < 1) return 'Just now';
-        if (diffMins < 60) return `${diffMins}m ago`;
-        if (diffHours < 24) return `${diffHours}h ago`;
-        if (diffDays === 1) return 'Yesterday';
-        if (diffDays < 7) return `${diffDays} days ago`;
-        
-        return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+        // Format time (e.g., 9:15 AM)
+        const hours = date.getHours();
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        const ampm = hours >= 12 ? 'PM' : 'AM';
+        const formattedHours = hours % 12 || 12;
+        const timeStr = `${formattedHours}:${minutes} ${ampm}`;
+
+        // Format date (e.g., Jun 15)
+        const dateStr = date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+
+        if (diffMins < 1) {
+            return `Just now\nToday`;
+        }
+        if (diffMins < 60) {
+            return `${diffMins}m ago\nToday`;
+        }
+        if (diffHours < 24) {
+            if (date.getDate() === now.getDate()) {
+                return `${timeStr}\nToday`;
+            } else {
+                return `${timeStr}\nYesterday`;
+            }
+        }
+        if (diffDays === 1 || (diffDays === 0 && date.getDate() !== now.getDate())) {
+            return `${timeStr}\nYesterday`;
+        }
+        return `${timeStr}\n${dateStr}`;
     };
 
     const getActivityIcon = (category) => {
@@ -651,84 +673,158 @@ export default function CompanionAlertsScreen() {
                         </View>
                         <Pressable 
                             style={styles.viewAllBtn}
-                            onPress={() => {
-                                AlertManager.alert('Activity Logs', 'Showing all past activity logs and notification history...');
-                            }}
+                            onPress={() => setShowLogsModal(true)}
                         >
                             <Text style={styles.viewAllText}>View All</Text>
                             <ChevronRight color="#3B82F6" size={14} />
                         </Pressable>
                     </View>
+ 
+                     <View style={styles.timelineCardContainer}>
+                         {activityLogs.slice(0, 3).map((h, idx, arr) => {
+                             const isFirst = idx === 0;
+                             const isLast = idx === arr.length - 1;
+                             const timeText = h.timeLabel || formatRelativeTime(h.date);
+                             const [timePart, datePart] = timeText.split('\n');
+ 
+                             // Colors & Badges
+                             const isAlert = h.category === 'alert' || h.badge === 'High Priority' || h.badge === 'Poor Adherence' || h.badge === 'Danger';
+                             const isWarning = h.badge === 'Warning' || h.badge === 'Partial Adherence';
+                             const isSuccess = (h.category === 'medicine' || h.category === 'vital' || h.badge === 'Success') && !isAlert && !isWarning;
+                             const dotColor = isAlert ? '#E11D48' : isWarning ? '#D97706' : isSuccess ? '#10B981' : '#3B82F6';
+                             const badgeBg = isAlert ? '#FFF0F2' : isWarning ? '#FEF3C7' : isSuccess ? '#ECFDF5' : '#EFF6FF';
+                             const badgeColor = isAlert ? '#E11D48' : isWarning ? '#D97706' : isSuccess ? '#10B981' : '#3B82F6';
+ 
+                             return (
+                                 <View key={h.id || h._id} style={styles.timelineRow}>
+                                     {/* Time Column */}
+                                     <View style={styles.timelineTimeCol}>
+                                         <Text style={styles.timelineTimeText}>{timePart}</Text>
+                                         <Text style={styles.timelineDateText}>{datePart || 'Today'}</Text>
+                                     </View>
+ 
+                                     {/* Line & Dot Column */}
+                                     <View style={styles.timelineLineCol}>
+                                         <View style={[styles.timelineVerticalLine, 
+                                             isFirst && { top: '50%' }, 
+                                             isLast && { bottom: '50%' }
+                                         ]} />
+                                         <View style={[styles.timelineDot, { backgroundColor: dotColor, borderColor: '#FFF' }]} />
+                                     </View>
+ 
+                                     {/* Content Card Column */}
+                                     <Pressable style={({ pressed }) => [styles.timelineContentCard, pressed && { opacity: 0.7 }]}>
+                                         <View style={[styles.timelineIconContainer, { backgroundColor: badgeBg }]}>
+                                             {isAlert ? (
+                                                 <ShieldAlert color={badgeColor} size={16} />
+                                             ) : isWarning ? (
+                                                 <Clock color={badgeColor} size={16} />
+                                             ) : h.category === 'medicine' ? (
+                                                 <Check color={badgeColor} size={16} strokeWidth={3} />
+                                             ) : h.category === 'vital' ? (
+                                                 <Activity color={badgeColor} size={16} />
+                                             ) : (
+                                                 <MessageSquare color={badgeColor} size={16} />
+                                             )}
+                                         </View>
+ 
+                                         <View style={{ flex: 1, gap: 4 }}>
+                                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                                                 <Text style={styles.timelineItemTitle}>{h.title}</Text>
+                                                 <View style={[styles.timelineBadge, { backgroundColor: badgeBg }]}>
+                                                     <Text style={[styles.timelineBadgeText, { color: badgeColor }]}>
+                                                         {h.badge || (isAlert ? 'High Priority' : isWarning ? 'Warning' : isSuccess ? 'Success' : 'Info')}
+                                                     </Text>
+                                                 </View>
+                                             </View>
+                                             <Text style={styles.timelineItemDesc}>{h.desc}</Text>
+                                             {h.subText && <Text style={styles.timelineItemSub}>{h.subText}</Text>}
+                                         </View>
+ 
+                                         <ChevronRight color="#94A3B8" size={16} />
+                                     </Pressable>
+                                 </View>
+                             );
+                         })}
+                     </View>
+                 </View>
+             </ScrollView>
 
-                    <View style={styles.timelineCardContainer}>
-                        {activityLogs.map((h, idx) => {
-                            const isFirst = idx === 0;
-                            const isLast = idx === activityLogs.length - 1;
-                            const timeText = h.timeLabel || formatRelativeTime(h.date);
-                            const [timePart, datePart] = timeText.split('\n');
-
-                            // Colors & Badges
-                            const isAlert = h.category === 'alert' || h.badge === 'High Priority';
-                            const isSuccess = h.category === 'medicine' || h.category === 'vital' || h.badge === 'Success';
-                            const dotColor = isAlert ? '#E11D48' : isSuccess ? '#10B981' : '#3B82F6';
-                            const badgeBg = isAlert ? '#FFF0F2' : isSuccess ? '#ECFDF5' : '#EFF6FF';
-                            const badgeColor = isAlert ? '#E11D48' : isSuccess ? '#10B981' : '#3B82F6';
-
-                            return (
-                                <View key={h.id || h._id} style={styles.timelineRow}>
-                                    {/* Time Column */}
-                                    <View style={styles.timelineTimeCol}>
-                                        <Text style={styles.timelineTimeText}>{timePart}</Text>
-                                        <Text style={styles.timelineDateText}>{datePart || 'Today'}</Text>
-                                    </View>
-
-                                    {/* Line & Dot Column */}
-                                    <View style={styles.timelineLineCol}>
-                                        <View style={[styles.timelineVerticalLine, 
-                                            isFirst && { top: '50%' }, 
-                                            isLast && { bottom: '50%' }
-                                        ]} />
-                                        <View style={[styles.timelineDot, { backgroundColor: dotColor, borderColor: '#FFF' }]} />
-                                    </View>
-
-                                    {/* Content Card Column */}
-                                    <Pressable style={({ pressed }) => [styles.timelineContentCard, pressed && { opacity: 0.7 }]}>
-                                        <View style={[styles.timelineIconContainer, { backgroundColor: badgeBg }]}>
-                                            {h.category === 'alert' ? (
-                                                <ShieldAlert color="#E11D48" size={16} />
-                                            ) : h.category === 'medicine' ? (
-                                                <Check color="#10B981" size={16} strokeWidth={3} />
-                                            ) : h.category === 'vital' ? (
-                                                <Activity color="#3B82F6" size={16} />
-                                            ) : (
-                                                <MessageSquare color="#3B82F6" size={16} />
-                                            )}
-                                        </View>
-
-                                        <View style={{ flex: 1, gap: 4 }}>
-                                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                                                <Text style={styles.timelineItemTitle}>{h.title}</Text>
-                                                <View style={[styles.timelineBadge, { backgroundColor: badgeBg }]}>
-                                                    <Text style={[styles.timelineBadgeText, { color: badgeColor }]}>
-                                                        {h.badge || (isAlert ? 'High Priority' : isSuccess ? 'Success' : 'Info')}
-                                                    </Text>
-                                                </View>
-                                            </View>
-                                            <Text style={styles.timelineItemDesc}>{h.desc}</Text>
-                                            {h.subText && <Text style={styles.timelineItemSub}>{h.subText}</Text>}
-                                        </View>
-
-                                        <ChevronRight color="#94A3B8" size={16} />
-                                    </Pressable>
-                                </View>
-                            );
-                        })}
-                    </View>
-                </View>
-            </ScrollView>
-        </View>
-    );
-}
+             <PremiumFormModal
+                 visible={showLogsModal}
+                 title="Activity & Logs History"
+                 onClose={() => setShowLogsModal(false)}
+             >
+                 <View style={{ gap: 12 }}>
+                     {activityLogs.map((h, idx, arr) => {
+                         const isFirst = idx === 0;
+                         const isLast = idx === arr.length - 1;
+                         const timeText = h.timeLabel || formatRelativeTime(h.date);
+                         const [timePart, datePart] = timeText.split('\n');
+ 
+                         // Colors & Badges
+                         const isAlert = h.category === 'alert' || h.badge === 'High Priority';
+                         const isSuccess = h.category === 'medicine' || h.category === 'vital' || h.badge === 'Success';
+                         const dotColor = isAlert ? '#E11D48' : isSuccess ? '#10B981' : '#3B82F6';
+                         const badgeBg = isAlert ? '#FFF0F2' : isSuccess ? '#ECFDF5' : '#EFF6FF';
+                         const badgeColor = isAlert ? '#E11D48' : isSuccess ? '#10B981' : '#3B82F6';
+ 
+                         return (
+                             <View key={h.id || h._id} style={styles.timelineRow}>
+                                 {/* Time Column */}
+                                 <View style={styles.timelineTimeCol}>
+                                     <Text style={styles.timelineTimeText}>{timePart}</Text>
+                                     <Text style={styles.timelineDateText}>{datePart || 'Today'}</Text>
+                                 </View>
+ 
+                                 {/* Line & Dot Column */}
+                                 <View style={styles.timelineLineCol}>
+                                     <View style={[styles.timelineVerticalLine, 
+                                         isFirst && { top: '50%' }, 
+                                         isLast && { bottom: '50%' }
+                                     ]} />
+                                     <View style={[styles.timelineDot, { backgroundColor: dotColor, borderColor: '#FFF' }]} />
+                                 </View>
+ 
+                                 {/* Content Card Column */}
+                                 <Pressable style={({ pressed }) => [styles.timelineContentCard, pressed && { opacity: 0.7 }]}>
+                                     <View style={[styles.timelineIconContainer, { backgroundColor: badgeBg }]}>
+                                         {isAlert ? (
+                                             <ShieldAlert color={badgeColor} size={16} />
+                                         ) : isWarning ? (
+                                             <Clock color={badgeColor} size={16} />
+                                         ) : h.category === 'medicine' ? (
+                                             <Check color={badgeColor} size={16} strokeWidth={3} />
+                                         ) : h.category === 'vital' ? (
+                                             <Activity color={badgeColor} size={16} />
+                                         ) : (
+                                             <MessageSquare color={badgeColor} size={16} />
+                                         )}
+                                     </View>
+ 
+                                     <View style={{ flex: 1, gap: 4 }}>
+                                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                                             <Text style={styles.timelineItemTitle}>{h.title}</Text>
+                                             <View style={[styles.timelineBadge, { backgroundColor: badgeBg }]}>
+                                                 <Text style={[styles.timelineBadgeText, { color: badgeColor }]}>
+                                                     {h.badge || (isAlert ? 'High Priority' : isWarning ? 'Warning' : isSuccess ? 'Success' : 'Info')}
+                                                 </Text>
+                                             </View>
+                                         </View>
+                                         <Text style={styles.timelineItemDesc}>{h.desc}</Text>
+                                         {h.subText && <Text style={styles.timelineItemSub}>{h.subText}</Text>}
+                                     </View>
+ 
+                                     <ChevronRight color="#94A3B8" size={16} />
+                                 </Pressable>
+                             </View>
+                         );
+                     })}
+                 </View>
+             </PremiumFormModal>
+         </View>
+     );
+ }
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
@@ -1082,7 +1178,7 @@ const styles = StyleSheet.create({
         minHeight: 70,
     },
     timelineTimeCol: {
-        width: 62,
+        width: 72,
         justifyContent: 'center',
         paddingRight: 4,
     },
