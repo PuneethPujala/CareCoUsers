@@ -608,6 +608,43 @@ export function AuthProvider({ children }) {
         return res.data;
     }, []);
 
+    const switchRole = useCallback(async (targetRole) => {
+        setLoading(true);
+        try {
+            const response = await apiService.auth.switchRole(targetRole);
+            const { session: newSession, profile: newProfile } = response.data;
+            if (newProfile) newProfile.role = newProfile.role || 'patient';
+            
+            // Clean up patient store if switching to companion
+            if (targetRole === 'companion') {
+                setPatient(null);
+                usePatientStore.getState().setPatient(null);
+                await clearCachedPatient();
+            }
+
+            await setProfileAndCache(newProfile);
+            await saveApiTokens({
+                access_token: newSession.access_token,
+                refresh_token: newSession.refresh_token,
+                expires_at: newSession.expires_at,
+            });
+
+            if (targetRole === 'patient') {
+                await fetchPatientData();
+            }
+
+            skipNextSignedInRef.current = true;
+            setUser(newSession.user);
+            setSession(newSession);
+            return response.data;
+        } catch (error) {
+            if (__DEV__) console.warn('[Auth] switchRole failed:', error.message);
+            throw error;
+        } finally {
+            setLoading(false);
+        }
+    }, [setProfileAndCache, fetchPatientData]);
+
     // ── Derived state ─────────────────────────────────────────────────────────
 
     const onboardingStep = resolveOnboardingStep(patient, profile);
@@ -638,6 +675,7 @@ export function AuthProvider({ children }) {
         signIn, signUp, signOut, resetPassword, signInWithGoogle,
         completeSignUp, injectSession, completeMfaLogin,
         sendOtp, verifyOtp, refreshPatient: fetchPatientData, refreshProfile,
+        switchRole,
     };
 
     return (

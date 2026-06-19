@@ -45,17 +45,32 @@ function buildSessionUser(subject, email, emailVerified) {
 function resolveIdentity(patient, deactivated, profile, companion, requestedRole = null) {
   // Priority 1: If a requestedRole was provided, let it guide the choice when matches exist (supports patient, companion, and staff separation)
   if (requestedRole) {
-    if (requestedRole === 'patient' && patient) {
-      return { account: patient, isPatient: true };
+    if (requestedRole === 'patient') {
+      if (patient) {
+        return { account: patient, isPatient: true };
+      }
+      if (companion) {
+        return { account: companion, isPatient: false, isCompanion: true };
+      }
+      if (profile && profile.role === 'companion') {
+        return { account: profile, isPatient: false };
+      }
+      return { account: null, isPatient: false, roleMismatch: true };
     }
-    if (requestedRole === 'companion' && companion) {
-      return { account: companion, isPatient: false, isCompanion: true };
+    if (requestedRole === 'companion') {
+      if (companion) {
+        return { account: companion, isPatient: false, isCompanion: true };
+      }
+      if (profile && profile.role === 'companion') {
+        return { account: profile, isPatient: false };
+      }
+      return { account: null, isPatient: false, roleMismatch: true };
     }
-    if (requestedRole === 'companion' && profile && profile.role === 'companion') {
-      return { account: profile, isPatient: false };
-    }
-    if (requestedRole !== 'patient' && requestedRole !== 'companion' && profile) {
-      return { account: profile, isPatient: false };
+    if (requestedRole !== 'patient' && requestedRole !== 'companion') {
+      if (profile) {
+        return { account: profile, isPatient: false };
+      }
+      return { account: null, isPatient: false, roleMismatch: true };
     }
   }
 
@@ -80,6 +95,154 @@ function resolveIdentity(patient, deactivated, profile, companion, requestedRole
   }
 
   return { account: null, isPatient: false };
+}
+
+
+async function getWorkspaceCapabilities(email) {
+  const emailNorm = email.toLowerCase().trim();
+  const Companion = require('../models/Companion');
+  const [patient, companion, profile] = await Promise.all([
+    Patient.findOne({ email: emailNorm, is_active: true }),
+    Companion.findOne({ email: emailNorm, isActive: true }),
+    Profile.findOne({ email: emailNorm, isActive: true }),
+  ]);
+
+  const workspaces = [];
+  if (patient) {
+    workspaces.push({
+      id: 'patient',
+      label: 'Patient',
+      description: 'Track your health and vitals',
+    });
+  }
+  if (companion) {
+    workspaces.push({
+      id: 'companion',
+      label: 'Caregiver',
+      description: 'Care for linked family members',
+    });
+  }
+  if (profile && profile.role) {
+    const roleId = profile.role;
+    if (roleId === 'companion') {
+      if (!workspaces.some(w => w.id === 'companion')) {
+        workspaces.push({
+          id: 'companion',
+          label: 'Caregiver',
+          description: 'Care for linked family members',
+        });
+      }
+    } else if (typeof roleId === 'string' && roleId.length > 0) {
+      workspaces.push({
+        id: roleId,
+        label: roleId.charAt(0).toUpperCase() + roleId.slice(1),
+        description: 'Staff workspace',
+      });
+    }
+  }
+
+  let defaultRole = 'patient';
+  const hasPatient = !!patient;
+  const hasCompanion = workspaces.some(w => w.id === 'companion');
+
+  if (hasPatient && hasCompanion) {
+    // Dual-role user: resolve defaultRole from database preferences
+    const lastPref = (patient && patient.lastWorkspace) || (companion && companion.lastWorkspace) || (profile && profile.lastWorkspace);
+    if (lastPref === 'companion' || lastPref === 'patient') {
+      defaultRole = lastPref;
+    }
+  } else if (hasCompanion) {
+    defaultRole = 'companion';
+  } else if (profile) {
+    defaultRole = profile.role;
+  }
+
+  return { workspaces, defaultRole };
+}
+
+async function switchRole(targetRole, req, currentProfile) {
+  if (targetRole !== 'patient' && targetRole !== 'companion') {
+    const err = new Error('Invalid target role');
+    err.status = 400;
+    throw err;
+  }
+
+  const emailNorm = currentProfile.email.toLowerCase().trim();
+  const caps = await getWorkspaceCapabilities(emailNorm);
+
+  if (!caps.workspaces.some(w => w.id === targetRole)) {
+    const err = new Error(`Target role "${targetRole}" is not available for this account`);
+    err.status = 400;
+    throw err;
+  }
+
+  // Find the target account
+  let targetAccount = null;
+  let isPatient = targetRole === 'patient';
+
+  if (isPatient) {
+    targetAccount = await Patient.findOne({ email: emailNorm, is_active: true });
+  } else {
+    const Companion = require('../models/Companion');
+    targetAccount = await Companion.findOne({ email: emailNorm, isActive: true });
+    if (!targetAccount) {
+      targetAccount = await Profile.findOne({ email: emailNorm, role: 'companion', isActive: true });
+    }
+  }
+
+  if (!targetAccount) {
+    const err = new Error(`Failed to resolve account for role "${targetRole}"`);
+    err.status = 400;
+    throw err;
+  }
+
+  // Update server-side lastWorkspace preference on all documents in parallel
+  const Companion = require('../models/Companion');
+  const [patient, companion, profile] = await Promise.all([
+    Patient.findOne({ email: emailNorm, is_active: true }),
+    Companion.findOne({ email: emailNorm, isActive: true }),
+    Profile.findOne({ email: emailNorm, isActive: true }),
+  ]);
+
+  if (patient) {
+    patient.lastWorkspace = targetRole;
+    await patient.save();
+  }
+  if (companion) {
+    companion.lastWorkspace = targetRole;
+    await companion.save();
+  }
+  if (profile) {
+    profile.lastWorkspace = targetRole;
+    await profile.save();
+  }
+
+  const subject = isPatient ? targetAccount.supabase_uid : targetAccount.supabaseUid;
+  const userType = isPatient ? 'Patient' : (targetRole === 'companion' && targetAccount.role === 'companion' ? 'Companion' : 'Profile');
+
+  const tokens = await tokenService.issueTokenPair(
+    {
+      userId: targetAccount._id,
+      userType,
+      subject,
+      role: targetRole,
+      email: emailNorm,
+      emailVerified: targetAccount.emailVerified,
+    },
+    req
+  );
+
+  return {
+    message: 'Role switched successfully',
+    session: {
+      access_token: tokens.access_token,
+      refresh_token: tokens.refresh_token,
+      expires_in: tokens.expires_in,
+      expires_at: tokens.expires_at,
+      user: buildSessionUser(subject, emailNorm, targetAccount.emailVerified),
+    },
+    profile: buildLoginProfile(targetAccount, isPatient, caps.workspaces),
+  };
 }
 
 
@@ -124,7 +287,7 @@ async function assertGlobalUniqueEmail(email, ignoreId = null, ignoreModel = nul
 }
 
 
-function buildLoginProfile(account, isPatient) {
+function buildLoginProfile(account, isPatient, workspaces = []) {
   const accountId = account._id;
   let subscriptionStatus = null;
   if (isPatient) {
@@ -140,6 +303,8 @@ function buildLoginProfile(account, isPatient) {
     emailVerified: account.emailVerified,
     mustChangePassword: account.mustChangePassword || false,
     subscription_status: subscriptionStatus,
+    currentWorkspace: isPatient ? 'patient' : account.role,
+    workspaces: workspaces,
   };
 }
 
@@ -180,108 +345,6 @@ async function registerPatient(body, req) {
   const Companion = require('../models/Companion');
   const existingCompanion = await Companion.findOne({ email: emailNorm });
 
-  // 1. If the email belongs to an existing Companion and this is an OAuth request,
-  // link the OAuth identity to the companion account (backward compat).
-  // For non-OAuth, we simply allow the patient to register separately —
-  // a companion CAN also be a patient (e.g., caring for a parent while being a patient themselves).
-  if (existingCompanion && isOAuth) {
-    // Overwrite Guard: if supabaseUid is already set, verify they match!
-    const isPlaceholder = existingCompanion.supabaseUid && existingCompanion.supabaseUid.startsWith('cmp_');
-    if (existingCompanion.supabaseUid && existingCompanion.supabaseUid !== supabaseUid && !isPlaceholder) {
-      const err = new Error('This account is already linked to a different Google identity.');
-      err.status = 400;
-      err.code = 'OAUTH_LINK_CONFLICT';
-      throw err;
-    }
-
-    // Link Google OAuth to companion
-    existingCompanion.supabaseUid = supabaseUid;
-    if (fullName && !existingCompanion.fullName) existingCompanion.fullName = fullName;
-    await existingCompanion.save();
-
-    await logEvent(supabaseUid, 'companion_oauth_linked', 'companion', existingCompanion._id, req, {
-      email: emailNorm,
-    });
-
-    const tokens = await tokenService.issueTokenPair(
-      {
-        userId: existingCompanion._id,
-        userType: 'Companion',
-        subject: supabaseUid,
-        role: existingCompanion.role,
-        email: existingCompanion.email,
-        emailVerified: existingCompanion.emailVerified,
-      },
-      req
-    );
-
-    return {
-      message: 'Account linked successfully',
-      user: { id: supabaseUid, email: emailNorm },
-      session: {
-        access_token: tokens.access_token,
-        refresh_token: tokens.refresh_token,
-        expires_in: tokens.expires_in,
-        expires_at: tokens.expires_at,
-        user: buildSessionUser(supabaseUid, emailNorm, existingCompanion.emailVerified),
-      },
-      profile: buildLoginProfile(existingCompanion, false),
-    };
-  }
-
-  // 2. Resolve conflicts / link OAuth for existing Profile (Legacy companion)
-  if (existingProfile && existingProfile.role === 'companion') {
-    if (isOAuth) {
-      // Overwrite Guard: if supabaseUid is already set, verify they match!
-      const isPlaceholder = existingProfile.supabaseUid && existingProfile.supabaseUid.startsWith('cmp_');
-      if (existingProfile.supabaseUid && existingProfile.supabaseUid !== supabaseUid && !isPlaceholder) {
-        const err = new Error('This account is already linked to a different Google identity.');
-        err.status = 400;
-        err.code = 'OAUTH_LINK_CONFLICT';
-        throw err;
-      }
-
-      // Link Google OAuth to companion Profile
-      existingProfile.supabaseUid = supabaseUid;
-      if (fullName && !existingProfile.fullName) existingProfile.fullName = fullName;
-      await existingProfile.save();
-
-      await logEvent(supabaseUid, 'companion_oauth_linked', 'profile', existingProfile._id, req, {
-        email: emailNorm,
-      });
-
-      const tokens = await tokenService.issueTokenPair(
-        {
-          userId: existingProfile._id,
-          userType: 'Profile',
-          subject: supabaseUid,
-          role: existingProfile.role,
-          email: existingProfile.email,
-          emailVerified: existingProfile.emailVerified,
-        },
-        req
-      );
-
-      return {
-        message: 'Account linked successfully',
-        user: { id: supabaseUid, email: emailNorm },
-        session: {
-          access_token: tokens.access_token,
-          refresh_token: tokens.refresh_token,
-          expires_in: tokens.expires_in,
-          expires_at: tokens.expires_at,
-          user: buildSessionUser(supabaseUid, emailNorm, existingProfile.emailVerified),
-        },
-        profile: buildLoginProfile(existingProfile, false),
-      };
-    }
-
-    const err = new Error(`An account with the email "${email}" already exists with a different role. Please log in instead.`);
-    err.status = 400;
-    err.code = 'EMAIL_ALREADY_EXISTS';
-    throw err;
-  }
-
   // 2. Resolve conflicts / link OAuth for existing Patient
   if (existingPatient) {
     if (isOAuth) {
@@ -307,17 +370,20 @@ async function registerPatient(body, req) {
         email: emailNorm,
       });
 
-      const tokens = await tokenService.issueTokenPair(
-        {
-          userId: existingPatient._id,
-          userType: 'Patient',
-          subject: supabaseUid,
-          role: 'patient',
-          email: existingPatient.email,
-          emailVerified: existingPatient.emailVerified,
-        },
-        req
-      );
+      const [tokens, caps] = await Promise.all([
+        tokenService.issueTokenPair(
+          {
+            userId: existingPatient._id,
+            userType: 'Patient',
+            subject: supabaseUid,
+            role: 'patient',
+            email: existingPatient.email,
+            emailVerified: existingPatient.emailVerified,
+          },
+          req
+        ),
+        getWorkspaceCapabilities(emailNorm),
+      ]);
 
       return {
         message: 'Account linked successfully',
@@ -329,7 +395,7 @@ async function registerPatient(body, req) {
           expires_at: tokens.expires_at,
           user: buildSessionUser(supabaseUid, emailNorm, existingPatient.emailVerified),
         },
-        profile: buildLoginProfile(existingPatient, true),
+        profile: buildLoginProfile(existingPatient, true, caps.workspaces),
       };
     }
 
@@ -442,17 +508,20 @@ async function registerPatient(body, req) {
   // For OAuth users, issue CareMyMednnect JWTs so the mobile has usable tokens.
   // Email-password users get their tokens from the subsequent login() call.
   if (isOAuth) {
-    const tokens = await tokenService.issueTokenPair(
-      {
-        userId: patient._id,
-        userType: 'Patient',
-        subject,
-        role: 'patient',
-        email: emailNorm,
-        emailVerified: true,
-      },
-      req
-    );
+    const [tokens, caps] = await Promise.all([
+      tokenService.issueTokenPair(
+        {
+          userId: patient._id,
+          userType: 'Patient',
+          subject,
+          role: 'patient',
+          email: emailNorm,
+          emailVerified: true,
+        },
+        req
+      ),
+      getWorkspaceCapabilities(emailNorm),
+    ]);
     result.session = {
       access_token: tokens.access_token,
       refresh_token: tokens.refresh_token,
@@ -460,6 +529,8 @@ async function registerPatient(body, req) {
       expires_at: tokens.expires_at,
       user: buildSessionUser(subject, emailNorm, true),
     };
+    result.profile.currentWorkspace = 'patient';
+    result.profile.workspaces = caps.workspaces;
   }
 
   return result;
@@ -503,11 +574,12 @@ async function login({ email, password, role }, req) {
     companionQuery = companionQuery.select('+passwordHash');
   }
 
-  let [patient, deactivated, profile, companion] = await Promise.all([
+  const [patient, deactivated, profile, companion, caps] = await Promise.all([
     patientQuery,
     deactivatedQuery,
     profileQuery,
     companionQuery,
+    getWorkspaceCapabilities(emailNorm),
   ]);
 
   // Reactivate deactivated patient if needed, before identity resolution
@@ -523,7 +595,8 @@ async function login({ email, password, role }, req) {
   }
 
   // Resolve identity using priority rules (companions win conflicts)
-  const resolved = resolveIdentity(patient, deactivated, profile, companion, role);
+  const activeRole = role || caps.defaultRole;
+  const resolved = resolveIdentity(patient, deactivated, profile, companion, activeRole);
   const account = resolved.account;
   const isPatient = resolved.isPatient;
   const isCompanion = resolved.isCompanion;
@@ -609,7 +682,7 @@ async function login({ email, password, role }, req) {
         role: isPatient ? 'patient' : account.role,
         email: account.email,
         emailVerified: account.emailVerified,
-        profileSnapshot: buildLoginProfile(account, isPatient),
+        profileSnapshot: buildLoginProfile(account, isPatient, caps.workspaces),
       },
       jwtConfig.secret,
       { expiresIn: '5m' }
@@ -623,7 +696,7 @@ async function login({ email, password, role }, req) {
       message: 'MFA verification required',
       requireMfa: true,
       mfa_token: mfaToken,
-      profile: buildLoginProfile(account, isPatient),
+      profile: buildLoginProfile(account, isPatient, caps.workspaces),
     };
   }
 
@@ -653,7 +726,7 @@ async function login({ email, password, role }, req) {
       expires_at: tokens.expires_at,
       user: buildSessionUser(subject, account.email, account.emailVerified),
     },
-    profile: buildLoginProfile(account, isPatient),
+    profile: buildLoginProfile(account, isPatient, caps.workspaces),
   };
 }
 
@@ -1071,4 +1144,6 @@ module.exports = {
   assertGlobalUniqueEmail,
   buildSessionUser,
   getSupabaseFallback,
+  getWorkspaceCapabilities,
+  switchRole,
 };

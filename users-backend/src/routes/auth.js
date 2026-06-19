@@ -54,6 +54,7 @@ router.post(
 );
 
 router.get('/me', authenticate, authController.me);
+router.post('/switch-role', authenticate, authController.switchRole);
 router.post('/me/avatar', authenticate, authController.uploadAvatar);
 
 // SEC-FIX-9: Account deletion (GDPR/DPDPA compliance) — permanent hard delete

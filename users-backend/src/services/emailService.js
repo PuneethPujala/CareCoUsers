@@ -107,25 +107,27 @@ const sendOTPEmail = async (to, otp) => {
     <head>
       <meta charset="utf-8">
       <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; background: #F8FAFC; }
-        .container { max-width: 520px; margin: 40px auto; background: #fff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 24px rgba(99,102,241,.12); }
-        .header { background: linear-gradient(135deg, #4338CA, #6366F1); padding: 36px 24px; text-align: center; }
-        .header h1 { color: #fff; margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -0.3px; }
-        .header p { color: rgba(255,255,255,0.7); margin: 6px 0 0; font-size: 13px; letter-spacing: 1.5px; font-weight: 600; }
-        .body { padding: 36px 32px; }
-        .body p { color: #334155; line-height: 1.7; margin: 0 0 16px; font-size: 15px; }
-        .otp-box { text-align: center; margin: 28px 0; }
-        .otp-code { display: inline-block; background: linear-gradient(135deg, #EEF2FF, #E0E7FF); border: 2px solid #C7D2FE; border-radius: 16px; padding: 20px 40px; font-size: 36px; font-weight: 800; color: #4338CA; letter-spacing: 12px; font-family: 'SF Mono', 'Fira Code', monospace; }
-        .timer { display: inline-block; background: #FEF3C7; border: 1px solid #FDE68A; border-radius: 8px; padding: 8px 16px; margin-top: 12px; font-size: 13px; color: #92400E; font-weight: 600; }
-        .warning { background: #FFF7ED; border: 1px solid #FED7AA; border-radius: 12px; padding: 16px; margin: 20px 0; }
-        .warning p { color: #9A3412; margin: 0; font-size: 13px; }
-        .footer { text-align: center; padding: 20px 24px; color: #94A3B8; font-size: 12px; border-top: 1px solid #F1F5F9; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; background: #0B0F19; color: #E2E8F0; }
+        .container { max-width: 520px; margin: 40px auto; background: #151D30; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.25); border: 1px solid #24304F; }
+        .header { background: linear-gradient(135deg, #3B82F6, #6366F1); padding: 40px 24px; text-align: center; }
+        .logo { font-size: 14px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px; }
+        .logo-c { color: #FFFFFF; }
+        .logo-m { color: #60A5FA; }
+        .header h1 { color: #fff; margin: 0; font-size: 26px; font-weight: 800; letter-spacing: -0.5px; }
+        .body { padding: 40px 32px; }
+        .body p { color: #94A3B8; line-height: 1.7; margin: 0 0 16px; font-size: 15px; }
+        .otp-box { text-align: center; margin: 32px 0; }
+        .otp-code { display: inline-block; background: #1E293B; border: 1px solid #334155; border-radius: 12px; padding: 20px 40px; font-size: 36px; font-weight: 800; color: #60A5FA; letter-spacing: 12px; text-indent: 12px; font-family: 'SF Mono', 'Fira Code', monospace; }
+        .timer { display: inline-block; background: #2A2215; border: 1px solid #4D3C1B; border-radius: 8px; padding: 8px 16px; margin-top: 16px; font-size: 13px; color: #F59E0B; font-weight: 600; }
+        .warning { background: #2A1C1E; border: 1px solid #4D2527; border-radius: 12px; padding: 16px; margin: 24px 0 0; }
+        .warning p { color: #FCA5A5; margin: 0; font-size: 13px; line-height: 1.5; }
+        .footer { text-align: center; padding: 24px; color: #64748B; font-size: 12px; border-top: 1px solid #1E293B; background: #0E1322; }
       </style>
     </head>
     <body>
       <div class="container">
         <div class="header">
-          <p>CareMyMed</p>
+          <div class="logo"><span class="logo-c">Care</span><span class="logo-m">My</span><span class="logo-c">Med</span></div>
           <h1>Verify Your Email</h1>
         </div>
         <div class="body">
@@ -167,26 +169,29 @@ const sendTempPasswordEmail = async (to, fullName, tempPassword, roleName) => {
     <head>
       <meta charset="utf-8">
       <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; background: #F8FAFC; }
-        .container { max-width: 520px; margin: 40px auto; background: #fff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 24px rgba(99,102,241,.12); }
-        .header { background: linear-gradient(135deg, #4338CA, #6366F1); padding: 36px 24px; text-align: center; }
-        .header h1 { color: #fff; margin: 0; font-size: 22px; }
-        .header p { color: rgba(255,255,255,0.7); margin: 6px 0 0; font-size: 13px; letter-spacing: 1.5px; font-weight: 600; }
-        .body { padding: 32px 24px; }
-        .body p { color: #334155; line-height: 1.6; margin: 0 0 16px; }
-        .creds { background: #EEF2FF; border: 1px solid #C7D2FE; border-radius: 12px; padding: 20px; margin: 20px 0; }
-        .creds p { margin: 4px 0; font-size: 15px; }
-        .creds strong { color: #4338CA; }
-        .warning { background: #FEF2F2; border: 1px solid #FECACA; border-radius: 12px; padding: 16px; margin: 20px 0; }
-        .warning p { color: #B91C1C; margin: 0; font-size: 14px; }
-        .btn { display: inline-block; background: linear-gradient(135deg, #4338CA, #6366F1); color: #fff !important; text-decoration: none; padding: 14px 32px; border-radius: 12px; font-weight: 700; margin: 16px 0; }
-        .footer { text-align: center; padding: 20px 24px; color: #94A3B8; font-size: 12px; border-top: 1px solid #F1F5F9; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; background: #0B0F19; color: #E2E8F0; }
+        .container { max-width: 520px; margin: 40px auto; background: #151D30; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.25); border: 1px solid #24304F; }
+        .header { background: linear-gradient(135deg, #3B82F6, #6366F1); padding: 40px 24px; text-align: center; }
+        .logo { font-size: 14px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px; }
+        .logo-c { color: #FFFFFF; }
+        .logo-m { color: #60A5FA; }
+        .header h1 { color: #fff; margin: 0; font-size: 22px; font-weight: 800; }
+        .body { padding: 40px 32px; }
+        .body p { color: #94A3B8; line-height: 1.7; margin: 0 0 16px; font-size: 15px; }
+        .body strong { color: #FFFFFF; }
+        .creds { background: #1E293B; border: 1px solid #334155; border-radius: 12px; padding: 20px; margin: 20px 0; }
+        .creds p { margin: 6px 0; font-size: 15px; color: #E2E8F0; }
+        .creds strong { color: #60A5FA; }
+        .warning { background: #2A1C1E; border: 1px solid #4D2527; border-radius: 12px; padding: 16px; margin: 20px 0; }
+        .warning p { color: #FCA5A5; margin: 0; font-size: 13px; line-height: 1.5; }
+        .btn { display: inline-block; background: linear-gradient(135deg, #3B82F6, #6366F1); color: #fff !important; text-decoration: none; padding: 14px 32px; border-radius: 12px; font-weight: 700; margin: 16px 0; text-align: center; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3); }
+        .footer { text-align: center; padding: 24px; color: #64748B; font-size: 12px; border-top: 1px solid #1E293B; background: #0E1322; }
       </style>
     </head>
     <body>
       <div class="container">
         <div class="header">
-          <p>CareMyMed</p>
+          <div class="logo"><span class="logo-c">Care</span><span class="logo-m">My</span><span class="logo-c">Med</span></div>
           <h1>🏥 Your Account Has Been Created</h1>
         </div>
         <div class="body">
@@ -227,20 +232,23 @@ const sendPasswordChangedEmail = async (to, fullName) => {
     <head>
       <meta charset="utf-8">
       <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; background: #F8FAFC; }
-        .container { max-width: 520px; margin: 40px auto; background: #fff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 24px rgba(99,102,241,.12); }
-        .header { background: linear-gradient(135deg, #059669, #10B981); padding: 36px 24px; text-align: center; }
-        .header h1 { color: #fff; margin: 0; font-size: 22px; }
-        .header p { color: rgba(255,255,255,0.7); margin: 6px 0 0; font-size: 13px; letter-spacing: 1.5px; font-weight: 600; }
-        .body { padding: 32px 24px; }
-        .body p { color: #334155; line-height: 1.6; margin: 0 0 16px; }
-        .footer { text-align: center; padding: 20px 24px; color: #94A3B8; font-size: 12px; border-top: 1px solid #F1F5F9; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; background: #0B0F19; color: #E2E8F0; }
+        .container { max-width: 520px; margin: 40px auto; background: #151D30; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.25); border: 1px solid #24304F; }
+        .header { background: linear-gradient(135deg, #059669, #10B981); padding: 40px 24px; text-align: center; }
+        .logo { font-size: 14px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px; }
+        .logo-c { color: #FFFFFF; }
+        .logo-m { color: #34D399; }
+        .header h1 { color: #fff; margin: 0; font-size: 22px; font-weight: 800; }
+        .body { padding: 40px 32px; }
+        .body p { color: #94A3B8; line-height: 1.7; margin: 0 0 16px; font-size: 15px; }
+        .body strong { color: #FFFFFF; }
+        .footer { text-align: center; padding: 24px; color: #64748B; font-size: 12px; border-top: 1px solid #1E293B; background: #0E1322; }
       </style>
     </head>
     <body>
       <div class="container">
         <div class="header">
-          <p>CareMyMed</p>
+          <div class="logo"><span class="logo-c">Care</span><span class="logo-m">My</span><span class="logo-c">Med</span></div>
           <h1>✅ Password Changed Successfully</h1>
         </div>
         <div class="body">
@@ -269,25 +277,27 @@ const sendPasswordResetEmail = async (to, otp) => {
     <head>
       <meta charset="utf-8">
       <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; background: #F8FAFC; }
-        .container { max-width: 520px; margin: 40px auto; background: #fff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 24px rgba(99,102,241,.12); }
-        .header { background: linear-gradient(135deg, #4338CA, #6366F1); padding: 36px 24px; text-align: center; }
-        .header h1 { color: #fff; margin: 0; font-size: 24px; font-weight: 800; }
-        .header p { color: rgba(255,255,255,0.7); margin: 6px 0 0; font-size: 13px; letter-spacing: 1.5px; font-weight: 600; }
-        .body { padding: 36px 32px; }
-        .body p { color: #334155; line-height: 1.7; margin: 0 0 16px; font-size: 15px; }
-        .otp-box { text-align: center; margin: 28px 0; }
-        .otp-code { display: inline-block; background: linear-gradient(135deg, #EEF2FF, #E0E7FF); border: 2px solid #C7D2FE; border-radius: 16px; padding: 20px 40px; font-size: 36px; font-weight: 800; color: #4338CA; letter-spacing: 12px; font-family: 'SF Mono', 'Fira Code', monospace; }
-        .timer { display: inline-block; background: #FEF3C7; border: 1px solid #FDE68A; border-radius: 8px; padding: 8px 16px; margin-top: 12px; font-size: 13px; color: #92400E; font-weight: 600; }
-        .warning { background: #FFF7ED; border: 1px solid #FED7AA; border-radius: 12px; padding: 16px; margin: 20px 0; }
-        .warning p { color: #9A3412; margin: 0; font-size: 13px; }
-        .footer { text-align: center; padding: 20px 24px; color: #94A3B8; font-size: 12px; border-top: 1px solid #F1F5F9; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; background: #0B0F19; color: #E2E8F0; }
+        .container { max-width: 520px; margin: 40px auto; background: #151D30; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.25); border: 1px solid #24304F; }
+        .header { background: linear-gradient(135deg, #3B82F6, #6366F1); padding: 40px 24px; text-align: center; }
+        .logo { font-size: 14px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px; }
+        .logo-c { color: #FFFFFF; }
+        .logo-m { color: #60A5FA; }
+        .header h1 { color: #fff; margin: 0; font-size: 26px; font-weight: 800; letter-spacing: -0.5px; }
+        .body { padding: 40px 32px; }
+        .body p { color: #94A3B8; line-height: 1.7; margin: 0 0 16px; font-size: 15px; }
+        .otp-box { text-align: center; margin: 32px 0; }
+        .otp-code { display: inline-block; background: #1E293B; border: 1px solid #334155; border-radius: 12px; padding: 20px 40px; font-size: 36px; font-weight: 800; color: #60A5FA; letter-spacing: 12px; text-indent: 12px; font-family: 'SF Mono', 'Fira Code', monospace; }
+        .timer { display: inline-block; background: #2A2215; border: 1px solid #4D3C1B; border-radius: 8px; padding: 8px 16px; margin-top: 16px; font-size: 13px; color: #F59E0B; font-weight: 600; }
+        .warning { background: #2A1C1E; border: 1px solid #4D2527; border-radius: 12px; padding: 16px; margin: 24px 0 0; }
+        .warning p { color: #FCA5A5; margin: 0; font-size: 13px; line-height: 1.5; }
+        .footer { text-align: center; padding: 24px; color: #64748B; font-size: 12px; border-top: 1px solid #1E293B; background: #0E1322; }
       </style>
     </head>
     <body>
       <div class="container">
         <div class="header">
-          <p>CareMyMed</p>
+          <div class="logo"><span class="logo-c">Care</span><span class="logo-m">My</span><span class="logo-c">Med</span></div>
           <h1>Reset Your Password</h1>
         </div>
         <div class="body">
@@ -327,25 +337,27 @@ const sendSecurityOTPEmail = async (to, otp) => {
     <head>
       <meta charset="utf-8">
       <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; background: #F8FAFC; }
-        .container { max-width: 520px; margin: 40px auto; background: #fff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 24px rgba(99,102,241,.12); }
-        .header { background: linear-gradient(135deg, #1E293B, #0F172A); padding: 36px 24px; text-align: center; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; background: #0B0F19; color: #E2E8F0; }
+        .container { max-width: 520px; margin: 40px auto; background: #151D30; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.25); border: 1px solid #24304F; }
+        .header { background: linear-gradient(135deg, #1E293B, #0F172A); padding: 40px 24px; text-align: center; }
+        .logo { font-size: 14px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px; }
+        .logo-c { color: #FFFFFF; }
+        .logo-m { color: #EF4444; }
         .header h1 { color: #fff; margin: 0; font-size: 24px; font-weight: 800; }
-        .header p { color: rgba(255,255,255,0.7); margin: 6px 0 0; font-size: 13px; letter-spacing: 1.5px; font-weight: 600; }
-        .body { padding: 36px 32px; }
-        .body p { color: #334155; line-height: 1.7; margin: 0 0 16px; font-size: 15px; }
-        .otp-box { text-align: center; margin: 28px 0; }
-        .otp-code { display: inline-block; background: linear-gradient(135deg, #F1F5F9, #E2E8F0); border: 2px solid #CBD5E1; border-radius: 16px; padding: 20px 40px; font-size: 36px; font-weight: 800; color: #0F172A; letter-spacing: 12px; font-family: 'SF Mono', 'Fira Code', monospace; }
-        .timer { display: inline-block; background: #FEF3C7; border: 1px solid #FDE68A; border-radius: 8px; padding: 8px 16px; margin-top: 12px; font-size: 13px; color: #92400E; font-weight: 600; }
-        .warning { background: #FEF2F2; border: 1px solid #FECACA; border-radius: 12px; padding: 16px; margin: 20px 0; }
-        .warning p { color: #991B1B; margin: 0; font-size: 13px; font-weight: 500; }
-        .footer { text-align: center; padding: 20px 24px; color: #94A3B8; font-size: 12px; border-top: 1px solid #F1F5F9; }
+        .body { padding: 40px 32px; }
+        .body p { color: #94A3B8; line-height: 1.7; margin: 0 0 16px; font-size: 15px; }
+        .otp-box { text-align: center; margin: 32px 0; }
+        .otp-code { display: inline-block; background: #1E293B; border: 1px solid #334155; border-radius: 12px; padding: 20px 40px; font-size: 36px; font-weight: 800; color: #EF4444; letter-spacing: 12px; text-indent: 12px; font-family: 'SF Mono', 'Fira Code', monospace; }
+        .timer { display: inline-block; background: #2A2215; border: 1px solid #4D3C1B; border-radius: 8px; padding: 8px 16px; margin-top: 16px; font-size: 13px; color: #F59E0B; font-weight: 600; }
+        .warning { background: #2A1C1E; border: 1px solid #4D2527; border-radius: 12px; padding: 16px; margin: 20px 0; }
+        .warning p { color: #FCA5A5; margin: 0; font-size: 13px; line-height: 1.5; }
+        .footer { text-align: center; padding: 24px; color: #64748B; font-size: 12px; border-top: 1px solid #1E293B; background: #0E1322; }
       </style>
     </head>
     <body>
       <div class="container">
         <div class="header">
-          <p>CareMyMed SECURITY</p>
+          <div class="logo"><span class="logo-c">Care</span><span class="logo-m">My</span><span class="logo-c">Med</span> <span class="logo-c" style="opacity: 0.6; font-size: 12px; font-weight: 500;">SECURITY</span></div>
           <h1>Security Action Verification</h1>
         </div>
         <div class="body">

@@ -87,6 +87,10 @@ const CompanionSchema = new mongoose.Schema(
     acceptedAt: {
       type: Date,
     },
+    lastWorkspace: {
+      type: String,
+      enum: ['patient', 'companion'],
+    },
   },
   {
     timestamps: true,

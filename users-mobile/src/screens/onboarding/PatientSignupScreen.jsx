@@ -25,6 +25,7 @@ import Svg, { Path, Circle, Defs, LinearGradient as SvgGradient, Stop } from 're
 import { OTPModal } from './components';
 import CheckoutBottomSheet from '../../components/premium/CheckoutBottomSheet';
 import { colors, radius, spacing, shadows, useReduceMotion } from '../../theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { styles, FONT, C } from './components/SignupStyles';
 import { HapticPatterns } from '../../utils/haptics';
 import Step1Profile from './components/Step1Profile';
@@ -54,6 +55,7 @@ export default function PatientSignupScreen({ navigation, route }) {
         sendOtp, verifyOtp, refreshPatient,
     } = useAuth();
 
+    const insets = useSafeAreaInsets();
     const [step, setStep] = useState(route?.params?.step || 1);
 
     const methods = useForm({
@@ -246,7 +248,7 @@ export default function PatientSignupScreen({ navigation, route }) {
         const isProcessing = signupLoading || googleLoading;
         const targetStep = resolveOnboardingStep(patient, profile);
         if (targetStep === null) { clearProgressRef.current?.(); }
-        else if (step !== targetStep && !isProcessing && !isSubmittingRef.current) { setStep(targetStep); }
+        else if (step !== targetStep && step !== 5 && !isProcessing && !isSubmittingRef.current) { setStep(targetStep); }
     }, [profile, patient, signupLoading, googleLoading]);
 
     useEffect(() => {
@@ -720,7 +722,7 @@ export default function PatientSignupScreen({ navigation, route }) {
         <FormProvider {...methods}>
             <KeyboardAvoidingView
                 style={sc.container}
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
             >
                 {/* Ambient Background Decorations */}
                 <View style={StyleSheet.absoluteFill}>
@@ -748,7 +750,7 @@ export default function PatientSignupScreen({ navigation, route }) {
                 <ScrollView
                     ref={mainScrollRef}
                     style={sc.scroll}
-                    contentContainerStyle={sc.content}
+                    contentContainerStyle={[sc.content, { paddingBottom: Math.max(48, insets.bottom + 24) }]}
                     showsVerticalScrollIndicator={false}
                     keyboardShouldPersistTaps="handled"
                 >

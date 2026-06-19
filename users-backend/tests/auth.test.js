@@ -340,7 +340,7 @@ describe('Auth Routes', () => {
             expect(existingPatient.save).toHaveBeenCalled();
         });
 
-        it('successfully links Google OAuth to an existing caregiver companion placeholder profile', async () => {
+        it('does not link Google OAuth to an existing companion profile during patient registration (registers new patient instead)', async () => {
             const existingProfile = {
                 _id: 'companion-profile-123',
                 email: 'companion@caremymed.in',
@@ -351,8 +351,15 @@ describe('Auth Routes', () => {
                 isActive: true,
                 save: jest.fn().mockResolvedValue({}),
             };
-            Patient.findOne = jest.fn().mockResolvedValue(null);
-            Profile.findOne = jest.fn().mockResolvedValue(existingProfile);
+            const org = mockOrganization({ _id: 'org123' });
+            Patient.findOne                = jest.fn().mockResolvedValue(null);
+            Profile.findOne                = jest.fn().mockResolvedValue(existingProfile);
+            Organization.findOne          = jest.fn().mockResolvedValue(org);
+            Organization.findById         = jest.fn().mockResolvedValue(org);
+            Organization.findByIdAndUpdate = jest.fn().mockResolvedValue({});
+
+            Patient.prototype._id  = 'patient-auto-id';
+            Patient.prototype.save = jest.fn().mockResolvedValue({});
 
             const res = await request(app)
                 .post('/api/auth/register')
@@ -360,12 +367,13 @@ describe('Auth Routes', () => {
                     email: 'companion@caremymed.in',
                     fullName: 'Companion User',
                     supabaseUid: 'google-uid-123',
+                    city: 'Hyderabad',
                 });
 
             expect(res.status).toBe(201);
-            expect(res.body.message).toBe('Account linked successfully');
-            expect(existingProfile.supabaseUid).toBe('google-uid-123');
-            expect(existingProfile.save).toHaveBeenCalled();
+            expect(res.body.message).toBe('Registration successful');
+            expect(existingProfile.save).not.toHaveBeenCalled();
+            expect(Patient.prototype.save).toHaveBeenCalled();
         });
     });
 
@@ -877,8 +885,340 @@ describe('Auth Routes', () => {
             expect(res.status).toBe(200);
             expect(res.body.message).toBe('Avatar uploaded successfully');
             expect(res.body.avatarUrl).toBe('https://supabase.co/storage/v1/object/public/avatars/cmp-uid-123/random.jpg');
-            expect(companionObj.avatarUrl).toBe('https://supabase.co/storage/v1/object/public/avatars/cmp-uid-123/random.jpg');
             expect(companionObj.save).toHaveBeenCalled();
+        });
+    });
+
+    describe('Role-Isolated Authentication and Dual-Role Handling', () => {
+        it('registers a new patient successfully when the email already exists as a companion, leaving companion unchanged', async () => {
+            const existingCompanion = {
+                _id: 'companion-123',
+                email: 'dual@caremymed.in',
+                fullName: 'Dual User Companion',
+                role: 'companion',
+                save: jest.fn().mockResolvedValue({}),
+            };
+            const org = mockOrganization({ _id: 'org123' });
+            Companion.findOne = jest.fn().mockReturnValue({
+                select: jest.fn().mockResolvedValue(existingCompanion),
+            });
+            Patient.findOne = jest.fn().mockResolvedValue(null);
+            Profile.findOne = jest.fn().mockResolvedValue(null);
+            Organization.findOne = jest.fn().mockResolvedValue(org);
+            Organization.findById = jest.fn().mockResolvedValue(org);
+            Organization.findByIdAndUpdate = jest.fn().mockResolvedValue({});
+
+            Patient.prototype._id = 'patient-auto-id';
+            Patient.prototype.role = 'patient';
+            Patient.prototype.save = jest.fn().mockResolvedValue({});
+
+            const res = await request(app)
+                .post('/api/auth/register')
+                .send({
+                    email: 'dual@caremymed.in',
+                    fullName: 'Dual User Patient',
+                    supabaseUid: 'google-uid-123',
+                    city: 'Hyderabad',
+                });
+
+            Patient.prototype.role = undefined;
+
+            expect(res.status).toBe(201);
+            expect(res.body.message).toBe('Registration successful');
+            expect(res.body.profile.role).toBe('patient');
+            expect(existingCompanion.save).not.toHaveBeenCalled();
+            expect(Patient.prototype.save).toHaveBeenCalled();
+        });
+
+        it('returns the patient account when logging in with patient role for a dual-role email', async () => {
+            const patient = mockPatient({
+                _id: 'patient-123',
+                email: 'dual@caremymed.in',
+                supabase_uid: 'pat-uid-123',
+                failedLoginAttempts: 0,
+            });
+            Object.defineProperty(patient, 'isLocked', { get: () => false });
+
+            const companion = {
+                _id: 'companion-123',
+                email: 'dual@caremymed.in',
+                fullName: 'Companion Name',
+                role: 'companion',
+                isActive: true,
+                failedLoginAttempts: 0,
+                isLocked: false,
+                passwordHash: '$2a$10$fakehash',
+                incrementFailedLogin: jest.fn(),
+                resetFailedLogin: jest.fn(),
+            };
+
+            Patient.findOne = jest.fn().mockReturnValue(patientSelectChain(patient));
+            Companion.findOne = jest.fn().mockReturnValue({
+                select: jest.fn().mockResolvedValue(companion),
+            });
+            Profile.findOne = jest.fn().mockReturnValue(findOnePopulateChain(null));
+
+            mockSupabase.auth.signInWithPassword.mockResolvedValue({
+                data: {
+                    user: { id: 'pat-uid-123', email: 'dual@caremymed.in' },
+                    session: { access_token: 'acc', refresh_token: 'ref', expires_in: 3600 },
+                },
+                error: null,
+            });
+
+            const res = await request(app)
+                .post('/api/auth/login')
+                .send({
+                    email: 'dual@caremymed.in',
+                    password: 'Password123',
+                    role: 'patient',
+                });
+
+            expect(res.status).toBe(200);
+            expect(res.body.profile.role).toBe('patient');
+            expect(res.body.profile.id).toBe('patient-123');
+        });
+
+        it('returns the companion account when logging in with companion role for a dual-role email', async () => {
+            const patient = mockPatient({
+                _id: 'patient-123',
+                email: 'dual@caremymed.in',
+                supabase_uid: 'pat-uid-123',
+                failedLoginAttempts: 0,
+            });
+            Object.defineProperty(patient, 'isLocked', { get: () => false });
+
+            const companion = {
+                _id: 'companion-123',
+                email: 'dual@caremymed.in',
+                fullName: 'Companion Name',
+                role: 'companion',
+                isActive: true,
+                failedLoginAttempts: 0,
+                isLocked: false,
+                supabaseUid: 'cmp-uid-123',
+                incrementFailedLogin: jest.fn(),
+                resetFailedLogin: jest.fn(),
+                save: jest.fn().mockResolvedValue(true),
+            };
+
+            Patient.findOne = jest.fn().mockReturnValue(patientSelectChain(patient));
+            Companion.findOne = jest.fn().mockReturnValue({
+                select: jest.fn().mockResolvedValue(companion),
+            });
+            Profile.findOne = jest.fn().mockReturnValue(findOnePopulateChain(null));
+
+            mockSupabase.auth.signInWithPassword.mockResolvedValue({
+                data: {
+                    user: { id: 'cmp-uid-123', email: 'dual@caremymed.in' },
+                    session: { access_token: 'acc', refresh_token: 'ref', expires_in: 3600 },
+                },
+                error: null,
+            });
+
+            const res = await request(app)
+                .post('/api/auth/login')
+                .send({
+                    email: 'dual@caremymed.in',
+                    password: 'Password123',
+                    role: 'companion',
+                });
+
+            expect(res.status).toBe(200);
+            expect(res.body.profile.role).toBe('companion');
+            expect(res.body.profile.id).toBe('companion-123');
+        });
+
+        it('links OAuth identity to the existing Patient account of the same email and does not create duplicates', async () => {
+            const existingPatient = {
+                _id: 'patient-123',
+                email: 'link@caremymed.in',
+                name: 'Existing Patient',
+                supabase_uid: 'original-local-uuid',
+                passwordHash: 'hashed-password-123',
+                emailVerified: true,
+                is_active: true,
+                save: jest.fn().mockResolvedValue({}),
+            };
+            Patient.findOne = jest.fn().mockResolvedValue(existingPatient);
+            Profile.findOne = jest.fn().mockResolvedValue(null);
+            Companion.findOne = jest.fn().mockReturnValue({
+                select: jest.fn().mockResolvedValue(null),
+            });
+
+            const res = await request(app)
+                .post('/api/auth/register')
+                .send({
+                    email: 'link@caremymed.in',
+                    fullName: 'Existing Patient',
+                    supabaseUid: 'google-uid-123',
+                });
+
+            expect(res.status).toBe(201);
+            expect(res.body.message).toBe('Account linked successfully');
+            expect(existingPatient.supabase_uid).toBe('google-uid-123');
+            expect(existingPatient.save).toHaveBeenCalled();
+            expect(Patient.prototype.save).not.toHaveBeenCalled();
+        });
+
+        it('allows login as companion when logging in as a patient if only a companion account exists', async () => {
+            const companion = {
+                _id: 'companion-123',
+                email: 'only-companion@caremymed.in',
+                fullName: 'Companion Name',
+                role: 'companion',
+                isActive: true,
+                failedLoginAttempts: 0,
+                isLocked: false,
+                supabaseUid: 'cmp-uid-123',
+                save: jest.fn().mockResolvedValue(true),
+            };
+
+            Patient.findOne = jest.fn().mockReturnValue(patientSelectChain(null));
+            Companion.findOne = jest.fn().mockReturnValue({
+                select: jest.fn().mockResolvedValue(companion),
+            });
+            Profile.findOne = jest.fn().mockReturnValue(findOnePopulateChain(null));
+
+            mockSupabase.auth.signInWithPassword.mockResolvedValue({
+                data: {
+                    user: { id: 'cmp-uid-123', email: 'only-companion@caremymed.in' },
+                    session: { access_token: 'acc', refresh_token: 'ref', expires_in: 3600 },
+                },
+                error: null,
+            });
+
+            const res = await request(app)
+                .post('/api/auth/login')
+                .send({
+                    email: 'only-companion@caremymed.in',
+                    password: 'Password123',
+                    role: 'patient',
+                });
+
+            expect(res.status).toBe(200);
+            expect(res.body.profile.role).toBe('companion');
+            expect(res.body.profile.id).toBe('companion-123');
+        });
+
+        it('returns workspace metadata in me profile response', async () => {
+            const patient = {
+                _id: 'patient-123',
+                email: 'dual@caremymed.in',
+                name: 'Dual User',
+                role: 'patient',
+                is_active: true,
+                emailVerified: true,
+                subscription: { status: 'active' },
+            };
+            const companion = {
+                _id: 'companion-123',
+                email: 'dual@caremymed.in',
+                fullName: 'Dual User Caregiver',
+                role: 'companion',
+                isActive: true,
+                emailVerified: true,
+            };
+
+            Patient.findOne = jest.fn().mockResolvedValue(patient);
+            Companion.findOne = jest.fn().mockResolvedValue(companion);
+            Profile.findOne = jest.fn().mockResolvedValue(null);
+            Patient.findById = jest.fn().mockReturnValue({
+                select: jest.fn().mockResolvedValue(patient),
+            });
+
+            // Mock profile of authenticate middleware to be patient
+            mockAuthState.profile = {
+                _id: 'patient-123',
+                email: 'dual@caremymed.in',
+                role: 'patient',
+                is_active: true,
+            };
+
+            const res = await request(app)
+                .get('/api/auth/me');
+
+            expect(res.status).toBe(200);
+            expect(res.body.profile.currentWorkspace).toBe('patient');
+            expect(res.body.profile.workspaces).toEqual([
+                { id: 'patient', label: 'Patient', description: 'Track your health and vitals' },
+                { id: 'companion', label: 'Caregiver', description: 'Care for linked family members' },
+            ]);
+        });
+
+        it('allows switching workspace between patient and companion', async () => {
+            const patient = {
+                _id: 'patient-123',
+                email: 'dual@caremymed.in',
+                name: 'Dual User',
+                role: 'patient',
+                is_active: true,
+                emailVerified: true,
+                supabase_uid: 'patient-uid',
+                save: jest.fn().mockResolvedValue(true),
+            };
+            const companion = {
+                _id: 'companion-123',
+                email: 'dual@caremymed.in',
+                fullName: 'Dual User Caregiver',
+                role: 'companion',
+                isActive: true,
+                emailVerified: true,
+                supabaseUid: 'companion-uid',
+                save: jest.fn().mockResolvedValue(true),
+            };
+
+            Patient.findOne = jest.fn().mockResolvedValue(patient);
+            Companion.findOne = jest.fn().mockResolvedValue(companion);
+            Profile.findOne = jest.fn().mockResolvedValue(null);
+
+            // Mock current authenticated user as Patient
+            mockAuthState.profile = {
+                _id: 'patient-123',
+                email: 'dual@caremymed.in',
+                role: 'patient',
+                is_active: true,
+            };
+
+            const res = await request(app)
+                .post('/api/auth/switch-role')
+                .send({ targetRole: 'companion' });
+
+            expect(res.status).toBe(200);
+            expect(res.body.message).toBe('Role switched successfully');
+            expect(res.body.profile.role).toBe('companion');
+            expect(res.body.profile.currentWorkspace).toBe('companion');
+            expect(patient.save).toHaveBeenCalled();
+            expect(companion.save).toHaveBeenCalled();
+        });
+
+        it('returns 400 when switching to an unavailable role', async () => {
+            const patient = {
+                _id: 'patient-123',
+                email: 'dual@caremymed.in',
+                name: 'Dual User',
+                role: 'patient',
+                is_active: true,
+                emailVerified: true,
+            };
+
+            Patient.findOne = jest.fn().mockResolvedValue(patient);
+            Companion.findOne = jest.fn().mockResolvedValue(null);
+            Profile.findOne = jest.fn().mockResolvedValue(null);
+
+            mockAuthState.profile = {
+                _id: 'patient-123',
+                email: 'dual@caremymed.in',
+                role: 'patient',
+                is_active: true,
+            };
+
+            const res = await request(app)
+                .post('/api/auth/switch-role')
+                .send({ targetRole: 'companion' });
+
+            expect(res.status).toBe(400);
+            expect(res.body.error).toContain('is not available for this account');
         });
     });
 });

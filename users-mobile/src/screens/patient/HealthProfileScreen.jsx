@@ -717,6 +717,17 @@ export default function HealthProfileScreen({ navigation }) {
     const mobilityOptions = [{ label: t('health.full', { defaultValue: 'Full' }), value: 'full' }, { label: t('health.limited', { defaultValue: 'Limited' }), value: 'limited' }, { label: t('health.wheelchair', { defaultValue: 'Wheelchair' }), value: 'wheelchair' }, { label: t('health.bedridden', { defaultValue: 'Bedridden' }), value: 'bedridden' }];
     const frequencyOptions = [{ label: t('health.daily', { defaultValue: 'Daily' }), value: 'daily' }, { label: t('health.weekly', { defaultValue: 'Weekly' }), value: 'weekly' }, { label: t('health.as_needed', { defaultValue: 'As Needed' }), value: 'as_needed' }];
     const timeOptions = [{ label: t('time_slots.morning', { defaultValue: 'Morning' }), value: 'morning' }, { label: t('time_slots.afternoon', { defaultValue: 'Afternoon' }), value: 'afternoon' }, { label: t('time_slots.evening', { defaultValue: 'Evening' }), value: 'evening' }, { label: t('time_slots.night', { defaultValue: 'Night' }), value: 'night' }];
+    const bloodOptions = [
+        { label: 'A+', value: 'A+' },
+        { label: 'A-', value: 'A-' },
+        { label: 'B+', value: 'B+' },
+        { label: 'B-', value: 'B-' },
+        { label: 'AB+', value: 'AB+' },
+        { label: 'AB-', value: 'AB-' },
+        { label: 'O+', value: 'O+' },
+        { label: 'O-', value: 'O-' },
+        { label: t('health.unknown_blood', { defaultValue: 'Unknown' }), value: 'unknown' }
+    ];
 
     const toggleTime = (t) => {
         let times = formState.times || [];
@@ -1386,7 +1397,20 @@ export default function HealthProfileScreen({ navigation }) {
                     <>
                         <View style={s.formGroup}>
                             <Text style={s.formLabel}>{t('health_profile.blood_type', { defaultValue: 'Blood Type' })}</Text>
-                            <SmartInput label={t('health_profile.blood_type', { defaultValue: 'Blood Type' })} value={formState.blood_type} onChangeText={(t) => setFormState({ ...formState, blood_type: t.toUpperCase() })} placeholder="e.g. A+, O-" />
+                            <View style={s.bloodGrid}>
+                                {bloodOptions.map((opt) => {
+                                    const isSelected = formState.blood_type === opt.value;
+                                    return (
+                                        <Pressable
+                                            key={opt.value}
+                                            style={[s.bloodChip, isSelected && s.bloodChipActive]}
+                                            onPress={() => setFormState({ ...formState, blood_type: opt.value })}
+                                        >
+                                            <Text style={[s.bloodChipTxt, isSelected && s.bloodChipTxtActive]}>{opt.label}</Text>
+                                        </Pressable>
+                                    );
+                                })}
+                            </View>
                         </View>
                         <View style={s.formGroup}>
                             <Text style={s.formLabel}>{t('health_profile.dietary_restrictions', { defaultValue: 'Dietary Restrictions' })}</Text>
@@ -2641,6 +2665,13 @@ const s = StyleSheet.create({
     selectChipActive: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
     selectChipTxt: { fontSize: 14, ...FONT.bold, color: colors.textMuted },
     selectChipTxtActive: { color: colors.primaryDark },
+
+    // Blood Group Selector
+    bloodGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 4 },
+    bloodChip: { width: '31%', height: 48, borderRadius: radius.md, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center' },
+    bloodChipActive: { backgroundColor: colors.primarySoft, borderWidth: 1.5, borderColor: colors.primary },
+    bloodChipTxt: { fontSize: 14, ...FONT.bold, color: colors.textSecondary },
+    bloodChipTxtActive: { color: colors.primaryDark },
 
     // DOB Picker
     pickerContainer: { paddingBottom: 20 },

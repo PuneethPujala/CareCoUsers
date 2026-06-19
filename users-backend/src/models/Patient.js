@@ -109,6 +109,10 @@ const PatientSchema = new mongoose.Schema(
         acceptedAt: {
             type: Date,
         },
+        lastWorkspace: {
+            type: String,
+            enum: ['patient', 'companion'],
+        },
 
         // ── Notifications ─────────────────────────────
         expo_push_token: {

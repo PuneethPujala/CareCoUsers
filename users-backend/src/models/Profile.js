@@ -124,6 +124,10 @@ const ProfileSchema = new mongoose.Schema(
     last_active_at: {
       type: Date,
     },
+    lastWorkspace: {
+      type: String,
+      enum: ['patient', 'companion'],
+    },
     // ── MFA / TOTP ────────────────────────────────
     mfaEnabled: {
       type: Boolean,

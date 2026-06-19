@@ -1356,17 +1356,19 @@ export default function MedicationsScreen({ navigation }) {
             </ScrollView>
 
             {/* ── FAB ── */}
-            <Animated.View style={[styles.fab, {
-                bottom: localFabBottom,
-                opacity: staggerAnims[4],
-                transform: [{ scale: staggerAnims[4].interpolate({ inputRange: [0, 1], outputRange: [0, 1] }) }],
-            }]}>
-                <Pressable onPress={() => { setShowPrefModal(true); setTempPrefs(preferences); setActivePicker(null); }}>
-                    <LinearGradient colors={['#818CF8', '#4F46E5']} style={styles.fabBtn}>
-                        <Clock size={24} color="#FFF" strokeWidth={2.5} />
-                    </LinearGradient>
-                </Pressable>
-            </Animated.View>
+            {totalCount > 0 && (
+                <Animated.View style={[styles.fab, {
+                    bottom: localFabBottom,
+                    opacity: staggerAnims[4],
+                    transform: [{ scale: staggerAnims[4].interpolate({ inputRange: [0, 1], outputRange: [0, 1] }) }],
+                }]}>
+                    <Pressable onPress={() => { setShowPrefModal(true); setTempPrefs(preferences); setActivePicker(null); }}>
+                        <LinearGradient colors={['#818CF8', '#4F46E5']} style={styles.fabBtn}>
+                            <Clock size={24} color="#FFF" strokeWidth={2.5} />
+                        </LinearGradient>
+                    </Pressable>
+                </Animated.View>
+            )}
 
             {/* ── PREFERENCES MODAL ── */}
             <PremiumFormModal
@@ -1778,7 +1780,7 @@ const styles = StyleSheet.create({
     actionGroup: { gap: 10 },
     outlineBtn: {
         flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9,
-        paddingVertical: 16, borderRadius: radius.md, borderWidth: 1.5,
+        paddingVertical: 16, paddingHorizontal: 28, borderRadius: radius.md, borderWidth: 1.5,
         borderStyle: 'dashed', backgroundColor: '#FAFBFF', borderColor: '#C7D2FE',
     },
     outlineBtnTxt: { fontSize: 14, fontWeight: '700', color: colors.primary },

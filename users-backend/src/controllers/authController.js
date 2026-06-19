@@ -279,6 +279,7 @@ async function resetPasswordVerify(req, res) {
 async function me(req, res) {
   try {
     const isPatient = req.profile.role === 'patient';
+    const caps = await authService.getWorkspaceCapabilities(req.profile.email);
 
     if (isPatient) {
       const patient = req.profile;
@@ -304,6 +305,8 @@ async function me(req, res) {
           lastLoginAt: patient.lastLoginAt,
           subscription_status: patient.subscription?.status || 'pending_payment',
           hasPassword: !!patientWithHash?.passwordHash,
+          currentWorkspace: 'patient',
+          workspaces: caps.workspaces,
         },
       });
       return;
@@ -355,6 +358,8 @@ async function me(req, res) {
         mustChangePassword: profile.mustChangePassword || false,
         subscription_status: subscriptionStatus,
         hasPassword: !!profile.passwordHash,
+        currentWorkspace: profile.role,
+        workspaces: caps.workspaces,
       },
     });
   } catch (err) {
@@ -737,6 +742,21 @@ async function setPassword(req, res) {
   }
 }
 
+async function switchRole(req, res) {
+  try {
+    const { targetRole } = req.body;
+    if (!targetRole) {
+      return res.status(400).json({ error: 'targetRole is required' });
+    }
+    const data = await authService.switchRole(targetRole, req, req.profile);
+    res.json(data);
+  } catch (err) {
+    if (err.status) return sendError(res, err);
+    console.error('Switch role error:', err);
+    res.status(500).json({ error: 'Switch role failed' });
+  }
+}
+
 module.exports = {
   register,
   login,
@@ -756,4 +776,5 @@ module.exports = {
   deleteMe,
   deactivateMe,
   exportMyData,
+  switchRole,
 };

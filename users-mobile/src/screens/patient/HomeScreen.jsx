@@ -316,7 +316,7 @@ export default function PatientHomeScreen({ navigation }) {
     // Today's Insights Sliding Carousel State & Constants
     const [activeInsightIndex, setActiveInsightIndex] = useState(0);
     const insightScrollViewRef = useRef(null);
-    const slideWidth = SW - 40 - 44; // cardWidth (SW - 40) - card padding (44)
+    const slideWidth = SW - (spacing.heroScreen * 2) - 44; // cardWidth (SW - 48) - card padding (44)
 
     // Mood states
     const [moodLogged, setMoodLogged] = useState(false);
@@ -1323,7 +1323,7 @@ export default function PatientHomeScreen({ navigation }) {
                                     <View style={styles.insightIconBox}>
                                         <Sparkles size={16} color="#A855F7" />
                                     </View>
-                                    <Text style={styles.insightTitle}>
+                                    <Text style={[styles.insightTitle, { flex: 1 }]} numberOfLines={1} ellipsizeMode="tail">
                                         {slideInsights[activeInsightIndex]?.title || t('common.todays_insight', { defaultValue: "Today's Insight" })}
                                     </Text>
                                 </View>
@@ -1950,6 +1950,8 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         gap: 8,
+        flex: 1,
+        marginRight: 8,
     },
     insightIconBox: {
         width: 28,

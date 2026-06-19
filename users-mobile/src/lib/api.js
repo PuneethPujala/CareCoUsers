@@ -252,6 +252,7 @@ export const apiService = {
         mfaDisable: (password) => api.post('/auth/mfa/disable', { password }),
         mfaStatus: () => api.get('/auth/mfa/status'),
         uploadAvatar: (data) => api.post('/auth/me/avatar', data),
+        switchRole: (targetRole) => api.post('/auth/switch-role', { targetRole }),
     },
 
     patients: {
