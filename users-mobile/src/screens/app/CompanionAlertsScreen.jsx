@@ -1,10 +1,10 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, RefreshControl, Pressable, Linking, Image, Animated } from 'react-native';
 import { apiService } from '../../lib/api';
 import { colors, radius, spacing, shadows, layout } from '../../theme';
 import { Bell, CheckCircle2, ShieldCheck, ShieldAlert, Phone, Clock, ChevronRight, Activity, Check, Shield, MessageSquare } from 'lucide-react-native';
 import usePatientStore from '../../store/usePatientStore';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import AlertManager from '../../utils/AlertManager';
 import Svg, { Path, Circle, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
 import CompanionHeader from '../../components/ui/CompanionHeader';
@@ -150,9 +150,11 @@ export default function CompanionAlertsScreen() {
         }
     };
 
-    useEffect(() => {
-        loadData();
-    }, [selectedPatientId]);
+    useFocusEffect(
+        useCallback(() => {
+            loadData();
+        }, [selectedPatientId])
+    );
 
     const onRefresh = async () => {
         setRefreshing(true);
@@ -763,11 +765,12 @@ export default function CompanionAlertsScreen() {
                          const [timePart, datePart] = timeText.split('\n');
  
                          // Colors & Badges
-                         const isAlert = h.category === 'alert' || h.badge === 'High Priority';
-                         const isSuccess = h.category === 'medicine' || h.category === 'vital' || h.badge === 'Success';
-                         const dotColor = isAlert ? '#E11D48' : isSuccess ? '#10B981' : '#3B82F6';
-                         const badgeBg = isAlert ? '#FFF0F2' : isSuccess ? '#ECFDF5' : '#EFF6FF';
-                         const badgeColor = isAlert ? '#E11D48' : isSuccess ? '#10B981' : '#3B82F6';
+                         const isAlert = h.category === 'alert' || h.badge === 'High Priority' || h.badge === 'Poor Adherence' || h.badge === 'Danger';
+                         const isWarning = h.badge === 'Warning' || h.badge === 'Partial Adherence';
+                         const isSuccess = (h.category === 'medicine' || h.category === 'vital' || h.badge === 'Success') && !isAlert && !isWarning;
+                         const dotColor = isAlert ? '#E11D48' : isWarning ? '#D97706' : isSuccess ? '#10B981' : '#3B82F6';
+                         const badgeBg = isAlert ? '#FFF0F2' : isWarning ? '#FEF3C7' : isSuccess ? '#ECFDF5' : '#EFF6FF';
+                         const badgeColor = isAlert ? '#E11D48' : isWarning ? '#D97706' : isSuccess ? '#10B981' : '#3B82F6';
  
                          return (
                              <View key={h.id || h._id} style={styles.timelineRow}>

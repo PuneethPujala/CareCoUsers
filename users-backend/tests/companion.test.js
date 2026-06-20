@@ -417,6 +417,65 @@ describe('Companion Routes', () => {
         });
     });
 
+    describe('GET /api/companion/linked-patients', () => {
+        it('returns 403 if user role is not companion', async () => {
+            mockAuthState.profile.role = 'patient';
+
+            const res = await request(app).get('/api/companion/linked-patients');
+            expect(res.status).toBe(403);
+        });
+
+        it('returns 200 with empty array if no linked patients are found', async () => {
+            CompanionAccess.find = jest.fn().mockReturnValue({
+                populate: jest.fn().mockResolvedValue([])
+            });
+
+            const res = await request(app).get('/api/companion/linked-patients');
+            expect(res.status).toBe(200);
+            expect(res.body.linked_patients).toEqual([]);
+        });
+
+        it('successfully retrieves basic metadata of linked patients', async () => {
+            const mockPatientObj = {
+                _id: fakeId('patient-123'),
+                name: 'Jane Patient',
+                email: 'jane@patient.in',
+                phone: '1234567890',
+                avatar_url: 'http://avatar.url',
+                healthScoreCache: 85,
+                gamification: { current_streak: 3 },
+                risk_level: 'medium'
+            };
+            const mockAccess = {
+                companion_id: fakeId('companion-profile-id'),
+                patient_id: mockPatientObj,
+                is_active: true,
+                status: 'accepted'
+            };
+
+            CompanionAccess.find = jest.fn().mockReturnValue({
+                populate: jest.fn().mockResolvedValue([mockAccess])
+            });
+
+            const res = await request(app).get('/api/companion/linked-patients');
+
+            expect(res.status).toBe(200);
+            expect(res.body.linked_patients).toHaveLength(1);
+            const p = res.body.linked_patients[0];
+            expect(p.id).toBe('patient-123');
+            expect(p.name).toBe('Jane Patient');
+            expect(p.phone).toBe('1234567890');
+            expect(p.avatar_url).toBe('http://avatar.url');
+            expect(p.avatarUrl).toBe('http://avatar.url');
+            expect(p.health_score).toBe(85);
+            expect(p.healthScore).toBe(85);
+            expect(p.current_streak).toBe(3);
+            expect(p.streak).toBe(3);
+            expect(p.risk_level).toBe('medium');
+            expect(p.riskLevel).toBe('medium');
+        });
+    });
+
     describe('GET /api/companion/interventions', () => {
         it('returns 403 if user role is not companion', async () => {
             mockAuthState.profile.role = 'patient';

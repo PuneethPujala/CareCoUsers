@@ -194,20 +194,25 @@ export default function CompanionDashboardScreen() {
         }
     };
 
-    useEffect(() => {
-        loadData();
-    }, [selectedPatientId]);
-
     useFocusEffect(
         useCallback(() => {
-            if (data && !hasAnimated.current) {
-                hasAnimated.current = true;
-                runEntranceAnimations();
-            }
-        }, [data, runEntranceAnimations])
+            // Load latest patient metrics on focus
+            loadData();
+            
+            // Sync dashboard metrics every 30 seconds
+            const interval = setInterval(() => {
+                loadData();
+            }, 30000);
+            
+            return () => {
+                clearInterval(interval);
+                // Reset animation flag on screen blur, so animations replay on next focus
+                hasAnimated.current = false;
+            };
+        }, [selectedPatientId])
     );
 
-    // Trigger animations when data first loads
+    // Trigger animations when data first loads or updates
     useEffect(() => {
         if (data && !hasAnimated.current) {
             hasAnimated.current = true;
@@ -692,19 +697,14 @@ export default function CompanionDashboardScreen() {
                                     btnTextStyle = { color: colors.success };
                                 }
 
+                                const statusColor = isCritical ? colors.danger : isWarning ? colors.warning : colors.primary;
                                 return (
                                     <View 
                                         key={action.id || action.message || idx} 
-                                        style={[
-                                            styles.priorityActionItem,
-                                            { borderLeftColor: isCritical ? colors.danger : isWarning ? colors.warning : colors.primary }
-                                        ]}
+                                        style={styles.priorityActionItem}
                                     >
+                                        <View style={[styles.priorityStatusIndicator, { backgroundColor: statusColor }]} />
                                         <View style={styles.priorityActionContent}>
-                                            <View style={[
-                                                styles.priorityBullet,
-                                                isCritical ? styles.bulletCritical : isWarning ? styles.bulletWarning : styles.bulletInfo
-                                            ]} />
                                             <Text style={styles.priorityActionMessage}>{action.message}</Text>
                                         </View>
                                         {btnHandler && (
@@ -1964,49 +1964,44 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        backgroundColor: '#F8FAFC',
+        backgroundColor: '#FFFFFF',
         borderRadius: 12,
-        paddingVertical: 10,
-        paddingHorizontal: 12,
+        paddingVertical: 12,
+        paddingLeft: 18,
+        paddingRight: 12,
         borderWidth: 1,
-        borderColor: colors.borderLight,
-        borderLeftWidth: 4,
+        borderColor: '#FEE2E2',
+        overflow: 'hidden',
+        position: 'relative',
+        ...shadows.sm,
+    },
+    priorityStatusIndicator: {
+        position: 'absolute',
+        left: 0,
+        top: 0,
+        bottom: 0,
+        width: 5,
     },
     priorityActionContent: {
         flexDirection: 'row',
         alignItems: 'center',
         flex: 1,
-        gap: 8,
-    },
-    priorityBullet: {
-        width: 10,
-        height: 10,
-        borderRadius: 5,
-        marginRight: 2,
-    },
-    bulletCritical: {
-        backgroundColor: colors.danger,
-    },
-    bulletWarning: {
-        backgroundColor: colors.warning,
-    },
-    bulletInfo: {
-        backgroundColor: colors.primary,
     },
     priorityActionMessage: {
         fontSize: 12,
         ...FONT.medium,
         color: colors.textPrimary,
         flex: 1,
-        paddingRight: 6,
+        paddingRight: 8,
+        lineHeight: 16,
     },
     priorityActionBtn: {
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: 8,
+        paddingHorizontal: 14,
+        paddingVertical: 7,
+        borderRadius: 20,
         justifyContent: 'center',
         alignItems: 'center',
-        minWidth: 72,
+        minWidth: 80,
     },
     priorityActionBtnText: {
         fontSize: 10,
@@ -2376,12 +2371,13 @@ const styles = StyleSheet.create({
         ...FONT.bold,
     },
     attentionCard: {
-        backgroundColor: colors.surface,
+        backgroundColor: '#FFF8F8',
         borderRadius: radius.xl,
         borderWidth: 1.5,
-        borderColor: '#FCA5A5',
+        borderColor: '#FEE2E2',
         padding: spacing.md,
         ...shadows.card,
+        marginBottom: 8,
     },
     attentionHeader: {
         flexDirection: 'row',
@@ -2416,14 +2412,14 @@ const styles = StyleSheet.create({
         marginTop: 1,
     },
     attentionCountBadge: {
-        backgroundColor: '#FEE2E2',
-        paddingHorizontal: 8,
+        backgroundColor: colors.danger,
+        paddingHorizontal: 10,
         paddingVertical: 4,
-        borderRadius: 8,
+        borderRadius: 12,
     },
     attentionCountText: {
         fontSize: 10,
         ...FONT.bold,
-        color: colors.danger,
+        color: '#FFFFFF',
     },
 });

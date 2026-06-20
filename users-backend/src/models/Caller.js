@@ -59,7 +59,6 @@ const CallerSchema = new mongoose.Schema(
         },
         last_active_at: {
             type: Date,
-            default: Date.now,
         },
         current_call_id: {
             type: mongoose.Schema.Types.ObjectId,

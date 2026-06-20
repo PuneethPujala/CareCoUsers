@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
     View, Text, StyleSheet, FlatList, Pressable, ActivityIndicator,
     StatusBar, Platform, RefreshControl, Animated, ScrollView
@@ -16,6 +16,7 @@ import { apiService, handleApiError } from '../../lib/api';
 import AlertManager from '../../utils/AlertManager';
 import Svg, { Path, Circle, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
 import CompanionHeader from '../../components/ui/CompanionHeader';
+import { useFocusEffect } from '@react-navigation/native';
 
 const FONT = {
     medium: { fontFamily: 'Inter_500Medium' },
@@ -35,6 +36,88 @@ const SkeletonItem = ({ width, height, borderRadius = 8, style }) => {
         ).start();
     }, [anim]);
     return <Animated.View style={[{ width, height, borderRadius, backgroundColor: '#E2E8F0', opacity: anim }, style]} />;
+};
+
+const AllClearIllustration = () => {
+    return (
+        <View style={styles.illustrationWrapper}>
+            <Svg width={140} height={140} viewBox="0 0 140 140">
+                <Defs>
+                    <SvgGradient id="glowGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <Stop offset="0%" stopColor="#10B981" stopOpacity="0.15" />
+                        <Stop offset="100%" stopColor="#059669" stopOpacity="0" />
+                    </SvgGradient>
+                    <SvgGradient id="shieldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <Stop offset="0%" stopColor="#34D399" stopOpacity="1" />
+                        <Stop offset="100%" stopColor="#059669" stopOpacity="1" />
+                    </SvgGradient>
+                </Defs>
+                
+                <Circle cx="70" cy="70" r="60" fill="url(#glowGrad)" />
+                <Circle cx="70" cy="70" r="45" fill="none" stroke="#D1FAE5" strokeWidth="1.5" strokeDasharray="4 4" opacity="0.8" />
+                <Circle cx="70" cy="70" r="32" fill="#ECFDF5" opacity="0.9" />
+                
+                <Path 
+                    d="M70 42 C82 42 90 37 90 37 C90 37 92 68 70 85 C48 68 50 37 50 37 C50 37 58 42 70 42 Z" 
+                    fill="url(#shieldGrad)" 
+                    stroke="#FFFFFF" 
+                    strokeWidth="2"
+                />
+                
+                <Path 
+                    d="M62 62 L67 67 L78 56" 
+                    fill="none" 
+                    stroke="#FFFFFF" 
+                    strokeWidth="3.5" 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round" 
+                />
+            </Svg>
+        </View>
+    );
+};
+
+const FeedEmptyIllustration = () => {
+    return (
+        <View style={styles.illustrationWrapper}>
+            <Svg width={140} height={140} viewBox="0 0 140 140">
+                <Defs>
+                    <SvgGradient id="feedGlow" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <Stop offset="0%" stopColor="#3B82F6" stopOpacity="0.15" />
+                        <Stop offset="100%" stopColor="#1D4ED8" stopOpacity="0" />
+                    </SvgGradient>
+                    <SvgGradient id="folderGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <Stop offset="0%" stopColor="#60A5FA" stopOpacity="1" />
+                        <Stop offset="100%" stopColor="#2563EB" stopOpacity="1" />
+                    </SvgGradient>
+                </Defs>
+                
+                <Circle cx="70" cy="70" r="60" fill="url(#feedGlow)" />
+                <Circle cx="70" cy="70" r="45" fill="none" stroke="#DBEAFE" strokeWidth="1.5" strokeDasharray="3 3" />
+                <Circle cx="70" cy="70" r="32" fill="#EFF6FF" />
+                
+                <Path 
+                    d="M52 48 C52 45.8 53.8 44 56 44 H84 C86.2 44 88 45.8 88 48 V86 C88 88.2 86.2 90 84 90 H56 C53.8 90 52 88.2 52 86 Z" 
+                    fill="none" 
+                    stroke="url(#folderGrad)" 
+                    strokeWidth="2.5" 
+                />
+                
+                <Path 
+                    d="M62 44 V41 C62 39.9 62.9 39 64 39 H76 C77.1 39 78 39.9 78 41 V44" 
+                    fill="none" 
+                    stroke="#1D4ED8" 
+                    strokeWidth="2" 
+                    strokeLinecap="round" 
+                />
+                
+                <Path d="M60 54 H80" stroke="#93C5FD" strokeWidth="2" strokeLinecap="round" />
+                <Path d="M60 62 H80" stroke="#93C5FD" strokeWidth="2" strokeLinecap="round" />
+                <Path d="M60 70 H74" stroke="#93C5FD" strokeWidth="2" strokeLinecap="round" />
+                <Path d="M60 78 H68" stroke="#93C5FD" strokeWidth="2" strokeLinecap="round" />
+            </Svg>
+        </View>
+    );
 };
 
 export default function InterventionCenterScreen({ navigation }) {
@@ -86,10 +169,12 @@ export default function InterventionCenterScreen({ navigation }) {
         }
     };
 
-    useEffect(() => {
-        if (!companionSelectedPatientId) return;
-        fetchData();
-    }, [companionSelectedPatientId]);
+    useFocusEffect(
+        useCallback(() => {
+            if (!companionSelectedPatientId) return;
+            fetchData();
+        }, [companionSelectedPatientId])
+    );
 
     const handleCompleteIntervention = async (interventionId, type) => {
         try {
@@ -221,19 +306,7 @@ export default function InterventionCenterScreen({ navigation }) {
     const renderCareStatusHero = () => {
         const totalPending = pendingInterventions.length;
         if (totalPending === 0) {
-            return (
-                <View style={styles.heroContainerAllClear}>
-                    <View style={styles.heroHeaderRow}>
-                        <View style={styles.heroIconBoxAllClear}>
-                            <ShieldCheck size={22} color={colors.success} />
-                        </View>
-                        <View style={{ flex: 1 }}>
-                            <Text style={styles.heroTitleAllClear}>All Clear</Text>
-                            <Text style={styles.heroSubAllClear}>No recommended care interventions needed. The patient is currently stable.</Text>
-                        </View>
-                    </View>
-                </View>
-            );
+            return null;
         }
 
         return (
@@ -503,7 +576,7 @@ export default function InterventionCenterScreen({ navigation }) {
                         <View style={styles.emptyContainer}>
                             {activeTab === 'pending' ? (
                                 <>
-                                    <Text style={styles.emptyEmoji}>✨</Text>
+                                    <AllClearIllustration />
                                     <Text style={styles.emptyTitle}>All Clear</Text>
                                     <Text style={styles.emptyText}>
                                         No interventions are needed today. The patient is currently stable.
@@ -511,7 +584,7 @@ export default function InterventionCenterScreen({ navigation }) {
                                 </>
                             ) : (
                                 <>
-                                    <Text style={styles.emptyEmoji}>📋</Text>
+                                    <FeedEmptyIllustration />
                                     <Text style={styles.emptyTitle}>Feed Empty</Text>
                                     <Text style={styles.emptyText}>
                                         No completed interventions logged yet.
@@ -858,21 +931,23 @@ const styles = StyleSheet.create({
         paddingVertical: 60,
         gap: 8,
     },
-    emptyEmoji: {
-        fontSize: 36,
-        marginBottom: 4,
+    illustrationWrapper: {
+        marginBottom: 16,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     emptyTitle: {
-        fontSize: 15,
+        fontSize: 18,
         ...FONT.heavy,
         color: colors.textPrimary,
+        marginBottom: 4,
     },
     emptyText: {
-        fontSize: 12,
-        color: colors.textMuted,
+        fontSize: 13,
+        color: colors.textSecondary,
         ...FONT.medium,
         textAlign: 'center',
-        lineHeight: 18,
-        paddingHorizontal: 20,
+        lineHeight: 20,
+        paddingHorizontal: 32,
     },
 });

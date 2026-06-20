@@ -703,6 +703,52 @@ router.get('/patient-status', authenticate, async (req, res) => {
 });
 
 /**
+ * GET /api/companion/linked-patients
+ * Lightweight endpoint to get basic details of linked patients.
+ */
+router.get('/linked-patients', authenticate, async (req, res) => {
+    try {
+        if (!req.profile || req.profile.role !== 'companion') {
+            return res.status(403).json({ error: 'Access denied.' });
+        }
+
+        const accesses = await CompanionAccess.find({ 
+            companion_id: req.profile._id, 
+            is_active: true, 
+            status: 'accepted' 
+        }).populate('patient_id', 'name email phone avatar_url healthScoreCache gamification risk_level patient_health_state');
+
+        const linked_patients = accesses
+            .filter(a => a.patient_id)
+            .map(a => {
+                const patient = a.patient_id;
+                const score = patient.patient_health_state?.score ?? patient.healthScoreCache ?? 82;
+                const streak = patient.patient_health_state?.adherence?.streak ?? patient.gamification?.current_streak ?? patient.gamification?.streak ?? 0;
+                const risk = patient.risk_level ?? 'low';
+                
+                return {
+                    id: patient._id,
+                    name: patient.name,
+                    phone: patient.phone || '',
+                    avatar_url: patient.avatar_url,
+                    avatarUrl: patient.avatar_url,
+                    health_score: score,
+                    healthScore: score,
+                    current_streak: streak,
+                    streak: streak,
+                    risk_level: risk,
+                    riskLevel: risk
+                };
+            });
+
+        res.json({ linked_patients });
+    } catch (err) {
+        logger.error('Companion linked patients error', { error: err.message, profileId: req.user?.id });
+        res.status(500).json({ error: 'Failed to load linked patients.' });
+    }
+});
+
+/**
  * POST /api/companion/nudge
  * Nudge a patient to take their medication.
  */

@@ -344,6 +344,7 @@ export const apiService = {
         joinOtp: (data) => api.post('/companion/join-otp', data),
         linkPatient: (data) => api.post('/companion/link-patient', data),
         getPatientStatus: (params) => api.get('/companion/patient-status', { params }),
+        getLinkedPatients: () => api.get('/companion/linked-patients'),
         acknowledgeAlert: (id) => api.post(`/companion/alerts/${id}/acknowledge`),
         nudge: (data) => api.post('/companion/nudge', data),
         requestBP: (data) => api.post('/companion/request-bp', data),

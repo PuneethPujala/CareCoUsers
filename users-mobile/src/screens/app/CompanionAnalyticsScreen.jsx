@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react'
 import { View, Text, StyleSheet, ScrollView, RefreshControl, Pressable, Dimensions, ActivityIndicator, Image, Animated, Linking } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { apiService } from '../../lib/api';
-import { HeartPulse, Activity, Bell, ShieldCheck, AlertCircle, ChevronLeft, RefreshCw, Lightbulb, Sparkles, Calendar, TrendingUp, Pill, Phone, ChevronRight, Eye, Flame, ArrowUpRight, Clock } from 'lucide-react-native';
+import { HeartPulse, Activity, Bell, ShieldCheck, AlertCircle, ChevronLeft, RefreshCw, Lightbulb, Sparkles, Calendar, TrendingUp, Pill, Phone, ChevronRight, Eye, Flame, ArrowUpRight, Clock, Smile } from 'lucide-react-native';
 import AlertManager from '../../utils/AlertManager';
 import { colors, radius, spacing, shadows, layout, motion, anim, useReduceMotion } from '../../theme';
 import usePatientStore from '../../store/usePatientStore';
@@ -65,6 +65,51 @@ const SkeletonItem = ({ width, height, borderRadius = 8, style }) => {
         ).start();
     }, [anim]);
     return <Animated.View style={[{ width, height, borderRadius, backgroundColor: '#E2E8F0', opacity: anim }, style]} />;
+};
+
+const TimelineEmptyIllustration = () => {
+    return (
+        <View style={styles.emptyIllustrationWrapper}>
+            <Svg width={100} height={80} viewBox="0 0 100 80">
+                <Defs>
+                    <SvgGradient id="dotsGlow" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <Stop offset="0%" stopColor="#CBD5E1" stopOpacity="1" />
+                        <Stop offset="100%" stopColor="#CBD5E1" stopOpacity="0.2" />
+                    </SvgGradient>
+                </Defs>
+                <Path 
+                    d="M50 5 V75" 
+                    stroke="url(#dotsGlow)" 
+                    strokeWidth="2" 
+                    strokeDasharray="4 4" 
+                />
+                <Circle cx="50" cy="15" r="4" fill="#CBD5E1" />
+                <Circle cx="50" cy="40" r="4" fill="#E2E8F0" />
+                <Circle cx="50" cy="65" r="4" fill="#F1F5F9" />
+            </Svg>
+        </View>
+    );
+};
+
+const ForecastEmptyIllustration = () => {
+    return (
+        <View style={styles.emptyIllustrationWrapper}>
+            <Svg width={100} height={40} viewBox="0 0 100 40">
+                <Path 
+                    d="M 10 30 L 30 15 L 50 25 L 70 10 L 90 20" 
+                    fill="none" 
+                    stroke="#E2E8F0" 
+                    strokeWidth="2" 
+                    strokeDasharray="4 4" 
+                />
+                <Circle cx="10" cy="30" r="3" fill="#CBD5E1" />
+                <Circle cx="30" cy="15" r="3" fill="#CBD5E1" />
+                <Circle cx="50" cy="25" r="3" fill="#E2E8F0" />
+                <Circle cx="70" cy="10" r="3" fill="#E2E8F0" />
+                <Circle cx="90" cy="20" r="3" fill="#F1F5F9" />
+            </Svg>
+        </View>
+    );
 };
 
 export default function CompanionAnalyticsScreen() {
@@ -376,51 +421,55 @@ export default function CompanionAnalyticsScreen() {
                 />
 
                 <ScrollView contentContainerStyle={styles.content}>
-                    {/* AI Insight Hero Skeleton */}
-                    <View style={styles.insightHeroCard}>
-                        <View style={[styles.insightHeroHeader, { gap: 6, flexDirection: 'row', alignItems: 'center' }]}>
-                            <SkeletonItem width={16} height={16} borderRadius={8} />
-                            <SkeletonItem width={80} height={10} />
+                    {/* Top Summary Card Skeleton */}
+                    <View style={styles.summaryCard}>
+                        <View style={[styles.summaryHeader, { gap: 6, flexDirection: 'row', alignItems: 'center' }]}>
+                            <SkeletonItem width={18} height={18} borderRadius={9} />
+                            <SkeletonItem width={120} height={12} />
                         </View>
-                        <SkeletonItem width="100%" height={12} style={{ marginTop: 8 }} />
-                        <SkeletonItem width="95%" height={12} style={{ marginTop: 6 }} />
+                        <SkeletonItem width="100%" height={12} style={{ marginTop: 12 }} />
+                        <SkeletonItem width="90%" height={12} style={{ marginTop: 6 }} />
+                        
+                        <View style={[styles.summaryStatsRow, { marginTop: 14 }]}>
+                            {[1, 2, 3, 4].map((i) => (
+                                <View key={i} style={[styles.summaryStatItem, { gap: 6 }]}>
+                                    <SkeletonItem width={40} height={8} />
+                                    <SkeletonItem width={60} height={14} borderRadius={6} />
+                                </View>
+                            ))}
+                        </View>
                     </View>
 
-                    {/* Score Ring Card Skeleton */}
+                    {/* KPI Ring Card Skeleton (Side-by-Side) */}
                     <View style={styles.kpiCardUnified}>
                         <SkeletonItem width={150} height={16} />
                         <View style={styles.kpiCardUnifiedDivider} />
-                        <View style={[styles.visibilityHeroContainer, { marginVertical: 10 }]}>
-                            <SkeletonItem width={132} height={132} borderRadius={66} />
-                        </View>
-                        <View style={styles.kpiDetailsGrid}>
-                            <View style={[styles.kpiDetailBox, { gap: 6 }]}>
-                                <SkeletonItem width={60} height={10} />
-                                <SkeletonItem width={80} height={20} borderRadius={8} />
+                        
+                        <View style={styles.kpiMainRow}>
+                            <View style={[styles.visibilityHeroContainer, { marginVertical: 0 }]}>
+                                <SkeletonItem width={96} height={96} borderRadius={48} />
                             </View>
-                            <View style={[styles.kpiDetailBox, { gap: 6 }]}>
-                                <SkeletonItem width={60} height={10} />
-                                <SkeletonItem width={100} height={20} borderRadius={8} />
+                            <View style={[styles.kpiInfoColumn, { gap: 10, flex: 1 }]}>
+                                <SkeletonItem width="80%" height={20} borderRadius={8} />
+                                <SkeletonItem width="90%" height={20} borderRadius={8} />
+                                <SkeletonItem width="70%" height={14} borderRadius={6} />
                             </View>
-                        </View>
-                        <View style={[styles.stabilityBannerUnified, { gap: 6, flexDirection: 'row', alignItems: 'center' }]}>
-                            <SkeletonItem width={8} height={8} borderRadius={4} />
-                            <SkeletonItem width={200} height={12} />
                         </View>
                     </View>
 
-                    {/* Coverage Breakdown Skeleton */}
+                    {/* Coverage Breakdown Skeleton (2x2 Grid) */}
                     <View style={styles.card}>
                         <SkeletonItem width={160} height={16} style={{ marginBottom: 12 }} />
-                        <View style={styles.coverageGridUnified}>
+                        <View style={styles.coverageGrid2x2}>
                             {[1, 2, 3, 4].map((item) => (
-                                <View key={item} style={[styles.coverageCapsule, { gap: 6 }]}>
-                                    <View style={styles.coverageCapsuleHeader}>
-                                        <SkeletonItem width={70} height={10} />
-                                        <SkeletonItem width={30} height={10} />
+                                <View key={item} style={styles.coverageGridCardSkeleton}>
+                                    <View style={styles.coverageGridCardHeader}>
+                                        <SkeletonItem width={24} height={24} borderRadius={12} />
+                                        <SkeletonItem width={32} height={12} />
                                     </View>
-                                    <SkeletonItem width="100%" height={8} borderRadius={4} />
-                                    <SkeletonItem width={40} height={8} />
+                                    <SkeletonItem width={80} height={12} style={{ marginTop: 8 }} />
+                                    <SkeletonItem width={40} height={8} style={{ marginTop: 4 }} />
+                                    <SkeletonItem width="100%" height={4} borderRadius={2} style={{ marginTop: 8 }} />
                                 </View>
                             ))}
                         </View>
@@ -496,7 +545,7 @@ export default function CompanionAnalyticsScreen() {
                 )}
             />
 
-                        <ScrollView 
+            <ScrollView 
                 contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 20 }]}
                 refreshControl={
                     <RefreshControl 
@@ -506,161 +555,212 @@ export default function CompanionAnalyticsScreen() {
                     />
                 }
             >
-                {/* 1. AI Insight Hero */}
-                <Animated.View style={[styles.insightHeroCard, sectionAnimStyle(0)]}>
-                    <View style={styles.insightHeroHeader}>
-                        <Sparkles color="#6366F1" size={16} />
-                        <Text style={styles.insightHeroHeaderTitle}>AI INSIGHT</Text>
+                {/* 1. Sticky Analytics Summary Card */}
+                <Animated.View style={[styles.summaryCard, sectionAnimStyle(0)]}>
+                    <View style={styles.summaryHeader}>
+                        <HeartPulse color={colors.primary} size={18} />
+                        <Text style={styles.summaryTitle}>Health Status Summary</Text>
                     </View>
-                    <Text style={styles.insightHeroText}>
+                    
+                    <Text style={styles.summaryNarrative}>
                         {(() => {
                             if (isLowVisibility) {
-                                const hasVitals = data.vitals_history && data.vitals_history.length > 0;
-                                return !hasVitals 
-                                    ? `Prediction confidence is low because the patient has not logged vitals in the past 7 days.`
-                                    : `Prediction confidence is limited because the patient has not synced sufficient health logs recently.`;
+                                return `Patient status is currently uncertain. There is limited data coverage to verify recent health logs.`;
                             }
                             if (riskLevel === 'high') {
-                                return `Immediate caregiver attention recommended due to elevated patient risk indicators.`;
+                                return `Immediate attention needed. Elevated patient risk indicators detected in recent logs.`;
                             }
                             if (riskLevel === 'medium') {
-                                return `Minor regression detected. Monitor patient vitals and medication adherence closely.`;
+                                return `Caution advised. Minor health log regressions detected. Monitor vitals closely.`;
                             }
-                            return `Patient health trajectory appears stable and consistent this week.`;
+                            return `${data.patient.name || 'Patient'} is stable and maintaining normal health indicators this week.`;
                         })()}
                     </Text>
-                </Animated.View>
-
-                {/* 2. Visibility Hero Ring & KPIs */}
-                <Animated.View style={[styles.kpiCardUnified, sectionAnimStyle(1)]}>
-                    <Text style={styles.kpiCardUnifiedTitle}>Health Intelligence Score</Text>
-                    <View style={styles.kpiCardUnifiedDivider} />
                     
-                    {/* Visibility Hero Ring */}
-                    <View style={styles.visibilityHeroContainer}>
-                        <Svg width={132} height={132}>
-                            <Circle
-                                cx={66}
-                                cy={66}
-                                r={56}
-                                stroke="#E2E8F0"
-                                strokeWidth={10}
-                                fill="transparent"
-                            />
-                            <Circle
-                                cx={66}
-                                cy={66}
-                                r={56}
-                                stroke={visibilityScore >= 80 ? '#10B981' : visibilityScore >= 50 ? '#F59E0B' : '#EF4444'}
-                                strokeWidth={10}
-                                fill="transparent"
-                                strokeDasharray={2 * Math.PI * 56}
-                                strokeDashoffset={2 * Math.PI * 56 - (visibilityScore / 100) * (2 * Math.PI * 56)}
-                                strokeLinecap="round"
-                                transform="rotate(-90 66 66)"
-                            />
-                        </Svg>
-                        <View style={styles.visibilityHeroTextContainer}>
-                            <Text style={[styles.visibilityHeroPercent, { color: visibilityScore >= 80 ? '#10B981' : visibilityScore >= 50 ? '#F59E0B' : '#EF4444' }]}>
-                                {visibilityScore}%
+                    <View style={styles.summaryStatsRow}>
+                        {/* Stat 1: Status */}
+                        <View style={styles.summaryStatItem}>
+                            <Text style={styles.summaryStatLabel}>Status</Text>
+                            <Text style={[styles.summaryStatVal, { color: isLowVisibility ? colors.textSecondary : (riskLevel === 'high' ? colors.danger : (riskLevel === 'medium' ? colors.warning : colors.success)) }]}>
+                                {isLowVisibility ? 'Uncertain' : (riskLevel === 'high' ? 'Action' : (riskLevel === 'medium' ? 'Watch' : 'Stable'))}
                             </Text>
-                            <Text style={styles.visibilityHeroLabel}>Visibility</Text>
-                            <Text style={styles.visibilityHeroSub}>{visibilityLabel} Quality</Text>
+                        </View>
+                        
+                        <View style={styles.summaryStatDivider} />
+                        
+                        {/* Stat 2: Risk */}
+                        <View style={styles.summaryStatItem}>
+                            <Text style={styles.summaryStatLabel}>Risk Level</Text>
+                            <Text style={[styles.summaryStatVal, { color: getRiskColor(riskLevel) }]}>
+                                {riskLevel.toUpperCase()}
+                            </Text>
+                        </View>
+                        
+                        <View style={styles.summaryStatDivider} />
+                        
+                        {/* Stat 3: Trajectory */}
+                        <View style={styles.summaryStatItem}>
+                            <Text style={styles.summaryStatLabel}>Trajectory</Text>
+                            {(() => {
+                                const traj = insights.predictive_health?.forecast?.trajectory || 'stable';
+                                return (
+                                    <Text style={[
+                                        styles.summaryStatVal, 
+                                        { color: traj === 'positive' ? colors.success : (traj === 'negative' ? colors.danger : colors.textSecondary) }
+                                    ]}>
+                                        {traj === 'positive' ? 'Positive' : (traj === 'negative' ? 'Declining' : 'Stable')}
+                                    </Text>
+                                );
+                            })()}
+                        </View>
+                        
+                        <View style={styles.summaryStatDivider} />
+                        
+                        {/* Stat 4: Confidence */}
+                        <View style={styles.summaryStatItem}>
+                            <Text style={styles.summaryStatLabel}>Confidence</Text>
+                            <Text style={[styles.summaryStatVal, { color: colors.primary }]}>
+                                {confidenceScore}%
+                            </Text>
                         </View>
                     </View>
+                </Animated.View>
 
-                    {/* Unified details: Risk Status and Confidence Score */}
-                    <View style={styles.kpiDetailsGrid}>
-                        <View style={styles.kpiDetailBox}>
-                            <Text style={styles.kpiDetailLabel}>Risk Status</Text>
-                            <View style={[
-                                styles.kpiDetailBadge, 
-                                { backgroundColor: getRiskBg(riskLevel) }
-                            ]}>
-                                <Text style={[
-                                    styles.kpiDetailBadgeText,
-                                    { color: getRiskColor(riskLevel) }
-                                ]}>
-                                    {riskLevel.toUpperCase()}
+                {/* 2. Visibility Ring & KPI Details Side-by-Side */}
+                <Animated.View style={[styles.kpiCardUnified, sectionAnimStyle(1)]}>
+                    <Text style={styles.kpiCardUnifiedTitle}>Data Visibility & Confidence</Text>
+                    <View style={styles.kpiCardUnifiedDivider} />
+                    
+                    <View style={styles.kpiMainRow}>
+                        {/* Left: Shrunk Visibility Ring */}
+                        <View style={styles.visibilityHeroContainer}>
+                            <Svg width={96} height={96}>
+                                <Circle
+                                    cx={48}
+                                    cy={48}
+                                    r={40}
+                                    stroke="#E2E8F0"
+                                    strokeWidth={8}
+                                    fill="transparent"
+                                />
+                                <Circle
+                                    cx={48}
+                                    cy={48}
+                                    r={40}
+                                    stroke={visibilityScore >= 80 ? '#10B981' : visibilityScore >= 50 ? '#F59E0B' : '#EF4444'}
+                                    strokeWidth={8}
+                                    fill="transparent"
+                                    strokeDasharray={2 * Math.PI * 40}
+                                    strokeDashoffset={2 * Math.PI * 40 - (visibilityScore / 100) * (2 * Math.PI * 40)}
+                                    strokeLinecap="round"
+                                    transform="rotate(-90 48 48)"
+                                />
+                            </Svg>
+                            <View style={styles.visibilityHeroTextContainer}>
+                                <Text style={[styles.visibilityHeroPercent, { color: visibilityScore >= 80 ? '#10B981' : visibilityScore >= 50 ? '#F59E0B' : '#EF4444' }]}>
+                                    {visibilityScore}%
                                 </Text>
+                                <Text style={styles.visibilityHeroLabel}>Visibility</Text>
                             </View>
                         </View>
                         
-                        <View style={styles.kpiDetailBox}>
-                            <Text style={styles.kpiDetailLabel}>Confidence</Text>
-                            <View style={[styles.kpiDetailBadge, { backgroundColor: '#EEF2FF' }]}>
-                                <Text style={[styles.kpiDetailBadgeText, { color: '#6366F1' }]}>
-                                    {confidenceScore}% ({confidenceLabel})
-                                </Text>
+                        {/* Right: Side-by-Side Details */}
+                        <View style={styles.kpiInfoColumn}>
+                            {/* Detail 1: Risk Status */}
+                            <View style={styles.kpiDetailInlineRow}>
+                                <Text style={styles.kpiDetailInlineLabel}>Risk Status:</Text>
+                                <View style={[styles.kpiDetailBadge, { backgroundColor: getRiskBg(riskLevel) }]}>
+                                    <Text style={[styles.kpiDetailBadgeText, { color: getRiskColor(riskLevel) }]}>
+                                        {riskLevel.toUpperCase()}
+                                    </Text>
+                                </View>
+                            </View>
+                            
+                            {/* Detail 2: Confidence */}
+                            <View style={styles.kpiDetailInlineRow}>
+                                <Text style={styles.kpiDetailInlineLabel}>Confidence:</Text>
+                                <View style={[styles.kpiDetailBadge, { backgroundColor: '#EEF2FF' }]}>
+                                    <Text style={[styles.kpiDetailBadgeText, { color: '#6366F1' }]}>
+                                        {confidenceScore}% ({confidenceLabel})
+                                    </Text>
+                                </View>
+                            </View>
+                            
+                            {/* Stability indicator */}
+                            <View style={styles.stabilityIndicatorRow}>
+                                <View style={[styles.stabilityPulseDot, { backgroundColor: lastStable.currently_stable ? '#10B981' : '#F59E0B' }]} />
+                                {(() => {
+                                    if (lastStable.currently_stable) {
+                                        return (
+                                            <Text style={styles.stabilityIndicatorText}>
+                                                Stable for <Text style={FONT.bold}>{lastStable.stable_days}</Text>d
+                                            </Text>
+                                        );
+                                    } else if (lastStable.last_stable_at) {
+                                        const diffMs = Date.now() - new Date(lastStable.last_stable_at).getTime();
+                                        const diffDays = Math.max(1, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
+                                        return (
+                                            <Text style={styles.stabilityIndicatorText}>
+                                                Last stable <Text style={FONT.bold}>{diffDays}</Text>d ago
+                                            </Text>
+                                        );
+                                    } else {
+                                        return (
+                                            <Text style={styles.stabilityIndicatorText}>
+                                                Status unstable
+                                            </Text>
+                                        );
+                                    }
+                                })()}
                             </View>
                         </View>
                     </View>
-
-                    {/* Stability Banner */}
-                    <View style={styles.stabilityBannerUnified}>
-                        <View style={[styles.stabilityPulseDot, { backgroundColor: lastStable.currently_stable ? '#10B981' : '#F59E0B' }]} />
-                        {(() => {
-                            if (lastStable.currently_stable) {
-                                return (
-                                    <Text style={styles.stabilityBannerText}>
-                                        Patient stable for <Text style={FONT.bold}>{lastStable.stable_days}</Text> consecutive days
-                                    </Text>
-                                );
-                            } else if (lastStable.last_stable_at) {
-                                const diffMs = Date.now() - new Date(lastStable.last_stable_at).getTime();
-                                const diffDays = Math.max(1, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
-                                return (
-                                    <Text style={styles.stabilityBannerText}>
-                                        Patient last stable <Text style={FONT.bold}>{diffDays}</Text> {diffDays === 1 ? 'day' : 'days'} ago
-                                    </Text>
-                                );
-                            } else {
-                                return (
-                                    <Text style={styles.stabilityBannerText}>
-                                        Patient status currently unstable
-                                    </Text>
-                                );
-                            }
-                        })()}
-                    </View>
                 </Animated.View>
 
-                {/* 3. Coverage Breakdown Progress Capsules */}
+                {/* 3. Coverage Breakdown Grid (2x2) */}
                 <Animated.View style={[styles.card, sectionAnimStyle(2)]}>
                     <Text style={styles.sectionHeading}>📋 Coverage Breakdown</Text>
-                    <View style={styles.coverageGridUnified}>
-                        {(() => {
-                            const bd = insights.visibility_breakdown || { medications: 0, vitals: 0, wearable: 0, mood: 0 };
-                            const items = [
-                                { label: 'Medications', score: bd.medications ?? 0, max: 35 },
-                                { label: 'Vitals Log', score: bd.vitals ?? 0, max: 35 },
-                                { label: 'Wearables', score: bd.wearable ?? 0, max: 15 },
-                                { label: 'Mood Logs', score: bd.mood ?? 0, max: 15 }
-                            ];
-                            
-                            return items.map((item) => {
-                                const percent = item.max > 0 ? Math.round((item.score / item.max) * 100) : 0;
-                                const barColor = percent >= 80 ? '#10B981' : percent >= 40 ? '#F59E0B' : '#EF4444';
-                                
-                                return (
-                                    <View style={styles.coverageCapsule} key={item.label}>
-                                        <View style={styles.coverageCapsuleHeader}>
-                                            <Text style={styles.coverageCapsuleLabel}>{item.label}</Text>
-                                            <Text style={[styles.coverageCapsulePercent, { color: barColor }]}>
-                                                {percent}%
+                    {(() => {
+                        const bd = insights.visibility_breakdown || { medications: 0, vitals: 0, wearable: 0, mood: 0 };
+                        const items = [
+                            { label: 'Medications', score: bd.medications ?? 0, max: 35, icon: <Pill size={16} color="#10B981" /> },
+                            { label: 'Vitals Log', score: bd.vitals ?? 0, max: 35, icon: <HeartPulse size={16} color="#EF4444" /> },
+                            { label: 'Wearables', score: bd.wearable ?? 0, max: 15, icon: <Activity size={16} color="#6366F1" /> },
+                            { label: 'Mood Logs', score: bd.mood ?? 0, max: 15, icon: <Smile size={16} color="#F59E0B" /> }
+                        ];
+                        
+                        return (
+                            <View style={styles.coverageGrid2x2}>
+                                {items.map((item) => {
+                                    const percent = item.max > 0 ? Math.round((item.score / item.max) * 100) : 0;
+                                    const barColor = percent >= 80 ? '#10B981' : percent >= 40 ? '#F59E0B' : '#EF4444';
+                                    const barBg = percent >= 80 ? '#ECFDF5' : percent >= 40 ? '#FFFBEB' : '#FEF2F2';
+                                    
+                                    return (
+                                        <View style={styles.coverageGridCard} key={item.label}>
+                                            <View style={styles.coverageGridCardHeader}>
+                                                <View style={[styles.coverageGridIconWrapper, { backgroundColor: barBg }]}>
+                                                    {item.icon}
+                                                </View>
+                                                <Text style={[styles.coverageGridPercentText, { color: barColor }]}>
+                                                    {percent}%
+                                                </Text>
+                                            </View>
+                                            <Text style={styles.coverageGridCardTitle} numberOfLines={1}>
+                                                {item.label}
                                             </Text>
+                                            <Text style={styles.coverageGridCardScore}>
+                                                {item.score}/{item.max} pts
+                                            </Text>
+                                            <View style={styles.coverageGridBarTrack}>
+                                                <View style={[styles.coverageGridBarFill, { width: `${percent}%`, backgroundColor: barColor }]} />
+                                            </View>
                                         </View>
-                                        <View style={styles.coverageCapsuleBarTrack}>
-                                            <View style={[styles.coverageCapsuleBarFill, { width: `${percent}%`, backgroundColor: barColor }]} />
-                                        </View>
-                                        <Text style={styles.coverageCapsuleScore}>
-                                            {item.score}/{item.max} pts
-                                        </Text>
-                                    </View>
-                                );
-                            });
-                        })()}
-                    </View>
+                                    );
+                                })}
+                            </View>
+                        );
+                    })()}
                 </Animated.View>
 
                 {/* 4. Risk Contributors Card */}
@@ -689,7 +789,7 @@ export default function CompanionAnalyticsScreen() {
                         const sorted = [...list].sort((a, b) => b.pct - a.pct);
 
                         return (
-                            <View style={{ marginTop: 12 }}>
+                            <View style={{ marginTop: 6 }}>
                                 <View style={styles.stackedBar}>
                                     {pctAdherence > 0 && <View style={[styles.stackedBarSegment, { width: `${pctAdherence}%`, backgroundColor: '#10B981' }]} />}
                                     {pctVitals > 0 && <View style={[styles.stackedBarSegment, { width: `${pctVitals}%`, backgroundColor: '#EF4444' }]} />}
@@ -697,8 +797,8 @@ export default function CompanionAnalyticsScreen() {
                                     {pctVisibility > 0 && <View style={[styles.stackedBarSegment, { width: `${pctVisibility}%`, backgroundColor: '#6366F1' }]} />}
                                 </View>
 
-                                {/* Mini Intelligence Cards */}
-                                <View style={styles.contributorsGrid}>
+                                {/* Compact Contributor List Rows */}
+                                <View style={styles.contributorsListCompact}>
                                     {sorted.map((item, idx) => {
                                         let role = 'Minimal Impact';
                                         let roleBg = '#F1F5F9';
@@ -721,24 +821,18 @@ export default function CompanionAnalyticsScreen() {
                                         }
 
                                         return (
-                                            <View key={item.key} style={styles.contributorCard}>
-                                                <View style={styles.contributorCardHeader}>
-                                                    <View style={styles.contributorLabelRow}>
-                                                        <View style={[styles.contributorDot, { backgroundColor: item.color }]} />
-                                                        <Text style={styles.contributorCardLabel}>{item.label}</Text>
-                                                    </View>
-                                                    <View style={[styles.contributorRoleBadge, { backgroundColor: roleBg }]}>
-                                                        <Text style={[styles.contributorRoleText, { color: roleColor }]}>
+                                            <View key={item.key} style={styles.contributorCompactRow}>
+                                                <View style={styles.contributorCompactLeft}>
+                                                    <View style={[styles.contributorBullet, { backgroundColor: item.color }]} />
+                                                    <Text style={styles.contributorCompactLabel}>{item.label}</Text>
+                                                </View>
+                                                <View style={styles.contributorCompactRight}>
+                                                    <Text style={styles.contributorCompactValue}>{item.pct}% impact</Text>
+                                                    <View style={[styles.contributorCompactBadge, { backgroundColor: roleBg }]}>
+                                                        <Text style={[styles.contributorCompactBadgeText, { color: roleColor }]}>
                                                             {role}
                                                         </Text>
                                                     </View>
-                                                </View>
-                                                <View style={styles.contributorMetricRow}>
-                                                    <Text style={styles.contributorMetricPercent}>{item.pct}%</Text>
-                                                    <Text style={styles.contributorMetricImpact}>Impact</Text>
-                                                </View>
-                                                <View style={styles.contributorBarTrack}>
-                                                    <View style={[styles.contributorBarFill, { width: `${item.pct}%`, backgroundColor: item.color }]} />
                                                 </View>
                                             </View>
                                         );
@@ -749,7 +843,7 @@ export default function CompanionAnalyticsScreen() {
                     })()}
                 </Animated.View>
 
-                {/* 5. 3-Day Forecast & Frosted Alert */}
+                {/* 5. 3-Day Forecast & Premium Glass Alert */}
                 <Animated.View style={[styles.card, sectionAnimStyle(4)]}>
                     <View style={styles.sectionHeaderRow}>
                         <Sparkles color="#6366F1" size={18} />
@@ -757,23 +851,26 @@ export default function CompanionAnalyticsScreen() {
                     </View>
                     <Text style={styles.cardSub}>AI outlook & upcoming vital status predictions</Text>
 
-                    {/* Softer, frosted alert card if visibility is low */}
+                    {/* Softer, glassmorphic alert card if visibility is low */}
                     {confidenceLabel === 'Low' && (
-                        <View style={styles.frostedAlertCard}>
-                            <View style={styles.frostedAlertHeader}>
-                                <AlertCircle color="#F59E0B" size={16} />
-                                <Text style={styles.frostedAlertTitle}>Limited Data Available</Text>
+                        <View style={styles.premiumGlassAlert}>
+                            <View style={[styles.accentStrip, { backgroundColor: '#F59E0B' }]} />
+                            <View style={styles.glassAlertContent}>
+                                <View style={styles.glassAlertHeader}>
+                                    <AlertCircle color="#F59E0B" size={15} />
+                                    <Text style={styles.glassAlertTitle}>Limited Data Available</Text>
+                                </View>
+                                <Text style={styles.glassAlertText}>
+                                    Predictions are currently based on incomplete vitals. Update logs to improve forecast confidence.
+                                </Text>
+                                <Pressable 
+                                    style={({ pressed }) => [styles.glassAlertBtn, pressed && { opacity: 0.85 }]}
+                                    onPress={handleRequestBP}
+                                >
+                                    <Text style={styles.glassAlertBtnText}>Request BP Reading</Text>
+                                    <ArrowUpRight size={13} color="#6366F1" />
+                                </Pressable>
                             </View>
-                            <Text style={styles.frostedAlertText}>
-                                Predictions are currently based on incomplete vitals. Update logs to improve forecast confidence.
-                            </Text>
-                            <Pressable 
-                                style={({ pressed }) => [styles.frostedAlertBtn, pressed && { opacity: 0.85 }]}
-                                onPress={handleRequestBP}
-                            >
-                                <Text style={styles.frostedAlertBtnText}>Request BP Reading</Text>
-                                <ArrowUpRight size={14} color="#6366F1" />
-                            </Pressable>
                         </View>
                     )}
 
@@ -781,7 +878,12 @@ export default function CompanionAnalyticsScreen() {
                         {(() => {
                             const predData = predictions.predictions || [];
                             if (predData.length === 0) {
-                                return <Text style={styles.noForecastText}>No forecasting metrics synchronized yet.</Text>;
+                                return (
+                                    <View style={styles.emptyForecastContainer}>
+                                        <ForecastEmptyIllustration />
+                                        <Text style={styles.noForecastText}>Not enough data to generate forecasts</Text>
+                                    </View>
+                                );
                             }
 
                             const getForecastHumanStatus = (bp) => {
@@ -847,11 +949,14 @@ export default function CompanionAnalyticsScreen() {
 
                         {/* Recovery Banner */}
                         {insights.predictive_health?.recovery?.status && (
-                            <View style={styles.recoveryBanner}>
-                                <ShieldCheck size={18} color="#10B981" />
-                                <View style={{ flex: 1 }}>
-                                    <Text style={styles.recoveryBannerTitle}>Patient is recovering</Text>
-                                    <Text style={styles.recoveryBannerDesc}>
+                            <View style={styles.premiumGlassAlert}>
+                                <View style={[styles.accentStrip, { backgroundColor: '#10B981' }]} />
+                                <View style={styles.glassAlertContent}>
+                                    <View style={styles.glassAlertHeader}>
+                                        <ShieldCheck size={15} color="#10B981" />
+                                        <Text style={[styles.glassAlertTitle, { color: '#065F46' }]}>Patient is recovering</Text>
+                                    </View>
+                                    <Text style={[styles.glassAlertText, { color: '#047857' }]}>
                                         Risk has decreased for {insights.predictive_health.recovery.days} consecutive days (Confidence: {insights.predictive_health.recovery.confidence}%).
                                     </Text>
                                 </View>
@@ -860,11 +965,14 @@ export default function CompanionAnalyticsScreen() {
 
                         {/* Early Warning Alert */}
                         {(insights.predictive_health?.risk_trends?.velocity > 0 || insights.predictive_health?.forecast?.trajectory === 'negative') && (
-                            <View style={styles.warningAlertBanner}>
-                                <AlertCircle size={18} color="#EF4444" style={{ marginTop: 2 }} />
-                                <View style={{ flex: 1 }}>
-                                    <Text style={styles.warningAlertTitle}>Early Warning Alert</Text>
-                                    <Text style={styles.warningAlertDesc}>
+                            <View style={[styles.premiumGlassAlert, { marginTop: insights.predictive_health?.recovery?.status ? 12 : 0 }]}>
+                                <View style={[styles.accentStrip, { backgroundColor: '#EF4444' }]} />
+                                <View style={styles.glassAlertContent}>
+                                    <View style={styles.glassAlertHeader}>
+                                        <AlertCircle size={15} color="#EF4444" />
+                                        <Text style={[styles.glassAlertTitle, { color: '#991B1B' }]}>Early Warning Alert</Text>
+                                    </View>
+                                    <Text style={[styles.glassAlertText, { color: '#B91C1C' }]}>
                                         {insights.predictive_health.risk_trends.velocity > 0
                                             ? `Risk velocity is increasing (Velocity: +${insights.predictive_health.risk_trends.velocity.toFixed(2)}, Accel: +${insights.predictive_health.risk_trends.acceleration.toFixed(2)}). `
                                             : ''}
@@ -876,7 +984,7 @@ export default function CompanionAnalyticsScreen() {
                             </View>
                         )}
 
-                        <View style={styles.trajectoryRow}>
+                        <View style={[styles.trajectoryRow, { marginTop: 12 }]}>
                             <View style={{ flex: 1 }}>
                                 <Text style={styles.trajectoryText}>
                                     Currently projected: <Text style={FONT.bold}>{insights.predictive_health.forecast.projected_score_14d}/100</Text>
@@ -975,7 +1083,7 @@ export default function CompanionAnalyticsScreen() {
                     </Animated.View>
                 )}
 
-                {/* 8. Journey Progression Cards */}
+                {/* 8. Journey Progression Cards (Redesigned as Single-Row Card) */}
                 <Animated.View style={[styles.card, sectionAnimStyle(7)]}>
                     <View style={styles.sectionHeaderRow}>
                         <Calendar color={colors.primary} size={18} />
@@ -983,66 +1091,54 @@ export default function CompanionAnalyticsScreen() {
                     </View>
                     <Text style={styles.cardSub}>Long-term progression metrics</Text>
 
-                    <View style={styles.journeyListContainer}>
-                        {/* Card 1: Risk Status */}
-                        <Animated.View style={[styles.journeyMetricCard, journeyAnimStyle(0)]}>
-                            <View style={styles.journeyMetricHeader}>
-                                <Text style={styles.journeyMetricLabel}>Risk Status</Text>
-                                <TrendingUp size={16} color={colors.textSecondary} />
+                    <View style={styles.journeyProgressionCard}>
+                        {/* Col 1: Risk Status */}
+                        <View style={styles.journeyProgressionCol}>
+                            <View style={styles.journeyColHeader}>
+                                <TrendingUp size={14} color={getRiskColor(riskLevel)} />
+                                <Text style={styles.journeyColLabel}>Risk</Text>
                             </View>
-                            <View style={styles.journeyMetricRow}>
-                                <Text style={[styles.journeyMetricVal, { color: getRiskColor(riskLevel) }]}>
-                                    {riskLevel.toUpperCase()}
+                            <Text style={[styles.journeyColValue, { color: getRiskColor(riskLevel) }]} numberOfLines={1}>
+                                {riskLevel.toUpperCase()}
+                            </Text>
+                            <View style={[styles.journeyTrendBadge, { backgroundColor: getTrendBg(trendDirection) }]}>
+                                <Text style={[styles.journeyTrendText, { color: getTrendColor(trendDirection) }]} numberOfLines={1}>
+                                    {trendDirection === 'improving' ? 'Improving' : trendDirection === 'worsening' ? 'Declining' : 'Stable'}
                                 </Text>
-                                <View style={[styles.trendBadge, { backgroundColor: getTrendBg(trendDirection) }]}>
-                                    <Text style={[styles.trendBadgeText, { color: getTrendColor(trendDirection) }]}>
-                                        {trendDirection === 'improving' ? '↗ Improving' : trendDirection === 'worsening' ? '↘ Declining' : '→ Stable'}
-                                    </Text>
-                                </View>
                             </View>
-                        </Animated.View>
+                        </View>
 
-                        {/* Card 2: Care Visibility */}
-                        <Animated.View style={[styles.journeyMetricCard, journeyAnimStyle(1)]}>
-                            <View style={styles.journeyMetricHeader}>
-                                <Text style={styles.journeyMetricLabel}>Care Visibility</Text>
-                                <Eye size={16} color={colors.textSecondary} />
-                            </View>
-                            <View style={styles.journeyMetricRow}>
-                                <Text style={[styles.journeyMetricVal, { color: visibilityScore >= 80 ? colors.success : visibilityScore >= 50 ? colors.warning : colors.danger }]}>
-                                    {visibilityScore}%
-                                </Text>
-                                <Text style={styles.journeyMetricSub}>{visibilityLabel} Coverage</Text>
-                            </View>
-                            {/* Horizontal Progress Bar */}
-                            <View style={styles.progressContainer}>
-                                <View style={styles.progressBarTrack}>
-                                    <View style={[
-                                        styles.progressBarFill, 
-                                        { 
-                                            width: `${visibilityScore}%`,
-                                            backgroundColor: visibilityScore >= 80 ? colors.success : visibilityScore >= 50 ? colors.warning : colors.danger 
-                                        }
-                                    ]} />
-                                </View>
-                            </View>
-                        </Animated.View>
+                        <View style={styles.journeyProgressionDivider} />
 
-                        {/* Card 3: Medication Adherence Streak */}
-                        <Animated.View style={[styles.journeyMetricCard, journeyAnimStyle(2)]}>
-                            <View style={styles.journeyMetricHeader}>
-                                <Text style={styles.journeyMetricLabel}>Medication Streak</Text>
-                                <Flame size={16} color="#F97316" />
+                        {/* Col 2: Care Visibility */}
+                        <View style={styles.journeyProgressionCol}>
+                            <View style={styles.journeyColHeader}>
+                                <Eye size={14} color={colors.primary} />
+                                <Text style={styles.journeyColLabel}>Visibility</Text>
                             </View>
-                            <View style={styles.journeyMetricRow}>
-                                <View style={styles.streakContainer}>
-                                    <Text style={[styles.journeyMetricVal, { color: colors.primary }]}>
-                                        {data.patient.current_streak} Days
-                                    </Text>
-                                </View>
-                                <Text style={styles.journeyMetricSub}>{adherence}% Adherence</Text>
+                            <Text style={[styles.journeyColValue, { color: colors.textPrimary }]} numberOfLines={1}>
+                                {visibilityScore}%
+                            </Text>
+                            <Text style={styles.journeyColSub} numberOfLines={1}>
+                                {visibilityLabel} Quality
+                            </Text>
+                        </View>
+
+                        <View style={styles.journeyProgressionDivider} />
+
+                        {/* Col 3: Streak */}
+                        <View style={styles.journeyProgressionCol}>
+                            <View style={styles.journeyColHeader}>
+                                <Flame size={14} color="#F97316" />
+                                <Text style={styles.journeyColLabel}>Streak</Text>
                             </View>
-                        </Animated.View>
+                            <Text style={[styles.journeyColValue, { color: colors.primary }]} numberOfLines={1}>
+                                {data.patient.current_streak}d
+                            </Text>
+                            <Text style={styles.journeyColSub} numberOfLines={1}>
+                                {adherence}% Adh
+                            </Text>
+                        </View>
                     </View>
                 </Animated.View>
 
@@ -1057,11 +1153,13 @@ export default function CompanionAnalyticsScreen() {
                     <View style={styles.journeyTimelineSection}>
                         {(!data.risk_timeline || data.risk_timeline.length === 0) ? (
                             <View style={styles.emptyTimelineContainer}>
-                                <Text style={styles.emptyTimelineEmoji}>🌱</Text>
+                                <TimelineEmptyIllustration />
                                 <Text style={styles.emptyTimelineTitle}>
-                                    Risk history will appear as the patient accumulates health data over time.
+                                    No risk transitions recorded yet
                                 </Text>
-                                <Text style={styles.emptyTimelineSub}>Check back after a few days.</Text>
+                                <Text style={styles.emptyTimelineSub}>
+                                    History will appear as patient health logs accumulate.
+                                </Text>
                             </View>
                         ) : (
                             <View style={styles.timelineList}>
@@ -1196,35 +1294,65 @@ const styles = StyleSheet.create({
         marginBottom: 8,
     },
     
-    // AI Insight Hero styles
-    insightHeroCard: {
-        backgroundColor: '#EEF2FF',
+    // AI Insight / Summary Card styles
+    summaryCard: {
+        backgroundColor: colors.surface,
         borderRadius: radius.xl,
         padding: spacing.md,
         borderWidth: 1.5,
-        borderColor: '#C7D2FE',
+        borderColor: colors.primarySoft,
         ...shadows.card,
     },
-    insightHeroHeader: {
+    summaryHeader: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 6,
-        marginBottom: 6,
+        gap: 8,
+        marginBottom: 10,
     },
-    insightHeroHeaderTitle: {
-        fontSize: 11,
-        ...FONT.heavy,
-        color: '#4F46E5',
-        letterSpacing: 0.5,
+    summaryTitle: {
+        fontSize: 14,
+        ...FONT.bold,
+        color: colors.textPrimary,
     },
-    insightHeroText: {
-        fontSize: 13,
+    summaryNarrative: {
+        fontSize: 12,
+        ...FONT.medium,
+        color: colors.textSecondary,
+        lineHeight: 16,
+        marginBottom: 14,
+    },
+    summaryStatsRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        backgroundColor: '#F8FAFC',
+        borderRadius: 12,
+        paddingVertical: 10,
+        paddingHorizontal: 8,
+        borderWidth: 1,
+        borderColor: colors.borderLight,
+    },
+    summaryStatItem: {
+        flex: 1,
+        alignItems: 'center',
+    },
+    summaryStatLabel: {
+        fontSize: 9,
         ...FONT.semibold,
-        color: '#312E81',
-        lineHeight: 18,
+        color: colors.textMuted,
+        marginBottom: 2,
+    },
+    summaryStatVal: {
+        fontSize: 11,
+        ...FONT.bold,
+    },
+    summaryStatDivider: {
+        width: 1,
+        height: 20,
+        backgroundColor: colors.borderLight,
+        alignSelf: 'center',
     },
 
-    // Visibility Hero Ring styles
+    // Visibility Hero Ring & KPIs (Side-by-side) styles
     kpiCardUnified: {
         backgroundColor: colors.surface,
         borderRadius: radius.xl,
@@ -1243,131 +1371,139 @@ const styles = StyleSheet.create({
         backgroundColor: colors.borderLight,
         marginVertical: 12,
     },
+    kpiMainRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 16,
+    },
     visibilityHeroContainer: {
         alignItems: 'center',
         justifyContent: 'center',
-        marginVertical: 12,
+        position: 'relative',
+        width: 96,
+        height: 96,
     },
     visibilityHeroTextContainer: {
         position: 'absolute',
         alignItems: 'center',
+        justifyContent: 'center',
     },
     visibilityHeroPercent: {
-        fontSize: 24,
+        fontSize: 18,
         ...FONT.heavy,
     },
     visibilityHeroLabel: {
-        fontSize: 12,
-        ...FONT.bold,
-        color: colors.textPrimary,
-        marginTop: 2,
-    },
-    visibilityHeroSub: {
         fontSize: 9,
-        ...FONT.semibold,
+        ...FONT.bold,
         color: colors.textMuted,
         marginTop: 1,
     },
-    kpiDetailsGrid: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        gap: 12,
-        marginTop: 12,
-    },
-    kpiDetailBox: {
+    kpiInfoColumn: {
         flex: 1,
-        backgroundColor: '#F8FAFC',
-        borderRadius: 16,
-        paddingVertical: 12,
-        paddingHorizontal: 12,
-        borderWidth: 1,
-        borderColor: colors.borderLight,
-        alignItems: 'center',
+        gap: 6,
     },
-    kpiDetailLabel: {
-        fontSize: 10,
-        ...FONT.bold,
+    kpiDetailInlineRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingVertical: 2,
+    },
+    kpiDetailInlineLabel: {
+        fontSize: 11,
+        ...FONT.semibold,
         color: colors.textSecondary,
-        marginBottom: 6,
     },
     kpiDetailBadge: {
-        paddingHorizontal: 10,
-        paddingVertical: 4,
-        borderRadius: 8,
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: 6,
         alignItems: 'center',
         justifyContent: 'center',
     },
     kpiDetailBadgeText: {
-        fontSize: 11,
+        fontSize: 10,
         ...FONT.bold,
     },
-    stabilityBannerUnified: {
+    stabilityIndicatorRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: '#F8FAFC',
-        borderRadius: 12,
-        paddingVertical: 10,
-        paddingHorizontal: 12,
-        borderWidth: 1,
-        borderColor: colors.borderLight,
-        marginTop: 14,
-        gap: 8,
+        gap: 6,
+        marginTop: 4,
     },
     stabilityPulseDot: {
-        width: 8,
-        height: 8,
-        borderRadius: 4,
+        width: 6,
+        height: 6,
+        borderRadius: 3,
     },
-    stabilityBannerText: {
-        fontSize: 11,
+    stabilityIndicatorText: {
+        fontSize: 10,
         ...FONT.semibold,
-        color: colors.textSecondary,
+        color: colors.textMuted,
     },
 
-    // Coverage Breakdown Progress Capsules styles
-    coverageGridUnified: {
+    // Coverage Breakdown Progress Capsules (2x2 Grid)
+    coverageGrid2x2: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        justifyContent: 'space-between',
         gap: 10,
         marginTop: 6,
     },
-    coverageCapsule: {
+    coverageGridCard: {
+        width: '48%',
         backgroundColor: '#F8FAFC',
         borderWidth: 1,
         borderColor: colors.borderLight,
-        borderRadius: 16,
-        padding: 12,
+        borderRadius: 12,
+        padding: 10,
         ...shadows.sm,
     },
-    coverageCapsuleHeader: {
+    coverageGridCardSkeleton: {
+        width: '48%',
+        backgroundColor: '#F8FAFC',
+        borderWidth: 1,
+        borderColor: colors.borderLight,
+        borderRadius: 12,
+        padding: 10,
+    },
+    coverageGridCardHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
         marginBottom: 6,
     },
-    coverageCapsuleLabel: {
-        fontSize: 12,
-        ...FONT.bold,
-        color: colors.textPrimary,
+    coverageGridIconWrapper: {
+        width: 24,
+        height: 24,
+        borderRadius: 12,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
-    coverageCapsulePercent: {
+    coverageGridPercentText: {
         fontSize: 12,
         ...FONT.heavy,
     },
-    coverageCapsuleBarTrack: {
-        height: 6,
-        backgroundColor: '#E2E8F0',
-        borderRadius: 3,
-        overflow: 'hidden',
+    coverageGridCardTitle: {
+        fontSize: 11,
+        ...FONT.bold,
+        color: colors.textPrimary,
+        marginBottom: 2,
+    },
+    coverageGridCardScore: {
+        fontSize: 9,
+        ...FONT.semibold,
+        color: colors.textMuted,
         marginBottom: 6,
     },
-    coverageCapsuleBarFill: {
-        height: '100%',
-        borderRadius: 3,
+    coverageGridBarTrack: {
+        height: 4,
+        backgroundColor: '#E2E8F0',
+        borderRadius: 2,
+        overflow: 'hidden',
     },
-    coverageCapsuleScore: {
-        fontSize: 9,
-        ...FONT.bold,
-        color: colors.textMuted,
+    coverageGridBarFill: {
+        height: '100%',
+        borderRadius: 2,
     },
 
     // Risk Contributors styles
@@ -1382,104 +1518,91 @@ const styles = StyleSheet.create({
     stackedBarSegment: {
         height: '100%',
     },
-    contributorsGrid: {
-        gap: 10,
-        marginTop: 6,
+    contributorsListCompact: {
+        gap: 8,
+        marginTop: 8,
     },
-    contributorCard: {
-        backgroundColor: '#F8FAFC',
-        borderWidth: 1,
-        borderColor: colors.borderLight,
-        borderRadius: 16,
-        padding: 12,
-        ...shadows.sm,
-    },
-    contributorCardHeader: {
+    contributorCompactRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 8,
+        paddingVertical: 4,
     },
-    contributorLabelRow: {
+    contributorCompactLeft: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 6,
+        gap: 8,
     },
-    contributorDot: {
-        width: 8,
-        height: 8,
-        borderRadius: 4,
+    contributorBullet: {
+        width: 6,
+        height: 6,
+        borderRadius: 3,
     },
-    contributorCardLabel: {
+    contributorCompactLabel: {
+        fontSize: 12,
+        ...FONT.semibold,
+        color: colors.textPrimary,
+    },
+    contributorCompactRight: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    contributorCompactValue: {
         fontSize: 12,
         ...FONT.bold,
         color: colors.textPrimary,
     },
-    contributorRoleBadge: {
-        paddingHorizontal: 8,
-        paddingVertical: 3,
-        borderRadius: 6,
+    contributorCompactBadge: {
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderRadius: 4,
     },
-    contributorRoleText: {
+    contributorCompactBadgeText: {
         fontSize: 9,
         ...FONT.bold,
     },
-    contributorMetricRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'baseline',
-        marginBottom: 6,
-    },
-    contributorMetricPercent: {
-        fontSize: 18,
-        ...FONT.heavy,
-        color: colors.textPrimary,
-    },
-    contributorMetricImpact: {
-        fontSize: 10,
-        ...FONT.semibold,
-        color: colors.textMuted,
-    },
-    contributorBarTrack: {
-        height: 4,
-        backgroundColor: '#E2E8F0',
-        borderRadius: 2,
-        overflow: 'hidden',
-    },
-    contributorBarFill: {
-        height: '100%',
-        borderRadius: 2,
-    },
 
     // Forecast styles
-    frostedAlertCard: {
+    premiumGlassAlert: {
         backgroundColor: '#FFFDF5',
         borderWidth: 1,
-        borderColor: '#FEF3C7',
-        borderRadius: 16,
-        padding: 12,
-        marginBottom: 12,
-        ...shadows.sm,
+        borderColor: colors.borderLight,
+        borderRadius: 12,
+        overflow: 'hidden',
+        position: 'relative',
+        marginTop: 8,
     },
-    frostedAlertHeader: {
+    accentStrip: {
+        position: 'absolute',
+        left: 0,
+        top: 0,
+        bottom: 0,
+        width: 4,
+    },
+    glassAlertContent: {
+        paddingVertical: 10,
+        paddingHorizontal: 12,
+        paddingLeft: 16,
+    },
+    glassAlertHeader: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 6,
         marginBottom: 4,
     },
-    frostedAlertTitle: {
+    glassAlertTitle: {
         fontSize: 12,
         ...FONT.bold,
         color: '#D97706',
     },
-    frostedAlertText: {
+    glassAlertText: {
         fontSize: 11,
         ...FONT.medium,
         color: '#B45309',
         lineHeight: 15,
-        marginBottom: 10,
     },
-    frostedAlertBtn: {
+    glassAlertBtn: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
@@ -1487,14 +1610,15 @@ const styles = StyleSheet.create({
         backgroundColor: '#FFF',
         borderWidth: 1,
         borderColor: '#FCD34D',
-        borderRadius: 10,
-        paddingVertical: 8,
-        paddingHorizontal: 12,
+        borderRadius: 8,
+        paddingVertical: 6,
+        paddingHorizontal: 10,
         alignSelf: 'flex-start',
+        marginTop: 8,
         ...shadows.sm,
     },
-    frostedAlertBtnText: {
-        fontSize: 11,
+    glassAlertBtnText: {
+        fontSize: 10,
         ...FONT.bold,
         color: '#4F46E5',
     },
@@ -1503,12 +1627,17 @@ const styles = StyleSheet.create({
         borderRadius: 16,
         overflow: 'hidden',
     },
+    emptyForecastContainer: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 12,
+    },
     noForecastText: {
         fontSize: 12,
         ...FONT.medium,
         color: colors.textMuted,
         textAlign: 'center',
-        paddingVertical: 12,
+        paddingVertical: 4,
     },
     forecastRow: {
         flexDirection: 'row',
@@ -1569,51 +1698,6 @@ const styles = StyleSheet.create({
     },
 
     // 14-Day Trajectory styles
-    recoveryBanner: {
-        backgroundColor: '#ECFDF5',
-        borderWidth: 1,
-        borderColor: '#A7F3D0',
-        borderRadius: 12,
-        padding: 10,
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
-        marginBottom: 12,
-    },
-    recoveryBannerTitle: {
-        fontSize: 12,
-        ...FONT.bold,
-        color: '#065F46',
-    },
-    recoveryBannerDesc: {
-        fontSize: 10,
-        ...FONT.medium,
-        color: '#047857',
-        marginTop: 2,
-    },
-    warningAlertBanner: {
-        backgroundColor: '#FEF2F2',
-        borderWidth: 1,
-        borderColor: '#FCA5A5',
-        borderRadius: 12,
-        padding: 10,
-        flexDirection: 'row',
-        alignItems: 'flex-start',
-        gap: 8,
-        marginBottom: 12,
-    },
-    warningAlertTitle: {
-        fontSize: 12,
-        ...FONT.bold,
-        color: '#991B1B',
-    },
-    warningAlertDesc: {
-        fontSize: 10,
-        ...FONT.medium,
-        color: '#B91C1C',
-        marginTop: 2,
-        lineHeight: 14,
-    },
     trajectoryRow: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -1695,92 +1779,79 @@ const styles = StyleSheet.create({
         color: '#FFF',
     },
 
-    // Journey Progression & Timeline styles
-    journeyListContainer: {
-        gap: 12,
-        marginTop: spacing.sm,
-    },
-    journeyMetricCard: {
+    // Journey Progression Single-Row Card styles
+    journeyProgressionCard: {
+        flexDirection: 'row',
         backgroundColor: '#F8FAFC',
         borderWidth: 1,
         borderColor: colors.borderLight,
         borderRadius: 16,
-        padding: spacing.md,
+        paddingVertical: 12,
         ...shadows.sm,
+        marginTop: 8,
     },
-    journeyMetricHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
+    journeyProgressionCol: {
+        flex: 1,
         alignItems: 'center',
-        marginBottom: 6,
+        justifyContent: 'center',
     },
-    journeyMetricLabel: {
-        fontSize: 11,
+    journeyColHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        marginBottom: 4,
+    },
+    journeyColLabel: {
+        fontSize: 10,
         ...FONT.semibold,
-        color: colors.textSecondary,
+        color: colors.textMuted,
         textTransform: 'uppercase',
-        letterSpacing: 0.5,
     },
-    journeyMetricVal: {
-        fontSize: 22,
+    journeyColValue: {
+        fontSize: 15,
         ...FONT.heavy,
-        color: colors.textPrimary,
+        marginBottom: 2,
     },
-    journeyMetricRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
+    journeyTrendBadge: {
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderRadius: 4,
     },
-    journeyMetricSub: {
-        fontSize: 12,
+    journeyTrendText: {
+        fontSize: 9,
         ...FONT.bold,
+    },
+    journeyColSub: {
+        fontSize: 9,
+        ...FONT.semibold,
         color: colors.textMuted,
     },
-    trendBadge: {
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-        borderRadius: 8,
+    journeyProgressionDivider: {
+        width: 1,
+        height: '60%',
+        backgroundColor: colors.borderLight,
+        alignSelf: 'center',
     },
-    trendBadgeText: {
-        fontSize: 11,
-        ...FONT.bold,
-    },
-    progressContainer: {
-        marginTop: 10,
-        width: '100%',
-    },
-    progressBarTrack: {
-        height: 6,
-        backgroundColor: '#E2E8F0',
-        borderRadius: 3,
-        overflow: 'hidden',
-    },
-    progressBarFill: {
-        height: '100%',
-        borderRadius: 3,
-    },
-    streakContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
-    },
+
+    // Timeline styles
     journeyTimelineSection: {
         marginTop: 12,
+    },
+    emptyIllustrationWrapper: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginVertical: 8,
     },
     emptyTimelineContainer: {
         alignItems: 'center',
         justifyContent: 'center',
-        paddingVertical: 32,
+        paddingVertical: 24,
         paddingHorizontal: 16,
         backgroundColor: '#F8FAFC',
         borderRadius: 16,
         borderWidth: 1,
         borderColor: colors.borderLight,
         marginTop: 8,
-    },
-    emptyTimelineEmoji: {
-        fontSize: 32,
-        marginBottom: 10,
     },
     emptyTimelineTitle: {
         fontSize: 13,

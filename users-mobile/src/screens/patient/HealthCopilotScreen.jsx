@@ -17,67 +17,15 @@ import { apiService, handleApiError, getApiTokens } from '../../lib/api';
 import AlertManager from '../../utils/AlertManager';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const INITIAL_SUGGESTIONS = [
-    '📋 What should I do today?',
-    '📊 Weekly Health Summary',
-    '💊 My medications list',
-    '📈 My adherence streak',
-    '🩺 View vitals status',
-];
-
-// Helper to resolve doctor mascot pose
-const getMascotForMessage = (text) => {
-    if (!text) return require('../../../assets/doctor_mascot.jpg');
-    const lower = text.toLowerCase();
-    if (lower.includes('high bp') || lower.includes('alert') || lower.includes('danger') || lower.includes('concerned') || lower.includes('warning') || lower.includes('missed') || lower.includes('overdue')) {
-        return require('../../../assets/doctor_mascot_concerned.jpg');
-    }
-    if (lower.includes('streak') || lower.includes('congrats') || lower.includes('awesome') || lower.includes('great job') || lower.includes('success') || lower.includes('perfect')) {
-        return require('../../../assets/doctor_mascot_celebration.jpg');
-    }
-    if (lower.includes('take') || lower.includes('medication') || lower.includes('medicine') || lower.includes('remind') || lower.includes('please drink')) {
-        return require('../../../assets/doctor_mascot_caring.jpg');
-    }
-    if (lower.includes('insight') || lower.includes('summary') || lower.includes('trend') || lower.includes('report') || lower.includes('fact')) {
-        return require('../../../assets/doctor_mascot_insights.jpg');
-    }
-    if (lower.includes('thinking') || lower.includes('analyzing') || lower.includes('checking')) {
-        return require('../../../assets/doctor_mascot_thinking.jpg');
-    }
-    return require('../../../assets/doctor_mascot.jpg');
-};
-
 export default function HealthCopilotScreen({ navigation, route }) {
     const { t } = useTranslation();
-    const { displayName, userRole } = useAuth();
-    const patient = usePatientStore(state => state.patient);
-    const insets = useSafeAreaInsets();
-    
-    const [activeTab, setActiveTab] = useState('brief'); // 'brief' | 'chat'
+    const { displayName } = useAuth();
     const [copilotContext, setCopilotContext] = useState(null);
     const [loadingContext, setLoadingContext] = useState(true);
     
     // Checked states for Morning Brief and Care Plan items (stored locally)
     const [checkedBriefItems, setCheckedBriefItems] = useState({});
     const [checkedMedsTasks, setCheckedMedsTasks] = useState({});
-
-    // Chatbot States
-    const [activeSessionId, setActiveSessionId] = useState(null);
-    const [messages, setMessages] = useState([
-        {
-            id: 'disclaimer-msg',
-            text: 'CareMyMed AI provides educational guidance and assistance. It does not replace a licensed medical professional. For emergencies, contact emergency services or your healthcare provider immediately.',
-            isUser: false,
-            timestamp: Date.now()
-        }
-    ]);
-    const [inputText, setInputText] = useState('');
-    const [isTyping, setIsTyping] = useState(false);
-    const [typingStage, setTypingStage] = useState('');
-    const [followUpSuggestions, setFollowUpSuggestions] = useState(INITIAL_SUGGESTIONS);
-
-    const flatListRef = useRef(null);
-    const xhrRef = useRef(null);
 
     const firstName = displayName?.split(' ')[0] || 'there';
 
@@ -97,165 +45,6 @@ export default function HealthCopilotScreen({ navigation, route }) {
     useEffect(() => {
         fetchContext();
     }, []);
-
-    // Session Initialization (similar to ChatbotScreen)
-    useEffect(() => {
-        if (!activeSessionId && patient?._id) {
-            const initSession = async () => {
-                const timeoutPromise = new Promise((_, reject) =>
-                    setTimeout(() => reject(new Error('Session creation timed out')), 5000)
-                );
-                const createPromise = (async () => {
-                    const res = await apiService.chatbot.createSession({});
-                    return res.data;
-                })();
-
-                try {
-                    const session = await Promise.race([createPromise, timeoutPromise]);
-                    setActiveSessionId(session._id);
-                    
-                    if (session.messages && session.messages.length > 1) {
-                        const parsed = session.messages.map(m => ({
-                            id: m._id || String(Math.random()),
-                            text: m.text,
-                            isUser: m.role === 'user',
-                            timestamp: new Date(m.timestamp).getTime()
-                        }));
-                        setMessages(parsed);
-                    }
-                } catch (err) {
-                    console.warn('[HealthCopilot] Session creation failed:', err.message);
-                }
-            };
-            initSession();
-        }
-    }, [activeSessionId, patient?._id]);
-
-    useEffect(() => {
-        if (activeTab === 'chat') {
-            setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
-        }
-    }, [activeTab, messages, isTyping]);
-
-    const handleSend = async (textToSend) => {
-        const queryText = textToSend || inputText;
-        if (!queryText.trim()) return;
-
-        setInputText('');
-        setFollowUpSuggestions([]);
-        
-        // Add User Message
-        const userMsg = {
-            id: String(Math.random()),
-            text: queryText,
-            isUser: true,
-            timestamp: Date.now()
-        };
-        setMessages(prev => [...prev, userMsg]);
-        setIsTyping(true);
-        setTypingStage('🧠 Thinking...');
-
-        // Add placeholder Bot Message for streaming
-        const botMessageId = String(Math.random());
-        const botPlaceholder = {
-            id: botMessageId,
-            text: '',
-            isUser: false,
-            timestamp: Date.now()
-        };
-        setMessages(prev => [...prev, botPlaceholder]);
-
-        try {
-            await streamFromBackend(queryText, botMessageId);
-        } catch (err) {
-            console.warn('[HealthCopilot] Streaming error:', err.message);
-            // Update bot placeholder with error message
-            setMessages(prev =>
-                prev.map(m => m.id === botMessageId ? { ...m, text: 'Sorry, I encountered an issue. Please try again.' } : m)
-            );
-        } finally {
-            setIsTyping(false);
-            setTypingStage('');
-        }
-    };
-
-    const streamFromBackend = (queryText, botMessageId) => {
-        return new Promise(async (resolve, reject) => {
-            try {
-                if (xhrRef.current) {
-                    xhrRef.current.abort();
-                    xhrRef.current = null;
-                }
-
-                const tokens = await getApiTokens();
-                if (!tokens?.access_token) {
-                    throw new Error('Not authenticated.');
-                }
-
-                const targetLanguage = patient?.preferredLanguage ?? patient?.language ?? 'en';
-                const formData = new FormData();
-                formData.append('targetLanguage', targetLanguage);
-                formData.append('query', queryText);
-                if (activeSessionId) {
-                    formData.append('sessionId', activeSessionId);
-                }
-
-                const baseUrl = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3001/api';
-                
-                const xhr = new XMLHttpRequest();
-                xhrRef.current = xhr;
-                xhr.open('POST', `${baseUrl}/chatbot/chat`);
-                xhr.setRequestHeader('Authorization', `Bearer ${tokens.access_token}`);
-                xhr.setRequestHeader('x-app-name', 'CareMyMed');
-                xhr.setRequestHeader('x-app-platform', 'mobile');
-                xhr.setRequestHeader('X-Requested-Role', 'patient');
-
-                let buffer = '';
-                let botReplyText = '';
-
-                xhr.onreadystatechange = () => {
-                    if (xhr.readyState === 3 || xhr.readyState === 4) {
-                        const responseText = xhr.responseText;
-                        const newChunk = responseText.substring(buffer.length);
-                        buffer = responseText;
-
-                        const lines = newChunk.split('\n');
-                        for (let line of lines) {
-                            if (line.startsWith('data: ')) {
-                                try {
-                                    const parsed = JSON.parse(line.substring(6));
-                                    if (parsed.type === 'chunk' && parsed.text) {
-                                        botReplyText += parsed.text;
-                                        setMessages(prev =>
-                                            prev.map(m => m.id === botMessageId ? { ...m, text: botReplyText } : m)
-                                        );
-                                    } else if (parsed.type === 'suggestions' && parsed.items) {
-                                        setFollowUpSuggestions(parsed.items);
-                                    }
-                                } catch (e) {
-                                    // Parse error
-                                }
-                            }
-                        }
-                    }
-
-                    if (xhr.readyState === 4) {
-                        if (xhr.status >= 200 && xhr.status < 300) {
-                            resolve();
-                        } else {
-                            reject(new Error(`Server returned status ${xhr.status}`));
-                        }
-                    }
-                };
-
-                xhr.onerror = () => reject(new Error('Network error.'));
-                xhr.send(formData);
-
-            } catch (err) {
-                reject(err);
-            }
-        });
-    };
 
     const toggleBriefItem = (idx) => {
         setCheckedBriefItems(prev => ({
@@ -282,26 +71,8 @@ export default function HealthCopilotScreen({ navigation, route }) {
                     <Text style={styles.headerSub}>Interactive Care & Action Workspace</Text>
                 </View>
                 <View style={styles.headerActions}>
-                    <Bot size={22} color="#6366F1" />
+                    <Sparkles size={22} color="#6366F1" />
                 </View>
-            </View>
-            
-            {/* Tabs */}
-            <View style={styles.tabBar}>
-                <Pressable
-                    style={[styles.tabBtn, activeTab === 'brief' && styles.tabBtnActive]}
-                    onPress={() => setActiveTab('brief')}
-                >
-                    <Sparkles size={16} color={activeTab === 'brief' ? '#6366F1' : '#64748B'} />
-                    <Text style={[styles.tabBtnText, activeTab === 'brief' && styles.tabBtnTextActive]}>My Care Hub</Text>
-                </Pressable>
-                <Pressable
-                    style={[styles.tabBtn, activeTab === 'chat' && styles.tabBtnActive]}
-                    onPress={() => setActiveTab('chat')}
-                >
-                    <Bot size={16} color={activeTab === 'chat' ? '#6366F1' : '#64748B'} />
-                    <Text style={[styles.tabBtnText, activeTab === 'chat' && styles.tabBtnTextActive]}>Ask Copilot</Text>
-                </Pressable>
             </View>
         </View>
     );
@@ -447,105 +218,12 @@ export default function HealthCopilotScreen({ navigation, route }) {
         );
     };
 
-    const renderChatTab = () => {
-        const renderItem = ({ item }) => {
-            if (item.isSkeleton) return null;
-            const isUser = item.isUser;
-            return (
-                <View style={[styles.bubbleRow, isUser ? styles.bubbleRowUser : styles.bubbleRowBot]}>
-                    {!isUser && (
-                        <Image
-                            source={getMascotForMessage(item.text)}
-                            style={styles.botAvatar}
-                        />
-                    )}
-                    <View style={[styles.bubble, isUser ? styles.bubbleUser : styles.bubbleBot]}>
-                        {isUser && (
-                            <LinearGradient colors={['#6366F1', '#4F46E5']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
-                        )}
-                        <Text style={[styles.bubbleText, isUser && styles.bubbleTextUser]}>{item.text}</Text>
-                        <Text style={[styles.bubbleTime, isUser && styles.bubbleTimeUser]}>
-                            {new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </Text>
-                    </View>
-                    {isUser && (
-                        <View style={styles.userAvatar}>
-                            <User size={16} color="#FFFFFF" strokeWidth={2.5} />
-                        </View>
-                    )}
-                </View>
-            );
-        };
-
-        return (
-            <KeyboardAvoidingView
-                style={{ flex: 1 }}
-                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-                keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
-            >
-                <FlatList
-                    ref={flatListRef}
-                    data={messages}
-                    keyExtractor={item => item.id}
-                    renderItem={renderItem}
-                    contentContainerStyle={styles.chatListContent}
-                    ListFooterComponent={() => (
-                        <View style={{ gap: 10 }}>
-                            {isTyping && (
-                                <View style={styles.bubbleRow}>
-                                    <Image
-                                        source={require('../../../assets/doctor_mascot_thinking.jpg')}
-                                        style={styles.botAvatar}
-                                    />
-                                    <View style={[styles.bubble, styles.bubbleBot, { flexDirection: 'row', alignItems: 'center' }]}>
-                                        <Text style={styles.typingStageText}>{typingStage}</Text>
-                                        <ActivityIndicator size="small" color="#6366F1" />
-                                    </View>
-                                </View>
-                            )}
-                            
-                            {/* Follow-up suggestions */}
-                            {followUpSuggestions.length > 0 && (
-                                <View style={styles.suggestionsContainer}>
-                                    {followUpSuggestions.map((s, i) => (
-                                        <Pressable key={i} style={styles.suggestionChip} onPress={() => handleSend(s)}>
-                                            <Text style={styles.suggestionChipText}>{s}</Text>
-                                        </Pressable>
-                                    ))}
-                                </View>
-                            )}
-                        </View>
-                    )}
-                />
-                
-                {/* Input Bar */}
-                <View style={[styles.inputBar, { paddingBottom: Math.max(12, insets.bottom) }]}>
-                    <TextInput
-                        style={styles.input}
-                        placeholder="Type a message or ask a health question..."
-                        placeholderTextColor="#94A3B8"
-                        value={inputText}
-                        onChangeText={setInputText}
-                        onSubmitEditing={() => handleSend()}
-                    />
-                    <Pressable
-                        style={[styles.sendBtn, !inputText.trim() && styles.sendBtnDisabled]}
-                        onPress={() => handleSend()}
-                        disabled={!inputText.trim()}
-                    >
-                        <Send size={18} color="#FFFFFF" />
-                    </Pressable>
-                </View>
-            </KeyboardAvoidingView>
-        );
-    };
-
     return (
         <View style={styles.container}>
             <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
             {renderHeader()}
             <View style={{ flex: 1 }}>
-                {activeTab === 'brief' ? renderBriefTab() : renderChatTab()}
+                {renderBriefTab()}
             </View>
         </View>
     );

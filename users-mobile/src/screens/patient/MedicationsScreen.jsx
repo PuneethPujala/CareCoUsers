@@ -226,6 +226,8 @@ const MedCard = ({ med, onToggle, onSnooze, onRefill }) => {
                 renderLeftActions={med.taken ? null : renderLeft}
                 renderRightActions={med.taken ? null : renderRight}
                 onSwipeableLeftOpen={() => { if (!med.taken) onToggle(med); swRef.current?.close(); }}
+                onSwipeableRightOpen={() => { if (med.taken) swRef.current?.close(); }}
+                enabled={!med.taken}
                 friction={2} leftThreshold={40} rightThreshold={40}
             >
                 <Pressable

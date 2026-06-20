@@ -1,11 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, RefreshControl, Pressable, TextInput, ActivityIndicator } from 'react-native';
 import { apiService } from '../../lib/api';
 import { colors, spacing, radius, shadows, layout } from '../../theme';
 import { ShieldCheck, UserPlus, ChevronRight, LogOut } from 'lucide-react-native';
 import AlertManager from '../../utils/AlertManager';
 import usePatientStore from '../../store/usePatientStore';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
 
@@ -29,17 +29,19 @@ export default function CompanionHomeScreen() {
 
     const loadData = async () => {
         try {
-            // We just need the patient status to get `linked_patients`
-            const res = await apiService.companion.getPatientStatus();
+            // Fetch only basic linked patient info using the lightweight endpoint
+            const res = await apiService.companion.getLinkedPatients();
             setData(res.data);
         } catch (err) {
             console.warn('Failed to load companion home data', err);
         }
     };
 
-    useEffect(() => {
-        loadData();
-    }, []);
+    useFocusEffect(
+        useCallback(() => {
+            loadData();
+        }, [])
+    );
 
     const onRefresh = async () => {
         setRefreshing(true);

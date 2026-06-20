@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import {
     View, Text, StyleSheet, ScrollView, Platform, Pressable, Modal,
@@ -11,8 +11,9 @@ import {
     ShieldCheck, Star, MapPin, ClipboardList, FileText, FlaskConical,
     Wallet, CreditCard, Receipt, Heart, Users, BellRing, Clock, Globe,
     Shield, Droplets, Calendar, User, Trash2, ShieldCheck as ShieldCheckIcon, Smartphone,
-    Mail, TrendingUp
+    Mail, TrendingUp, HeartPulse, Check
 } from 'lucide-react-native';
+import BottomSheet, { BottomSheetView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
 import { colors, layout, spacing, radius, shadows, motion, useReduceMotion } from '../../theme';
 import { useAuth } from '../../context/AuthContext';
 import { apiService } from '../../lib/api';
@@ -66,6 +67,7 @@ export default function PatientProfileScreen({ navigation }) {
     const { t } = useTranslation();
     const { signOut, displayName, userEmail, profile, switchRole } = useAuth();
     const reduceMotion = useReduceMotion();
+    const filteredWorkspaces = profile?.workspaces?.filter(w => w.id === 'patient' || w.id === 'companion') || [];
     const [patient, setPatient] = useState(null);
     const [loading, setLoading] = useState(true);
     const [mfaEnabled, setMfaEnabled] = useState(false);
@@ -76,9 +78,11 @@ export default function PatientProfileScreen({ navigation }) {
     const [unreadCount, setUnreadCount] = useState(0);
     const shareCardRef = useRef(null);
 
-    // Modals
-    const [workspaceModalVisible, setWorkspaceModalVisible] = useState(false);
+    // Modals & Bottom Sheets
+    const workspaceSheetRef = useRef(null);
+    const snapPoints = useMemo(() => ['22%'], []);
     const [switchingWorkspace, setSwitchingWorkspace] = useState(false);
+    const [switchingText, setSwitchingText] = useState('');
     const [avatarModalVisible, setAvatarModalVisible] = useState(false);
     const [cropImageUri, setCropImageUri] = useState(null);
     const [cropModalVisible, setCropModalVisible] = useState(false);
@@ -602,11 +606,18 @@ export default function PatientProfileScreen({ navigation }) {
 
     const handleWorkspaceSwitch = async (targetRole) => {
         if (targetRole === 'patient') {
-            setWorkspaceModalVisible(false);
+            workspaceSheetRef.current?.close();
             return;
         }
-        setWorkspaceModalVisible(false);
+        workspaceSheetRef.current?.close();
+        setSwitchingText(
+            targetRole === 'companion'
+                ? t('profile.switching_to_caregiver', { defaultValue: 'Switching to Caregiver...' })
+                : t('profile.switching_to_patient', { defaultValue: 'Switching to Patient...' })
+        );
         setSwitchingWorkspace(true);
+        // Minimum visual feedback delay so user sees "Switching to Caregiver..."
+        await new Promise((resolve) => setTimeout(resolve, 400));
         try {
             await switchRole(targetRole);
         } catch (err) {
@@ -755,9 +766,14 @@ export default function PatientProfileScreen({ navigation }) {
                             <View style={s.profileInfo}>
                                 <Text style={s.profileName}>{patient?.name || displayName || 'User'}</Text>
                                 <Text style={s.profileEmail}>{userEmail || 'patient@CareMyMed.com'}</Text>
-                                {profile?.workspaces?.length > 1 && (
-                                    <Pressable style={s.workspacePill} onPress={() => setWorkspaceModalVisible(true)}>
-                                        <Text style={s.workspacePillTxt}>🩺 {t('profile.patient_workspace_pill', { defaultValue: 'Patient Workspace' })}</Text>
+                                {filteredWorkspaces.length > 1 && (
+                                    <Pressable 
+                                        style={s.workspacePill} 
+                                        onPress={() => workspaceSheetRef.current?.expand()}
+                                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                    >
+                                        <HeartPulse size={12} color="#2563EB" strokeWidth={2.5} style={{ marginRight: 4 }} />
+                                        <Text style={s.workspacePillTxt}>{t('profile.patient_workspace_pill', { defaultValue: 'Patient' })}</Text>
                                         <ChevronDown size={12} color="#2563EB" strokeWidth={2.5} style={{ marginLeft: 4 }} />
                                     </Pressable>
                                 )}
@@ -1126,51 +1142,56 @@ export default function PatientProfileScreen({ navigation }) {
             </ScrollView>
 
             {/* ── Workspace Chooser Bottom Sheet ── */}
-            <Modal visible={workspaceModalVisible} animationType="slide" transparent onRequestClose={() => setWorkspaceModalVisible(false)}>
-                <Pressable style={s.modalOverlay} onPress={() => setWorkspaceModalVisible(false)}>
-                    <View style={s.bottomSheetContent}>
-                        <View style={s.bottomSheetIndicator} />
-                        <View style={s.modalHeader}>
-                            <Text style={s.modalTitle}>{t('profile.switch_workspace', { defaultValue: 'Switch Workspace' })}</Text>
-                            <Pressable onPress={() => setWorkspaceModalVisible(false)} hitSlop={10}>
-                                <X size={24} color="#64748B" />
-                            </Pressable>
-                        </View>
-                        <Text style={s.bottomSheetSubtitle}>
-                            {t('profile.switch_workspace_desc', { defaultValue: 'Select context to view and manage health records.' })}
-                        </Text>
-                        
-                        {profile?.workspaces?.map((ws) => {
+            <BottomSheet
+                ref={workspaceSheetRef}
+                index={-1}
+                snapPoints={snapPoints}
+                backdropComponent={(props) => (
+                    <BottomSheetBackdrop
+                        {...props}
+                        disappearsOnIndex={-1}
+                        appearsOnIndex={0}
+                    />
+                )}
+                enablePanDownToClose
+            >
+                <BottomSheetView style={s.bottomSheetView}>
+                    <View style={s.modalHeader}>
+                        <Text style={s.modalTitle}>{t('profile.switch_workspace', { defaultValue: 'Switch Workspace' })}</Text>
+                    </View>
+                    
+                    <View style={s.bottomSheetOptionsList}>
+                        {filteredWorkspaces.map((ws) => {
                             const isCurrent = ws.id === 'patient';
+                            const IconComponent = ws.id === 'patient' ? HeartPulse : Users;
                             return (
                                 <Pressable 
                                     key={ws.id} 
-                                    style={[s.workspaceOption, isCurrent && s.workspaceOptionActive]} 
+                                    style={[s.workspaceOptionRow, isCurrent && s.workspaceOptionRowActive]} 
                                     onPress={() => handleWorkspaceSwitch(ws.id)}
                                 >
                                     <View style={s.workspaceOptionLeft}>
-                                        <Text style={s.workspaceOptionIcon}>{ws.id === 'patient' ? '🩺' : '❤️'}</Text>
-                                        <View style={s.workspaceOptionInfo}>
-                                            <Text style={[s.workspaceOptionLabel, isCurrent && s.workspaceOptionLabelActive]}>
-                                                {ws.label} {isCurrent && `(${t('profile.current', { defaultValue: 'Current' })})`}
-                                            </Text>
-                                            <Text style={s.workspaceOptionDesc}>{ws.description}</Text>
-                                        </View>
+                                        <IconComponent size={20} color={isCurrent ? colors.primary : colors.textSecondary} strokeWidth={2.2} style={{ marginRight: 12 }} />
+                                        <Text style={[s.workspaceOptionLabel, isCurrent && s.workspaceOptionLabelActive]}>
+                                            {ws.id === 'patient' 
+                                                ? t('profile.workspace_patient', { defaultValue: 'Patient' }) 
+                                                : t('profile.workspace_caregiver', { defaultValue: 'Caregiver' })}
+                                        </Text>
                                     </View>
-                                    {isCurrent && <ShieldCheck size={20} color={colors.primary} strokeWidth={2.5} />}
+                                    {isCurrent && <Check size={18} color={colors.primary} strokeWidth={2.5} />}
                                 </Pressable>
                             );
                         })}
                     </View>
-                </Pressable>
-            </Modal>
+                </BottomSheetView>
+            </BottomSheet>
 
             {/* ── Switching Workspace Loading Overlay ── */}
             {switchingWorkspace && (
                 <View style={s.overlayContainer}>
                     <View style={s.overlayContent}>
                         <ActivityIndicator size="large" color={colors.primary} style={{ marginBottom: 16 }} />
-                        <Text style={s.overlayText}>{t('profile.switching_workspace', { defaultValue: 'Switching workspace...' })}</Text>
+                        <Text style={s.overlayText}>{switchingText}</Text>
                     </View>
                 </View>
             )}
@@ -1961,7 +1982,7 @@ const s = StyleSheet.create({
     workspacePill: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+        backgroundColor: colors.primarySoft,
         alignSelf: 'flex-start',
         paddingHorizontal: 12,
         paddingVertical: 6,
@@ -1971,41 +1992,29 @@ const s = StyleSheet.create({
     workspacePillTxt: {
         fontSize: 12,
         fontWeight: '700',
-        color: '#2563EB',
+        color: colors.primary,
     },
-    bottomSheetContent: {
-        backgroundColor: colors.surface,
-        borderTopLeftRadius: 36,
-        borderTopRightRadius: 36,
-        padding: 24,
-        paddingBottom: 40,
-        width: '100%',
+    bottomSheetView: {
+        paddingHorizontal: 24,
+        paddingVertical: 12,
+        flex: 1,
     },
-    bottomSheetIndicator: {
-        width: 40,
-        height: 5,
-        borderRadius: 2.5,
-        backgroundColor: colors.borderLight,
-        alignSelf: 'center',
-        marginBottom: 16,
+    bottomSheetOptionsList: {
+        marginTop: 16,
+        gap: 8,
     },
-    bottomSheetSubtitle: {
-        fontSize: 14,
-        color: colors.textMuted,
-        marginBottom: 24,
-    },
-    workspaceOption: {
+    workspaceOptionRow: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: 16,
-        borderRadius: radius.lg,
-        backgroundColor: colors.background,
-        marginBottom: 12,
-        borderWidth: 1.5,
-        borderColor: 'transparent',
+        paddingVertical: 14,
+        paddingHorizontal: 16,
+        borderRadius: 12,
+        backgroundColor: '#F8FAFC',
+        borderWidth: 1,
+        borderColor: colors.borderLight,
     },
-    workspaceOptionActive: {
+    workspaceOptionRowActive: {
         backgroundColor: colors.primarySoft,
         borderColor: colors.primary,
     },
@@ -2014,25 +2023,13 @@ const s = StyleSheet.create({
         alignItems: 'center',
         flex: 1,
     },
-    workspaceOptionIcon: {
-        fontSize: 24,
-        marginRight: 16,
-    },
-    workspaceOptionInfo: {
-        flex: 1,
-    },
     workspaceOptionLabel: {
-        fontSize: 16,
+        fontSize: 14,
         fontWeight: '700',
         color: colors.textPrimary,
     },
     workspaceOptionLabelActive: {
         color: colors.primary,
-    },
-    workspaceOptionDesc: {
-        fontSize: 12,
-        color: colors.textMuted,
-        marginTop: 2,
     },
     overlayContainer: {
         position: 'absolute',
