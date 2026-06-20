@@ -18,6 +18,7 @@ const FONT = {
 
 export default function CompanionHomeScreen() {
     const [data, setData] = useState(null);
+    const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [linkCode, setLinkCode] = useState('');
     const [linking, setLinking] = useState(false);
@@ -34,6 +35,12 @@ export default function CompanionHomeScreen() {
             setData(res.data);
         } catch (err) {
             console.warn('Failed to load companion home data', err);
+            // Fallback to empty patients list so the layout renders instead of showing a white screen
+            if (!data) {
+                setData({ linked_patients: [] });
+            }
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -72,7 +79,13 @@ export default function CompanionHomeScreen() {
         navigation.navigate('CompanionTabs');
     };
 
-    if (!data) return <View style={styles.container} />;
+    if (loading) {
+        return (
+            <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color={colors.primary} />
+            </View>
+        );
+    }
 
     return (
         <View style={styles.container}>
@@ -382,5 +395,11 @@ const styles = StyleSheet.create({
         color: colors.textSecondary,
         textAlign: 'center',
         lineHeight: 22,
+    },
+    loadingContainer: {
+        flex: 1,
+        backgroundColor: colors.background,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
 });
