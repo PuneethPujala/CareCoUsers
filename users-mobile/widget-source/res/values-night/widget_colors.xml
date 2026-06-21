@@ -10,6 +10,15 @@
     <color name="widget_divider">#374151</color>
     <color name="widget_card_bg">#2D2D2D</color>
 
+    <!-- Mascot Aura & Hero Card -->
+    <color name="widget_gradient_start">#0F0F16</color>
+    <color name="widget_gradient_end">#1D1929</color>
+    <color name="widget_border_color">#2B2A3B</color>
+    <color name="widget_mascot_glow_start">#2E2A54</color>
+    <color name="widget_mascot_glow_end">#002E2A54</color>
+    <color name="widget_hero_card_bg">#252433</color>
+    <color name="widget_hero_card_border">#3A394D</color>
+
     <!-- Vitals -->
     <color name="widget_vital_heart">#F87171</color>
     <color name="widget_vital_heart_bg">#3B1C1C</color>

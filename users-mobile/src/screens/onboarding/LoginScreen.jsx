@@ -760,11 +760,11 @@ export default function LoginScreen({ navigation }) {
             {/* Phone OTP Modal */}
             <Modal
                 visible={phoneOtpVisible}
-                animationType="slide"
+                animationType="fade"
                 transparent
                 onRequestClose={() => !phoneOtpLoading && setPhoneOtpVisible(false)}
             >
-                <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+                <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
                     <Pressable style={phoneOtpSt.overlay} onPress={() => { if (!phoneOtpLoading) setPhoneOtpVisible(false); }}>
                         <Pressable onPress={(e) => e.stopPropagation()} style={phoneOtpSt.card}>
                             {/* Header */}
@@ -835,10 +835,10 @@ export default function LoginScreen({ navigation }) {
 }
 
 const phoneOtpSt = StyleSheet.create({
-    overlay: { flex: 1, backgroundColor: 'rgba(15,23,42,0.55)', justifyContent: 'flex-end', padding: 0 },
+    overlay: { flex: 1, backgroundColor: 'rgba(15,23,42,0.55)', justifyContent: 'center', alignItems: 'center', padding: 16 },
     card: {
-        backgroundColor: C.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28,
-        padding: 28, paddingBottom: 40,
+        backgroundColor: C.surface, borderRadius: 28,
+        padding: 28, width: '92%', maxWidth: 400,
         ...shadows.modal,
     },
     header: { flexDirection: 'row', alignItems: 'center', marginBottom: 20, gap: 12 },

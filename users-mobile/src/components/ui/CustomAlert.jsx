@@ -84,15 +84,13 @@ const CustomAlert = forwardRef((_, ref) => {
       }),
     ]).start(() => {
       setVisible(false);
-      if (callback) callback();
+      if (typeof callback === 'function') callback();
     });
   }, [scaleAnim, opacityAnim]);
 
   const handleButtonPress = useCallback((btn) => {
     dismiss(btn.onPress);
   }, [dismiss]);
-
-  if (!visible) return null;
 
   const theme = THEME[type] || THEME.info;
   const hasDestructive = buttons.some(b => b.style === 'destructive');
@@ -105,71 +103,77 @@ const CustomAlert = forwardRef((_, ref) => {
       statusBarTranslucent
       onRequestClose={() => dismiss()}
     >
-      <Animated.View style={[styles.overlay, { opacity: opacityAnim }]}>
-        <Animated.View
-          style={[
-            styles.container,
-            { transform: [{ scale: scaleAnim }] },
-          ]}
-        >
-          {/* Icon badge */}
-          <View style={[styles.iconCircle, { backgroundColor: theme.iconBg }]}>
-            <Text style={[styles.iconText, { color: theme.accent }]}>
-              {theme.icon}
-            </Text>
-          </View>
+      {visible ? (
+        <Animated.View style={[styles.overlay, { opacity: opacityAnim }]}>
+          <Pressable 
+            style={[StyleSheet.absoluteFill, { backgroundColor: 'transparent' }]} 
+            onPress={() => dismiss()} 
+          />
+          <Animated.View
+            style={[
+              styles.container,
+              { transform: [{ scale: scaleAnim }] },
+            ]}
+          >
+            {/* Icon badge */}
+            <View style={[styles.iconCircle, { backgroundColor: theme.iconBg }]}>
+              <Text style={[styles.iconText, { color: theme.accent }]}>
+                {theme.icon}
+              </Text>
+            </View>
 
-          {/* Title */}
-          {title ? <Text style={styles.title}>{title}</Text> : null}
+            {/* Title */}
+            {title ? <Text style={styles.title}>{title}</Text> : null}
 
-          {/* Message */}
-          {message ? <Text style={styles.message}>{message}</Text> : null}
+            {/* Message */}
+            {message ? <Text style={styles.message}>{message}</Text> : null}
 
-          {/* Buttons */}
-          <View style={[
-            styles.buttonRow,
-            buttons.length === 1 && styles.buttonRowSingle,
-            buttons.length > 2 && { flexDirection: 'column' },
-          ]}>
-            {buttons.map((btn, idx) => {
-              const isDestructive = btn.style === 'destructive';
-              const isCancel = btn.style === 'cancel';
-              const isPrimary = !isCancel && !isDestructive && (buttons.length === 1 || idx === buttons.length - 1);
+            {/* Buttons */}
+            <View style={[
+              styles.buttonRow,
+              buttons.length === 1 && styles.buttonRowSingle,
+              buttons.length > 2 && { flexDirection: 'column' },
+            ]}>
+              {buttons.map((btn, idx) => {
+                const isDestructive = btn.style === 'destructive';
+                const isCancel = btn.style === 'cancel';
+                const isPrimary = !isCancel && !isDestructive && (buttons.length === 1 || idx === buttons.length - 1);
 
-              let buttonStyle = styles.btnDefault;
-              let textStyle = styles.btnTextDefault;
+                let buttonStyle = styles.btnDefault;
+                let textStyle = styles.btnTextDefault;
 
-              if (isDestructive) {
-                buttonStyle = styles.btnDestructive;
-                textStyle = styles.btnTextDestructive;
-              } else if (isCancel) {
-                buttonStyle = styles.btnCancel;
-                textStyle = styles.btnTextCancel;
-              } else if (isPrimary) {
-                buttonStyle = [styles.btnPrimary, { backgroundColor: theme.accent }];
-                textStyle = styles.btnTextPrimary;
-              }
+                if (isDestructive) {
+                  buttonStyle = styles.btnDestructive;
+                  textStyle = styles.btnTextDestructive;
+                } else if (isCancel) {
+                  buttonStyle = styles.btnCancel;
+                  textStyle = styles.btnTextCancel;
+                } else if (isPrimary) {
+                  buttonStyle = [styles.btnPrimary, { backgroundColor: theme.accent }];
+                  textStyle = styles.btnTextPrimary;
+                }
 
-              return (
-                <Pressable
-                  key={idx}
-                  style={({ pressed }) => [
-                    styles.btn,
-                    buttonStyle,
-                    (buttons.length === 1 || buttons.length > 2) && styles.btnFull,
-                    pressed && styles.btnPressed,
-                  ]}
-                  onPress={() => handleButtonPress(btn)}
-                >
-                  <Text style={[styles.btnText, textStyle]}>
-                    {btn.text || 'OK'}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
+                return (
+                  <Pressable
+                    key={idx}
+                    style={({ pressed }) => [
+                      styles.btn,
+                      buttonStyle,
+                      (buttons.length === 1 || buttons.length > 2) && styles.btnFull,
+                      pressed && styles.btnPressed,
+                    ]}
+                    onPress={() => handleButtonPress(btn)}
+                  >
+                    <Text style={[styles.btnText, textStyle]}>
+                      {btn.text || 'OK'}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </Animated.View>
         </Animated.View>
-      </Animated.View>
+      ) : null}
     </Modal>
   );
 });

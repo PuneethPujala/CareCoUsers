@@ -8,7 +8,7 @@ import { getStreakState } from '../../utils/streakHelper';
 import StreakCompanion from '../../components/ui/StreakCompanion';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
-    Pill, Sparkles, ChevronRight, TrendingUp, Activity,
+    Pill, Sparkles, ChevronRight, TrendingUp, TrendingDown, Activity,
     CalendarDays, CheckCircle2, Bell, Heart, Wind, Droplets, MapPin,
     AlertTriangle, WifiOff, Flame, Zap, Watch, Shield, MessageSquare, Trophy, ChevronDown
 } from 'lucide-react-native';
@@ -198,6 +198,7 @@ export default function PatientHomeScreen({ navigation }) {
     const aiPrediction = usePatientStore((s) => s.aiPrediction);
     const meds = usePatientStore((s) => s.dashboardMeds);
     const adherenceDetails = usePatientStore((s) => s.adherenceDetails);
+    const healthHistory = usePatientStore((s) => s.healthHistory);
     const isCached = usePatientStore((s) => s.isCached);
     const storeFetchDashboard = usePatientStore((s) => s.fetchDashboard);
     const storeFetchMedications = usePatientStore((s) => s.fetchMedications);
@@ -784,8 +785,11 @@ export default function PatientHomeScreen({ navigation }) {
     const healthGrade = patient?.patient_health_state?.grade ?? patient?.health_score?.grade ?? 'A';
     const healthColor = patient?.patient_health_state?.color ?? patient?.health_score?.color ?? '#10B981';
 
-    const prevScore = Math.max(50, healthScore - 6);
-    const scoreDiff = healthScore - prevScore;
+    const hasHistory = healthHistory && Array.isArray(healthHistory.history) && healthHistory.history.length >= 2;
+    const scoreDiff = hasHistory ? (healthHistory.deltas?.score_delta_30d ?? 0) : 0;
+    const prevScore = hasHistory ? (healthScore - scoreDiff) : null;
+    const isLowConfidence = (patient?.patient_health_state?.breakdown?.adherence?.note === 'no_data' || patient?.patient_health_state?.breakdown?.adherence?.pts === 15) &&
+                            (patient?.patient_health_state?.breakdown?.vitals?.note === 'no_vitals' || patient?.patient_health_state?.breakdown?.vitals?.pts === 7);
 
     const targetMilestone = Math.min(100, Math.ceil(healthScore / 5) * 5 + (healthScore % 5 === 0 ? 5 : 0));
     const milestoneProgress = healthScore / targetMilestone;
@@ -1746,21 +1750,44 @@ export default function PatientHomeScreen({ navigation }) {
                         <Pressable onPress={() => navigation.navigate('AdherenceDetails')} style={styles.journeyCard}>
                             <View style={styles.journeyHeader}>
                                 <Text style={styles.journeyTitle}>HEALTH JOURNEY</Text>
-                                <View style={styles.journeyImprovementBadge}>
-                                    <TrendingUp size={12} color="#10B981" />
-                                    <Text style={styles.journeyImprovementText}>+{scoreDiff} This Month</Text>
-                                </View>
+                                {hasHistory ? (
+                                    scoreDiff > 0 ? (
+                                        <View style={styles.journeyImprovementBadge}>
+                                            <TrendingUp size={12} color="#10B981" />
+                                            <Text style={styles.journeyImprovementText}>+{scoreDiff} This Month</Text>
+                                        </View>
+                                    ) : scoreDiff < 0 ? (
+                                        <View style={[styles.journeyImprovementBadge, { backgroundColor: '#FEF2F2' }]}>
+                                            <TrendingDown size={12} color="#EF4444" />
+                                            <Text style={[styles.journeyImprovementText, { color: '#EF4444' }]}>{scoreDiff} This Month</Text>
+                                        </View>
+                                    ) : (
+                                        <View style={[styles.journeyImprovementBadge, { backgroundColor: '#F1F5F9' }]}>
+                                            <TrendingUp size={12} color="#64748B" opacity={0.6} />
+                                            <Text style={[styles.journeyImprovementText, { color: '#64748B' }]}>Stable This Month</Text>
+                                        </View>
+                                    )
+                                ) : null}
                             </View>
 
                             <View style={styles.journeyProgressRow}>
                                 <Text style={styles.journeyProgressText}>
-                                    {prevScore} <Text style={{ color: '#94A3B8' }}>→</Text> {healthScore}
+                                    {hasHistory ? (
+                                        <>Last Month: {prevScore} <Text style={{ color: '#94A3B8' }}>→</Text> Current: {healthScore}</>
+                                    ) : (
+                                        <>Current Score: {healthScore}</>
+                                    )}
                                 </Text>
-                                <Text style={styles.journeyConsistencyBadge}>Best Consistency Yet</Text>
+                                <Text style={styles.journeyConsistencyBadge}>
+                                    {hasHistory ? 'Best Consistency Yet' : 'Establishing Baseline'}
+                                </Text>
                             </View>
                             
                             <Text style={styles.journeyDesc}>
-                                Better medication adherence and stable vital trends recorded this week.
+                                {hasHistory
+                                    ? "Better medication adherence and stable vital trends recorded this week."
+                                    : "Welcome to CareMyMed! Please log your medications and vitals to begin tracking your health journey trends."
+                                }
                             </Text>
 
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 12, borderTopWidth: 1, borderTopColor: '#F1F5F9', paddingTop: 10 }}>
@@ -1768,6 +1795,18 @@ export default function PatientHomeScreen({ navigation }) {
                                 <ChevronRight size={12} color="#6366F1" />
                             </View>
                         </Pressable>
+
+                        {isLowConfidence && (
+                            <View style={styles.lowConfidenceCard}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                    <AlertTriangle size={15} color="#B45309" />
+                                    <Text style={styles.lowConfidenceTitle}>Low Confidence Score</Text>
+                                </View>
+                                <Text style={styles.lowConfidenceDesc}>
+                                    This score is estimated from limited health data. Log medications and vitals regularly for a more accurate assessment.
+                                </Text>
+                            </View>
+                        )}
 
                         {/* Relocated Next Goal Card */}
                         <View style={[styles.goalCard, { marginTop: 12 }]}>
@@ -2668,5 +2707,25 @@ const styles = StyleSheet.create({
         color: '#4F46E5',
         fontSize: 12,
         fontWeight: '700',
+    },
+    lowConfidenceCard: {
+        backgroundColor: '#FFF9E6',
+        borderRadius: radius.lg,
+        padding: 16,
+        borderWidth: 1,
+        borderColor: '#FDE68A',
+        marginTop: 12,
+    },
+    lowConfidenceTitle: {
+        fontSize: 13,
+        fontWeight: '700',
+        color: '#B45309',
+    },
+    lowConfidenceDesc: {
+        fontSize: 12,
+        color: '#D97706',
+        lineHeight: 18,
+        fontWeight: '500',
+        marginTop: 6,
     },
 });

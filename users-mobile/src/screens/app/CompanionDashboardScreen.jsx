@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, ScrollView, RefreshControl, Pressable, Dimensions, Linking, ActivityIndicator, Image, Animated } from 'react-native';
 import { apiService } from '../../lib/api';
-import { HeartPulse, Activity, Bell, Phone, Send, ChevronRight, MessageSquare, ShieldCheck, AlertCircle, RefreshCw, Bluetooth, Lightbulb, Sparkles, TrendingUp, Calendar, ChevronDown, ChevronUp } from 'lucide-react-native';
+import { HeartPulse, Activity, Bell, Phone, ChevronRight, MessageSquare, ShieldCheck, AlertCircle, RefreshCw, Bluetooth, Lightbulb, Sparkles, TrendingUp, Calendar, ChevronDown, ChevronUp } from 'lucide-react-native';
 import AlertManager from '../../utils/AlertManager';
 import { colors, radius, spacing, shadows, layout, motion, anim, useReduceMotion } from '../../theme';
 import usePatientStore from '../../store/usePatientStore';
@@ -18,10 +18,6 @@ const FONT = {
     heavy: { fontFamily: 'Inter_800ExtraBold' },
 };
 
-const sanitizePhoneForLink = (phone) => {
-    if (!phone) return '';
-    return String(phone).replace(/[^\d+]/g, '');
-};
 
 const formatDate = (dateInput, formatStr) => {
     if (!dateInput) return '';
@@ -73,10 +69,9 @@ const SkeletonItem = ({ width, height, borderRadius = 8, style }) => {
 export default function CompanionDashboardScreen() {
     const [data, setData] = useState(null);
     const [refreshing, setRefreshing] = useState(false);
-    const [nudging, setNudging] = useState(false);
-    const [requestingBP, setRequestingBP] = useState(false);
     
-    const [pendingInterventionsCount, setPendingInterventionsCount] = useState(0);
+    const pendingInterventionsCount = usePatientStore(s => s.pendingInterventionsCount);
+    const setPendingInterventionsCount = usePatientStore(s => s.setPendingInterventionsCount);
     const [expandedBriefing, setExpandedBriefing] = useState(false);
     const [entranceAnimationFinished, setEntranceAnimationFinished] = useState(false);
     
@@ -87,18 +82,14 @@ export default function CompanionDashboardScreen() {
     const visibleSections = useMemo(() => {
         if (!data || !data.patient) return [];
         
-        const insights = data.companion_insights || {};
-        const priorityActions = insights.priority_actions || [];
-        
+
         return [
             'summary',
             (data.refill_alerts && data.refill_alerts.length > 0) ? 'refill' : null,
             'intervention_center',
             'briefing',
-            (priorityActions && priorityActions.length > 0) ? 'needs_attention' : null,
             'intelligence_center',
             'refresh',
-            'quick_actions',
             'adherence',
             (data.medication_schedule && data.medication_schedule.length > 0) ? 'timeline' : null,
             'vitals',
@@ -226,43 +217,7 @@ export default function CompanionDashboardScreen() {
         setRefreshing(false);
     };
 
-    const handleNudge = async () => {
-        if (nudging) return;
-        setNudging(true);
-        try {
-            await apiService.companion.nudge({ patientId: selectedPatientId });
-            AlertManager.alert('Nudge Sent', `${data.patient.name} has been nudged successfully! ❤️`);
-        } catch (err) {
-            console.warn('Failed to nudge', err);
-            AlertManager.alert('Nudge Failed', 'Unable to send nudge reminder at this time.');
-        } finally {
-            setNudging(false);
-        }
-    };
 
-    const handleCall = () => {
-        const phone = data.patient.phone;
-        const dialablePhone = sanitizePhoneForLink(phone);
-        if (dialablePhone) {
-            Linking.openURL(`tel:${dialablePhone}`);
-        } else {
-            AlertManager.alert('No Phone Number', `${data.patient.name} does not have a phone number configured.`);
-        }
-    };
-
-    const handleRequestBP = async () => {
-        if (requestingBP) return;
-        setRequestingBP(true);
-        try {
-            await apiService.companion.requestBP({ patientId: selectedPatientId });
-            AlertManager.alert('BP Request Sent', `Request for Blood Pressure log sent to ${data.patient.name} successfully! 🩺`);
-        } catch (err) {
-            console.warn('Failed to request BP', err);
-            AlertManager.alert('Request Failed', 'Unable to send Blood Pressure log request.');
-        } finally {
-            setRequestingBP(false);
-        }
-    };
 
     const handleManualRefresh = async () => {
         if (refreshing) return;
@@ -457,7 +412,6 @@ export default function CompanionDashboardScreen() {
     const confidenceLabel = insights.confidence_label ?? 'Low';
     const confidenceScore = insights.confidence_score ?? 0;
     const lastStable = insights.last_stable || { stable_days: 0, currently_stable: false };
-    const priorityActions = insights.priority_actions || [];
     const recommendations = insights.recommendations || [];
 
     const summaryText = insights.summary || 'AI has not generated a briefing for today yet.';
@@ -533,6 +487,18 @@ export default function CompanionDashboardScreen() {
                 contentContainerStyle={styles.content}
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
             >
+                {isLowVisibility && (
+                    <View style={styles.lowVisibilityBanner}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                            <AlertCircle color="#B45309" size={18} />
+                            <Text style={styles.lowVisibilityBannerTitle}>Low Care Visibility</Text>
+                        </View>
+                        <Text style={styles.lowVisibilityBannerText}>
+                            {data.patient.name} has not logged any medications or vitals recently. Health indicators may be inaccurate until tracking resumes.
+                        </Text>
+                    </View>
+                )}
+
                 {/* Top Summary Card (Mockup Style) */}
                 {visibleSections.includes('summary') && (
                     <Animated.View style={[styles.summaryCard, sectionAnimForKey('summary')]}>
@@ -651,87 +617,7 @@ export default function CompanionDashboardScreen() {
                      </Animated.View>
                  )}
 
-                {/* Card 2: Needs Attention */}
-                {visibleSections.includes('needs_attention') && (
-                    <Animated.View style={[styles.attentionCard, sectionAnimForKey('needs_attention')]}>
-                        <View style={styles.attentionHeader}>
-                            <View>
-                                <Text style={styles.attentionTitle}>Priority Queue</Text>
-                                <Text style={styles.attentionSubtitle}>Needs attention today</Text>
-                            </View>
-                            <View style={styles.attentionCountBadge}>
-                                <Text style={styles.attentionCountText}>
-                                    {priorityActions.length} Open
-                                </Text>
-                            </View>
-                        </View>
-                        <View style={styles.priorityActionsList}>
-                            {priorityActions.map((action, idx) => {
-                                const isCritical = action.severity === 'critical';
-                                const isWarning = action.severity === 'warning';
-                                
-                                let btnText = '';
-                                let btnHandler = null;
-                                
-                                if (action.action_type === 'medication' || action.action_type === 'critical_vital') {
-                                    btnText = 'Nudge';
-                                    btnHandler = handleNudge;
-                                } else if (action.action_type === 'vital_sync') {
-                                    btnText = 'Request BP';
-                                    btnHandler = handleRequestBP;
-                                } else if (action.action_type === 'call_patient') {
-                                    btnText = 'Call';
-                                    btnHandler = handleCall;
-                                }
 
-                                // Style buttons based on severity
-                                let btnBgStyle = {};
-                                let btnTextStyle = {};
-                                let btnBorderStyle = {};
-
-                                if (isCritical) {
-                                    btnBgStyle = { backgroundColor: '#FEF2F2' };
-                                    btnTextStyle = { color: '#EF4444' };
-                                    btnBorderStyle = { borderColor: '#FCA5A5', borderWidth: 1 };
-                                } else if (isWarning) {
-                                    btnBgStyle = { backgroundColor: '#FFFDF5' };
-                                    btnTextStyle = { color: '#D97706' };
-                                    btnBorderStyle = { borderColor: '#FDE68A', borderWidth: 1 };
-                                } else {
-                                    btnBgStyle = { backgroundColor: '#EFF6FF' };
-                                    btnTextStyle = { color: '#3B82F6' };
-                                    btnBorderStyle = { borderColor: '#BFDBFE', borderWidth: 1 };
-                                }
-
-                                const statusColor = isCritical ? colors.danger : isWarning ? colors.warning : colors.primary;
-                                return (
-                                    <View 
-                                        key={action.id || action.message || idx} 
-                                        style={styles.priorityActionItem}
-                                    >
-                                        <View style={[styles.priorityStatusIndicator, { backgroundColor: statusColor }]} />
-                                        <View style={styles.priorityActionContent}>
-                                            <Text style={styles.priorityActionMessage}>{action.message}</Text>
-                                        </View>
-                                        {btnHandler && (
-                                            <Pressable
-                                                style={({ pressed }) => [
-                                                    styles.priorityActionBtn,
-                                                    btnBgStyle,
-                                                    btnBorderStyle,
-                                                    pressed && { opacity: 0.7 }
-                                                ]}
-                                                onPress={btnHandler}
-                                            >
-                                                <Text style={[styles.priorityActionBtnText, btnTextStyle]}>{btnText}</Text>
-                                            </Pressable>
-                                        )}
-                                    </View>
-                                );
-                            })}
-                        </View>
-                    </Animated.View>
-                )}
 
                 {/* ⚡ Intervention Center CTA Card */}
                 {visibleSections.includes('intervention_center') && (
@@ -839,42 +725,7 @@ export default function CompanionDashboardScreen() {
                         </Pressable>
                     </Animated.View>
                 )}
-                {/* 1. Quick Actions Bar */}
-                {visibleSections.includes('quick_actions') && (
-                    <Animated.View style={[styles.actionsContainer, sectionAnimForKey('quick_actions')]}>
-                        <Pressable style={({ pressed }) => [styles.actionButton, pressed && { opacity: 0.7 }]} onPress={handleNudge} disabled={nudging}>
-                            <View style={[styles.actionIconContainer, { backgroundColor: colors.primarySoft }]}>
-                                {nudging ? (
-                                    <ActivityIndicator size="small" color={colors.primary} />
-                                ) : (
-                                    <Send color={colors.primary} size={18} />
-                                )}
-                            </View>
-                            <Text style={styles.actionLabel}>Nudge</Text>
-                            <Text style={styles.actionSubLabel}>Send reminder</Text>
-                        </Pressable>
 
-                        <Pressable style={({ pressed }) => [styles.actionButton, pressed && { opacity: 0.7 }]} onPress={handleCall}>
-                            <View style={[styles.actionIconContainer, { backgroundColor: colors.successLight }]}>
-                                <Phone color={colors.success} size={18} />
-                            </View>
-                            <Text style={styles.actionLabel}>Call</Text>
-                            <Text style={styles.actionSubLabel}>Call {data.patient.name.split(' ')[0]}</Text>
-                        </Pressable>
-
-                        <Pressable style={({ pressed }) => [styles.actionButton, pressed && { opacity: 0.7 }]} onPress={handleRequestBP} disabled={requestingBP}>
-                            <View style={[styles.actionIconContainer, { backgroundColor: colors.dangerLight }]}>
-                                {requestingBP ? (
-                                    <ActivityIndicator size="small" color={colors.danger} />
-                                ) : (
-                                    <HeartPulse color={colors.danger} size={18} />
-                                )}
-                            </View>
-                            <Text style={styles.actionLabel}>Request BP</Text>
-                            <Text style={styles.actionSubLabel}>Ask for reading</Text>
-                        </Pressable>
-                    </Animated.View>
-                )}
 
                 {/* 2. Adherence Meter Card */}
                 {visibleSections.includes('adherence') && (
@@ -1695,41 +1546,6 @@ const styles = StyleSheet.create({
         ...FONT.bold,
     },
 
-    // Quick Actions Bar Styles
-    actionsContainer: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        gap: 12,
-    },
-    actionButton: {
-        flex: 1,
-        backgroundColor: colors.surface,
-        borderRadius: radius.lg,
-        paddingVertical: 12,
-        paddingHorizontal: 8,
-        alignItems: 'center',
-        ...shadows.card,
-    },
-    actionIconContainer: {
-        width: 38,
-        height: 38,
-        borderRadius: 12,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: 8,
-    },
-    actionLabel: {
-        fontSize: 12,
-        ...FONT.bold,
-        color: colors.textPrimary,
-    },
-    actionSubLabel: {
-        fontSize: 9,
-        ...FONT.medium,
-        color: colors.textMuted,
-        textAlign: 'center',
-        marginTop: 2,
-    },
 
     // ─── AI Companion Intelligence Hub Styles ───
     hubCard: {
@@ -1949,12 +1765,7 @@ const styles = StyleSheet.create({
         ...FONT.bold,
         color: colors.primary,
     },
-    priorityActionsContainer: {
-        marginBottom: 16,
-        paddingBottom: 16,
-        borderBottomWidth: 1,
-        borderBottomColor: colors.borderLight,
-    },
+
     sectionHeading: {
         fontSize: 13,
         ...FONT.bold,
@@ -1974,58 +1785,7 @@ const styles = StyleSheet.create({
         ...FONT.bold,
         color: colors.success,
     },
-    priorityActionsList: {
-        gap: 8,
-    },
-    priorityActionItem: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        backgroundColor: '#FFFFFF',
-        borderRadius: 12,
-        paddingVertical: 12,
-        paddingLeft: 18,
-        paddingRight: 12,
-        borderWidth: 1,
-        borderColor: '#E2E8F0',
-        overflow: 'hidden',
-        position: 'relative',
-        ...shadows.sm,
-    },
-    priorityStatusIndicator: {
-        position: 'absolute',
-        left: 0,
-        top: 0,
-        bottom: 0,
-        width: 4,
-        borderTopLeftRadius: 12,
-        borderBottomLeftRadius: 12,
-    },
-    priorityActionContent: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        flex: 1,
-    },
-    priorityActionMessage: {
-        fontSize: 12,
-        ...FONT.medium,
-        color: colors.textPrimary,
-        flex: 1,
-        paddingRight: 8,
-        lineHeight: 16,
-    },
-    priorityActionBtn: {
-        paddingHorizontal: 14,
-        paddingVertical: 7,
-        borderRadius: 20,
-        justifyContent: 'center',
-        alignItems: 'center',
-        minWidth: 80,
-    },
-    priorityActionBtnText: {
-        fontSize: 10,
-        ...FONT.bold,
-    },
+
     forecastContainer: {
         marginBottom: 16,
         paddingBottom: 16,
@@ -2389,41 +2149,25 @@ const styles = StyleSheet.create({
         fontSize: 10,
         ...FONT.bold,
     },
-    attentionCard: {
-        backgroundColor: '#F8FAFC',
-        borderRadius: radius.xl,
+
+    lowVisibilityBanner: {
+        backgroundColor: '#FFFBEB',
+        borderColor: '#FDE68A',
         borderWidth: 1,
-        borderColor: '#E2E8F0',
-        padding: spacing.md,
-        ...shadows.card,
+        borderRadius: radius.lg,
+        padding: 16,
         marginBottom: 8,
     },
-    attentionHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        marginBottom: 16,
-    },
-    attentionTitle: {
-        fontSize: 16,
+    lowVisibilityBannerTitle: {
+        fontSize: 14,
         ...FONT.bold,
-        color: colors.textPrimary,
+        color: '#B45309',
     },
-    attentionSubtitle: {
+    lowVisibilityBannerText: {
         fontSize: 12,
         ...FONT.medium,
-        color: colors.textSecondary,
-        marginTop: 2,
-    },
-    attentionCountBadge: {
-        backgroundColor: '#FEE2E2',
-        paddingHorizontal: 10,
-        paddingVertical: 4,
-        borderRadius: 12,
-    },
-    attentionCountText: {
-        fontSize: 10,
-        ...FONT.bold,
-        color: '#EF4444',
+        color: '#D97706',
+        marginTop: 4,
+        lineHeight: 18,
     },
 });

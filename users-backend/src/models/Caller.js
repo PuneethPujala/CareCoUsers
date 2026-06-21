@@ -60,6 +60,10 @@ const CallerSchema = new mongoose.Schema(
         last_active_at: {
             type: Date,
         },
+        expo_push_token: {
+            type: String,
+            trim: true,
+        },
         current_call_id: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'CallSession',

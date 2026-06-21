@@ -54,6 +54,23 @@ const formatDate = (dateInput, formatStr) => {
     return date.toLocaleDateString();
 };
 
+const getFreshnessText = (dateInput) => {
+    if (!dateInput) return '';
+    const date = new Date(dateInput);
+    if (isNaN(date.getTime())) return '';
+    const diffMs = Date.now() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `Updated ${diffMins}m ago`;
+    
+    const hours = date.getHours();
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    const formattedHours = hours % 12 || 12;
+    return `Updated at ${formattedHours}:${minutes} ${ampm}`;
+};
+
 const SkeletonItem = ({ width, height, borderRadius = 8, style }) => {
     const anim = useRef(new Animated.Value(0.3)).current;
     useEffect(() => {
@@ -181,24 +198,37 @@ export default function CompanionAnalyticsScreen() {
         let onPress = null;
         let severity = 'info'; // 'critical' | 'warning' | 'info'
         
-        if (textLower.includes('nudge') || textLower.includes('medication') || textLower.includes('remind') || textLower.includes('pill')) {
-            title = 'Medication Nudge';
-            icon = <Pill size={20} color={textLower.includes('urgent') || textLower.includes('critical') ? colors.danger : colors.warning} />;
-            actionLabel = 'Remind Now';
-            onPress = handleNudge;
-            severity = (textLower.includes('urgent') || textLower.includes('critical')) ? 'critical' : 'warning';
-        } else if (textLower.includes('blood pressure') || textLower.includes('bp') || textLower.includes('vital') || textLower.includes('log')) {
-            title = 'Vitals Request';
-            icon = <HeartPulse size={20} color={colors.warning} />;
-            actionLabel = 'Request BP';
-            onPress = handleRequestBP;
-            severity = 'warning';
-        } else if (textLower.includes('call') || textLower.includes('phone') || textLower.includes('contact') || textLower.includes('chat')) {
+        // Priority 1: Clinical Consultations (consult, provider, doctor)
+        if (textLower.includes('consult') || textLower.includes('provider') || textLower.includes('doctor')) {
+            title = 'Clinical Consultation';
+            icon = <ShieldCheck size={20} color={colors.success} />;
+            actionLabel = 'Go to Interventions';
+            onPress = () => navigation.navigate('InterventionCenter');
+            severity = 'info';
+        }
+        // Priority 2: Wellness Calls (call, phone, contact, chat)
+        else if (textLower.includes('call') || textLower.includes('phone') || textLower.includes('contact') || textLower.includes('chat')) {
             title = 'Wellness Call';
             icon = <Phone size={20} color={colors.primary} />;
             actionLabel = 'Call Patient';
             onPress = handleCall;
             severity = 'info';
+        }
+        // Priority 3: Vitals Requests (blood pressure, bp, vital, log)
+        else if (textLower.includes('blood pressure') || textLower.includes('bp') || textLower.includes('vital') || textLower.includes('log')) {
+            title = 'Vitals Request';
+            icon = <HeartPulse size={20} color={colors.warning} />;
+            actionLabel = 'Request BP';
+            onPress = handleRequestBP;
+            severity = 'warning';
+        }
+        // Priority 4: Medication reminders (nudge, medication, remind, pill)
+        else if (textLower.includes('nudge') || textLower.includes('medication') || textLower.includes('remind') || textLower.includes('pill')) {
+            title = 'Medication Nudge';
+            icon = <Pill size={20} color={textLower.includes('urgent') || textLower.includes('critical') ? colors.danger : colors.warning} />;
+            actionLabel = 'Remind Now';
+            onPress = handleNudge;
+            severity = (textLower.includes('urgent') || textLower.includes('critical')) ? 'critical' : 'warning';
         }
 
         return { title, icon, actionLabel, onPress, severity };
@@ -358,6 +388,14 @@ export default function CompanionAnalyticsScreen() {
 
     const onRefresh = async () => {
         setRefreshing(true);
+        try {
+            if (selectedPatientId) {
+                await apiService.companion.refreshInsights({ patientId: selectedPatientId });
+            }
+        } catch (err) {
+            // Silence rate limit (429) or other errors during manual refresh
+            console.log('[CompanionAnalytics] Refresh insights skipped or rate-limited:', err.message);
+        }
         await loadData();
         setRefreshing(false);
     };
@@ -501,17 +539,6 @@ export default function CompanionAnalyticsScreen() {
     const lastStable = insights.last_stable || { stable_days: 0, currently_stable: false };
     const recommendations = insights.recommendations || [];
 
-    // Mock weekly data to render a stunning micro-chart (since backend is real-time only)
-    const mockWeeklyAdherence = [
-        { day: 'M', rate: 80 },
-        { day: 'T', rate: 100 },
-        { day: 'W', rate: 60 },
-        { day: 'T', rate: 90 },
-        { day: 'F', rate: 100 },
-        { day: 'S', rate: 40 },
-        { day: 'S', rate: 75 },
-    ];
-
     // Circular progress calculation
     const strokeWidth = 8;
     const radiusVal = (circleSize - strokeWidth) / 2;
@@ -566,12 +593,18 @@ export default function CompanionAnalyticsScreen() {
                 <Animated.View style={[styles.summaryCard, sectionAnimStyle(0), { overflow: 'hidden', position: 'relative', paddingLeft: 18 }]}>
                     <View style={[styles.accentStrip, { backgroundColor: isLowVisibility ? '#64748B' : (riskLevel === 'high' ? colors.danger : (riskLevel === 'medium' ? colors.warning : colors.success)), borderTopLeftRadius: radius.xl, borderBottomLeftRadius: radius.xl }]} />
                     <View style={styles.glowBg} />
-                    <SectionHeader
-                        icon={HeartPulse}
-                        title="Health Status Summary"
-                        iconColor={colors.primary}
-                        style={{ marginBottom: 10 }}
-                    />
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, paddingRight: 6 }}>
+                        <SectionHeader
+                            icon={HeartPulse}
+                            title="Health Status Summary"
+                            iconColor={colors.primary}
+                        />
+                        {insights.generated_at && (
+                            <Text style={{ fontSize: 10, ...FONT.medium, color: colors.textMuted }}>
+                                {getFreshnessText(insights.generated_at)}
+                            </Text>
+                        )}
+                    </View>
                     
                     <Text style={styles.summaryNarrative}>
                         {(() => {
@@ -783,6 +816,40 @@ export default function CompanionAnalyticsScreen() {
                         );
                     })()}
                 </Animated.View>
+
+                {/* 3.5 Weekly Adherence Trend */}
+                {data.weekly_adherence && data.weekly_adherence.length > 0 && (
+                    <Animated.View style={[styles.card, sectionAnimStyle(2)]}>
+                        <SectionHeader
+                            icon={Calendar}
+                            title="Weekly Adherence Trend"
+                            iconColor="#10B981"
+                        />
+                        <Text style={styles.cardSub}>Medication compliance rate over the last 7 days</Text>
+                        
+                        <View style={styles.weeklyAdherenceRow}>
+                            {data.weekly_adherence.map((dayData, idx) => {
+                                const rate = dayData.rate ?? 0;
+                                const isHigh = rate >= 80;
+                                const isLow = rate < 50;
+                                const statusColor = isHigh ? '#10B981' : (isLow ? '#EF4444' : '#F59E0B');
+                                const statusBg = isHigh ? '#ECFDF5' : (isLow ? '#FEF2F2' : '#FFFBEB');
+                                
+                                return (
+                                    <View key={idx} style={styles.weeklyAdherenceDay}>
+                                        <Text style={styles.weeklyAdherenceDayName}>{dayData.day}</Text>
+                                        <View style={[styles.weeklyAdherenceBadge, { backgroundColor: statusBg, borderColor: statusColor }]}>
+                                            <Text style={[styles.weeklyAdherenceRate, { color: statusColor }]}>{rate}%</Text>
+                                        </View>
+                                        <View style={styles.weeklyAdherenceBarTrack}>
+                                            <View style={[styles.weeklyAdherenceBarFill, { height: `${rate}%`, backgroundColor: statusColor }]} />
+                                        </View>
+                                    </View>
+                                );
+                            })}
+                        </View>
+                    </Animated.View>
+                )}
 
                 {/* 4. Risk Contributors Card */}
                 <Animated.View style={[styles.card, sectionAnimStyle(3)]}>
@@ -1083,6 +1150,8 @@ export default function CompanionAnalyticsScreen() {
                                 };
 
                                 const handlePress = parsed.onPress || (() => navigation.navigate('InterventionCenter'));
+                                const isLoading = (parsed.onPress === handleNudge && nudging) || (parsed.onPress === handleRequestBP && requestingBP);
+                                const isDisabled = nudging || requestingBP;
 
                                 return (
                                     <Animated.View key={rec || idx} style={[styles.recommendationCard, cardAnimStyle, { overflow: 'hidden', position: 'relative', paddingLeft: 18 }]}>
@@ -1104,12 +1173,18 @@ export default function CompanionAnalyticsScreen() {
                                             style={({ pressed }) => [
                                                 styles.recommendationCardButton, 
                                                 { backgroundColor: parsed.severity === 'critical' ? colors.danger : parsed.severity === 'warning' ? colors.warning : colors.primary },
-                                                pressed && { opacity: 0.8 }
+                                                (pressed || isDisabled) && { opacity: 0.6 }
                                             ]}
                                             onPress={handlePress}
+                                            disabled={isDisabled}
                                         >
-                                            <Text style={styles.recommendationCardButtonText}>{parsed.actionLabel}</Text>
-                                            <ArrowUpRight size={14} color="#FFF" />
+                                            {isLoading && (
+                                                <ActivityIndicator size="small" color="#FFF" style={{ marginRight: 2 }} />
+                                            )}
+                                            <Text style={styles.recommendationCardButtonText}>
+                                                {isLoading ? 'Processing' : parsed.actionLabel}
+                                            </Text>
+                                            {!isLoading && <ArrowUpRight size={14} color="#FFF" />}
                                         </Pressable>
                                     </Animated.View>
                                 );
@@ -1204,6 +1279,20 @@ export default function CompanionAnalyticsScreen() {
                                     
                                     const { title, narrative, fromScore, toScore } = getTransitionNarrative(item);
                                     
+                                    let displaySummary = title;
+                                    let displayNarrative = narrative;
+                                    let displayFactors = [];
+                                    
+                                    if (item.reason) {
+                                        if (typeof item.reason === 'object') {
+                                            displaySummary = item.reason.summary || title;
+                                            displayFactors = item.reason.factors || [];
+                                            displayNarrative = '';
+                                        } else if (typeof item.reason === 'string') {
+                                            displayNarrative = item.reason;
+                                        }
+                                    }
+                                    
                                     const animVal = timelineAnims[idx] || new Animated.Value(1);
 
                                     const timelineAnimStyle = {
@@ -1229,8 +1318,20 @@ export default function CompanionAnalyticsScreen() {
                                                     <Text style={styles.timelineNodeDate}>{dateStr}</Text>
                                                 </View>
                                                 <View style={styles.timelineTransitionDivider} />
-                                                <Text style={styles.timelineNarrativeTitle}>{title}</Text>
-                                                <Text style={styles.timelineNarrativeText}>{narrative}</Text>
+                                                <Text style={styles.timelineNarrativeTitle}>{displaySummary}</Text>
+                                                {displayNarrative ? (
+                                                    <Text style={styles.timelineNarrativeText}>{displayNarrative}</Text>
+                                                ) : null}
+                                                {displayFactors.length > 0 && (
+                                                    <View style={{ gap: 4, marginTop: 4, marginBottom: 8 }}>
+                                                        {displayFactors.map((factor, fIdx) => (
+                                                            <View key={fIdx} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 6 }}>
+                                                                <Text style={{ color: getRiskColor(item.to), fontSize: 10, marginTop: 2 }}>•</Text>
+                                                                <Text style={{ flex: 1, fontSize: 11, ...FONT.medium, color: colors.textSecondary, lineHeight: 15 }}>{factor}</Text>
+                                                            </View>
+                                                        ))}
+                                                    </View>
+                                                )}
                                                 <Text style={styles.timelineTransitionSubText}>
                                                     Risk level changed from {item.from.toUpperCase()} ({fromScore}) to {item.to.toUpperCase()} ({toScore})
                                                 </Text>
@@ -1316,6 +1417,46 @@ const styles = StyleSheet.create({
         color: colors.textMuted,
         marginTop: 1,
         marginBottom: 8,
+    },
+    weeklyAdherenceRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'flex-end',
+        marginTop: 10,
+        paddingHorizontal: 4,
+    },
+    weeklyAdherenceDay: {
+        alignItems: 'center',
+        flex: 1,
+    },
+    weeklyAdherenceDayName: {
+        fontSize: 10,
+        ...FONT.bold,
+        color: colors.textMuted,
+        marginBottom: 4,
+    },
+    weeklyAdherenceBadge: {
+        paddingHorizontal: 4,
+        paddingVertical: 2,
+        borderRadius: 4,
+        borderWidth: 1,
+        marginBottom: 6,
+    },
+    weeklyAdherenceRate: {
+        fontSize: 8,
+        ...FONT.bold,
+    },
+    weeklyAdherenceBarTrack: {
+        width: 8,
+        height: 48,
+        backgroundColor: '#E2E8F0',
+        borderRadius: 4,
+        overflow: 'hidden',
+        justifyContent: 'flex-end',
+    },
+    weeklyAdherenceBarFill: {
+        width: '100%',
+        borderRadius: 4,
     },
     sectionHeaderRow: {
         flexDirection: 'row',
@@ -1836,8 +1977,10 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         gap: 6,
         paddingVertical: 8,
-        paddingHorizontal: 12,
-        borderRadius: 10,
+        paddingHorizontal: 16,
+        borderRadius: 20,
+        alignSelf: 'flex-end',
+        marginTop: 4,
     },
     recommendationCardButtonText: {
         fontSize: 11,

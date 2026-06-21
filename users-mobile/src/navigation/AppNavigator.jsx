@@ -203,7 +203,7 @@ const MainAppStack = () => (
 );
 
 export default function AppNavigator() {
-    const { isBootstrapping, onboardingComplete, subscriptionStatus, user, profile, signOut } = useAuth();
+    const { isBootstrapping, onboardingComplete, subscriptionStatus, user, profile, signOut, isSwitching } = useAuth();
     const patient = usePatientStore(state => state.patient);
 
     // BUG 6 FIX: hasNotified must reset when the user signs out and back in.
@@ -360,6 +360,16 @@ export default function AppNavigator() {
     // so AlertManager has its ref ready as soon as the app becomes interactive.
     if (isBootstrapping) return <CustomAlert ref={alertRef} />;
 
+    if (isSwitching) {
+        return (
+            <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color={colors.primary} style={{ marginBottom: 16 }} />
+                <Text style={styles.loadingText}>Switching workspace...</Text>
+                <CustomAlert ref={alertRef} />
+            </View>
+        );
+    }
+
     if (!user) return (
         <>
             <AuthStack />
@@ -425,5 +435,16 @@ const styles = StyleSheet.create({
         backgroundColor: "#2563EB",
         shadowColor: "#2563EB", shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.35, shadowRadius: 8, elevation: 8,
+    },
+    loadingContainer: {
+        flex: 1,
+        backgroundColor: colors.background,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    loadingText: {
+        fontSize: 16,
+        fontFamily: "Inter_600SemiBold",
+        color: colors.textSecondary,
     },
 });

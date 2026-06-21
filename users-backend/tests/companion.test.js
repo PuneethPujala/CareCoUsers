@@ -79,6 +79,7 @@ jest.mock('../src/models/RiskTransition');
 jest.mock('../src/models/SleepLog');
 jest.mock('../src/models/PatientHealthStateHistory');
 jest.mock('../src/models/AchievementEvent');
+jest.mock('../src/models/CompanionAiInsight');
 jest.mock('../src/utils/pushNotifications', () => ({
     sendPush: jest.fn().mockResolvedValue({ success: true })
 }));
@@ -106,6 +107,7 @@ const RiskTransition = require('../src/models/RiskTransition');
 const SleepLog = require('../src/models/SleepLog');
 const PatientHealthStateHistory = require('../src/models/PatientHealthStateHistory');
 const AchievementEvent = require('../src/models/AchievementEvent');
+const CompanionAiInsight = require('../src/models/CompanionAiInsight');
 const { generateInterventions, completeIntervention } = require('../src/services/interventionEngineService');
 const { getOrGenerateInsights } = require('../src/services/companionAiService');
 
@@ -139,6 +141,9 @@ describe('Companion Routes', () => {
             lean: jest.fn().mockResolvedValue([])
         });
         AchievementEvent.find = jest.fn().mockReturnValue({
+            lean: jest.fn().mockResolvedValue([])
+        });
+        CompanionAiInsight.find = jest.fn().mockReturnValue({
             lean: jest.fn().mockResolvedValue([])
         });
     });
@@ -567,6 +572,60 @@ describe('Companion Routes', () => {
             expect(res.status).toBe(200);
             expect(res.body.success).toBe(true);
             expect(completeIntervention).toHaveBeenCalledWith('int-123', mockAuthState.profile._id);
+        });
+
+        it('completes escalation_contact intervention successfully and triggers notifications/alerts', async () => {
+            const mockIntervention = {
+                _id: 'int-456',
+                patient_id: fakeId('patient-123'),
+                type: 'escalation_contact',
+                status: 'generated'
+            };
+            const Intervention = require('../src/models/Intervention');
+            Intervention.findById = jest.fn().mockResolvedValue(mockIntervention);
+
+            const mockAccess = {
+                companion_id: fakeId('companion-profile-id'),
+                patient_id: fakeId('patient-123'),
+                is_active: true,
+                status: 'accepted'
+            };
+            CompanionAccess.findOne = jest.fn().mockResolvedValue(mockAccess);
+            completeIntervention.mockResolvedValue(mockIntervention);
+
+            const mockPatientObj = {
+                _id: fakeId('patient-123'),
+                name: 'Jane Patient',
+                expo_push_token: 'ExponentPushToken[patient-token]',
+                assigned_caller_id: fakeId('caller-123'),
+                organization_id: fakeId('org-123')
+            };
+            Patient.findById = jest.fn().mockResolvedValue(mockPatientObj);
+            Patient.findOne = jest.fn().mockResolvedValue({ expo_push_token: 'ExponentPushToken[caller-token]' });
+
+            const mockCallerObj = {
+                _id: fakeId('caller-123'),
+                name: 'Caretaker Jim',
+                supabase_uid: 'sup-uid-caller-123',
+                expo_push_token: 'ExponentPushToken[caller-token]'
+            };
+            const Caller = require('../src/models/Caller');
+            Caller.findById = jest.fn().mockResolvedValue(mockCallerObj);
+
+            const Alert = require('../src/models/Alert');
+            Alert.create = jest.fn().mockResolvedValue({});
+            Notification.create = jest.fn().mockResolvedValue({});
+
+            const res = await request(app)
+                .post('/api/companion/interventions')
+                .send({ interventionId: 'int-456' });
+
+            expect(res.status).toBe(200);
+            expect(res.body.success).toBe(true);
+            expect(completeIntervention).toHaveBeenCalledWith('int-456', mockAuthState.profile._id);
+            expect(Notification.create).toHaveBeenCalled();
+            expect(Alert.create).toHaveBeenCalled();
+            expect(PushNotificationService.sendPush).toHaveBeenCalled();
         });
     });
 

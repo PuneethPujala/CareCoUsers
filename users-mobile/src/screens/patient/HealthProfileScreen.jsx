@@ -196,6 +196,25 @@ export default function HealthProfileScreen({ navigation }) {
     }, [showScoreInfo]);
 
     useEffect(() => {
+        let intervalId = null;
+        const isHistoryPending = showScoreInfo && (!healthHistory?.history || healthHistory.history.length < 5);
+
+        if (isHistoryPending) {
+            intervalId = setInterval(() => {
+                if (!historyLoading) {
+                    loadHistoryAndTimeline();
+                }
+            }, 3000);
+        }
+
+        return () => {
+            if (intervalId) {
+                clearInterval(intervalId);
+            }
+        };
+    }, [showScoreInfo, healthHistory?.history?.length, historyLoading]);
+
+    useEffect(() => {
         if (isHealthSupported()) {
             initializeHealthPlatform().then(ready => setHealthSdkReady(ready));
         }

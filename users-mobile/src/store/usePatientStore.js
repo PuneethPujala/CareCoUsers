@@ -135,6 +135,7 @@ const usePatientStore = create((set, get) => ({
     medicationSchedule: { morning: [], afternoon: [], night: [] },
     weeklyAdherence: [],
     adherenceDetails: null,
+    healthHistory: null,
     adherenceRecap: null,
     adherenceRecaps: { weekly: null, monthly: null, yearly: null },
     callPreferences: { morning: '09:00', afternoon: '14:00', evening: '17:00', night: '20:00' },
@@ -143,6 +144,7 @@ const usePatientStore = create((set, get) => ({
     lastFetchTs: 0,
     syncState: 'synced', // 'synced' | 'syncing' | 'failed' | 'offline'
     pendingSyncCount: 0,
+    pendingInterventionsCount: 0,
     simulateOffline: false,
     networkSimulationMode: 'online', // 'online' | 'offline' | 'flaky' | 'slow'
     lastSyncTimestamp: null,
@@ -152,6 +154,7 @@ const usePatientStore = create((set, get) => ({
     setCompanionSelectedPatientId: (id) => set({ companionSelectedPatientId: id }),
     setSyncState: (state) => set({ syncState: state }),
     setPendingSyncCount: (count) => set({ pendingSyncCount: count }),
+    setPendingInterventionsCount: (count) => set({ pendingInterventionsCount: typeof count === 'function' ? count(get().pendingInterventionsCount) : count }),
     setSimulateOffline: (simulate) => set({ simulateOffline: simulate }),
     setNetworkSimulationMode: (mode) => set({ networkSimulationMode: mode }),
     setLastSyncTimestamp: (ts) => set({ lastSyncTimestamp: ts }),
@@ -283,6 +286,7 @@ const usePatientStore = create((set, get) => ({
                     adherenceDetails: s.adherenceDetails
                         ? { ...s.adherenceDetails, ...freshAdherenceDetails }
                         : freshAdherenceDetails,
+                    healthHistory: dashData.healthHistory || null,
                     isCached: false,
                     loading: false,
                     lastFetchTs: Date.now(),
@@ -317,7 +321,7 @@ const usePatientStore = create((set, get) => ({
             const historyStart = new Date(todayStart);
             historyStart.setDate(historyStart.getDate() - 7);
 
-            const [pRes, vRes, vHistRes, medsRes, aiRes, adhRes] = await Promise.all([
+            const [pRes, vRes, vHistRes, medsRes, aiRes, adhRes, histRes] = await Promise.all([
                 apiService.patients.getMe(),
                 apiService.patients.getVitals({
                     start_date: todayStart.toISOString(),
@@ -327,6 +331,7 @@ const usePatientStore = create((set, get) => ({
                 apiService.medicines.getToday(),
                 apiService.patients.getAIPrediction().catch(() => ({ data: { prediction: null } })),
                 apiService.medicines.getAdherenceDetails().catch(() => ({ data: { streak: 0 } })),
+                apiService.patients.getHealthHistory().catch(() => ({ data: null })),
             ]);
 
             const freshPatient = pRes.data.patient;
@@ -380,6 +385,7 @@ const usePatientStore = create((set, get) => ({
                 adherenceDetails: s.adherenceDetails
                     ? { ...s.adherenceDetails, ...freshAdherenceDetails }
                     : freshAdherenceDetails,
+                healthHistory: histRes?.data || null,
                 isCached: false,
                 loading: false,
                 lastFetchTs: Date.now(),

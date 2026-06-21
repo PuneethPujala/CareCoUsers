@@ -497,6 +497,13 @@ router.put('/me', authenticateSession, async (req, res) => {
         const patient = await getOrCreatePatient(req, name);
         await Patient.updateOne({ _id: patient._id }, { $set: updates });
         req.patient = await Patient.findById(patient._id);
+
+        if (updates.expo_push_token !== undefined && req.profile && req.profile.role === 'caller') {
+            const Profile = require('../../models/Profile');
+            const Caller = require('../../models/Caller');
+            await Profile.updateOne({ _id: req.profile._id }, { $set: { expo_push_token: updates.expo_push_token } });
+            await Caller.updateOne({ supabase_uid: req.profile.supabaseUid }, { $set: { expo_push_token: updates.expo_push_token } });
+        }
         logger.info('Profile updated', { patientId: patient._id, body: req.body });
 
         // Only send the connection success notification if the patient did not have a token previously.
@@ -1981,8 +1988,9 @@ router.get('/me/dashboard', authenticateSession, async (req, res) => {
             adherenceRate = (weeklyTaken / weeklyTotal) * 100;
         }
 
-        const { getCachedHealthState } = require('../../services/patientHealthStateService');
+        const { getCachedHealthState, getHealthHistory } = require('../../services/patientHealthStateService');
         const healthState = await getCachedHealthState(patient);
+        const healthHistory = await getHealthHistory(patient._id, timezone).catch(() => ({ history: [], deltas: { score_delta_7d: 0, score_delta_30d: 0, adherence_delta_30d: 0 } }));
 
         res.json({
             patient: { ...patientObj, patient_health_state: healthState },
@@ -1992,6 +2000,7 @@ router.get('/me/dashboard', authenticateSession, async (req, res) => {
             aiPrediction: aiPrediction || null,
             adherence,
             patient_health_state: healthState,
+            healthHistory,
         });
     } catch (error) {
         logger.error('Dashboard aggregate error', { error: error.message, patientId: req.user?.id });

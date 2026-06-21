@@ -300,12 +300,18 @@ async function generateAndCacheInsights(patientId, isManualRefresh = false, skip
         
         if (existingInsight && existingInsight.risk_level !== riskLevel) {
             try {
+                const summary = `${patient.name.split(' ')[0]}'s risk status changed from ${(existingInsight.risk_level || 'low').toUpperCase()} to ${riskLevel.toUpperCase()}`;
+                const factors = riskFactors.length > 0 ? riskFactors : ["All tracked vitals and medication adherence are stable."];
                 const RiskTransition = require('../models/RiskTransition');
                 await RiskTransition.create({
                     patient_id: patientId,
                     date: new Date(),
                     from: existingInsight.risk_level || 'low',
-                    to: riskLevel
+                    to: riskLevel,
+                    reason: {
+                        summary,
+                        factors
+                    }
                 });
                 logger.info(`[CompanionAIService] Logged risk transition for patient ${patientId}: ${existingInsight.risk_level} -> ${riskLevel}`);
             } catch (err) {
@@ -487,7 +493,26 @@ async function generateAndCacheInsights(patientId, isManualRefresh = false, skip
             fallback_used: true
         };
 
-        if (GROQ_API_KEY && !skipLlmCall) {
+        let shouldReuseLlmCache = false;
+        if (!isManualRefresh && !skipLlmCall && existingInsight && existingInsight.generated_at) {
+            const cacheAgeMs = Date.now() - new Date(existingInsight.generated_at).getTime();
+            const sameRisk = existingInsight.risk_level === riskLevel;
+            const sameActions = JSON.stringify(existingInsight.priority_actions || []) === JSON.stringify(priorityActions);
+            
+            if (cacheAgeMs < 2 * 60 * 60 * 1000 && sameRisk && sameActions) {
+                shouldReuseLlmCache = true;
+                logger.info(`[CompanionAIService] Reusing cached LLM briefing for patient ${patientId} (Cache age: ${Math.round(cacheAgeMs / 60000)}m)`);
+            }
+        }
+
+        if (shouldReuseLlmCache && existingInsight) {
+            summaryText = existingInsight.summary;
+            recommendations = existingInsight.recommendations;
+            generationMeta = existingInsight.generation_meta || generationMeta;
+            if (generationMeta) {
+                generationMeta.reused_from_cache = true;
+            }
+        } else if (GROQ_API_KEY && !skipLlmCall) {
             const prompt = `
 You are CareMyMed's Caregiver AI decision support assistant.
 You are generating a caregiver briefing and specific recommendations for ${patient.name}'s family companion.
@@ -669,16 +694,16 @@ async function getOrGenerateInsights(patientId, forceRefresh = false) {
     const cached = await CompanionAiInsight.findOne({ patient_id: patientId });
 
     if (!forceRefresh) {
-        // Fresh if generated within past 6 hours
-        if (cached && cached.generated_at && (Date.now() - new Date(cached.generated_at).getTime() < 6 * 60 * 60 * 1000)) {
+        // Fresh if generated within past 30 minutes (granular freshness)
+        if (cached && cached.generated_at && (Date.now() - new Date(cached.generated_at).getTime() < 30 * 60 * 1000)) {
             return cached;
         }
     }
 
-    // If cached is stale but exists, return cached immediately to prevent blocking, and trigger background refresh (delayed)
+    // If cached is stale but exists, return cached immediately to prevent blocking, and trigger background refresh (delayed 5s)
     if (cached) {
         logger.info(`[CompanionAIService] Cached insights found (stale). Returning immediately and enqueuing background refresh for patient ${patientId}`);
-        enqueueCompanionInsights(patientId, 120000).catch(err => {
+        enqueueCompanionInsights(patientId, 5000).catch(err => {
             logger.warn('[CompanionAIService] Failed to enqueue background insights update:', err.message);
         });
         return cached;

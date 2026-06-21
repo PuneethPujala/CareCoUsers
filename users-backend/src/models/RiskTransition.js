@@ -22,6 +22,10 @@ const riskTransitionSchema = new mongoose.Schema(
             type: String,
             enum: ['low', 'medium', 'high', 'unknown'],
             required: true,
+        },
+        reason: {
+            summary: { type: String },
+            factors: [{ type: String }]
         }
     },
     {

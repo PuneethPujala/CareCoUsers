@@ -188,18 +188,29 @@ export default function CompanionHomeScreen() {
                                         {p.health_score !== undefined && (
                                             <View style={[
                                                 styles.scoreBadge,
-                                                { backgroundColor: p.health_score > 70 ? colors.success : colors.warning }
+                                                p.visibility_label === 'Low' ? styles.scoreBadgeLowVisibility : styles.scoreBadgeNormal,
+                                                { backgroundColor: p.visibility_label === 'Low' ? '#94A3B8' : (p.health_score > 70 ? colors.success : colors.warning) }
                                             ]}>
-                                                <Text style={styles.scoreText}>{p.health_score}</Text>
+                                                <Text style={[styles.scoreText, p.visibility_label === 'Low' && styles.scoreTextLowVisibility]}>{p.health_score}</Text>
+                                                {p.visibility_label === 'Low' && (
+                                                    <Text style={styles.scoreBadgeEstimatedLabel}>Estimated</Text>
+                                                )}
                                             </View>
                                         )}
                                     </View>
                                     <View style={styles.patientInfo}>
                                         <Text style={styles.patientName}>{p.name}</Text>
                                         {p.health_score !== undefined && (
-                                            <Text style={styles.patientStatus}>
-                                                Health Score: {p.health_score}
-                                            </Text>
+                                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginTop: 4 }}>
+                                                <Text style={styles.patientStatus}>
+                                                    Health Score: {p.health_score}
+                                                </Text>
+                                                {p.visibility_label === 'Low' && (
+                                                    <View style={{ backgroundColor: '#FFFBEB', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, borderWidth: 0.5, borderColor: '#FDE68A' }}>
+                                                        <Text style={{ fontSize: 9, color: '#B45309', fontWeight: 'bold' }}>Low Confidence</Text>
+                                                    </View>
+                                                )}
+                                            </View>
                                         )}
                                     </View>
                                     <View style={styles.arrowBox}>
@@ -339,18 +350,40 @@ const styles = StyleSheet.create({
         position: 'absolute',
         bottom: -2,
         right: -2,
-        paddingHorizontal: 5,
-        paddingVertical: 2,
-        borderRadius: 8,
         borderWidth: 1.5,
         borderColor: colors.surface,
         alignItems: 'center',
         justifyContent: 'center',
     },
+    scoreBadgeNormal: {
+        paddingHorizontal: 5,
+        paddingVertical: 2,
+        borderRadius: 8,
+    },
+    scoreBadgeLowVisibility: {
+        bottom: -6,
+        right: -10,
+        paddingHorizontal: 6,
+        paddingVertical: 3,
+        borderRadius: 10,
+        minWidth: 50,
+    },
     scoreText: {
         color: colors.surface,
         fontSize: 9,
         fontWeight: 'bold',
+    },
+    scoreTextLowVisibility: {
+        fontSize: 10,
+        lineHeight: 11,
+    },
+    scoreBadgeEstimatedLabel: {
+        color: colors.surface,
+        fontSize: 6.5,
+        lineHeight: 8,
+        fontWeight: '800',
+        textTransform: 'uppercase',
+        marginTop: 1,
     },
     patientInfo: {
         flex: 1,

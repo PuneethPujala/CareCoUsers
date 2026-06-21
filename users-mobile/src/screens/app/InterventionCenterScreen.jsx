@@ -123,6 +123,7 @@ const FeedEmptyIllustration = () => {
 export default function InterventionCenterScreen({ navigation }) {
     const insets = useSafeAreaInsets();
     const companionSelectedPatientId = usePatientStore(state => state.companionSelectedPatientId);
+    const setPendingInterventionsCount = usePatientStore(state => state.setPendingInterventionsCount);
     
     const [activeTab, setActiveTab] = useState('pending'); // 'pending' | 'history'
     const [loading, setLoading] = useState(true);
@@ -141,7 +142,9 @@ export default function InterventionCenterScreen({ navigation }) {
             const params = { patientId: companionSelectedPatientId };
             const res = await apiService.companion.getInterventions(params);
             
-            setPendingInterventions(res.data.active_interventions || []);
+            const activeInts = res.data.active_interventions || [];
+            setPendingInterventions(activeInts);
+            setPendingInterventionsCount(activeInts.length);
             setCompletedFeed(res.data.completed_feed || []);
         } catch (err) {
             console.warn('[InterventionCenter] Failed to fetch:', err.message);
@@ -160,7 +163,9 @@ export default function InterventionCenterScreen({ navigation }) {
         try {
             const params = { patientId: companionSelectedPatientId };
             const res = await apiService.companion.getInterventions(params);
-            setPendingInterventions(res.data.active_interventions || []);
+            const activeInts = res.data.active_interventions || [];
+            setPendingInterventions(activeInts);
+            setPendingInterventionsCount(activeInts.length);
             setCompletedFeed(res.data.completed_feed || []);
         } catch (err) {
             console.warn('[InterventionCenter] Refresh failed:', err.message);
@@ -177,6 +182,10 @@ export default function InterventionCenterScreen({ navigation }) {
     );
 
     const handleCompleteIntervention = async (interventionId, type) => {
+        // Optimistic update of local lists and global count to prevent lag
+        setPendingInterventions(prev => prev.filter(i => i._id !== interventionId));
+        setPendingInterventionsCount(prev => Math.max(0, prev - 1));
+
         try {
             const res = await apiService.companion.completeIntervention({ interventionId });
             if (res.data) {
@@ -192,6 +201,8 @@ export default function InterventionCenterScreen({ navigation }) {
             console.warn('[InterventionCenter] Failed to complete:', err.message);
             const apiErr = handleApiError(err);
             AlertManager.alert('Error', apiErr.message, [{ text: 'OK' }], { type: 'error' });
+            // Revert state on failure
+            fetchData();
         }
     };
 

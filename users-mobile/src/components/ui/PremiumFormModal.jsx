@@ -43,6 +43,8 @@ const PremiumFormModal = ({
     saveDisabled = false,
     children,
     headerRight,
+    centered = false,
+    icon,
 }) => {
     const slideAnim = useRef(new Animated.Value(0)).current;
     const backdropAnim = useRef(new Animated.Value(0)).current;
@@ -119,13 +121,13 @@ const PremiumFormModal = ({
             </TouchableWithoutFeedback>
 
             <KeyboardAvoidingView
-                style={[styles.sheetWrapper, { paddingHorizontal: 20 }]}
+                style={[styles.sheetWrapper, { paddingHorizontal: 20 }, centered && styles.sheetWrapperCentered]}
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 20}
             >
               <Animated.View
                 style={[
-                    { flex: 1, justifyContent: 'center' },
+                    centered ? { flex: 1, justifyContent: 'center', alignItems: 'center', width: '100%' } : { flex: 1, justifyContent: 'center' },
                     {
                         opacity: slideAnim,
                         transform: [
@@ -140,12 +142,23 @@ const PremiumFormModal = ({
                 ]}
                 pointerEvents="box-none"
               >
-                <View style={[styles.sheetContainer, androidKeyboardPad > 0 && { maxHeight: SCREEN_HEIGHT - androidKeyboardPad - 80 }]}>
+                <View style={[
+                    styles.sheetContainer,
+                    centered && styles.sheetContainerCentered,
+                    androidKeyboardPad > 0 && { maxHeight: SCREEN_HEIGHT - androidKeyboardPad - 80 }
+                ]}>
                     {/* Header */}
-                    <View style={styles.header}>
-                        <Text style={styles.title} numberOfLines={1}>
-                            {title}
-                        </Text>
+                    <View style={[styles.header, centered && styles.headerCentered]}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 12 }}>
+                            {icon && (
+                                <View style={styles.iconCircle}>
+                                    {icon}
+                                </View>
+                            )}
+                            <Text style={styles.title} numberOfLines={1}>
+                                {title}
+                            </Text>
+                        </View>
                         <View style={styles.headerActions}>
                             {headerRight}
                             <Pressable
@@ -213,6 +226,29 @@ const styles = StyleSheet.create({
         bottom: 0,
         top: 0,
         justifyContent: 'flex-end',
+    },
+    sheetWrapperCentered: {
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    sheetContainerCentered: {
+        minHeight: 0,
+        marginBottom: 0,
+        borderRadius: 28,
+        width: '92%',
+        maxWidth: 400,
+    },
+    headerCentered: {
+        borderBottomWidth: 0,
+        paddingBottom: 8,
+    },
+    iconCircle: {
+        width: 40,
+        height: 40,
+        borderRadius: 12,
+        backgroundColor: '#EFF6FF',
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     sheetContainer: {
         minHeight: SCREEN_HEIGHT * 0.50,

@@ -72,13 +72,15 @@
                 android:textSize="11sp" />
         </LinearLayout>
 
-        <!-- Right: Mascot -->
+        <!-- Right: Mascot with Glow Aura -->
         <ImageView
             android:id="@+id/widget_empty_mascot"
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_weight="0.8"
             android:src="@drawable/doctor_mascot_celebration"
+            android:background="@drawable/widget_mascot_glow"
+            android:padding="12dp"
             android:scaleType="fitCenter" />
     </LinearLayout>
 

@@ -143,13 +143,15 @@
             </LinearLayout>
         </LinearLayout>
 
-        <!-- Right: Mascot Column -->
+        <!-- Right: Mascot Column with Glow Aura -->
         <ImageView
             android:id="@+id/widget_mascot"
             android:layout_width="0dp"
             android:layout_height="match_parent"
-            android:layout_weight="0.8"
+            android:layout_weight="0.6"
             android:src="@drawable/doctor_mascot"
+            android:background="@drawable/widget_mascot_glow"
+            android:padding="12dp"
             android:scaleType="fitCenter" />
     </LinearLayout>
 </LinearLayout>

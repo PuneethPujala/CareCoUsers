@@ -108,20 +108,25 @@ const sendOTPEmail = async (to, otp) => {
       <meta charset="utf-8">
       <style>
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; background: #0B0F19; color: #E2E8F0; }
-        .container { max-width: 520px; margin: 40px auto; background: #151D30; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.25); border: 1px solid #24304F; }
+        .container { max-width: 520px; margin: 20px 12px; background: #151D30; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.25); border: 1px solid #24304F; }
         .header { background: linear-gradient(135deg, #3B82F6, #6366F1); padding: 40px 24px; text-align: center; }
         .logo { font-size: 14px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px; }
         .logo-c { color: #FFFFFF; }
         .logo-m { color: #60A5FA; }
         .header h1 { color: #fff; margin: 0; font-size: 26px; font-weight: 800; letter-spacing: -0.5px; }
-        .body { padding: 40px 32px; }
+        .body { padding: 32px 20px; }
         .body p { color: #94A3B8; line-height: 1.7; margin: 0 0 16px; font-size: 15px; }
         .otp-box { text-align: center; margin: 32px 0; }
-        .otp-code { display: inline-block; background: #1E293B; border: 1px solid #334155; border-radius: 12px; padding: 20px 40px; font-size: 36px; font-weight: 800; color: #60A5FA; letter-spacing: 12px; text-indent: 12px; font-family: 'SF Mono', 'Fira Code', monospace; }
+        .otp-code { display: inline-block; background: #1E293B; border: 1px solid #334155; border-radius: 12px; padding: 12px 20px; font-size: 26px; font-weight: 800; color: #60A5FA; letter-spacing: 8px; text-indent: 8px; font-family: 'SF Mono', 'Fira Code', monospace; max-width: 100%; box-sizing: border-box; }
         .timer { display: inline-block; background: #2A2215; border: 1px solid #4D3C1B; border-radius: 8px; padding: 8px 16px; margin-top: 16px; font-size: 13px; color: #F59E0B; font-weight: 600; }
         .warning { background: #2A1C1E; border: 1px solid #4D2527; border-radius: 12px; padding: 16px; margin: 24px 0 0; }
         .warning p { color: #FCA5A5; margin: 0; font-size: 13px; line-height: 1.5; }
         .footer { text-align: center; padding: 24px; color: #64748B; font-size: 12px; border-top: 1px solid #1E293B; background: #0E1322; }
+        @media (min-width: 560px) {
+          .container { margin: 40px auto; }
+          .body { padding: 40px 32px; }
+          .otp-code { font-size: 36px; padding: 20px 40px; letter-spacing: 12px; text-indent: 12px; }
+        }
       </style>
     </head>
     <body>
@@ -170,22 +175,26 @@ const sendTempPasswordEmail = async (to, fullName, tempPassword, roleName) => {
       <meta charset="utf-8">
       <style>
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; background: #0B0F19; color: #E2E8F0; }
-        .container { max-width: 520px; margin: 40px auto; background: #151D30; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.25); border: 1px solid #24304F; }
+        .container { max-width: 520px; margin: 20px 12px; background: #151D30; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.25); border: 1px solid #24304F; }
         .header { background: linear-gradient(135deg, #3B82F6, #6366F1); padding: 40px 24px; text-align: center; }
         .logo { font-size: 14px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px; }
         .logo-c { color: #FFFFFF; }
         .logo-m { color: #60A5FA; }
         .header h1 { color: #fff; margin: 0; font-size: 22px; font-weight: 800; }
-        .body { padding: 40px 32px; }
+        .body { padding: 32px 20px; }
         .body p { color: #94A3B8; line-height: 1.7; margin: 0 0 16px; font-size: 15px; }
         .body strong { color: #FFFFFF; }
-        .creds { background: #1E293B; border: 1px solid #334155; border-radius: 12px; padding: 20px; margin: 20px 0; }
+        .creds { background: #1E293B; border: 1px solid #334155; border-radius: 12px; padding: 20px; margin: 20px 0; box-sizing: border-box; max-width: 100%; }
         .creds p { margin: 6px 0; font-size: 15px; color: #E2E8F0; }
         .creds strong { color: #60A5FA; }
-        .warning { background: #2A1C1E; border: 1px solid #4D2527; border-radius: 12px; padding: 16px; margin: 20px 0; }
+        .warning { background: #2A1C1E; border: 1px solid #4D2527; border-radius: 12px; padding: 16px; margin: 20px 0; box-sizing: border-box; max-width: 100%; }
         .warning p { color: #FCA5A5; margin: 0; font-size: 13px; line-height: 1.5; }
-        .btn { display: inline-block; background: linear-gradient(135deg, #3B82F6, #6366F1); color: #fff !important; text-decoration: none; padding: 14px 32px; border-radius: 12px; font-weight: 700; margin: 16px 0; text-align: center; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3); }
+        .btn { display: inline-block; background: linear-gradient(135deg, #3B82F6, #6366F1); color: #fff !important; text-decoration: none; padding: 14px 32px; border-radius: 12px; font-weight: 700; margin: 16px 0; text-align: center; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3); box-sizing: border-box; max-width: 100%; }
         .footer { text-align: center; padding: 24px; color: #64748B; font-size: 12px; border-top: 1px solid #1E293B; background: #0E1322; }
+        @media (min-width: 560px) {
+          .container { margin: 40px auto; }
+          .body { padding: 40px 32px; }
+        }
       </style>
     </head>
     <body>
@@ -233,16 +242,20 @@ const sendPasswordChangedEmail = async (to, fullName) => {
       <meta charset="utf-8">
       <style>
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; background: #0B0F19; color: #E2E8F0; }
-        .container { max-width: 520px; margin: 40px auto; background: #151D30; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.25); border: 1px solid #24304F; }
+        .container { max-width: 520px; margin: 20px 12px; background: #151D30; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.25); border: 1px solid #24304F; }
         .header { background: linear-gradient(135deg, #059669, #10B981); padding: 40px 24px; text-align: center; }
         .logo { font-size: 14px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px; }
         .logo-c { color: #FFFFFF; }
         .logo-m { color: #34D399; }
         .header h1 { color: #fff; margin: 0; font-size: 22px; font-weight: 800; }
-        .body { padding: 40px 32px; }
+        .body { padding: 32px 20px; }
         .body p { color: #94A3B8; line-height: 1.7; margin: 0 0 16px; font-size: 15px; }
         .body strong { color: #FFFFFF; }
         .footer { text-align: center; padding: 24px; color: #64748B; font-size: 12px; border-top: 1px solid #1E293B; background: #0E1322; }
+        @media (min-width: 560px) {
+          .container { margin: 40px auto; }
+          .body { padding: 40px 32px; }
+        }
       </style>
     </head>
     <body>
@@ -278,20 +291,25 @@ const sendPasswordResetEmail = async (to, otp) => {
       <meta charset="utf-8">
       <style>
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; background: #0B0F19; color: #E2E8F0; }
-        .container { max-width: 520px; margin: 40px auto; background: #151D30; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.25); border: 1px solid #24304F; }
+        .container { max-width: 520px; margin: 20px 12px; background: #151D30; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.25); border: 1px solid #24304F; }
         .header { background: linear-gradient(135deg, #3B82F6, #6366F1); padding: 40px 24px; text-align: center; }
         .logo { font-size: 14px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px; }
         .logo-c { color: #FFFFFF; }
         .logo-m { color: #60A5FA; }
         .header h1 { color: #fff; margin: 0; font-size: 26px; font-weight: 800; letter-spacing: -0.5px; }
-        .body { padding: 40px 32px; }
+        .body { padding: 32px 20px; }
         .body p { color: #94A3B8; line-height: 1.7; margin: 0 0 16px; font-size: 15px; }
         .otp-box { text-align: center; margin: 32px 0; }
-        .otp-code { display: inline-block; background: #1E293B; border: 1px solid #334155; border-radius: 12px; padding: 20px 40px; font-size: 36px; font-weight: 800; color: #60A5FA; letter-spacing: 12px; text-indent: 12px; font-family: 'SF Mono', 'Fira Code', monospace; }
+        .otp-code { display: inline-block; background: #1E293B; border: 1px solid #334155; border-radius: 12px; padding: 12px 20px; font-size: 26px; font-weight: 800; color: #60A5FA; letter-spacing: 8px; text-indent: 8px; font-family: 'SF Mono', 'Fira Code', monospace; max-width: 100%; box-sizing: border-box; }
         .timer { display: inline-block; background: #2A2215; border: 1px solid #4D3C1B; border-radius: 8px; padding: 8px 16px; margin-top: 16px; font-size: 13px; color: #F59E0B; font-weight: 600; }
         .warning { background: #2A1C1E; border: 1px solid #4D2527; border-radius: 12px; padding: 16px; margin: 24px 0 0; }
         .warning p { color: #FCA5A5; margin: 0; font-size: 13px; line-height: 1.5; }
         .footer { text-align: center; padding: 24px; color: #64748B; font-size: 12px; border-top: 1px solid #1E293B; background: #0E1322; }
+        @media (min-width: 560px) {
+          .container { margin: 40px auto; }
+          .body { padding: 40px 32px; }
+          .otp-code { font-size: 36px; padding: 20px 40px; letter-spacing: 12px; text-indent: 12px; }
+        }
       </style>
     </head>
     <body>
@@ -338,20 +356,25 @@ const sendSecurityOTPEmail = async (to, otp) => {
       <meta charset="utf-8">
       <style>
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; background: #0B0F19; color: #E2E8F0; }
-        .container { max-width: 520px; margin: 40px auto; background: #151D30; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.25); border: 1px solid #24304F; }
+        .container { max-width: 520px; margin: 20px 12px; background: #151D30; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.25); border: 1px solid #24304F; }
         .header { background: linear-gradient(135deg, #1E293B, #0F172A); padding: 40px 24px; text-align: center; }
         .logo { font-size: 14px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px; }
         .logo-c { color: #FFFFFF; }
         .logo-m { color: #EF4444; }
         .header h1 { color: #fff; margin: 0; font-size: 24px; font-weight: 800; }
-        .body { padding: 40px 32px; }
+        .body { padding: 32px 20px; }
         .body p { color: #94A3B8; line-height: 1.7; margin: 0 0 16px; font-size: 15px; }
         .otp-box { text-align: center; margin: 32px 0; }
-        .otp-code { display: inline-block; background: #1E293B; border: 1px solid #334155; border-radius: 12px; padding: 20px 40px; font-size: 36px; font-weight: 800; color: #EF4444; letter-spacing: 12px; text-indent: 12px; font-family: 'SF Mono', 'Fira Code', monospace; }
+        .otp-code { display: inline-block; background: #1E293B; border: 1px solid #334155; border-radius: 12px; padding: 12px 20px; font-size: 26px; font-weight: 800; color: #EF4444; letter-spacing: 8px; text-indent: 8px; font-family: 'SF Mono', 'Fira Code', monospace; max-width: 100%; box-sizing: border-box; }
         .timer { display: inline-block; background: #2A2215; border: 1px solid #4D3C1B; border-radius: 8px; padding: 8px 16px; margin-top: 16px; font-size: 13px; color: #F59E0B; font-weight: 600; }
         .warning { background: #2A1C1E; border: 1px solid #4D2527; border-radius: 12px; padding: 16px; margin: 20px 0; }
         .warning p { color: #FCA5A5; margin: 0; font-size: 13px; line-height: 1.5; }
         .footer { text-align: center; padding: 24px; color: #64748B; font-size: 12px; border-top: 1px solid #1E293B; background: #0E1322; }
+        @media (min-width: 560px) {
+          .container { margin: 40px auto; }
+          .body { padding: 40px 32px; }
+          .otp-code { font-size: 36px; padding: 20px 40px; letter-spacing: 12px; text-indent: 12px; }
+        }
       </style>
     </head>
     <body>

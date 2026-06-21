@@ -64,7 +64,7 @@ const SkeletonItem = ({ width, height, borderRadius = 8, style }) => {
 
 export default function PatientProfileScreen({ navigation }) {
     const { t } = useTranslation();
-    const { signOut, displayName, userEmail, profile, switchRole } = useAuth();
+    const { signOut, displayName, userEmail, profile, refreshProfile, switchRole } = useAuth();
     const reduceMotion = useReduceMotion();
     const filteredWorkspaces = profile?.workspaces?.filter(w => w.id === 'patient' || w.id === 'companion') || [];
     const [patient, setPatient] = useState(null);
@@ -241,6 +241,7 @@ export default function PatientProfileScreen({ navigation }) {
             (async () => {
                 if (!hasAnimated.current) setLoading(true);
                 try {
+                    await refreshProfile();
                     const { data } = await apiService.patients.getMe();
                     setPatient(data.patient);
                     const emergencyContact = data.patient?.trusted_contacts?.find(c => c.is_emergency);
@@ -1252,14 +1253,18 @@ export default function PatientProfileScreen({ navigation }) {
             </Modal>
 
             {/* ── Switching Workspace Loading Overlay ── */}
-            {switchingWorkspace && (
+            <Modal
+                transparent
+                visible={switchingWorkspace}
+                animationType="fade"
+            >
                 <View style={s.overlayContainer}>
                     <View style={s.overlayContent}>
                         <ActivityIndicator size="large" color={colors.primary} style={{ marginBottom: 16 }} />
                         <Text style={s.overlayText}>{switchingText}</Text>
                     </View>
                 </View>
-            )}
+            </Modal>
 
             <LegalModal
                 visible={legalVisible}
@@ -1463,6 +1468,8 @@ export default function PatientProfileScreen({ navigation }) {
                 onSave={handleVerifyScreenshotOTP}
                 saveText={verifyingScreenshotOTP ? t('common.verifying', { defaultValue: 'Verifying...' }) : t('profile.verify_setup', { defaultValue: 'Verify & Setup' })}
                 saving={verifyingScreenshotOTP}
+                centered={true}
+                icon={<ShieldCheck size={20} color="#2563EB" />}
             >
                 <Text style={[s.inputLabel, { marginTop: 4, textTransform: 'none' }]}>
                     {pendingScreenshotSetting ? t('profile.screenshot_otp_allow', { defaultValue: 'Enter the 6-digit code sent to your email to allow screenshots.' }) : t('profile.screenshot_otp_block', { defaultValue: 'Enter the 6-digit code sent to your email to block screenshots.' })}
@@ -1485,6 +1492,8 @@ export default function PatientProfileScreen({ navigation }) {
                 onSave={handleVerifyEcOTP}
                 saveText={verifyingEcOTP ? t('common.verifying', { defaultValue: 'Verifying...' }) : t('profile.verify_setup', { defaultValue: 'Verify & Setup' })}
                 saving={verifyingEcOTP}
+                centered={true}
+                icon={<LockIcon size={20} color="#2563EB" />}
             >
                 <Text style={[s.inputLabel, { marginTop: 4, textTransform: 'none' }]}>
                     Enter the 6-digit code sent to your email to verify the emergency contact change.

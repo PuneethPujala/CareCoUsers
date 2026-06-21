@@ -577,10 +577,13 @@ async function getHealthHistory(patientId, timezone = 'Asia/Kolkata') {
         
         // 30d delta
         const target30d = moment().tz(timezone).subtract(30, 'days').startOf('day');
-        const entry30d = history.find(h => moment(h.date).isSameOrAfter(target30d));
+        let entry30d = history.find(h => moment(h.date).isSameOrAfter(target30d));
+        if (!entry30d && history.length > 0) {
+            entry30d = history[0];
+        }
         if (entry30d) {
             score_delta_30d = latest.score - entry30d.score;
-            adherence_delta_30d = latest.adherence.today - entry30d.adherence.today;
+            adherence_delta_30d = (latest.adherence?.today ?? 0) - (entry30d.adherence?.today ?? 0);
         }
     }
     

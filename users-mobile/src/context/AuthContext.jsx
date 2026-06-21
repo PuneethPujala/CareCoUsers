@@ -104,6 +104,7 @@ export function AuthProvider({ children }) {
     const [profile, setProfile] = useState(null);
     const [patient, setPatient] = useState(null);
     const [loading, setLoading] = useState(false);
+    const [isSwitching, setIsSwitching] = useState(false);
     const [isBootstrapping, setIsBootstrapping] = useState(true);
     const [recoverySessionAt, setRecoverySessionAt] = useState(null);
 
@@ -133,12 +134,12 @@ export function AuthProvider({ children }) {
             return patientFetchPromiseRef.current;
         }
         const promise = apiService.patients.getMe()
-            .then(async res => {
+            .then(res => {
                 const p = res.data?.patient;
                 if (p) {
                     setPatient(p);
                     usePatientStore.getState().setPatient(p);
-                    await cachePatient(p);
+                    cachePatient(p).catch(() => {});
                 }
                 return p || null;
             })
@@ -609,6 +610,7 @@ export function AuthProvider({ children }) {
     }, []);
 
     const switchRole = useCallback(async (targetRole) => {
+        setIsSwitching(true);
         setLoading(true);
         try {
             const response = await apiService.auth.switchRole(targetRole);
@@ -617,9 +619,9 @@ export function AuthProvider({ children }) {
             
             // Clean up patient store if switching to companion
             if (targetRole === 'companion') {
+                await clearCachedPatient();
                 setPatient(null);
                 usePatientStore.getState().setPatient(null);
-                await clearCachedPatient();
             }
 
             await setProfileAndCache(newProfile);
@@ -642,6 +644,7 @@ export function AuthProvider({ children }) {
             throw error;
         } finally {
             setLoading(false);
+            setIsSwitching(false);
         }
     }, [setProfileAndCache, fetchPatientData]);
 
@@ -669,7 +672,7 @@ export function AuthProvider({ children }) {
     }, [setProfileAndCache]);
 
     const value = {
-        user, session, profile, patient, loading,
+        user, session, profile, patient, loading, isSwitching,
         isBootstrapping, onboardingComplete, subscriptionStatus, recoverySessionAt,
         displayName, userRole, userEmail: user?.email,
         signIn, signUp, signOut, resetPassword, signInWithGoogle,

@@ -124,6 +124,10 @@ const ProfileSchema = new mongoose.Schema(
     last_active_at: {
       type: Date,
     },
+    expo_push_token: {
+      type: String,
+      trim: true,
+    },
     lastWorkspace: {
       type: String,
       enum: ['patient', 'companion'],

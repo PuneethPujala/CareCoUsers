@@ -718,6 +718,14 @@ router.get('/linked-patients', authenticate, async (req, res) => {
             status: 'accepted' 
         }).populate('patient_id', 'name email phone avatar_url healthScoreCache gamification risk_level patient_health_state');
 
+        const patientIds = accesses.filter(a => a.patient_id).map(a => a.patient_id._id);
+        const CompanionAiInsight = require('../models/CompanionAiInsight');
+        const insights = await CompanionAiInsight.find({ patient_id: { $in: patientIds } }).lean();
+        const insightsByPatient = {};
+        for (const ins of insights) {
+            insightsByPatient[ins.patient_id.toString()] = ins;
+        }
+
         const linked_patients = accesses
             .filter(a => a.patient_id)
             .map(a => {
@@ -725,6 +733,9 @@ router.get('/linked-patients', authenticate, async (req, res) => {
                 const score = patient.patient_health_state?.score ?? patient.healthScoreCache ?? 82;
                 const streak = patient.patient_health_state?.adherence?.streak ?? patient.gamification?.current_streak ?? patient.gamification?.streak ?? 0;
                 const risk = patient.risk_level ?? 'low';
+                const ins = insightsByPatient[patient._id.toString()] || {};
+                const visibilityLabel = ins.visibility_label ?? 'Low';
+                const visibilityScore = ins.visibility_score ?? 0;
                 
                 return {
                     id: patient._id,
@@ -737,7 +748,9 @@ router.get('/linked-patients', authenticate, async (req, res) => {
                     current_streak: streak,
                     streak: streak,
                     risk_level: risk,
-                    riskLevel: risk
+                    riskLevel: risk,
+                    visibility_label: visibilityLabel,
+                    visibility_score: visibilityScore
                 };
             });
 
@@ -1014,7 +1027,8 @@ router.get('/interventions', authenticate, async (req, res) => {
         const activeInterventions = await generateInterventions(patientId);
         const completedFeed = await Intervention.find({
             patient_id: patientId,
-            status: 'completed'
+            status: 'completed',
+            source: 'companion'
         }).sort({ completed_at: -1 }).limit(20).lean();
 
         res.json({
@@ -1102,6 +1116,91 @@ router.post('/interventions', authenticate, async (req, res) => {
                         `${companionName} wants to know your latest Blood Pressure. Please take a reading and record it!`,
                         { screen: 'HealthProfile', type: 'companion_request_bp' }
                     ).catch(err => logger.error('Push failed', { error: err.message }));
+                }
+            } else if (intervention.type === 'checkin_call') {
+                // Notify the caller (caretaker) about the completed wellness call to prevent double-calling
+                if (patient.assigned_caller_id) {
+                    try {
+                        const Caller = require('../models/Caller');
+                        const caller = await Caller.findById(patient.assigned_caller_id);
+                        if (caller) {
+                            // Create Alert in DB for caller
+                            const Alert = require('../models/Alert');
+                            await Alert.create({
+                                type: 'general',
+                                patient_id: patient._id,
+                                caller_id: caller._id,
+                                organization_id: patient.organization_id,
+                                description: `Companion ${companionName} completed a wellness check-in call with patient ${patient.name}.`,
+                                status: 'open',
+                                auto_generated: false
+                            });
+
+                            // Send push notification to caller
+                            const callerToken = caller.expo_push_token || (await Patient.findOne({ supabase_uid: caller.supabase_uid }))?.expo_push_token;
+                            if (callerToken) {
+                                await PushNotificationService.sendPush(
+                                    callerToken,
+                                    '📞 Wellness Call Completed',
+                                    `Companion ${companionName} completed a check-in call with patient ${patient.name}.`,
+                                    { screen: 'PatientDetail', type: 'companion_checkin_call', patient_id: patient._id.toString() }
+                                ).catch(err => logger.error('Caller push failed', { error: err.message }));
+                            }
+                        }
+                    } catch (err) {
+                        logger.error('Failed to notify caller of checkin call', { error: err.message });
+                    }
+                }
+            } else if (intervention.type === 'escalation_contact') {
+                // 1. Notify the patient
+                await Notification.create({
+                    patient_id: patient._id,
+                    type: 'alert',
+                    title: 'Emergency Coordinator Contacted 🚨',
+                    message: `Your family caregiver ${companionName} has contacted your emergency escalation coordinator. Please stay calm and check in.`,
+                    target_screen: 'PatientHome'
+                });
+                if (patient.expo_push_token) {
+                    await PushNotificationService.sendPush(
+                        patient.expo_push_token,
+                        'Emergency Coordinator Contacted 🚨',
+                        `Your family caregiver ${companionName} has contacted your emergency escalation coordinator. Please stay calm and check in.`,
+                        { screen: 'PatientHome', type: 'companion_escalation_contact' }
+                    ).catch(err => logger.error('Patient escalation push failed', { error: err.message }));
+                }
+
+                // 2. Notify the caller (caretaker)
+                if (patient.assigned_caller_id) {
+                    try {
+                        const Caller = require('../models/Caller');
+                        const caller = await Caller.findById(patient.assigned_caller_id);
+                        if (caller) {
+                            // Create Alert in DB for caller
+                            const Alert = require('../models/Alert');
+                            await Alert.create({
+                                type: 'general',
+                                patient_id: patient._id,
+                                caller_id: caller._id,
+                                organization_id: patient.organization_id,
+                                description: `Critical: Companion ${companionName} contacted the emergency coordinator for patient ${patient.name}.`,
+                                status: 'open',
+                                auto_generated: false
+                            });
+
+                            // Send push notification to caller
+                            const callerToken = caller.expo_push_token || (await Patient.findOne({ supabase_uid: caller.supabase_uid }))?.expo_push_token;
+                            if (callerToken) {
+                                await PushNotificationService.sendPush(
+                                    callerToken,
+                                    '🚨 Emergency Coordinator Contacted',
+                                    `Companion ${companionName} contacted the emergency coordinator for patient ${patient.name}. Follow up immediately.`,
+                                    { screen: 'PatientDetail', type: 'companion_escalation_contact', patient_id: patient._id.toString() }
+                                ).catch(err => logger.error('Caller escalation push failed', { error: err.message }));
+                            }
+                        }
+                    } catch (err) {
+                        logger.error('Failed to notify caller of escalation contact', { error: err.message });
+                    }
                 }
             }
         }

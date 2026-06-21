@@ -140,6 +140,7 @@ export default function CompanionProfileScreen() {
 
     const loadProfileData = async () => {
         try {
+            await refreshProfile();
             // Fetch only basic linked patient info using the lightweight endpoint
             const res = await apiService.companion.getLinkedPatients();
             setLinkedPatients(res.data.linked_patients || []);
@@ -283,14 +284,22 @@ export default function CompanionProfileScreen() {
                                     {p.health_score !== undefined && (
                                         <View style={[
                                             styles.scoreChip,
-                                            { backgroundColor: p.health_score > 70 ? colors.successLight : '#FEF3C7' }
+                                            p.visibility_label === 'Low' ? styles.scoreChipLowVisibility : null,
+                                            { backgroundColor: p.visibility_label === 'Low' ? '#94A3B8' : (p.health_score > 70 ? colors.successLight : '#FEF3C7') }
                                         ]}>
-                                            <Text style={[
-                                                styles.scoreChipText,
-                                                { color: p.health_score > 70 ? colors.success : '#D97706' }
-                                            ]}>
-                                                Score: {p.health_score}
-                                            </Text>
+                                            {p.visibility_label === 'Low' ? (
+                                                <View style={{ alignItems: 'center', justifyContent: 'center' }}>
+                                                    <Text style={{ color: '#FFFFFF', fontSize: 12, lineHeight: 13, fontWeight: 'bold' }}>{p.health_score}</Text>
+                                                    <Text style={{ color: '#FFFFFF', fontSize: 7, lineHeight: 9, fontWeight: '900', textTransform: 'uppercase', marginTop: 1 }}>Estimated</Text>
+                                                </View>
+                                            ) : (
+                                                <Text style={[
+                                                    styles.scoreChipText,
+                                                    { color: p.health_score > 70 ? colors.success : '#D97706' }
+                                                ]}>
+                                                    Score: {p.health_score}
+                                                </Text>
+                                            )}
                                         </View>
                                     )}
                                 </View>
@@ -475,14 +484,18 @@ export default function CompanionProfileScreen() {
             </Modal>
 
             {/* ── Switching Workspace Loading Overlay ── */}
-            {switchingWorkspace && (
+            <Modal
+                transparent
+                visible={switchingWorkspace}
+                animationType="fade"
+            >
                 <View style={styles.overlayContainer}>
                     <View style={styles.overlayContent}>
                         <ActivityIndicator size="large" color={colors.primary} style={{ marginBottom: 16 }} />
                         <Text style={styles.overlayText}>{switchingText}</Text>
                     </View>
                 </View>
-            )}
+            </Modal>
         </View>
     );
 }
@@ -616,6 +629,14 @@ const styles = StyleSheet.create({
         paddingHorizontal: 10,
         paddingVertical: 5,
         borderRadius: 10,
+    },
+    scoreChipLowVisibility: {
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 10,
+        minWidth: 50,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     scoreChipText: {
         fontSize: 11,
