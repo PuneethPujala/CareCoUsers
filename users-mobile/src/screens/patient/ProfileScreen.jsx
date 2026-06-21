@@ -3,6 +3,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import {
     View, Text, StyleSheet, ScrollView, Platform, Pressable, Modal,
     TextInput, Switch, Animated, StatusBar, FlatList, KeyboardAvoidingView, Alert, Share, Image,
+    ActivityIndicator,
 } from 'react-native';
 import SmartInput from '../../components/ui/SmartInput';
 import PremiumFormModal from '../../components/ui/PremiumFormModal';
