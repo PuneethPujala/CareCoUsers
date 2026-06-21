@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react'
 import { View, Text, StyleSheet, ScrollView, RefreshControl, Pressable, Dimensions, ActivityIndicator, Image, Animated, Linking } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { apiService } from '../../lib/api';
-import { HeartPulse, Activity, Bell, ShieldCheck, AlertCircle, ChevronLeft, RefreshCw, Lightbulb, Sparkles, Calendar, TrendingUp, Pill, Phone, ChevronRight, Eye, Flame, ArrowUpRight, Clock, Smile } from 'lucide-react-native';
+import { HeartPulse, Activity, Bell, ShieldCheck, AlertCircle, ChevronLeft, RefreshCw, Lightbulb, Sparkles, Calendar, TrendingUp, Pill, Phone, ChevronRight, Eye, Flame, ArrowUpRight, Clock, Smile, ClipboardList } from 'lucide-react-native';
 import AlertManager from '../../utils/AlertManager';
 import { colors, radius, spacing, shadows, layout, motion, anim, useReduceMotion } from '../../theme';
 import usePatientStore from '../../store/usePatientStore';
@@ -66,6 +66,13 @@ const SkeletonItem = ({ width, height, borderRadius = 8, style }) => {
     }, [anim]);
     return <Animated.View style={[{ width, height, borderRadius, backgroundColor: '#E2E8F0', opacity: anim }, style]} />;
 };
+
+const SectionHeader = ({ icon: Icon, title, iconColor, style }) => (
+    <View style={[styles.sectionHeaderRow, style]}>
+        {Icon && <Icon color={iconColor || colors.primary} size={18} />}
+        <Text style={styles.cardTitle}>{title}</Text>
+    </View>
+);
 
 const TimelineEmptyIllustration = () => {
     return (
@@ -556,11 +563,15 @@ export default function CompanionAnalyticsScreen() {
                 }
             >
                 {/* 1. Sticky Analytics Summary Card */}
-                <Animated.View style={[styles.summaryCard, sectionAnimStyle(0)]}>
-                    <View style={styles.summaryHeader}>
-                        <HeartPulse color={colors.primary} size={18} />
-                        <Text style={styles.summaryTitle}>Health Status Summary</Text>
-                    </View>
+                <Animated.View style={[styles.summaryCard, sectionAnimStyle(0), { overflow: 'hidden', position: 'relative', paddingLeft: 18 }]}>
+                    <View style={[styles.accentStrip, { backgroundColor: isLowVisibility ? '#64748B' : (riskLevel === 'high' ? colors.danger : (riskLevel === 'medium' ? colors.warning : colors.success)), borderTopLeftRadius: radius.xl, borderBottomLeftRadius: radius.xl }]} />
+                    <View style={styles.glowBg} />
+                    <SectionHeader
+                        icon={HeartPulse}
+                        title="Health Status Summary"
+                        iconColor={colors.primary}
+                        style={{ marginBottom: 10 }}
+                    />
                     
                     <Text style={styles.summaryNarrative}>
                         {(() => {
@@ -627,8 +638,13 @@ export default function CompanionAnalyticsScreen() {
                 </Animated.View>
 
                 {/* 2. Visibility Ring & KPI Details Side-by-Side */}
-                <Animated.View style={[styles.kpiCardUnified, sectionAnimStyle(1)]}>
-                    <Text style={styles.kpiCardUnifiedTitle}>Data Visibility & Confidence</Text>
+                <Animated.View style={[styles.kpiCardUnified, sectionAnimStyle(1), { overflow: 'hidden', position: 'relative' }]}>
+                    <View style={styles.glowBg} />
+                    <SectionHeader
+                        icon={Eye}
+                        title="Data Visibility & Confidence"
+                        iconColor="#6366F1"
+                    />
                     <View style={styles.kpiCardUnifiedDivider} />
                     
                     <View style={styles.kpiMainRow}>
@@ -719,7 +735,12 @@ export default function CompanionAnalyticsScreen() {
 
                 {/* 3. Coverage Breakdown Grid (2x2) */}
                 <Animated.View style={[styles.card, sectionAnimStyle(2)]}>
-                    <Text style={styles.sectionHeading}>📋 Coverage Breakdown</Text>
+                    <SectionHeader
+                        icon={ClipboardList}
+                        title="Coverage Breakdown"
+                        iconColor="#10B981"
+                        style={{ marginBottom: 12 }}
+                    />
                     {(() => {
                         const bd = insights.visibility_breakdown || { medications: 0, vitals: 0, wearable: 0, mood: 0 };
                         const items = [
@@ -765,10 +786,11 @@ export default function CompanionAnalyticsScreen() {
 
                 {/* 4. Risk Contributors Card */}
                 <Animated.View style={[styles.card, sectionAnimStyle(3)]}>
-                    <View style={styles.sectionHeaderRow}>
-                        <Activity color="#6366F1" size={18} />
-                        <Text style={styles.cardTitle}>Risk Contributors</Text>
-                    </View>
+                    <SectionHeader
+                        icon={Activity}
+                        title="Risk Contributors"
+                        iconColor="#6366F1"
+                    />
                     <Text style={styles.cardSub}>Why current patient risk level exists</Text>
 
                     {(() => {
@@ -797,7 +819,7 @@ export default function CompanionAnalyticsScreen() {
                                     {pctVisibility > 0 && <View style={[styles.stackedBarSegment, { width: `${pctVisibility}%`, backgroundColor: '#6366F1' }]} />}
                                 </View>
 
-                                {/* Compact Contributor List Rows */}
+                                {/* Grid-aligned Contributor List Rows */}
                                 <View style={styles.contributorsListCompact}>
                                     {sorted.map((item, idx) => {
                                         let role = 'Minimal Impact';
@@ -820,16 +842,18 @@ export default function CompanionAnalyticsScreen() {
                                             }
                                         }
 
+                                        const isLastRow = idx === sorted.length - 1;
+
                                         return (
-                                            <View key={item.key} style={styles.contributorCompactRow}>
-                                                <View style={styles.contributorCompactLeft}>
+                                            <View key={item.key} style={[styles.contributorRow, isLastRow && { borderBottomWidth: 0 }]}>
+                                                <View style={styles.contributorLabelCol}>
                                                     <View style={[styles.contributorBullet, { backgroundColor: item.color }]} />
-                                                    <Text style={styles.contributorCompactLabel}>{item.label}</Text>
+                                                    <Text style={styles.contributorLabel}>{item.label}</Text>
                                                 </View>
-                                                <View style={styles.contributorCompactRight}>
-                                                    <Text style={styles.contributorCompactValue}>{item.pct}% impact</Text>
-                                                    <View style={[styles.contributorCompactBadge, { backgroundColor: roleBg }]}>
-                                                        <Text style={[styles.contributorCompactBadgeText, { color: roleColor }]}>
+                                                <Text style={styles.contributorImpactCol}>{item.pct}% impact</Text>
+                                                <View style={styles.contributorBadgeCol}>
+                                                    <View style={[styles.contributorBadge, { backgroundColor: roleBg }]}>
+                                                        <Text style={[styles.contributorBadgeText, { color: roleColor }]}>
                                                             {role}
                                                         </Text>
                                                     </View>
@@ -844,23 +868,25 @@ export default function CompanionAnalyticsScreen() {
                 </Animated.View>
 
                 {/* 5. 3-Day Forecast & Premium Glass Alert */}
-                <Animated.View style={[styles.card, sectionAnimStyle(4)]}>
-                    <View style={styles.sectionHeaderRow}>
-                        <Sparkles color="#6366F1" size={18} />
-                        <Text style={styles.cardTitle}>3-Day Vital Forecast</Text>
-                    </View>
+                <Animated.View style={[styles.card, sectionAnimStyle(4), { overflow: 'hidden', position: 'relative' }]}>
+                    <View style={styles.glowBg} />
+                    <SectionHeader
+                        icon={Sparkles}
+                        title="3-Day Vital Forecast"
+                        iconColor="#6366F1"
+                    />
                     <Text style={styles.cardSub}>AI outlook & upcoming vital status predictions</Text>
 
                     {/* Softer, glassmorphic alert card if visibility is low */}
                     {confidenceLabel === 'Low' && (
-                        <View style={styles.premiumGlassAlert}>
+                        <View style={[styles.premiumGlassAlert, { backgroundColor: '#FFFDF5', borderColor: '#FDE68A', marginBottom: 12 }]}>
                             <View style={[styles.accentStrip, { backgroundColor: '#F59E0B' }]} />
                             <View style={styles.glassAlertContent}>
                                 <View style={styles.glassAlertHeader}>
                                     <AlertCircle color="#F59E0B" size={15} />
-                                    <Text style={styles.glassAlertTitle}>Limited Data Available</Text>
+                                    <Text style={[styles.glassAlertTitle, { color: '#B45309' }]}>Limited Data Available</Text>
                                 </View>
-                                <Text style={styles.glassAlertText}>
+                                <Text style={[styles.glassAlertText, { color: '#D97706' }]}>
                                     Predictions are currently based on incomplete vitals. Update logs to improve forecast confidence.
                                 </Text>
                                 <Pressable 
@@ -868,7 +894,7 @@ export default function CompanionAnalyticsScreen() {
                                     onPress={handleRequestBP}
                                 >
                                     <Text style={styles.glassAlertBtnText}>Request BP Reading</Text>
-                                    <ArrowUpRight size={13} color="#6366F1" />
+                                    <ArrowUpRight size={13} color="#B45309" />
                                 </Pressable>
                             </View>
                         </View>
@@ -887,17 +913,17 @@ export default function CompanionAnalyticsScreen() {
                             }
 
                             const getForecastHumanStatus = (bp) => {
-                                if (!bp) return { status: '🟢 Stable', sub: 'Low concern', color: '#10B981', bg: '#ECFDF5' };
+                                if (!bp) return { status: 'Stable', sub: 'Low concern', color: '#10B981', bg: '#ECFDF5' };
                                 const sys = bp.systolic || 120;
                                 const dia = bp.diastolic || 80;
                                 
                                 if (sys >= 140 || dia >= 90) {
-                                    return { status: '🔴 Elevated', sub: 'Needs attention', color: '#EF4444', bg: '#FEF2F2' };
+                                    return { status: 'Elevated', sub: 'Needs attention', color: '#EF4444', bg: '#FEF2F2' };
                                 }
                                 if (sys >= 130 || dia >= 85) {
-                                    return { status: '🟡 Watch', sub: 'Monitor closely', color: '#F59E0B', bg: '#FFFBEB' };
+                                    return { status: 'Watch', sub: 'Monitor closely', color: '#F59E0B', bg: '#FFFBEB' };
                                 }
-                                return { status: '🟢 Stable', sub: 'Low concern', color: '#10B981', bg: '#ECFDF5' };
+                                return { status: 'Stable', sub: 'Low concern', color: '#10B981', bg: '#ECFDF5' };
                             };
 
                             return (
@@ -910,6 +936,7 @@ export default function CompanionAnalyticsScreen() {
                                                 <Text style={styles.forecastDayLabel}>{dayLabel}</Text>
                                                 
                                                 <View style={[styles.forecastHumanBadge, { backgroundColor: human.bg }]}>
+                                                    <View style={{ width: 5, height: 5, borderRadius: 2.5, backgroundColor: human.color }} />
                                                     <Text style={[styles.forecastHumanBadgeText, { color: human.color }]}>
                                                         {human.status}
                                                     </Text>
@@ -940,16 +967,18 @@ export default function CompanionAnalyticsScreen() {
 
                 {/* 6. 14-Day Health Trajectory */}
                 {insights.predictive_health?.forecast && (
-                    <Animated.View style={[styles.card, sectionAnimStyle(5)]}>
-                        <View style={styles.sectionHeaderRow}>
-                            <Sparkles color="#6366F1" size={18} />
-                            <Text style={styles.cardTitle}>14-Day Health Trajectory</Text>
-                        </View>
+                    <Animated.View style={[styles.card, sectionAnimStyle(5), { overflow: 'hidden', position: 'relative' }]}>
+                        <View style={styles.glowBg} />
+                        <SectionHeader
+                            icon={Sparkles}
+                            title="14-Day Health Trajectory"
+                            iconColor="#6366F1"
+                        />
                         <Text style={styles.cardSub}>Long-term AI trajectory forecast</Text>
 
                         {/* Recovery Banner */}
                         {insights.predictive_health?.recovery?.status && (
-                            <View style={styles.premiumGlassAlert}>
+                            <View style={[styles.premiumGlassAlert, { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' }]}>
                                 <View style={[styles.accentStrip, { backgroundColor: '#10B981' }]} />
                                 <View style={styles.glassAlertContent}>
                                     <View style={styles.glassAlertHeader}>
@@ -965,7 +994,7 @@ export default function CompanionAnalyticsScreen() {
 
                         {/* Early Warning Alert */}
                         {(insights.predictive_health?.risk_trends?.velocity > 0 || insights.predictive_health?.forecast?.trajectory === 'negative') && (
-                            <View style={[styles.premiumGlassAlert, { marginTop: insights.predictive_health?.recovery?.status ? 12 : 0 }]}>
+                            <View style={[styles.premiumGlassAlert, { backgroundColor: '#FEF2F2', borderColor: '#FCA5A5', marginTop: insights.predictive_health?.recovery?.status ? 12 : 0 }]}>
                                 <View style={[styles.accentStrip, { backgroundColor: '#EF4444' }]} />
                                 <View style={styles.glassAlertContent}>
                                     <View style={styles.glassAlertHeader}>
@@ -1015,11 +1044,12 @@ export default function CompanionAnalyticsScreen() {
 
                 {/* 7. AI Recommendations */}
                 {recommendations.length > 0 && (
-                    <Animated.View style={[styles.card, { borderColor: colors.primarySoft, borderWidth: 1.5 }, sectionAnimStyle(6)]}>
-                        <View style={styles.sectionHeaderRow}>
-                            <Lightbulb color={colors.warning} size={18} />
-                            <Text style={styles.cardTitle}>AI Recommendations</Text>
-                        </View>
+                    <Animated.View style={[styles.card, sectionAnimStyle(6)]}>
+                        <SectionHeader
+                            icon={Lightbulb}
+                            title="AI Recommendations"
+                            iconColor={colors.warning}
+                        />
                         <Text style={styles.cardSub}>Suggested caretaker checklist actions</Text>
                         
                         <View style={styles.recommendationsList}>
@@ -1027,18 +1057,21 @@ export default function CompanionAnalyticsScreen() {
                                 const parsed = parseRecommendation(rec);
                                 const animVal = recAnims[idx] || new Animated.Value(1);
                                 
-                                let severityLabel = '🔵 Optimization';
+                                let severityLabel = 'Optimization';
                                 let severityBg = colors.primarySoft;
                                 let severityTextColor = colors.primary;
+                                let accentColor = colors.primary;
                                 
                                 if (parsed.severity === 'critical') {
-                                    severityLabel = '🔴 Critical';
+                                    severityLabel = 'Critical';
                                     severityBg = colors.dangerLight;
                                     severityTextColor = colors.danger;
+                                    accentColor = colors.danger;
                                 } else if (parsed.severity === 'warning') {
-                                    severityLabel = '🟡 Attention Needed';
+                                    severityLabel = 'Attention Needed';
                                     severityBg = colors.warningLight;
                                     severityTextColor = colors.warning;
+                                    accentColor = colors.warning;
                                 }
 
                                 const cardAnimStyle = {
@@ -1052,13 +1085,15 @@ export default function CompanionAnalyticsScreen() {
                                 const handlePress = parsed.onPress || (() => navigation.navigate('InterventionCenter'));
 
                                 return (
-                                    <Animated.View key={rec || idx} style={[styles.recommendationCard, cardAnimStyle]}>
+                                    <Animated.View key={rec || idx} style={[styles.recommendationCard, cardAnimStyle, { overflow: 'hidden', position: 'relative', paddingLeft: 18 }]}>
+                                        <View style={[styles.accentStrip, { backgroundColor: accentColor, borderTopLeftRadius: 16, borderBottomLeftRadius: 16 }]} />
                                         <View style={styles.recommendationCardHeader}>
                                             <View style={styles.recommendationHeaderLeft}>
                                                 {parsed.icon}
                                                 <Text style={styles.recommendationCardTitle}>{parsed.title}</Text>
                                             </View>
                                             <View style={[styles.severityBadge, { backgroundColor: severityBg }]}>
+                                                <View style={{ width: 5, height: 5, borderRadius: 2.5, backgroundColor: severityTextColor }} />
                                                 <Text style={[styles.severityBadgeText, { color: severityTextColor }]}>
                                                     {severityLabel}
                                                 </Text>
@@ -1085,10 +1120,11 @@ export default function CompanionAnalyticsScreen() {
 
                 {/* 8. Journey Progression Cards (Redesigned as Single-Row Card) */}
                 <Animated.View style={[styles.card, sectionAnimStyle(7)]}>
-                    <View style={styles.sectionHeaderRow}>
-                        <Calendar color={colors.primary} size={18} />
-                        <Text style={styles.cardTitle}>Journey Progression</Text>
-                    </View>
+                    <SectionHeader
+                        icon={Calendar}
+                        title="Journey Progression"
+                        iconColor={colors.primary}
+                    />
                     <Text style={styles.cardSub}>Long-term progression metrics</Text>
 
                     <View style={styles.journeyProgressionCard}>
@@ -1101,11 +1137,9 @@ export default function CompanionAnalyticsScreen() {
                             <Text style={[styles.journeyColValue, { color: getRiskColor(riskLevel) }]} numberOfLines={1}>
                                 {riskLevel.toUpperCase()}
                             </Text>
-                            <View style={[styles.journeyTrendBadge, { backgroundColor: getTrendBg(trendDirection) }]}>
-                                <Text style={[styles.journeyTrendText, { color: getTrendColor(trendDirection) }]} numberOfLines={1}>
-                                    {trendDirection === 'improving' ? 'Improving' : trendDirection === 'worsening' ? 'Declining' : 'Stable'}
-                                </Text>
-                            </View>
+                            <Text style={[styles.journeyColSub, { color: getTrendColor(trendDirection) }]} numberOfLines={1}>
+                                {trendDirection === 'improving' ? 'Improving' : trendDirection === 'worsening' ? 'Declining' : 'Stable'}
+                            </Text>
                         </View>
 
                         <View style={styles.journeyProgressionDivider} />
@@ -1144,10 +1178,11 @@ export default function CompanionAnalyticsScreen() {
 
                 {/* 9. Caregiver Risk Timeline */}
                 <Animated.View style={[styles.card, sectionAnimStyle(8)]}>
-                    <View style={styles.sectionHeaderRow}>
-                        <Clock color={colors.primary} size={18} />
-                        <Text style={styles.cardTitle}>Caregiver Risk Timeline</Text>
-                    </View>
+                    <SectionHeader
+                        icon={Clock}
+                        title="Caregiver Risk Timeline"
+                        iconColor={colors.primary}
+                    />
                     <Text style={styles.cardSub}>Long-term progression story</Text>
 
                     <View style={styles.journeyTimelineSection}>
@@ -1262,7 +1297,13 @@ const styles = StyleSheet.create({
         backgroundColor: colors.surface,
         borderRadius: radius.xl,
         padding: spacing.md,
-        ...shadows.card,
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
+        shadowColor: '#6366F1',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.04,
+        shadowRadius: 16,
+        elevation: 2,
     },
     cardTitle: {
         fontSize: 15,
@@ -1299,9 +1340,13 @@ const styles = StyleSheet.create({
         backgroundColor: colors.surface,
         borderRadius: radius.xl,
         padding: spacing.md,
-        borderWidth: 1.5,
-        borderColor: colors.primarySoft,
-        ...shadows.card,
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
+        shadowColor: '#6366F1',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.04,
+        shadowRadius: 16,
+        elevation: 2,
     },
     summaryHeader: {
         flexDirection: 'row',
@@ -1329,7 +1374,7 @@ const styles = StyleSheet.create({
         paddingVertical: 10,
         paddingHorizontal: 8,
         borderWidth: 1,
-        borderColor: colors.borderLight,
+        borderColor: '#E2E8F0',
     },
     summaryStatItem: {
         flex: 1,
@@ -1348,7 +1393,7 @@ const styles = StyleSheet.create({
     summaryStatDivider: {
         width: 1,
         height: 20,
-        backgroundColor: colors.borderLight,
+        backgroundColor: '#E2E8F0',
         alignSelf: 'center',
     },
 
@@ -1357,9 +1402,13 @@ const styles = StyleSheet.create({
         backgroundColor: colors.surface,
         borderRadius: radius.xl,
         padding: spacing.md,
-        ...shadows.card,
-        borderWidth: 1.5,
-        borderColor: colors.primarySoft,
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
+        shadowColor: '#6366F1',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.04,
+        shadowRadius: 16,
+        elevation: 2,
     },
     kpiCardUnifiedTitle: {
         fontSize: 15,
@@ -1368,7 +1417,7 @@ const styles = StyleSheet.create({
     },
     kpiCardUnifiedDivider: {
         height: 1,
-        backgroundColor: colors.borderLight,
+        backgroundColor: '#E2E8F0',
         marginVertical: 12,
     },
     kpiMainRow: {
@@ -1453,7 +1502,7 @@ const styles = StyleSheet.create({
         width: '48%',
         backgroundColor: '#F8FAFC',
         borderWidth: 1,
-        borderColor: colors.borderLight,
+        borderColor: '#E2E8F0',
         borderRadius: 12,
         padding: 10,
         ...shadows.sm,
@@ -1462,7 +1511,7 @@ const styles = StyleSheet.create({
         width: '48%',
         backgroundColor: '#F8FAFC',
         borderWidth: 1,
-        borderColor: colors.borderLight,
+        borderColor: '#E2E8F0',
         borderRadius: 12,
         padding: 10,
     },
@@ -1522,56 +1571,69 @@ const styles = StyleSheet.create({
         gap: 8,
         marginTop: 8,
     },
-    contributorCompactRow: {
+    contributorRow: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
         alignItems: 'center',
-        paddingVertical: 4,
+        paddingVertical: 8,
+        borderBottomWidth: 1,
+        borderBottomColor: '#E2E8F0',
     },
-    contributorCompactLeft: {
+    contributorLabelCol: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 8,
+        width: '42%',
     },
     contributorBullet: {
         width: 6,
         height: 6,
         borderRadius: 3,
     },
-    contributorCompactLabel: {
+    contributorLabel: {
         fontSize: 12,
         ...FONT.semibold,
-        color: colors.textPrimary,
+        color: colors.textSecondary,
     },
-    contributorCompactRight: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
-    },
-    contributorCompactValue: {
+    contributorImpactCol: {
+        width: '26%',
         fontSize: 12,
         ...FONT.bold,
         color: colors.textPrimary,
+        textAlign: 'left',
     },
-    contributorCompactBadge: {
-        paddingHorizontal: 6,
-        paddingVertical: 2,
-        borderRadius: 4,
+    contributorBadgeCol: {
+        width: '32%',
+        alignItems: 'flex-end',
     },
-    contributorCompactBadgeText: {
+    contributorBadge: {
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        borderRadius: 6,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    contributorBadgeText: {
         fontSize: 9,
         ...FONT.bold,
     },
 
     // Forecast styles
     premiumGlassAlert: {
-        backgroundColor: '#FFFDF5',
         borderWidth: 1,
-        borderColor: colors.borderLight,
         borderRadius: 12,
         overflow: 'hidden',
         position: 'relative',
         marginTop: 8,
+    },
+    glowBg: {
+        position: 'absolute',
+        top: -40,
+        right: -40,
+        width: 120,
+        height: 120,
+        borderRadius: 60,
+        backgroundColor: colors.primary,
+        opacity: 0.04,
     },
     accentStrip: {
         position: 'absolute',
@@ -1594,12 +1656,10 @@ const styles = StyleSheet.create({
     glassAlertTitle: {
         fontSize: 12,
         ...FONT.bold,
-        color: '#D97706',
     },
     glassAlertText: {
         fontSize: 11,
         ...FONT.medium,
-        color: '#B45309',
         lineHeight: 15,
     },
     glassAlertBtn: {
@@ -1609,7 +1669,7 @@ const styles = StyleSheet.create({
         gap: 6,
         backgroundColor: '#FFF',
         borderWidth: 1,
-        borderColor: '#FCD34D',
+        borderColor: '#F59E0B',
         borderRadius: 8,
         paddingVertical: 6,
         paddingHorizontal: 10,
@@ -1620,7 +1680,7 @@ const styles = StyleSheet.create({
     glassAlertBtnText: {
         fontSize: 10,
         ...FONT.bold,
-        color: '#4F46E5',
+        color: '#B45309',
     },
     forecastContent: {
         position: 'relative',
@@ -1648,7 +1708,7 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: '#F8FAFC',
         borderWidth: 1,
-        borderColor: colors.borderLight,
+        borderColor: '#E2E8F0',
         borderRadius: 12,
         padding: 8,
         alignItems: 'center',
@@ -1660,6 +1720,9 @@ const styles = StyleSheet.create({
         marginBottom: 6,
     },
     forecastHumanBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
         paddingHorizontal: 6,
         paddingVertical: 2,
         borderRadius: 6,
@@ -1677,7 +1740,7 @@ const styles = StyleSheet.create({
     },
     forecastStatsDivider: {
         height: 1,
-        backgroundColor: colors.borderLight,
+        backgroundColor: '#E2E8F0',
         width: '100%',
         marginVertical: 6,
     },
@@ -1703,7 +1766,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         backgroundColor: '#F8FAFC',
         borderWidth: 1,
-        borderColor: colors.borderLight,
+        borderColor: '#E2E8F0',
         borderRadius: 12,
         padding: 10,
     },
@@ -1727,7 +1790,7 @@ const styles = StyleSheet.create({
     recommendationCard: {
         backgroundColor: '#F8FAFC',
         borderWidth: 1,
-        borderColor: colors.borderLight,
+        borderColor: '#E2E8F0',
         borderRadius: 16,
         padding: spacing.md,
         ...shadows.sm,
@@ -1749,6 +1812,9 @@ const styles = StyleSheet.create({
         color: colors.textPrimary,
     },
     severityBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
         paddingHorizontal: 8,
         paddingVertical: 4,
         borderRadius: 8,
@@ -1784,7 +1850,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         backgroundColor: '#F8FAFC',
         borderWidth: 1,
-        borderColor: colors.borderLight,
+        borderColor: '#E2E8F0',
         borderRadius: 16,
         paddingVertical: 12,
         ...shadows.sm,
@@ -1829,7 +1895,7 @@ const styles = StyleSheet.create({
     journeyProgressionDivider: {
         width: 1,
         height: '60%',
-        backgroundColor: colors.borderLight,
+        backgroundColor: '#E2E8F0',
         alignSelf: 'center',
     },
 
@@ -1850,7 +1916,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#F8FAFC',
         borderRadius: 16,
         borderWidth: 1,
-        borderColor: colors.borderLight,
+        borderColor: '#E2E8F0',
         marginTop: 8,
     },
     emptyTimelineTitle: {
@@ -1895,14 +1961,14 @@ const styles = StyleSheet.create({
     timelineVerticalLinkLine: {
         width: 3,
         flex: 1,
-        backgroundColor: colors.borderLight,
+        backgroundColor: '#E2E8F0',
         marginVertical: 4,
     },
     timelineContentCol: {
         flex: 1,
         backgroundColor: '#F8FAFC',
         borderWidth: 1,
-        borderColor: colors.borderLight,
+        borderColor: '#E2E8F0',
         borderRadius: 16,
         paddingVertical: 12,
         paddingHorizontal: 14,
@@ -1925,7 +1991,7 @@ const styles = StyleSheet.create({
     },
     timelineTransitionDivider: {
         height: 1,
-        backgroundColor: colors.borderLight,
+        backgroundColor: '#E2E8F0',
         marginBottom: 8,
     },
     timelineNarrativeTitle: {

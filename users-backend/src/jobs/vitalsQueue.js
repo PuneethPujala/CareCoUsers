@@ -19,9 +19,16 @@ async function queueAllPatientsForPrediction() {
         const patients = await Patient.find({ is_active: true }).select('_id');
 
         for (const pt of patients) {
-            await vitalsPredictionQueue.add('predict', { patientId: pt._id.toString() });
+            if (process.env.NODE_ENV !== 'test' && process.env.USE_BULLMQ_WORKERS !== 'true') {
+                const AIPredictionService = require('../services/aiPredictionService');
+                AIPredictionService.processPatientPrediction(pt._id.toString()).catch(e => {
+                    console.error(`In-process prediction failed for patient ${pt._id}:`, e);
+                });
+            } else {
+                await vitalsPredictionQueue.add('predict', { patientId: pt._id.toString() });
+            }
         }
-        console.log(`Successfully queued ${patients.length} prediction jobs.`);
+        console.log(`Successfully dispatched/queued ${patients.length} prediction jobs.`);
     } catch (e) {
         console.error('Failed to enqueue batch prediction jobs: ', e);
     }

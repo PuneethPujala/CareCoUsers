@@ -19,6 +19,7 @@ import { ShieldCheck, Copy, ArrowLeft, CheckCircle2, QrCode, Smartphone, KeyRoun
 import * as Clipboard from 'expo-clipboard';
 import { apiService } from '../../lib/api';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import OTPBoxes from '../../components/ui/OTPBoxes';
 
 import AlertManager from '../../utils/AlertManager';
 
@@ -30,66 +31,7 @@ const FONT = {
     heavy: { fontFamily: 'Inter_800ExtraBold' },
 };
 
-/* ─── OTP Boxes (same pattern as MFAVerifyScreen) ─── */
-const OTPBoxes = ({ value = '', onChange, onComplete, length = 6, editable = true }) => {
-    const refs = useRef([...Array(length)].map(() => React.createRef()));
-
-    const handleChange = (text, idx) => {
-        const digit = text.replace(/\D/g, '').slice(-1);
-        const newVal = (value.slice(0, idx) + digit + value.slice(idx + 1)).slice(0, length);
-        onChange(newVal);
-        if (digit) {
-            if (idx < length - 1) refs.current[idx + 1]?.current?.focus();
-            if (newVal.length === length) onComplete?.(newVal);
-        }
-    };
-
-    const handleKeyPress = ({ nativeEvent }, idx) => {
-        if (nativeEvent.key === 'Backspace' && !value[idx] && idx > 0) {
-            refs.current[idx - 1]?.current?.focus();
-        }
-    };
-
-    return (
-        <View style={otpSt.row}>
-            {Array.from({ length }).map((_, i) => (
-                <TextInput
-                    key={i}
-                    ref={refs.current[i]}
-                    style={[otpSt.box, !!value[i] && otpSt.boxFilled]}
-                    value={value[i] || ''}
-                    onChangeText={(t) => handleChange(t, i)}
-                    onKeyPress={(e) => handleKeyPress(e, i)}
-                    keyboardType="number-pad"
-                    maxLength={1}
-                    textAlign="center"
-                    editable={editable}
-                    selectTextOnFocus
-                />
-            ))}
-        </View>
-    );
-};
-
-const otpSt = StyleSheet.create({
-    row: { flexDirection: 'row', gap: 8, justifyContent: 'center', marginVertical: 20 },
-    box: {
-        width: 38, height: 50,
-        borderRadius: 12,
-        backgroundColor: '#F8FAFC',
-        borderWidth: 2, borderColor: '#E2E8F0',
-        fontSize: 22, ...FONT.heavy,
-        color: '#0F172A',
-    },
-    boxFilled: {
-        borderColor: '#10B981',
-        backgroundColor: '#ECFDF5',
-        shadowColor: '#10B981',
-        shadowOpacity: 0.15, shadowRadius: 10,
-        shadowOffset: { width: 0, height: 3 },
-        elevation: 4,
-    },
-});
+// OTPBoxes is imported from '../../components/ui/OTPBoxes'
 
 /* ─── Step Indicator ─── */
 const StepIndicator = ({ currentStep }) => {
@@ -358,6 +300,11 @@ export default function MFASetupScreen({ navigation }) {
                                 onComplete={(val) => verifyCode(val)}
                                 length={6}
                                 editable={!loading}
+                                activeBorderColor="#10B981"
+                                activeBgColor="#ECFDF5"
+                                boxWidth={38}
+                                boxHeight={50}
+                                borderRadius={12}
                             />
 
                             <Pressable

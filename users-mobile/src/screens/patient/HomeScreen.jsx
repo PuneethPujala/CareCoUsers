@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import {
     View, Text, StyleSheet, ScrollView, Platform, Pressable, Animated,
     ActivityIndicator, KeyboardAvoidingView, TouchableOpacity,
-    DeviceEventEmitter, InteractionManager, Dimensions, StatusBar, AppState, RefreshControl
+    DeviceEventEmitter, InteractionManager, Dimensions, StatusBar, AppState, RefreshControl, Alert
 } from 'react-native';
 import { getStreakState } from '../../utils/streakHelper';
 import StreakCompanion from '../../components/ui/StreakCompanion';
@@ -323,6 +323,9 @@ export default function PatientHomeScreen({ navigation }) {
     const [selectedMood, setSelectedMood] = useState(null);
     const [moodSaving, setMoodSaving] = useState(false);
 
+    // Sleep state
+    const [estimatedSleep, setEstimatedSleep] = useState(null);
+
     const checkDailyMoodStatus = useCallback(() => {
         if (!patient?.moodHistory) return;
         const timezone = patient.timezone || 'Asia/Kolkata';
@@ -405,6 +408,120 @@ export default function PatientHomeScreen({ navigation }) {
                 useNativeDriver: true,
             }).start();
         });
+    };
+
+    const checkEstimatedSleep = async () => {
+        try {
+            const lastActiveStr = await AsyncStorage.getItem('last_active_timestamp');
+            if (!lastActiveStr) return;
+
+            const lastActiveTime = parseInt(lastActiveStr, 10);
+            const currentTime = Date.now();
+            const durationMs = currentTime - lastActiveTime;
+            const durationHours = durationMs / (1000 * 60 * 60);
+
+            // Check if duration is between 4 and 12 hours
+            if (durationHours >= 4 && durationHours <= 12) {
+                const lastActiveDate = new Date(lastActiveTime);
+                const currentDate = new Date(currentTime);
+
+                const lastActiveHour = lastActiveDate.getHours();
+                const currentHour = currentDate.getHours();
+
+                // Last active between 7 PM and 3 AM; Current active between 5 AM and 11:30 AM
+                if (
+                    ((lastActiveHour >= 19 || lastActiveHour < 3)) &&
+                    (currentHour >= 5 && currentHour < 12)
+                ) {
+                    const todayStr = currentDate.toDateString();
+                    const lastPrompted = await AsyncStorage.getItem('last_sleep_prompt_date');
+                    if (lastPrompted !== todayStr) {
+                        const formatTime = (date) => {
+                            let hrs = date.getHours();
+                            const minutes = date.getMinutes();
+                            const ampm = hrs >= 12 ? 'PM' : 'AM';
+                            hrs = hrs % 12;
+                            hrs = hrs ? hrs : 12;
+                            const minStr = minutes < 10 ? '0' + minutes : minutes;
+                            return `${hrs}:${minStr} ${ampm}`;
+                        };
+
+                        setEstimatedSleep({
+                            hours: Math.round(durationHours * 10) / 10,
+                            rawHours: durationHours,
+                            startTime: formatTime(lastActiveDate),
+                            endTime: formatTime(currentDate),
+                            dateStr: todayStr,
+                            lastActiveTime,
+                            currentTime
+                        });
+                    }
+                }
+            }
+        } catch (e) {
+            console.warn('Failed to check estimated sleep:', e.message);
+        }
+    };
+
+    const handleConfirmSleep = async () => {
+        if (!estimatedSleep) return;
+        try {
+            await apiService.patients.logSleep({
+                hours: estimatedSleep.hours,
+                date: new Date(estimatedSleep.lastActiveTime).toISOString(),
+                quality: 'good',
+                source: 'device_inactivity',
+            });
+            await AsyncStorage.setItem('last_sleep_prompt_date', estimatedSleep.dateStr);
+            setEstimatedSleep(null);
+            Alert.alert('Success', 'Successfully logged sleep duration!');
+            await fetchData(true);
+        } catch (e) {
+            console.warn('Failed to log estimated sleep:', e.message);
+            Alert.alert('Error', 'Failed to log sleep. Please try again.');
+        }
+    };
+
+    const handleDismissSleep = async () => {
+        if (!estimatedSleep) return;
+        try {
+            await AsyncStorage.setItem('last_sleep_prompt_date', estimatedSleep.dateStr);
+            setEstimatedSleep(null);
+        } catch (e) {
+            console.warn('Failed to dismiss sleep prompt:', e.message);
+        }
+    };
+
+    const handleAdjustSleep = () => {
+        Alert.alert(
+            'Adjust Sleep',
+            'How many hours did you sleep?',
+            [
+                { text: '6 Hours', onPress: () => logCustomSleep(6) },
+                { text: '7 Hours', onPress: () => logCustomSleep(7) },
+                { text: '8 Hours', onPress: () => logCustomSleep(8) },
+                { text: 'Cancel', style: 'cancel' }
+            ]
+        );
+    };
+
+    const logCustomSleep = async (hours) => {
+        if (!estimatedSleep) return;
+        try {
+            await apiService.patients.logSleep({
+                hours: hours,
+                date: new Date(estimatedSleep.lastActiveTime).toISOString(),
+                quality: 'good',
+                source: 'device_inactivity',
+            });
+            await AsyncStorage.setItem('last_sleep_prompt_date', estimatedSleep.dateStr);
+            setEstimatedSleep(null);
+            Alert.alert('Success', `Successfully logged ${hours} hours of sleep!`);
+            await fetchData(true);
+        } catch (e) {
+            console.warn('Failed to log custom sleep:', e.message);
+            Alert.alert('Error', 'Failed to log sleep. Please try again.');
+        }
     };
 
     const onRefresh = useCallback(async () => {
@@ -527,9 +644,19 @@ export default function PatientHomeScreen({ navigation }) {
     const [now, setNow] = useState(new Date());
 
     useEffect(() => {
-        const subscription = AppState.addEventListener('change', nextAppState => {
-            if (nextAppState === 'active') {
+        // Run sleep check on mount
+        checkEstimatedSleep();
+
+        const subscription = AppState.addEventListener('change', async (nextAppState) => {
+            if (nextAppState === 'background') {
+                try {
+                    await AsyncStorage.setItem('last_active_timestamp', Date.now().toString());
+                } catch (e) {
+                    console.warn('Failed to save last active time:', e.message);
+                }
+            } else if (nextAppState === 'active') {
                 setNow(new Date());
+                checkEstimatedSleep();
             }
         });
         return () => subscription.remove();
@@ -1163,6 +1290,43 @@ export default function PatientHomeScreen({ navigation }) {
                             <WifiOff size={13} color="#92400E" />
                             <Text style={styles.offlineBannerText}>{t('home.offline_banner', { defaultValue: 'Showing cached data · Pull to refresh' })}</Text>
                         </View>
+                    )}
+
+                    {/* Sleep Inactivity Prompt Banner */}
+                    {estimatedSleep && (
+                        <Animated.View style={[entranceStyle(1), { marginBottom: 20 }]}>
+                            <View style={styles.sleepPromptCard}>
+                                <View style={styles.sleepPromptHeader}>
+                                    <View style={styles.sleepIconBox}>
+                                        <Watch size={18} color="#4F46E5" />
+                                    </View>
+                                    <Text style={styles.sleepPromptTitle}>😴 Sleep Detected</Text>
+                                </View>
+                                <Text style={styles.sleepPromptText}>
+                                    We noticed your phone was quiet for <Text style={{ fontWeight: '800', color: '#1E1B4B' }}>{estimatedSleep.hours} hours</Text> last night ({estimatedSleep.startTime} to {estimatedSleep.endTime}). Was this your sleep duration?
+                                </Text>
+                                <View style={styles.sleepPromptActions}>
+                                    <Pressable
+                                        style={({ pressed }) => [styles.sleepPromptBtnYes, pressed && { opacity: 0.85 }]}
+                                        onPress={handleConfirmSleep}
+                                    >
+                                        <Text style={styles.sleepPromptBtnYesText}>Yes, Log It</Text>
+                                    </Pressable>
+                                    <Pressable
+                                        style={({ pressed }) => [styles.sleepPromptBtnNo, pressed && { opacity: 0.85 }]}
+                                        onPress={handleDismissSleep}
+                                    >
+                                        <Text style={styles.sleepPromptBtnNoText}>No</Text>
+                                    </Pressable>
+                                    <Pressable
+                                        style={({ pressed }) => [styles.sleepPromptBtnAdjust, pressed && { opacity: 0.85 }]}
+                                        onPress={handleAdjustSleep}
+                                    >
+                                        <Text style={styles.sleepPromptBtnAdjustText}>Adjust</Text>
+                                    </Pressable>
+                                </View>
+                            </View>
+                        </Animated.View>
                     )}
 
                     {/* Morning Health Brief Banner */}
@@ -2421,5 +2585,88 @@ const styles = StyleSheet.create({
         color: '#FFFFFF',
         fontSize: 14,
         fontWeight: '800',
+    },
+    // ── Sleep Inactivity Prompt ──
+    sleepPromptCard: {
+        backgroundColor: '#EEF2FF',
+        borderRadius: radius.lg,
+        padding: 18,
+        borderWidth: 1.5,
+        borderColor: '#C7D2FE',
+        ...shadows.card,
+    },
+    sleepPromptHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+        marginBottom: 10,
+    },
+    sleepIconBox: {
+        width: 32,
+        height: 32,
+        borderRadius: 10,
+        backgroundColor: '#E0E7FF',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    sleepPromptTitle: {
+        fontSize: 15,
+        fontWeight: '800',
+        color: '#1E1B4B',
+    },
+    sleepPromptText: {
+        fontSize: 13,
+        color: '#312E81',
+        lineHeight: 18,
+        fontWeight: '500',
+        marginBottom: 14,
+    },
+    sleepPromptActions: {
+        flexDirection: 'row',
+        gap: 8,
+    },
+    sleepPromptBtnYes: {
+        backgroundColor: '#4F46E5',
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderRadius: radius.sm,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    sleepPromptBtnYesText: {
+        color: '#FFFFFF',
+        fontSize: 12,
+        fontWeight: '700',
+    },
+    sleepPromptBtnNo: {
+        backgroundColor: '#FFFFFF',
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderRadius: radius.sm,
+        borderWidth: 1,
+        borderColor: '#C7D2FE',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    sleepPromptBtnNoText: {
+        color: '#4F46E5',
+        fontSize: 12,
+        fontWeight: '700',
+    },
+    sleepPromptBtnAdjust: {
+        backgroundColor: '#FFFFFF',
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderRadius: radius.sm,
+        borderWidth: 1,
+        borderColor: '#C7D2FE',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginLeft: 'auto',
+    },
+    sleepPromptBtnAdjustText: {
+        color: '#4F46E5',
+        fontSize: 12,
+        fontWeight: '700',
     },
 });

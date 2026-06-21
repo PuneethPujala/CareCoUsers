@@ -63,8 +63,58 @@
         android:progress="0"
         android:layout_marginBottom="12dp" />
 
+    <!-- Empty / All Done Mascot State -->
+    <LinearLayout
+        android:id="@+id/widget_empty_state_container"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:visibility="gone">
+
+        <!-- Left: Text Message -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1.2"
+            android:orientation="vertical"
+            android:layout_marginEnd="8dp">
+
+            <TextView
+                android:id="@+id/widget_empty_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="All Clear!"
+                android:textColor="@color/widget_accent_color"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="4dp" />
+
+            <TextView
+                android:id="@+id/widget_empty_subtitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="No medications scheduled for today. Have a great day!"
+                android:textColor="@color/widget_text_secondary"
+                android:textSize="12sp"
+                android:lineSpacingMultiplier="1.2" />
+        </LinearLayout>
+
+        <!-- Right: Mascot Image -->
+        <ImageView
+            android:id="@+id/widget_empty_mascot"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="0.8"
+            android:src="@drawable/doctor_mascot_celebration"
+            android:scaleType="fitCenter"
+            android:adjustViewBounds="true" />
+    </LinearLayout>
+
     <!-- Slot cards grid (2x2) -->
     <LinearLayout
+        android:id="@+id/widget_slots_grid"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"

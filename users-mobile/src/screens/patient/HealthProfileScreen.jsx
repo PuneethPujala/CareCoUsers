@@ -149,6 +149,14 @@ const getBadgeLabel = (key) =>
         .replace(/_/g, ' ')
         .replace(/\b\w/g, c => c.toUpperCase());
 
+const getConsistencyStyle = (score) => {
+    if (score >= 80) return { label: 'Highly Consistent', color: '#10B981' };
+    if (score >= 65) return { label: 'Building Consistency', color: '#10B981' };
+    if (score >= 50) return { label: 'Inconsistent', color: '#F59E0B' };
+    if (score >= 30) return { label: 'Needs Routine', color: '#EF4444' };
+    return { label: 'Limited Tracking', color: '#64748B' };
+};
+
 export default function HealthProfileScreen({ navigation }) {
     const { t } = useTranslation();
     const reduceMotion = useReduceMotion();
@@ -2270,33 +2278,23 @@ export default function HealthProfileScreen({ navigation }) {
                                                             minHeight: 130,
                                                             ...shadows.card
                                                         }}>
-                                                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                                <Text style={{ fontSize: 11, ...FONT.heavy, color: '#64748B', letterSpacing: 0.8 }}>MOMENTUM</Text>
-                                                                <View style={{
-                                                                    backgroundColor: healthHistory.predictive_health.momentum.direction === 'improving' ? '#ECFDF5' : (healthHistory.predictive_health.momentum.direction === 'declining' ? '#FEF2F2' : '#F1F5F9'),
-                                                                    paddingHorizontal: 8,
-                                                                    paddingVertical: 3,
-                                                                    borderRadius: radius.sm,
+                                                            <View>
+                                                                <Text style={{ fontSize: 11, ...FONT.heavy, color: '#64748B', letterSpacing: 0.8 }}>HEALTH MOMENTUM</Text>
+                                                                <Text style={{
+                                                                    fontSize: 24,
+                                                                    ...FONT.heavy,
+                                                                    color: healthHistory.predictive_health.momentum.direction === 'improving' ? '#10B981' : (healthHistory.predictive_health.momentum.direction === 'declining' ? '#EF4444' : '#4F46E5'),
+                                                                    marginTop: 8,
                                                                 }}>
-                                                                    <Text style={{
-                                                                        fontSize: 10,
-                                                                        ...FONT.heavy,
-                                                                        color: healthHistory.predictive_health.momentum.direction === 'improving' ? '#10B981' : (healthHistory.predictive_health.momentum.direction === 'declining' ? '#EF4444' : '#64748B')
-                                                                    }}>
-                                                                        {healthHistory.predictive_health.momentum.direction === 'improving' ? 'Improving ↗' : (healthHistory.predictive_health.momentum.direction === 'declining' ? 'Declining ↘' : 'Stable ➔')}
-                                                                    </Text>
-                                                                </View>
-                                                            </View>
-                                                            <View style={{ flexDirection: 'row', alignItems: 'baseline', marginTop: 8 }}>
-                                                                <Text style={{ fontSize: 32, ...FONT.heavy, color: '#0F172A' }}>{healthHistory.predictive_health.momentum.score}</Text>
-                                                                <Text style={{ fontSize: 13, ...FONT.semibold, color: '#94A3B8', marginLeft: 4 }}>/100</Text>
+                                                                    {healthHistory.predictive_health.momentum.direction === 'improving' ? 'Improving ↗' : (healthHistory.predictive_health.momentum.direction === 'declining' ? 'Declining ↘' : 'Stable ➔')}
+                                                                </Text>
                                                             </View>
                                                             <View style={{ marginTop: 8 }}>
                                                                 <Text style={{ fontSize: 11, ...FONT.semibold, color: '#64748B' }}>
-                                                                    30d Score: {healthHistory.predictive_health.momentum.score_change_30d >= 0 ? `+${healthHistory.predictive_health.momentum.score_change_30d}` : healthHistory.predictive_health.momentum.score_change_30d} pts
+                                                                    30d Score: {healthHistory.predictive_health.momentum.score_change_30d >= 0 ? `+${healthHistory.predictive_health.momentum.score_change_30d}` : healthHistory.predictive_health.momentum.score_change_30d} pts vs prior month
                                                                 </Text>
                                                                 <Text style={{ fontSize: 11, ...FONT.semibold, color: '#64748B', marginTop: 2 }}>
-                                                                    30d Adherence: {healthHistory.predictive_health.momentum.adherence_change_30d >= 0 ? `+${healthHistory.predictive_health.momentum.adherence_change_30d}` : healthHistory.predictive_health.momentum.adherence_change_30d}%
+                                                                    30d Adherence: {healthHistory.predictive_health.momentum.adherence_change_30d >= 0 ? `+${healthHistory.predictive_health.momentum.adherence_change_30d}` : healthHistory.predictive_health.momentum.adherence_change_30d}% vs prior month
                                                                 </Text>
                                                             </View>
                                                         </View>
@@ -2330,10 +2328,10 @@ export default function HealthProfileScreen({ navigation }) {
                                                             </View>
                                                             <View style={{ flexDirection: 'row', alignItems: 'baseline', marginTop: 8 }}>
                                                                 <Text style={{ fontSize: 32, ...FONT.heavy, color: '#0F172A' }}>{healthHistory.predictive_health.consistency.score}%</Text>
-                                                            </View>
-                                                            <View style={{ marginTop: 8 }}>
-                                                                <Text style={{ fontSize: 12, ...FONT.bold, color: healthHistory.predictive_health.consistency.score >= 80 ? '#10B981' : (healthHistory.predictive_health.consistency.score >= 50 ? '#F59E0B' : '#EF4444') }}>
-                                                                    {healthHistory.predictive_health.consistency.score >= 80 ? 'Highly Consistent' : (healthHistory.predictive_health.consistency.score >= 50 ? 'Moderate Fluctuation' : 'Erratic Tracking')}
+                                                             </View>
+                                                             <View style={{ marginTop: 8 }}>
+                                                                <Text style={{ fontSize: 12, ...FONT.bold, color: getConsistencyStyle(healthHistory.predictive_health.consistency.score).color }}>
+                                                                    {getConsistencyStyle(healthHistory.predictive_health.consistency.score).label}
                                                                 </Text>
                                                                 <Text style={{ fontSize: 11, ...FONT.semibold, color: '#94A3B8', marginTop: 2 }}>
                                                                     Avg Adherence: {healthHistory.predictive_health.consistency.average}%
@@ -2386,9 +2384,11 @@ export default function HealthProfileScreen({ navigation }) {
                                                 <StreakCalendar 
                                                     dailyLog={healthHistory?.history?.map(h => ({
                                                         date: formatDate(h.date, 'YYYY-MM-DD'),
-                                                        taken: h.adherence?.today === 100 ? 1 : 0,
-                                                        total: 1,
-                                                        rate: h.adherence?.today ?? 0
+                                                        adherence: h.adherence?.today ?? null,
+                                                        mood: h.mood ?? null,
+                                                        sleepHours: h.sleepHours ?? null,
+                                                        bp: h.bpAvg ?? null,
+                                                        score: h.score ?? null,
                                                     })) || []}
                                                     timezone={profile?.timezone || 'Asia/Kolkata'}
                                                 />

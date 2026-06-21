@@ -498,6 +498,15 @@ async function getCachedHealthState(patient) {
  * @returns {Promise<void>}
  */
 async function enqueueHealthStateRecompute(patientId) {
+    if (process.env.NODE_ENV !== 'test' && process.env.USE_BULLMQ_WORKERS !== 'true') {
+        logger.info(`[PatientHealthStateService] Running in-process background health-state recomputation for patient ${patientId} (5s delay)`);
+        setTimeout(() => {
+            recomputeAndCacheHealthState(patientId).catch(err => {
+                logger.error('[PatientHealthStateService] In-process background recomputation failed', { error: err.message, patientId });
+            });
+        }, 5000);
+        return;
+    }
     try {
         const { healthStateQueue } = require('../jobs/jobQueues');
         if (!healthStateQueue) {
@@ -535,17 +544,21 @@ async function getHealthHistory(patientId, timezone = 'Asia/Kolkata') {
     
     // If history is empty or low, trigger backfill asynchronously
     if (history.length < 5) {
-        logger.info(`[PatientHealthStateService] History low (${history.length} records). Enqueuing background backfill job for patient ${patientId}`);
-        const { healthHistoryBackfillQueue } = require('../jobs/jobQueues');
-        if (healthHistoryBackfillQueue) {
-            await healthHistoryBackfillQueue.add(
-                'backfill',
-                { patientId, timezone },
-                { jobId: `backfill-${patientId}` }
-            ).catch(err => logger.warn('[PatientHealthStateService] Failed to enqueue backfill job', { error: err.message }));
+        logger.info(`[PatientHealthStateService] History low (${history.length} records). Triggering background backfill for patient ${patientId}`);
+        if (process.env.NODE_ENV !== 'test' && process.env.USE_BULLMQ_WORKERS !== 'true') {
+            backfillHealthStateHistory(patientId, timezone).catch(err => logger.error('[PatientHealthStateService] In-process background backfill failed', { error: err.message }));
         } else {
-            // Fallback: run in background promise
-            backfillHealthStateHistory(patientId, timezone).catch(err => logger.error('[PatientHealthStateService] Background backfill failed', { error: err.message }));
+            const { healthHistoryBackfillQueue } = require('../jobs/jobQueues');
+            if (healthHistoryBackfillQueue) {
+                await healthHistoryBackfillQueue.add(
+                    'backfill',
+                    { patientId, timezone },
+                    { jobId: `backfill-${patientId}` }
+                ).catch(err => logger.warn('[PatientHealthStateService] Failed to enqueue backfill job', { error: err.message }));
+            } else {
+                // Fallback: run in background promise
+                backfillHealthStateHistory(patientId, timezone).catch(err => logger.error('[PatientHealthStateService] Background backfill failed', { error: err.message }));
+            }
         }
     }
     

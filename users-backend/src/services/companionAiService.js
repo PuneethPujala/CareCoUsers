@@ -27,6 +27,15 @@ const GROQ_MODEL = 'llama-3.3-70b-versatile';
  * @param {string} patientId 
  */
 async function enqueueCompanionInsights(patientId, delay = 120000) {
+    if (process.env.NODE_ENV !== 'test' && process.env.USE_BULLMQ_WORKERS !== 'true') {
+        logger.info(`[CompanionAIService] Running in-process background companion-insights generation for patient ${patientId} (delay: ${delay}ms)`);
+        setTimeout(() => {
+            generateAndCacheInsights(patientId).catch(err => {
+                logger.error('[CompanionAIService] In-process background insights generation failed', { error: err.message, patientId });
+            });
+        }, delay);
+        return;
+    }
     try {
         const { companionInsightsQueue } = require('../jobs/jobQueues');
         if (!companionInsightsQueue) {

@@ -72,22 +72,38 @@ class MedicineWidgetProvider : AppWidgetProvider() {
                     views.setProgressBar(R.id.widget_progress, 100, adherence, false)
                     views.setTextViewText(R.id.widget_progress_label, "$taken/$total taken")
 
-                    // Populate slot cards from slots data
-                    if (medJson.has("slots")) {
-                        val slots = medJson.getJSONObject("slots")
-                        for (slot in listOf("morning", "afternoon", "evening", "night")) {
-                            if (slots.has(slot)) {
-                                val slotArr = slots.getJSONArray(slot)
-                                var slotTaken = 0
-                                var slotTotal = slotArr.length()
-                                val firstMedName = if (slotTotal > 0) slotArr.getJSONObject(0).optString("name", "") else ""
-                                for (i in 0 until slotTotal) {
-                                    if (slotArr.getJSONObject(i).optBoolean("taken", false)) slotTaken++
+                    if (total == 0) {
+                        views.setViewVisibility(R.id.widget_slots_grid, View.GONE)
+                        views.setViewVisibility(R.id.widget_empty_state_container, View.VISIBLE)
+                        views.setTextViewText(R.id.widget_empty_title, "All Clear! 🩺")
+                        views.setTextViewText(R.id.widget_empty_subtitle, "No medications scheduled for today. Stay healthy!")
+                        views.setImageViewResource(R.id.widget_empty_mascot, R.drawable.doctor_mascot)
+                    } else if (allDone) {
+                        views.setViewVisibility(R.id.widget_slots_grid, View.GONE)
+                        views.setViewVisibility(R.id.widget_empty_state_container, View.VISIBLE)
+                        views.setTextViewText(R.id.widget_empty_title, "All Done! 🎉")
+                        views.setTextViewText(R.id.widget_empty_subtitle, "You've taken all of your medications today. Excellent job!")
+                        views.setImageViewResource(R.id.widget_empty_mascot, R.drawable.doctor_mascot_celebration)
+                    } else {
+                        views.setViewVisibility(R.id.widget_slots_grid, View.VISIBLE)
+                        views.setViewVisibility(R.id.widget_empty_state_container, View.GONE)
+                        // Populate slot cards from slots data
+                        if (medJson.has("slots")) {
+                            val slots = medJson.getJSONObject("slots")
+                            for (slot in listOf("morning", "afternoon", "evening", "night")) {
+                                if (slots.has(slot)) {
+                                    val slotArr = slots.getJSONArray(slot)
+                                    var slotTaken = 0
+                                    var slotTotal = slotArr.length()
+                                    val firstMedName = if (slotTotal > 0) slotArr.getJSONObject(0).optString("name", "") else ""
+                                    for (i in 0 until slotTotal) {
+                                        if (slotArr.getJSONObject(i).optBoolean("taken", false)) slotTaken++
+                                    }
+                                    val countId = context.resources.getIdentifier("slot_${slot}_count", "id", context.packageName)
+                                    val medId = context.resources.getIdentifier("slot_${slot}_med", "id", context.packageName)
+                                    if (countId != 0) views.setTextViewText(countId, "$slotTaken/$slotTotal")
+                                    if (medId != 0) views.setTextViewText(medId, firstMedName)
                                 }
-                                val countId = context.resources.getIdentifier("slot_${slot}_count", "id", context.packageName)
-                                val medId = context.resources.getIdentifier("slot_${slot}_med", "id", context.packageName)
-                                if (countId != 0) views.setTextViewText(countId, "$slotTaken/$slotTotal")
-                                if (medId != 0) views.setTextViewText(medId, firstMedName)
                             }
                         }
                     }
@@ -97,19 +113,29 @@ class MedicineWidgetProvider : AppWidgetProvider() {
                     views.setTextViewText(R.id.widget_progress_label, "$taken/$total taken today")
 
                     if (total == 0) {
-                        showEmptyState(views, "No medicines scheduled today")
+                        views.setViewVisibility(R.id.widget_content, View.GONE)
+                        views.setViewVisibility(R.id.widget_empty_state_container, View.VISIBLE)
+                        views.setTextViewText(R.id.widget_empty_title, "All Clear! 🩺")
+                        views.setTextViewText(R.id.widget_empty_subtitle, "No medicines scheduled today.")
+                        views.setImageViewResource(R.id.widget_empty_mascot, R.drawable.doctor_mascot)
                     } else if (allDone) {
-                        views.setViewVisibility(R.id.widget_next_section, View.GONE)
-                        views.setViewVisibility(R.id.widget_done_section, View.VISIBLE)
-                        views.setViewVisibility(R.id.widget_empty_section, View.GONE)
-                    } else if (nextMed.isNotEmpty()) {
-                        views.setViewVisibility(R.id.widget_next_section, View.VISIBLE)
-                        views.setViewVisibility(R.id.widget_done_section, View.GONE)
-                        views.setViewVisibility(R.id.widget_empty_section, View.GONE)
-                        views.setTextViewText(R.id.widget_next_name, nextMed)
-                        views.setTextViewText(R.id.widget_next_time, if (nextTime.isNotEmpty()) nextTime else "Scheduled")
+                        views.setViewVisibility(R.id.widget_content, View.GONE)
+                        views.setViewVisibility(R.id.widget_empty_state_container, View.VISIBLE)
+                        views.setTextViewText(R.id.widget_empty_title, "All Done! 🎉")
+                        views.setTextViewText(R.id.widget_empty_subtitle, "Taken all medicines today.")
+                        views.setImageViewResource(R.id.widget_empty_mascot, R.drawable.doctor_mascot_celebration)
                     } else {
-                        showEmptyState(views, "Open CareMyMed to view")
+                        views.setViewVisibility(R.id.widget_content, View.VISIBLE)
+                        views.setViewVisibility(R.id.widget_empty_state_container, View.GONE)
+                        if (nextMed.isNotEmpty()) {
+                            views.setViewVisibility(R.id.widget_next_section, View.VISIBLE)
+                            views.setViewVisibility(R.id.widget_done_section, View.GONE)
+                            views.setViewVisibility(R.id.widget_empty_section, View.GONE)
+                            views.setTextViewText(R.id.widget_next_name, nextMed)
+                            views.setTextViewText(R.id.widget_next_time, if (nextTime.isNotEmpty()) nextTime else "Scheduled")
+                        } else {
+                            showEmptyState(views, "Open CareMyMed to view")
+                        }
                     }
                 } else {
                     // Small layout: compact bar

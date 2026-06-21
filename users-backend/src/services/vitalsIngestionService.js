@@ -212,6 +212,14 @@ class VitalsIngestionService {
         });
 
         if (count >= 7) {
+            if (process.env.NODE_ENV !== 'test' && process.env.USE_BULLMQ_WORKERS !== 'true') {
+                const AIPredictionService = require('./aiPredictionService');
+                console.log(`🤖 Running in-process background AI prediction for patient ${patientId}`);
+                AIPredictionService.processPatientPrediction(patientId).catch(err => {
+                    console.error('❌ Failed to run in-process AI prediction:', err.message);
+                });
+                return;
+            }
             try {
                 const { vitalsQueue } = require('../jobs/vitalsQueue');
                 await vitalsQueue.add('predict', { patientId: patientId.toString() }, {

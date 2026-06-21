@@ -16,6 +16,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { ShieldCheck, ArrowLeft, AlertCircle, KeyRound } from 'lucide-react-native';
 import { apiService } from '../../lib/api';
+import OTPBoxes from '../../components/ui/OTPBoxes';
 import { useAuth } from '../../context/AuthContext';
 import SmartInput from '../../components/ui/SmartInput';
 
@@ -27,67 +28,7 @@ const FONT = {
     heavy: { fontFamily: 'Inter_800ExtraBold' },
 };
 
-// Individual OTP boxes — auto-advance on input, backspace to go back
-const OTPBoxes = ({ value = '', onChange, onComplete, length = 6, editable = true }) => {
-    const refs = useRef([...Array(length)].map(() => React.createRef()));
-
-    const handleChange = (text, idx) => {
-        const digit = text.replace(/\D/g, '').slice(-1);
-        const newVal = (value.slice(0, idx) + digit + value.slice(idx + 1)).slice(0, length);
-        onChange(newVal);
-        if (digit) {
-            if (idx < length - 1) refs.current[idx + 1]?.current?.focus();
-            if (newVal.length === length) onComplete?.(newVal);
-        }
-    };
-
-    const handleKeyPress = ({ nativeEvent }, idx) => {
-        if (nativeEvent.key === 'Backspace' && !value[idx] && idx > 0) {
-            refs.current[idx - 1]?.current?.focus();
-        }
-    };
-
-    return (
-        <View style={otpSt.row}>
-            {Array.from({ length }).map((_, i) => (
-                <TextInput
-                    key={i}
-                    ref={refs.current[i]}
-                    style={[otpSt.box, !!value[i] && otpSt.boxFilled]}
-                    value={value[i] || ''}
-                    onChangeText={(t) => handleChange(t, i)}
-                    onKeyPress={(e) => handleKeyPress(e, i)}
-                    keyboardType="number-pad"
-                    maxLength={1}
-                    textAlign="center"
-                    editable={editable}
-                    autoFocus={i === 0}
-                    selectTextOnFocus
-                />
-            ))}
-        </View>
-    );
-};
-
-const otpSt = StyleSheet.create({
-    row: { flexDirection: 'row', gap: 10, justifyContent: 'center', marginVertical: 20 },
-    box: {
-        width: 48, height: 60,
-        borderRadius: 16,
-        backgroundColor: '#F8FAFC',
-        borderWidth: 2, borderColor: '#E2E8F0',
-        fontSize: 26, ...FONT.heavy,
-        color: '#0F172A',
-    },
-    boxFilled: {
-        borderColor: '#6366F1',
-        backgroundColor: '#EEF2FF',
-        shadowColor: '#6366F1',
-        shadowOpacity: 0.15, shadowRadius: 10,
-        shadowOffset: { width: 0, height: 3 },
-        elevation: 4,
-    },
-});
+// OTPBoxes is imported from '../../components/ui/OTPBoxes'
 
 export default function MFAVerifyScreen({ route, navigation }) {
     const { mfaToken, profile: loginProfile } = route.params || {};
@@ -223,6 +164,12 @@ export default function MFAVerifyScreen({ route, navigation }) {
                                 onComplete={(val) => handleVerify(val)}
                                 length={6}
                                 editable={!loading}
+                                activeBorderColor="#6366F1"
+                                activeBgColor="#EEF2FF"
+                                boxWidth={48}
+                                boxHeight={60}
+                                borderRadius={16}
+                                gap={10}
                             />
                         </>
                     ) : (

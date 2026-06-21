@@ -4,6 +4,7 @@ import {
     Modal, StyleSheet, ActivityIndicator,
 } from 'react-native';
 import { AlertCircle, X, Smartphone, CreditCard } from 'lucide-react-native';
+import OTPBoxes from '../../../components/ui/OTPBoxes';
 import { styles, FONT, C } from './SignupStyles';
 
 // ─── Password strength meter ──────────────────────────────────────────────────
@@ -126,68 +127,7 @@ const IconInput = React.memo(React.forwardRef(({ icon: Icon, label, rightIcon, e
     );
 }));
 
-// ─── OTP input boxes (auto-advance) ──────────────────────────────────────────
-const OTPBoxes = ({ value = '', onChange, onComplete, length = 6, editable = true, autoFocus = true }) => {
-    const refs = React.useRef([...Array(length)].map(() => React.createRef()));
-
-    // Use a timed ref-based focus instead of native autoFocus to avoid Android
-    // crashes when OTPBoxes mounts inside an already-open Modal (step transitions).
-    React.useEffect(() => {
-        if (!autoFocus) return;
-        const t = setTimeout(() => refs.current[0]?.current?.focus(), 120);
-        return () => clearTimeout(t);
-    }, [autoFocus]);
-
-    const handleChange = (text, idx) => {
-        const digit = text.replace(/\D/g, '').slice(-1);
-        const newVal = (value.slice(0, idx) + digit + value.slice(idx + 1)).slice(0, length);
-        onChange(newVal);
-        if (digit) {
-            if (idx < length - 1) refs.current[idx + 1]?.current?.focus();
-            if (newVal.length === length) onComplete?.(newVal);
-        }
-    };
-
-    const handleKeyPress = ({ nativeEvent }, idx) => {
-        if (nativeEvent.key === 'Backspace' && !value[idx] && idx > 0) {
-            refs.current[idx - 1]?.current?.focus();
-        }
-    };
-
-    return (
-        <View style={otpSt.row}>
-            {Array.from({ length }).map((_, i) => (
-                <TextInput
-                    key={i}
-                    ref={refs.current[i]}
-                    style={[otpSt.box, !!value[i] && otpSt.boxFilled]}
-                    value={value[i] || ''}
-                    onChangeText={(t) => handleChange(t, i)}
-                    onKeyPress={(e) => handleKeyPress(e, i)}
-                    keyboardType="number-pad"
-                    maxLength={1}
-                    textAlign="center"
-                    editable={editable}
-                    selectTextOnFocus
-                />
-            ))}
-        </View>
-    );
-};
-
-const otpSt = StyleSheet.create({
-    row: { flexDirection: 'row', gap: 8, justifyContent: 'center', marginVertical: 20 },
-    box: {
-        width: 46, height: 56, borderRadius: 14,
-        backgroundColor: C.bg, borderWidth: 2, borderColor: C.border,
-        fontSize: 22, ...FONT.bold, color: C.dark,
-    },
-    boxFilled: {
-        borderColor: C.primary, backgroundColor: C.primarySoft,
-        shadowColor: C.primary, shadowOpacity: 0.12, shadowRadius: 8,
-        shadowOffset: { width: 0, height: 2 }, elevation: 3,
-    },
-});
+// OTPBoxes is imported from '../../../components/ui/OTPBoxes'
 
 // ─── OTP Modal ────────────────────────────────────────────────────────────────
 const OTPModal = React.memo(({ visible, onClose, otp, setOtp, onVerify, timer, resend, attempts, field, error, otpLoading, remainingSlots }) => (
@@ -231,6 +171,9 @@ const OTPModal = React.memo(({ visible, onClose, otp, setOtp, onVerify, timer, r
                         onComplete={onVerify}
                         length={6}
                         editable={!otpLoading}
+                        activeBorderColor={C.primary}
+                        activeBgColor={C.primarySoft}
+                        textColor={C.dark}
                     />
 
                     {error ? (

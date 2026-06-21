@@ -350,7 +350,7 @@ export default function CompanionDashboardScreen() {
                 <ScrollView contentContainerStyle={styles.content}>
                     {/* Summary Card Skeleton */}
                     <View style={styles.summaryCard}>
-                        <View style={styles.summaryCol}>
+                        <View style={styles.summaryColLeft}>
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                                 <SkeletonItem width={20} height={20} borderRadius={10} />
                                 <View style={{ gap: 4 }}>
@@ -360,13 +360,13 @@ export default function CompanionDashboardScreen() {
                             </View>
                         </View>
                         <View style={styles.summaryDivider} />
-                        <View style={[styles.summaryCol, { alignItems: 'center', gap: 4 }]}>
+                        <View style={[styles.summaryColCenter, { gap: 4 }]}>
                             <SkeletonItem width={50} height={10} />
                             <SkeletonItem width={40} height={24} />
                             <SkeletonItem width={30} height={10} />
                         </View>
                         <View style={styles.summaryDivider} />
-                        <View style={[styles.summaryCol, { alignItems: 'center', gap: 4 }]}>
+                        <View style={[styles.summaryColRight, { gap: 4 }]}>
                             <SkeletonItem width={50} height={10} />
                             <SkeletonItem width={55} height={16} />
                         </View>
@@ -536,11 +536,11 @@ export default function CompanionDashboardScreen() {
                 {/* Top Summary Card (Mockup Style) */}
                 {visibleSections.includes('summary') && (
                     <Animated.View style={[styles.summaryCard, sectionAnimForKey('summary')]}>
-                    <View style={styles.summaryCol}>
+                    <View style={styles.summaryColLeft}>
                         <View style={styles.summaryColRow}>
                             <ShieldCheck color={(data.recent_alerts && data.recent_alerts.length > 0) ? colors.danger : colors.success} size={20} />
-                            <View style={{ marginLeft: 6 }}>
-                                <Text style={styles.summaryColTitle}>
+                            <View style={{ marginLeft: 6, flex: 1 }}>
+                                <Text style={styles.summaryColTitle} numberOfLines={1}>
                                     {(data.recent_alerts && data.recent_alerts.length > 0) ? 'Action Needed' : 'Stable Today'}
                                 </Text>
                                 <Text style={styles.summaryColSub}>
@@ -552,7 +552,7 @@ export default function CompanionDashboardScreen() {
                     
                     <View style={styles.summaryDivider} />
                     
-                    <View style={[styles.summaryCol, { alignItems: 'center' }]}>
+                    <View style={styles.summaryColCenter}>
                         <Text style={styles.summaryColLabel}>Adherence</Text>
                         <Text 
                             style={[
@@ -571,7 +571,7 @@ export default function CompanionDashboardScreen() {
                     
                     <View style={styles.summaryDivider} />
                     
-                    <View style={[styles.summaryCol, { alignItems: 'center' }]}>
+                    <View style={styles.summaryColRight}>
                         <Text style={styles.summaryColLabel}>Last Sync</Text>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
                             <Text style={styles.summaryColValueSmall}>
@@ -655,18 +655,13 @@ export default function CompanionDashboardScreen() {
                 {visibleSections.includes('needs_attention') && (
                     <Animated.View style={[styles.attentionCard, sectionAnimForKey('needs_attention')]}>
                         <View style={styles.attentionHeader}>
-                            <View style={styles.attentionTitleRow}>
-                                <View style={styles.attentionIconBox}>
-                                    <AlertCircle color={colors.danger} size={18} />
-                                </View>
-                                <View>
-                                    <Text style={styles.attentionEyebrow}>Priority Queue</Text>
-                                    <Text style={styles.attentionTitle}>Needs Attention</Text>
-                                </View>
+                            <View>
+                                <Text style={styles.attentionTitle}>Priority Queue</Text>
+                                <Text style={styles.attentionSubtitle}>Needs attention today</Text>
                             </View>
                             <View style={styles.attentionCountBadge}>
                                 <Text style={styles.attentionCountText}>
-                                    {priorityActions.length} issue{priorityActions.length === 1 ? '' : 's'}
+                                    {priorityActions.length} Open
                                 </Text>
                             </View>
                         </View>
@@ -677,24 +672,35 @@ export default function CompanionDashboardScreen() {
                                 
                                 let btnText = '';
                                 let btnHandler = null;
-                                let btnBgStyle = {};
-                                let btnTextStyle = {};
                                 
                                 if (action.action_type === 'medication' || action.action_type === 'critical_vital') {
                                     btnText = 'Nudge';
                                     btnHandler = handleNudge;
-                                    btnBgStyle = { backgroundColor: colors.dangerLight };
-                                    btnTextStyle = { color: colors.danger };
                                 } else if (action.action_type === 'vital_sync') {
                                     btnText = 'Request BP';
                                     btnHandler = handleRequestBP;
-                                    btnBgStyle = { backgroundColor: colors.primarySoft };
-                                    btnTextStyle = { color: colors.primaryMid };
                                 } else if (action.action_type === 'call_patient') {
                                     btnText = 'Call';
                                     btnHandler = handleCall;
-                                    btnBgStyle = { backgroundColor: colors.successLight };
-                                    btnTextStyle = { color: colors.success };
+                                }
+
+                                // Style buttons based on severity
+                                let btnBgStyle = {};
+                                let btnTextStyle = {};
+                                let btnBorderStyle = {};
+
+                                if (isCritical) {
+                                    btnBgStyle = { backgroundColor: '#FEF2F2' };
+                                    btnTextStyle = { color: '#EF4444' };
+                                    btnBorderStyle = { borderColor: '#FCA5A5', borderWidth: 1 };
+                                } else if (isWarning) {
+                                    btnBgStyle = { backgroundColor: '#FFFDF5' };
+                                    btnTextStyle = { color: '#D97706' };
+                                    btnBorderStyle = { borderColor: '#FDE68A', borderWidth: 1 };
+                                } else {
+                                    btnBgStyle = { backgroundColor: '#EFF6FF' };
+                                    btnTextStyle = { color: '#3B82F6' };
+                                    btnBorderStyle = { borderColor: '#BFDBFE', borderWidth: 1 };
                                 }
 
                                 const statusColor = isCritical ? colors.danger : isWarning ? colors.warning : colors.primary;
@@ -712,6 +718,7 @@ export default function CompanionDashboardScreen() {
                                                 style={({ pressed }) => [
                                                     styles.priorityActionBtn,
                                                     btnBgStyle,
+                                                    btnBorderStyle,
                                                     pressed && { opacity: 0.7 }
                                                 ]}
                                                 onPress={btnHandler}
@@ -1550,14 +1557,24 @@ const styles = StyleSheet.create({
         backgroundColor: colors.surface,
         borderRadius: radius.xl,
         paddingVertical: 16,
-        paddingHorizontal: 16,
+        paddingHorizontal: 12,
         alignItems: 'center',
         justifyContent: 'space-between',
         ...shadows.card,
     },
-    summaryCol: {
-        flex: 1,
+    summaryColLeft: {
+        flex: 1.6,
         justifyContent: 'center',
+    },
+    summaryColCenter: {
+        flex: 0.8,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    summaryColRight: {
+        flex: 0.8,
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     summaryColRow: {
         flexDirection: 'row',
@@ -1970,7 +1987,7 @@ const styles = StyleSheet.create({
         paddingLeft: 18,
         paddingRight: 12,
         borderWidth: 1,
-        borderColor: '#FEE2E2',
+        borderColor: '#E2E8F0',
         overflow: 'hidden',
         position: 'relative',
         ...shadows.sm,
@@ -1980,7 +1997,9 @@ const styles = StyleSheet.create({
         left: 0,
         top: 0,
         bottom: 0,
-        width: 5,
+        width: 4,
+        borderTopLeftRadius: 12,
+        borderBottomLeftRadius: 12,
     },
     priorityActionContent: {
         flexDirection: 'row',
@@ -2371,10 +2390,10 @@ const styles = StyleSheet.create({
         ...FONT.bold,
     },
     attentionCard: {
-        backgroundColor: '#FFF8F8',
+        backgroundColor: '#F8FAFC',
         borderRadius: radius.xl,
-        borderWidth: 1.5,
-        borderColor: '#FEE2E2',
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
         padding: spacing.md,
         ...shadows.card,
         marginBottom: 8,
@@ -2385,34 +2404,19 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         marginBottom: 16,
     },
-    attentionTitleRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 10,
-    },
-    attentionIconBox: {
-        width: 32,
-        height: 32,
-        borderRadius: 8,
-        backgroundColor: '#FEE2E2',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    attentionEyebrow: {
-        fontSize: 10,
-        ...FONT.bold,
-        color: colors.danger,
-        textTransform: 'uppercase',
-        letterSpacing: 0.5,
-    },
     attentionTitle: {
-        fontSize: 15,
+        fontSize: 16,
         ...FONT.bold,
         color: colors.textPrimary,
-        marginTop: 1,
+    },
+    attentionSubtitle: {
+        fontSize: 12,
+        ...FONT.medium,
+        color: colors.textSecondary,
+        marginTop: 2,
     },
     attentionCountBadge: {
-        backgroundColor: colors.danger,
+        backgroundColor: '#FEE2E2',
         paddingHorizontal: 10,
         paddingVertical: 4,
         borderRadius: 12,
@@ -2420,6 +2424,6 @@ const styles = StyleSheet.create({
     attentionCountText: {
         fontSize: 10,
         ...FONT.bold,
-        color: '#FFFFFF',
+        color: '#EF4444',
     },
 });

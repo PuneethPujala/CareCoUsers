@@ -1,9 +1,8 @@
 import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Switch, Share, Image, Modal } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, Switch, Share, Image, Modal, Animated } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import { apiService } from '../../lib/api';
 import { LogOut, ShieldCheck, Heart, User, Settings, ArrowRight, UserCheck, Share2, Phone, ChevronDown, X, HeartPulse, Users, Check } from 'lucide-react-native';
-import BottomSheet, { BottomSheetView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
 import { handleAvatarPicker, deleteOldAvatar, pickRawImage, uploadCroppedAvatar } from '../../utils/avatarHelper';
 import AvatarSelectModal from '../../components/ui/AvatarSelectModal';
 import AvatarCropModal from '../../components/ui/AvatarCropModal';
@@ -42,9 +41,49 @@ export default function CompanionProfileScreen() {
     const { signOut, user, profile, refreshProfile, switchRole } = useAuth();
     const filteredWorkspaces = profile?.workspaces?.filter(w => w.id === 'patient' || w.id === 'companion') || [];
     const [loading, setLoading] = useState(true);
-    // Bottom Sheet Refs & Snap Points
-    const workspaceSheetRef = useRef(null);
-    const snapPoints = useMemo(() => ['22%'], []);
+    // Modals & Bottom Sheets
+    const [workspaceModalVisible, setWorkspaceModalVisible] = useState(false);
+    const workspaceSlideAnim = useRef(new Animated.Value(0)).current;
+    const workspaceBackdropAnim = useRef(new Animated.Value(0)).current;
+
+    useEffect(() => {
+        if (workspaceModalVisible) {
+            Animated.parallel([
+                Animated.spring(workspaceSlideAnim, {
+                    toValue: 1,
+                    friction: 8,
+                    tension: 65,
+                    useNativeDriver: true,
+                }),
+                Animated.timing(workspaceBackdropAnim, {
+                    toValue: 1,
+                    duration: 250,
+                    useNativeDriver: true,
+                }),
+            ]).start();
+        } else {
+            workspaceSlideAnim.setValue(0);
+            workspaceBackdropAnim.setValue(0);
+        }
+    }, [workspaceModalVisible]);
+
+    const closeWorkspaceModal = (callback) => {
+        Animated.parallel([
+            Animated.timing(workspaceSlideAnim, {
+                toValue: 0,
+                duration: 200,
+                useNativeDriver: true,
+            }),
+            Animated.timing(workspaceBackdropAnim, {
+                toValue: 0,
+                duration: 200,
+                useNativeDriver: true,
+            }),
+        ]).start(() => {
+            setWorkspaceModalVisible(false);
+            if (typeof callback === 'function') callback();
+        });
+    };
     const [switchingWorkspace, setSwitchingWorkspace] = useState(false);
     const [switchingText, setSwitchingText] = useState('');
     const [avatarModalVisible, setAvatarModalVisible] = useState(false);
@@ -54,25 +93,26 @@ export default function CompanionProfileScreen() {
 
     const handleWorkspaceSwitch = async (targetRole) => {
         if (targetRole === 'companion') {
-            workspaceSheetRef.current?.close();
+            closeWorkspaceModal();
             return;
         }
-        workspaceSheetRef.current?.close();
-        setSwitchingText(
-            targetRole === 'companion'
-                ? 'Switching to Caregiver...'
-                : 'Switching to Patient...'
-        );
-        setSwitchingWorkspace(true);
-        // Minimum visual feedback delay so user sees "Switching to Patient..."
-        await new Promise((resolve) => setTimeout(resolve, 400));
-        try {
-            await switchRole(targetRole);
-        } catch (err) {
-            AlertManager.alert('Error', 'Failed to switch workspace.');
-        } finally {
-            setSwitchingWorkspace(false);
-        }
+        closeWorkspaceModal(async () => {
+            setSwitchingText(
+                targetRole === 'companion'
+                    ? 'Switching to Caregiver...'
+                    : 'Switching to Patient...'
+            );
+            setSwitchingWorkspace(true);
+            // Minimum visual feedback delay so user sees "Switching to Patient..."
+            await new Promise((resolve) => setTimeout(resolve, 400));
+            try {
+                await switchRole(targetRole);
+            } catch (err) {
+                AlertManager.alert('Error', 'Failed to switch workspace.');
+            } finally {
+                setSwitchingWorkspace(false);
+            }
+        });
     };
 
     const handleRemoveAvatar = async () => {
@@ -205,7 +245,7 @@ export default function CompanionProfileScreen() {
                         {filteredWorkspaces.length > 1 ? (
                             <Pressable 
                                 style={styles.workspacePill} 
-                                onPress={() => workspaceSheetRef.current?.expand()}
+                                onPress={() => setWorkspaceModalVisible(true)}
                                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                             >
                                 <Users size={12} color={colors.primary} strokeWidth={2.5} style={{ marginRight: 4 }} />
@@ -366,48 +406,73 @@ export default function CompanionProfileScreen() {
                 }}
             />
 
-            {/* ── Workspace Chooser Bottom Sheet ── */}
-            <BottomSheet
-                ref={workspaceSheetRef}
-                index={-1}
-                snapPoints={snapPoints}
-                backdropComponent={(props) => (
-                    <BottomSheetBackdrop
-                        {...props}
-                        disappearsOnIndex={-1}
-                        appearsOnIndex={0}
-                    />
-                )}
-                enablePanDownToClose
+            {/* ── Workspace Chooser Modal ── */}
+            <Modal
+                visible={workspaceModalVisible}
+                transparent={true}
+                animationType="none"
+                onRequestClose={() => closeWorkspaceModal()}
             >
-                <BottomSheetView style={styles.bottomSheetView}>
-                    <View style={styles.modalHeader}>
-                        <Text style={styles.modalTitle}>Switch Workspace</Text>
-                    </View>
-                    
-                    <View style={styles.bottomSheetOptionsList}>
-                        {filteredWorkspaces.map((ws) => {
-                            const isCurrent = ws.id === 'companion';
-                            const IconComponent = ws.id === 'patient' ? HeartPulse : Users;
-                            return (
-                                <Pressable 
-                                    key={ws.id} 
-                                    style={[styles.workspaceOptionRow, isCurrent && styles.workspaceOptionRowActive]} 
-                                    onPress={() => handleWorkspaceSwitch(ws.id)}
-                                >
-                                    <View style={styles.workspaceOptionLeft}>
-                                        <IconComponent size={20} color={isCurrent ? colors.primary : colors.textSecondary} strokeWidth={2.2} style={{ marginRight: 12 }} />
-                                        <Text style={[styles.workspaceOptionLabel, isCurrent && styles.workspaceOptionLabelActive]}>
-                                            {ws.id === 'patient' ? 'Patient' : 'Caregiver'}
-                                        </Text>
-                                    </View>
-                                    {isCurrent && <Check size={18} color={colors.primary} strokeWidth={2.5} />}
-                                </Pressable>
-                            );
-                        })}
-                    </View>
-                </BottomSheetView>
-            </BottomSheet>
+                <View style={{ flex: 1, justifyContent: 'flex-end' }}>
+                    <Pressable 
+                        style={StyleSheet.absoluteFillObject} 
+                        onPress={() => closeWorkspaceModal()}
+                    >
+                        <Animated.View 
+                            style={[
+                                StyleSheet.absoluteFillObject, 
+                                { backgroundColor: 'rgba(15, 23, 42, 0.6)', opacity: workspaceBackdropAnim }
+                            ]} 
+                        />
+                    </Pressable>
+
+                    <Animated.View
+                        style={[
+                            styles.modalContent,
+                            {
+                                transform: [
+                                    {
+                                        translateY: workspaceSlideAnim.interpolate({
+                                            inputRange: [0, 1],
+                                            outputRange: [300, 0],
+                                        }),
+                                    },
+                                ],
+                            },
+                        ]}
+                    >
+                        <View style={styles.modalDragHandle} />
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>Switch Workspace</Text>
+                            <Pressable onPress={() => closeWorkspaceModal()} hitSlop={10}>
+                                <X size={24} color="#64748B" />
+                            </Pressable>
+                        </View>
+                        
+                        <View style={styles.bottomSheetOptionsList}>
+                            {filteredWorkspaces.map((ws) => {
+                                const isCurrent = ws.id === 'companion';
+                                const IconComponent = ws.id === 'patient' ? HeartPulse : Users;
+                                return (
+                                    <Pressable 
+                                        key={ws.id} 
+                                        style={[styles.workspaceOptionRow, isCurrent && styles.workspaceOptionRowActive]} 
+                                        onPress={() => handleWorkspaceSwitch(ws.id)}
+                                    >
+                                        <View style={styles.workspaceOptionLeft}>
+                                            <IconComponent size={20} color={isCurrent ? colors.primary : colors.textSecondary} strokeWidth={2.2} style={{ marginRight: 12 }} />
+                                            <Text style={[styles.workspaceOptionLabel, isCurrent && styles.workspaceOptionLabelActive]}>
+                                                {ws.id === 'patient' ? 'Patient' : 'Caregiver'}
+                                            </Text>
+                                        </View>
+                                        {isCurrent && <Check size={18} color={colors.primary} strokeWidth={2.5} />}
+                                    </Pressable>
+                                );
+                            })}
+                        </View>
+                    </Animated.View>
+                </View>
+            </Modal>
 
             {/* ── Switching Workspace Loading Overlay ── */}
             {switchingWorkspace && (
@@ -660,10 +725,21 @@ const styles = StyleSheet.create({
         ...FONT.bold,
         color: colors.danger,
     },
-    bottomSheetView: {
-        paddingHorizontal: 24,
-        paddingVertical: 12,
-        flex: 1,
+    modalContent: {
+        backgroundColor: colors.surface,
+        borderTopLeftRadius: 36,
+        borderTopRightRadius: 36,
+        padding: 24,
+        paddingBottom: 40,
+        maxHeight: '85%',
+    },
+    modalDragHandle: {
+        width: 48,
+        height: 5,
+        borderRadius: 2.5,
+        backgroundColor: '#E2E8F0',
+        alignSelf: 'center',
+        marginBottom: 16,
     },
     bottomSheetOptionsList: {
         marginTop: 16,

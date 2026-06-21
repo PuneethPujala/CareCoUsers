@@ -13,8 +13,8 @@ const PremiumTrendChart = ({
     yMin,
     yMax,
     showGrid = true,
-    paddingRight = 40,
-    paddingLeft = 20,
+    paddingRight = 16,
+    paddingLeft = 40,
     paddingTop = 15,
     paddingBottom = 25,
     projectionValue, // 14-day projection value
@@ -24,7 +24,7 @@ const PremiumTrendChart = ({
 }) => {
     if (!data || data.length === 0) {
         if (emptyIcon || emptyLabel) {
-            const chartW = SCREEN_WIDTH - 48;
+            const chartW = SCREEN_WIDTH - 72; // Screen margins (20 * 2) + Card padding (16 * 2)
             // Faint mock graph path — an organic-looking wave at 8% opacity
             const mockH = height;
             const mockPath = `M 0 ${mockH * 0.65} Q ${chartW * 0.12} ${mockH * 0.55}, ${chartW * 0.22} ${mockH * 0.6} T ${chartW * 0.42} ${mockH * 0.45} T ${chartW * 0.62} ${mockH * 0.52} T ${chartW * 0.82} ${mockH * 0.35} T ${chartW} ${mockH * 0.42}`;
@@ -33,7 +33,7 @@ const PremiumTrendChart = ({
                 <View style={[styles.container, styles.emptyContainer, { height }]}>
                     {/* Faint ghost chart */}
                     <View style={StyleSheet.absoluteFill}>
-                        <Svg width="100%" height="100%">
+                        <Svg width={chartW} height={height}>
                             <Defs>
                                 <LinearGradient id="emptyGrad" x1="0" y1="0" x2="0" y2="1">
                                     <Stop offset="0%" stopColor={color} stopOpacity="0.06" />
@@ -60,7 +60,8 @@ const PremiumTrendChart = ({
         return <View style={[styles.container, { height }]} />;
     }
 
-    const chartWidth = SCREEN_WIDTH - 48 - paddingLeft - paddingRight;
+    const parentWidth = SCREEN_WIDTH - 72; // Screen margins (20 * 2) + Card padding (16 * 2)
+    const chartWidth = parentWidth - paddingLeft - paddingRight;
     const chartHeight = height - paddingTop - paddingBottom;
 
     // Extrapolate values
@@ -80,11 +81,17 @@ const PremiumTrendChart = ({
     const valRange = maxVal - minVal || 1;
 
     const activeWidth = (projectionValue !== undefined && projectionValue !== null) ? chartWidth * 0.82 : chartWidth;
+    const isBar = type === 'bar';
+    const insetLeft = isBar ? Math.max(12, Math.min(24, chartWidth / (data.length * 2))) : 0;
+    const insetRight = isBar ? Math.max(12, Math.min(24, chartWidth / (data.length * 2))) : 0;
+    const plotWidth = activeWidth - insetLeft - insetRight;
 
     // Calculate point coordinates
     const points = data.map((d, index) => {
         const val = typeof d === 'number' ? d : d.value;
-        const x = paddingLeft + (index / Math.max(1, data.length - 1)) * activeWidth;
+        const x = data.length === 1
+            ? paddingLeft + insetLeft + plotWidth / 2
+            : paddingLeft + insetLeft + (index / (data.length - 1)) * plotWidth;
         const y = paddingTop + chartHeight - ((val - minVal) / valRange) * chartHeight;
         return { x, y, value: val, label: typeof d === 'number' ? '' : d.label };
     });
@@ -123,7 +130,7 @@ const PremiumTrendChart = ({
 
     return (
         <View style={[styles.container, { height }]}>
-            <Svg width="100%" height="100%">
+            <Svg width={parentWidth} height={height}>
                 <Defs>
                     <LinearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
                         <Stop offset="0%" stopColor={color} stopOpacity="0.25" />
@@ -145,11 +152,12 @@ const PremiumTrendChart = ({
                                 strokeDasharray="3 3"
                             />
                             <SvgText
-                                x={paddingLeft + chartWidth + 8}
+                                x={paddingLeft - 8}
                                 y={line.y + 4}
                                 fill={colors.textMuted}
                                 fontSize={typography.sizes.tiny}
                                 fontWeight="600"
+                                textAnchor="end"
                             >
                                 {line.value}
                             </SvgText>
