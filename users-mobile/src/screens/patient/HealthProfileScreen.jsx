@@ -189,17 +189,6 @@ export default function HealthProfileScreen({ navigation }) {
         }
     };
 
-    const loadHistoryRef = useRef(loadHistoryAndTimeline);
-    const loadingRef = useRef(historyLoading);
-
-    useEffect(() => {
-        loadHistoryRef.current = loadHistoryAndTimeline;
-    });
-
-    useEffect(() => {
-        loadingRef.current = historyLoading;
-    }, [historyLoading]);
-
     useEffect(() => {
         if (showScoreInfo) {
             loadHistoryAndTimeline();
@@ -210,18 +199,16 @@ export default function HealthProfileScreen({ navigation }) {
         if (!showScoreInfo) return;
 
         const isHistoryPending = !healthHistory?.history || healthHistory.history.length < 5;
-        if (!isHistoryPending) return;
+        if (!isHistoryPending || historyLoading) return;
 
-        const intervalId = setInterval(() => {
-            if (!loadingRef.current) {
-                loadHistoryRef.current();
-            }
+        const timerId = setTimeout(() => {
+            loadHistoryAndTimeline();
         }, 4000);
 
         return () => {
-            clearInterval(intervalId);
+            clearTimeout(timerId);
         };
-    }, [showScoreInfo, healthHistory?.history?.length]);
+    }, [showScoreInfo, healthHistory?.history?.length, historyLoading]);
 
     useEffect(() => {
         if (isHealthSupported()) {

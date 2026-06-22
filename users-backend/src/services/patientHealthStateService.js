@@ -531,6 +531,8 @@ async function enqueueHealthStateRecompute(patientId) {
     }
 }
 
+const activeInProcessBackfills = new Set();
+
 /**
  * Retrieves the daily health snapshots for the past 30 days and calculates deltas.
  * Triggers an asynchronous backfill if the history has fewer than 5 records.
@@ -548,16 +550,23 @@ async function getHealthHistory(patientId, timezone = 'Asia/Kolkata') {
         if (process.env.NODE_ENV !== 'test' && process.env.USE_BULLMQ_WORKERS !== 'true') {
             backfillHealthStateHistory(patientId, timezone).catch(err => logger.error('[PatientHealthStateService] In-process background backfill failed', { error: err.message }));
         } else {
-            const { healthHistoryBackfillQueue } = require('../jobs/jobQueues');
-            if (healthHistoryBackfillQueue) {
-                await healthHistoryBackfillQueue.add(
-                    'backfill',
-                    { patientId, timezone },
-                    { jobId: `backfill-${patientId}` }
-                ).catch(err => logger.warn('[PatientHealthStateService] Failed to enqueue backfill job', { error: err.message }));
-            } else {
-                // Fallback: run in background promise
-                backfillHealthStateHistory(patientId, timezone).catch(err => logger.error('[PatientHealthStateService] Background backfill failed', { error: err.message }));
+            try {
+                const { healthHistoryBackfillQueue } = require('../jobs/jobQueues');
+                if (healthHistoryBackfillQueue) {
+                    healthHistoryBackfillQueue.add(
+                        'backfill',
+                        { patientId, timezone },
+                        { jobId: `backfill-${patientId}` }
+                    ).catch(err => {
+                        logger.warn('[PatientHealthStateService] Failed to enqueue backfill job, falling back to in-process execution', { error: err.message });
+                        backfillHealthStateHistory(patientId, timezone).catch(err2 => logger.error('[PatientHealthStateService] Fallback in-process background backfill failed', { error: err2.message }));
+                    });
+                } else {
+                    backfillHealthStateHistory(patientId, timezone).catch(err => logger.error('[PatientHealthStateService] Background backfill failed', { error: err.message }));
+                }
+            } catch (err) {
+                logger.warn('[PatientHealthStateService] Failed to check queue, running in-process', { error: err.message });
+                backfillHealthStateHistory(patientId, timezone).catch(err2 => logger.error('[PatientHealthStateService] In-process background backfill failed', { error: err2.message }));
             }
         }
     }
@@ -604,17 +613,27 @@ async function getHealthHistory(patientId, timezone = 'Asia/Kolkata') {
  * @returns {Promise<void>}
  */
 async function backfillHealthStateHistory(patientId, timezone) {
-    const today = moment().tz(timezone);
-    logger.info(`[PatientHealthStateService] Starting sequential 30-day history backfill for patient ${patientId}`);
-    for (let i = 30; i >= 0; i--) {
-        const targetDateStr = today.clone().subtract(i, 'days').format('YYYY-MM-DD');
-        try {
-            await recomputeAndCacheHealthState(patientId, targetDateStr);
-        } catch (err) {
-            logger.error(`[PatientHealthStateService] Backfill failed for day -${i} (${targetDateStr})`, { error: err.message, patientId });
-        }
+    const patientKey = patientId.toString();
+    if (activeInProcessBackfills.has(patientKey)) {
+        logger.info(`[PatientHealthStateService] Backfill already in progress in-process for patient ${patientKey}, skipping duplicate run`);
+        return;
     }
-    logger.info(`[PatientHealthStateService] Finished sequential 30-day history backfill for patient ${patientId}`);
+    activeInProcessBackfills.add(patientKey);
+    try {
+        const today = moment().tz(timezone);
+        logger.info(`[PatientHealthStateService] Starting sequential 30-day history backfill for patient ${patientId}`);
+        for (let i = 30; i >= 0; i--) {
+            const targetDateStr = today.clone().subtract(i, 'days').format('YYYY-MM-DD');
+            try {
+                await recomputeAndCacheHealthState(patientId, targetDateStr);
+            } catch (err) {
+                logger.error(`[PatientHealthStateService] Backfill failed for day -${i} (${targetDateStr})`, { error: err.message, patientId });
+            }
+        }
+        logger.info(`[PatientHealthStateService] Finished sequential 30-day history backfill for patient ${patientId}`);
+    } finally {
+        activeInProcessBackfills.delete(patientKey);
+    }
 }
 
 module.exports = {
@@ -623,4 +642,5 @@ module.exports = {
     enqueueHealthStateRecompute,
     getHealthHistory,
     backfillHealthStateHistory,
+
 };
