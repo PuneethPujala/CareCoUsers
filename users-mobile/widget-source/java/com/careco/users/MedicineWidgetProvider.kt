@@ -31,7 +31,15 @@ class MedicineWidgetProvider : AppWidgetProvider() {
 
             val layoutId = when (size) {
                 WidgetSizeHelper.SizeCategory.SMALL -> R.layout.medicine_widget_small
-                WidgetSizeHelper.SizeCategory.MEDIUM -> R.layout.medicine_widget
+                WidgetSizeHelper.SizeCategory.MEDIUM -> {
+                    val options = appWidgetManager.getAppWidgetOptions(appWidgetId)
+                    val minWidth = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 0)
+                    if (minWidth < 200) {
+                        R.layout.medicine_widget_2x2
+                    } else {
+                        R.layout.medicine_widget
+                    }
+                }
                 WidgetSizeHelper.SizeCategory.LARGE -> R.layout.medicine_widget_large
             }
 
