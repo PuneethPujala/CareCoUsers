@@ -189,6 +189,17 @@ export default function HealthProfileScreen({ navigation }) {
         }
     };
 
+    const loadHistoryRef = useRef(loadHistoryAndTimeline);
+    const loadingRef = useRef(historyLoading);
+
+    useEffect(() => {
+        loadHistoryRef.current = loadHistoryAndTimeline;
+    });
+
+    useEffect(() => {
+        loadingRef.current = historyLoading;
+    }, [historyLoading]);
+
     useEffect(() => {
         if (showScoreInfo) {
             loadHistoryAndTimeline();
@@ -196,23 +207,21 @@ export default function HealthProfileScreen({ navigation }) {
     }, [showScoreInfo]);
 
     useEffect(() => {
-        let intervalId = null;
-        const isHistoryPending = showScoreInfo && (!healthHistory?.history || healthHistory.history.length < 5);
+        if (!showScoreInfo) return;
 
-        if (isHistoryPending) {
-            intervalId = setInterval(() => {
-                if (!historyLoading) {
-                    loadHistoryAndTimeline();
-                }
-            }, 3000);
-        }
+        const isHistoryPending = !healthHistory?.history || healthHistory.history.length < 5;
+        if (!isHistoryPending) return;
+
+        const intervalId = setInterval(() => {
+            if (!loadingRef.current) {
+                loadHistoryRef.current();
+            }
+        }, 4000);
 
         return () => {
-            if (intervalId) {
-                clearInterval(intervalId);
-            }
+            clearInterval(intervalId);
         };
-    }, [showScoreInfo, healthHistory?.history?.length, historyLoading]);
+    }, [showScoreInfo, healthHistory?.history?.length]);
 
     useEffect(() => {
         if (isHealthSupported()) {
@@ -2242,7 +2251,7 @@ export default function HealthProfileScreen({ navigation }) {
                                     </ScrollView>
                                 ) : (
                                     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40, paddingHorizontal: spacing.screen }}>
-                                        {historyLoading ? (
+                                        {historyLoading && !healthHistory ? (
                                             <View style={{ paddingVertical: 80, alignItems: 'center', justifyContent: 'center' }}>
                                                 <ActivityIndicator size="large" color={colors.primary} />
                                                 <Text style={{ fontSize: 13, ...FONT.semibold, color: colors.textSecondary, marginTop: 12 }}>Loading trends & journey...</Text>
