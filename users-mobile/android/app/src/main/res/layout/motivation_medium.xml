@@ -16,112 +16,142 @@
         android:textColor="@color/widget_text_primary"
         android:textSize="16sp"
         android:textStyle="bold"
-        android:layout_marginBottom="10dp" />
+        android:layout_marginBottom="8dp" />
 
-    <!-- Streak row -->
+    <!-- Main Content Row -->
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="0dp"
+        android:layout_weight="1"
         android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:layout_marginBottom="12dp">
+        android:gravity="center_vertical">
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="●"
-            android:textColor="@color/widget_streak_orange"
-            android:textSize="22sp"
-            android:layout_marginEnd="8dp" />
-
+        <!-- Left: Metrics Column -->
         <LinearLayout
             android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:orientation="vertical">
+            android:layout_height="match_parent"
+            android:layout_weight="1.2"
+            android:orientation="vertical"
+            android:layout_marginEnd="6dp">
 
-            <TextView
-                android:id="@+id/widget_streak"
-                android:layout_width="wrap_content"
+            <!-- Streak row -->
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="0-day streak"
-                android:textColor="@color/widget_streak_orange"
-                android:textSize="15sp"
-                android:textStyle="bold" />
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="8dp">
 
-            <TextView
-                android:layout_width="wrap_content"
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="🔥"
+                    android:textSize="20sp"
+                    android:layout_marginEnd="6dp" />
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/widget_streak"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="0-day streak"
+                        android:textColor="@color/widget_streak_orange"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/widget_streak_message"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Keep it going!"
+                        android:textColor="@color/widget_text_secondary"
+                        android:textSize="10sp" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- Adherence bar -->
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Keep it going!"
-                android:textColor="@color/widget_text_secondary"
-                android:textSize="11sp" />
+                android:orientation="vertical"
+                android:layout_marginBottom="8dp">
+
+                <RelativeLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="3dp">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_alignParentStart="true"
+                        android:text="Adherence"
+                        android:textColor="@color/widget_text_muted"
+                        android:textSize="9sp" />
+                    <TextView
+                        android:id="@+id/widget_adherence_pct"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_alignParentEnd="true"
+                        android:text="0%"
+                        android:textColor="@color/widget_accent_color"
+                        android:textSize="9sp"
+                        android:textStyle="bold" />
+                </RelativeLayout>
+
+                <ProgressBar
+                    android:id="@+id/widget_adherence_bar"
+                    style="?android:attr/progressBarStyleHorizontal"
+                    android:layout_width="match_parent"
+                    android:layout_height="6dp"
+                    android:progressDrawable="@drawable/widget_progress_bar"
+                    android:max="100"
+                    android:progress="0" />
+            </LinearLayout>
+
+            <!-- Premium days -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/widget_vitals_cell_bg"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:padding="6dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="★"
+                    android:textColor="@color/widget_premium_purple"
+                    android:textSize="12sp"
+                    android:layout_marginEnd="4dp" />
+
+                <TextView
+                    android:id="@+id/widget_premium_text"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Premium: —"
+                    android:textColor="@color/widget_premium_purple"
+                    android:textSize="9sp"
+                    android:textStyle="bold"
+                    android:maxLines="1"
+                    android:ellipsize="end" />
+            </LinearLayout>
         </LinearLayout>
-    </LinearLayout>
 
-    <!-- Adherence bar -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:layout_marginBottom="12dp">
-
-        <RelativeLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="4dp">
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_alignParentStart="true"
-                android:text="Today's Adherence"
-                android:textColor="@color/widget_text_muted"
-                android:textSize="10sp" />
-            <TextView
-                android:id="@+id/widget_adherence_pct"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_alignParentEnd="true"
-                android:text="0%"
-                android:textColor="@color/widget_accent_color"
-                android:textSize="10sp"
-                android:textStyle="bold" />
-        </RelativeLayout>
-
-        <ProgressBar
-            android:id="@+id/widget_adherence_bar"
-            style="?android:attr/progressBarStyleHorizontal"
-            android:layout_width="match_parent"
-            android:layout_height="8dp"
-            android:progressDrawable="@drawable/widget_progress_bar"
-            android:max="100"
-            android:progress="0" />
-    </LinearLayout>
-
-    <!-- Premium days -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:background="@drawable/widget_vitals_cell_bg"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:padding="8dp">
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="★"
-            android:textColor="@color/widget_premium_purple"
-            android:textSize="14sp"
-            android:layout_marginEnd="6dp" />
-
-        <TextView
-            android:id="@+id/widget_premium_text"
+        <!-- Right: Mascot Column with Glow Aura -->
+        <ImageView
+            android:id="@+id/widget_mascot"
             android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="Premium: — days left"
-            android:textColor="@color/widget_premium_purple"
-            android:textSize="11sp"
-            android:textStyle="bold" />
+            android:layout_height="match_parent"
+            android:layout_weight="0.6"
+            android:src="@drawable/doctor_mascot"
+            android:background="@drawable/widget_mascot_glow"
+            android:padding="12dp"
+            android:scaleType="fitCenter" />
     </LinearLayout>
 </LinearLayout>

@@ -1,6 +1,38 @@
 const { createClient } = require('@supabase/supabase-js');
+const mongoose = require('mongoose');
 const Profile = require('../models/Profile');
 const AuditLog = require('../models/AuditLog');
+
+// ── Caller Presence ──────────────────────────────────────────────────────────
+// Touch caller active timestamp using MongoDB-level throttle gate (max once per minute).
+// Fire-and-forget — authentication never waits on activity tracking.
+// IMPORTANT: This function is byte-for-byte synchronized with
+//   users-backend/src/middleware/authenticate.js — keep both in sync.
+function touchCallerActivity(profile) {
+  if (!profile || (profile.role !== 'caller' && profile.role !== 'caretaker')) {
+    return;
+  }
+
+  const now = new Date();
+  const oneMinuteAgo = new Date(now.getTime() - 60000);
+  const query = {
+    _id: profile._id,
+    $or: [
+      { last_active_at: { $exists: false } },
+      { last_active_at: null },
+      { last_active_at: { $lt: oneMinuteAgo } }
+    ]
+  };
+  const update = { $set: { last_active_at: now } };
+
+  // Update Profile document
+  Profile.updateOne(query, update)
+    .catch(e => console.warn('[touchCallerActivity] profile update failed:', e.message));
+
+  // Update Caller collection (callers._id === profiles._id — verified via Profile post-save hooks)
+  mongoose.connection.collection('callers').updateOne(query, update)
+    .catch(e => console.warn('[touchCallerActivity] caller update failed:', e.message));
+}
 
 // Initialize Supabase client with service role key for server-side verification
 const supabase = createClient(
@@ -145,6 +177,9 @@ const authenticate = async (req, res, next) => {
     // NOTE: Authentication audit logging is handled in auth routes (login/register).
     // We do NOT log every authenticated request here — that was causing massive
     // write overhead and slow API responses on every single dashboard/profile call.
+
+    // Touch caller presence (fire-and-forget, throttled to once per minute)
+    touchCallerActivity(profile);
 
     next();
   } catch (err) {

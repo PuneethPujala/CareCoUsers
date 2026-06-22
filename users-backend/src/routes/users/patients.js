@@ -1016,7 +1016,7 @@ router.get('/me/caller', authenticateSession, async (req, res) => {
                 return 'available';
             }
             if (diff < awayThreshold) {
-                return 'away';
+                return 'recently_active';
             }
             return 'offline';
         };

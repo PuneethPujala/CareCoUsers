@@ -197,6 +197,11 @@ const ProfileSchema = new mongoose.Schema(
       type: Date,
     },
 
+    // Caller/caretaker presence — updated by touchCallerActivity() in authenticate middleware
+    last_active_at: {
+      type: Date,
+    },
+
     // Phone verification status
     phoneVerified: {
       type: Boolean,

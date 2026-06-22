@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { View, TextInput, Pressable, StyleSheet, Text, Platform } from 'react-native';
+import { View, TextInput, Pressable, StyleSheet, Text, Platform, useWindowDimensions } from 'react-native';
 
 export default function OTPBoxes({
     value = '',
@@ -19,6 +19,25 @@ export default function OTPBoxes({
     fontFamily = 'Inter_700Bold',
 }) {
     const inputRef = useRef(null);
+    const { width: screenWidth } = useWindowDimensions();
+
+    // Determine dynamic sizes to prevent container overflow on smaller screens
+    let finalBoxWidth = boxWidth;
+    let finalBoxHeight = boxHeight;
+    let finalGap = gap;
+    let finalFontSize = fontSize;
+
+    // Safe margin considering modal container paddings (typically 16-24px on each side)
+    const maxAllowedWidth = screenWidth - 64;
+    const totalWidth = length * boxWidth + (length - 1) * gap;
+
+    if (totalWidth > maxAllowedWidth) {
+        const ratio = maxAllowedWidth / totalWidth;
+        finalBoxWidth = Math.max(32, Math.floor(boxWidth * ratio));
+        finalGap = Math.max(4, Math.floor(gap * ratio));
+        finalBoxHeight = Math.max(40, Math.floor(boxHeight * ratio));
+        finalFontSize = Math.max(16, Math.floor(fontSize * ratio));
+    }
 
     const handlePress = () => {
         if (editable) {
@@ -62,10 +81,11 @@ export default function OTPBoxes({
                 importantForAutofill="yes"
                 caretHidden={true}
                 selectTextOnFocus={false}
+                selectionColor="transparent"
             />
 
             {/* 2. Visual layout cards */}
-            <View style={[styles.row, { gap }]}>
+            <View style={[styles.row, { gap: finalGap }]}>
                 {Array.from({ length }).map((_, i) => {
                     const char = value[i] || '';
                     
@@ -81,8 +101,8 @@ export default function OTPBoxes({
                             style={[
                                 styles.box,
                                 {
-                                    width: boxWidth,
-                                    height: boxHeight,
+                                    width: finalBoxWidth,
+                                    height: finalBoxHeight,
                                     borderRadius,
                                     borderColor: isCurrentFocus && editable ? activeBorderColor : '#E2E8F0',
                                     backgroundColor: isCurrentFocus && editable ? activeBgColor : '#FFFFFF',
@@ -92,7 +112,7 @@ export default function OTPBoxes({
                         >
                             <Text
                                 style={{
-                                    fontSize,
+                                    fontSize: finalFontSize,
                                     color: textColor,
                                     fontFamily,
                                 }}
@@ -118,18 +138,8 @@ const styles = StyleSheet.create({
         position: 'absolute',
         width: '100%',
         height: '100%',
-        opacity: 0,
-        ...Platform.select({
-            ios: {
-                color: 'transparent',
-            },
-            android: {
-                // Ensure text is off-screen so keyboard/caret doesn't render artifacts
-                left: -9999,
-                width: 1,
-                height: 1,
-            },
-        }),
+        opacity: 0.01,
+        color: 'transparent',
         zIndex: 1,
     },
     row: {

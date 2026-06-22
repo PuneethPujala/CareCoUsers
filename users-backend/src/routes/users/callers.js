@@ -7,11 +7,29 @@ const { authenticate } = require('../../middleware/authenticate');
 
 const router = express.Router();
 
+// Authenticate all caller routes
+router.use(authenticate);
+
+// Auto-update caller last_active_at timestamp on every API request
+router.use(async (req, res, next) => {
+    if (req.user && req.user.id) {
+        try {
+            await Caller.updateOne(
+                { supabase_uid: req.user.id },
+                { $set: { last_active_at: new Date() } }
+            );
+        } catch (e) {
+            console.error('Failed to update caller active timestamp (non-blocking):', e);
+        }
+    }
+    next();
+});
+
 /**
  * GET /api/users/callers/me
  * Caller reads their own profile
  */
-router.get('/me', authenticate, async (req, res) => {
+router.get('/me', async (req, res) => {
     try {
         const caller = await Caller.findOne({ supabase_uid: req.user.id });
         if (!caller) {

@@ -1251,6 +1251,7 @@ export default function PatientHomeScreen({ navigation }) {
                 {/* ── SCROLLABLE CONTAINER ── */}
                 <ScrollView
                     ref={scrollViewRef}
+                    style={{ flex: 1 }}
                     showsVerticalScrollIndicator={false}
                     contentContainerStyle={styles.scrollContent}
                     keyboardShouldPersistTaps="handled"
@@ -1778,9 +1779,11 @@ export default function PatientHomeScreen({ navigation }) {
                                         <>Current Score: {healthScore}</>
                                     )}
                                 </Text>
-                                <Text style={styles.journeyConsistencyBadge}>
-                                    {hasHistory ? 'Best Consistency Yet' : 'Establishing Baseline'}
-                                </Text>
+                                <View style={styles.journeyConsistencyBadge}>
+                                    <Text style={styles.journeyConsistencyBadgeText}>
+                                        {hasHistory ? 'Best Consistency Yet' : 'Establishing Baseline'}
+                                    </Text>
+                                </View>
                             </View>
                             
                             <Text style={styles.journeyDesc}>
@@ -2459,8 +2462,10 @@ const styles = StyleSheet.create({
     },
     journeyProgressRow: {
         flexDirection: 'row',
-        alignItems: 'baseline',
+        alignItems: 'center',
         justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: 8,
         marginBottom: 10,
     },
     journeyProgressText: {
@@ -2468,15 +2473,19 @@ const styles = StyleSheet.create({
         fontWeight: '900',
         color: '#0F172A',
         letterSpacing: -1,
+        flexShrink: 1,
     },
     journeyConsistencyBadge: {
-        fontSize: 11,
-        color: '#6366F1',
-        fontWeight: '800',
         backgroundColor: '#EEF2FF',
         paddingHorizontal: 8,
         paddingVertical: 4,
         borderRadius: 8,
+        flexShrink: 0,
+    },
+    journeyConsistencyBadgeText: {
+        fontSize: 11,
+        color: '#6366F1',
+        fontWeight: '800',
     },
     journeyDesc: {
         fontSize: 13,
@@ -2517,7 +2526,7 @@ const styles = StyleSheet.create({
     tipText: { fontSize: 14, color: '#3730A3', lineHeight: 22, fontWeight: '500' },
 
     // ── Scroll Content ──
-    scrollContent: { paddingHorizontal: spacing.heroScreen, paddingTop: 16, paddingBottom: layout.TAB_BAR_CLEARANCE },
+    scrollContent: { paddingHorizontal: spacing.heroScreen, paddingTop: 16, paddingBottom: layout.TAB_BAR_CLEARANCE + 80 },
 
     // ── Sections ──
     section: { marginBottom: 32 },

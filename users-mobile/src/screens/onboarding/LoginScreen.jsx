@@ -186,6 +186,8 @@ const ResetPasswordModal = ({ visible, onClose, email }) => {
                                     onChange={(v) => { setOtp(v); setError(''); }}
                                     length={6}
                                     editable={!loading}
+                                    boxWidth={40}
+                                    gap={6}
                                 />
 
                                 <View style={rs.resendRow}>
@@ -237,7 +239,7 @@ const ResetPasswordModal = ({ visible, onClose, email }) => {
 
 const rs = StyleSheet.create({
     overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 },
-    sheet: { width: '100%', maxWidth: 420, backgroundColor: colors.surface, borderRadius: 28, padding: 28, ...shadows.modal },
+    sheet: { width: '96%', maxWidth: 420, backgroundColor: colors.surface, borderRadius: 28, paddingVertical: 28, paddingHorizontal: 20, ...shadows.modal },
     header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
     title: { fontSize: 20, ...FONT.heavy, color: C.dark },
     subtitle: { fontSize: 14, ...FONT.medium, color: C.muted, lineHeight: 22, marginBottom: 20 },
@@ -799,6 +801,8 @@ export default function LoginScreen({ navigation }) {
                                 onComplete={handleVerifyPhoneOtp}
                                 length={6}
                                 editable={!phoneOtpLoading}
+                                boxWidth={40}
+                                gap={6}
                             />
 
                             <View style={phoneOtpSt.resendRow}>
@@ -838,7 +842,7 @@ const phoneOtpSt = StyleSheet.create({
     overlay: { flex: 1, backgroundColor: 'rgba(15,23,42,0.55)', justifyContent: 'center', alignItems: 'center', padding: 16 },
     card: {
         backgroundColor: C.surface, borderRadius: 28,
-        padding: 28, width: '92%', maxWidth: 400,
+        paddingVertical: 28, paddingHorizontal: 20, width: '96%', maxWidth: 420,
         ...shadows.modal,
     },
     header: { flexDirection: 'row', alignItems: 'center', marginBottom: 20, gap: 12 },

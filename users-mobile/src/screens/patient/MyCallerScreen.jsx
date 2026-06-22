@@ -401,7 +401,7 @@ export default function MyCallerScreen({ navigation }) {
                       )}
                     </View>
                     <View style={[s.heroOnlineDot, { 
-                      backgroundColor: caller.availability === 'available' ? '#10B981' : caller.availability === 'away' ? '#F59E0B' : caller.availability === 'busy' ? '#EF4444' : '#94A3B8' 
+                      backgroundColor: caller.availability === 'available' ? '#10B981' : caller.availability === 'recently_active' ? '#3B82F6' : caller.availability === 'busy' ? '#3B82F6' : '#94A3B8' 
                     }]} />
                   </View>
 
@@ -413,7 +413,7 @@ export default function MyCallerScreen({ navigation }) {
                       <View style={{ 
                         flexDirection: 'row', 
                         alignItems: 'center', 
-                        backgroundColor: caller.availability === 'available' ? '#D1FAE5' : caller.availability === 'away' ? '#FEF3C7' : caller.availability === 'busy' ? '#FEE2E2' : '#F1F5F9',
+                        backgroundColor: caller.availability === 'available' ? '#D1FAE5' : caller.availability === 'recently_active' ? '#DBEAFE' : caller.availability === 'busy' ? '#DBEAFE' : '#F1F5F9',
                         paddingHorizontal: 8,
                         paddingVertical: 2,
                         borderRadius: 8,
@@ -422,15 +422,15 @@ export default function MyCallerScreen({ navigation }) {
                           width: 6, 
                           height: 6, 
                           borderRadius: 3, 
-                          backgroundColor: caller.availability === 'available' ? '#10B981' : caller.availability === 'away' ? '#F59E0B' : caller.availability === 'busy' ? '#EF4444' : '#94A3B8',
+                          backgroundColor: caller.availability === 'available' ? '#10B981' : caller.availability === 'recently_active' ? '#3B82F6' : caller.availability === 'busy' ? '#3B82F6' : '#94A3B8',
                           marginRight: 4 
                         }} />
                         <Text style={{ 
                           fontSize: 10, 
                           fontWeight: '700', 
-                          color: caller.availability === 'available' ? '#065F46' : caller.availability === 'away' ? '#92400E' : caller.availability === 'busy' ? '#991B1B' : '#475569' 
+                          color: caller.availability === 'available' ? '#065F46' : caller.availability === 'recently_active' ? '#1E40AF' : caller.availability === 'busy' ? '#1E40AF' : '#475569' 
                         }}>
-                          {caller.availability === 'available' ? 'Available' : caller.availability === 'away' ? 'Away' : caller.availability === 'busy' ? 'Busy' : 'Offline'}
+                          {caller.availability === 'available' ? 'Available' : caller.availability === 'recently_active' ? 'Recently Active' : caller.availability === 'busy' ? 'Busy' : 'Offline'}
                         </Text>
                       </View>
                     </View>
@@ -539,7 +539,7 @@ export default function MyCallerScreen({ navigation }) {
                     <View style={{ 
                         flexDirection: 'row', 
                         alignItems: 'center', 
-                        backgroundColor: manager.availability === 'available' ? '#D1FAE5' : manager.availability === 'away' ? '#FEF3C7' : manager.availability === 'busy' ? '#FEE2E2' : '#F1F5F9',
+                        backgroundColor: manager.availability === 'available' ? '#D1FAE5' : manager.availability === 'recently_active' ? '#DBEAFE' : manager.availability === 'busy' ? '#DBEAFE' : '#F1F5F9',
                         paddingHorizontal: 8,
                         paddingVertical: 2,
                         borderRadius: 8,
@@ -548,15 +548,15 @@ export default function MyCallerScreen({ navigation }) {
                           width: 6, 
                           height: 6, 
                           borderRadius: 3, 
-                          backgroundColor: manager.availability === 'available' ? '#10B981' : manager.availability === 'away' ? '#F59E0B' : manager.availability === 'busy' ? '#EF4444' : '#94A3B8',
+                          backgroundColor: manager.availability === 'available' ? '#10B981' : manager.availability === 'recently_active' ? '#3B82F6' : manager.availability === 'busy' ? '#3B82F6' : '#94A3B8',
                           marginRight: 4 
                         }} />
                         <Text style={{ 
                           fontSize: 10, 
                           fontWeight: '700', 
-                          color: manager.availability === 'available' ? '#065F46' : manager.availability === 'away' ? '#92400E' : manager.availability === 'busy' ? '#991B1B' : '#475569' 
+                          color: manager.availability === 'available' ? '#065F46' : manager.availability === 'recently_active' ? '#1E40AF' : manager.availability === 'busy' ? '#1E40AF' : '#475569' 
                         }}>
-                          {manager.availability === 'available' ? 'Available' : manager.availability === 'away' ? 'Away' : manager.availability === 'busy' ? 'Busy' : 'Offline'}
+                          {manager.availability === 'available' ? 'Available' : manager.availability === 'recently_active' ? 'Recently Active' : manager.availability === 'busy' ? 'Busy' : 'Offline'}
                         </Text>
                       </View>
                   </View>
@@ -743,7 +743,7 @@ export default function MyCallerScreen({ navigation }) {
                           <View style={[
                             s.sheetOnlineDot,
                             {
-                              backgroundColor: selectedProfile?.availability === 'available' ? '#10B981' : selectedProfile?.availability === 'away' ? '#F59E0B' : selectedProfile?.availability === 'busy' ? '#EF4444' : '#94A3B8'
+                              backgroundColor: selectedProfile?.availability === 'available' ? '#10B981' : selectedProfile?.availability === 'recently_active' ? '#3B82F6' : selectedProfile?.availability === 'busy' ? '#3B82F6' : '#94A3B8'
                             }
                           ]} />
                         </View>
