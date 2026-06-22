@@ -614,13 +614,13 @@ router.put('/mark-slot', authenticateSession, async (req, res) => {
 
 /**
  * POST /api/users/medicines/:name/refill
- * Reset remainingDoses. If newTotal is provided, updates totalDoses as well.
+ * Add purchased doses to remainingDoses. If newTotal is provided, it is added to the supply.
  */
 router.post('/:name/refill', authenticateSession, async (req, res) => {
     try {
         const patient = await getOrCreatePatient(req);
         const medName = req.params.name;
-        const newTotal = req.body.newTotal ? parseInt(req.body.newTotal, 10) : null;
+        const addQty = req.body.newTotal ? parseInt(req.body.newTotal, 10) : 30;
         let refilled = false;
 
         // Try embedded medications first
@@ -629,14 +629,14 @@ router.post('/:name/refill', authenticateSession, async (req, res) => {
             if (!patientMed.refillInfo) {
                 patientMed.refillInfo = {
                     totalDoses: 30,
-                    remainingDoses: 30,
+                    remainingDoses: 0,
                     alertThreshold: 5,
                     lastRefillDate: new Date()
                 };
             }
-            const currentTotal = newTotal || patientMed.refillInfo.totalDoses || 30;
-            patientMed.refillInfo.totalDoses = currentTotal;
-            patientMed.refillInfo.remainingDoses = currentTotal;
+            const newRemaining = (patientMed.refillInfo.remainingDoses || 0) + addQty;
+            patientMed.refillInfo.remainingDoses = newRemaining;
+            patientMed.refillInfo.totalDoses = newRemaining;
             patientMed.refillInfo.lastRefillDate = new Date();
             await patient.save();
             refilled = true;
@@ -650,14 +650,14 @@ router.post('/:name/refill', authenticateSession, async (req, res) => {
             if (!extMed.refillInfo) {
                 extMed.refillInfo = {
                     totalDoses: 30,
-                    remainingDoses: 30,
+                    remainingDoses: 0,
                     alertThreshold: 5,
                     lastRefillDate: new Date()
                 };
             }
-            const currentTotal = newTotal || extMed.refillInfo.totalDoses || 30;
-            extMed.refillInfo.totalDoses = currentTotal;
-            extMed.refillInfo.remainingDoses = currentTotal;
+            const newRemaining = (extMed.refillInfo.remainingDoses || 0) + addQty;
+            extMed.refillInfo.remainingDoses = newRemaining;
+            extMed.refillInfo.totalDoses = newRemaining;
             extMed.refillInfo.lastRefillDate = new Date();
             await extMed.save();
             refilled = true;

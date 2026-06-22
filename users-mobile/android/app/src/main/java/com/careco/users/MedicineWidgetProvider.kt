@@ -105,7 +105,7 @@ class MedicineWidgetProvider : AppWidgetProvider() {
                 } else if (size == WidgetSizeHelper.SizeCategory.MEDIUM) {
                     // Medium layout: circle + details (original)
                     views.setProgressBar(R.id.widget_progress, 100, adherence, false)
-                    views.setTextViewText(R.id.widget_progress_label, "$taken/$total taken today")
+                    views.setTextViewText(R.id.widget_progress_label, "$taken/$total taken")
 
                     if (total == 0) {
                         views.setViewVisibility(R.id.widget_content, View.GONE)
@@ -127,7 +127,8 @@ class MedicineWidgetProvider : AppWidgetProvider() {
                             views.setViewVisibility(R.id.widget_done_section, View.GONE)
                             views.setViewVisibility(R.id.widget_empty_section, View.GONE)
                             views.setTextViewText(R.id.widget_next_name, cleanNextMed)
-                            views.setTextViewText(R.id.widget_next_time, if (nextTime.isNotEmpty()) nextTime else "Scheduled")
+                            val displayTime = if (nextTime.contains(" • ")) nextTime.substringAfter(" • ") else nextTime
+                            views.setTextViewText(R.id.widget_next_time, if (displayTime.isNotEmpty()) displayTime else "Scheduled")
                         } else {
                             showEmptyState(views, "Open CareMyMed to view")
                         }
@@ -145,7 +146,8 @@ class MedicineWidgetProvider : AppWidgetProvider() {
                         views.setViewVisibility(R.id.widget_done_section, View.GONE)
                         views.setViewVisibility(R.id.widget_empty_section, View.GONE)
                         views.setTextViewText(R.id.widget_next_name, cleanNextMed)
-                        views.setTextViewText(R.id.widget_next_time, if (nextTime.isNotEmpty()) nextTime else "Scheduled")
+                        val displayTime = if (nextTime.contains(" • ")) nextTime.substringAfter(" • ") else nextTime
+                        views.setTextViewText(R.id.widget_next_time, if (displayTime.isNotEmpty()) displayTime else "Scheduled")
                     } else {
                         showEmptyState(views, "Open CareMyMed")
                     }

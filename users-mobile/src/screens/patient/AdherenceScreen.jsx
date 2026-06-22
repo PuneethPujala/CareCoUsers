@@ -8,10 +8,13 @@ import { getStreakState } from '../../utils/streakHelper';
 import StreakCompanion from '../../components/ui/StreakCompanion';
 import { LinearGradient } from 'expo-linear-gradient';
 import { LineChart } from 'react-native-chart-kit';
+import * as Icons from 'lucide-react-native';
 import {
     X, TrendingUp, TrendingDown, Minus, Award, Target, Calendar as CalIcon,
     CheckCircle2, Zap, ChevronLeft, ChevronRight, Sparkles, Heart, Star, Share2, Flame, Lock,
 } from 'lucide-react-native';
+import * as Haptics from 'expo-haptics';
+import { ACHIEVEMENTS, TIER_CONFIG, CATEGORY_CONFIG } from '../../constants/achievements';
 import { useFocusEffect } from '@react-navigation/native';
 import usePatientStore from '../../store/usePatientStore';
 import RecapStoryModal from '../../components/adherence/RecapStoryModal';
@@ -205,97 +208,7 @@ const CalendarDay = ({ date, status, isCurrentMonth, onPress }) => {
     );
 };
 
-// ── Achievement Badge ───────────────────────────────────────────
-const TIER_COLORS = {
-    bronze: { bg: '#FFF7ED', border: '#FDBA74', ribbon: ['#F97316', '#EA580C'] },
-    silver: { bg: '#F8FAFC', border: '#94A3B8', ribbon: ['#64748B', '#475569'] },
-    gold:   { bg: '#FFFBEB', border: '#FDE68A', ribbon: ['#F59E0B', '#D97706'] },
-};
 
-const BADGE_CONFIGS = {
-    first_dose:            { Icon: Zap,         grad: ['#10B981', '#059669'] },
-    first_perfect_day:     { Icon: CheckCircle2, grad: ['#10B981', '#059669'] },
-    '3_day_consistent':    { Icon: Zap,         grad: ['#F59E0B', '#D97706'] },
-    never_missed_morning:  { Icon: Star,        grad: ['#4361EE', '#2563EB'] },
-    weekly_90:             { Icon: Target,       grad: ['#7C3AED', '#6D28D9'] },
-    '7_perfect_days':      { Icon: Sparkles,    grad: ['#06B6D4', '#0891B2'] },
-    night_owl:             { Icon: Star,        grad: ['#6366F1', '#4F46E5'] },
-    vitals_tracker:        { Icon: Heart,       grad: ['#F43F5E', '#E11D48'] },
-    streak_14:             { Icon: Flame,       grad: ['#EF4444', '#DC2626'] },
-    monthly_consistent:    { Icon: Award,       grad: ['#F43F5E', '#E11D48'] },
-    '100_doses':           { Icon: Target,      grad: ['#8B5CF6', '#7C3AED'] },
-    '30_perfect_days':     { Icon: Award,       grad: ['#F59E0B', '#D97706'] },
-};
-
-const AchievementBadge = ({ achievement, index }) => {
-    const { t } = useTranslation();
-    const scaleAnim = useRef(new Animated.Value(0)).current;
-
-    useEffect(() => {
-        Animated.spring(scaleAnim, {
-            toValue: 1,
-            delay: index * 50,
-            friction: 6,
-            tension: 55,
-            useNativeDriver: true,
-        }).start();
-    }, []);
-
-    const unlocked = achievement.unlocked;
-    const progress = achievement.progress ?? 0;
-    const tier = achievement.tier || 'bronze';
-    const tierStyle = TIER_COLORS[tier] || TIER_COLORS.bronze;
-    const cfg = BADGE_CONFIGS[achievement.key] || { Icon: Award, grad: ['#94A3B8', '#64748B'] };
-    const { Icon: BadgeIcon, grad } = cfg;
-    const cardWidth = (SCREEN_WIDTH - 40 - 12) / 2;
-
-    return (
-        <Animated.View style={[
-            styles.achievementCard,
-            { width: cardWidth, transform: [{ scale: scaleAnim }], borderColor: unlocked ? tierStyle.border : C.border },
-            !unlocked && styles.achievementLocked,
-        ]}>
-            {/* Tier ribbon */}
-            <View style={[styles.achieveTierRibbon, { backgroundColor: unlocked ? tierStyle.ribbon[0] : '#CBD5E1' }]}>
-                <Text style={styles.achieveTierTxt}>{tier.toUpperCase()}</Text>
-            </View>
-
-            <LinearGradient
-                colors={unlocked ? grad : ['#E2E8F0', '#CBD5E1']}
-                style={styles.achievementIconCircle}
-                start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-            >
-                {unlocked
-                    ? <BadgeIcon size={20} color="#FFFFFF" strokeWidth={2.5} />
-                    : <Lock size={16} color="#94A3B8" strokeWidth={2.5} />
-                }
-            </LinearGradient>
-            <Text style={[styles.achievementLabel, !unlocked && { color: C.light }]} numberOfLines={2}>
-                {achievement.label}
-            </Text>
-            <Text style={[styles.achievementDesc, !unlocked && { color: '#CBD5E1' }]} numberOfLines={2}>
-                {achievement.description}
-            </Text>
-
-            {/* Progress bar */}
-            {!unlocked && (
-                <View style={styles.achieveProgressWrap}>
-                    <View style={styles.achieveProgressBg}>
-                        <View style={[styles.achieveProgressFill, { width: `${Math.round(progress * 100)}%`, backgroundColor: grad[0] }]} />
-                    </View>
-                    <Text style={styles.achieveProgressTxt}>{achievement.progressLabel || `${Math.round(progress * 100)}%`}</Text>
-                </View>
-            )}
-
-            <View style={[styles.achievementStatus, { backgroundColor: unlocked ? C.successBg : '#F1F5F9' }]}>
-                {unlocked && <CheckCircle2 size={10} color={C.success} />}
-                <Text style={[styles.achievementStatusText, { color: unlocked ? C.success : C.light }]}>
-                    {unlocked ? t('common.unlocked', { defaultValue: 'Unlocked' }) : t('common.locked', { defaultValue: 'Locked' })}
-                </Text>
-            </View>
-        </Animated.View>
-    );
-};
 
 // ── Skeleton Loader ─────────────────────────────────────────────
 const Skeleton = ({ width, height, borderRadius = 10, style }) => {
@@ -331,6 +244,32 @@ export default function AdherenceScreen({ navigation }) {
     const [currentMonth, setCurrentMonth] = useState(new Date());
     const [activeRecapTab, setActiveRecapTab] = useState('weekly');
     const [showStoryModal, setShowStoryModal] = useState(false);
+    const [selectedBadge, setSelectedBadge] = useState(null);
+    const scaleAnim = useRef(new Animated.Value(0)).current;
+
+    const handleBadgePress = (badge) => {
+        try {
+            Haptics.selectionAsync();
+        } catch (e) {}
+
+        const meta = ACHIEVEMENTS.find(a => a.key === badge.key) || {};
+        setSelectedBadge({ ...badge, iconName: meta.iconName, target: meta.target });
+
+        scaleAnim.setValue(0.3);
+        Animated.spring(scaleAnim, {
+            toValue: 1,
+            friction: 7,
+            tension: 40,
+            useNativeDriver: true
+        }).start();
+    };
+
+    const handleCloseBadgeModal = () => {
+        try {
+            Haptics.selectionAsync();
+        } catch (e) {}
+        setSelectedBadge(null);
+    };
 
     // Use ref to avoid double-fetch when tab changes while screen is focused
     const activeRecapTabRef = useRef('weekly');
@@ -426,6 +365,33 @@ export default function AdherenceScreen({ navigation }) {
         dailyLog.forEach(d => { map[d.date] = d; });
         return map;
     }, [dailyLog]);
+
+    const achievementsByCategory = useMemo(() => {
+        const groups = {};
+        Object.keys(CATEGORY_CONFIG).forEach(cat => {
+            groups[cat] = [];
+        });
+        
+        achievements.forEach(achievement => {
+            const meta = ACHIEVEMENTS.find(a => a.key === achievement.key) || {};
+            const cat = meta.category || 'routine';
+            if (!groups[cat]) {
+                groups[cat] = [];
+            }
+            groups[cat].push(achievement);
+        });
+
+        const tierOrder = { bronze: 1, silver: 2, gold: 3, legendary: 4 };
+        Object.keys(groups).forEach(cat => {
+            groups[cat].sort((a, b) => {
+                const metaA = ACHIEVEMENTS.find(m => m.key === a.key) || {};
+                const metaB = ACHIEVEMENTS.find(m => m.key === b.key) || {};
+                return (tierOrder[metaA.tier] || 1) - (tierOrder[metaB.tier] || 1);
+            });
+        });
+
+        return groups;
+    }, [achievements]);
 
     const anim = (i) => ({
         opacity: staggerAnims[i],
@@ -851,11 +817,82 @@ export default function AdherenceScreen({ navigation }) {
                                     </Text>
                                 </View>
                             </View>
-                            <View style={styles.achievementsGrid}>
-                                {achievements.map((achievement, idx) => (
-                                    <AchievementBadge key={achievement.key} achievement={achievement} index={idx} />
-                                ))}
-                            </View>
+                            {Object.keys(CATEGORY_CONFIG).map((categoryKey) => {
+                                const catConfig = CATEGORY_CONFIG[categoryKey];
+                                const catAchievements = achievementsByCategory[categoryKey] || [];
+                                
+                                if (catAchievements.length === 0) return null;
+
+                                return (
+                                    <View key={categoryKey} style={styles.categoryContainer}>
+                                        <View style={styles.categoryHeader}>
+                                            <View style={styles.categoryHeaderLeft}>
+                                                <Text style={styles.categoryEmoji}>{catConfig.emoji}</Text>
+                                                <View>
+                                                    <Text style={styles.categoryTitle}>{catConfig.title}</Text>
+                                                    <Text style={styles.categoryDesc}>{catConfig.description}</Text>
+                                                </View>
+                                            </View>
+                                        </View>
+
+                                        <View style={styles.achievementsGrid}>
+                                            {catAchievements.map((achievement) => {
+                                                const meta = ACHIEVEMENTS.find(a => a.key === achievement.key) || {};
+                                                const tierInfo = TIER_CONFIG[meta.tier] || TIER_CONFIG.bronze;
+                                                const IconComponent = Icons[meta.iconName] || Icons.Award;
+                                                const isUnlocked = achievement.unlocked;
+
+                                                return (
+                                                    <Pressable
+                                                        key={achievement.key}
+                                                        style={[styles.badgeItem, !isUnlocked && styles.badgeItemLocked]}
+                                                        onPress={() => handleBadgePress(achievement)}
+                                                    >
+                                                        {/* Badge Circle with Icon */}
+                                                        {isUnlocked ? (
+                                                            <LinearGradient
+                                                                colors={tierInfo.gradient}
+                                                                style={styles.badgeCircle}
+                                                                start={{ x: 0, y: 0 }}
+                                                                end={{ x: 1, y: 1 }}
+                                                            >
+                                                                <IconComponent size={22} color="#FFF" />
+                                                            </LinearGradient>
+                                                        ) : (
+                                                            <View style={[styles.badgeCircle, styles.badgeCircleLocked]}>
+                                                                <IconComponent size={22} color="#94A3B8" />
+                                                                <View style={styles.lockIconOverlay}>
+                                                                    <Lock size={10} color="#FFF" />
+                                                                </View>
+                                                            </View>
+                                                        )}
+
+                                                        {/* Achievement title */}
+                                                        <Text numberOfLines={1} style={styles.badgeItemTitle}>
+                                                            {meta.title || achievement.key}
+                                                        </Text>
+
+                                                        {/* Micro progress bar for locked achievements */}
+                                                        {!isUnlocked && achievement.progress > 0 && (
+                                                            <View style={styles.badgeProgressContainer}>
+                                                                <View style={styles.badgeProgressBg}>
+                                                                    <View
+                                                                        style={[
+                                                                            styles.badgeProgressFill,
+                                                                            { width: `${Math.min(100, achievement.progress * 100)}%` },
+                                                                        ]}
+                                                                    />
+                                                                </View>
+                                                                <Text style={styles.badgeProgressText}>{achievement.progressLabel}</Text>
+                                                            </View>
+                                                        )}
+                                                    </Pressable>
+                                                );
+                                            })}
+                                        </View>
+                                    </View>
+                                );
+                            })}
                         </View>
                     </Animated.View>
 
@@ -957,6 +994,103 @@ export default function AdherenceScreen({ navigation }) {
                             </>
                         )}
                     </View>
+                </View>
+            </Modal>
+
+            {/* ── Achievement Detail Modal ── */}
+            <Modal
+                visible={!!selectedBadge}
+                transparent
+                animationType="fade"
+                onRequestClose={handleCloseBadgeModal}
+            >
+                <View style={styles.badgeModalOverlay}>
+                    <Pressable style={styles.badgeModalBackdrop} onPress={handleCloseBadgeModal} />
+                    
+                    <Animated.View style={[
+                        styles.badgeModalContent,
+                        {
+                            transform: [{ scale: scaleAnim }],
+                        }
+                    ]}>
+                        {selectedBadge && (() => {
+                            const meta = ACHIEVEMENTS.find(a => a.key === selectedBadge.key) || {};
+                            const tierInfo = TIER_CONFIG[meta.tier] || TIER_CONFIG.bronze;
+                            const IconComponent = Icons[meta.iconName] || Icons.Award;
+                            const isUnlocked = selectedBadge.unlocked;
+
+                            return (
+                                <>
+                                    {/* Close Button */}
+                                    <Pressable style={styles.badgeModalClose} onPress={handleCloseBadgeModal}>
+                                        <X size={18} color={C.muted} />
+                                    </Pressable>
+
+                                    {/* Tier Ribbon */}
+                                    <View style={[styles.badgeModalRibbon, { backgroundColor: tierInfo.bgColor }]}>
+                                        <Text style={[styles.badgeModalRibbonTxt, { color: tierInfo.color }]}>
+                                            {tierInfo.label.toUpperCase()} TIER
+                                        </Text>
+                                    </View>
+
+                                    {/* Animated badge circle */}
+                                    {isUnlocked ? (
+                                        <LinearGradient
+                                            colors={tierInfo.gradient}
+                                            style={styles.badgeModalCircle}
+                                            start={{ x: 0, y: 0 }}
+                                            end={{ x: 1, y: 1 }}
+                                        >
+                                            <IconComponent size={40} color="#FFF" />
+                                        </LinearGradient>
+                                    ) : (
+                                        <View style={[styles.badgeModalCircle, styles.badgeModalCircleLocked]}>
+                                            <IconComponent size={40} color="#94A3B8" />
+                                            <View style={styles.badgeModalLockOverlay}>
+                                                <Lock size={16} color="#FFF" />
+                                            </View>
+                                        </View>
+                                    )}
+
+                                    {/* Title */}
+                                    <Text style={styles.badgeModalTitle}>{meta.title || selectedBadge.key}</Text>
+
+                                    {/* Description */}
+                                    <Text style={styles.badgeModalDesc}>{meta.description}</Text>
+
+                                    <View style={styles.badgeModalDivider} />
+
+                                    {/* Progress / Status Section */}
+                                    {isUnlocked ? (
+                                        <View style={styles.badgeModalStatusBox}>
+                                            <Sparkles size={16} color={C.success} />
+                                            <Text style={styles.badgeModalStatusTextUnlocked}>
+                                                Unlocked
+                                            </Text>
+                                        </View>
+                                    ) : (
+                                        <View style={styles.badgeModalProgressContainer}>
+                                            <View style={styles.badgeModalProgressHeader}>
+                                                <Text style={styles.badgeModalProgressTitle}>Progress</Text>
+                                                <Text style={styles.badgeModalProgressVal}>
+                                                    {selectedBadge.progressLabel || '0%'}
+                                                </Text>
+                                            </View>
+                                            <View style={styles.badgeModalProgressBg}>
+                                                <View style={[
+                                                    styles.badgeModalProgressFill,
+                                                    {
+                                                        width: `${Math.min(100, (selectedBadge.progress || 0) * 100)}%`,
+                                                        backgroundColor: tierInfo.color
+                                                    }
+                                                ]} />
+                                            </View>
+                                        </View>
+                                    )}
+                                </>
+                            );
+                        })()}
+                    </Animated.View>
                 </View>
             </Modal>
         </View>
@@ -1185,43 +1319,243 @@ const styles = StyleSheet.create({
 
     // ── Achievements ──
     achievementsSection: { marginBottom: 8 },
-    achievementsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-    achievementCard: {
-        backgroundColor: '#FFFFFF', borderRadius: 20,
-        padding: 16, paddingTop: 18, alignItems: 'center',
-        borderWidth: 1, borderColor: C.border,
-        shadowColor: '#000', shadowOffset: { width: 0, height: 3 },
-        shadowOpacity: 0.06, shadowRadius: 10, elevation: 3,
+    categoryContainer: { marginBottom: 22 },
+    categoryHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 12, marginTop: 4 },
+    categoryHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
+    categoryEmoji: { fontSize: 20 },
+    categoryTitle: { fontSize: 13, fontWeight: '800', color: C.dark, letterSpacing: 0.3 },
+    categoryDesc: { fontSize: 11, color: C.muted, fontWeight: '500', marginTop: 1 },
+    achievementsGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 12,
+        justifyContent: 'flex-start',
     },
-    achievementLocked: { opacity: 0.45, backgroundColor: '#FAFBFC' },
-    achievementIconCircle: {
-        width: 48, height: 48, borderRadius: 24,
-        alignItems: 'center', justifyContent: 'center', marginBottom: 10,
-        shadowColor: '#000', shadowOffset: { width: 0, height: 3 },
-        shadowOpacity: 0.18, shadowRadius: 6, elevation: 5,
+    badgeItem: {
+        width: (SCREEN_WIDTH - 40 - 24) / 3, // 3 columns with 12px gap
+        backgroundColor: '#FFFFFF',
+        borderRadius: 20,
+        paddingVertical: 14,
+        paddingHorizontal: 8,
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: C.border,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.04,
+        shadowRadius: 6,
+        elevation: 2,
+        marginBottom: 4,
     },
-    achievementLabel: { fontSize: 12, fontWeight: '800', color: C.dark, textAlign: 'center', lineHeight: 16 },
-    achievementDesc: { fontSize: 10, fontWeight: '500', color: C.muted, textAlign: 'center', marginTop: 4, lineHeight: 13 },
-    achievementStatus: {
-        flexDirection: 'row', alignItems: 'center', gap: 4,
-        paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10, marginTop: 10,
+    badgeItemLocked: {
+        backgroundColor: '#F8FAFC',
+        borderColor: '#E2E8F0',
     },
-    achievementStatusText: { fontSize: 10, fontWeight: '700' },
+    badgeCircle: {
+        width: 52,
+        height: 52,
+        borderRadius: 26,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 8,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.15,
+        shadowRadius: 5,
+        elevation: 4,
+    },
+    badgeCircleLocked: {
+        backgroundColor: '#E2E8F0',
+        shadowOpacity: 0,
+        elevation: 0,
+        position: 'relative',
+    },
+    lockIconOverlay: {
+        position: 'absolute',
+        bottom: -2,
+        right: -2,
+        backgroundColor: '#64748B',
+        width: 18,
+        height: 18,
+        borderRadius: 9,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 2,
+        borderColor: '#F8FAFC',
+    },
+    badgeItemTitle: {
+        fontSize: 11,
+        fontWeight: '700',
+        color: C.dark,
+        textAlign: 'center',
+        marginTop: 2,
+    },
+    badgeProgressContainer: {
+        width: '100%',
+        marginTop: 6,
+        alignItems: 'center',
+    },
+    badgeProgressBg: {
+        width: '80%',
+        height: 4,
+        borderRadius: 2,
+        backgroundColor: '#E2E8F0',
+        overflow: 'hidden',
+    },
+    badgeProgressFill: {
+        height: '100%',
+        borderRadius: 2,
+        backgroundColor: C.primary,
+    },
+    badgeProgressText: {
+        fontSize: 8,
+        fontWeight: '600',
+        color: C.muted,
+        marginTop: 2,
+    },
 
-    // ── Achievement Tier & Progress ──
-    achieveTierRibbon: {
-        position: 'absolute', top: 8, right: -1,
-        paddingHorizontal: 8, paddingVertical: 2,
-        borderTopLeftRadius: 6, borderBottomLeftRadius: 6,
+    // ── Achievement Detail Modal ──
+    badgeModalOverlay: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: 'rgba(15, 23, 42, 0.4)',
     },
-    achieveTierTxt: { fontSize: 8, fontWeight: '900', color: '#FFF', letterSpacing: 1 },
-    achieveProgressWrap: { width: '100%', marginTop: 8, alignItems: 'center' },
-    achieveProgressBg: {
-        width: '100%', height: 6, borderRadius: 3,
-        backgroundColor: '#E2E8F0', overflow: 'hidden',
+    badgeModalBackdrop: {
+        ...StyleSheet.absoluteFillObject,
     },
-    achieveProgressFill: { height: '100%', borderRadius: 3 },
-    achieveProgressTxt: { fontSize: 9, fontWeight: '700', color: C.muted, marginTop: 3 },
+    badgeModalContent: {
+        width: SCREEN_WIDTH - 64,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 28,
+        padding: 24,
+        alignItems: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.15,
+        shadowRadius: 20,
+        elevation: 10,
+        position: 'relative',
+    },
+    badgeModalClose: {
+        position: 'absolute',
+        top: 20,
+        right: 20,
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: '#F1F5F9',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    badgeModalRibbon: {
+        paddingHorizontal: 12,
+        paddingVertical: 4,
+        borderRadius: 12,
+        marginBottom: 16,
+    },
+    badgeModalRibbonTxt: {
+        fontSize: 10,
+        fontWeight: '900',
+        letterSpacing: 1,
+    },
+    badgeModalCircle: {
+        width: 80,
+        height: 80,
+        borderRadius: 40,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 16,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
+        elevation: 6,
+    },
+    badgeModalCircleLocked: {
+        backgroundColor: '#E2E8F0',
+        shadowOpacity: 0,
+        elevation: 0,
+        position: 'relative',
+    },
+    badgeModalLockOverlay: {
+        position: 'absolute',
+        bottom: 0,
+        right: 0,
+        backgroundColor: '#64748B',
+        width: 26,
+        height: 26,
+        borderRadius: 13,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 3,
+        borderColor: '#FFFFFF',
+    },
+    badgeModalTitle: {
+        fontSize: 20,
+        fontWeight: '800',
+        color: C.dark,
+        textAlign: 'center',
+        marginBottom: 8,
+    },
+    badgeModalDesc: {
+        fontSize: 13,
+        fontWeight: '500',
+        color: C.muted,
+        textAlign: 'center',
+        lineHeight: 18,
+        paddingHorizontal: 12,
+    },
+    badgeModalDivider: {
+        width: '100%',
+        height: 1,
+        backgroundColor: C.border,
+        marginVertical: 18,
+    },
+    badgeModalStatusBox: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        backgroundColor: C.successBg,
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderRadius: 16,
+    },
+    badgeModalStatusTextUnlocked: {
+        fontSize: 13,
+        fontWeight: '700',
+        color: C.success,
+    },
+    badgeModalProgressContainer: {
+        width: '100%',
+    },
+    badgeModalProgressHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 8,
+    },
+    badgeModalProgressTitle: {
+        fontSize: 12,
+        fontWeight: '700',
+        color: C.dark,
+    },
+    badgeModalProgressVal: {
+        fontSize: 12,
+        fontWeight: '800',
+        color: C.muted,
+    },
+    badgeModalProgressBg: {
+        width: '100%',
+        height: 8,
+        borderRadius: 4,
+        backgroundColor: '#E2E8F0',
+        overflow: 'hidden',
+    },
+    badgeModalProgressFill: {
+        height: '100%',
+        borderRadius: 4,
+    },
 
     // ── Modal / Bottom Sheet ──
     modalOverlay: { flex: 1, justifyContent: 'flex-end' },

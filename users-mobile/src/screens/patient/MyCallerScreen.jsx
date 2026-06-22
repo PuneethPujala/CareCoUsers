@@ -264,6 +264,24 @@ export default function MyCallerScreen({ navigation }) {
     return `${d.toLocaleDateString('en-IN', { weekday: 'short', month: 'short', day: 'numeric' })}, ${time}`;
   };
 
+  const formatLastActive = (lastActiveAt) => {
+    if (!lastActiveAt) return t('caller.offline_now', { defaultValue: 'Offline' });
+    const d = new Date(lastActiveAt);
+    const now = new Date();
+    const diffMs = now - d;
+    if (isNaN(diffMs) || diffMs < 0) return t('caller.offline_now', { defaultValue: 'Offline' });
+
+    const diffMin = Math.floor(diffMs / 60000);
+    if (diffMin < 2) {
+      return t('caller.online_now', { defaultValue: 'Online' });
+    }
+    if (diffMin < 60) {
+      return t('caller.active_mins_ago', { defaultValue: `Active ${diffMin}m ago` });
+    }
+    const formattedDate = formatDate(lastActiveAt);
+    return `${t('caller.last_online', { defaultValue: 'Last online:' })} ${formattedDate}`;
+  };
+
   const formatDuration = (seconds) => {
     if (!seconds || seconds === 0) return null;
     const m = Math.floor(seconds / 60);
@@ -750,6 +768,9 @@ export default function MyCallerScreen({ navigation }) {
                         <View style={s.sheetHeroInfo}>
                           <Text style={s.sheetName} numberOfLines={1}>{profileName}</Text>
                           <Text style={s.sheetIdText}>{profileIdText}</Text>
+                          <Text style={s.sheetLastOnlineText}>
+                            {formatLastActive(selectedProfile?.last_active_at)}
+                          </Text>
                           <View style={s.sheetBadge}>
                             <Star size={10} color="#FCD34D" fill="#FCD34D" strokeWidth={2} />
                             <Text style={s.sheetBadgeText}>Certified Professional</Text>
@@ -1243,7 +1264,8 @@ const s = StyleSheet.create({
   },
   sheetHeroInfo: { flex: 1 },
   sheetName:    { fontSize: 22, fontWeight: '800', color: '#FFF', letterSpacing: -0.5, marginBottom: 4 },
-  sheetIdText:  { fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.6)', marginBottom: 8 },
+  sheetIdText:  { fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.6)', marginBottom: 4 },
+  sheetLastOnlineText: { fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.85)', marginBottom: 8 },
   sheetBadge:   { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(255,255,255,0.12)', alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 },
   sheetBadgeText: { fontSize: 11, fontWeight: '700', color: 'rgba(255,255,255,0.85)' },
 

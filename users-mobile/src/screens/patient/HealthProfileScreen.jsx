@@ -16,6 +16,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { AlertTriangle, ShieldCheck, HeartPulse, Activity, Droplet, Phone, Plus, Pencil, X, Trash2, CheckCircle2, RefreshCw, ChevronDown, Upload, Siren, ChevronRight, TrendingUp, TrendingDown, Sparkles, Bell, FileText, Pill, Syringe, Link2, Users, Calendar, Info, Clock, MapPin } from 'lucide-react-native';
 import { StatusBar } from 'react-native';
 import Svg, { Circle as SvgCircle, Path, Defs, LinearGradient as SvgLinearGradient, Stop, Rect } from 'react-native-svg';
+import * as Haptics from 'expo-haptics';
 import { apiService } from '../../lib/api';
 import { initializeHealthPlatform, requestHealthPermissions, fetchDailyVitalsSummary, isHealthSupported } from '../../lib/healthIntegration';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -26,7 +27,6 @@ import {
     HealthCoachCard,
     HealthDrivers,
     MomentumCard,
-    AchievementSection,
     ScoreHeroCard,
     PremiumTrendChart,
     StreakCalendar
@@ -173,7 +173,23 @@ export default function HealthProfileScreen({ navigation }) {
     const [timeline, setTimeline] = useState([]);
     const [historyLoading, setHistoryLoading] = useState(false);
 
-    const loadHistoryAndTimeline = async () => {
+    // Haptic helpers
+    const triggerHapticSelection = async () => {
+        try {
+            await Haptics.selectionAsync();
+        } catch (e) {}
+    };
+
+    const triggerHapticSuccess = async () => {
+        try {
+            await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        } catch (e) {}
+    };
+
+    // Animated values
+    const refreshBtnScale = useRef(new Animated.Value(1)).current;
+
+    const loadHistoryAndTimeline = async (isManual = false) => {
         setHistoryLoading(true);
         try {
             const [historyRes, timelineRes] = await Promise.all([
@@ -182,11 +198,34 @@ export default function HealthProfileScreen({ navigation }) {
             ]);
             setHealthHistory(historyRes.data);
             setTimeline(timelineRes.data?.timeline || []);
+            if (isManual) {
+                triggerHapticSuccess();
+            }
         } catch (err) {
             console.warn('Failed to load health history/timeline:', err.message);
         } finally {
             setHistoryLoading(false);
         }
+    };
+
+    const handleRefreshPress = () => {
+        Animated.sequence([
+            Animated.spring(refreshBtnScale, {
+                toValue: 0.9,
+                useNativeDriver: true,
+                speed: 50,
+                bounciness: 4
+            }),
+            Animated.spring(refreshBtnScale, {
+                toValue: 1,
+                useNativeDriver: true,
+                speed: 50,
+                bounciness: 4
+            })
+        ]).start();
+
+        triggerHapticSelection();
+        loadHistoryAndTimeline(true);
     };
 
     useEffect(() => {
@@ -1853,43 +1892,6 @@ export default function HealthProfileScreen({ navigation }) {
                     const projectedBoost = weakest ? Math.min(8, Math.round((100 - weakest.pct) * 0.15)) : 5;
                     const projectedScore = hasScore ? Math.min(100, activeScoreVal + projectedBoost) : null;
 
-                    // Achievements: use real persistent badges from backend + profile-derived ones
-                    const backendBadges = profile?.unlockedAchievements || [];
-                    const unlockedAchievements = [
-                        ...backendBadges.map(key => getBadgeLabel(key)),
-                    ];
-                    // Supplement with profile-derived badges (only if not already covered by backend)
-                    if (backendBadges.length === 0) {
-                        if (activeMeds.length > 0) unlockedAchievements.push('Active Medication Tracker');
-                        if (conditions.length > 0 && managedCount >= conditions.length * 0.5) unlockedAchievements.push('Condition Management');
-                        if (completionPct >= 80) unlockedAchievements.push('Profile Champion');
-                        if (gp.name) unlockedAchievements.push('Care Network Active');
-                        if (vaccinations.length >= 2) unlockedAchievements.push('Vaccination Record');
-                    }
-
-                    // Next milestone
-                    let nextMilestone = 'Keep up the great work — all milestones achieved!';
-                    let milestoneProgress = 100;
-                    let milestoneTarget = 100;
-
-                    if (completionPct < 100) {
-                        nextMilestone = `Complete ${100 - completionPct}% more of your profile to unlock 🏆 Health Profile Master`;
-                        milestoneProgress = completionPct;
-                        milestoneTarget = 100;
-                    } else if (streakDays < 7) {
-                        nextMilestone = `Log vitals/meds for ${7 - streakDays} more days to unlock 🏆 7-Day Streak (${streakDays}/7)`;
-                        milestoneProgress = streakDays;
-                        milestoneTarget = 7;
-                    } else if (streakDays < 30) {
-                        nextMilestone = `Log vitals/meds for ${30 - streakDays} more days to unlock 🏆 30-Day Streak (${streakDays}/30)`;
-                        milestoneProgress = streakDays;
-                        milestoneTarget = 30;
-                    } else if (adherencePct !== null && adherencePct < 95) {
-                        nextMilestone = `Improve medication adherence to 95% to unlock 🏆 Medication Champion (${adherencePct}/95%)`;
-                        milestoneProgress = adherencePct;
-                        milestoneTarget = 95;
-                    }
-
                     // Dynamic Coach CTA question & text based on weakest driver
                     let coachQuestion = 'How can I improve my health score?';
                     let coachCtaText = 'Ask AI Coach';
@@ -1933,12 +1935,20 @@ export default function HealthProfileScreen({ navigation }) {
                                     </View>
                                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                                         <Pressable
-                                            onPress={loadHistoryAndTimeline}
+                                            onPress={handleRefreshPress}
                                             disabled={historyLoading}
                                             hitSlop={12}
-                                            style={{ backgroundColor: '#F1F5F9', padding: 6, borderRadius: radius.lg, borderWidth: 1, borderColor: '#E2E8F0' }}
                                         >
-                                            <RefreshCw size={18} color={historyLoading ? '#94A3B8' : '#64748B'} />
+                                            <Animated.View style={{
+                                                backgroundColor: '#F1F5F9',
+                                                padding: 6,
+                                                borderRadius: radius.lg,
+                                                borderWidth: 1,
+                                                borderColor: '#E2E8F0',
+                                                transform: [{ scale: refreshBtnScale }]
+                                            }}>
+                                                <RefreshCw size={18} color={historyLoading ? '#94A3B8' : '#64748B'} />
+                                            </Animated.View>
                                         </Pressable>
                                         <Pressable onPress={() => setShowScoreInfo(false)} hitSlop={12} style={{ backgroundColor: '#F1F5F9', padding: 6, borderRadius: radius.lg, borderWidth: 1, borderColor: '#E2E8F0' }}>
                                             <X size={18} color="#64748B" />
@@ -1949,7 +1959,11 @@ export default function HealthProfileScreen({ navigation }) {
                                 {/* Tab Selector */}
                                 <View style={{ flexDirection: 'row', paddingHorizontal: spacing.screen, marginBottom: 12, gap: 8 }}>
                                     <Pressable
-                                        onPress={() => setActiveTab('insights')}
+                                        onPress={async () => {
+                                            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                                            triggerHapticSelection();
+                                            setActiveTab('insights');
+                                        }}
                                         style={{
                                             flex: 1,
                                             paddingVertical: 10,
@@ -1964,7 +1978,11 @@ export default function HealthProfileScreen({ navigation }) {
                                         <Text style={{ fontSize: 13, ...FONT.bold, color: activeTab === 'insights' ? colors.primaryMid : colors.textSecondary }}>Insights</Text>
                                     </Pressable>
                                     <Pressable
-                                        onPress={() => setActiveTab('trends')}
+                                        onPress={async () => {
+                                            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                                            triggerHapticSelection();
+                                            setActiveTab('trends');
+                                        }}
                                         style={{
                                             flex: 1,
                                             paddingVertical: 10,
@@ -2228,13 +2246,7 @@ export default function HealthProfileScreen({ navigation }) {
                                             </View>
                                         )}
 
-                                        {/* ── SECTION 8: ACHIEVEMENTS & NEXT MILESTONE ── */}
-                                        <AchievementSection
-                                            nextMilestone={nextMilestone}
-                                            milestoneProgress={milestoneProgress}
-                                            milestoneTarget={milestoneTarget}
-                                            unlockedAchievements={unlockedAchievements}
-                                        />
+
                                     </ScrollView>
                                 ) : (
                                     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40, paddingHorizontal: spacing.screen }}>
