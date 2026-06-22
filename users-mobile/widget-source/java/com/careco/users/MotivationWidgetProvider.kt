@@ -1,4 +1,4 @@
-package com.caremymed.users
+package com.careco.users
 
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager

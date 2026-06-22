@@ -1,4 +1,4 @@
-package com.caremymed.users
+package com.careco.users
 
 import com.facebook.react.ReactPackage
 import com.facebook.react.bridge.NativeModule
