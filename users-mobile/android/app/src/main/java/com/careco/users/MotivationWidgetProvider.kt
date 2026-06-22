@@ -77,9 +77,11 @@ class MotivationWidgetProvider : AppWidgetProvider() {
                     views.setTextViewText(R.id.widget_streak, "$streakCount-day streak")
 
                     // Adherence
-                    val adherence = if (json.has("medicine")) {
-                        json.getJSONObject("medicine").optInt("adherence", 0)
-                    } else 0
+                    val medicineJson = if (json.has("medicine")) json.getJSONObject("medicine") else null
+                    val adherence = medicineJson?.optInt("adherence", 0) ?: 0
+                    val total = medicineJson?.optInt("total", 0) ?: 0
+                    val allDone = medicineJson?.optBoolean("allDone", false) ?: false
+
                     views.setTextViewText(R.id.widget_adherence_pct, "$adherence%")
                     views.setProgressBar(R.id.widget_adherence_bar, 100, adherence, false)
 
@@ -88,6 +90,31 @@ class MotivationWidgetProvider : AppWidgetProvider() {
                         json.getJSONObject("streak").optInt("premiumDays", 0)
                     } else 0
                     views.setTextViewText(R.id.widget_premium_text, "Premium: $premiumDays days left")
+
+                    // Mascot and streak message
+                    val mascotRes = if (total == 0) {
+                        R.drawable.doctor_mascot_caring
+                    } else if (allDone) {
+                        R.drawable.doctor_mascot_celebration
+                    } else if (adherence >= 75) {
+                        R.drawable.doctor_mascot_thinking
+                    } else if (adherence > 0) {
+                        R.drawable.doctor_mascot_insights
+                    } else {
+                        R.drawable.doctor_mascot_concerned
+                    }
+                    views.setImageViewResource(R.id.widget_mascot, mascotRes)
+
+                    val streakMsg = if (total == 0) {
+                        "All clear today!"
+                    } else if (allDone) {
+                        "Perfect day!"
+                    } else if (adherence > 0) {
+                        "Almost there!"
+                    } else {
+                        "Time for meds!"
+                    }
+                    views.setTextViewText(R.id.widget_streak_message, streakMsg)
                 }
 
                 // Daily tip (LARGE only)
