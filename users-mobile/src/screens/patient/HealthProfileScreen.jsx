@@ -328,12 +328,15 @@ export default function HealthProfileScreen({ navigation }) {
             ]);
             setProfile(profileRes.data);
             setUnreadCount(unreadRes.data?.count || 0);
+            return profileRes.data;
         } catch (err) {
             console.warn('Failed to load health profile:', err.message);
             try {
                 const res = await apiService.patients.getMe();
                 if (res.data.patient?.subscription?.plan === 'free') {
-                    setProfile({ freePlan: true });
+                    const freeProf = { freePlan: true };
+                    setProfile(freeProf);
+                    return freeProf;
                 }
             } catch (e) {}
         } finally {
@@ -343,7 +346,10 @@ export default function HealthProfileScreen({ navigation }) {
 
     const onRefresh = useCallback(async () => {
         setRefreshing(true);
-        await loadProfile();
+        const prof = await loadProfile();
+        if (prof && !prof.freePlan) {
+            await loadHistoryAndTimeline();
+        }
         setRefreshing(false);
     }, []);
 
@@ -351,7 +357,10 @@ export default function HealthProfileScreen({ navigation }) {
 
     useFocusEffect(
         useCallback(() => {
-            loadProfile().then(() => {
+            loadProfile().then((prof) => {
+                if (prof && !prof.freePlan) {
+                    loadHistoryAndTimeline();
+                }
                 if (!hasAnimated.current) {
                     hasAnimated.current = true;
                     runAnimations();

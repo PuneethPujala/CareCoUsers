@@ -73,6 +73,8 @@ jest.mock('../../src/lib/api', () => ({
         },
       }),
       getNotificationsUnreadCount: jest.fn().mockResolvedValue({ data: { count: 0 } }),
+      getHealthHistory: jest.fn().mockResolvedValue({ data: { history: [], deltas: {} } }),
+      getHealthTimeline: jest.fn().mockResolvedValue({ data: { timeline: [] } }),
     },
   },
 }));
