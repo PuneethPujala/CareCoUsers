@@ -238,6 +238,7 @@ class HealthSyncService {
             console.log(`✅ Health sync complete: ${totalAccepted} accepted, ${totalDuplicates} duplicates, ${anomaliesDetected} anomalies`);
             this._notifyListeners(result);
             DeviceEventEmitter.emit('VITALS_SYNCED', result);
+            DeviceEventEmitter.emit('VITALS_UPDATED', { source: 'sync' });
             return result;
 
         } catch (err) {

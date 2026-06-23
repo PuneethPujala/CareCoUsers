@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
-import { AppState } from 'react-native';
+import { AppState, DeviceEventEmitter } from 'react-native';
 import { apiService } from './api';
 import usePatientStore from '../store/usePatientStore';
 
@@ -238,6 +238,7 @@ class OfflineSyncService {
 
             const remainingQueue = [];
             let hadFailures = false;
+            let hadVitalsSynced = false;
 
             for (const item of queue) {
                 // If a prior item in this flush loop failed or was skipped, we MUST halt replay
@@ -269,6 +270,7 @@ class OfflineSyncService {
                         case 'LOG_VITALS':
                             await apiService.patients.logVitals(item.payload);
                             success = true;
+                            hadVitalsSynced = true;
                             break;
                         // Add more offline-capable mutations here in the future
                         default:
@@ -302,6 +304,10 @@ class OfflineSyncService {
                     remainingQueue.push(item);
                     hadFailures = true;
                 }
+            }
+
+            if (hadVitalsSynced) {
+                DeviceEventEmitter.emit('VITALS_UPDATED', { source: 'sync' });
             }
 
             // Save the remaining items back to the queue

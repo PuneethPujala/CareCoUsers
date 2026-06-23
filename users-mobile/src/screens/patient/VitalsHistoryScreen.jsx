@@ -580,7 +580,7 @@ export default function VitalsHistoryScreen({ navigation }) {
                 await apiService.patients.logVitals(payload);
                 setIsLogging(false);
                 setFormValues({ heart_rate: '', systolic: '', diastolic: '', oxygen_saturation: '', hydration: '' });
-                DeviceEventEmitter.emit('VITALS_UPDATED');
+                DeviceEventEmitter.emit('VITALS_UPDATED', { source: 'manual' });
                 fetchAllData();
             }
         } catch (err) {

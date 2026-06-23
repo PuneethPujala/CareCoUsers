@@ -1,4 +1,6 @@
 import { Platform, Alert } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 
 // --- Android Health Connect ---
 // We use dynamic imports or try/catch requires because these are native modules
@@ -41,22 +43,68 @@ export const initializeHealthPlatform = async () => {
     return false;
 };
 
+const SLEEP_ALIASES = ['sleep', 'sleepsession'];
+
+export const REQUIRED_PERMISSIONS = [
+    { accessType: 'read', recordType: 'HeartRate' },
+    { accessType: 'read', recordType: 'BloodPressure' },
+    { accessType: 'read', recordType: 'SleepSession' },
+    { accessType: 'read', recordType: 'OxygenSaturation' },
+    { accessType: 'read', recordType: 'Hydration' },
+    { accessType: 'read', recordType: 'BodyTemperature' }
+];
+
+/**
+ * Check if the granted permissions satisfy the requested permissions.
+ * @param {Array} granted - Array of currently granted permissions
+ * @param {Array} requested - Array of requested permissions
+ * @param {'all'|'any'} mode - Verification mode
+ */
+export const hasPermissions = (granted, requested, mode = 'all') => {
+    if (!granted || !Array.isArray(granted)) return false;
+    if (!requested || !Array.isArray(requested)) return true;
+
+    const checkSinglePermission = (req) => {
+        return granted.some(p => {
+            const accessTypeMatch = p.accessType === req.accessType;
+            if (!accessTypeMatch) return false;
+
+            const recType = (p.recordType || '').toLowerCase();
+            const reqType = (req.recordType || '').toLowerCase();
+
+            if (SLEEP_ALIASES.includes(reqType)) {
+                return SLEEP_ALIASES.includes(recType);
+            }
+            return recType === reqType;
+        });
+    };
+
+    if (mode === 'any') {
+        return requested.some(checkSinglePermission);
+    }
+    return requested.every(checkSinglePermission);
+};
+
 /**
  * Request user permission to read Heart Rate, Sleep, and Blood Pressure.
  */
 export const requestHealthPermissions = async () => {
     if (Platform.OS === 'android' && HealthConnect) {
         try {
-            const permissions = [
-                { accessType: 'read', recordType: 'HeartRate' },
-                { accessType: 'read', recordType: 'BloodPressure' },
-                { accessType: 'read', recordType: 'SleepSession' },
-                { accessType: 'read', recordType: 'OxygenSaturation' },
-                { accessType: 'read', recordType: 'Hydration' },
-                { accessType: 'read', recordType: 'BodyTemperature' }
-            ];
-            const granted = await HealthConnect.requestPermission(permissions);
-            return granted && granted.length > 0;
+            // Fire-and-forget permission request (Android 14 / Health Connect won't double-prompt if already granted)
+            await HealthConnect.requestPermission(REQUIRED_PERMISSIONS);
+            
+            // Check status via getGrantedPermissions to prevent false-negatives from empty request results
+            const grantedPermissions = await HealthConnect.getGrantedPermissions();
+            const isGranted = hasPermissions(grantedPermissions, REQUIRED_PERMISSIONS, 'any');
+            if (isGranted) {
+                try {
+                    await AsyncStorage.setItem('lastHealthPermissionCheck', Date.now().toString());
+                } catch (err) {
+                    console.warn('Failed to save lastHealthPermissionCheck:', err);
+                }
+            }
+            return isGranted;
         } catch (e) {
             console.warn('Android Health Permission Error:', e);
             return false;
@@ -76,11 +124,14 @@ export const requestHealthPermissions = async () => {
                     ],
                 },
             };
-            AppleHealthKit.initHealthKit(permissions, (error) => {
+            AppleHealthKit.initHealthKit(permissions, async (error) => {
                 if (error) {
                     console.warn('iOS Health Permission Error:', error);
                     resolve(false);
                 } else {
+                    try {
+                        await AsyncStorage.setItem('lastHealthPermissionCheck', Date.now().toString());
+                    } catch (err) {}
                     resolve(true);
                 }
             });
@@ -91,9 +142,10 @@ export const requestHealthPermissions = async () => {
 
 /**
  * Check current permission status without re-prompting the user.
+ * @param {'all'|'any'} mode - Verification mode
  * @returns {Promise<'granted'|'denied'|'unavailable'>}
  */
-export const checkPermissionStatus = async () => {
+export const checkPermissionStatus = async (mode = 'any') => {
     if (Platform.OS === 'android') {
         try {
             if (!HealthConnect) {
@@ -102,12 +154,16 @@ export const checkPermissionStatus = async () => {
             const isInitialized = await HealthConnect.initialize();
             if (!isInitialized) return 'unavailable';
 
-            // Check if HeartRate read permission is granted (primary metric)
             const grantedPermissions = await HealthConnect.getGrantedPermissions();
-            const hasHR = grantedPermissions?.some(
-                p => p.recordType === 'HeartRate' && p.accessType === 'read'
-            );
-            return hasHR ? 'granted' : 'denied';
+            const isGranted = hasPermissions(grantedPermissions, REQUIRED_PERMISSIONS, mode);
+            if (isGranted) {
+                try {
+                    await AsyncStorage.setItem('lastHealthPermissionCheck', Date.now().toString());
+                } catch (err) {
+                    console.warn('Failed to save lastHealthPermissionCheck:', err);
+                }
+            }
+            return isGranted ? 'granted' : 'denied';
         } catch (e) {
             console.warn('Permission check failed:', e);
             return 'unavailable';
@@ -115,8 +171,12 @@ export const checkPermissionStatus = async () => {
     } else if (Platform.OS === 'ios') {
         // iOS doesn't expose explicit permission status for HealthKit reads.
         // If HealthKit initialized successfully before, we consider it "granted".
-        // The actual auth status is per-type and only queryable via callbacks.
-        if (AppleHealthKit) return 'granted';
+        if (AppleHealthKit) {
+            try {
+                await AsyncStorage.setItem('lastHealthPermissionCheck', Date.now().toString());
+            } catch (err) {}
+            return 'granted';
+        }
         try {
             AppleHealthKit = require('react-native-health').default;
             return 'denied'; // Loaded but not yet initialized
@@ -126,6 +186,7 @@ export const checkPermissionStatus = async () => {
     }
     return 'unavailable';
 };
+
 
 /**
  * Fetches recent vitals (e.g. past 24 hours) from the device and averages them.

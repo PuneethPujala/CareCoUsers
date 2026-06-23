@@ -599,7 +599,7 @@ export default function PatientHomeScreen({ navigation }) {
             HapticPatterns.log();
             setIsLogging(false);
             setFormValues({ heart_rate: '', systolic: '', diastolic: '', oxygen_saturation: '', hydration: '' });
-            DeviceEventEmitter.emit('VITALS_UPDATED');
+            DeviceEventEmitter.emit('VITALS_UPDATED', { source: 'manual' });
             await fetchData(true);
         } catch (err) {
             setFormError(handleAxiosError(err));

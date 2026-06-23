@@ -82,6 +82,7 @@ export default function HealthConnectSetupScreen({ navigation }) {
     const [status, setStatus] = useState('checking'); // 'checking' | 'unavailable' | 'denied' | 'granted'
     const [loading, setLoading] = useState(false);
     const [lastSyncStr, setLastSyncStr] = useState('5m ago');
+    const [lastCheckedStr, setLastCheckedStr] = useState('—');
     const [syncQuality, setSyncQuality] = useState(96);
     const [syncingNow, setSyncingNow] = useState(false);
     const [menuVisible, setMenuVisible] = useState(false);
@@ -162,6 +163,18 @@ export default function HealthConnectSetupScreen({ navigation }) {
                 else if (diffMin < 60) setLastSyncStr(`${diffMin}m ago`);
                 else setLastSyncStr(`${Math.round(diffMin / 60)}h ago`);
             }
+
+            // Fetch last permission check verification timestamp
+            const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+            const checkedTs = await AsyncStorage.getItem('lastHealthPermissionCheck');
+            if (checkedTs) {
+                const diffMin = Math.round((Date.now() - parseInt(checkedTs, 10)) / 60000);
+                if (diffMin < 1) setLastCheckedStr('just now');
+                else if (diffMin < 60) setLastCheckedStr(`${diffMin}m ago`);
+                else setLastCheckedStr(`${Math.round(diffMin / 60)}h ago`);
+            } else {
+                setLastCheckedStr(perm === 'granted' ? 'just now' : 'never');
+            }
         } catch {
             setStatus('unavailable');
         }
@@ -190,6 +203,7 @@ export default function HealthConnectSetupScreen({ navigation }) {
             const granted = await requestHealthPermissions();
             if (granted) {
                 setStatus('granted');
+                setLastCheckedStr('just now');
                 await HealthSyncService.setSyncEnabled(true);
                 AlertManager.alert(
                     'Connected Successfully',
@@ -231,6 +245,7 @@ export default function HealthConnectSetupScreen({ navigation }) {
             const res = await HealthSyncService.syncNow();
             if (res) {
                 setLastSyncStr('just now');
+                setLastCheckedStr('just now');
                 setSyncQuality(98);
                 // Refresh dashboard to display latest measurements
                 usePatientStore.getState().fetchDashboard(true);
@@ -301,7 +316,7 @@ export default function HealthConnectSetupScreen({ navigation }) {
                         {isConnected ? 'Google Health Connect' : 'Connect Your Vitals'}
                     </Text>
                     <Text style={styles.heroStatus}>
-                        {isConnected ? `Connected ${lastSyncStr}` : 'Not Linked'}
+                        {isConnected ? `Connected ${lastSyncStr} · Verified: ${lastCheckedStr}` : 'Not Linked'}
                     </Text>
 
                     {/* Live Monitoring Pulse Badge */}

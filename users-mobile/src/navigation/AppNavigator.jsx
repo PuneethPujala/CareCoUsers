@@ -7,7 +7,7 @@ import * as ScreenCapture from 'expo-screen-capture';
 import * as SplashScreen from 'expo-splash-screen';
 import {
     View, Text, StyleSheet, Animated, ActivityIndicator,
-    TouchableOpacity, Pressable, Image, Platform
+    TouchableOpacity, Pressable, Image, Platform, DeviceEventEmitter
 } from "react-native";
 import Constants from 'expo-constants';
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
@@ -208,6 +208,42 @@ export default function AppNavigator() {
 
     // BUG 6 FIX: hasNotified must reset when the user signs out and back in.
     const hasNotifiedForUserRef = useRef(null); // stores the userId that was notified
+
+    // Debounced dashboard refresh to prevent rapid duplicate calls when syncing
+    const debounceTimeoutRef = useRef(null);
+    const refreshDashboardDebounced = useCallback((sourceInfo) => {
+        if (debounceTimeoutRef.current) {
+            clearTimeout(debounceTimeoutRef.current);
+        }
+        if (__DEV__) {
+            console.log(`[AppNavigator] Queueing debounced dashboard fetch (source: ${sourceInfo?.source || 'unknown'})`);
+        }
+        debounceTimeoutRef.current = setTimeout(async () => {
+            if (__DEV__) {
+                console.log('[AppNavigator] Executing debounced dashboard fetch for widget sync');
+            }
+            try {
+                await usePatientStore.getState().fetchDashboard(true);
+            } catch (err) {
+                console.warn('[AppNavigator] Debounced dashboard fetch failed:', err);
+            }
+        }, 800); // 800ms debounce
+    }, []);
+
+    useEffect(() => {
+        if (!user || profile?.role === 'companion') return;
+
+        const sub = DeviceEventEmitter.addListener('VITALS_UPDATED', (eventData) => {
+            refreshDashboardDebounced(eventData);
+        });
+
+        return () => {
+            sub.remove();
+            if (debounceTimeoutRef.current) {
+                clearTimeout(debounceTimeoutRef.current);
+            }
+        };
+    }, [user, profile, refreshDashboardDebounced]);
 
     useEffect(() => {
         const unsubscribe = NetInfo.addEventListener(state => {
