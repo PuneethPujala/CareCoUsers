@@ -1305,31 +1305,29 @@ export default function PatientHomeScreen({ navigation }) {
                                     <View style={styles.sleepIconBox}>
                                         <Watch size={18} color="#4F46E5" />
                                     </View>
-                                    <Text style={styles.sleepPromptTitle}>😴 Sleep Detected</Text>
+                                    <Text style={styles.sleepPromptTitle}>🌙 Phone Inactivity</Text>
                                 </View>
                                 <Text style={styles.sleepPromptText}>
-                                    We noticed your phone was quiet for <Text style={{ fontWeight: '800', color: '#1E1B4B' }}>{estimatedSleep.hours} hours</Text> last night ({estimatedSleep.startTime} to {estimatedSleep.endTime}). Was this your sleep duration?
+                                    Your phone was quiet for <Text style={{ fontWeight: '800', color: '#1E1B4B' }}>{estimatedSleep.hours} hours</Text> last night ({estimatedSleep.startTime} to {estimatedSleep.endTime}).
+                                    {"\n\n"}How many hours did you actually sleep?
                                 </Text>
-                                <View style={styles.sleepPromptActions}>
+                                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 4 }}>
+                                    {[5, 6, 7, 8, 9, 10].map(h => (
+                                        <Pressable
+                                            key={h}
+                                            style={({ pressed }) => [styles.sleepHourBtn, pressed && { opacity: 0.7 }]}
+                                            onPress={() => logCustomSleep(h)}
+                                        >
+                                            <Text style={styles.sleepHourBtnText}>{h}h</Text>
+                                        </Pressable>
+                                    ))}
                                     <Pressable
-                                        style={({ pressed }) => [styles.sleepPromptBtnYes, pressed && { opacity: 0.85 }]}
-                                        onPress={handleConfirmSleep}
-                                    >
-                                        <Text style={styles.sleepPromptBtnYesText}>Yes, Log It</Text>
-                                    </Pressable>
-                                    <Pressable
-                                        style={({ pressed }) => [styles.sleepPromptBtnNo, pressed && { opacity: 0.85 }]}
+                                        style={({ pressed }) => [styles.sleepHourBtnDismiss, pressed && { opacity: 0.7 }]}
                                         onPress={handleDismissSleep}
                                     >
-                                        <Text style={styles.sleepPromptBtnNoText}>No</Text>
+                                        <Text style={styles.sleepHourBtnDismissText}>Dismiss</Text>
                                     </Pressable>
-                                    <Pressable
-                                        style={({ pressed }) => [styles.sleepPromptBtnAdjust, pressed && { opacity: 0.85 }]}
-                                        onPress={handleAdjustSleep}
-                                    >
-                                        <Text style={styles.sleepPromptBtnAdjustText}>Adjust</Text>
-                                    </Pressable>
-                                </View>
+                                </ScrollView>
                             </View>
                         </Animated.View>
                     )}
@@ -2736,5 +2734,36 @@ const styles = StyleSheet.create({
         lineHeight: 18,
         fontWeight: '500',
         marginTop: 6,
+    },
+    sleepHourBtn: {
+        backgroundColor: '#FFFFFF',
+        borderWidth: 1,
+        borderColor: '#C7D2FE',
+        borderRadius: 20,
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        alignItems: 'center',
+        justifyContent: 'center',
+        minWidth: 54,
+    },
+    sleepHourBtnText: {
+        color: '#4F46E5',
+        fontSize: 13,
+        fontWeight: '700',
+    },
+    sleepHourBtnDismiss: {
+        backgroundColor: '#F1F5F9',
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
+        borderRadius: 20,
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    sleepHourBtnDismissText: {
+        color: '#64748B',
+        fontSize: 13,
+        fontWeight: '700',
     },
 });
