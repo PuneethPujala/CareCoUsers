@@ -265,21 +265,21 @@ export default function MyCallerScreen({ navigation }) {
   };
 
   const formatLastActive = (lastActiveAt) => {
-    if (!lastActiveAt) return t('caller.offline_now', { defaultValue: 'Offline' });
+    if (!lastActiveAt) return `⚫ ${t('caller.offline_now', { defaultValue: 'Offline' })}`;
     const d = new Date(lastActiveAt);
     const now = new Date();
     const diffMs = now - d;
-    if (isNaN(diffMs) || diffMs < 0) return t('caller.offline_now', { defaultValue: 'Offline' });
+    if (isNaN(diffMs) || diffMs < 0) return `⚫ ${t('caller.offline_now', { defaultValue: 'Offline' })}`;
 
     const diffMin = Math.floor(diffMs / 60000);
     if (diffMin < 2) {
-      return t('caller.online_now', { defaultValue: 'Online' });
+      return `🟢 ${t('caller.online_now', { defaultValue: 'Online' })}`;
     }
     if (diffMin < 60) {
-      return t('caller.active_mins_ago', { defaultValue: `Active ${diffMin}m ago` });
+      return `🟡 ${t('caller.active_mins_ago', { defaultValue: `Active ${diffMin}m ago` })}`;
     }
     const formattedDate = formatDate(lastActiveAt);
-    return `${t('caller.last_online', { defaultValue: 'Last online:' })} ${formattedDate}`;
+    return `⚫ Last seen ${formattedDate}`;
   };
 
   const formatDuration = (seconds) => {

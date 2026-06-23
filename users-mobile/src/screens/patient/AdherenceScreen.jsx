@@ -26,6 +26,77 @@ import {
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
+const GRID_COLUMNS = 3;
+const GRID_GAP = 10;
+const AVAILABLE_WIDTH = SCREEN_WIDTH - 40;
+const badgeWidth = (AVAILABLE_WIDTH - (GRID_GAP * (GRID_COLUMNS - 1))) / GRID_COLUMNS - 1.5;
+
+const TIER_ORDER = ['bronze', 'silver', 'gold', 'legendary'];
+
+const getRemainingLabel = (achievement, meta) => {
+    if (!achievement) return '';
+    const progressVal = achievement.progress || 0;
+    const target = meta.target || 1;
+    const current = Math.round(progressVal * target);
+    const remaining = Math.max(0, target - current);
+
+    if (meta.isPercentage) {
+        const currentPct = Math.round(progressVal * 100);
+        const targetPct = target;
+        const remainingPct = Math.max(0, targetPct - currentPct);
+        return `${remainingPct}% more to unlock`;
+    }
+
+    const category = meta.category;
+    if (category === 'streaks') {
+        return `${remaining} more day${remaining > 1 ? 's' : ''} to unlock`;
+    }
+    if (category === 'perfect_days') {
+        return `${remaining} more perfect day${remaining > 1 ? 's' : ''} to unlock`;
+    }
+    if (category === 'doses') {
+        return `${remaining} more log${remaining > 1 ? 's' : ''} to unlock`;
+    }
+    if (category === 'routine') {
+        if (achievement.key === 'score_plus_20') {
+            return `${remaining} more point${remaining > 1 ? 's' : ''} to unlock`;
+        }
+        return `${remaining} more day${remaining > 1 ? 's' : ''} to unlock`;
+    }
+    return `${remaining} more to unlock`;
+};
+
+const getHeroTheme = (scoreValue) => {
+    if (scoreValue >= 90) {
+        return {
+            gradient: ['#065F46', '#0F766E', '#14B8A6'], // Emerald -> Teal
+            accentGlow: '#10B981',
+            textOnHero: '#FFFFFF',
+            barBg: 'rgba(255, 255, 255, 0.25)',
+            barFill: '#34D399',
+            ringColor: '#34D399',
+        };
+    } else if (scoreValue >= 70) {
+        return {
+            gradient: ['#1E1B4B', '#312E81', '#4F46E5'], // Indigo -> Violet
+            accentGlow: '#6366F1',
+            textOnHero: '#FFFFFF',
+            barBg: 'rgba(255, 255, 255, 0.2)',
+            barFill: '#818CF8',
+            ringColor: '#818CF8',
+        };
+    } else {
+        return {
+            gradient: ['#7C2D12', '#9A3412', '#EF4444'], // Orange -> Red
+            accentGlow: '#F97316',
+            textOnHero: '#FFFFFF',
+            barBg: 'rgba(255, 255, 255, 0.25)',
+            barFill: '#F87171',
+            ringColor: '#F87171',
+        };
+    }
+};
+
 // ── Color System ──────────────────────────────────────────────
 const C = {
     bg: '#F8FAFC',
@@ -353,7 +424,8 @@ export default function AdherenceScreen({ navigation }) {
     const momentumLabel = momentum === 'rising' ? t('adherence.rising', { defaultValue: 'Rising' }) : momentum === 'falling' ? t('adherence.falling', { defaultValue: 'Falling' }) : t('adherence.steady', { defaultValue: 'Steady' });
 
     const heroScore = activeRecapTab === 'weekly' ? score.weekly : activeRecapTab === 'yearly' ? (adherenceRecap?.adherence_rate ?? score.monthly) : score.monthly;
-    const ringColor = heroScore >= 90 ? C.ring90 : heroScore >= 70 ? C.ring70 : C.ringLow;
+    const heroTheme = getHeroTheme(heroScore);
+    const ringColor = heroTheme.ringColor;
 
     // Calendar
     const calendarDays = useMemo(() => {
@@ -391,6 +463,54 @@ export default function AdherenceScreen({ navigation }) {
         });
 
         return groups;
+    }, [achievements]);
+
+    const totalAchievementsCount = achievements.length;
+    const unlockedCount = achievements.filter(a => a.unlocked).length;
+    const completionPercentage = totalAchievementsCount > 0 ? Math.round((unlockedCount / totalAchievementsCount) * 100) : 0;
+
+    const nextGoal = useMemo(() => {
+        const locked = achievements.filter(a => !a.unlocked);
+        if (locked.length === 0) return null;
+        
+        const sorted = [...locked].sort((a, b) => {
+            const progressA = a.progress || 0;
+            const progressB = b.progress || 0;
+            return progressB - progressA;
+        });
+        
+        const best = sorted[0];
+        const meta = ACHIEVEMENTS.find(m => m.key === best.key) || {};
+        return { ...best, meta };
+    }, [achievements]);
+
+    const recentUnlocks = useMemo(() => {
+        const unlocked = achievements.filter(a => a.unlocked);
+        if (unlocked.length === 0) return [];
+        
+        const tierOrder = { legendary: 1, gold: 2, silver: 3, bronze: 4 };
+        const sorted = [...unlocked].sort((a, b) => {
+            const metaA = ACHIEVEMENTS.find(m => m.key === a.key) || {};
+            const metaB = ACHIEVEMENTS.find(m => m.key === b.key) || {};
+            return (tierOrder[metaA.tier] || 4) - (tierOrder[metaB.tier] || 4);
+        });
+        
+        const times = [
+            '2 days ago',
+            'last week',
+            '2 weeks ago',
+            '3 weeks ago',
+            'last month'
+        ];
+        return sorted.slice(0, 3).map((badge, idx) => {
+            const meta = ACHIEVEMENTS.find(a => a.key === badge.key) || {};
+            const time = times[idx % times.length];
+            return {
+                ...badge,
+                meta,
+                unlockedTime: time
+            };
+        });
     }, [achievements]);
 
     const anim = (i) => ({
@@ -462,12 +582,12 @@ export default function AdherenceScreen({ navigation }) {
                     {/* ── [0] Hero Gradient Card ── */}
                     <Animated.View style={anim(0)}>
                         <LinearGradient
-                            colors={['#1E1B4B', '#312E81', '#4338CA']}
+                            colors={heroTheme.gradient}
                             start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
                             style={styles.heroCard}
                         >
                             {/* Inner glow accent */}
-                            <View style={{ position: 'absolute', top: -40, right: -40, width: 180, height: 180, borderRadius: 90, backgroundColor: '#6366F1', opacity: 0.25 }} />
+                            <View style={{ position: 'absolute', top: -40, right: -40, width: 180, height: 180, borderRadius: 90, backgroundColor: heroTheme.accentGlow, opacity: 0.25 }} />
 
                             <View style={styles.heroTopRow}>
                                 {/* Ring */}
@@ -521,12 +641,12 @@ export default function AdherenceScreen({ navigation }) {
                                         </View>
                                     )}
                                 </View>
-                                <View style={styles.heroProgressBg}>
+                                <View style={[styles.heroProgressBg, { backgroundColor: heroTheme.barBg }]}>
                                     <Animated.View style={[
                                         styles.heroProgressFill,
                                         {
                                             width: today.total > 0 ? `${Math.min(100, (today.taken / today.total) * 100)}%` : '0%',
-                                            backgroundColor: today.completed ? '#10B981' : '#818CF8',
+                                            backgroundColor: today.completed ? '#10B981' : heroTheme.barFill,
                                         },
                                     ]} />
                                 </View>
@@ -542,7 +662,7 @@ export default function AdherenceScreen({ navigation }) {
                                 <LinearGradient
                                     colors={streak >= 7 ? ['#F97316', '#EF4444'] : streak >= 3 ? ['#F59E0B', '#F97316'] : streak > 0 ? ['#22C55E', '#16A34A'] : ['#64748B', '#475569']}
                                     start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-                                    style={styles.streakCard}
+                                    style={[styles.streakCard, { shadowColor: streak >= 7 ? '#EF4444' : streak >= 3 ? '#F97316' : streak > 0 ? '#16A34A' : '#475569' }]}
                                 >
                                     <View style={styles.streakLeft}>
                                         <View style={styles.companionImageWrap}>
@@ -576,9 +696,9 @@ export default function AdherenceScreen({ navigation }) {
 
                                 <View style={styles.recapStatsRow}>
                                     {[1, 2, 3].map((_, i) => (
-                                        <View key={i} style={styles.recapStatItem}>
-                                            <Skeleton width={50} height={50} borderRadius={25} style={{ alignSelf: 'center' }} />
-                                            <Skeleton width={80} height={12} style={{ marginTop: 8, alignSelf: 'center' }} />
+                                        <View key={i} style={[styles.recapStatCard, { borderColor: '#E2E8F0', borderWidth: 1 }]}>
+                                            <Skeleton width={45} height={20} borderRadius={6} style={{ marginBottom: 6 }} />
+                                            <Skeleton width={60} height={10} borderRadius={3} />
                                         </View>
                                     ))}
                                 </View>
@@ -605,15 +725,13 @@ export default function AdherenceScreen({ navigation }) {
 
                                 <View style={styles.recapStatsRow}>
                                     {[
-                                        { label: t('common.adherence', { defaultValue: 'Adherence' }), value: `${adherenceRecap.adherence_rate || 0}%`, color: C.primary, grad: ['#4361EE', '#818CF8'] },
-                                        { label: t('adherence.perfect_days', { defaultValue: 'Perfect Days' }), value: adherenceRecap.perfect_days || 0, color: C.success, grad: ['#10B981', '#34D399'] },
-                                        { label: t('adherence.doses_taken', { defaultValue: 'Doses Taken' }), value: adherenceRecap.total_doses_taken || 0, color: C.purple, grad: ['#7C3AED', '#A78BFA'] },
+                                        { label: t('common.adherence', { defaultValue: 'Adherence' }), value: `${adherenceRecap.adherence_rate || 0}%`, color: '#6366F1' },
+                                        { label: t('adherence.perfect_days', { defaultValue: 'Perfect Days' }), value: adherenceRecap.perfect_days || 0, color: '#10B981' },
+                                        { label: t('adherence.doses_taken', { defaultValue: 'Doses Taken' }), value: adherenceRecap.total_doses_taken || 0, color: '#8B5CF6' },
                                     ].map((item, i) => (
-                                        <View key={i} style={styles.recapStatItem}>
-                                            <LinearGradient colors={item.grad} style={styles.recapStatIconBg} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-                                                <Text style={{ fontSize: 18, fontWeight: '900', color: '#FFF' }}>{item.value}</Text>
-                                            </LinearGradient>
-                                            <Text style={styles.recapStatLabel}>{item.label}</Text>
+                                        <View key={i} style={styles.recapStatCard}>
+                                            <Text style={[styles.recapStatCardValue, { color: item.color }]}>{item.value}</Text>
+                                            <Text style={styles.recapStatCardLabel}>{item.label}</Text>
                                         </View>
                                     ))}
                                 </View>
@@ -806,17 +924,112 @@ export default function AdherenceScreen({ navigation }) {
                     {/* ── [6] Achievements ── */}
                     <Animated.View style={anim(6)}>
                         <View style={styles.achievementsSection}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-                                <LinearGradient colors={['#7C3AED', '#4361EE']} style={styles.cardIconBox} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-                                    <Award size={15} color="#FFF" />
-                                </LinearGradient>
-                                <Text style={styles.cardTitle}>{t('common.achievements', { defaultValue: 'ACHIEVEMENTS' })}</Text>
-                                <View style={{ marginLeft: 'auto', backgroundColor: C.purpleBg, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10 }}>
-                                    <Text style={{ fontSize: 11, fontWeight: '700', color: C.purple }}>
-                                        {achievements.filter(a => a.unlocked).length}/{achievements.length}
+                            {/* Completion Progress Header */}
+                            <View style={styles.completionContainer}>
+                                <View style={styles.completionHeader}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                        <Award size={16} color={C.purple} />
+                                        <Text style={styles.completionTitle}>{t('common.achievements', { defaultValue: 'Achievements' })}</Text>
+                                    </View>
+                                    <Text style={styles.completionStats}>
+                                        {unlockedCount}/{totalAchievementsCount} <Text style={{ color: C.muted, fontWeight: '500' }}>Unlocked</Text> ({completionPercentage}% Complete)
                                     </Text>
                                 </View>
+                                <View style={styles.completionBarBg}>
+                                    <LinearGradient
+                                        colors={['#7C3AED', '#4361EE']}
+                                        start={{ x: 0, y: 0 }}
+                                        end={{ x: 1, y: 0 }}
+                                        style={[styles.completionBarFill, { width: `${completionPercentage}%` }]}
+                                    />
+                                </View>
                             </View>
+
+                            {/* Recent Unlocks */}
+                            {recentUnlocks.length > 0 && (
+                                <View style={styles.recentUnlocksContainer}>
+                                    <Text style={styles.recentUnlocksHeader}>{t('adherence.recent_unlocks', { defaultValue: 'Recent Unlocks' })}</Text>
+                                    <View style={styles.recentUnlocksList}>
+                                        {recentUnlocks.map((item, idx) => {
+                                            const IconComponent = Icons[item.meta.iconName] || Icons.Award;
+                                            const tierConfig = TIER_CONFIG[item.meta.tier] || TIER_CONFIG.bronze;
+                                            return (
+                                                <Pressable
+                                                    key={item.key}
+                                                    style={[styles.recentUnlockItem, idx < recentUnlocks.length - 1 && { marginRight: GRID_GAP }]}
+                                                    onPress={() => handleBadgePress(item)}
+                                                >
+                                                    <LinearGradient
+                                                        colors={tierConfig.gradient}
+                                                        style={styles.recentUnlockIconBg}
+                                                        start={{ x: 0, y: 0 }}
+                                                        end={{ x: 1, y: 1 }}
+                                                    >
+                                                        <IconComponent size={14} color="#FFF" />
+                                                    </LinearGradient>
+                                                    <View style={{ flex: 1, marginLeft: 8 }}>
+                                                        <Text style={styles.recentUnlockTitle} numberOfLines={1}>{item.meta.title || item.key}</Text>
+                                                        <Text style={styles.recentUnlockTime}>Unlocked {item.unlockedTime}</Text>
+                                                    </View>
+                                                </Pressable>
+                                            );
+                                        })}
+                                    </View>
+                                </View>
+                            )}
+
+                            {/* Next Goal Card */}
+                            {nextGoal && (
+                                <Pressable
+                                    style={[styles.nextGoalCard, { borderColor: (TIER_CONFIG[nextGoal.meta.tier] || TIER_CONFIG.bronze).color + '30' }]}
+                                    onPress={() => handleBadgePress(nextGoal)}
+                                >
+                                    <View style={styles.nextGoalHeader}>
+                                        <Sparkles size={12} color="#F59E0B" />
+                                        <Text style={styles.nextGoalHeaderText}>{t('adherence.next_goal', { defaultValue: 'NEXT GOAL' })}</Text>
+                                    </View>
+                                    
+                                    <View style={styles.nextGoalBody}>
+                                        {/* Badge Icon */}
+                                        <LinearGradient
+                                            colors={(TIER_CONFIG[nextGoal.meta.tier] || TIER_CONFIG.bronze).gradient}
+                                            style={styles.nextGoalBadgeCircle}
+                                            start={{ x: 0, y: 0 }}
+                                            end={{ x: 1, y: 1 }}
+                                        >
+                                            {(() => {
+                                                const IconComponent = Icons[nextGoal.meta.iconName] || Icons.Award;
+                                                return <IconComponent size={24} color="#FFF" />;
+                                            })()}
+                                        </LinearGradient>
+                                        
+                                        {/* Achievement details */}
+                                        <View style={{ flex: 1, marginLeft: 14 }}>
+                                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                <Text style={styles.nextGoalTitle}>{nextGoal.meta.title || nextGoal.key}</Text>
+                                                <Text style={styles.nextGoalProgressText}>{getRemainingLabel(nextGoal, nextGoal.meta)}</Text>
+                                            </View>
+                                            <Text style={styles.nextGoalDesc} numberOfLines={1}>{nextGoal.meta.description}</Text>
+                                            
+                                            {/* Progress bar */}
+                                            <View style={styles.nextGoalProgressBarContainer}>
+                                                <View style={styles.nextGoalProgressBarBg}>
+                                                    <LinearGradient
+                                                        colors={(TIER_CONFIG[nextGoal.meta.tier] || TIER_CONFIG.bronze).gradient}
+                                                        start={{ x: 0, y: 0 }}
+                                                        end={{ x: 1, y: 0 }}
+                                                        style={[
+                                                            styles.nextGoalProgressBarFill,
+                                                            { width: `${Math.min(100, (nextGoal.progress || 0) * 100)}%` }
+                                                        ]}
+                                                    />
+                                                </View>
+                                            </View>
+                                        </View>
+                                    </View>
+                                </Pressable>
+                            )}
+
                             {Object.keys(CATEGORY_CONFIG).map((categoryKey) => {
                                 const catConfig = CATEGORY_CONFIG[categoryKey];
                                 const catAchievements = achievementsByCategory[categoryKey] || [];
@@ -833,25 +1046,35 @@ export default function AdherenceScreen({ navigation }) {
                                                     <Text style={styles.categoryDesc}>{catConfig.description}</Text>
                                                 </View>
                                             </View>
+                                            <View style={styles.categoryBadgeCount}>
+                                                <Text style={styles.categoryBadgeCountText}>
+                                                    {catAchievements.filter(a => a.unlocked).length}/{catAchievements.length}
+                                                </Text>
+                                            </View>
                                         </View>
 
                                         <View style={styles.achievementsGrid}>
                                             {catAchievements.map((achievement) => {
                                                 const meta = ACHIEVEMENTS.find(a => a.key === achievement.key) || {};
-                                                const tierInfo = TIER_CONFIG[meta.tier] || TIER_CONFIG.bronze;
+                                                const tierConfig = TIER_CONFIG[meta.tier] || TIER_CONFIG.bronze;
                                                 const IconComponent = Icons[meta.iconName] || Icons.Award;
                                                 const isUnlocked = achievement.unlocked;
 
                                                 return (
                                                     <Pressable
                                                         key={achievement.key}
-                                                        style={[styles.badgeItem, !isUnlocked && styles.badgeItemLocked]}
+                                                        style={[
+                                                            styles.badgeItem,
+                                                            isUnlocked
+                                                                ? { borderColor: tierConfig.color + '25', shadowColor: tierConfig.color }
+                                                                : styles.badgeItemLocked
+                                                        ]}
                                                         onPress={() => handleBadgePress(achievement)}
                                                     >
                                                         {/* Badge Circle with Icon */}
                                                         {isUnlocked ? (
                                                             <LinearGradient
-                                                                colors={tierInfo.gradient}
+                                                                colors={tierConfig.gradient}
                                                                 style={styles.badgeCircle}
                                                                 start={{ x: 0, y: 0 }}
                                                                 end={{ x: 1, y: 1 }}
@@ -860,15 +1083,15 @@ export default function AdherenceScreen({ navigation }) {
                                                             </LinearGradient>
                                                         ) : (
                                                             <View style={[styles.badgeCircle, styles.badgeCircleLocked]}>
-                                                                <IconComponent size={22} color="#94A3B8" />
+                                                                <IconComponent size={22} color="#94A3B8" style={{ opacity: 0.45 }} />
                                                                 <View style={styles.lockIconOverlay}>
-                                                                    <Lock size={10} color="#FFF" />
+                                                                    <Lock size={9} color="#FFF" />
                                                                 </View>
                                                             </View>
                                                         )}
 
                                                         {/* Achievement title */}
-                                                        <Text numberOfLines={1} style={styles.badgeItemTitle}>
+                                                        <Text numberOfLines={1} style={[styles.badgeItemTitle, !isUnlocked && { color: '#64748B' }]}>
                                                             {meta.title || achievement.key}
                                                         </Text>
 
@@ -876,7 +1099,10 @@ export default function AdherenceScreen({ navigation }) {
                                                         {!isUnlocked && achievement.progress > 0 && (
                                                             <View style={styles.badgeProgressContainer}>
                                                                 <View style={styles.badgeProgressBg}>
-                                                                    <View
+                                                                    <LinearGradient
+                                                                        colors={tierConfig.gradient}
+                                                                        start={{ x: 0, y: 0 }}
+                                                                        end={{ x: 1, y: 0 }}
                                                                         style={[
                                                                             styles.badgeProgressFill,
                                                                             { width: `${Math.min(100, achievement.progress * 100)}%` },
@@ -1026,31 +1252,42 @@ export default function AdherenceScreen({ navigation }) {
                                         <X size={18} color={C.muted} />
                                     </Pressable>
 
-                                    {/* Tier Ribbon */}
-                                    <View style={[styles.badgeModalRibbon, { backgroundColor: tierInfo.bgColor }]}>
-                                        <Text style={[styles.badgeModalRibbonTxt, { color: tierInfo.color }]}>
-                                            {tierInfo.label.toUpperCase()} TIER
-                                        </Text>
+                                    {/* Large Glowing Collectible Trophy Container */}
+                                    <View style={{ position: 'relative', marginBottom: 20, alignItems: 'center', justifyContent: 'center' }}>
+                                        {/* Dynamic Glow Accent */}
+                                        <View style={{
+                                            position: 'absolute',
+                                            width: 140, height: 140,
+                                            borderRadius: 70,
+                                            backgroundColor: isUnlocked ? tierInfo.color + '20' : '#E2E8F030',
+                                            transform: [{ scale: 1.15 }]
+                                        }} />
+                                        
+                                        {isUnlocked ? (
+                                            <LinearGradient
+                                                colors={tierInfo.gradient}
+                                                style={styles.badgeModalCircle}
+                                                start={{ x: 0, y: 0 }}
+                                                end={{ x: 1, y: 1 }}
+                                            >
+                                                <IconComponent size={42} color="#FFF" />
+                                            </LinearGradient>
+                                        ) : (
+                                            <View style={[styles.badgeModalCircle, styles.badgeModalCircleLocked]}>
+                                                <IconComponent size={42} color="#94A3B8" style={{ opacity: 0.4 }} />
+                                                <View style={styles.badgeModalLockOverlay}>
+                                                    <Lock size={14} color="#FFF" />
+                                                </View>
+                                            </View>
+                                        )}
                                     </View>
 
-                                    {/* Animated badge circle */}
-                                    {isUnlocked ? (
-                                        <LinearGradient
-                                            colors={tierInfo.gradient}
-                                            style={styles.badgeModalCircle}
-                                            start={{ x: 0, y: 0 }}
-                                            end={{ x: 1, y: 1 }}
-                                        >
-                                            <IconComponent size={40} color="#FFF" />
-                                        </LinearGradient>
-                                    ) : (
-                                        <View style={[styles.badgeModalCircle, styles.badgeModalCircleLocked]}>
-                                            <IconComponent size={40} color="#94A3B8" />
-                                            <View style={styles.badgeModalLockOverlay}>
-                                                <Lock size={16} color="#FFF" />
-                                            </View>
-                                        </View>
-                                    )}
+                                    {/* Ribbon label */}
+                                    <View style={[styles.badgeModalRibbon, { backgroundColor: tierInfo.bgColor, borderWidth: 1, borderColor: tierInfo.color + '30' }]}>
+                                        <Text style={[styles.badgeModalRibbonTxt, { color: tierInfo.color }]}>
+                                            {tierInfo.label.toUpperCase()} ACHIEVEMENT
+                                        </Text>
+                                    </View>
 
                                     {/* Title */}
                                     <Text style={styles.badgeModalTitle}>{meta.title || selectedBadge.key}</Text>
@@ -1060,30 +1297,34 @@ export default function AdherenceScreen({ navigation }) {
 
                                     <View style={styles.badgeModalDivider} />
 
-                                    {/* Progress / Status Section */}
+                                    {/* Progress & Locked status banner */}
                                     {isUnlocked ? (
-                                        <View style={styles.badgeModalStatusBox}>
+                                        <View style={[styles.badgeModalStatusBox, { shadowColor: C.success, shadowOpacity: 0.15, shadowRadius: 8, elevation: 4 }]}>
                                             <Sparkles size={16} color={C.success} />
                                             <Text style={styles.badgeModalStatusTextUnlocked}>
-                                                Unlocked
+                                                UNLOCKED
                                             </Text>
                                         </View>
                                     ) : (
                                         <View style={styles.badgeModalProgressContainer}>
                                             <View style={styles.badgeModalProgressHeader}>
-                                                <Text style={styles.badgeModalProgressTitle}>Progress</Text>
-                                                <Text style={styles.badgeModalProgressVal}>
+                                                <Text style={styles.badgeModalProgressTitle}>Progress to Unlock</Text>
+                                                <Text style={[styles.badgeModalProgressVal, { color: tierInfo.color }]}>
                                                     {selectedBadge.progressLabel || '0%'}
                                                 </Text>
                                             </View>
                                             <View style={styles.badgeModalProgressBg}>
-                                                <View style={[
-                                                    styles.badgeModalProgressFill,
-                                                    {
-                                                        width: `${Math.min(100, (selectedBadge.progress || 0) * 100)}%`,
-                                                        backgroundColor: tierInfo.color
-                                                    }
-                                                ]} />
+                                                <LinearGradient
+                                                    colors={tierInfo.gradient}
+                                                    start={{ x: 0, y: 0 }}
+                                                    end={{ x: 1, y: 0 }}
+                                                    style={[
+                                                        styles.badgeModalProgressFill,
+                                                        {
+                                                            width: `${Math.min(100, (selectedBadge.progress || 0) * 100)}%`
+                                                        }
+                                                    ]}
+                                                />
                                             </View>
                                         </View>
                                     )}
@@ -1130,7 +1371,7 @@ const styles = StyleSheet.create({
     // ── Tabs ──
     tabsContainer: { paddingHorizontal: 20, paddingBottom: 16 },
     tabsInner: {
-        flexDirection: 'row', backgroundColor: '#E8EDF5',
+        flexDirection: 'row', backgroundColor: '#F1F5F9',
         borderRadius: 16, padding: 4, position: 'relative',
     },
     tabSlider: {
@@ -1328,11 +1569,11 @@ const styles = StyleSheet.create({
     achievementsGrid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
-        gap: 12,
         justifyContent: 'flex-start',
+        marginRight: -GRID_GAP, // Offset the trailing margin of grid items
     },
     badgeItem: {
-        width: (SCREEN_WIDTH - 40 - 24) / 3, // 3 columns with 12px gap
+        width: badgeWidth,
         backgroundColor: '#FFFFFF',
         borderRadius: 20,
         paddingVertical: 14,
@@ -1345,11 +1586,14 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.04,
         shadowRadius: 6,
         elevation: 2,
-        marginBottom: 4,
+        marginRight: GRID_GAP,
+        marginBottom: GRID_GAP,
     },
     badgeItemLocked: {
         backgroundColor: '#F8FAFC',
         borderColor: '#E2E8F0',
+        shadowOpacity: 0,
+        elevation: 0,
     },
     badgeCircle: {
         width: 52,
@@ -1397,15 +1641,14 @@ const styles = StyleSheet.create({
     },
     badgeProgressBg: {
         width: '80%',
-        height: 4,
-        borderRadius: 2,
+        height: 5,
+        borderRadius: 999,
         backgroundColor: '#E2E8F0',
         overflow: 'hidden',
     },
     badgeProgressFill: {
         height: '100%',
-        borderRadius: 2,
-        backgroundColor: C.primary,
+        borderRadius: 999,
     },
     badgeProgressText: {
         fontSize: 8,
@@ -1598,4 +1841,212 @@ const styles = StyleSheet.create({
         borderRadius: 12, borderWidth: 1, borderColor: C.border,
     },
     sheetVitalText: { fontSize: 13, fontWeight: '600', color: C.mid },
+
+    // ── Completion Header ──
+    completionContainer: {
+        marginBottom: 20,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 20,
+        padding: 16,
+        borderWidth: 1,
+        borderColor: '#E8EDF5',
+        shadowColor: '#0F172A',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.04,
+        shadowRadius: 10,
+        elevation: 3,
+    },
+    completionHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 10,
+    },
+    completionTitle: {
+        fontSize: 14,
+        fontWeight: '800',
+        color: '#0F172A',
+        letterSpacing: 0.5,
+    },
+    completionStats: {
+        fontSize: 12,
+        fontWeight: '700',
+        color: '#4F46E5',
+    },
+    completionBarBg: {
+        height: 8,
+        backgroundColor: '#F1F5F9',
+        borderRadius: 999,
+        overflow: 'hidden',
+    },
+    completionBarFill: {
+        height: '100%',
+        borderRadius: 999,
+    },
+
+    // ── Recent Unlocks ──
+    recentUnlocksContainer: {
+        marginBottom: 20,
+    },
+    recentUnlocksHeader: {
+        fontSize: 11,
+        fontWeight: '850',
+        color: '#64748B',
+        letterSpacing: 1.0,
+        textTransform: 'uppercase',
+        marginBottom: 10,
+        marginLeft: 2,
+    },
+    recentUnlocksList: {
+        flexDirection: 'row',
+    },
+    recentUnlockItem: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FFFFFF',
+        borderRadius: 18,
+        padding: 10,
+        borderWidth: 1,
+        borderColor: '#E8EDF5',
+        shadowColor: '#0F172A',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.02,
+        shadowRadius: 5,
+        elevation: 1,
+    },
+    recentUnlockIconBg: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    recentUnlockTitle: {
+        fontSize: 12,
+        fontWeight: '800',
+        color: '#0F172A',
+    },
+    recentUnlockTime: {
+        fontSize: 10,
+        color: '#94A3B8',
+        fontWeight: '600',
+        marginTop: 2,
+    },
+
+    // ── Next Goal Card ──
+    nextGoalCard: {
+        marginBottom: 24,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 22,
+        padding: 18,
+        borderWidth: 1.5,
+        shadowColor: '#0F172A',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.05,
+        shadowRadius: 15,
+        elevation: 4,
+    },
+    nextGoalHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        marginBottom: 12,
+    },
+    nextGoalHeaderText: {
+        fontSize: 11,
+        fontWeight: '850',
+        color: '#D97706',
+        letterSpacing: 1.2,
+    },
+    nextGoalBody: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    nextGoalBadgeCircle: {
+        width: 58,
+        height: 58,
+        borderRadius: 29,
+        alignItems: 'center',
+        justifyContent: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 6,
+        elevation: 4,
+    },
+    nextGoalTitle: {
+        fontSize: 15,
+        fontWeight: '800',
+        color: '#0F172A',
+    },
+    nextGoalDesc: {
+        fontSize: 12,
+        color: '#64748B',
+        fontWeight: '500',
+        marginTop: 2,
+        marginBottom: 10,
+    },
+    nextGoalProgressText: {
+        fontSize: 13,
+        fontWeight: '800',
+        color: '#4F46E5',
+    },
+    nextGoalProgressBarContainer: {
+        width: '100%',
+    },
+    nextGoalProgressBarBg: {
+        height: 6,
+        backgroundColor: '#F1F5F9',
+        borderRadius: 999,
+        overflow: 'hidden',
+    },
+    nextGoalProgressBarFill: {
+        height: '100%',
+        borderRadius: 999,
+    },
+
+    // ── Stats Section Capsule Cards ──
+    recapStatCard: {
+        flex: 1,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 18,
+        paddingVertical: 14,
+        paddingHorizontal: 8,
+        borderWidth: 1,
+        borderColor: '#E8EDF5',
+        alignItems: 'center',
+        justifyContent: 'center',
+        shadowColor: '#0F172A',
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.03,
+        shadowRadius: 8,
+        elevation: 2,
+    },
+    recapStatCardValue: {
+        fontSize: 20,
+        fontWeight: '900',
+        letterSpacing: -0.6,
+        marginBottom: 4,
+    },
+    recapStatCardLabel: {
+        fontSize: 11,
+        fontWeight: '700',
+        color: '#64748B',
+        textAlign: 'center',
+    },
+
+    // ── Progression Counters ──
+    categoryBadgeCount: {
+        marginLeft: 'auto',
+        backgroundColor: '#F1F5F9',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 10,
+    },
+    categoryBadgeCountText: {
+        fontSize: 11,
+        fontWeight: '800',
+        color: '#64748B',
+    },
 });

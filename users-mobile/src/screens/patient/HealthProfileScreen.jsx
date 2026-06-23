@@ -18,6 +18,7 @@ import { StatusBar } from 'react-native';
 import Svg, { Circle as SvgCircle, Path, Defs, LinearGradient as SvgLinearGradient, Stop, Rect } from 'react-native-svg';
 import * as Haptics from 'expo-haptics';
 import { apiService } from '../../lib/api';
+import usePatientStore from '../../store/usePatientStore';
 import { initializeHealthPlatform, requestHealthPermissions, fetchDailyVitalsSummary, isHealthSupported } from '../../lib/healthIntegration';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { COUNTRY_CODES, parsePhoneWithCode, validatePhone } from '../../utils/phoneUtils';
@@ -160,8 +161,9 @@ const getConsistencyStyle = (score) => {
 export default function HealthProfileScreen({ navigation }) {
     const { t } = useTranslation();
     const reduceMotion = useReduceMotion();
-    const [profile, setProfile] = useState(null);
-    const [loading, setLoading] = useState(true);
+    const storePatient = usePatientStore(s => s.patient);
+    const [profile, setProfile] = useState(() => storePatient || null);
+    const [loading, setLoading] = useState(() => !storePatient);
     const [isSyncing, setIsSyncing] = useState(false);
     const [healthSdkReady, setHealthSdkReady] = useState(false);
     const [visibleHistoryCount, setVisibleHistoryCount] = useState(3);
