@@ -264,22 +264,41 @@ export default function MyCallerScreen({ navigation }) {
     return `${d.toLocaleDateString('en-IN', { weekday: 'short', month: 'short', day: 'numeric' })}, ${time}`;
   };
 
-  const formatLastActive = (lastActiveAt) => {
-    if (!lastActiveAt) return `⚫ ${t('caller.offline_now', { defaultValue: 'Offline' })}`;
-    const d = new Date(lastActiveAt);
-    const now = new Date();
-    const diffMs = now - d;
-    if (isNaN(diffMs) || diffMs < 0) return `⚫ ${t('caller.offline_now', { defaultValue: 'Offline' })}`;
-
-    const diffMin = Math.floor(diffMs / 60000);
-    if (diffMin < 2) {
-      return `🟢 ${t('caller.online_now', { defaultValue: 'Online' })}`;
+  const getStatusConfig = (profile) => {
+    const lastActiveAt = profile?.last_active_at;
+    const availability = profile?.availability;
+    
+    // Default fallback
+    let text = t('caller.offline_now', { defaultValue: 'Offline' });
+    let dotColor = '#94A3B8'; // gray
+    
+    if (availability === 'available') {
+      text = t('caller.online_now', { defaultValue: 'Online' });
+      dotColor = '#10B981'; // green
+    } else if (availability === 'recently_active' || availability === 'busy') {
+      text = t('caller.recently_active', { defaultValue: 'Recently Active' });
+      dotColor = '#3B82F6'; // blue
+    } else if (lastActiveAt) {
+      const d = new Date(lastActiveAt);
+      const now = new Date();
+      const diffMs = now - d;
+      if (!isNaN(diffMs) && diffMs >= 0) {
+        const diffMin = Math.floor(diffMs / 60000);
+        if (diffMin < 2) {
+          text = t('caller.online_now', { defaultValue: 'Online' });
+          dotColor = '#10B981';
+        } else if (diffMin < 60) {
+          text = t('caller.active_mins_ago', { defaultValue: `Active ${diffMin}m ago` });
+          dotColor = '#3B82F6';
+        } else {
+          const formattedDate = formatDate(lastActiveAt);
+          text = `Last seen ${formattedDate}`;
+          dotColor = '#94A3B8';
+        }
+      }
     }
-    if (diffMin < 60) {
-      return `🟡 ${t('caller.active_mins_ago', { defaultValue: `Active ${diffMin}m ago` })}`;
-    }
-    const formattedDate = formatDate(lastActiveAt);
-    return `⚫ Last seen ${formattedDate}`;
+    
+    return { text, dotColor };
   };
 
   const formatDuration = (seconds) => {
@@ -724,6 +743,7 @@ export default function MyCallerScreen({ navigation }) {
           const profileExp     = selectedProfile?.experience_years || 0;
           const profileLang    = selectedProfile?.languages_spoken?.[0] || 'English';
           const profilePhone   = selectedProfile?.phone;
+          const statusCfg      = getStatusConfig(selectedProfile);
 
           return (
             <>
@@ -761,16 +781,17 @@ export default function MyCallerScreen({ navigation }) {
                           <View style={[
                             s.sheetOnlineDot,
                             {
-                              backgroundColor: selectedProfile?.availability === 'available' ? '#10B981' : selectedProfile?.availability === 'recently_active' ? '#3B82F6' : selectedProfile?.availability === 'busy' ? '#3B82F6' : '#94A3B8'
+                              backgroundColor: statusCfg.dotColor
                             }
                           ]} />
                         </View>
                         <View style={s.sheetHeroInfo}>
                           <Text style={s.sheetName} numberOfLines={1}>{profileName}</Text>
                           <Text style={s.sheetIdText}>{profileIdText}</Text>
-                          <Text style={s.sheetLastOnlineText}>
-                            {formatLastActive(selectedProfile?.last_active_at)}
-                          </Text>
+                          <View style={s.sheetStatusBadge}>
+                            <View style={[s.sheetStatusDot, { backgroundColor: statusCfg.dotColor }]} />
+                            <Text style={s.sheetStatusText}>{statusCfg.text}</Text>
+                          </View>
                           <View style={s.sheetBadge}>
                             <Star size={10} color="#FCD34D" fill="#FCD34D" strokeWidth={2} />
                             <Text style={s.sheetBadgeText}>Certified Professional</Text>
@@ -1265,7 +1286,29 @@ const s = StyleSheet.create({
   sheetHeroInfo: { flex: 1 },
   sheetName:    { fontSize: 22, fontWeight: '800', color: '#FFF', letterSpacing: -0.5, marginBottom: 4 },
   sheetIdText:  { fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.6)', marginBottom: 4 },
-  sheetLastOnlineText: { fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.85)', marginBottom: 8 },
+  sheetStatusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  sheetStatusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  sheetStatusText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#FFF',
+  },
   sheetBadge:   { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(255,255,255,0.12)', alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 },
   sheetBadgeText: { fontSize: 11, fontWeight: '700', color: 'rgba(255,255,255,0.85)' },
 

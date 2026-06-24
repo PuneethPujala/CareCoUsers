@@ -18,6 +18,7 @@ import { useAuth } from '../../context/AuthContext';
 import { apiService } from '../../lib/api';
 import { useFocusEffect } from '@react-navigation/native';
 import HealthSyncService from '../../services/HealthSyncService';
+import { checkPermissionStatus, fetchSleepSessions, initializeHealthPlatform } from '../../lib/healthIntegration';
 import { syncAllSchedules } from '../../utils/notifications';
 import usePatientStore from '../../store/usePatientStore';
 import SmartInput from '../../components/ui/SmartInput';
@@ -413,6 +414,57 @@ export default function PatientHomeScreen({ navigation }) {
 
     const checkEstimatedSleep = async () => {
         try {
+            // Silently initialize health platform
+            const isHealthInit = await initializeHealthPlatform();
+            if (isHealthInit) {
+                const permStatus = await checkPermissionStatus();
+                if (permStatus === 'granted') {
+                    // Fetch sleep sessions for the last 24 hours
+                    const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+                    const sessions = await fetchSleepSessions(since);
+
+                    if (sessions && sessions.length > 0) {
+                        // Sort sessions by endTime descending to get the latest completed sleep session.
+                        const sorted = [...sessions].sort((a, b) => new Date(b.endTime) - new Date(a.endTime));
+                        const latestSession = sorted[0];
+
+                        const start = new Date(latestSession.startTime);
+                        const end = new Date(latestSession.endTime);
+                        const durationHours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+
+                        // If session is within reasonable range (3 to 16 hours)
+                        if (durationHours >= 3 && durationHours <= 16) {
+                            const todayStr = new Date().toDateString();
+                            const lastPrompted = await AsyncStorage.getItem('last_sleep_prompt_date');
+                            if (lastPrompted !== todayStr) {
+                                const formatTime = (date) => {
+                                    let hrs = date.getHours();
+                                    const minutes = date.getMinutes();
+                                    const ampm = hrs >= 12 ? 'PM' : 'AM';
+                                    hrs = hrs % 12;
+                                    hrs = hrs ? hrs : 12;
+                                    const minStr = minutes < 10 ? '0' + minutes : minutes;
+                                    return `${hrs}:${minStr} ${ampm}`;
+                                };
+
+                                setEstimatedSleep({
+                                    hours: Math.round(durationHours * 10) / 10,
+                                    rawHours: durationHours,
+                                    startTime: formatTime(start),
+                                    endTime: formatTime(end),
+                                    dateStr: todayStr,
+                                    lastActiveTime: start.getTime(),
+                                    currentTime: end.getTime(),
+                                    source: 'native_health',
+                                });
+                                return; // Found valid sleep session, skip inactivity check
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Fallback to AsyncStorage inactivity check if no permission or no native sleep data was found
             const lastActiveStr = await AsyncStorage.getItem('last_active_timestamp');
             if (!lastActiveStr) return;
 
@@ -454,7 +506,8 @@ export default function PatientHomeScreen({ navigation }) {
                             endTime: formatTime(currentDate),
                             dateStr: todayStr,
                             lastActiveTime,
-                            currentTime
+                            currentTime,
+                            source: 'device_inactivity',
                         });
                     }
                 }
@@ -467,11 +520,14 @@ export default function PatientHomeScreen({ navigation }) {
     const handleConfirmSleep = async () => {
         if (!estimatedSleep) return;
         try {
+            const apiSource = estimatedSleep.source === 'native_health'
+                ? (Platform.OS === 'android' ? 'health_connect' : 'healthkit')
+                : 'manual';
             await apiService.patients.logSleep({
                 hours: estimatedSleep.hours,
                 date: new Date(estimatedSleep.lastActiveTime).toISOString(),
                 quality: 'good',
-                source: 'device_inactivity',
+                source: apiSource,
             });
             await AsyncStorage.setItem('last_sleep_prompt_date', estimatedSleep.dateStr);
             setEstimatedSleep(null);
@@ -509,11 +565,14 @@ export default function PatientHomeScreen({ navigation }) {
     const logCustomSleep = async (hours) => {
         if (!estimatedSleep) return;
         try {
+            const apiSource = estimatedSleep.source === 'native_health'
+                ? (Platform.OS === 'android' ? 'health_connect' : 'healthkit')
+                : 'manual';
             await apiService.patients.logSleep({
                 hours: hours,
                 date: new Date(estimatedSleep.lastActiveTime).toISOString(),
                 quality: 'good',
-                source: 'device_inactivity',
+                source: apiSource,
             });
             await AsyncStorage.setItem('last_sleep_prompt_date', estimatedSleep.dateStr);
             setEstimatedSleep(null);
@@ -1297,7 +1356,7 @@ export default function PatientHomeScreen({ navigation }) {
                         </View>
                     )}
 
-                    {/* Sleep Inactivity Prompt Banner */}
+                    {/* Sleep Inactivity/Native Detection Prompt Banner */}
                     {estimatedSleep && (
                         <Animated.View style={[entranceStyle(1), { marginBottom: 20 }]}>
                             <View style={styles.sleepPromptCard}>
@@ -1305,12 +1364,38 @@ export default function PatientHomeScreen({ navigation }) {
                                     <View style={styles.sleepIconBox}>
                                         <Watch size={18} color="#4F46E5" />
                                     </View>
-                                    <Text style={styles.sleepPromptTitle}>🌙 Phone Inactivity</Text>
+                                    <Text style={styles.sleepPromptTitle}>
+                                        {estimatedSleep.source === 'native_health' ? '🌙 Sleep Detected' : '🌙 Phone Inactivity'}
+                                    </Text>
                                 </View>
                                 <Text style={styles.sleepPromptText}>
-                                    Your phone was quiet for <Text style={{ fontWeight: '800', color: '#1E1B4B' }}>{estimatedSleep.hours} hours</Text> last night ({estimatedSleep.startTime} to {estimatedSleep.endTime}).
-                                    {"\n\n"}How many hours did you actually sleep?
+                                    {estimatedSleep.source === 'native_health' ? (
+                                        <>Your watch or phone logged <Text style={{ fontWeight: '800', color: '#1E1B4B' }}>{estimatedSleep.hours} hours</Text> of sleep last night ({estimatedSleep.startTime} to {estimatedSleep.endTime}).</>
+                                    ) : (
+                                        <>Your phone was quiet for <Text style={{ fontWeight: '800', color: '#1E1B4B' }}>{estimatedSleep.hours} hours</Text> last night ({estimatedSleep.startTime} to {estimatedSleep.endTime}).</>
+                                    )}
+                                    {"\n\n"}Is this correct?
                                 </Text>
+
+                                <View style={[styles.sleepPromptActions, { marginBottom: 14 }]}>
+                                    <Pressable
+                                        style={({ pressed }) => [styles.sleepPromptBtnYes, { flex: 1, height: 40 }, pressed && { opacity: 0.8 }]}
+                                        onPress={handleConfirmSleep}
+                                    >
+                                        <Text style={styles.sleepPromptBtnYesText}>Yes, log {estimatedSleep.hours}h</Text>
+                                    </Pressable>
+                                    <Pressable
+                                        style={({ pressed }) => [styles.sleepPromptBtnNo, { height: 40 }, pressed && { opacity: 0.8 }]}
+                                        onPress={handleDismissSleep}
+                                    >
+                                        <Text style={styles.sleepPromptBtnNoText}>Dismiss</Text>
+                                    </Pressable>
+                                </View>
+
+                                <Text style={[styles.sleepPromptText, { fontSize: 11, marginBottom: 8, opacity: 0.8 }]}>
+                                    Or log custom duration:
+                                </Text>
+
                                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 4 }}>
                                     {[5, 6, 7, 8, 9, 10].map(h => (
                                         <Pressable
@@ -1321,12 +1406,6 @@ export default function PatientHomeScreen({ navigation }) {
                                             <Text style={styles.sleepHourBtnText}>{h}h</Text>
                                         </Pressable>
                                     ))}
-                                    <Pressable
-                                        style={({ pressed }) => [styles.sleepHourBtnDismiss, pressed && { opacity: 0.7 }]}
-                                        onPress={handleDismissSleep}
-                                    >
-                                        <Text style={styles.sleepHourBtnDismissText}>Dismiss</Text>
-                                    </Pressable>
                                 </ScrollView>
                             </View>
                         </Animated.View>

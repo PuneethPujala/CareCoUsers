@@ -544,9 +544,29 @@ async function getHealthHistory(patientId, timezone = 'Asia/Kolkata') {
     // Find all history records for the patient, sorted by date ascending
     let history = await PatientHealthStateHistory.find({ patient_id: patientId }).sort({ date: 1 }).lean();
     
+    // Check if backfill is currently active/pending
+    let isBackfilling = activeInProcessBackfills.has(patientId.toString());
+    if (!isBackfilling) {
+        try {
+            const { healthHistoryBackfillQueue } = require('../jobs/jobQueues');
+            if (healthHistoryBackfillQueue) {
+                const job = await healthHistoryBackfillQueue.getJob(`backfill-${patientId}`);
+                if (job) {
+                    const state = await job.getState();
+                    if (state === 'active' || state === 'waiting' || state === 'delayed') {
+                        isBackfilling = true;
+                    }
+                }
+            }
+        } catch (e) {
+            // Ignore error
+        }
+    }
+    
     // If history is empty or low, trigger backfill asynchronously
-    if (history.length < 5) {
+    if (history.length < 5 && !isBackfilling) {
         logger.info(`[PatientHealthStateService] History low (${history.length} records). Triggering background backfill for patient ${patientId}`);
+        isBackfilling = true;
         if (process.env.NODE_ENV !== 'test' && process.env.USE_BULLMQ_WORKERS !== 'true') {
             backfillHealthStateHistory(patientId, timezone).catch(err => logger.error('[PatientHealthStateService] In-process background backfill failed', { error: err.message }));
         } else {
@@ -598,6 +618,7 @@ async function getHealthHistory(patientId, timezone = 'Asia/Kolkata') {
     
     return {
         history,
+        isBackfilling,
         deltas: {
             score_delta_7d,
             score_delta_30d,

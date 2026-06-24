@@ -8,6 +8,11 @@ const PushNotificationService = require('../../utils/pushNotifications');
 const { authenticateSession } = require('../../middleware/authenticate');
 const { getOrCreatePatient } = require('../../utils/patientHelpers');
 const logger = require('../../utils/logger');
+const {
+    shouldNegotiateMarkdown,
+    formatTodayMedicationsMarkdown,
+    formatAdherenceDetailsMarkdown
+} = require('../../utils/markdownFormatter');
 
 const router = express.Router();
 
@@ -273,6 +278,13 @@ router.get('/today', authenticateSession, async (req, res) => {
                     refillInfo: patMed?.refillInfo || null,
                 };
             });
+        }
+
+        res.setHeader('Vary', 'Accept');
+        if (shouldNegotiateMarkdown(req)) {
+            const md = formatTodayMedicationsMarkdown(logObj, preferences);
+            res.setHeader('Content-Type', 'text/markdown; charset=utf-8');
+            return res.send(md);
         }
 
         res.json({ log: logObj, preferences });
@@ -832,24 +844,19 @@ router.get('/adherence/details', authenticateSession, async (req, res) => {
         // ── Persistent Achievements (Duolingo-style: once earned, never lost) ──
         const previouslyUnlocked = new Set(patient.unlockedAchievements || []);
         const achievements = [];
-        const perfectDays = dailyLog.filter(d => d.rate === 100);
+        const perfectDays = dailyLog.filter(d => d.total > 0 && d.rate === 100);
         const totalTakenAllTime = dailyLog.reduce((s, d) => s + d.taken, 0);
-        const has3Consecutive = (() => {
-            let count = 0;
-            for (const d of dailyLog) {
-                if (d.rate >= 80) { count++; if (count >= 3) return true; }
-                else count = 0;
+
+        // Reusable: compute longest consecutive run of days at >= threshold%
+        const longestConsecutiveRun = (log, threshold) => {
+            let max = 0, c = 0;
+            for (const d of log) {
+                if (d.rate >= threshold) { c++; max = Math.max(max, c); }
+                else c = 0;
             }
-            return false;
-        })();
-        const has14Consecutive = (() => {
-            let count = 0;
-            for (const d of dailyLog) {
-                if (d.rate >= 80) { count++; if (count >= 14) return true; }
-                else count = 0;
-            }
-            return false;
-        })();
+            return max;
+        };
+        const maxConsecutive80 = longestConsecutiveRun(dailyLog, 80);
 
         // BUG 7 FIX: only considers logs that actually have morning/night entries
         const logsWithMorningMeds = dailyLog.filter(log =>
@@ -870,36 +877,121 @@ router.get('/adherence/details', authenticateSession, async (req, res) => {
         );
         const vitalsLoggedDays = dailyLog.filter(d => d.vitals).length;
 
+        // BP stabilized: count consecutive days with systolic BP logged
+        const bpLoggedDays = dailyLog.filter(d => d.vitals && (d.vitals.systolic || d.vitals.blood_pressure_systolic));
+        let maxConsecutiveBP = 0, bpRun = 0;
+        for (const d of dailyLog) {
+            if (d.vitals && (d.vitals.systolic || d.vitals.blood_pressure_systolic)) {
+                bpRun++; maxConsecutiveBP = Math.max(maxConsecutiveBP, bpRun);
+            } else { bpRun = 0; }
+        }
+
+        // Profile completeness: count filled-in optional health profile fields
+        const profileFields = [
+            patient.date_of_birth, patient.gender, patient.phone,
+            patient.blood_type && patient.blood_type !== 'unknown',
+            patient.lifestyle?.height_cm || patient.height_cm,
+            patient.lifestyle?.weight_kg || patient.weight_kg,
+            (patient.conditions && patient.conditions.length > 0),
+            (patient.trusted_contacts && patient.trusted_contacts.length > 0),
+            (patient.allergies && patient.allergies.length > 0),
+            (patient.medications && patient.medications.length > 0),
+        ];
+        const filledFields = profileFields.filter(Boolean).length;
+        const profilePct = Math.round((filledFields / profileFields.length) * 100);
+
+        // Score improvement: compare earliest 7-day score vs latest 7-day score
+        const earliest7 = dailyLog.slice(0, 7);
+        const scoreImprovement = weeklyScore - calcScore(earliest7);
+
+        // ── Health/Wellbeing Tracking Metrics ──
+        const moodLogs = patient.moodHistory || [];
+        const moodDates = new Set(moodLogs.map(m => {
+            const d = new Date(m.date);
+            return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+        }));
+        const moodLoggedDays = moodDates.size;
+        
+        const positiveMoodDays = new Set(moodLogs.filter(m => m.value === 'good' || m.value === 'great').map(m => {
+            const d = new Date(m.date);
+            return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+        }));
+        let maxConsecutivePositiveMood = 0;
+        let currentPositiveMood = 0;
+        for (const d of dailyLog) {
+            if (positiveMoodDays.has(d.date)) {
+                currentPositiveMood++;
+                maxConsecutivePositiveMood = Math.max(maxConsecutivePositiveMood, currentPositiveMood);
+            } else {
+                currentPositiveMood = 0;
+            }
+        }
+        
+        const hydrationDays = dailyLog.filter(d => d.vitals && d.vitals.hydration != null).length;
+        
+        const comprehensiveVitalsDays = dailyLog.filter(d => d.vitals && 
+            d.vitals.heart_rate != null && 
+            (d.vitals.systolic != null || d.vitals.blood_pressure_systolic != null) && 
+            d.vitals.oxygen_saturation != null
+        ).length;
+
         // Current eligibility + progress for each badge
+        // Tiers match frontend constants/achievements.js exactly
         const badgeDefs = [
             // ── BRONZE TIER (Starter) ──
-            { key: 'first_dose', label: 'First Dose', description: 'Take your very first medication', emoji: '💊', tier: 'bronze',
+            { key: 'first_dose', label: 'First Dose', description: 'Log your very first medication dose', emoji: '💊', tier: 'bronze',
               unlockCheck: totalTakenAllTime >= 1, progress: Math.min(totalTakenAllTime / 1, 1), progressLabel: `${Math.min(totalTakenAllTime, 1)}/1 dose` },
-            { key: 'first_perfect_day', label: 'Perfect Day', description: 'Complete all doses in a single day', emoji: '🌟', tier: 'bronze',
+            { key: 'first_vital', label: 'First Vital Logged', description: 'Log your first vital reading', emoji: '❤️', tier: 'bronze',
+              unlockCheck: vitalsLoggedDays >= 1, progress: Math.min(vitalsLoggedDays / 1, 1), progressLabel: `${Math.min(vitalsLoggedDays, 1)}/1 day` },
+            { key: 'first_perfect_day', label: 'Perfect Day', description: 'Complete all scheduled medication doses in a single day', emoji: '🌟', tier: 'bronze',
               unlockCheck: perfectDays.length >= 1, progress: Math.min(perfectDays.length / 1, 1), progressLabel: `${Math.min(perfectDays.length, 1)}/1 day` },
-            { key: '3_day_consistent', label: 'Hat Trick', description: '3 consecutive days at 80%+', emoji: '⚡', tier: 'bronze',
-              unlockCheck: has3Consecutive, progress: has3Consecutive ? 1 : Math.min((() => { let max = 0, c = 0; dailyLog.forEach(d => { if (d.rate >= 80) { c++; max = Math.max(max, c); } else c = 0; }); return max; })() / 3, 0.99), progressLabel: has3Consecutive ? '3/3 days' : `${(() => { let max = 0, c = 0; dailyLog.forEach(d => { if (d.rate >= 80) { c++; max = Math.max(max, c); } else c = 0; }); return max; })()}/3 days` },
-            { key: 'never_missed_morning', label: 'Early Bird', description: 'Never miss a morning dose (3+ days)', emoji: '🌅', tier: 'bronze',
-              unlockCheck: logsWithMorningMeds.length >= 3 && morningLogs, progress: (logsWithMorningMeds.length >= 3 && morningLogs) ? 1 : Math.min(logsWithMorningMeds.length / 3, 0.99), progressLabel: `${logsWithMorningMeds.length}/3 mornings` },
+            { key: 'mood_check_in', label: 'Mood Check-In', description: 'Log your mood for the very first time', emoji: '😊', tier: 'bronze',
+              unlockCheck: moodLoggedDays >= 1, progress: Math.min(moodLoggedDays / 1, 1), progressLabel: `${Math.min(moodLoggedDays, 1)}/1 day` },
 
             // ── SILVER TIER (Intermediate) ──
-            { key: 'weekly_90', label: 'Weekly Star', description: 'Hit 90%+ adherence in a week', emoji: '🎯', tier: 'silver',
+            { key: '3_day_consistent', label: 'Hat Trick', description: 'Maintain an 80%+ medication log rate for 3 consecutive days', emoji: '⚡', tier: 'silver',
+              unlockCheck: maxConsecutive80 >= 3, progress: maxConsecutive80 >= 3 ? 1 : Math.min(maxConsecutive80 / 3, 0.99), progressLabel: `${Math.min(maxConsecutive80, 3)}/3 days` },
+            { key: 'never_missed_morning', label: 'Early Bird', description: 'Take morning medications on time for 3 days', emoji: '🌅', tier: 'silver',
+              unlockCheck: logsWithMorningMeds.length >= 3 && morningLogs, progress: (logsWithMorningMeds.length >= 3 && morningLogs) ? 1 : Math.min(logsWithMorningMeds.length / 3, 0.99), progressLabel: `${Math.min(logsWithMorningMeds.length, 3)}/3 mornings` },
+            { key: 'weekly_90', label: 'Weekly Star', description: 'Maintain 90%+ medication adherence for a full week', emoji: '🎯', tier: 'silver',
               unlockCheck: weeklyScore >= 90, progress: Math.min(weeklyScore / 90, 1), progressLabel: `${weeklyScore}/90%` },
-            { key: '7_perfect_days', label: 'Perfect Week', description: '7 days with 100% adherence', emoji: '💎', tier: 'silver',
-              unlockCheck: perfectDays.length >= 7, progress: Math.min(perfectDays.length / 7, 1), progressLabel: `${Math.min(perfectDays.length, 7)}/7 days` },
-            { key: 'night_owl', label: 'Night Owl', description: 'Never miss a night dose (5+ days)', emoji: '🦉', tier: 'silver',
-              unlockCheck: logsWithNightMeds.length >= 5 && nightLogs, progress: (logsWithNightMeds.length >= 5 && nightLogs) ? 1 : Math.min(logsWithNightMeds.length / 5, 0.99), progressLabel: `${logsWithNightMeds.length}/5 nights` },
-            { key: 'vitals_tracker', label: 'Vitals Pro', description: 'Log vitals on 10+ days', emoji: '❤️‍🔥', tier: 'silver',
-              unlockCheck: vitalsLoggedDays >= 10, progress: Math.min(vitalsLoggedDays / 10, 1), progressLabel: `${Math.min(vitalsLoggedDays, 10)}/10 days` },
+            { key: 'streak_7', label: '7-Day Streak', description: 'Log your vitals or medications for 7 consecutive days', emoji: '🔥', tier: 'silver',
+              unlockCheck: maxConsecutive80 >= 7, progress: maxConsecutive80 >= 7 ? 1 : Math.min(maxConsecutive80 / 7, 0.99), progressLabel: `${Math.min(maxConsecutive80, 7)}/7 days` },
+            { key: 'bp_stabilized', label: 'BP Stabilized', description: 'Maintain stable blood pressure logs for 14 days', emoji: '💓', tier: 'silver',
+              unlockCheck: maxConsecutiveBP >= 14, progress: maxConsecutiveBP >= 14 ? 1 : Math.min(maxConsecutiveBP / 14, 0.99), progressLabel: `${Math.min(maxConsecutiveBP, 14)}/14 days` },
+            { key: 'profile_complete', label: 'Profile Complete', description: 'Fill in 100% of your health profile information', emoji: '✅', tier: 'silver',
+              unlockCheck: profilePct >= 100, progress: Math.min(profilePct / 100, profilePct >= 100 ? 1 : 0.99), progressLabel: `${profilePct}/100%` },
+            { key: 'hydration_hero', label: 'Hydration Hero', description: 'Log your hydration levels on 5 different days', emoji: '💧', tier: 'silver',
+              unlockCheck: hydrationDays >= 5, progress: Math.min(hydrationDays / 5, 1), progressLabel: `${Math.min(hydrationDays, 5)}/5 days` },
+            { key: 'mindful_week', label: 'Mindful Week', description: 'Log your mood for 7 days', emoji: '🧠', tier: 'silver',
+              unlockCheck: moodLoggedDays >= 7, progress: Math.min(moodLoggedDays / 7, 1), progressLabel: `${Math.min(moodLoggedDays, 7)}/7 days` },
 
             // ── GOLD TIER (Elite) ──
-            { key: 'streak_14', label: 'Two-Week Warrior', description: '14 consecutive days at 80%+', emoji: '🔥', tier: 'gold',
-              unlockCheck: has14Consecutive, progress: has14Consecutive ? 1 : Math.min((() => { let max = 0, c = 0; dailyLog.forEach(d => { if (d.rate >= 80) { c++; max = Math.max(max, c); } else c = 0; }); return max; })() / 14, 0.99), progressLabel: `${(() => { let max = 0, c = 0; dailyLog.forEach(d => { if (d.rate >= 80) { c++; max = Math.max(max, c); } else c = 0; }); return max; })()}/14 days` },
-            { key: 'monthly_consistent', label: 'Monthly Legend', description: 'Maintain 80%+ for a full month', emoji: '🏆', tier: 'gold',
+            { key: '7_perfect_days', label: 'Perfect Week', description: 'Log 7 perfect days of 100% medication adherence', emoji: '💎', tier: 'gold',
+              unlockCheck: perfectDays.length >= 7, progress: Math.min(perfectDays.length / 7, 1), progressLabel: `${Math.min(perfectDays.length, 7)}/7 days` },
+            { key: 'night_owl', label: 'Night Owl', description: 'Log all evening and night doses on time for 5 days', emoji: '🦉', tier: 'gold',
+              unlockCheck: logsWithNightMeds.length >= 5 && nightLogs, progress: (logsWithNightMeds.length >= 5 && nightLogs) ? 1 : Math.min(logsWithNightMeds.length / 5, 0.99), progressLabel: `${Math.min(logsWithNightMeds.length, 5)}/5 nights` },
+            { key: 'vitals_tracker', label: 'Vitals Pro', description: 'Log your health vitals on 10 or more days', emoji: '❤️‍🔥', tier: 'gold',
+              unlockCheck: vitalsLoggedDays >= 10, progress: Math.min(vitalsLoggedDays / 10, 1), progressLabel: `${Math.min(vitalsLoggedDays, 10)}/10 days` },
+            { key: 'streak_14', label: 'Two-Week Warrior', description: 'Maintain an 80%+ logging rate for 14 consecutive days', emoji: '🔥', tier: 'gold',
+              unlockCheck: maxConsecutive80 >= 14, progress: maxConsecutive80 >= 14 ? 1 : Math.min(maxConsecutive80 / 14, 0.99), progressLabel: `${Math.min(maxConsecutive80, 14)}/14 days` },
+            { key: 'monthly_consistent', label: 'Monthly Legend', description: 'Maintain 80%+ consistency for a full month', emoji: '🏆', tier: 'gold',
               unlockCheck: monthlyScore >= 80 && last30.length >= 25, progress: Math.min(monthlyScore / 80, 1), progressLabel: `${monthlyScore}/80%` },
-            { key: '100_doses', label: 'Century Club', description: 'Take 100 total doses', emoji: '💯', tier: 'gold',
+            { key: 'adherence_30d_90', label: 'Compliance Champ', description: 'Maintain 90%+ medication adherence over 30 days', emoji: '🛡️', tier: 'gold',
+              unlockCheck: monthlyScore >= 90 && last30.length >= 25, progress: Math.min(monthlyScore / 90, 1), progressLabel: `${monthlyScore}/90%` },
+            { key: 'score_plus_20', label: 'Major Improvement', description: 'Improve your overall health score by 20+ points', emoji: '📈', tier: 'gold',
+              unlockCheck: scoreImprovement >= 20, progress: scoreImprovement >= 20 ? 1 : Math.min(Math.max(scoreImprovement, 0) / 20, 0.99), progressLabel: `${Math.max(Math.round(scoreImprovement), 0)}/20 pts` },
+            { key: '100_doses', label: 'Century Club', description: 'Successfully log a total of 100 medication doses', emoji: '💯', tier: 'gold',
               unlockCheck: totalTakenAllTime >= 100, progress: Math.min(totalTakenAllTime / 100, 1), progressLabel: `${Math.min(totalTakenAllTime, 100)}/100 doses` },
-            { key: '30_perfect_days', label: 'Unstoppable', description: '30 days with 100% adherence', emoji: '👑', tier: 'gold',
+            { key: 'positivity_streak', label: 'Positivity Streak', description: "Report a 'good' or 'great' mood for 3 consecutive days", emoji: '✨', tier: 'gold',
+              unlockCheck: maxConsecutivePositiveMood >= 3, progress: maxConsecutivePositiveMood >= 3 ? 1 : Math.min(maxConsecutivePositiveMood / 3, 0.99), progressLabel: `${Math.min(maxConsecutivePositiveMood, 3)}/3 days` },
+            { key: 'comprehensive_care', label: 'Comprehensive Care', description: 'Log heart rate, blood pressure, and oxygen saturation on the same day', emoji: '🩺', tier: 'gold',
+              unlockCheck: comprehensiveVitalsDays >= 1, progress: Math.min(comprehensiveVitalsDays / 1, 1), progressLabel: `${Math.min(comprehensiveVitalsDays, 1)}/1 day` },
+
+            // ── LEGENDARY TIER ──
+            { key: 'streak_30', label: '30-Day Streak', description: 'Log your medications or vitals for 30 consecutive days', emoji: '👑', tier: 'legendary',
+              unlockCheck: maxConsecutive80 >= 30, progress: maxConsecutive80 >= 30 ? 1 : Math.min(maxConsecutive80 / 30, 0.99), progressLabel: `${Math.min(maxConsecutive80, 30)}/30 days` },
+            { key: '30_perfect_days', label: 'Unstoppable', description: 'Record 30 days of perfect 100% medication adherence', emoji: '👑', tier: 'legendary',
               unlockCheck: perfectDays.length >= 30, progress: Math.min(perfectDays.length / 30, 1), progressLabel: `${Math.min(perfectDays.length, 30)}/30 days` },
         ];
 
@@ -968,7 +1060,7 @@ router.get('/adherence/details', authenticateSession, async (req, res) => {
             weeklyTrend.push({ day: dayNames[d.day()], date: dateStr, rate: entry ? entry.rate : 0 });
         }
 
-        res.json({
+        const detailsPayload = {
             score: { weekly: weeklyScore, monthly: monthlyScore },
             level,
             momentum,
@@ -980,7 +1072,16 @@ router.get('/adherence/details', authenticateSession, async (req, res) => {
             insights,
             streak: currentStreak,
             weekly_trend: weeklyTrend,
-        });
+        };
+
+        res.setHeader('Vary', 'Accept');
+        if (shouldNegotiateMarkdown(req)) {
+            const md = formatAdherenceDetailsMarkdown(detailsPayload);
+            res.setHeader('Content-Type', 'text/markdown; charset=utf-8');
+            return res.send(md);
+        }
+
+        res.json(detailsPayload);
     } catch (error) {
         logger.error('Get adherence details error', { error: error.message, patientId: req.user?.id });
         res.status(500).json({ error: 'Failed to get adherence details' });

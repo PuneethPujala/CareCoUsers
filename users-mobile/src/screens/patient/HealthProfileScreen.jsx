@@ -171,9 +171,11 @@ export default function HealthProfileScreen({ navigation }) {
     const [unreadCount, setUnreadCount] = useState(0);
     const [refreshing, setRefreshing] = useState(false);
     const [activeTab, setActiveTab] = useState('insights');
-    const [healthHistory, setHealthHistory] = useState(null);
+    const storeHealthHistory = usePatientStore(s => s.healthHistory);
+    const [healthHistory, setHealthHistory] = useState(() => storeHealthHistory || null);
     const [timeline, setTimeline] = useState([]);
     const [historyLoading, setHistoryLoading] = useState(false);
+    const isFreePlan = (p) => p?.freePlan || p?.subscription?.plan === 'free';
 
     // Haptic helpers
     const triggerHapticSelection = async () => {
@@ -200,6 +202,7 @@ export default function HealthProfileScreen({ navigation }) {
             ]);
             setHealthHistory(historyRes.data);
             setTimeline(timelineRes.data?.timeline || []);
+            usePatientStore.setState({ healthHistory: historyRes.data });
             if (isManual) {
                 triggerHapticSuccess();
             }
@@ -231,15 +234,15 @@ export default function HealthProfileScreen({ navigation }) {
     };
 
     useEffect(() => {
-        if (showScoreInfo) {
+        if (showScoreInfo && !healthHistory && !historyLoading) {
             loadHistoryAndTimeline();
         }
-    }, [showScoreInfo]);
+    }, [showScoreInfo, healthHistory, historyLoading]);
 
     useEffect(() => {
         if (!showScoreInfo) return;
 
-        const isHistoryPending = !healthHistory?.history || healthHistory.history.length < 5;
+        const isHistoryPending = healthHistory?.isBackfilling;
         if (!isHistoryPending || historyLoading) return;
 
         const timerId = setTimeout(() => {
@@ -249,7 +252,7 @@ export default function HealthProfileScreen({ navigation }) {
         return () => {
             clearTimeout(timerId);
         };
-    }, [showScoreInfo, healthHistory?.history?.length, historyLoading]);
+    }, [showScoreInfo, healthHistory?.isBackfilling, historyLoading]);
 
     useEffect(() => {
         if (isHealthSupported()) {
@@ -347,7 +350,7 @@ export default function HealthProfileScreen({ navigation }) {
     const onRefresh = useCallback(async () => {
         setRefreshing(true);
         const prof = await loadProfile();
-        if (prof && !prof.freePlan) {
+        if (prof && !isFreePlan(prof)) {
             await loadHistoryAndTimeline();
         }
         setRefreshing(false);
@@ -357,8 +360,14 @@ export default function HealthProfileScreen({ navigation }) {
 
     useFocusEffect(
         useCallback(() => {
+            const initialProfile = storePatient || profile;
+            let loadedHistory = false;
+            if (initialProfile && !isFreePlan(initialProfile)) {
+                loadHistoryAndTimeline();
+                loadedHistory = true;
+            }
             loadProfile().then((prof) => {
-                if (prof && !prof.freePlan) {
+                if (prof && !isFreePlan(prof) && !loadedHistory) {
                     loadHistoryAndTimeline();
                 }
                 if (!hasAnimated.current) {
@@ -369,7 +378,7 @@ export default function HealthProfileScreen({ navigation }) {
             apiService.patients.getNotificationsUnreadCount()
                 .then(res => setUnreadCount(res.data?.count || 0))
                 .catch(() => {});
-        }, [runAnimations])
+        }, [runAnimations, profile, storePatient])
     );
 
     const openModal = (type, item = null) => {
@@ -618,7 +627,7 @@ export default function HealthProfileScreen({ navigation }) {
         );
     }
 
-    if (profile?.freePlan) return (
+    if (isFreePlan(profile)) return (
         <View style={[s.container, { justifyContent: 'center', padding: 24 }]}>
             <LinearGradient
                 colors={['#FFF5F5', '#FFF0F2', '#FEE2E6']}
@@ -1930,7 +1939,7 @@ export default function HealthProfileScreen({ navigation }) {
                     }
 
                     // Check if history backfill is pending
-                    const historyPending = !historyLoading && (!healthHistory?.history || healthHistory.history.length < 5);
+                    const historyPending = !historyLoading && healthHistory?.isBackfilling;
 
                     return (
                         <View style={s.tipsBackdrop}>
@@ -2269,7 +2278,7 @@ export default function HealthProfileScreen({ navigation }) {
                                         ) : (
                                             <View style={{ gap: 20 }}>
                                                 {/* History pending/backfilling banner */}
-                                                {historyPending && (
+                                                {historyPending ? (
                                                     <View style={{
                                                         backgroundColor: '#EFF6FF',
                                                         borderRadius: radius.lg,
@@ -2288,7 +2297,7 @@ export default function HealthProfileScreen({ navigation }) {
                                                             </Text>
                                                         </View>
                                                         <Pressable
-                                                            onPress={loadHistoryAndTimeline}
+                                                            onPress={() => loadHistoryAndTimeline(true)}
                                                             style={{
                                                                 backgroundColor: '#3B82F6',
                                                                 paddingHorizontal: 10,
@@ -2299,7 +2308,26 @@ export default function HealthProfileScreen({ navigation }) {
                                                             <Text style={{ fontSize: 11, ...FONT.bold, color: '#FFFFFF' }}>Refresh</Text>
                                                         </Pressable>
                                                     </View>
-                                                )}
+                                                ) : (!historyLoading && healthHistory && (!healthHistory.history || healthHistory.history.length < 5) && (
+                                                    <View style={{
+                                                        backgroundColor: '#F8FAFC',
+                                                        borderRadius: radius.lg,
+                                                        padding: 16,
+                                                        borderWidth: 1,
+                                                        borderColor: '#E2E8F0',
+                                                        flexDirection: 'row',
+                                                        alignItems: 'center',
+                                                        gap: 12,
+                                                    }}>
+                                                        <Info size={18} color="#6366F1" />
+                                                        <View style={{ flex: 1 }}>
+                                                            <Text style={{ fontSize: 13, ...FONT.bold, color: '#334155' }}>Unlock Advanced Trends</Text>
+                                                            <Text style={{ fontSize: 11, ...FONT.medium, color: '#64748B', marginTop: 2 }}>
+                                                                Log medications and vitals for at least 5 days to unlock personalized AI predictions, health momentum, and forecasting.
+                                                            </Text>
+                                                        </View>
+                                                    </View>
+                                                ))}
 
                                                 {/* Health Momentum & Adherence Consistency Bento */}
                                                 {healthHistory?.predictive_health && (

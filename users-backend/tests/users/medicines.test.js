@@ -198,6 +198,47 @@ describe('User Medicines Routes', () => {
             const res = await request(app).get('/api/users/medicines/today');
             expect(res.status).toBe(401);
         });
+
+        it('supports markdown content negotiation with Accept: text/markdown', async () => {
+            const patient = makePatient();
+            const log = makeLog({
+                medicines: [
+                    { medicine_name: 'Metformin', scheduled_time: 'morning', taken: true },
+                ],
+            });
+            Patient.findOne    = jest.fn().mockResolvedValue(patient);
+            MedicineLog.findOne = jest.fn().mockResolvedValue(log);
+
+            const res = await request(app)
+                .get('/api/users/medicines/today')
+                .set('Accept', 'text/markdown');
+
+            expect(res.status).toBe(200);
+            expect(res.headers['content-type']).toContain('text/markdown');
+            expect(res.headers['vary']).toContain('Accept');
+            expect(res.text).toContain("Today's Medication Schedule");
+            expect(res.text).toContain("Metformin");
+        });
+
+        it('defaults to JSON when Accept is */*', async () => {
+            const patient = makePatient();
+            const log = makeLog({
+                medicines: [
+                    { medicine_name: 'Metformin', scheduled_time: 'morning', taken: true },
+                ],
+            });
+            Patient.findOne    = jest.fn().mockResolvedValue(patient);
+            MedicineLog.findOne = jest.fn().mockResolvedValue(log);
+
+            const res = await request(app)
+                .get('/api/users/medicines/today')
+                .set('Accept', '*/*');
+
+            expect(res.status).toBe(200);
+            expect(res.headers['content-type']).toContain('application/json');
+            expect(res.headers['vary']).toContain('Accept');
+            expect(res.body.log).toBeDefined();
+        });
     });
 
     // ── PUT /api/users/medicines/mark ─────────────────────────────────────────
@@ -507,6 +548,40 @@ describe('User Medicines Routes', () => {
                 expect(entryThreeDaysAgo.status).toBe('no_medications');
                 expect(entryThreeDaysAgo.total).toBe(0);
             }
+        });
+    });
+
+    describe('GET /api/users/medicines/adherence/details content negotiation', () => {
+        it('supports markdown content negotiation with Accept: text/markdown', async () => {
+            const patient = makePatient({ created_at: new Date() });
+            Patient.findOne = jest.fn().mockResolvedValue(patient);
+            MedicineLog.find = jest.fn().mockReturnValue(makeFindSortChain([]));
+            VitalLog.find = jest.fn().mockReturnValue({ sort: jest.fn().mockResolvedValue([]) });
+
+            const res = await request(app)
+                .get('/api/users/medicines/adherence/details')
+                .set('Accept', 'text/markdown');
+
+            expect(res.status).toBe(200);
+            expect(res.headers['content-type']).toContain('text/markdown');
+            expect(res.headers['vary']).toContain('Accept');
+            expect(res.text).toContain("Medication Adherence & Health Summary");
+            expect(res.text).toContain("Disclaimer");
+        });
+
+        it('defaults to JSON when Accept is */*', async () => {
+            const patient = makePatient({ created_at: new Date() });
+            Patient.findOne = jest.fn().mockResolvedValue(patient);
+            MedicineLog.find = jest.fn().mockReturnValue(makeFindSortChain([]));
+            VitalLog.find = jest.fn().mockReturnValue({ sort: jest.fn().mockResolvedValue([]) });
+
+            const res = await request(app)
+                .get('/api/users/medicines/adherence/details')
+                .set('Accept', '*/*');
+
+            expect(res.status).toBe(200);
+            expect(res.headers['content-type']).toContain('application/json');
+            expect(res.body.score).toBeDefined();
         });
     });
 });

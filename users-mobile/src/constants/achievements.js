@@ -27,6 +27,15 @@ export const ACHIEVEMENTS = [
         iconName: 'Star',
         target: 1,
     },
+    {
+        key: 'mood_check_in',
+        title: 'Mood Check-In',
+        tier: 'bronze',
+        category: 'wellbeing',
+        description: 'Log your mood for the very first time',
+        iconName: 'Smile',
+        target: 1,
+    },
     
     // Silver Tier
     {
@@ -84,6 +93,24 @@ export const ACHIEVEMENTS = [
         iconName: 'CheckCircle2',
         target: 100,
         isPercentage: true,
+    },
+    {
+        key: 'hydration_hero',
+        title: 'Hydration Hero',
+        tier: 'silver',
+        category: 'wellbeing',
+        description: 'Log your hydration levels on 5 different days',
+        iconName: 'Droplet',
+        target: 5,
+    },
+    {
+        key: 'mindful_week',
+        title: 'Mindful Week',
+        tier: 'silver',
+        category: 'wellbeing',
+        description: 'Log your mood for 7 days',
+        iconName: 'Brain',
+        target: 7,
     },
 
     // Gold Tier
@@ -161,6 +188,24 @@ export const ACHIEVEMENTS = [
         iconName: 'Medal',
         target: 100,
     },
+    {
+        key: 'positivity_streak',
+        title: 'Positivity Streak',
+        tier: 'gold',
+        category: 'wellbeing',
+        description: "Report a 'good' or 'great' mood for 3 consecutive days",
+        iconName: 'Sparkles',
+        target: 3,
+    },
+    {
+        key: 'comprehensive_care',
+        title: 'Comprehensive Care',
+        tier: 'gold',
+        category: 'wellbeing',
+        description: 'Log heart rate, blood pressure, and oxygen saturation on the same day',
+        iconName: 'Stethoscope',
+        target: 1,
+    },
 
     // Legendary Tier
     {
@@ -214,21 +259,36 @@ export const CATEGORY_CONFIG = {
     perfect_days: {
         title: 'Perfect Days Progression',
         description: 'Complete all scheduled medication doses',
-        emoji: '🌟',
+        iconName: 'Star',
+        accent: ['#3B82F6', '#60A5FA'],
+        layout: 'timeline',
     },
     streaks: {
         title: 'Consistency & Streaks',
         description: 'Maintain logs over consecutive days',
-        emoji: '🔥',
+        iconName: 'Flame',
+        accent: ['#2563EB', '#1D4ED8'],
+        layout: 'grid',
     },
     doses: {
         title: 'Logging Volume',
         description: 'Total medication and vitals entries logged',
-        emoji: '💊',
+        iconName: 'Pill',
+        accent: ['#06B6D4', '#0891B2'],
+        layout: 'grid',
     },
     routine: {
         title: 'Routine & Adherence',
         description: 'Time-of-day accuracy and compliance rates',
-        emoji: '⏰',
+        iconName: 'Clock',
+        accent: ['#4F46E5', '#6366F1'],
+        layout: 'grid',
+    },
+    wellbeing: {
+        title: 'Holistic Wellbeing',
+        description: 'Mood, hydration, and overall health tracking',
+        iconName: 'Activity',
+        accent: ['#10B981', '#34D399'],
+        layout: 'grid',
     },
 };
