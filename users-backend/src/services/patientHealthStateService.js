@@ -532,6 +532,7 @@ async function enqueueHealthStateRecompute(patientId) {
 }
 
 const activeInProcessBackfills = new Set();
+const lastBackfillAttempt = new Map(); // patientId -> timestamp
 
 /**
  * Retrieves the daily health snapshots for the past 30 days and calculates deltas.
@@ -563,8 +564,12 @@ async function getHealthHistory(patientId, timezone = 'Asia/Kolkata') {
         }
     }
     
-    // If history is empty or low, trigger backfill asynchronously
-    if (history.length < 5 && !isBackfilling) {
+    const now = Date.now();
+    const lastAttempt = lastBackfillAttempt.get(patientId.toString()) || 0;
+    
+    // If history is empty or low, trigger backfill asynchronously (cooldown of 5 minutes)
+    if (history.length < 5 && !isBackfilling && (now - lastAttempt > 5 * 60 * 1000)) {
+        lastBackfillAttempt.set(patientId.toString(), now);
         logger.info(`[PatientHealthStateService] History low (${history.length} records). Triggering background backfill for patient ${patientId}`);
         isBackfilling = true;
         if (process.env.NODE_ENV !== 'test' && process.env.USE_BULLMQ_WORKERS !== 'true') {

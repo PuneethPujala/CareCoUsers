@@ -356,11 +356,14 @@ export default function HealthProfileScreen({ navigation }) {
         setRefreshing(false);
     }, []);
 
+    const profileRef = useRef(profile);
+    profileRef.current = profile;
+
     const hasAnimated = useRef(false);
 
     useFocusEffect(
         useCallback(() => {
-            const initialProfile = storePatient || profile;
+            const initialProfile = usePatientStore.getState().patient || profileRef.current;
             let loadedHistory = false;
             if (initialProfile && !isFreePlan(initialProfile)) {
                 loadHistoryAndTimeline();
@@ -378,7 +381,7 @@ export default function HealthProfileScreen({ navigation }) {
             apiService.patients.getNotificationsUnreadCount()
                 .then(res => setUnreadCount(res.data?.count || 0))
                 .catch(() => {});
-        }, [runAnimations, profile, storePatient])
+        }, [runAnimations])
     );
 
     const openModal = (type, item = null) => {
@@ -2271,10 +2274,39 @@ export default function HealthProfileScreen({ navigation }) {
                                 ) : (
                                     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40, paddingHorizontal: spacing.screen }}>
                                         {historyLoading && !healthHistory ? (
-                                            <View style={{ paddingVertical: 80, alignItems: 'center', justifyContent: 'center' }}>
-                                                <ActivityIndicator size="large" color={colors.primary} />
-                                                <Text style={{ fontSize: 13, ...FONT.semibold, color: colors.textSecondary, marginTop: 12 }}>Loading trends & journey...</Text>
-                                            </View>
+                                             <View style={{ gap: 20, paddingTop: 8 }}>
+                                                 {/* Bento grids (Momentum & Consistency) */}
+                                                 <View style={{ flexDirection: 'row', gap: 12 }}>
+                                                     <SkeletonItem width="48%" height={130} borderRadius={radius.lg} />
+                                                     <SkeletonItem width="48%" height={130} borderRadius={radius.lg} />
+                                                 </View>
+
+                                                 {/* Overall Health Score Card */}
+                                                 <View style={{
+                                                     backgroundColor: '#FFFFFF',
+                                                     borderRadius: radius.lg,
+                                                     padding: 20,
+                                                     borderWidth: 1,
+                                                     borderColor: '#E2E8F0',
+                                                     gap: 12
+                                                 }}>
+                                                     <SkeletonItem width={140} height={18} borderRadius={6} />
+                                                     <SkeletonItem width="100%" height={180} borderRadius={12} />
+                                                 </View>
+
+                                                 {/* Streaks & calendar card */}
+                                                 <View style={{
+                                                     backgroundColor: '#FFFFFF',
+                                                     borderRadius: radius.lg,
+                                                     padding: 20,
+                                                     borderWidth: 1,
+                                                     borderColor: '#E2E8F0',
+                                                     gap: 12
+                                                 }}>
+                                                     <SkeletonItem width={180} height={18} borderRadius={6} />
+                                                     <SkeletonItem width="100%" height={100} borderRadius={12} />
+                                                 </View>
+                                             </View>
                                         ) : (
                                             <View style={{ gap: 20 }}>
                                                 {/* History pending/backfilling banner */}

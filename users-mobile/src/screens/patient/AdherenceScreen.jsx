@@ -11,7 +11,7 @@ import { LineChart } from 'react-native-chart-kit';
 import Svg, { Circle } from 'react-native-svg';
 import * as Icons from 'lucide-react-native';
 import {
-    X, TrendingUp, TrendingDown, Minus, Award, Target, Calendar as CalIcon,
+    Check, X, TrendingUp, TrendingDown, Minus, Award, Target, Calendar as CalIcon,
     CheckCircle2, Zap, ChevronLeft, Activity, Trophy, Clock, Sunrise, Medal, Crown, Pill, HeartPulse, ChevronRight, Sparkles, Heart, Star, Share2, Flame, Lock,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
@@ -29,8 +29,8 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 const GRID_COLUMNS = 3;
 const GRID_GAP = 12;
-const AVAILABLE_WIDTH = SCREEN_WIDTH - 68; // 18*2 margin + 16*2 padding
-const badgeWidth = (AVAILABLE_WIDTH - (GRID_GAP * (GRID_COLUMNS - 1))) / GRID_COLUMNS;
+const AVAILABLE_WIDTH = SCREEN_WIDTH - 108; // 20*2 ScrollView padding + 18*2 card margin + 16*2 card padding
+const badgeWidth = (AVAILABLE_WIDTH - (GRID_GAP * (GRID_COLUMNS - 1))) / GRID_COLUMNS - 1.5;
 
 const TIER_ORDER = ['bronze', 'silver', 'gold', 'legendary'];
 
@@ -107,7 +107,7 @@ const C = {
     mid: '#334155',
     muted: '#64748B',
     light: '#94A3B8',
-    border: '#E8EDF5',
+    border: '#E2E8F0',
     ring90: '#10B981',
     ring70: '#F59E0B',
     ringLow: '#F43F5E',
@@ -440,23 +440,38 @@ const CalendarDay = ({ date, status, isCurrentMonth, onPress }) => {
                 styles.dayCell,
                 {
                     opacity: isCurrentMonth ? 1 : 0.25,
-                    backgroundColor: status && status !== 'none' && status !== 'no_medications' ? bg + '22' : todayFlag ? C.primarySoft : 'transparent',
+                    backgroundColor: status && status !== 'none' && status !== 'no_medications'
+                        ? (status === 'complete' ? '#ECFDF5' : bg + '22')
+                        : todayFlag ? C.primarySoft : 'transparent',
                     borderWidth: todayFlag ? 2 : status && status !== 'none' && status !== 'no_medications' ? 1.5 : 0,
-                    borderColor: todayFlag ? C.primary : status && status !== 'none' && status !== 'no_medications' ? bg + '60' : 'transparent',
+                    borderColor: todayFlag ? C.primary : status && status !== 'none' && status !== 'no_medications' ? (status === 'complete' ? '#A7F3D0' : bg + '60') : 'transparent',
                     transform: [{ scale: scaleAnim }],
+                    position: 'relative',
                 },
             ]}>
-                {status === 'complete' ? (
-                    <CheckCircle2 size={15} color={C.success} />
-                ) : (
-                    <Text style={[
-                        styles.dayText,
-                        todayFlag && { color: C.primary, fontWeight: '800' },
-                        status === 'partial' && { color: C.warning, fontWeight: '700' },
-                        status === 'missed' && { color: C.danger, fontWeight: '700' },
-                    ]}>
-                        {format(date, 'd')}
-                    </Text>
+                <Text style={[
+                    styles.dayText,
+                    todayFlag && { color: C.primary, fontWeight: '800' },
+                    status === 'complete' && { color: '#065F46', fontWeight: '800' },
+                    status === 'partial' && { color: C.warning, fontWeight: '750' },
+                    status === 'missed' && { color: C.danger, fontWeight: '750' },
+                ]}>
+                    {format(date, 'd')}
+                </Text>
+                {status === 'complete' && (
+                    <View style={{
+                        position: 'absolute',
+                        bottom: 3,
+                        right: 3,
+                        backgroundColor: '#10B981',
+                        borderRadius: 6,
+                        width: 12,
+                        height: 12,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                    }}>
+                        <Check size={8} color="#FFF" strokeWidth={3.5} />
+                    </View>
                 )}
             </Animated.View>
         </Pressable>
@@ -542,7 +557,7 @@ function PremiumBadge({ data, size = 'normal', onPress, style }) {
         const current = data.progress >= 1 ? target : Math.floor((data.progress || 0) * target);
         const pct = Math.min(100, (data.progress || 0) * 100);
         return (
-            <Pressable onPress={onPress} style={[{ width: itemWidth, minHeight: 125, alignItems: 'center', marginBottom: 12 }, style]}>
+            <Pressable onPress={onPress} style={[{ width: itemWidth, minHeight: 130, alignItems: 'center', marginBottom: 12 }, style]}>
                 <View style={{
                     width: dim, height: dim, borderRadius: 18,
                     backgroundColor: 'rgba(148, 163, 184, 0.06)', // Glassmorphic translucent gray
@@ -574,7 +589,7 @@ function PremiumBadge({ data, size = 'normal', onPress, style }) {
     }
 
     return (
-        <Pressable onPress={onPress} style={[{ width: itemWidth, minHeight: 125, alignItems: 'center', marginBottom: 12 }, style]}>
+        <Pressable onPress={onPress} style={[{ width: itemWidth, minHeight: 130, alignItems: 'center', marginBottom: 12 }, style]}>
             <LinearGradient
                 colors={colors}
                 start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
@@ -986,7 +1001,7 @@ export default function AdherenceScreen({ navigation }) {
                             const companion = getStreakState(streak, dailyLog);
                             return (
                                 <LinearGradient
-                                    colors={['#E8EFFF', '#C8D9FF']}
+                                    colors={['#DBEAFE', '#BFDBFE']}
                                     start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
                                     style={[styles.streakCard, { shadowColor: '#3B82F6' }]}
                                 >
@@ -1283,15 +1298,23 @@ export default function AdherenceScreen({ navigation }) {
                     <Animated.View style={anim(6)}>
                         <View style={{ paddingHorizontal: 18, marginBottom: 16 }}>
                             {/* Hero Achievement Journey card */}
-                            <LinearGradient
-                                colors={['#1D4ED8', '#3B82F6', '#60A5FA']}
-                                start={{x: 0, y: 0}} end={{x: 1, y: 1}}
-                                style={{
-                                    borderRadius: 22, padding: 20,
-                                    boxShadow: '0 14px 30px rgba(37,99,235,0.35)',
-                                    overflow: 'hidden'
-                                }}
-                            >
+                            <View style={{
+                                borderRadius: 22,
+                                shadowColor: '#2563EB',
+                                shadowOffset: { width: 0, height: 10 },
+                                shadowOpacity: 0.35,
+                                shadowRadius: 15,
+                                elevation: 8,
+                                backgroundColor: 'transparent'
+                            }}>
+                                <LinearGradient
+                                    colors={['#1D4ED8', '#3B82F6', '#60A5FA']}
+                                    start={{x: 0, y: 0}} end={{x: 1, y: 1}}
+                                    style={{
+                                        borderRadius: 22, padding: 20,
+                                        overflow: 'hidden'
+                                    }}
+                                >
                                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                                     <View>
                                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -1314,6 +1337,7 @@ export default function AdherenceScreen({ navigation }) {
                                     </View>
                                 </View>
                             </LinearGradient>
+                            </View>
                         </View>
 
                         {/* Category Sections */}
@@ -1333,16 +1357,20 @@ export default function AdherenceScreen({ navigation }) {
                             return (
                                 <View key={categoryKey} style={{
                                     marginHorizontal: 18, marginBottom: 18, backgroundColor: 'white', borderRadius: 20, padding: 16,
-                                    borderWidth: 1, borderColor: '#F1F4F9',
-                                    boxShadow: '0 4px 16px rgba(15,23,42,0.05)'
+                                    borderWidth: 1, borderColor: '#E2E8F0',
+                                    shadowColor: '#0F172A',
+                                    shadowOffset: { width: 0, height: 4 },
+                                    shadowOpacity: 0.05,
+                                    shadowRadius: 8,
+                                    elevation: 3,
                                 }}>
                                     <CategoryHeaderUi category={catConfig} unlockedCount={unlockedCat} totalCount={catAchievements.length} />
                                     {catConfig.layout === 'timeline' ? (
                                         <TimelineLayout badges={catAchievements} onSelect={handleBadgePress} />
                                     ) : (
-                                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-start' }}>
+                                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: GRID_GAP }}>
                                             {catAchievements.map((b, i) => (
-                                                <PremiumBadge key={i} data={b} onPress={() => handleBadgePress(b)} style={{ marginRight: (i % 3 === 2) ? 0 : 12 }} />
+                                                <PremiumBadge key={i} data={b} onPress={() => handleBadgePress(b)} />
                                             ))}
                                         </View>
                                     )}
@@ -1626,12 +1654,12 @@ const styles = StyleSheet.create({
         shadowColor: '#0C54D6', shadowOffset: { width: 0, height: 12 },
         shadowOpacity: 0.35, shadowRadius: 24, elevation: 12,
     },
-    heroTopRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
+    heroTopRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 20 },
     heroRingWrap: { alignItems: 'center', justifyContent: 'center', position: 'relative' },
     heroRingCenter: { position: 'absolute', alignItems: 'center' },
     heroRingPercent: { fontSize: 34, fontWeight: '900', color: '#FFFFFF', letterSpacing: -1 },
     heroRingLabel: { fontSize: 11, fontWeight: '600', color: 'rgba(255,255,255,0.6)', marginTop: -2 },
-    heroRightCol: { flex: 1, marginLeft: 20, gap: 0 },
+    heroRightCol: { flex: 1, marginLeft: 20, minHeight: 148, justifyContent: 'space-between' },
     heroStatBox: { paddingVertical: 10 },
     heroStatLabel: { fontSize: 11, fontWeight: '600', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 4 },
     heroStatValue: { fontSize: 18, fontWeight: '800', color: '#FFFFFF' },
@@ -2128,7 +2156,7 @@ const styles = StyleSheet.create({
         borderRadius: 20,
         padding: 16,
         borderWidth: 1,
-        borderColor: '#E8EDF5',
+        borderColor: C.border,
         shadowColor: '#0F172A',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.04,
@@ -2187,7 +2215,7 @@ const styles = StyleSheet.create({
         borderRadius: 18,
         padding: 10,
         borderWidth: 1,
-        borderColor: '#E8EDF5',
+        borderColor: C.border,
         shadowColor: '#0F172A',
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.02,
@@ -2293,9 +2321,10 @@ const styles = StyleSheet.create({
         paddingVertical: 14,
         paddingHorizontal: 8,
         borderWidth: 1,
-        borderColor: '#E8EDF5',
+        borderColor: C.border,
         alignItems: 'center',
         justifyContent: 'center',
+        minHeight: 110,
         shadowColor: '#0F172A',
         shadowOffset: { width: 0, height: 3 },
         shadowOpacity: 0.03,
