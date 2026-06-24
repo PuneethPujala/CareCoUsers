@@ -1939,7 +1939,7 @@ export default function HealthProfileScreen({ navigation }) {
                     }
 
                     // Check if history backfill is pending
-                    const historyPending = !historyLoading && healthHistory?.isBackfilling;
+                    const historyPending = !!healthHistory?.isBackfilling;
 
                     return (
                         <View style={s.tipsBackdrop}>
@@ -2308,7 +2308,7 @@ export default function HealthProfileScreen({ navigation }) {
                                                             <Text style={{ fontSize: 11, ...FONT.bold, color: '#FFFFFF' }}>Refresh</Text>
                                                         </Pressable>
                                                     </View>
-                                                ) : (!historyLoading && healthHistory && (!healthHistory.history || healthHistory.history.length < 5) && (
+                                                ) : (healthHistory && (!healthHistory.history || healthHistory.history.length < 5) && (
                                                     <View style={{
                                                         backgroundColor: '#F8FAFC',
                                                         borderRadius: radius.lg,
