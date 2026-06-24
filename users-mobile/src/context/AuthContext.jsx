@@ -114,6 +114,17 @@ export function AuthProvider({ children }) {
     // A2 FIX: in-flight deduplication so concurrent callers share one getMe().
     const patientFetchPromiseRef = useRef(null);
 
+    // A7: Await initial Supabase session loading to prevent split-second login page flash
+    const initialSupabaseCheckRef = useRef(null);
+    if (!initialSupabaseCheckRef.current) {
+        let resolveCheck;
+        const promise = new Promise((resolve) => {
+            resolveCheck = resolve;
+        });
+        initialSupabaseCheckRef.current = { promise, resolve: resolveCheck, resolved: false };
+    }
+    const isFirstAuthEventRef = useRef(true);
+
     const profileRef = useRef(profile);
     useEffect(() => { profileRef.current = profile; }, [profile]);
 
@@ -280,7 +291,7 @@ export function AuthProvider({ children }) {
                 } else {
                     // No custom API token — fall back to Supabase session.
                     if (__DEV__) console.log('[Auth] No API token, checking Supabase session...');
-                    const currentSession = await auth.getCurrentSession().catch(() => null);
+                    const currentSession = await initialSupabaseCheckRef.current.promise;
                     if (__DEV__) console.log('[Auth] Supabase session:', !!currentSession?.user);
 
                     if (currentSession?.user) {
@@ -355,6 +366,19 @@ export function AuthProvider({ children }) {
         const { data: { subscription } } = auth.onAuthStateChange(async (event, newSession) => {
             if (newSession?.user) {
                 setCacheUserId(newSession.user.id);
+            }
+
+            // A7: Resolve initial check on the first event and delegate initial loading to init()
+            if (isFirstAuthEventRef.current) {
+                isFirstAuthEventRef.current = false;
+                initialSupabaseCheckRef.current.resolved = true;
+                initialSupabaseCheckRef.current.resolve(newSession);
+
+                if (newSession?.user) {
+                    setUser(newSession.user);
+                    setSession(newSession);
+                }
+                return;
             }
 
             if (event === 'SIGNED_OUT') {
