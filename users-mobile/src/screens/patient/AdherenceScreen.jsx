@@ -28,9 +28,9 @@ import {
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 const GRID_COLUMNS = 3;
-const GRID_GAP = 10;
-const AVAILABLE_WIDTH = SCREEN_WIDTH - 40;
-const badgeWidth = (AVAILABLE_WIDTH - (GRID_GAP * (GRID_COLUMNS - 1))) / GRID_COLUMNS - 1.5;
+const GRID_GAP = 12;
+const AVAILABLE_WIDTH = SCREEN_WIDTH - 68; // 18*2 margin + 16*2 padding
+const badgeWidth = (AVAILABLE_WIDTH - (GRID_GAP * (GRID_COLUMNS - 1))) / GRID_COLUMNS;
 
 const TIER_ORDER = ['bronze', 'silver', 'gold', 'legendary'];
 
@@ -38,7 +38,7 @@ const getRemainingLabel = (achievement, meta) => {
     if (!achievement) return '';
     const progressVal = achievement.progress || 0;
     const target = meta.target || 1;
-    const current = Math.round(progressVal * target);
+    const current = progressVal >= 1 ? target : Math.floor(progressVal * target);
     const remaining = Math.max(0, target - current);
 
     if (meta.isPercentage) {
@@ -529,31 +529,43 @@ function CategoryHeaderUi({ category, unlockedCount, totalCount }) {
     );
 }
 
-function PremiumBadge({ data, size = 'normal', onPress }) {
+function PremiumBadge({ data, size = 'normal', onPress, style }) {
     const dim = size === 'small' ? 52 : 60;
     const IconComponent = Icons[data.meta.iconName] || Icons.Award;
     const colors = data.tierConfig.gradient;
     
+    // Determine the width: on timeline size could be slightly different, but overall 3 columns grid width
+    const itemWidth = style?.width || badgeWidth;
+
     if (!data.unlocked) {
         const target = data.meta.target || 1;
-        const current = Math.round((data.progress || 0) * target);
+        const current = data.progress >= 1 ? target : Math.floor((data.progress || 0) * target);
         const pct = Math.min(100, (data.progress || 0) * 100);
         return (
-            <Pressable onPress={onPress} style={{ width: 100, alignItems: 'center' }}>
+            <Pressable onPress={onPress} style={[{ width: itemWidth, minHeight: 125, alignItems: 'center', marginBottom: 12 }, style]}>
                 <View style={{
                     width: dim, height: dim, borderRadius: 18,
-                    backgroundColor: 'rgba(241, 245, 249, 0.8)', // Simulated glass (0.8 opacity instead of 0.5)
-                    borderWidth: 1, borderColor: 'rgba(148, 163, 184, 0.25)',
-                    alignItems: 'center', justifyContent: 'center', overflow: 'hidden'
+                    backgroundColor: 'rgba(148, 163, 184, 0.06)', // Glassmorphic translucent gray
+                    borderWidth: 1.5, borderColor: 'rgba(148, 163, 184, 0.15)',
+                    alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
+                    position: 'relative'
                 }}>
-                    <Lock size={18} color="#94A3B8" />
+                    <IconComponent size={22} color="#94A3B8" style={{ opacity: 0.35 }} />
+                    <View style={{
+                        position: 'absolute', bottom: 2, right: 2,
+                        backgroundColor: '#64748B', width: 16, height: 16,
+                        borderRadius: 8, alignItems: 'center', justifyContent: 'center',
+                        borderWidth: 1.2, borderColor: '#FFF'
+                    }}>
+                        <Lock size={9} color="white" />
+                    </View>
                 </View>
-                <Text style={{ fontSize: 12, fontWeight: '700', color: '#64748B', marginTop: 8, textAlign: 'center' }}>{data.meta.title || data.key}</Text>
+                <Text style={{ fontSize: 11, fontWeight: '700', color: '#64748B', marginTop: 8, textAlign: 'center', lineHeight: 14 }}>{data.meta.title || data.key}</Text>
                 {target > 1 && (
-                    <View style={{ width: '100%', alignItems: 'center', marginTop: 2 }}>
-                        <Text style={{ fontSize: 11, color: '#94A3B8' }}>{current}/{target}</Text>
-                        <View style={{ width: '100%', height: 5, borderRadius: 4, backgroundColor: '#E2E8F0', marginTop: 5, overflow: 'hidden' }}>
-                            <LinearGradient colors={colors} start={{x:0, y:0}} end={{x:1, y:0}} style={{ width: `${pct}%`, height: '100%', borderRadius: 4 }} />
+                    <View style={{ width: '90%', alignItems: 'center', marginTop: 3 }}>
+                        <Text style={{ fontSize: 10, color: '#94A3B8', fontWeight: '600' }}>{current}/{target}</Text>
+                        <View style={{ width: '100%', height: 4, borderRadius: 2, backgroundColor: '#E2E8F0', marginTop: 4, overflow: 'hidden' }}>
+                            <LinearGradient colors={colors} start={{x:0, y:0}} end={{x:1, y:0}} style={{ width: `${pct}%`, height: '100%', borderRadius: 2 }} />
                         </View>
                     </View>
                 )}
@@ -562,21 +574,26 @@ function PremiumBadge({ data, size = 'normal', onPress }) {
     }
 
     return (
-        <Pressable onPress={onPress} style={{ width: 100, alignItems: 'center' }}>
+        <Pressable onPress={onPress} style={[{ width: itemWidth, minHeight: 125, alignItems: 'center', marginBottom: 12 }, style]}>
             <LinearGradient
                 colors={colors}
                 start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-                style={[{
+                style={{
                     width: dim, height: dim, borderRadius: 18,
                     alignItems: 'center', justifyContent: 'center',
-                }, { boxShadow: `0 8px 20px ${colors[0]}55` }]}
+                    shadowColor: colors[0],
+                    shadowOffset: { width: 0, height: 6 },
+                    shadowOpacity: 0.3,
+                    shadowRadius: 8,
+                    elevation: 5,
+                }}
             >
                 <IconComponent size={22} color="white" />
                 {data.meta.tier === 'legendary' && (
                     <View style={{ position: 'absolute', top: -3, bottom: -3, left: -3, right: -3, borderRadius: 21, borderWidth: 2, borderColor: colors[1] + '99' }} />
                 )}
             </LinearGradient>
-            <Text style={{ fontSize: 12, fontWeight: '800', color: '#0F172A', marginTop: 8, textAlign: 'center', lineHeight: 14 }}>{data.meta.title || data.key}</Text>
+            <Text style={{ fontSize: 11, fontWeight: '800', color: '#0F172A', marginTop: 8, textAlign: 'center', lineHeight: 14 }}>{data.meta.title || data.key}</Text>
             {['legendary', 'rare'].includes(data.meta.tier) && (
                 <Text style={{ fontSize: 9, fontWeight: '800', letterSpacing: 0.5, color: colors[0], marginTop: 2, textTransform: 'uppercase' }}>{data.meta.tier}</Text>
             )}
@@ -592,7 +609,7 @@ function TimelineLayout({ badges, onSelect }) {
             </View>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', zIndex: 1 }}>
                 {badges.map((b, i) => (
-                    <PremiumBadge key={i} data={b} size="small" onPress={() => onSelect(b)} />
+                    <PremiumBadge key={i} data={b} size="small" onPress={() => onSelect(b)} style={{ width: badgeWidth, marginBottom: 0 }} />
                 ))}
             </View>
         </View>
@@ -1323,9 +1340,9 @@ export default function AdherenceScreen({ navigation }) {
                                     {catConfig.layout === 'timeline' ? (
                                         <TimelineLayout badges={catAchievements} onSelect={handleBadgePress} />
                                     ) : (
-                                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-start', gap: 10 }}>
+                                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-start' }}>
                                             {catAchievements.map((b, i) => (
-                                                <PremiumBadge key={i} data={b} onPress={() => handleBadgePress(b)} />
+                                                <PremiumBadge key={i} data={b} onPress={() => handleBadgePress(b)} style={{ marginRight: (i % 3 === 2) ? 0 : 12 }} />
                                             ))}
                                         </View>
                                     )}

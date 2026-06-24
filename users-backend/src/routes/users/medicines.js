@@ -858,23 +858,32 @@ router.get('/adherence/details', authenticateSession, async (req, res) => {
         };
         const maxConsecutive80 = longestConsecutiveRun(dailyLog, 80);
 
-        // BUG 7 FIX: only considers logs that actually have morning/night entries
-        const logsWithMorningMeds = dailyLog.filter(log =>
-            log.medicines.some(m => m.time === 'morning')
-        );
-        const morningLogs = logsWithMorningMeds.length >= 1 && logsWithMorningMeds.every(log =>
-            log.medicines
-                .filter(m => m.time === 'morning')
-                .every(m => m.taken)
-        );
-        const logsWithNightMeds = dailyLog.filter(log =>
-            log.medicines.some(m => m.time === 'night')
-        );
-        const nightLogs = logsWithNightMeds.length >= 1 && logsWithNightMeds.every(log =>
-            log.medicines
-                .filter(m => m.time === 'night')
-                .every(m => m.taken)
-        );
+        // Calculate consecutive morning and night streak runs
+        let morningRun = 0, maxConsecutiveMorning = 0;
+        let nightRun = 0, maxConsecutiveNight = 0;
+        for (const log of dailyLog) {
+            const meds = log.medicines || [];
+            
+            // Morning check
+            const hasMorning = meds.some(m => m.time === 'morning');
+            const allMorningTaken = hasMorning && meds.filter(m => m.time === 'morning').every(m => m.taken);
+            if (allMorningTaken) {
+                morningRun++;
+                maxConsecutiveMorning = Math.max(maxConsecutiveMorning, morningRun);
+            } else if (hasMorning) {
+                morningRun = 0;
+            }
+
+            // Night check
+            const hasNight = meds.some(m => m.time === 'night');
+            const allNightTaken = hasNight && meds.filter(m => m.time === 'night').every(m => m.taken);
+            if (allNightTaken) {
+                nightRun++;
+                maxConsecutiveNight = Math.max(maxConsecutiveNight, nightRun);
+            } else if (hasNight) {
+                nightRun = 0;
+            }
+        }
         const vitalsLoggedDays = dailyLog.filter(d => d.vitals).length;
 
         // BP stabilized: count consecutive days with systolic BP logged
@@ -952,7 +961,7 @@ router.get('/adherence/details', authenticateSession, async (req, res) => {
             { key: '3_day_consistent', label: 'Hat Trick', description: 'Maintain an 80%+ medication log rate for 3 consecutive days', emoji: '⚡', tier: 'silver',
               unlockCheck: maxConsecutive80 >= 3, progress: maxConsecutive80 >= 3 ? 1 : Math.min(maxConsecutive80 / 3, 0.99), progressLabel: `${Math.min(maxConsecutive80, 3)}/3 days` },
             { key: 'never_missed_morning', label: 'Early Bird', description: 'Take morning medications on time for 3 days', emoji: '🌅', tier: 'silver',
-              unlockCheck: logsWithMorningMeds.length >= 3 && morningLogs, progress: (logsWithMorningMeds.length >= 3 && morningLogs) ? 1 : Math.min(logsWithMorningMeds.length / 3, 0.99), progressLabel: `${Math.min(logsWithMorningMeds.length, 3)}/3 mornings` },
+              unlockCheck: maxConsecutiveMorning >= 3, progress: maxConsecutiveMorning >= 3 ? 1 : Math.min(maxConsecutiveMorning / 3, 0.99), progressLabel: `${Math.min(maxConsecutiveMorning, 3)}/3 mornings` },
             { key: 'weekly_90', label: 'Weekly Star', description: 'Maintain 90%+ medication adherence for a full week', emoji: '🎯', tier: 'silver',
               unlockCheck: weeklyScore >= 90, progress: Math.min(weeklyScore / 90, 1), progressLabel: `${weeklyScore}/90%` },
             { key: 'streak_7', label: '7-Day Streak', description: 'Log your vitals or medications for 7 consecutive days', emoji: '🔥', tier: 'silver',
@@ -970,7 +979,7 @@ router.get('/adherence/details', authenticateSession, async (req, res) => {
             { key: '7_perfect_days', label: 'Perfect Week', description: 'Log 7 perfect days of 100% medication adherence', emoji: '💎', tier: 'gold',
               unlockCheck: perfectDays.length >= 7, progress: Math.min(perfectDays.length / 7, 1), progressLabel: `${Math.min(perfectDays.length, 7)}/7 days` },
             { key: 'night_owl', label: 'Night Owl', description: 'Log all evening and night doses on time for 5 days', emoji: '🦉', tier: 'gold',
-              unlockCheck: logsWithNightMeds.length >= 5 && nightLogs, progress: (logsWithNightMeds.length >= 5 && nightLogs) ? 1 : Math.min(logsWithNightMeds.length / 5, 0.99), progressLabel: `${Math.min(logsWithNightMeds.length, 5)}/5 nights` },
+              unlockCheck: maxConsecutiveNight >= 5, progress: maxConsecutiveNight >= 5 ? 1 : Math.min(maxConsecutiveNight / 5, 0.99), progressLabel: `${Math.min(maxConsecutiveNight, 5)}/5 nights` },
             { key: 'vitals_tracker', label: 'Vitals Pro', description: 'Log your health vitals on 10 or more days', emoji: '❤️‍🔥', tier: 'gold',
               unlockCheck: vitalsLoggedDays >= 10, progress: Math.min(vitalsLoggedDays / 10, 1), progressLabel: `${Math.min(vitalsLoggedDays, 10)}/10 days` },
             { key: 'streak_14', label: 'Two-Week Warrior', description: 'Maintain an 80%+ logging rate for 14 consecutive days', emoji: '🔥', tier: 'gold',
