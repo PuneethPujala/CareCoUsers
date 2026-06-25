@@ -16,8 +16,10 @@
 const LEVELS = { debug: 0, info: 1, warn: 2, error: 3 };
 
 const activeLevel = process.env.LOG_LEVEL
-    ? (LEVELS[process.env.LOG_LEVEL] ?? LEVELS.info)
-    : (process.env.NODE_ENV === 'production' ? LEVELS.info : LEVELS.debug);
+  ? (LEVELS[process.env.LOG_LEVEL] ?? LEVELS.info)
+  : process.env.NODE_ENV === "production"
+    ? LEVELS.info
+    : LEVELS.debug;
 
 /**
  * Serialize meta so Error instances become readable objects.
@@ -25,32 +27,48 @@ const activeLevel = process.env.LOG_LEVEL
  * This guard converts them to { message, stack } before stringify.
  */
 function serializeMeta(meta) {
-    const safe = {};
-    for (const [key, value] of Object.entries(meta)) {
-        if (value instanceof Error) {
-            safe[key] = { message: value.message, stack: value.stack, code: value.code };
-        } else {
-            safe[key] = value;
-        }
+  const safe = {};
+  for (const [key, value] of Object.entries(meta)) {
+    if (value instanceof Error) {
+      safe[key] = {
+        message: value.message,
+        stack: value.stack,
+        code: value.code,
+      };
+    } else {
+      safe[key] = value;
     }
-    return safe;
+  }
+  return safe;
 }
 
 function log(level, fn, message, meta = {}) {
-    if (LEVELS[level] < activeLevel) return;
-    fn(JSON.stringify({
-        level,
-        timestamp: new Date().toISOString(),
-        message,
-        ...serializeMeta(meta),
-    }));
+  if (LEVELS[level] < activeLevel) return;
+
+  let correlationId;
+  try {
+    const { getCorrelationId } = require("../middleware/correlationId");
+    correlationId = getCorrelationId();
+  } catch (err) {
+    // Ignore require error in environments where not initialized/available
+  }
+
+  fn(
+    JSON.stringify({
+      level,
+      timestamp: new Date().toISOString(),
+      message,
+      ...(correlationId ? { correlationId } : {}),
+      ...serializeMeta(meta),
+    }),
+  );
 }
 
 const logger = {
-    debug: (message, meta = {}) => log('debug', console.debug, message, meta),
-    info: (message, meta = {}) => log('info', console.log, message, meta),
-    warn: (message, meta = {}) => log('warn', console.warn, message, meta),
-    error: (message, meta = {}) => log('error', console.error, message, meta),
+  debug: (message, meta = {}) => log("debug", console.debug, message, meta),
+  info: (message, meta = {}) => log("info", console.log, message, meta),
+  warn: (message, meta = {}) => log("warn", console.warn, message, meta),
+  error: (message, meta = {}) => log("error", console.error, message, meta),
 };
 
 module.exports = logger;

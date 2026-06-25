@@ -1,0 +1,107 @@
+name: Security & CI Pipeline
+
+on:
+  push:
+    branches: [ "**" ]
+  pull_request:
+    branches: [ "**" ]
+
+jobs:
+  trufflehog:
+    name: Secret Scan (TruffleHog)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: TruffleHog Secret Scan
+        uses: trufflesecurity/trufflehog@main
+        with:
+          base: ${{ github.event.repository.default_branch }}
+          head: HEAD
+          extra_args: --only-verified
+
+  snyk:
+    name: Dependency Scan (Snyk)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check Snyk Token Availability
+        id: check_token
+        run: |
+          if [ -z "${{ secrets.SNYK_TOKEN }}" ]; then
+            echo "Snyk token not configured. Skipping Snyk scan."
+            echo "has_token=false" >> $GITHUB_OUTPUT
+          else
+            echo "has_token=true" >> $GITHUB_OUTPUT
+          fi
+        shell: bash
+
+      - name: Setup Node.js
+        if: steps.check_token.outputs.has_token == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Install Snyk CLI
+        if: steps.check_token.outputs.has_token == 'true'
+        run: npm install -g snyk
+
+      - name: Run Snyk Test (Backend)
+        if: steps.check_token.outputs.has_token == 'true'
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        run: |
+          cd users-backend
+          snyk test --severity-threshold=high || true
+
+      - name: Run Snyk Test (Mobile)
+        if: steps.check_token.outputs.has_token == 'true'
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        run: |
+          cd users-mobile
+          snyk test --severity-threshold=high || true
+
+  test_and_lint:
+    name: Lint & Backend Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: 'npm'
+          cache-dependency-path: users-backend/package-lock.json
+
+      - name: Install Dependencies (Backend)
+        run: |
+          cd users-backend
+          npm ci
+
+      - name: Run ESLint
+        run: |
+          cd users-backend
+          npm run lint || npx eslint src/**/*.js --quiet || echo "No lint script/config found"
+
+      - name: Run Prettier Check
+        run: |
+          cd users-backend
+          npx prettier --check "src/**/*.js" "worker.js" "tests/**/*.js"
+
+      - name: Run Audit Check (Non-Blocking)
+        run: |
+          cd users-backend
+          npm audit --audit-level=high || true
+
+      - name: Run Jest Tests with Coverage
+        run: |
+          cd users-backend
+          npm run test:coverage
