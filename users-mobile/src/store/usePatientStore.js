@@ -149,6 +149,8 @@ const usePatientStore = create((set, get) => ({
     networkSimulationMode: 'online', // 'online' | 'offline' | 'flaky' | 'slow'
     lastSyncTimestamp: null,
     _optimisticMeds: {},
+    newlyUnlockedAchievement: null,
+    clearNewlyUnlockedAchievement: () => set({ newlyUnlockedAchievement: null }),
 
     setPatient: (patient) => set({ patient }),
     setCompanionSelectedPatientId: (id) => set({ companionSelectedPatientId: id }),
@@ -163,6 +165,16 @@ const usePatientStore = create((set, get) => ({
         try {
             const { data } = await apiService.medicines.getAdherenceDetails();
             const corrected = correctAdherenceData(data, get);
+            
+            const oldAdherence = get().adherenceDetails;
+            if (oldAdherence && oldAdherence.achievements && corrected.achievements) {
+                const oldUnlocked = new Set(oldAdherence.achievements.filter(a => a.unlocked).map(a => a.key));
+                const newlyUnlocked = corrected.achievements.filter(a => a.unlocked && !oldUnlocked.has(a.key));
+                if (newlyUnlocked.length > 0) {
+                    set({ newlyUnlockedAchievement: newlyUnlocked[0] });
+                }
+            }
+
             set({ adherenceDetails: corrected });
             return corrected;
         } catch (err) {
@@ -276,6 +288,16 @@ const usePatientStore = create((set, get) => ({
 
 
                 const freshAdherenceDetails = correctAdherenceData(dashData.adherence || { streak: 0 }, get);
+                
+                const oldAdherence = get().adherenceDetails;
+                if (oldAdherence && oldAdherence.achievements && freshAdherenceDetails.achievements) {
+                    const oldUnlocked = new Set(oldAdherence.achievements.filter(a => a.unlocked).map(a => a.key));
+                    const newlyUnlocked = freshAdherenceDetails.achievements.filter(a => a.unlocked && !oldUnlocked.has(a.key));
+                    if (newlyUnlocked.length > 0) {
+                        set({ newlyUnlockedAchievement: newlyUnlocked[0] });
+                    }
+                }
+
                 set(s => ({
                     patient: freshPatient,
                     vitals: freshVitals,
@@ -375,6 +397,16 @@ const usePatientStore = create((set, get) => ({
 
 
             const freshAdherenceDetails = correctAdherenceData(adhRes.data, get);
+            
+            const oldAdherence = get().adherenceDetails;
+            if (oldAdherence && oldAdherence.achievements && freshAdherenceDetails.achievements) {
+                const oldUnlocked = new Set(oldAdherence.achievements.filter(a => a.unlocked).map(a => a.key));
+                const newlyUnlocked = freshAdherenceDetails.achievements.filter(a => a.unlocked && !oldUnlocked.has(a.key));
+                if (newlyUnlocked.length > 0) {
+                    set({ newlyUnlockedAchievement: newlyUnlocked[0] });
+                }
+            }
+
             set(s => ({
                 patient: freshPatient,
                 vitals: freshVitals,

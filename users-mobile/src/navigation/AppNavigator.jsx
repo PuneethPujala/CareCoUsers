@@ -26,6 +26,7 @@ import NetInfo from '@react-native-community/netinfo';
 import OfflineSyncService from '../lib/OfflineSyncService';
 import { navigate } from '../lib/navigationRef';
 import GlobalSyncBanner from '../components/ui/GlobalSyncBanner';
+import AchievementCelebration from '../components/adherence/AchievementCelebration';
 
 import PatientSignupScreen from "../screens/onboarding/PatientSignupScreen";
 import LoginScreen from "../screens/onboarding/LoginScreen";
@@ -451,6 +452,7 @@ export default function AppNavigator() {
             <GlobalSyncBanner />
             <MainAppStack />
             <CustomAlert ref={alertRef} />
+            <AchievementCelebration />
         </View>
     );
 }

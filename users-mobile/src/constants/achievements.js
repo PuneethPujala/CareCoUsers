@@ -2,7 +2,7 @@ export const ACHIEVEMENTS = [
     // Bronze Tier
     {
         key: 'first_dose',
-        title: 'First Dose',
+        title: 'First Dose Explorer',
         tier: 'bronze',
         category: 'doses',
         description: 'Log your very first medication dose',
@@ -11,7 +11,7 @@ export const ACHIEVEMENTS = [
     },
     {
         key: 'first_vital',
-        title: 'First Vital Logged',
+        title: 'Vitals Explorer',
         tier: 'bronze',
         category: 'doses',
         description: 'Log your first vital reading',
@@ -20,7 +20,7 @@ export const ACHIEVEMENTS = [
     },
     {
         key: 'first_perfect_day',
-        title: 'Perfect Day',
+        title: 'Adherence Explorer',
         tier: 'bronze',
         category: 'perfect_days',
         description: 'Complete all scheduled medication doses in a single day',
@@ -29,7 +29,7 @@ export const ACHIEVEMENTS = [
     },
     {
         key: 'mood_check_in',
-        title: 'Mood Check-In',
+        title: 'Mindful Start',
         tier: 'bronze',
         category: 'wellbeing',
         description: 'Log your mood for the very first time',
@@ -40,7 +40,7 @@ export const ACHIEVEMENTS = [
     // Silver Tier
     {
         key: '3_day_consistent',
-        title: 'Hat Trick',
+        title: 'Consistency Hero',
         tier: 'silver',
         category: 'streaks',
         description: 'Maintain an 80%+ medication log rate for 3 consecutive days',
@@ -49,7 +49,7 @@ export const ACHIEVEMENTS = [
     },
     {
         key: 'never_missed_morning',
-        title: 'Early Bird',
+        title: 'Morning Guardian',
         tier: 'silver',
         category: 'routine',
         description: 'Take morning medications on time for 3 days',
@@ -58,7 +58,7 @@ export const ACHIEVEMENTS = [
     },
     {
         key: 'weekly_90',
-        title: 'Weekly Star',
+        title: 'Weekly Adherence Champion',
         tier: 'silver',
         category: 'routine',
         description: 'Maintain 90%+ medication adherence for a full week',
@@ -68,7 +68,7 @@ export const ACHIEVEMENTS = [
     },
     {
         key: 'streak_7',
-        title: '7-Day Streak',
+        title: 'Consistency Champion',
         tier: 'silver',
         category: 'streaks',
         description: 'Log your vitals or medications for 7 consecutive days',
@@ -77,7 +77,7 @@ export const ACHIEVEMENTS = [
     },
     {
         key: 'bp_stabilized',
-        title: 'BP Stabilized',
+        title: 'Vitals Guardian',
         tier: 'silver',
         category: 'routine',
         description: 'Maintain stable blood pressure logs for 14 days',
@@ -86,7 +86,7 @@ export const ACHIEVEMENTS = [
     },
     {
         key: 'profile_complete',
-        title: 'Profile Complete',
+        title: 'Health Profile Champion',
         tier: 'silver',
         category: 'routine',
         description: 'Fill in 100% of your health profile information',
@@ -96,7 +96,7 @@ export const ACHIEVEMENTS = [
     },
     {
         key: 'hydration_hero',
-        title: 'Hydration Hero',
+        title: 'Hydration Champion',
         tier: 'silver',
         category: 'wellbeing',
         description: 'Log your hydration levels on 5 different days',
@@ -105,18 +105,18 @@ export const ACHIEVEMENTS = [
     },
     {
         key: 'mindful_week',
-        title: 'Mindful Week',
+        title: 'Mindful Champion',
         tier: 'silver',
         category: 'wellbeing',
         description: 'Log your mood for 7 days',
         iconName: 'Brain',
         target: 7,
     },
-
+ 
     // Gold Tier
     {
         key: '7_perfect_days',
-        title: 'Perfect Week',
+        title: 'Perfect Week Champion',
         tier: 'gold',
         category: 'perfect_days',
         description: 'Log 7 perfect days of 100% medication adherence',
@@ -125,7 +125,7 @@ export const ACHIEVEMENTS = [
     },
     {
         key: 'night_owl',
-        title: 'Night Owl',
+        title: 'Night Guardian',
         tier: 'gold',
         category: 'routine',
         description: 'Log all evening and night doses on time for 5 days',
@@ -134,7 +134,7 @@ export const ACHIEVEMENTS = [
     },
     {
         key: 'vitals_tracker',
-        title: 'Vitals Pro',
+        title: 'Vitals Champion',
         tier: 'gold',
         category: 'doses',
         description: 'Log your health vitals on 10 or more days',
@@ -143,7 +143,7 @@ export const ACHIEVEMENTS = [
     },
     {
         key: 'streak_14',
-        title: 'Two-Week Warrior',
+        title: 'Two-Week Consistency Hero',
         tier: 'gold',
         category: 'streaks',
         description: 'Maintain an 80%+ logging rate for 14 consecutive days',
@@ -152,7 +152,7 @@ export const ACHIEVEMENTS = [
     },
     {
         key: 'monthly_consistent',
-        title: 'Monthly Legend',
+        title: 'Consistency Legend',
         tier: 'gold',
         category: 'streaks',
         description: 'Maintain 80%+ consistency for a full month',
@@ -162,7 +162,7 @@ export const ACHIEVEMENTS = [
     },
     {
         key: 'adherence_30d_90',
-        title: 'Compliance Champ',
+        title: 'Medication Guardian',
         tier: 'gold',
         category: 'routine',
         description: 'Maintain 90%+ medication adherence over 30 days',
@@ -172,7 +172,7 @@ export const ACHIEVEMENTS = [
     },
     {
         key: 'score_plus_20',
-        title: 'Major Improvement',
+        title: 'Recovery Champion',
         tier: 'gold',
         category: 'routine',
         description: 'Improve your overall health score by 20+ points',
@@ -181,7 +181,7 @@ export const ACHIEVEMENTS = [
     },
     {
         key: '100_doses',
-        title: 'Century Club',
+        title: 'Century Champion',
         tier: 'gold',
         category: 'doses',
         description: 'Successfully log a total of 100 medication doses',
@@ -190,7 +190,7 @@ export const ACHIEVEMENTS = [
     },
     {
         key: 'positivity_streak',
-        title: 'Positivity Streak',
+        title: 'Positivity Hero',
         tier: 'gold',
         category: 'wellbeing',
         description: "Report a 'good' or 'great' mood for 3 consecutive days",
@@ -199,18 +199,18 @@ export const ACHIEVEMENTS = [
     },
     {
         key: 'comprehensive_care',
-        title: 'Comprehensive Care',
+        title: 'Comprehensive Care Hero',
         tier: 'gold',
         category: 'wellbeing',
         description: 'Log heart rate, blood pressure, and oxygen saturation on the same day',
         iconName: 'Stethoscope',
         target: 1,
     },
-
+ 
     // Legendary Tier
     {
         key: 'streak_30',
-        title: '30-Day Streak',
+        title: 'Consistency Master',
         tier: 'legendary',
         category: 'streaks',
         description: 'Log your medications or vitals for 30 consecutive days',
@@ -219,7 +219,7 @@ export const ACHIEVEMENTS = [
     },
     {
         key: '30_perfect_days',
-        title: 'Unstoppable',
+        title: 'Adherence Master',
         tier: 'legendary',
         category: 'perfect_days',
         description: 'Record 30 days of perfect 100% medication adherence',
@@ -227,68 +227,68 @@ export const ACHIEVEMENTS = [
         target: 30,
     }
 ];
-
+ 
 export const TIER_CONFIG = {
     bronze: {
-        color: '#CD7F32',
-        gradient: ['#F59E0B', '#CD7F32'], // vibrant amber-bronze
+        color: '#B25E29',
+        gradient: ['#B25E29', '#E08A4E', '#8C4315'], // rich metallic copper-bronze
         label: 'Bronze',
-        bgColor: '#FFFBEB',
+        bgColor: '#FFF7ED',
     },
     silver: {
-        color: '#C0C0C0',
-        gradient: ['#CBD5E1', '#94A3B8'], // sleek silver-slate
+        color: '#64748B',
+        gradient: ['#7E8B9B', '#E2E8F0', '#5E6B7C'], // sleek polished chrome-silver
         label: 'Silver',
-        bgColor: '#F1F5F9',
+        bgColor: '#F8FAFC',
     },
     gold: {
-        color: '#FFD700',
-        gradient: ['#FBBF24', '#D97706'], // premium warm gold
+        color: '#D97706',
+        gradient: ['#D97706', '#FBBF24', '#F59E0B', '#B45309'], // premium warm multi-stop gold
         label: 'Gold',
         bgColor: '#FEF3C7',
     },
     legendary: {
-        color: '#8B5CF6',
-        gradient: ['#6D28D9', '#9333EA'], // deep magical purple
+        color: '#7C3AED',
+        gradient: ['#4F46E5', '#7C3AED', '#A855F7'], // toned down cosmic purple (not too gamey)
         label: 'Legendary',
         bgColor: '#F5F3FF',
     }
 };
-
+ 
 export const CATEGORY_CONFIG = {
     perfect_days: {
         title: 'Perfect Days Progression',
         description: 'Complete all scheduled medication doses',
         iconName: 'Star',
-        accent: ['#3B82F6', '#60A5FA'],
+        accent: ['#3B82F6', '#60A5FA'], // Blue
         layout: 'timeline',
     },
     streaks: {
         title: 'Consistency & Streaks',
         description: 'Maintain logs over consecutive days',
         iconName: 'Flame',
-        accent: ['#2563EB', '#1D4ED8'],
+        accent: ['#059669', '#34D399'], // Emerald
         layout: 'grid',
     },
     doses: {
         title: 'Logging Volume',
         description: 'Total medication and vitals entries logged',
         iconName: 'Pill',
-        accent: ['#06B6D4', '#0891B2'],
+        accent: ['#0891B2', '#22D3EE'], // Cyan
         layout: 'grid',
     },
     routine: {
         title: 'Routine & Adherence',
         description: 'Time-of-day accuracy and compliance rates',
         iconName: 'Clock',
-        accent: ['#4F46E5', '#6366F1'],
+        accent: ['#4F46E5', '#818CF8'], // Indigo
         layout: 'grid',
     },
     wellbeing: {
         title: 'Holistic Wellbeing',
         description: 'Mood, hydration, and overall health tracking',
         iconName: 'Activity',
-        accent: ['#10B981', '#34D399'],
+        accent: ['#7C3AED', '#A78BFA'], // Purple/Violet
         layout: 'grid',
     },
 };
