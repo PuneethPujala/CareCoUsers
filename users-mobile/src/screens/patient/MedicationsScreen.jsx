@@ -499,6 +499,7 @@ export default function MedicationsScreen({ navigation }) {
     const [uploadingImage, setUploadingImage] = useState(false);
     const [weeklySummary, setWeeklySummary] = useState(null);
     const [refillModal, setRefillModal] = useState({ visible: false, med: null, count: '' });
+    const [submittingRefill, setSubmittingRefill] = useState(false);
 
     const [tempMeds, setTempMeds] = useState([]);
     const [showAddTempMedModal, setShowAddTempMedModal] = useState(false);
@@ -764,26 +765,29 @@ export default function MedicationsScreen({ navigation }) {
         setRefillModal({ 
             visible: true, 
             med, 
-            count: med.refillInfo?.totalDoses ? String(med.refillInfo.totalDoses) : '30' 
+            count: '' 
         });
     };
 
     const submitRefill = async () => {
-        if (!refillModal.med) return;
+        if (!refillModal.med || submittingRefill) return;
         const newCount = parseInt(refillModal.count, 10);
         if (isNaN(newCount) || newCount <= 0) {
             AlertManager.alert('Invalid Count', 'Please enter a valid number of doses.');
             return;
         }
 
+        setSubmittingRefill(true);
         try {
             await apiService.medicines.refill(refillModal.med.name, newCount);
             showToast(t('common.success', { defaultValue: 'Success' }), t('medications.refill_success', { defaultValue: 'Medication supply refilled!' }), 'success');
             setRefillModal({ visible: false, med: null, count: '' });
-            load(true);
+            await load(true);
         } catch (err) {
             console.warn('Refill failed:', err.message);
             showToast(t('common.error', { defaultValue: 'Error' }), t('medications.refill_failed', { defaultValue: 'Failed to refill medication.' }), 'error');
+        } finally {
+            setSubmittingRefill(false);
         }
     };
 
@@ -1424,21 +1428,54 @@ export default function MedicationsScreen({ navigation }) {
                             </Pressable>
                         </View>
                         <Text style={{ fontSize: 14, color: '#475569', marginBottom: 16, lineHeight: 20 }}>
-                            How many doses did you purchase? This will be added to your current supply of <Text style={{ fontWeight: '700', color: '#1E293B' }}>{refillModal.med?.name}</Text>.
+                            Enter the number of new doses you purchased. These will be <Text style={{ fontWeight: '800', color: '#1E293B' }}>added</Text> to your current remaining supply of <Text style={{ fontWeight: '700', color: '#1E293B' }}>{refillModal.med?.name}</Text>.
                         </Text>
                         <TextInput
-                            style={{ backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12, padding: 14, fontSize: 16, color: '#1E293B', marginBottom: 20 }}
+                            style={{ backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12, padding: 14, fontSize: 16, color: '#1E293B', marginBottom: 16 }}
                             value={refillModal.count}
                             onChangeText={(t) => setRefillModal(p => ({ ...p, count: t }))}
                             keyboardType="numeric"
                             placeholder="e.g. 30"
                             placeholderTextColor="#94A3B8"
                         />
+                        {(() => {
+                            const currentRemaining = refillModal.med?.refillInfo?.remainingDoses ?? refillModal.med?.refillInfo?.totalDoses ?? 0;
+                            const addedDoses = parseInt(refillModal.count, 10) || 0;
+                            const newRemaining = currentRemaining + addedDoses;
+                            return (
+                                <View style={{ marginBottom: 20, backgroundColor: '#F8FAFC', padding: 14, borderRadius: 12, borderWidth: 1, borderColor: '#E2E8F0', gap: 6 }}>
+                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <Text style={{ fontSize: 13, color: '#64748B', fontWeight: '500' }}>Current Remaining:</Text>
+                                        <Text style={{ fontSize: 13, fontWeight: '700', color: '#334155' }}>{currentRemaining} doses</Text>
+                                    </View>
+                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <Text style={{ fontSize: 13, color: '#64748B', fontWeight: '500' }}>New Purchased:</Text>
+                                        <Text style={{ fontSize: 13, fontWeight: '700', color: '#10B981' }}>+{addedDoses} doses</Text>
+                                    </View>
+                                    <View style={{ height: 1, backgroundColor: '#E2E8F0', marginVertical: 4 }} />
+                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <Text style={{ fontSize: 13, fontWeight: '700', color: '#1E3A8A' }}>New remaining after refill:</Text>
+                                        <Text style={{ fontSize: 13, fontWeight: '900', color: '#1E3A8A' }}>{newRemaining} doses</Text>
+                                    </View>
+                                </View>
+                            );
+                        })()}
                         <Pressable 
-                            style={{ backgroundColor: '#1E3A8A', paddingVertical: 14, borderRadius: 12, alignItems: 'center' }}
+                            style={{ 
+                                backgroundColor: submittingRefill ? '#94A3B8' : '#1E3A8A', 
+                                paddingVertical: 14, 
+                                borderRadius: 12, 
+                                alignItems: 'center',
+                                opacity: submittingRefill ? 0.8 : 1
+                            }}
+                            disabled={submittingRefill}
                             onPress={submitRefill}
                         >
-                            <Text style={{ color: '#FFF', fontSize: 16, fontWeight: '700' }}>Confirm Refill</Text>
+                            {submittingRefill ? (
+                                <ActivityIndicator size="small" color="#FFF" />
+                            ) : (
+                                <Text style={{ color: '#FFF', fontSize: 16, fontWeight: '700' }}>Confirm Refill</Text>
+                            )}
                         </Pressable>
                     </View>
                 </View>

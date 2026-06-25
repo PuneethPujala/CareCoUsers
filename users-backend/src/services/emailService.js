@@ -1,107 +1,130 @@
-const nodemailer = require('nodemailer');
-const { Resend } = require('resend');
+const nodemailer = require("nodemailer");
+const { Resend } = require("resend");
 
 // Initialize Resend client if API key is provided
 let resend;
 if (process.env.RESEND_API_KEY) {
-    resend = new Resend(process.env.RESEND_API_KEY);
-    console.log('✉️ Resend email service initialized successfully');
+  resend = new Resend(process.env.RESEND_API_KEY);
+  console.log("✉️ Resend email service initialized successfully");
 }
 
 // Create reusable transporter
 let transporter;
 
 const getTransporter = () => {
-    if (transporter) return transporter;
+  if (transporter) return transporter;
 
-    const smtpPort = parseInt(process.env.SMTP_PORT) || 465;
-    const isSecure = process.env.SMTP_SECURE !== undefined
-        ? process.env.SMTP_SECURE !== 'false'
-        : smtpPort === 465;
+  const smtpPort = parseInt(process.env.SMTP_PORT) || 465;
+  const isSecure =
+    process.env.SMTP_SECURE !== undefined
+      ? process.env.SMTP_SECURE !== "false"
+      : smtpPort === 465;
 
-    // Use SMTP config from environment variables
-    transporter = nodemailer.createTransport({
-        host: process.env.SMTP_HOST || 'smtp.gmail.com',
-        port: smtpPort,
-        secure: isSecure,
-        auth: {
-            user: process.env.SMTP_USER,
-            pass: process.env.SMTP_PASS,
-        },
-        connectionTimeout: 30000,
-        greetingTimeout: 30000,
-        socketTimeout: 45000,
-        tls: {
-            rejectUnauthorized: false
-        }
-    });
+  // Use SMTP config from environment variables
+  transporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST || "smtp.gmail.com",
+    port: smtpPort,
+    secure: isSecure,
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
+    },
+    connectionTimeout: 30000,
+    greetingTimeout: 30000,
+    socketTimeout: 45000,
+    tls: {
+      rejectUnauthorized: false,
+    },
+  });
 
-    return transporter;
+  return transporter;
 };
 
 /**
  * Send a generic email
  */
 const sendEmail = async (to, subject, html, { textBody } = {}) => {
-    const fromEmail = process.env.FROM_EMAIL || 'noreply@CareMyMed.com';
+  const fromEmail = process.env.FROM_EMAIL || "noreply@CareMyMed.com";
 
-    if (resend) {
-        try {
-            let resendFrom = fromEmail;
-            const lowerFrom = fromEmail.toLowerCase();
-            if (lowerFrom.endsWith('@gmail.com') || lowerFrom.endsWith('@yahoo.com') || lowerFrom.endsWith('@outlook.com') || !process.env.FROM_EMAIL) {
-                resendFrom = 'onboarding@resend.dev';
-            }
-            const info = await resend.emails.send({
-                from: `CareMyMed Health <${resendFrom}>`,
-                to,
-                subject,
-                html,
-                text: textBody || html.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim().slice(0, 500),
-            });
-            if (info.error) {
-                throw new Error(info.error.message);
-            }
-            console.log(`📧 Email sent via Resend to ${to}: ${info.data?.id || info.id}`);
-            return info;
-        } catch (error) {
-            console.error(`❌ Failed to send email via Resend to ${to}:`, error.message);
-            console.log('🔄 Falling back to standard SMTP...');
-        }
-    }
-
-    const transport = getTransporter();
-
-    const mailOptions = {
-        from: `"CareMyMed Health" <${fromEmail}>`,
+  if (resend) {
+    try {
+      let resendFrom = fromEmail;
+      const lowerFrom = fromEmail.toLowerCase();
+      if (
+        lowerFrom.endsWith("@gmail.com") ||
+        lowerFrom.endsWith("@yahoo.com") ||
+        lowerFrom.endsWith("@outlook.com") ||
+        !process.env.FROM_EMAIL
+      ) {
+        resendFrom = "onboarding@resend.dev";
+      }
+      const info = await resend.emails.send({
+        from: `CareMyMed Health <${resendFrom}>`,
         to,
         subject,
         html,
-        // Plain-text fallback — spam filters penalize HTML-only emails
-        text: textBody || html.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim().slice(0, 500),
-        headers: {
-            'X-Mailer': 'CareMyMed Health Platform',
-            'Precedence': 'bulk',
-            'List-Unsubscribe': `<mailto:${fromEmail}?subject=unsubscribe>`,
-        },
-    };
-
-    try {
-        const info = await transport.sendMail(mailOptions);
-        console.log(`📧 Email sent to ${to}: ${info.messageId}`);
-        return info;
+        text:
+          textBody ||
+          html
+            .replace(/<[^>]*>/g, "")
+            .replace(/\s+/g, " ")
+            .trim()
+            .slice(0, 500),
+      });
+      if (info.error) {
+        throw new Error(info.error.message);
+      }
+      console.log(
+        `📧 Email sent via Resend to ${to}: ${info.data?.id || info.id}`,
+      );
+      return info;
     } catch (error) {
-        console.error(`❌ Failed to send email to ${to}:`, error.message);
-        // Don't throw — email failure should not block account creation
-        return null;
+      console.error(
+        `❌ Failed to send email via Resend to ${to}:`,
+        error.message,
+      );
+      console.log("🔄 Falling back to standard SMTP...");
     }
+  }
+
+  const transport = getTransporter();
+
+  const mailOptions = {
+    from: `"CareMyMed Health" <${fromEmail}>`,
+    to,
+    subject,
+    html,
+    // Plain-text fallback — spam filters penalize HTML-only emails
+    text:
+      textBody ||
+      html
+        .replace(/<[^>]*>/g, "")
+        .replace(/\s+/g, " ")
+        .trim()
+        .slice(0, 500),
+    headers: {
+      "X-Mailer": "CareMyMed Health Platform",
+      Precedence: "bulk",
+      "List-Unsubscribe": `<mailto:${fromEmail}?subject=unsubscribe>`,
+    },
+  };
+
+  try {
+    const info = await transport.sendMail(mailOptions);
+    console.log(`📧 Email sent to ${to}: ${info.messageId}`);
+    return info;
+  } catch (error) {
+    console.error(`❌ Failed to send email to ${to}:`, error.message);
+    // Don't throw — email failure should not block account creation
+    return null;
+  }
 };
 
 /**
  * Send OTP verification email
  */
 const sendOTPEmail = async (to, otp) => {
-    const html = `
+  const html = `
     <!DOCTYPE html>
     <html>
     <head>
@@ -157,18 +180,18 @@ const sendOTPEmail = async (to, otp) => {
     </html>
   `;
 
-    return sendEmail(to, `Your CareMyMed code: ${otp}`, html, {
-        textBody: `Your CareMyMed verification code is: ${otp}\n\nThis code expires in 10 minutes.\nIf you didn't request this, ignore this email.`,
-    });
+  return sendEmail(to, `Your CareMyMed code: ${otp}`, html, {
+    textBody: `Your CareMyMed verification code is: ${otp}\n\nThis code expires in 10 minutes.\nIf you didn't request this, ignore this email.`,
+  });
 };
 
 /**
  * Send temporary password email to newly created user
  */
 const sendTempPasswordEmail = async (to, fullName, tempPassword, roleName) => {
-    const loginUrl = process.env.FRONTEND_URL || 'https://app.CareMyMed.com';
+  const loginUrl = process.env.FRONTEND_URL || "https://app.CareMyMed.com";
 
-    const html = `
+  const html = `
     <!DOCTYPE html>
     <html>
     <head>
@@ -228,14 +251,14 @@ const sendTempPasswordEmail = async (to, fullName, tempPassword, roleName) => {
     </html>
   `;
 
-    return sendEmail(to, 'Your CareMyMed account is ready', html);
+  return sendEmail(to, "Your CareMyMed account is ready", html);
 };
 
 /**
  * Send password changed confirmation email
  */
 const sendPasswordChangedEmail = async (to, fullName) => {
-    const html = `
+  const html = `
     <!DOCTYPE html>
     <html>
     <head>
@@ -277,14 +300,14 @@ const sendPasswordChangedEmail = async (to, fullName) => {
     </html>
   `;
 
-    return sendEmail(to, 'Your CareMyMed password was changed', html);
+  return sendEmail(to, "Your CareMyMed password was changed", html);
 };
 
 /**
  * Send password reset email with custom OTP (replaces Supabase default)
  */
 const sendPasswordResetEmail = async (to, otp) => {
-    const html = `
+  const html = `
     <!DOCTYPE html>
     <html>
     <head>
@@ -340,16 +363,16 @@ const sendPasswordResetEmail = async (to, otp) => {
     </html>
   `;
 
-    return sendEmail(to, `CareMyMed password reset code: ${otp}`, html, {
-        textBody: `Your password reset code is: ${otp}\n\nThis code expires in 10 minutes.\nIf you didn't request this, ignore this email.`,
-    });
+  return sendEmail(to, `CareMyMed password reset code: ${otp}`, html, {
+    textBody: `Your password reset code is: ${otp}\n\nThis code expires in 10 minutes.\nIf you didn't request this, ignore this email.`,
+  });
 };
 
 /**
  * Send security setting change OTP (e.g., Allow Screenshots)
  */
 const sendSecurityOTPEmail = async (to, otp) => {
-    const html = `
+  const html = `
     <!DOCTYPE html>
     <html>
     <head>
@@ -405,16 +428,16 @@ const sendSecurityOTPEmail = async (to, otp) => {
     </html>
   `;
 
-    return sendEmail(to, `CareMyMed security code: ${otp}`, html, {
-        textBody: `Your security verification code is: ${otp}\n\nThis code expires in 10 minutes.\nIf you didn't authorize this, ignore this email.`,
-    });
+  return sendEmail(to, `CareMyMed security code: ${otp}`, html, {
+    textBody: `Your security verification code is: ${otp}\n\nThis code expires in 10 minutes.\nIf you didn't authorize this, ignore this email.`,
+  });
 };
 
 module.exports = {
-    sendEmail,
-    sendOTPEmail,
-    sendTempPasswordEmail,
-    sendPasswordChangedEmail,
-    sendPasswordResetEmail,
-    sendSecurityOTPEmail,
+  sendEmail,
+  sendOTPEmail,
+  sendTempPasswordEmail,
+  sendPasswordChangedEmail,
+  sendPasswordResetEmail,
+  sendSecurityOTPEmail,
 };

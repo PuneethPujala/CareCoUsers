@@ -22,6 +22,7 @@ import { checkPermissionStatus, fetchSleepSessions, initializeHealthPlatform } f
 import { syncAllSchedules } from '../../utils/notifications';
 import usePatientStore from '../../store/usePatientStore';
 import SmartInput from '../../components/ui/SmartInput';
+import AlertManager from '../../utils/AlertManager';
 import { useTranslation } from 'react-i18next';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { HapticPatterns } from '../../utils/haptics';
@@ -531,11 +532,11 @@ export default function PatientHomeScreen({ navigation }) {
             });
             await AsyncStorage.setItem('last_sleep_prompt_date', estimatedSleep.dateStr);
             setEstimatedSleep(null);
-            Alert.alert('Success', 'Successfully logged sleep duration!');
+            AlertManager.alert('Success', 'Successfully logged sleep duration!');
             await fetchData(true);
         } catch (e) {
             console.warn('Failed to log estimated sleep:', e.message);
-            Alert.alert('Error', 'Failed to log sleep. Please try again.');
+            AlertManager.alert('Error', 'Failed to log sleep. Please try again.');
         }
     };
 
@@ -550,7 +551,7 @@ export default function PatientHomeScreen({ navigation }) {
     };
 
     const handleAdjustSleep = () => {
-        Alert.alert(
+        AlertManager.alert(
             'Adjust Sleep',
             'How many hours did you sleep?',
             [
@@ -576,11 +577,11 @@ export default function PatientHomeScreen({ navigation }) {
             });
             await AsyncStorage.setItem('last_sleep_prompt_date', estimatedSleep.dateStr);
             setEstimatedSleep(null);
-            Alert.alert('Success', `Successfully logged ${hours} hours of sleep!`);
+            AlertManager.alert('Success', `Successfully logged ${hours} hours of sleep!`);
             await fetchData(true);
         } catch (e) {
             console.warn('Failed to log custom sleep:', e.message);
-            Alert.alert('Error', 'Failed to log sleep. Please try again.');
+            AlertManager.alert('Error', 'Failed to log sleep. Please try again.');
         }
     };
 

@@ -1,5 +1,5 @@
-const mongoose = require('mongoose');
-const crypto = require('crypto');
+const mongoose = require("mongoose");
+const crypto = require("crypto");
 
 const RefreshTokenSchema = new mongoose.Schema(
   {
@@ -17,7 +17,7 @@ const RefreshTokenSchema = new mongoose.Schema(
     userType: {
       type: String,
       required: true,
-      enum: ['Profile', 'Patient', 'Companion'],
+      enum: ["Profile", "Patient", "Companion"],
     },
     /** Stable auth subject (matches Profile.supabaseUid / Patient.supabase_uid) */
     subject: {
@@ -35,19 +35,19 @@ const RefreshTokenSchema = new mongoose.Schema(
     },
     replacedBy: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'RefreshToken',
+      ref: "RefreshToken",
       default: null,
     },
     userAgent: { type: String },
     ipAddress: { type: String },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 RefreshTokenSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 function hashRefreshToken(rawToken) {
-  return crypto.createHash('sha256').update(rawToken, 'utf8').digest('hex');
+  return crypto.createHash("sha256").update(rawToken, "utf8").digest("hex");
 }
 
 RefreshTokenSchema.statics.hashToken = hashRefreshToken;
@@ -67,9 +67,9 @@ RefreshTokenSchema.statics.createForUser = async function createForUser({
     userType,
     subject,
     expiresAt,
-    userAgent: req?.headers?.['user-agent'],
+    userAgent: req?.headers?.["user-agent"],
     ipAddress: req?.ip,
   });
 };
 
-module.exports = mongoose.model('RefreshToken', RefreshTokenSchema);
+module.exports = mongoose.model("RefreshToken", RefreshTokenSchema);

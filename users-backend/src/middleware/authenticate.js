@@ -1,9 +1,9 @@
-const { createClient } = require('@supabase/supabase-js');
-const mongoose = require('mongoose');
-const Profile = require('../models/Profile');
-const Patient = require('../models/Patient');
-const AuditLog = require('../models/AuditLog');
-const tokenService = require('../services/tokenService');
+const { createClient } = require("@supabase/supabase-js");
+const mongoose = require("mongoose");
+const Profile = require("../models/Profile");
+const Patient = require("../models/Patient");
+const AuditLog = require("../models/AuditLog");
+const tokenService = require("../services/tokenService");
 
 // ── Caller Presence ──────────────────────────────────────────────────────────
 // Touch caller active timestamp using MongoDB-level throttle gate (max once per minute).
@@ -11,7 +11,7 @@ const tokenService = require('../services/tokenService');
 // IMPORTANT: This function is byte-for-byte synchronized with
 //   backend/src/middleware/authenticate.js — keep both in sync.
 function touchCallerActivity(profile) {
-  if (!profile || (profile.role !== 'caller' && profile.role !== 'caretaker')) {
+  if (!profile || (profile.role !== "caller" && profile.role !== "caretaker")) {
     return;
   }
 
@@ -22,28 +22,41 @@ function touchCallerActivity(profile) {
     $or: [
       { last_active_at: { $exists: false } },
       { last_active_at: null },
-      { last_active_at: { $lt: oneMinuteAgo } }
-    ]
+      { last_active_at: { $lt: oneMinuteAgo } },
+    ],
   };
   const update = { $set: { last_active_at: now } };
 
   // Update Profile document
-  mongoose.model('Profile').updateOne(query, update)
-    .catch(e => console.warn('[touchCallerActivity] profile update failed:', e.message));
+  mongoose
+    .model("Profile")
+    .updateOne(query, update)
+    .catch((e) =>
+      console.warn("[touchCallerActivity] profile update failed:", e.message),
+    );
 
   // Update Caller collection (callers._id === profiles._id — verified via Profile post-save hooks)
-  mongoose.model('Caller').updateOne(query, update)
-    .catch(e => console.warn('[touchCallerActivity] caller update failed:', e.message));
+  mongoose
+    .model("Caller")
+    .updateOne(query, update)
+    .catch((e) =>
+      console.warn("[touchCallerActivity] caller update failed:", e.message),
+    );
 }
 
 let supabaseClient = null;
 function getSupabase() {
-  if (process.env.AUTH_ENABLE_SUPABASE_FALLBACK !== 'true') return null;
-  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) return null;
+  if (process.env.AUTH_ENABLE_SUPABASE_FALLBACK !== "true") return null;
+  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY)
+    return null;
   if (!supabaseClient) {
-    supabaseClient = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    });
+    supabaseClient = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY,
+      {
+        auth: { autoRefreshToken: false, persistSession: false },
+      },
+    );
   }
   return supabaseClient;
 }
@@ -66,43 +79,53 @@ async function attachJwtUser(token, req) {
   let payload;
   try {
     payload = tokenService.verifyAccessToken(token);
-    const isValid = await tokenService.checkRedisSessionValidity(token, payload);
+    const isValid = await tokenService.checkRedisSessionValidity(
+      token,
+      payload,
+    );
     if (!isValid) return false;
   } catch {
     return false;
   }
 
   const subject = payload.sub;
-  const isPatient = payload.typ === 'patient';
+  const isPatient = payload.typ === "patient";
 
   let profile;
   if (isPatient) {
     profile = await Patient.findOne({ supabase_uid: subject });
-    if (profile && !profile.is_active && profile.deactivated_reason === 'user_requested') {
+    if (
+      profile &&
+      !profile.is_active &&
+      profile.deactivated_reason === "user_requested"
+    ) {
       profile.is_active = true;
       profile.deactivated_at = undefined;
       profile.deactivated_reason = undefined;
       await profile.save();
       await AuditLog.createLog({
         supabaseUid: subject,
-        action: 'account_reactivated',
-        resourceType: 'patient',
+        action: "account_reactivated",
+        resourceType: "patient",
         resourceId: profile._id,
         ipAddress: req.ip,
-        outcome: 'success',
-        details: { method: 'jwt_auto' },
+        outcome: "success",
+        details: { method: "jwt_auto" },
       });
     }
     if (profile && !profile.is_active) profile = null; // Still block if deactivated for other reasons
     if (profile) profile.organizationId = profile.organization_id;
   } else {
-    profile = await Profile.findOne({ supabaseUid: subject, isActive: true }).populate(
-      'organizationId',
-      'name city'
-    );
+    profile = await Profile.findOne({
+      supabaseUid: subject,
+      isActive: true,
+    }).populate("organizationId", "name city");
     if (!profile) {
-      const Companion = require('../models/Companion');
-      profile = await Companion.findOne({ supabaseUid: subject, isActive: true });
+      const Companion = require("../models/Companion");
+      profile = await Companion.findOne({
+        supabaseUid: subject,
+        isActive: true,
+      });
     }
   }
 
@@ -114,9 +137,12 @@ async function attachJwtUser(token, req) {
     if (emailProfile) {
       emailProfile.supabaseUid = subject;
       await emailProfile.save();
-      profile = await Profile.findById(emailProfile._id).populate('organizationId', 'name city');
+      profile = await Profile.findById(emailProfile._id).populate(
+        "organizationId",
+        "name city",
+      );
     } else {
-      const Companion = require('../models/Companion');
+      const Companion = require("../models/Companion");
       const emailCompanion = await Companion.findOne({
         email: String(payload.email).toLowerCase().trim(),
         isActive: true,
@@ -134,7 +160,10 @@ async function attachJwtUser(token, req) {
       email: String(payload.email).toLowerCase().trim(),
     });
     if (emailPatient) {
-      if (!emailPatient.is_active && emailPatient.deactivated_reason === 'user_requested') {
+      if (
+        !emailPatient.is_active &&
+        emailPatient.deactivated_reason === "user_requested"
+      ) {
         emailPatient.is_active = true;
         emailPatient.deactivated_at = undefined;
         emailPatient.deactivated_reason = undefined;
@@ -157,10 +186,14 @@ async function attachJwtUser(token, req) {
   }
 
   req.auth = {
-    kind: 'jwt',
+    kind: "jwt",
     subject,
     userId: profile._id,
-    userType: isPatient ? 'Patient' : (profile.role === 'companion' ? 'Companion' : 'Profile'),
+    userType: isPatient
+      ? "Patient"
+      : profile.role === "companion"
+        ? "Companion"
+        : "Profile",
   };
   req.user = buildReqUserFromProfile(profile, subject);
   req.profile = profile;
@@ -187,23 +220,29 @@ async function attachSupabaseUser(token, req) {
   } = await supabase.auth.getUser(token);
   if (error || !user) {
     await AuditLog.createLog({
-      supabaseUid: 'anonymous',
-      action: 'login_failed',
-      resourceType: 'system',
+      supabaseUid: "anonymous",
+      action: "login_failed",
+      resourceType: "system",
       ipAddress: req.ip,
-      userAgent: req.headers['user-agent'],
-      outcome: 'failure',
-      details: { reason: error?.message || 'Invalid token' },
+      userAgent: req.headers["user-agent"],
+      outcome: "failure",
+      details: { reason: error?.message || "Invalid token" },
     });
     return false;
   }
 
-  const requestedRole = (req.headers['x-requested-role'] || '').toLowerCase().trim();
+  const requestedRole = (req.headers["x-requested-role"] || "")
+    .toLowerCase()
+    .trim();
 
   // ── If the caller explicitly wants 'patient', check Patient FIRST ──
-  if (requestedRole === 'patient') {
+  if (requestedRole === "patient") {
     let patient = await Patient.findOne({ supabase_uid: user.id });
-    if (patient && !patient.is_active && patient.deactivated_reason === 'user_requested') {
+    if (
+      patient &&
+      !patient.is_active &&
+      patient.deactivated_reason === "user_requested"
+    ) {
       patient.is_active = true;
       patient.deactivated_at = undefined;
       patient.deactivated_reason = undefined;
@@ -216,7 +255,10 @@ async function attachSupabaseUser(token, req) {
         email: user.email.toLowerCase().trim(),
       });
       if (emailPatient) {
-        if (!emailPatient.is_active && emailPatient.deactivated_reason === 'user_requested') {
+        if (
+          !emailPatient.is_active &&
+          emailPatient.deactivated_reason === "user_requested"
+        ) {
           emailPatient.is_active = true;
           emailPatient.deactivated_at = undefined;
           emailPatient.deactivated_reason = undefined;
@@ -233,10 +275,10 @@ async function attachSupabaseUser(token, req) {
     if (patient) {
       patient.organizationId = patient.organization_id;
       req.auth = {
-        kind: 'supabase',
+        kind: "supabase",
         subject: user.id,
         userId: patient._id,
-        userType: 'Patient',
+        userType: "Patient",
       };
       req.user = {
         id: user.id,
@@ -254,13 +296,13 @@ async function attachSupabaseUser(token, req) {
   }
 
   // ── Default resolution: Profile → Companion → Patient ──
-  let profile = await Profile.findOne({ supabaseUid: user.id, isActive: true }).populate(
-    'organizationId',
-    'name city'
-  );
+  let profile = await Profile.findOne({
+    supabaseUid: user.id,
+    isActive: true,
+  }).populate("organizationId", "name city");
 
   if (!profile) {
-    const Companion = require('../models/Companion');
+    const Companion = require("../models/Companion");
     profile = await Companion.findOne({ supabaseUid: user.id, isActive: true });
   }
 
@@ -272,9 +314,12 @@ async function attachSupabaseUser(token, req) {
     if (emailProfile) {
       emailProfile.supabaseUid = user.id;
       await emailProfile.save();
-      profile = await Profile.findById(emailProfile._id).populate('organizationId', 'name city');
+      profile = await Profile.findById(emailProfile._id).populate(
+        "organizationId",
+        "name city",
+      );
     } else {
-      const Companion = require('../models/Companion');
+      const Companion = require("../models/Companion");
       const emailCompanion = await Companion.findOne({
         email: user.email.toLowerCase().trim(),
         isActive: true,
@@ -289,7 +334,11 @@ async function attachSupabaseUser(token, req) {
 
   if (!profile) {
     let patient = await Patient.findOne({ supabase_uid: user.id });
-    if (patient && !patient.is_active && patient.deactivated_reason === 'user_requested') {
+    if (
+      patient &&
+      !patient.is_active &&
+      patient.deactivated_reason === "user_requested"
+    ) {
       patient.is_active = true;
       patient.deactivated_at = undefined;
       patient.deactivated_reason = undefined;
@@ -302,7 +351,10 @@ async function attachSupabaseUser(token, req) {
         email: user.email.toLowerCase().trim(),
       });
       if (emailPatient) {
-        if (!emailPatient.is_active && emailPatient.deactivated_reason === 'user_requested') {
+        if (
+          !emailPatient.is_active &&
+          emailPatient.deactivated_reason === "user_requested"
+        ) {
           emailPatient.is_active = true;
           emailPatient.deactivated_at = undefined;
           emailPatient.deactivated_reason = undefined;
@@ -328,10 +380,15 @@ async function attachSupabaseUser(token, req) {
   }
 
   req.auth = {
-    kind: 'supabase',
+    kind: "supabase",
     subject: user.id,
     userId: profile._id,
-    userType: profile.role === 'patient' ? 'Patient' : (profile.role === 'companion' ? 'Companion' : 'Profile'),
+    userType:
+      profile.role === "patient"
+        ? "Patient"
+        : profile.role === "companion"
+          ? "Companion"
+          : "Profile",
   };
   req.user = {
     id: user.id,
@@ -350,30 +407,33 @@ async function attachSupabaseUser(token, req) {
 async function runAuthGuards(req, res, profile) {
   if (profile.isLocked) {
     await AuditLog.createLog({
-      supabaseUid: req.auth?.subject || 'unknown',
-      action: 'login_failed',
-      resourceType: 'profile',
+      supabaseUid: req.auth?.subject || "unknown",
+      action: "login_failed",
+      resourceType: "profile",
       resourceId: profile._id,
       ipAddress: req.ip,
-      userAgent: req.headers['user-agent'],
-      outcome: 'failure',
-      details: { reason: 'Account locked', lockedUntil: profile.accountLockedUntil },
+      userAgent: req.headers["user-agent"],
+      outcome: "failure",
+      details: {
+        reason: "Account locked",
+        lockedUntil: profile.accountLockedUntil,
+      },
     });
     return res.status(423).json({
-      error: 'Account is temporarily locked',
-      code: 'ACCOUNT_LOCKED',
+      error: "Account is temporarily locked",
+      code: "ACCOUNT_LOCKED",
       lockedUntil: profile.accountLockedUntil,
     });
   }
 
   if (
-    profile.role !== 'super_admin' &&
-    profile.role !== 'patient' &&
+    profile.role !== "super_admin" &&
+    profile.role !== "patient" &&
     !profile.emailVerified
   ) {
     return res.status(403).json({
-      error: 'Email verification required',
-      code: 'EMAIL_NOT_VERIFIED',
+      error: "Email verification required",
+      code: "EMAIL_NOT_VERIFIED",
     });
   }
 
@@ -383,12 +443,12 @@ async function runAuthGuards(req, res, profile) {
 
   await AuditLog.createLog({
     supabaseUid: req.auth?.subject || req.user?.id,
-    action: 'login',
-    resourceType: 'profile',
+    action: "login",
+    resourceType: "profile",
     resourceId: profile._id,
     ipAddress: req.ip,
-    userAgent: req.headers['user-agent'],
-    outcome: 'success',
+    userAgent: req.headers["user-agent"],
+    outcome: "success",
     details: {
       role: profile.role,
       organizationId: profile.organizationId?._id,
@@ -402,14 +462,14 @@ const authenticate = async (req, res, next) => {
   try {
     if (req.profile && req.auth) return next();
     const authHeader = req.headers.authorization;
-    if (!authHeader?.startsWith('Bearer ')) {
+    if (!authHeader?.startsWith("Bearer ")) {
       return res.status(401).json({
-        error: 'Missing or invalid Authorization header',
-        code: 'MISSING_AUTH_HEADER',
+        error: "Missing or invalid Authorization header",
+        code: "MISSING_AUTH_HEADER",
       });
     }
 
-    const token = authHeader.split(' ')[1];
+    const token = authHeader.split(" ")[1];
     let attached = await attachJwtUser(token, req);
     if (!attached) {
       attached = await attachSupabaseUser(token, req);
@@ -418,11 +478,13 @@ const authenticate = async (req, res, next) => {
     if (!attached || !req.profile) {
       if (req._authProfileMissing) {
         return res.status(403).json({
-          error: 'Profile not found or inactive',
-          code: 'PROFILE_NOT_FOUND',
+          error: "Profile not found or inactive",
+          code: "PROFILE_NOT_FOUND",
         });
       }
-      return res.status(401).json({ error: 'Invalid or expired token', code: 'INVALID_TOKEN' });
+      return res
+        .status(401)
+        .json({ error: "Invalid or expired token", code: "INVALID_TOKEN" });
     }
 
     const guard = await runAuthGuards(req, res, req.profile);
@@ -430,17 +492,19 @@ const authenticate = async (req, res, next) => {
 
     next();
   } catch (err) {
-    console.error('Authentication error:', err);
-    return res.status(500).json({ error: 'Authentication error', code: 'AUTH_SYSTEM_ERROR' });
+    console.error("Authentication error:", err);
+    return res
+      .status(500)
+      .json({ error: "Authentication error", code: "AUTH_SYSTEM_ERROR" });
   }
 };
 
 const optionalAuthenticate = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
-    if (!authHeader?.startsWith('Bearer ')) return next();
+    if (!authHeader?.startsWith("Bearer ")) return next();
 
-    const token = authHeader.split(' ')[1];
+    const token = authHeader.split(" ")[1];
     let attached = await attachJwtUser(token, req);
     if (!attached) {
       attached = await attachSupabaseUser(token, req);
@@ -449,8 +513,8 @@ const optionalAuthenticate = async (req, res, next) => {
     if (
       req.profile &&
       !req.profile.isLocked &&
-      (req.profile.role === 'super_admin' ||
-        req.profile.role === 'patient' ||
+      (req.profile.role === "super_admin" ||
+        req.profile.role === "patient" ||
         req.profile.emailVerified)
     ) {
       return next();
@@ -461,7 +525,7 @@ const optionalAuthenticate = async (req, res, next) => {
     req.auth = undefined;
     next();
   } catch (err) {
-    console.error('Optional authentication error:', err);
+    console.error("Optional authentication error:", err);
     next();
   }
 };
@@ -470,14 +534,14 @@ const authenticateSession = async (req, res, next) => {
   try {
     if (req.profile || req.auth) return next();
     const authHeader = req.headers.authorization;
-    if (!authHeader?.startsWith('Bearer ')) {
+    if (!authHeader?.startsWith("Bearer ")) {
       return res.status(401).json({
-        error: 'Missing or invalid Authorization header',
-        code: 'MISSING_AUTH_HEADER',
+        error: "Missing or invalid Authorization header",
+        code: "MISSING_AUTH_HEADER",
       });
     }
 
-    const token = authHeader.split(' ')[1];
+    const token = authHeader.split(" ")[1];
     const attached = await attachJwtUser(token, req);
     if (attached) {
       return next();
@@ -485,7 +549,9 @@ const authenticateSession = async (req, res, next) => {
 
     const supabase = getSupabase();
     if (!supabase) {
-      return res.status(401).json({ error: 'Invalid or expired token', code: 'INVALID_TOKEN' });
+      return res
+        .status(401)
+        .json({ error: "Invalid or expired token", code: "INVALID_TOKEN" });
     }
 
     const {
@@ -493,7 +559,9 @@ const authenticateSession = async (req, res, next) => {
       error,
     } = await supabase.auth.getUser(token);
     if (error || !user) {
-      return res.status(401).json({ error: 'Invalid or expired token', code: 'INVALID_TOKEN' });
+      return res
+        .status(401)
+        .json({ error: "Invalid or expired token", code: "INVALID_TOKEN" });
     }
 
     req.user = {
@@ -503,57 +571,70 @@ const authenticateSession = async (req, res, next) => {
       created_at: user.created_at,
     };
     req.profile = null;
-    req.auth = { kind: 'supabase', subject: user.id };
+    req.auth = { kind: "supabase", subject: user.id };
     next();
   } catch (err) {
-    console.error('Session authentication error:', err);
-    return res.status(500).json({ error: 'Authentication error' });
+    console.error("Session authentication error:", err);
+    return res.status(500).json({ error: "Authentication error" });
   }
 };
 
-const requireRole = (...allowedRoles) => (req, res, next) => {
-  if (!req.profile) {
-    return res.status(401).json({ error: 'Authentication required', code: 'AUTH_REQUIRED' });
-  }
-  if (!allowedRoles.includes(req.profile.role)) {
-    return res.status(403).json({
-      error: 'Insufficient role permissions',
-      code: 'INSUFFICIENT_ROLE',
-      required: allowedRoles,
-      current: req.profile.role,
-    });
-  }
-  next();
-};
+const requireRole =
+  (...allowedRoles) =>
+  (req, res, next) => {
+    if (!req.profile) {
+      return res
+        .status(401)
+        .json({ error: "Authentication required", code: "AUTH_REQUIRED" });
+    }
+    if (!allowedRoles.includes(req.profile.role)) {
+      return res.status(403).json({
+        error: "Insufficient role permissions",
+        code: "INSUFFICIENT_ROLE",
+        required: allowedRoles,
+        current: req.profile.role,
+      });
+    }
+    next();
+  };
 
 const requireOrganization = (organizationId) => (req, res, next) => {
   if (!req.profile) {
-    return res.status(401).json({ error: 'Authentication required', code: 'AUTH_REQUIRED' });
+    return res
+      .status(401)
+      .json({ error: "Authentication required", code: "AUTH_REQUIRED" });
   }
-  if (req.profile.role === 'super_admin') return next();
-  if (!req.profile.organizationId || !req.profile.organizationId.equals(organizationId)) {
+  if (req.profile.role === "super_admin") return next();
+  if (
+    !req.profile.organizationId ||
+    !req.profile.organizationId.equals(organizationId)
+  ) {
     return res.status(403).json({
-      error: 'Access denied to this organization',
-      code: 'ORGANIZATION_ACCESS_DENIED',
+      error: "Access denied to this organization",
+      code: "ORGANIZATION_ACCESS_DENIED",
     });
   }
   next();
 };
 
-const requireOwnership = (resourceIdParam = 'id') => (req, res, next) => {
-  if (!req.profile) {
-    return res.status(401).json({ error: 'Authentication required', code: 'AUTH_REQUIRED' });
-  }
-  if (req.profile.role === 'super_admin') return next();
-  const resourceId = req.params[resourceIdParam];
-  if (resourceId !== req.profile._id.toString()) {
-    return res.status(403).json({
-      error: 'Access denied — can only access own resources',
-      code: 'OWNERSHIP_REQUIRED',
-    });
-  }
-  next();
-};
+const requireOwnership =
+  (resourceIdParam = "id") =>
+  (req, res, next) => {
+    if (!req.profile) {
+      return res
+        .status(401)
+        .json({ error: "Authentication required", code: "AUTH_REQUIRED" });
+    }
+    if (req.profile.role === "super_admin") return next();
+    const resourceId = req.params[resourceIdParam];
+    if (resourceId !== req.profile._id.toString()) {
+      return res.status(403).json({
+        error: "Access denied — can only access own resources",
+        code: "OWNERSHIP_REQUIRED",
+      });
+    }
+    next();
+  };
 
 module.exports = {
   authenticate,

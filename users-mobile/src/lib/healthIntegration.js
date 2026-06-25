@@ -693,5 +693,29 @@ export const fetchSleepSessions = async (sinceTimestamp) => {
         }
     }
 
+    // Development Mock Fallback: STRICTLY wrapped under __DEV__ check to prevent fake data in production
+    if (__DEV__ && sessions.length === 0) {
+        console.log('🧪 Health sync: [DEV ONLY] Generating dynamic mock sleep session...');
+        
+        // Generate a sleep session from last night: yesterday 23:15 to today 07:27
+        const lastNightStart = new Date();
+        lastNightStart.setDate(lastNightStart.getDate() - 1);
+        lastNightStart.setHours(23, 15, 0, 0);
+
+        const lastNightEnd = new Date();
+        lastNightEnd.setHours(7, 27, 0, 0);
+
+        sessions.push({
+            startTime: lastNightStart.toISOString(),
+            endTime: lastNightEnd.toISOString(),
+            stages: [
+                { stage: 'deep', startTime: lastNightStart.toISOString(), endTime: new Date(lastNightStart.getTime() + 2 * 60 * 60 * 1000).toISOString() },
+                { stage: 'light', startTime: new Date(lastNightStart.getTime() + 2 * 60 * 60 * 1000).toISOString(), endTime: lastNightEnd.toISOString() }
+            ],
+            isMock: true,
+            source: 'development-mock'
+        });
+    }
+
     return sessions;
 };

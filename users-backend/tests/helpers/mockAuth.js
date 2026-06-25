@@ -20,13 +20,13 @@
 // a Mongoose ObjectId for equality checks used in route access control.
 
 function fakeId(val) {
-    const s = String(val);
-    return {
-        _bsontype: 'ObjectId',
-        toString:  () => s,
-        toJSON:    () => s,
-        equals:    (other) => s === String(other?._id ?? other),
-    };
+  const s = String(val);
+  return {
+    _bsontype: "ObjectId",
+    toString: () => s,
+    toJSON: () => s,
+    equals: (other) => s === String(other?._id ?? other),
+  };
 }
 
 // ─── mockProfile ──────────────────────────────────────────────────────────────
@@ -36,58 +36,73 @@ function fakeId(val) {
  * _id and organizationId are wrapped in fakeId() so .equals() works in routes.
  */
 function mockProfile(overrides = {}) {
-    const rawId  = overrides._id            || 'test-profile-id';
-    const rawOrg = overrides.organizationId || 'test-org-id';
+  const rawId = overrides._id || "test-profile-id";
+  const rawOrg = overrides.organizationId || "test-org-id";
 
-    const base = {
-        _id:                fakeId(rawId),
-        supabaseUid:        overrides.supabaseUid        || `sup-uid-${String(rawId).slice(0, 8)}`,
-        email:              overrides.email              || 'test@caremymed.in',
-        fullName:           overrides.fullName           || 'Test User',
-        role:               overrides.role               || 'care_manager',
-        organizationId:     fakeId(rawOrg),
-        isActive:           overrides.isActive           !== undefined ? overrides.isActive           : true,
-        mustChangePassword: overrides.mustChangePassword !== undefined ? overrides.mustChangePassword  : false,
-        emailVerified:      overrides.emailVerified      !== undefined ? overrides.emailVerified       : true,
-        failedLoginAttempts: overrides.failedLoginAttempts || 0,
-        accountLockedUntil: overrides.accountLockedUntil || null,
-        passwordHistory:    overrides.passwordHistory    || [],
-        twoFactorEnabled:   overrides.twoFactorEnabled   || false,
-        lastLoginAt:        overrides.lastLoginAt        || null,
-        metadata:           overrides.metadata           || {},
+  const base = {
+    _id: fakeId(rawId),
+    supabaseUid:
+      overrides.supabaseUid || `sup-uid-${String(rawId).slice(0, 8)}`,
+    email: overrides.email || "test@caremymed.in",
+    fullName: overrides.fullName || "Test User",
+    role: overrides.role || "care_manager",
+    organizationId: fakeId(rawOrg),
+    isActive: overrides.isActive !== undefined ? overrides.isActive : true,
+    mustChangePassword:
+      overrides.mustChangePassword !== undefined
+        ? overrides.mustChangePassword
+        : false,
+    emailVerified:
+      overrides.emailVerified !== undefined ? overrides.emailVerified : true,
+    failedLoginAttempts: overrides.failedLoginAttempts || 0,
+    accountLockedUntil: overrides.accountLockedUntil || null,
+    passwordHistory: overrides.passwordHistory || [],
+    twoFactorEnabled: overrides.twoFactorEnabled || false,
+    lastLoginAt: overrides.lastLoginAt || null,
+    metadata: overrides.metadata || {},
 
-        // Mongoose instance methods used by routes / middleware
-        resetFailedLogin: jest.fn().mockResolvedValue(true),
-        save:             jest.fn().mockResolvedValue(true),
+    // Mongoose instance methods used by routes / middleware
+    resetFailedLogin: jest.fn().mockResolvedValue(true),
+    save: jest.fn().mockResolvedValue(true),
 
-        // Computed helpers
-        hasRole:    function (role)  { return this.role === role; },
-        hasAnyRole: function (roles) { return roles.includes(this.role); },
+    // Computed helpers
+    hasRole: function (role) {
+      return this.role === role;
+    },
+    hasAnyRole: function (roles) {
+      return roles.includes(this.role);
+    },
 
-        // isLocked must compare Date objects, not Date > number
-        get isLocked() {
-            return !!(this.accountLockedUntil && new Date(this.accountLockedUntil) > new Date());
-        },
+    // isLocked must compare Date objects, not Date > number
+    get isLocked() {
+      return !!(
+        this.accountLockedUntil &&
+        new Date(this.accountLockedUntil) > new Date()
+      );
+    },
 
-        toJSON: function () {
-            const { save, resetFailedLogin, toJSON, hasRole, hasAnyRole, ...rest } = this;
-            return rest;
-        },
-    };
+    toJSON: function () {
+      const { save, resetFailedLogin, toJSON, hasRole, hasAnyRole, ...rest } =
+        this;
+      return rest;
+    },
+  };
 
-    // Apply overrides last — but re-apply fakeId fields so plain string
-    // overrides don't stomp the ObjectId wrappers
-    return {
-        ...base,
-        ...overrides,
-        _id:            fakeId(rawId),
-        organizationId: overrides.organizationId !== undefined
-            // If caller passed an object with .equals() already, keep it as-is
-            ? (typeof overrides.organizationId === 'object' && overrides.organizationId.equals
-                ? overrides.organizationId
-                : fakeId(overrides.organizationId))
-            : fakeId(rawOrg),
-    };
+  // Apply overrides last — but re-apply fakeId fields so plain string
+  // overrides don't stomp the ObjectId wrappers
+  return {
+    ...base,
+    ...overrides,
+    _id: fakeId(rawId),
+    organizationId:
+      overrides.organizationId !== undefined
+        ? // If caller passed an object with .equals() already, keep it as-is
+          typeof overrides.organizationId === "object" &&
+          overrides.organizationId.equals
+          ? overrides.organizationId
+          : fakeId(overrides.organizationId)
+        : fakeId(rawOrg),
+  };
 }
 
 // ─── mockSupabaseUser ─────────────────────────────────────────────────────────
@@ -97,15 +112,19 @@ function mockProfile(overrides = {}) {
  * Includes all fields that auth.js reads from the user object.
  */
 function mockSupabaseUser(overrides = {}) {
-    return {
-        id:                  overrides.id    || 'sup-uid-12345678',
-        email:               overrides.email || 'test@caremymed.in',
-        email_confirmed_at:  overrides.email_confirmed_at  || new Date().toISOString(),
-        created_at:          overrides.created_at          || new Date().toISOString(),
-        user_metadata:       overrides.user_metadata || { full_name: 'Test User', role: 'care_manager' },
-        app_metadata:        overrides.app_metadata  || {},
-        ...overrides,
-    };
+  return {
+    id: overrides.id || "sup-uid-12345678",
+    email: overrides.email || "test@caremymed.in",
+    email_confirmed_at:
+      overrides.email_confirmed_at || new Date().toISOString(),
+    created_at: overrides.created_at || new Date().toISOString(),
+    user_metadata: overrides.user_metadata || {
+      full_name: "Test User",
+      role: "care_manager",
+    },
+    app_metadata: overrides.app_metadata || {},
+    ...overrides,
+  };
 }
 
 // ─── fakeAuthenticate ─────────────────────────────────────────────────────────
@@ -132,16 +151,18 @@ function mockSupabaseUser(overrides = {}) {
  * @param {object} state - mutable object with { profile, user? }
  */
 function fakeAuthenticate(state = {}) {
-    return (req, res, next) => {
-        const profile = state.profile || mockProfile();
-        const user    = state.user    || mockSupabaseUser({
-            id:    profile.supabaseUid,
-            email: profile.email,
-        });
-        req.user    = user;
-        req.profile = profile;
-        next();
-    };
+  return (req, res, next) => {
+    const profile = state.profile || mockProfile();
+    const user =
+      state.user ||
+      mockSupabaseUser({
+        id: profile.supabaseUid,
+        email: profile.email,
+      });
+    req.user = user;
+    req.profile = profile;
+    next();
+  };
 }
 
 // ─── fakeRequireRole ──────────────────────────────────────────────────────────
@@ -156,17 +177,18 @@ function fakeAuthenticate(state = {}) {
  *   requireRole: fakeRequireRole(mockAuthState),
  */
 function fakeRequireRole(state = {}) {
-    return (...allowedRoles) => (req, res, next) => {
-        const role = (state.profile || req.profile)?.role;
-        if (!allowedRoles.includes(role)) {
-            return res.status(403).json({
-                error:    'Insufficient role permissions',
-                code:     'INSUFFICIENT_ROLE',
-                required: allowedRoles,
-                current:  role,
-            });
-        }
-        next();
+  return (...allowedRoles) =>
+    (req, res, next) => {
+      const role = (state.profile || req.profile)?.role;
+      if (!allowedRoles.includes(role)) {
+        return res.status(403).json({
+          error: "Insufficient role permissions",
+          code: "INSUFFICIENT_ROLE",
+          required: allowedRoles,
+          current: role,
+        });
+      }
+      next();
     };
 }
 
@@ -177,14 +199,14 @@ function fakeRequireRole(state = {}) {
  * Use to stub out authorize, scopeFilter, checkPasswordChange, etc.
  */
 function passThrough() {
-    return (_req, _res, next) => next();
+  return (_req, _res, next) => next();
 }
 
 module.exports = {
-    fakeId,
-    mockProfile,
-    mockSupabaseUser,
-    fakeAuthenticate,
-    fakeRequireRole,
-    passThrough,
+  fakeId,
+  mockProfile,
+  mockSupabaseUser,
+  fakeAuthenticate,
+  fakeRequireRole,
+  passThrough,
 };

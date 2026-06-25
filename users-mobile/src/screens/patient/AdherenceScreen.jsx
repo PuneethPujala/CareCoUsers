@@ -29,7 +29,7 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 const GRID_COLUMNS = 3;
 const GRID_GAP = 12;
-const AVAILABLE_WIDTH = SCREEN_WIDTH - 72; // 20*2 ScrollView padding + 16*2 card padding
+const AVAILABLE_WIDTH = SCREEN_WIDTH - 80; // 20*2 ScrollView padding + 20*2 card padding
 const badgeWidth = (AVAILABLE_WIDTH - (GRID_GAP * (GRID_COLUMNS - 1))) / GRID_COLUMNS;
 
 const TIER_ORDER = ['bronze', 'silver', 'gold', 'legendary'];
@@ -321,6 +321,8 @@ const getRelativeTimeString = (dateStr, t) => {
 };
 
 // ── Animated Circular Progress ─────────────────────────────────
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+
 const CircularProgress = ({ progress, size = 160, strokeWidth = 14, color }) => {
     const animValue = useRef(new Animated.Value(0)).current;
 
@@ -334,36 +336,39 @@ const CircularProgress = ({ progress, size = 160, strokeWidth = 14, color }) => 
     }, [progress]);
 
     const ringColor = color || (progress >= 90 ? C.ring90 : progress >= 70 ? C.ring70 : C.ringLow);
+    const radius = (size - strokeWidth) / 2;
+    const circumference = 2 * Math.PI * radius;
+
+    const strokeDashoffset = animValue.interpolate({
+        inputRange: [0, 100],
+        outputRange: [circumference, 0],
+    });
 
     return (
         <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
-            {/* Background ring */}
-            <View style={{
-                position: 'absolute',
-                width: size, height: size, borderRadius: size / 2,
-                borderWidth: strokeWidth, borderColor: 'rgba(255,255,255,0.15)',
-            }} />
-            {/* Progress arc */}
-            <Animated.View style={{
-                position: 'absolute',
-                width: size - 4, height: size - 4,
-                borderRadius: (size - 4) / 2,
-                borderWidth: strokeWidth,
-                borderColor: ringColor,
-                borderTopColor: 'transparent',
-                borderRightColor: 'transparent',
-                transform: [{
-                    rotate: animValue.interpolate({
-                        inputRange: [0, 100],
-                        outputRange: ['-45deg', '315deg'],
-                    }),
-                }],
-                opacity: animValue.interpolate({
-                    inputRange: [0, 8],
-                    outputRange: [0.2, 1],
-                    extrapolate: 'clamp',
-                }),
-            }} />
+            <Svg width={size} height={size} style={{ transform: [{ rotate: '-90deg' }] }}>
+                {/* Background ring */}
+                <Circle
+                    cx={size / 2}
+                    cy={size / 2}
+                    r={radius}
+                    stroke="rgba(255,255,255,0.15)"
+                    strokeWidth={strokeWidth}
+                    fill="none"
+                />
+                {/* Progress arc */}
+                <AnimatedCircle
+                    cx={size / 2}
+                    cy={size / 2}
+                    r={radius}
+                    stroke={ringColor}
+                    strokeWidth={strokeWidth}
+                    fill="none"
+                    strokeDasharray={`${circumference} ${circumference}`}
+                    strokeDashoffset={strokeDashoffset}
+                    strokeLinecap="round"
+                />
+            </Svg>
             {/* Glow for high scores */}
             {progress >= 90 && (
                 <Animated.View style={{
@@ -458,21 +463,6 @@ const CalendarDay = ({ date, status, isCurrentMonth, onPress }) => {
                 ]}>
                     {format(date, 'd')}
                 </Text>
-                {status === 'complete' && (
-                    <View style={{
-                        position: 'absolute',
-                        bottom: 3,
-                        right: 3,
-                        backgroundColor: '#10B981',
-                        borderRadius: 6,
-                        width: 12,
-                        height: 12,
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                    }}>
-                        <Check size={8} color="#FFF" strokeWidth={3.5} />
-                    </View>
-                )}
             </Animated.View>
         </Pressable>
     );
@@ -564,45 +554,46 @@ function PremiumBadge({ data, size = 'normal', onPress, style }) {
                     !isSmall && {
                         width: itemWidth,
                         minHeight: 140,
-                        backgroundColor: 'rgba(241, 245, 249, 0.45)',
-                        borderRadius: 20,
+                        backgroundColor: 'rgba(248, 250, 252, 0.65)',
+                        borderRadius: 22,
                         borderWidth: 1,
                         borderColor: '#E2E8F0',
+                        borderStyle: 'dashed',
                         paddingVertical: 14,
                         paddingHorizontal: 6,
                         alignItems: 'center',
                         justifyContent: 'space-between',
-                        shadowOpacity: 0,
-                        elevation: 0,
                     },
                     isSmall && { width: itemWidth, alignItems: 'center' },
                     style
                 ]}
             >
                 <View style={{ alignItems: 'center', width: '100%' }}>
-                    {/* Ringed locked medal container - flat, solid neutral ring */}
+                    {/* Ringed locked medal container - dashed outer ring */}
                     <View style={{
                         width: dim, height: dim, borderRadius: dim / 2,
-                        borderWidth: 1.5, borderColor: '#E2E8F0',
+                        borderWidth: 1.2, borderColor: '#94A3B8',
+                        borderStyle: 'dashed',
                         padding: 3,
                         alignItems: 'center', justifyContent: 'center',
                         position: 'relative'
                     }}>
                         <View style={{
                             width: '100%', height: '100%',
-                            borderRadius: (dim - 8) / 2,
-                            backgroundColor: 'rgba(148, 163, 184, 0.05)',
+                            borderRadius: (dim - 8.4) / 2,
+                            backgroundColor: 'rgba(148, 163, 184, 0.08)',
                             alignItems: 'center', justifyContent: 'center',
                         }}>
-                            <IconComponent size={isSmall ? 22 : 28} color="#94A3B8" style={{ opacity: 0.3 }} />
+                            <IconComponent size={isSmall ? 20 : 26} color="#94A3B8" style={{ opacity: 0.35 }} />
                         </View>
                         <View style={{
-                            position: 'absolute', bottom: -1, right: -1,
+                            position: 'absolute', bottom: -2, right: -2,
                             backgroundColor: '#94A3B8', width: 18, height: 18,
                             borderRadius: 9, alignItems: 'center', justifyContent: 'center',
                             borderWidth: 1.5, borderColor: '#FFFFFF',
+                            shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 1, elevation: 1
                         }}>
-                            <Lock size={9} color="white" />
+                            <Lock size={8} color="white" />
                         </View>
                     </View>
                     
@@ -621,8 +612,8 @@ function PremiumBadge({ data, size = 'normal', onPress, style }) {
                 
                 {target > 1 && (
                     <View style={{ width: '85%', alignItems: 'center', marginTop: 8 }}>
-                        <Text style={{ fontSize: 9, color: '#64748B', fontWeight: '700' }}>{current}/{target}</Text>
-                        <View style={{ width: '100%', height: 5, borderRadius: 2.5, backgroundColor: '#E2E8F0', marginTop: 4, overflow: 'hidden' }}>
+                        <Text style={{ fontSize: 9, color: '#64748B', fontWeight: '800' }}>{current}/{target}</Text>
+                        <View style={{ width: '100%', height: 4.5, borderRadius: 2.5, backgroundColor: '#E2E8F0', marginTop: 4, overflow: 'hidden' }}>
                             <LinearGradient colors={colors} start={{x:0, y:0}} end={{x:1, y:0}} style={{ width: `${pct}%`, height: '100%', borderRadius: 2.5 }} />
                         </View>
                     </View>
@@ -632,6 +623,8 @@ function PremiumBadge({ data, size = 'normal', onPress, style }) {
     }
 
     // Unlocked State
+    const tierColor = data.tierConfig.color;
+
     return (
         <Pressable 
             onPress={onPress} 
@@ -640,59 +633,86 @@ function PremiumBadge({ data, size = 'normal', onPress, style }) {
                     width: itemWidth,
                     minHeight: 140,
                     backgroundColor: '#FFFFFF',
-                    borderRadius: 20,
+                    borderRadius: 22,
                     borderWidth: 1,
-                    borderColor: '#F1F5F9',
+                    borderColor: tierColor + '20',
                     paddingVertical: 14,
                     paddingHorizontal: 6,
                     alignItems: 'center',
                     justifyContent: 'center',
-                    shadowColor: '#0F172A',
-                    shadowOffset: { width: 0, height: 3 },
-                    shadowOpacity: 0.03,
-                    shadowRadius: 6,
-                    elevation: 1,
+                    shadowColor: tierColor,
+                    shadowOffset: { width: 0, height: 4 },
+                    shadowOpacity: 0.05,
+                    shadowRadius: 10,
+                    elevation: 2,
                 },
                 isSmall && { width: itemWidth, alignItems: 'center' },
                 style
             ]}
         >
             <View style={{ alignItems: 'center', width: '100%' }}>
-                {/* Ringed unlocked medal container - clean metallic ring */}
-                <View style={{
-                    width: dim, height: dim, borderRadius: dim / 2,
-                    borderWidth: 1.5, borderColor: '#CBD5E1',
-                    padding: 3,
-                    alignItems: 'center', justifyContent: 'center',
-                }}>
+                {/* Metallic Ring - Outer Gradient Circle */}
+                <LinearGradient
+                    colors={colors}
+                    start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                    style={{
+                        width: dim, height: dim, borderRadius: dim / 2,
+                        padding: 3,
+                        alignItems: 'center', justifyContent: 'center',
+                        shadowColor: tierColor,
+                        shadowOffset: { width: 0, height: 3 },
+                        shadowOpacity: 0.25,
+                        shadowRadius: 6,
+                        elevation: 3,
+                    }}
+                >
+                    {/* Inner Gold/Bronze/Silver Core Gradient */}
                     <LinearGradient
-                        colors={colors}
+                        colors={colors.slice().reverse()}
                         start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
                         style={{
                             width: '100%', height: '100%',
-                            borderRadius: (dim - 8) / 2,
+                            borderRadius: (dim - 6) / 2,
                             alignItems: 'center', justifyContent: 'center',
+                            borderWidth: 1,
+                            borderColor: 'rgba(255,255,255,0.45)',
                         }}
                     >
-                        <IconComponent size={isSmall ? 22 : 28} color="white" />
+                        {/* Concentric Dotted Circle Inside Core */}
+                        <View style={{
+                            width: '85%', height: '85%',
+                            borderRadius: (dim - 6) * 0.85 / 2,
+                            borderWidth: 0.8,
+                            borderColor: 'rgba(255,255,255,0.25)',
+                            borderStyle: 'dashed',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            position: 'relative'
+                        }}>
+                            <IconComponent size={isSmall ? 18 : 24} color="white" style={{
+                                textShadowColor: 'rgba(0,0,0,0.15)',
+                                textShadowOffset: { width: 0, height: 1 },
+                                textShadowRadius: 2
+                            }} />
+                        </View>
                     </LinearGradient>
                     
                     {data.meta.tier === 'legendary' && (
                         <View style={{
                             position: 'absolute',
-                            top: -6,
-                            right: -6,
+                            top: -5,
+                            right: -5,
                             backgroundColor: '#FBBF24',
                             borderRadius: 10,
                             width: 18, height: 18,
                             alignItems: 'center', justifyContent: 'center',
                             borderWidth: 1.5, borderColor: '#FFFFFF',
-                            shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2, elevation: 1
+                            shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.15, shadowRadius: 2, elevation: 2
                         }}>
                             <Icons.Crown size={9} color="#7C3AED" fill="#7C3AED" />
                         </View>
                     )}
-                </View>
+                </LinearGradient>
                 
                 <Text style={{ 
                     fontSize: 11, 
@@ -1504,30 +1524,70 @@ export default function AdherenceScreen({ navigation }) {
 
                             return (
                                 <View key={categoryKey} style={{
-                                    marginBottom: 18, 
-                                    backgroundColor: catConfig.accent[0] + '03', 
-                                    borderRadius: 20, 
-                                    padding: 16,
+                                    marginBottom: 20, 
+                                    backgroundColor: '#FFFFFF', 
+                                    borderRadius: 24, 
                                     borderWidth: 1, 
-                                    borderColor: catConfig.accent[0] + '18',
-                                    borderLeftWidth: 4,
-                                    borderLeftColor: catConfig.accent[0],
+                                    borderColor: catConfig.accent[0] + '1E',
                                     shadowColor: '#0F172A',
-                                    shadowOffset: { width: 0, height: 4 },
-                                    shadowOpacity: 0.05,
-                                    shadowRadius: 8,
-                                    elevation: 3,
+                                    shadowOffset: { width: 0, height: 6 },
+                                    shadowOpacity: 0.04,
+                                    shadowRadius: 16,
+                                    elevation: 4,
+                                    overflow: 'hidden',
                                 }}>
-                                    <CategoryHeaderUi category={catConfig} unlockedCount={unlockedCat} totalCount={catAchievements.length} />
-                                    {catConfig.layout === 'timeline' ? (
-                                        <TimelineLayout badges={catAchievements} onSelect={handleBadgePress} />
-                                    ) : (
-                                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: GRID_GAP }}>
-                                            {catAchievements.map((b, i) => (
-                                                <PremiumBadge key={i} data={b} onPress={() => handleBadgePress(b)} />
-                                            ))}
-                                        </View>
-                                    )}
+                                    <LinearGradient
+                                        colors={['#FFFFFF', catConfig.accent[0] + '03', catConfig.accent[0] + '0B']}
+                                        start={{ x: 0, y: 0 }}
+                                        end={{ x: 1, y: 1 }}
+                                        style={{ padding: 20 }}
+                                    >
+                                        {/* Outer Double-Line Frame */}
+                                        <View pointerEvents="none" style={{
+                                            position: 'absolute',
+                                            top: 6,
+                                            bottom: 6,
+                                            left: 6,
+                                            right: 6,
+                                            borderRadius: 18,
+                                            borderWidth: 1,
+                                            borderColor: catConfig.accent[0] + '12',
+                                            borderStyle: 'solid',
+                                        }} />
+                                        
+                                        {/* Inner Dashed Frame */}
+                                        <View pointerEvents="none" style={{
+                                            position: 'absolute',
+                                            top: 10,
+                                            bottom: 10,
+                                            left: 10,
+                                            right: 10,
+                                            borderRadius: 14,
+                                            borderWidth: 0.8,
+                                            borderColor: catConfig.accent[0] + '0C',
+                                            borderStyle: 'dashed',
+                                        }} />
+
+                                        {/* Watermark/Vector Decor in Corner */}
+                                        <Svg pointerEvents="none" style={{ position: 'absolute', right: -30, top: -30 }} width={160} height={160} viewBox="0 0 100 100">
+                                            <Circle cx="100" cy="0" r="30" stroke={catConfig.accent[0]} strokeWidth="0.8" strokeDasharray="3 3" fill="none" opacity={0.06} />
+                                            <Circle cx="100" cy="0" r="45" stroke={catConfig.accent[0]} strokeWidth="0.8" fill="none" opacity={0.04} />
+                                            <Circle cx="100" cy="0" r="60" stroke={catConfig.accent[0]} strokeWidth="0.8" strokeDasharray="4 2" fill="none" opacity={0.05} />
+                                            <Circle cx="100" cy="0" r="75" stroke={catConfig.accent[0]} strokeWidth="0.8" fill="none" opacity={0.03} />
+                                            <Circle cx="100" cy="0" r="90" stroke={catConfig.accent[0]} strokeWidth="0.8" fill="none" opacity={0.02} />
+                                        </Svg>
+
+                                        <CategoryHeaderUi category={catConfig} unlockedCount={unlockedCat} totalCount={catAchievements.length} />
+                                        {catConfig.layout === 'timeline' ? (
+                                            <TimelineLayout badges={catAchievements} onSelect={handleBadgePress} />
+                                        ) : (
+                                            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: GRID_GAP }}>
+                                                {catAchievements.map((b, i) => (
+                                                    <PremiumBadge key={i} data={b} onPress={() => handleBadgePress(b)} />
+                                                ))}
+                                            </View>
+                                        )}
+                                    </LinearGradient>
                                 </View>
                             );
                         })}
@@ -1893,7 +1953,7 @@ const styles = StyleSheet.create({
         shadowColor: '#0C54D6', shadowOffset: { width: 0, height: 12 },
         shadowOpacity: 0.35, shadowRadius: 24, elevation: 12,
     },
-    heroTopRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 20 },
+    heroTopRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
     heroRingWrap: { alignItems: 'center', justifyContent: 'center', position: 'relative' },
     heroRingCenter: { position: 'absolute', alignItems: 'center' },
     heroRingPercent: { fontSize: 34, fontWeight: '900', color: '#FFFFFF', letterSpacing: -1 },

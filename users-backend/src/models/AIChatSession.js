@@ -1,61 +1,64 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
 const ChatMessageSchema = new mongoose.Schema({
-    role: { 
-        type: String, 
-        enum: ['user', 'assistant'], 
-        required: true 
-    },
-    text: { 
-        type: String 
-    },
-    image: { 
-        type: String 
-    },
-    audio: { 
-        type: String 
-    },
-    cards: { 
-        type: Array, 
-        default: [] 
-    },
-    suggestions: { 
-        type: [String], 
-        default: [] 
-    },
-    timestamp: { 
-        type: Date, 
-        default: Date.now 
-    }
+  role: {
+    type: String,
+    enum: ["user", "assistant"],
+    required: true,
+  },
+  text: {
+    type: String,
+  },
+  image: {
+    type: String,
+  },
+  audio: {
+    type: String,
+  },
+  cards: {
+    type: Array,
+    default: [],
+  },
+  suggestions: {
+    type: [String],
+    default: [],
+  },
+  timestamp: {
+    type: Date,
+    default: Date.now,
+  },
 });
 
-const AIChatSessionSchema = new mongoose.Schema({
+const AIChatSessionSchema = new mongoose.Schema(
+  {
     patient_id: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Patient',
-        required: true,
-        index: true
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Patient",
+      required: true,
+      index: true,
     },
     title: {
-        type: String,
-        default: 'New Chat'
+      type: String,
+      default: "New Chat",
     },
     is_active: {
-        type: Boolean,
-        default: true,
-        index: true
+      type: Boolean,
+      default: true,
+      index: true,
     },
     is_generating: {
-        type: Boolean,
-        default: false
+      type: Boolean,
+      default: false,
     },
     message_count: {
-        type: Number,
-        default: 1
+      type: Number,
+      default: 1,
     },
-    messages: [ChatMessageSchema]
-}, {
-    timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' }
-});
+    messages: [ChatMessageSchema],
+  },
+  {
+    timestamps: { createdAt: "created_at", updatedAt: "updated_at" },
+  },
+);
 
-module.exports = mongoose.model('AIChatSession', AIChatSessionSchema);
+module.exports = mongoose.model("AIChatSession", AIChatSessionSchema);

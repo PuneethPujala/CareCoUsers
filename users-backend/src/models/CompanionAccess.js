@@ -1,37 +1,37 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
 const CompanionAccessSchema = new mongoose.Schema(
   {
     companion_id: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Companion',
+      ref: "Companion",
       required: true,
       index: true,
     },
     patient_id: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Patient',
+      ref: "Patient",
       required: true,
       index: true,
     },
     relationship_type: {
       type: String,
-      enum: ['Spouse', 'Child', 'Sibling', 'Professional', 'Other'],
-      default: 'Other',
+      enum: ["Spouse", "Child", "Sibling", "Professional", "Other"],
+      default: "Other",
     },
     access_level: {
       type: String,
-      enum: ['viewer', 'caregiver', 'manager', 'emergency_only'],
-      default: 'viewer',
+      enum: ["viewer", "caregiver", "manager", "emergency_only"],
+      default: "viewer",
     },
     permissions: {
       type: [String],
-      default: ['read_only', 'alerts'],
+      default: ["read_only", "alerts"],
     },
     status: {
       type: String,
-      enum: ['pending', 'accepted', 'revoked', 'expired', 'blocked'],
-      default: 'accepted',
+      enum: ["pending", "accepted", "revoked", "expired", "blocked"],
+      default: "accepted",
       index: true,
     },
     is_active: {
@@ -48,7 +48,7 @@ const CompanionAccessSchema = new mongoose.Schema(
     },
     revoked_by: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Profile',
+      ref: "Profile",
     },
     invite_code: {
       type: String,
@@ -59,7 +59,7 @@ const CompanionAccessSchema = new mongoose.Schema(
     },
     created_by: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Profile',
+      ref: "Profile",
     },
     notification_preferences: {
       missed_meds: { type: Boolean, default: true },
@@ -68,10 +68,13 @@ const CompanionAccessSchema = new mongoose.Schema(
       adherence_improvements: { type: Boolean, default: true },
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 // Compound Unique Index to ensure a companion is mapped to a patient only once
-CompanionAccessSchema.index({ companion_id: 1, patient_id: 1 }, { unique: true });
+CompanionAccessSchema.index(
+  { companion_id: 1, patient_id: 1 },
+  { unique: true },
+);
 
-module.exports = mongoose.model('CompanionAccess', CompanionAccessSchema);
+module.exports = mongoose.model("CompanionAccess", CompanionAccessSchema);

@@ -1,50 +1,50 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
 const PredictionSchema = new mongoose.Schema(
-    {
-        date: { type: Date, required: true },
-        heart_rate: { type: Number, required: true },
-        blood_pressure: {
-            systolic: { type: Number, required: true },
-            diastolic: { type: Number, required: true }
-        },
-        oxygen_saturation: { type: Number, required: true },
-        hydration: { type: Number, required: true },
-        temperature: { type: Number },
+  {
+    date: { type: Date, required: true },
+    heart_rate: { type: Number, required: true },
+    blood_pressure: {
+      systolic: { type: Number, required: true },
+      diastolic: { type: Number, required: true },
     },
-    { _id: false }
+    oxygen_saturation: { type: Number, required: true },
+    hydration: { type: Number, required: true },
+    temperature: { type: Number },
+  },
+  { _id: false },
 );
 
 const AIVitalPredictionSchema = new mongoose.Schema(
-    {
-        patient_id: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: 'Patient',
-            required: true,
-            index: true,
-        },
-        health_label: {
-            type: String,
-            enum: ['Normal', 'Warning', 'Critical'],
-            default: 'Normal',
-        },
-        consecutive_critical_days: {
-            type: Number,
-            default: 0,
-        },
-        confidence_score: {
-            type: Number,
-            min: 0,
-            max: 1,
-            default: null,
-        },
-        predictions: [PredictionSchema],
+  {
+    patient_id: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Patient",
+      required: true,
+      index: true,
     },
-    {
-        timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' },
-        toJSON: { virtuals: true },
-        toObject: { virtuals: true },
-    }
+    health_label: {
+      type: String,
+      enum: ["Normal", "Warning", "Critical"],
+      default: "Normal",
+    },
+    consecutive_critical_days: {
+      type: Number,
+      default: 0,
+    },
+    confidence_score: {
+      type: Number,
+      min: 0,
+      max: 1,
+      default: null,
+    },
+    predictions: [PredictionSchema],
+  },
+  {
+    timestamps: { createdAt: "created_at", updatedAt: "updated_at" },
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
+  },
 );
 
-module.exports = mongoose.model('AIVitalPrediction', AIVitalPredictionSchema);
+module.exports = mongoose.model("AIVitalPrediction", AIVitalPredictionSchema);
