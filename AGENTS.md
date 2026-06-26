@@ -147,7 +147,7 @@ Key models: `Patient`, `Profile`, `Organization`, `Medication`, `MedicineLog`, `
 > **Field Naming Inconsistencies (camelCase vs snake_case)**:
 > The codebase has mixed naming conventions for fields. Pay close attention to schemas before writing queries:
 > - **camelCase Models**: `Profile`, `Medication`, `TempMedication`, `CallLog` (e.g., uses `patientId`, `organizationId`, `scheduledTime`, `isActive`, `addedBy`).
-> - **snake_case Models**: `Patient`, `Intervention`, `AIChatSession`, `Alert` (e.g., uses `patient_id`, `organization_id`, `created_at`, `is_active`).
+> - **snake_case Models**: `Patient`, `Intervention`, `AIChatSession`, `Alert`, `VitalLog`, `MedicineLog`, `Notification` (e.g., uses `patient_id`, `organization_id`, `created_at`, `is_active`).
 > Always verify the exact schema in `users-backend/src/models/` before calling `.find()`, `.findOne()`, `.select()`, or `.sort()`. Mongoose does not error on unknown fields in query selectors, leading to silent empty results.
 
 ### Mobile State Management
