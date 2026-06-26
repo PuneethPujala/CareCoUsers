@@ -52,6 +52,7 @@ class SmsService {
       console.error("[Twilio] Failed to send Verify SMS:", err.message);
       throw new Error(
         "Failed to send SMS via Twilio. Check your credentials and verify service.",
+        { cause: err },
       );
     }
   }
@@ -133,7 +134,7 @@ class SmsService {
           reason: "OTP expired or not found. Please request a new one.",
         };
       }
-      throw new Error("Verification failed. Server error.");
+      throw new Error("Verification failed. Server error.", { cause: err });
     }
   }
 }

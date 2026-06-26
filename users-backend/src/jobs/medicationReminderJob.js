@@ -30,7 +30,7 @@ const runMedicationReminders = async () => {
     const timezones = await Patient.distinct("timezone", {
       is_active: true,
       medication_reminders_enabled: true,
-      expo_push_token: { $exists: true, $ne: null, $ne: "" },
+      expo_push_token: { $exists: true, $nin: [null, ""] },
     });
 
     const nowUtc = moment.utc();

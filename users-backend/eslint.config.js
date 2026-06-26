@@ -16,6 +16,7 @@ module.exports = [
             "no-unused-vars": "warn",
             "no-empty": "warn",
             "no-console": "off",
+            "no-useless-assignment": "off",
         }
     },
     {

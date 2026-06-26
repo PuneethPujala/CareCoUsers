@@ -305,7 +305,7 @@ describe("Notification Delivery Receipts & Token Pruning", () => {
 
       expect(Patient.updateMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          expo_push_token: { $exists: true, $ne: null, $ne: "" },
+          expo_push_token: { $exists: true, $nin: [null, ""] },
           $or: expect.any(Array),
         }),
         {

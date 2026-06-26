@@ -40,18 +40,18 @@ router.get("/system-health", authenticate, async (req, res) => {
         Notification.countDocuments({
           patient_id: targetPatientId,
           created_at: { $gte: sevenDaysAgo },
-          expo_push_token: { $exists: true, $ne: null, $ne: "" },
+          expo_push_token: { $exists: true, $nin: [null, ""] },
         }),
         Notification.countDocuments({
           patient_id: targetPatientId,
           created_at: { $gte: sevenDaysAgo },
-          expo_push_token: { $exists: true, $ne: null, $ne: "" },
+          expo_push_token: { $exists: true, $nin: [null, ""] },
           push_delivered: true,
         }),
         Notification.countDocuments({
           patient_id: targetPatientId,
           created_at: { $gte: sevenDaysAgo },
-          expo_push_token: { $exists: true, $ne: null, $ne: "" },
+          expo_push_token: { $exists: true, $nin: [null, ""] },
           push_delivered: false,
         }),
         Patient.countDocuments({
@@ -80,16 +80,16 @@ router.get("/system-health", authenticate, async (req, res) => {
       ] = await Promise.all([
         Notification.countDocuments({
           created_at: { $gte: sevenDaysAgo },
-          expo_push_token: { $exists: true, $ne: null, $ne: "" },
+          expo_push_token: { $exists: true, $nin: [null, ""] },
         }),
         Notification.countDocuments({
           created_at: { $gte: sevenDaysAgo },
-          expo_push_token: { $exists: true, $ne: null, $ne: "" },
+          expo_push_token: { $exists: true, $nin: [null, ""] },
           push_delivered: true,
         }),
         Notification.countDocuments({
           created_at: { $gte: sevenDaysAgo },
-          expo_push_token: { $exists: true, $ne: null, $ne: "" },
+          expo_push_token: { $exists: true, $nin: [null, ""] },
           push_delivered: false,
         }),
         Patient.countDocuments({

@@ -19,7 +19,7 @@ const pollPushReceipts = async () => {
     const cutoffTime = new Date(Date.now() - 24 * 60 * 60 * 1000);
     const notifications = await Notification.find({
       expo_receipt_status: "pending",
-      expo_ticket_id: { $exists: true, $ne: null, $ne: "" },
+      expo_ticket_id: { $exists: true, $nin: [null, ""] },
       created_at: { $gte: cutoffTime },
     }).select("_id patient_id expo_ticket_id expo_push_token");
 
@@ -191,7 +191,7 @@ const pruneDeadDevices = async () => {
     // Find active tokens where both lastLoginAt and updated_at are older than cutoffDate
     // (if lastLoginAt does not exist, fall back to updated_at)
     const query = {
-      expo_push_token: { $exists: true, $ne: null, $ne: "" },
+      expo_push_token: { $exists: true, $nin: [null, ""] },
       $or: [
         { lastLoginAt: { $lt: cutoffDate } },
         { lastLoginAt: { $exists: false }, updated_at: { $lt: cutoffDate } },

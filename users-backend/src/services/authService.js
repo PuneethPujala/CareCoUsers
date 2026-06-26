@@ -689,7 +689,7 @@ async function login({ email, password, role }, req) {
     companionQuery = companionQuery.select("+passwordHash");
   }
 
-  const [patient, deactivated, profile, companion, caps] = await Promise.all([
+  let [patient, deactivated, profile, companion, caps] = await Promise.all([
     patientQuery,
     deactivatedQuery,
     profileQuery,
