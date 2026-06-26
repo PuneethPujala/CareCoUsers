@@ -426,12 +426,10 @@ router.delete(
       });
     } catch (error) {
       console.error("Delete patient error:", error);
-      res
-        .status(500)
-        .json({
-          error: "Failed to deactivate patient",
-          details: error.message,
-        });
+      res.status(500).json({
+        error: "Failed to deactivate patient",
+        details: error.message,
+      });
     }
   },
 );
@@ -543,12 +541,10 @@ router.get(
       res.json(prediction);
     } catch (error) {
       console.error("Get patient AI prediction error:", error);
-      res
-        .status(500)
-        .json({
-          error: "Failed to get patient AI prediction",
-          details: error.message,
-        });
+      res.status(500).json({
+        error: "Failed to get patient AI prediction",
+        details: error.message,
+      });
     }
   },
 );

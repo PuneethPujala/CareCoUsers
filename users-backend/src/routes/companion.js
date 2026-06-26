@@ -1139,11 +1139,9 @@ router.post(
       const { patientId } = req.params;
 
       if (req.auth?.userType !== "Companion") {
-        return res
-          .status(403)
-          .json({
-            error: "Only caregiver companions can access this endpoint.",
-          });
+        return res.status(403).json({
+          error: "Only caregiver companions can access this endpoint.",
+        });
       }
 
       // Verify active CompanionAccess relation
@@ -1156,12 +1154,10 @@ router.post(
       });
 
       if (!access) {
-        return res
-          .status(403)
-          .json({
-            error:
-              "You do not have active care circle permission for this patient.",
-          });
+        return res.status(403).json({
+          error:
+            "You do not have active care circle permission for this patient.",
+        });
       }
 
       // Generate a clean 6-char alphanumeric code (excluding confusing chars like 0/O, 1/I)

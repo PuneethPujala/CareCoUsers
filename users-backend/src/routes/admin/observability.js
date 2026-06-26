@@ -202,12 +202,10 @@ router.get("/system-health", authenticate, async (req, res) => {
     res.json(response);
   } catch (error) {
     logger.error("[Observability] Failed to fetch system health:", error);
-    res
-      .status(500)
-      .json({
-        error: "Failed to fetch observability stats",
-        details: error.message,
-      });
+    res.status(500).json({
+      error: "Failed to fetch observability stats",
+      details: error.message,
+    });
   }
 });
 

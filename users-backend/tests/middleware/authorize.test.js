@@ -330,7 +330,9 @@ describe("authorizeResource middleware", () => {
     };
 
     const mockProfileModel = { findById: jest.fn().mockResolvedValue(null) };
-    const mockPatientModel = { findById: jest.fn().mockResolvedValue(mockTargetPatient) };
+    const mockPatientModel = {
+      findById: jest.fn().mockResolvedValue(mockTargetPatient),
+    };
 
     mongoose.model.mockImplementation((name) => {
       if (name === "Profile") return mockProfileModel;
@@ -363,7 +365,9 @@ describe("authorizeResource middleware", () => {
     };
 
     const mockProfileModel = { findById: jest.fn().mockResolvedValue(null) };
-    const mockPatientModel = { findById: jest.fn().mockResolvedValue(mockTargetPatient) };
+    const mockPatientModel = {
+      findById: jest.fn().mockResolvedValue(mockTargetPatient),
+    };
 
     mongoose.model.mockImplementation((name) => {
       if (name === "Profile") return mockProfileModel;
@@ -395,7 +399,9 @@ describe("authorizeResource middleware", () => {
     };
 
     const mockProfileModel = { findById: jest.fn().mockResolvedValue(null) };
-    const mockPatientModel = { findById: jest.fn().mockResolvedValue(mockTargetPatient) };
+    const mockPatientModel = {
+      findById: jest.fn().mockResolvedValue(mockTargetPatient),
+    };
 
     mongoose.model.mockImplementation((name) => {
       if (name === "Profile") return mockProfileModel;
@@ -428,7 +434,9 @@ describe("authorizeResource middleware", () => {
     };
 
     const mockProfileModel = { findById: jest.fn().mockResolvedValue(null) };
-    const mockPatientModel = { findById: jest.fn().mockResolvedValue(mockTargetPatient) };
+    const mockPatientModel = {
+      findById: jest.fn().mockResolvedValue(mockTargetPatient),
+    };
 
     mongoose.model.mockImplementation((name) => {
       if (name === "Profile") return mockProfileModel;

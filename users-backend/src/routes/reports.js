@@ -41,11 +41,9 @@ router.get(
             !user ||
             !user.organizationId.equals(req.profile.organizationId)
           ) {
-            return res
-              .status(403)
-              .json({
-                error: "Access denied to user outside your organization",
-              });
+            return res.status(403).json({
+              error: "Access denied to user outside your organization",
+            });
           }
         }
       } else {
@@ -70,12 +68,10 @@ router.get(
       });
     } catch (error) {
       console.error("Get user activity report error:", error);
-      res
-        .status(500)
-        .json({
-          error: "Failed to get user activity report",
-          details: error.message,
-        });
+      res.status(500).json({
+        error: "Failed to get user activity report",
+        details: error.message,
+      });
     }
   },
 );
@@ -184,12 +180,10 @@ router.get(
       });
     } catch (error) {
       console.error("Get organization stats report error:", error);
-      res
-        .status(500)
-        .json({
-          error: "Failed to get organization stats report",
-          details: error.message,
-        });
+      res.status(500).json({
+        error: "Failed to get organization stats report",
+        details: error.message,
+      });
     }
   },
 );
@@ -231,12 +225,10 @@ router.get(
       });
     } catch (error) {
       console.error("Get security incidents report error:", error);
-      res
-        .status(500)
-        .json({
-          error: "Failed to get security incidents report",
-          details: error.message,
-        });
+      res.status(500).json({
+        error: "Failed to get security incidents report",
+        details: error.message,
+      });
     }
   },
 );

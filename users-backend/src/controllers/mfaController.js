@@ -92,12 +92,10 @@ async function verifyLogin(req, res) {
     try {
       decoded = jwt.verify(mfa_token, jwtConfig.secret);
     } catch {
-      return res
-        .status(401)
-        .json({
-          error: "MFA token expired or invalid. Please log in again.",
-          code: "MFA_TOKEN_EXPIRED",
-        });
+      return res.status(401).json({
+        error: "MFA token expired or invalid. Please log in again.",
+        code: "MFA_TOKEN_EXPIRED",
+      });
     }
 
     if (decoded.purpose !== "mfa_challenge") {
@@ -193,12 +191,10 @@ async function disableMfa(req, res) {
     // Verify password first (2.9: MFA changes require password re-entry)
     const account = await Model.findById(userId).select("+passwordHash");
     if (!account?.passwordHash) {
-      return res
-        .status(400)
-        .json({
-          error:
-            "No password set. Cannot disable MFA without password verification.",
-        });
+      return res.status(400).json({
+        error:
+          "No password set. Cannot disable MFA without password verification.",
+      });
     }
 
     const valid = await passwordService.verifyPassword(

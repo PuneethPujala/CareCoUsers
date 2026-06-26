@@ -291,13 +291,11 @@ describe("User Medicines Routes", () => {
       Patient.findOne = jest.fn().mockResolvedValue(patient);
       MedicineLog.findOne = jest.fn().mockResolvedValue(log);
 
-      const res = await request(app)
-        .put("/api/users/medicines/mark")
-        .send({
-          medicine_name: "Metformin",
-          scheduled_time: "morning",
-          taken: true,
-        });
+      const res = await request(app).put("/api/users/medicines/mark").send({
+        medicine_name: "Metformin",
+        scheduled_time: "morning",
+        taken: true,
+      });
 
       expect(res.status).toBe(200);
       expect(log.medicines[0].taken).toBe(true);
@@ -320,13 +318,11 @@ describe("User Medicines Routes", () => {
       Patient.findOne = jest.fn().mockResolvedValue(patient);
       MedicineLog.findOne = jest.fn().mockResolvedValue(log);
 
-      const res = await request(app)
-        .put("/api/users/medicines/mark")
-        .send({
-          medicine_name: "Metformin",
-          scheduled_time: "morning",
-          taken: false,
-        });
+      const res = await request(app).put("/api/users/medicines/mark").send({
+        medicine_name: "Metformin",
+        scheduled_time: "morning",
+        taken: false,
+      });
 
       expect(res.status).toBe(200);
       expect(log.medicines[0].taken).toBe(false);
@@ -336,13 +332,11 @@ describe("User Medicines Routes", () => {
     it("returns 500 when database operation fails", async () => {
       Patient.findOne = jest.fn().mockRejectedValue(new Error("DB error"));
 
-      const res = await request(app)
-        .put("/api/users/medicines/mark")
-        .send({
-          medicine_name: "Metformin",
-          scheduled_time: "morning",
-          taken: true,
-        });
+      const res = await request(app).put("/api/users/medicines/mark").send({
+        medicine_name: "Metformin",
+        scheduled_time: "morning",
+        taken: true,
+      });
 
       expect(res.status).toBe(500);
       expect(res.body.error).toBe("Failed to mark medicine");
@@ -365,13 +359,11 @@ describe("User Medicines Routes", () => {
       MedicineLog.findOne = jest.fn().mockResolvedValue(null);
       MedicineLog.mockImplementation(() => newLog);
 
-      const res = await request(app)
-        .put("/api/users/medicines/mark")
-        .send({
-          medicine_name: "Metformin",
-          scheduled_time: "morning",
-          taken: true,
-        });
+      const res = await request(app).put("/api/users/medicines/mark").send({
+        medicine_name: "Metformin",
+        scheduled_time: "morning",
+        taken: true,
+      });
 
       expect(res.status).toBe(200);
       expect(newLog.save).toHaveBeenCalled();
@@ -390,13 +382,11 @@ describe("User Medicines Routes", () => {
       Patient.findOne = jest.fn().mockResolvedValue(makePatient());
       MedicineLog.findOne = jest.fn().mockResolvedValue(log);
 
-      const res = await request(app)
-        .put("/api/users/medicines/mark")
-        .send({
-          medicine_name: "Metformin",
-          scheduled_time: "morning",
-          taken: true,
-        });
+      const res = await request(app).put("/api/users/medicines/mark").send({
+        medicine_name: "Metformin",
+        scheduled_time: "morning",
+        taken: true,
+      });
 
       expect(res.status).toBe(404);
       expect(res.body.error).toBe("Medicine not found in schedule");

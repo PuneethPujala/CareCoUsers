@@ -23,12 +23,10 @@ async function extractPrescription(req, res) {
     const googleVisionKey = process.env.GOOGLE_VISION_API_KEY;
     if (!googleVisionKey) {
       console.error("Google Vision API key missing.");
-      return res
-        .status(500)
-        .json({
-          success: false,
-          error: "OCR Service temporarily unavailable.",
-        });
+      return res.status(500).json({
+        success: false,
+        error: "OCR Service temporarily unavailable.",
+      });
     }
 
     try {
@@ -46,33 +44,27 @@ async function extractPrescription(req, res) {
       rawText = gvResponse.data.responses?.[0]?.fullTextAnnotation?.text || "";
     } catch (gvErr) {
       console.error("Google Vision OCR failed:", gvErr.message);
-      return res
-        .status(500)
-        .json({
-          success: false,
-          error: "Failed to read prescription text. Please enter manually.",
-        });
+      return res.status(500).json({
+        success: false,
+        error: "Failed to read prescription text. Please enter manually.",
+      });
     }
 
     if (!rawText.trim()) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          error: "Could not detect any text on this prescription.",
-        });
+      return res.status(400).json({
+        success: false,
+        error: "Could not detect any text on this prescription.",
+      });
     }
 
     // Phase 2: Hybrid Structuring (Groq LLM)
     const groqKey = process.env.GROQ_API_KEY;
     if (!groqKey) {
       console.error("Groq API key missing.");
-      return res
-        .status(500)
-        .json({
-          success: false,
-          error: "Extraction Service temporarily unavailable.",
-        });
+      return res.status(500).json({
+        success: false,
+        error: "Extraction Service temporarily unavailable.",
+      });
     }
 
     const messages = [

@@ -62,12 +62,10 @@ router.use((req, res, next) => {
   function runChecks() {
     // SEC-FIX: Block companions from accessing patient mutation/settings routes
     if (req.profile && req.profile.role === "companion") {
-      return res
-        .status(403)
-        .json({
-          error:
-            "Companions cannot access or mutate patient records directly. Use the companion APIs.",
-        });
+      return res.status(403).json({
+        error:
+          "Companions cannot access or mutate patient records directly. Use the companion APIs.",
+      });
     }
 
     // Apply requireSubscription if not excluded
@@ -385,12 +383,10 @@ router.post("/subscribe", authenticateSession, async (req, res) => {
     const isTest = process.env.NODE_ENV === "test";
     if (paid === 1 && !isTest) {
       if (!paymentId || !signature) {
-        return res
-          .status(400)
-          .json({
-            error:
-              "Payment verification failed. Missing payment ID or signature.",
-          });
+        return res.status(400).json({
+          error:
+            "Payment verification failed. Missing payment ID or signature.",
+        });
       }
       const crypto = require("crypto");
       const secret =
@@ -479,12 +475,10 @@ router.post("/me/addresses", authenticateSession, async (req, res) => {
     );
     req.patient = await Patient.findById(patient._id);
     logger.info("Address added", { patientId: patient._id, label });
-    res
-      .status(201)
-      .json({
-        saved_addresses: req.patient.saved_addresses,
-        message: "Address saved successfully",
-      });
+    res.status(201).json({
+      saved_addresses: req.patient.saved_addresses,
+      message: "Address saved successfully",
+    });
   } catch (error) {
     logger.error("Add address error", {
       error: error.message,
@@ -893,12 +887,10 @@ router.post("/me/prescriptions", authenticateSession, async (req, res) => {
       file_name: fileName,
     });
     await patient.save();
-    res
-      .status(201)
-      .json({
-        message: "Prescription uploaded successfully",
-        uploaded_prescriptions: patient.uploaded_prescriptions,
-      });
+    res.status(201).json({
+      message: "Prescription uploaded successfully",
+      uploaded_prescriptions: patient.uploaded_prescriptions,
+    });
   } catch (err) {
     logger.error("Upload prescription error", {
       error: err.message,
@@ -974,13 +966,11 @@ router.post("/me/avatar", authenticateSession, async (req, res) => {
     patient.avatar_url = publicUrl;
     await patient.save();
 
-    res
-      .status(200)
-      .json({
-        message: "Avatar uploaded successfully",
-        avatar_url: publicUrl,
-        patient,
-      });
+    res.status(200).json({
+      message: "Avatar uploaded successfully",
+      avatar_url: publicUrl,
+      patient,
+    });
   } catch (err) {
     logger.error("Upload avatar error", {
       error: err.message,
@@ -1361,13 +1351,11 @@ router.post("/me/trusted-contacts", authenticateSession, async (req, res) => {
       const patientName = patient.name || "Someone";
       const caregiverFirstName = name.split(" ")[0];
       const warmMessage = `Hi ${caregiverFirstName} — ${patientName} has added you to their trusted care circle on CareMyMed. They'd love for you to be quietly kept in the loop regarding their health. Tap here to connect: https://caremymed.app/invite`;
-      smsService
-        .sendMessage(phone, warmMessage)
-        .catch((e) =>
-          logger.warn("Caregiver invite SMS failed (non-critical)", {
-            error: e.message,
-          }),
-        );
+      smsService.sendMessage(phone, warmMessage).catch((e) =>
+        logger.warn("Caregiver invite SMS failed (non-critical)", {
+          error: e.message,
+        }),
+      );
     } catch (smsErr) {
       // Non-critical — never block the response
       logger.warn("Caregiver invite SMS setup failed", {
@@ -1375,12 +1363,10 @@ router.post("/me/trusted-contacts", authenticateSession, async (req, res) => {
       });
     }
 
-    res
-      .status(201)
-      .json({
-        trusted_contacts: patient.trusted_contacts,
-        message: "Trusted contact added successfully",
-      });
+    res.status(201).json({
+      trusted_contacts: patient.trusted_contacts,
+      message: "Trusted contact added successfully",
+    });
   } catch (error) {
     logger.error("Add trusted contact error", {
       error: error.message,
@@ -1660,12 +1646,10 @@ router.get("/me/agora-token", authenticateSession, async (req, res) => {
       patient.subscription_status !== "active" &&
       patient.subscription_tier === "free"
     ) {
-      return res
-        .status(403)
-        .json({
-          error:
-            "Voice calling is a premium feature. Please upgrade your subscription.",
-        });
+      return res.status(403).json({
+        error:
+          "Voice calling is a premium feature. Please upgrade your subscription.",
+      });
     }
 
     const appId = process.env.AGORA_APP_ID;
@@ -1731,11 +1715,9 @@ router.post("/me/calls/initiate", authenticateSession, async (req, res) => {
         is_active: true,
       });
       if (!assignedCaller) {
-        return res
-          .status(400)
-          .json({
-            error: "No coordinator is currently assigned to your account.",
-          });
+        return res.status(400).json({
+          error: "No coordinator is currently assigned to your account.",
+        });
       }
       caretakerId = assignedCaller._id;
     }
@@ -2369,12 +2351,10 @@ router.post("/me/vitals", authenticateSession, async (req, res) => {
         logger.info("Duplicate vitals log ignored (idempotent check)", {
           patientId: patient._id,
         });
-        return res
-          .status(200)
-          .json({
-            message: "Vitals logged successfully (duplicate ignored)",
-            vitals: existing,
-          });
+        return res.status(200).json({
+          message: "Vitals logged successfully (duplicate ignored)",
+          vitals: existing,
+        });
       }
     }
 
@@ -2426,12 +2406,10 @@ router.post("/me/vitals", authenticateSession, async (req, res) => {
               "Duplicate vitals log caught via unique index constraint (idempotent fallback)",
               { patientId: patient._id },
             );
-            return res
-              .status(200)
-              .json({
-                message: "Vitals logged successfully (duplicate ignored)",
-                vitals: existing,
-              });
+            return res.status(200).json({
+              message: "Vitals logged successfully (duplicate ignored)",
+              vitals: existing,
+            });
           }
         }
       } catch (findError) {

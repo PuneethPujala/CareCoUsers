@@ -143,11 +143,9 @@ router.get(
 
       if (req.profile.role !== "super_admin") {
         if (!req.profile.organizationId.equals(orgId)) {
-          return res
-            .status(403)
-            .json({
-              error: "Cannot access profiles from a different organization",
-            });
+          return res.status(403).json({
+            error: "Cannot access profiles from a different organization",
+          });
         }
       }
 
@@ -162,11 +160,9 @@ router.get(
           "caller",
         ];
         if (!validRoles.includes(roleFilter)) {
-          return res
-            .status(400)
-            .json({
-              error: `Invalid role filter. Valid roles: ${validRoles.join(", ")}`,
-            });
+          return res.status(400).json({
+            error: `Invalid role filter. Valid roles: ${validRoles.join(", ")}`,
+          });
         }
         query.role = roleFilter;
       } else {
@@ -194,12 +190,10 @@ router.get(
       });
     } catch (error) {
       console.error("Get organization profiles error:", error);
-      res
-        .status(500)
-        .json({
-          error: "Failed to get organization profiles",
-          details: error.message,
-        });
+      res.status(500).json({
+        error: "Failed to get organization profiles",
+        details: error.message,
+      });
     }
   },
 );
@@ -381,11 +375,9 @@ router.post(
       // Non-super_admin cannot create profiles in a different org
       if (organizationId && req.profile.role !== "super_admin") {
         if (!req.profile.organizationId.equals(organizationId)) {
-          return res
-            .status(403)
-            .json({
-              error: "Cannot create profile in a different organization",
-            });
+          return res.status(403).json({
+            error: "Cannot create profile in a different organization",
+          });
         }
       }
 

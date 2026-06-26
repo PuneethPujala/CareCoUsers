@@ -372,11 +372,9 @@ router.put("/mark", authenticateSession, async (req, res) => {
       const slotStart = SLOT_START_HOURS[scheduled_time];
 
       if (slotStart !== undefined && currentHour < slotStart) {
-        return res
-          .status(400)
-          .json({
-            error: `Strict Validation: Cannot mark ${scheduled_time} medicines before ${slotStart}:00`,
-          });
+        return res.status(400).json({
+          error: `Strict Validation: Cannot mark ${scheduled_time} medicines before ${slotStart}:00`,
+        });
       }
     }
 
@@ -554,14 +552,12 @@ router.put("/mark", authenticateSession, async (req, res) => {
     }
 
     const streakService = require("../../services/streakService");
-    await streakService
-      .evaluateAndUpdateStreak(patient._id)
-      .catch((e) =>
-        logger.error("Streak Update Failed", {
-          error: e.message,
-          patientId: patient._id,
-        }),
-      );
+    await streakService.evaluateAndUpdateStreak(patient._id).catch((e) =>
+      logger.error("Streak Update Failed", {
+        error: e.message,
+        patientId: patient._id,
+      }),
+    );
 
     // Trigger health state recomputation
     const {
@@ -616,11 +612,9 @@ router.put("/mark-slot", authenticateSession, async (req, res) => {
       const slotStart = SLOT_START_HOURS[scheduled_time];
 
       if (slotStart !== undefined && currentHour < slotStart) {
-        return res
-          .status(400)
-          .json({
-            error: `Strict Validation: Cannot mark ${scheduled_time} slot before ${slotStart}:00`,
-          });
+        return res.status(400).json({
+          error: `Strict Validation: Cannot mark ${scheduled_time} slot before ${slotStart}:00`,
+        });
       }
     }
 
@@ -833,12 +827,10 @@ router.post("/:name/refill", authenticateSession, async (req, res) => {
 
     // 2. Strong input validation
     if (!Number.isInteger(addQty) || addQty <= 0 || addQty > 10000) {
-      return res
-        .status(400)
-        .json({
-          error:
-            "Invalid refill quantity. Must be a positive integer up to 10,000.",
-        });
+      return res.status(400).json({
+        error:
+          "Invalid refill quantity. Must be a positive integer up to 10,000.",
+      });
     }
 
     let refilled = false;
@@ -1938,11 +1930,9 @@ router.post("/temp-meds", authenticateSession, async (req, res) => {
 
     const validShifts = ["morning", "afternoon", "night"];
     if (!validShifts.includes(shift)) {
-      return res
-        .status(400)
-        .json({
-          error: "Valid shift (morning, afternoon, night) is required.",
-        });
+      return res.status(400).json({
+        error: "Valid shift (morning, afternoon, night) is required.",
+      });
     }
 
     // Get AI classification

@@ -27,7 +27,10 @@ describe("rateLimiter Key Generators", () => {
   });
 
   it("aiChatPatientRateLimiter keyGenerator should use userId for Patient type", () => {
-    const req = { auth: { userId: "patient-123", userType: "Patient" }, ip: "192.168.1.1" };
+    const req = {
+      auth: { userId: "patient-123", userType: "Patient" },
+      ip: "192.168.1.1",
+    };
     const key = aiChatPatientKeyGenerator(req);
     expect(key).toBe("patient-123");
   });

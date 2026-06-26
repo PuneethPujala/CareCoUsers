@@ -36,7 +36,9 @@ describe("checkClockDrift Middleware", () => {
   it("should log a warning if drift is 5 seconds or more", () => {
     const serverTime = Date.now();
     // 10 seconds ahead
-    req.headers["x-device-timestamp"] = new Date(serverTime + 10000).toISOString();
+    req.headers["x-device-timestamp"] = new Date(
+      serverTime + 10000,
+    ).toISOString();
     req.headers["x-device-timezone"] = "America/New_York";
     req.auth = { userId: "user-123" };
 
@@ -53,7 +55,9 @@ describe("checkClockDrift Middleware", () => {
 
   it("should fallback to UTC if timezone header is invalid", () => {
     const serverTime = Date.now();
-    req.headers["x-device-timestamp"] = new Date(serverTime + 10000).toISOString();
+    req.headers["x-device-timestamp"] = new Date(
+      serverTime + 10000,
+    ).toISOString();
     req.headers["x-device-timezone"] = "Invalid/Timezone";
 
     // We expect console.warn to be called for invalid timezone, let's spy on it

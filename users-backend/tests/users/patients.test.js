@@ -220,11 +220,9 @@ describe("User Patients Routes", () => {
     });
 
     it("returns 500 on database error", async () => {
-      City.find = jest
-        .fn()
-        .mockReturnValue({
-          sort: jest.fn().mockRejectedValue(new Error("DB error")),
-        });
+      City.find = jest.fn().mockReturnValue({
+        sort: jest.fn().mockRejectedValue(new Error("DB error")),
+      });
 
       const res = await request(app).get("/api/users/patients/cities");
 

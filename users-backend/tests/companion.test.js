@@ -45,12 +45,10 @@ jest.mock("../src/middleware/authenticate", () => ({
     (...allowed) =>
     (req, res, next) => {
       if (!allowed.includes(req.profile.role))
-        return res
-          .status(403)
-          .json({
-            error: "Insufficient role permissions",
-            code: "INSUFFICIENT_ROLE",
-          });
+        return res.status(403).json({
+          error: "Insufficient role permissions",
+          code: "INSUFFICIENT_ROLE",
+        });
       next();
     },
 }));
@@ -446,13 +444,11 @@ describe("Companion Routes", () => {
       MedicineLog.find = jest
         .fn()
         .mockReturnValue({ lean: jest.fn().mockResolvedValue([]) });
-      VitalLog.findOne = jest
-        .fn()
-        .mockReturnValue({
-          sort: jest
-            .fn()
-            .mockReturnValue({ lean: jest.fn().mockResolvedValue(null) }),
-        });
+      VitalLog.findOne = jest.fn().mockReturnValue({
+        sort: jest
+          .fn()
+          .mockReturnValue({ lean: jest.fn().mockResolvedValue(null) }),
+      });
       Alert.find = jest.fn().mockReturnValue({
         populate: jest.fn().mockReturnThis(),
         sort: jest.fn().mockReturnThis(),
@@ -671,11 +667,9 @@ describe("Companion Routes", () => {
         organization_id: fakeId("org-123"),
       };
       Patient.findById = jest.fn().mockResolvedValue(mockPatientObj);
-      Patient.findOne = jest
-        .fn()
-        .mockResolvedValue({
-          expo_push_token: "ExponentPushToken[caller-token]",
-        });
+      Patient.findOne = jest.fn().mockResolvedValue({
+        expo_push_token: "ExponentPushToken[caller-token]",
+      });
 
       const mockCallerObj = {
         _id: fakeId("caller-123"),

@@ -242,13 +242,11 @@ describe("User Callers Routes", () => {
         .fn()
         .mockReturnValue(makePatientFindChain(makePatient()));
 
-      const res = await request(app)
-        .post("/api/users/callers/me/calls")
-        .send({
-          patient_id: "patient-id",
-          status: "completed",
-          call_duration_seconds: 300,
-        });
+      const res = await request(app).post("/api/users/callers/me/calls").send({
+        patient_id: "patient-id",
+        status: "completed",
+        call_duration_seconds: 300,
+      });
 
       expect(res.status).toBe(201);
       expect(res.body.message).toBe("Call logged successfully");

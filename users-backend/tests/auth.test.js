@@ -246,14 +246,12 @@ describe("Auth Routes", () => {
         .fn()
         .mockResolvedValueOnce({ _id: "existing", email: "dupe@caremymed.in" });
 
-      const res = await request(app)
-        .post("/api/auth/register")
-        .send({
-          email: "dupe@caremymed.in",
-          fullName: "Test",
-          password: "Pass12345",
-          city: "Hyderabad",
-        });
+      const res = await request(app).post("/api/auth/register").send({
+        email: "dupe@caremymed.in",
+        fullName: "Test",
+        password: "Pass12345",
+        city: "Hyderabad",
+      });
 
       expect(res.status).toBe(400);
       expect(res.body.code).toBe("EMAIL_ALREADY_EXISTS");
@@ -265,14 +263,12 @@ describe("Auth Routes", () => {
       Patient.findOne = jest.fn().mockResolvedValue(null);
       Organization.findOne = jest.fn().mockResolvedValue(null);
 
-      const res = await request(app)
-        .post("/api/auth/register")
-        .send({
-          email: "test@example.com",
-          fullName: "Test",
-          password: "Pass12345",
-          city: "UnknownCity",
-        });
+      const res = await request(app).post("/api/auth/register").send({
+        email: "test@example.com",
+        fullName: "Test",
+        password: "Pass12345",
+        city: "UnknownCity",
+      });
 
       expect(res.status).toBe(400);
       expect(res.body.error).toMatch(/no active organisation/i);
@@ -288,14 +284,12 @@ describe("Auth Routes", () => {
       Organization.findOne = jest.fn().mockResolvedValue(org);
       Organization.findById = jest.fn().mockResolvedValue(org);
 
-      const res = await request(app)
-        .post("/api/auth/register")
-        .send({
-          email: "test@example.com",
-          fullName: "Test",
-          password: "Pass12345",
-          city: "Hyderabad",
-        });
+      const res = await request(app).post("/api/auth/register").send({
+        email: "test@example.com",
+        fullName: "Test",
+        password: "Pass12345",
+        city: "Hyderabad",
+      });
 
       expect(res.status).toBe(400);
       expect(res.body.error).toMatch(/capacity/i);
@@ -315,14 +309,12 @@ describe("Auth Routes", () => {
       });
       Patient.prototype.save = jest.fn().mockRejectedValue(dupeError);
 
-      const res = await request(app)
-        .post("/api/auth/register")
-        .send({
-          email: "dupe@example.com",
-          fullName: "Test",
-          password: "Pass12345",
-          city: "Hyderabad",
-        });
+      const res = await request(app).post("/api/auth/register").send({
+        email: "dupe@example.com",
+        fullName: "Test",
+        password: "Pass12345",
+        city: "Hyderabad",
+      });
 
       expect(res.status).toBe(400);
       expect(res.body.code).toBe("EMAIL_ALREADY_EXISTS");
@@ -341,14 +333,12 @@ describe("Auth Routes", () => {
       Patient.prototype._id = "patient-auto-id";
       Patient.prototype.save = jest.fn().mockResolvedValue({});
 
-      const res = await request(app)
-        .post("/api/auth/register")
-        .send({
-          email: "new@example.com",
-          fullName: "New User",
-          password: "Pass12345",
-          city: "Hyderabad",
-        });
+      const res = await request(app).post("/api/auth/register").send({
+        email: "new@example.com",
+        fullName: "New User",
+        password: "Pass12345",
+        city: "Hyderabad",
+      });
 
       expect(res.status).toBe(201);
       expect(res.body.message).toBe("Registration successful");
@@ -459,13 +449,11 @@ describe("Auth Routes", () => {
         .mockReturnValueOnce(findOnePopulateChain(null))
         .mockResolvedValueOnce(existingProfile);
 
-      const res = await request(app)
-        .post("/api/auth/login")
-        .send({
-          email: "test@example.com",
-          password: "Pass12345",
-          role: "caller",
-        });
+      const res = await request(app).post("/api/auth/login").send({
+        email: "test@example.com",
+        password: "Pass12345",
+        role: "caller",
+      });
 
       expect(res.status).toBe(401);
       expect(res.body.code).toBe("INVALID_CREDENTIALS");
@@ -475,13 +463,11 @@ describe("Auth Routes", () => {
       // SEC-FIX-1: no longer reveals whether account exists
       Patient.findOne = jest.fn().mockReturnValue(patientSelectChain(null));
 
-      const res = await request(app)
-        .post("/api/auth/login")
-        .send({
-          email: "ghost@example.com",
-          password: "Pass12345",
-          role: "patient",
-        });
+      const res = await request(app).post("/api/auth/login").send({
+        email: "ghost@example.com",
+        password: "Pass12345",
+        role: "patient",
+      });
 
       expect(res.status).toBe(401);
       expect(res.body.code).toBe("INVALID_CREDENTIALS");
@@ -503,13 +489,11 @@ describe("Auth Routes", () => {
         error: { message: "Invalid login credentials" },
       });
 
-      const res = await request(app)
-        .post("/api/auth/login")
-        .send({
-          email: "caller@caremymed.in",
-          password: "wrongpass",
-          role: "caller",
-        });
+      const res = await request(app).post("/api/auth/login").send({
+        email: "caller@caremymed.in",
+        password: "wrongpass",
+        role: "caller",
+      });
 
       expect(res.status).toBe(401);
       expect(res.body.code).toBe("INVALID_CREDENTIALS");
@@ -544,13 +528,11 @@ describe("Auth Routes", () => {
         error: null,
       });
 
-      const res = await request(app)
-        .post("/api/auth/login")
-        .send({
-          email: "caller@caremymed.in",
-          password: "Pass12345",
-          role: "caller",
-        });
+      const res = await request(app).post("/api/auth/login").send({
+        email: "caller@caremymed.in",
+        password: "Pass12345",
+        role: "caller",
+      });
 
       expect(res.status).toBe(423);
       expect(res.body.code).toBe("ACCOUNT_LOCKED");
@@ -582,13 +564,11 @@ describe("Auth Routes", () => {
         error: null,
       });
 
-      const res = await request(app)
-        .post("/api/auth/login")
-        .send({
-          email: "patient@caremymed.in",
-          password: "Pass12345",
-          role: "patient",
-        });
+      const res = await request(app).post("/api/auth/login").send({
+        email: "patient@caremymed.in",
+        password: "Pass12345",
+        role: "patient",
+      });
 
       expect(res.status).toBe(200);
       expect(res.body.session.access_token).toBe("mock-access-token");
@@ -631,13 +611,11 @@ describe("Auth Routes", () => {
         error: null,
       });
 
-      const res = await request(app)
-        .post("/api/auth/login")
-        .send({
-          email: "caller@caremymed.in",
-          password: "Pass12345",
-          role: "caller",
-        });
+      const res = await request(app).post("/api/auth/login").send({
+        email: "caller@caremymed.in",
+        password: "Pass12345",
+        role: "caller",
+      });
 
       expect(res.status).toBe(200);
       expect(res.body.session.access_token).toBe("mock-access-token");
@@ -898,13 +876,11 @@ describe("Auth Routes", () => {
     });
 
     it("returns 403 when role hierarchy is violated (org_admin cannot create org_admin)", async () => {
-      const res = await request(app)
-        .post("/api/auth/create-user")
-        .send({
-          email: "new@caremymed.in",
-          fullName: "New Admin",
-          role: "org_admin",
-        });
+      const res = await request(app).post("/api/auth/create-user").send({
+        email: "new@caremymed.in",
+        fullName: "New Admin",
+        role: "org_admin",
+      });
 
       expect(res.status).toBe(403);
       expect(res.body.code).toBe("ROLE_HIERARCHY_VIOLATION");
@@ -918,14 +894,12 @@ describe("Auth Routes", () => {
       });
       Organization.findById = jest.fn().mockResolvedValue(org);
 
-      const res = await request(app)
-        .post("/api/auth/create-user")
-        .send({
-          email: "new@caremymed.in",
-          fullName: "New Caller",
-          role: "caller",
-          organizationId: testOrgId,
-        });
+      const res = await request(app).post("/api/auth/create-user").send({
+        email: "new@caremymed.in",
+        fullName: "New Caller",
+        role: "caller",
+        organizationId: testOrgId,
+      });
 
       expect(res.status).toBe(400);
       expect(res.body.code).toBe("CAPACITY_LIMIT_REACHED");
@@ -939,14 +913,12 @@ describe("Auth Routes", () => {
       Patient.findOne = jest.fn().mockResolvedValue(null); // Cross-collection check
       Profile.prototype.save = jest.fn().mockResolvedValue({});
 
-      const res = await request(app)
-        .post("/api/auth/create-user")
-        .send({
-          email: "newcaller@caremymed.in",
-          fullName: "New Caller",
-          role: "caller",
-          organizationId: testOrgId,
-        });
+      const res = await request(app).post("/api/auth/create-user").send({
+        email: "newcaller@caremymed.in",
+        fullName: "New Caller",
+        role: "caller",
+        organizationId: testOrgId,
+      });
 
       expect(res.status).toBe(201);
       expect(mockSupabase.auth.admin.createUser).not.toHaveBeenCalled();

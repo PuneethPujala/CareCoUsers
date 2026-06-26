@@ -186,12 +186,10 @@ router.post(
         .json({ message: "Organization created successfully", organization });
     } catch (error) {
       console.error("Create organization error:", error);
-      res
-        .status(500)
-        .json({
-          error: "Failed to create organization",
-          details: error.message,
-        });
+      res.status(500).json({
+        error: "Failed to create organization",
+        details: error.message,
+      });
     }
   },
 );
@@ -274,12 +272,10 @@ router.put(
       });
     } catch (error) {
       console.error("Update organization error:", error);
-      res
-        .status(500)
-        .json({
-          error: "Failed to update organization",
-          details: error.message,
-        });
+      res.status(500).json({
+        error: "Failed to update organization",
+        details: error.message,
+      });
     }
   },
 );
@@ -336,12 +332,10 @@ router.delete(
       });
     } catch (error) {
       console.error("Delete organization error:", error);
-      res
-        .status(500)
-        .json({
-          error: "Failed to delete organization",
-          details: error.message,
-        });
+      res.status(500).json({
+        error: "Failed to delete organization",
+        details: error.message,
+      });
     }
   },
 );
@@ -409,12 +403,10 @@ router.get(
       });
     } catch (error) {
       console.error("Get organization users error:", error);
-      res
-        .status(500)
-        .json({
-          error: "Failed to get organization users",
-          details: error.message,
-        });
+      res.status(500).json({
+        error: "Failed to get organization users",
+        details: error.message,
+      });
     }
   },
 );
@@ -483,12 +475,10 @@ router.get(
       });
     } catch (error) {
       console.error("Get organization stats error:", error);
-      res
-        .status(500)
-        .json({
-          error: "Failed to get organization statistics",
-          details: error.message,
-        });
+      res.status(500).json({
+        error: "Failed to get organization statistics",
+        details: error.message,
+      });
     }
   },
 );

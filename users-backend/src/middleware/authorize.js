@@ -409,8 +409,8 @@ async function checkSpecialAccess(profile, resource, action, resourceOwnerId) {
       return myOrgId.equals
         ? myOrgId.equals(ownerOrgId)
         : ownerOrgId.equals
-        ? ownerOrgId.equals(myOrgId)
-        : myOrgId.toString() === ownerOrgId.toString();
+          ? ownerOrgId.equals(myOrgId)
+          : myOrgId.toString() === ownerOrgId.toString();
     }
   }
 

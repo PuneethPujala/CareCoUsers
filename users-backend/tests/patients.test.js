@@ -59,12 +59,10 @@ jest.mock("../src/middleware/authenticate", () => ({
     (...allowed) =>
     (req, res, next) => {
       if (!allowed.includes(req.profile.role))
-        return res
-          .status(403)
-          .json({
-            error: "Insufficient role permissions",
-            code: "INSUFFICIENT_ROLE",
-          });
+        return res.status(403).json({
+          error: "Insufficient role permissions",
+          code: "INSUFFICIENT_ROLE",
+        });
       next();
     },
 }));

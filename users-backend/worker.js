@@ -64,7 +64,7 @@ function handleJobCompleted(queueName, job) {
       parseInt(process.env.QUEUE_HIGH_PRIORITY_WAIT_WARNING_MS) || 5000;
     if (waitTimeMs > threshold) {
       logger.warn(
-        `🚨 High-priority queue wait time threshold exceeded: ${queueName} (${waitTimeMs}ms > ${threshold}ms)`
+        `🚨 High-priority queue wait time threshold exceeded: ${queueName} (${waitTimeMs}ms > ${threshold}ms)`,
       );
     }
   }

@@ -42,7 +42,10 @@ const vitalsSyncRoutes = require("./routes/vitalsSync");
 const companionRoutes = require("./routes/companion");
 
 const app = express();
-const { correlationIdMiddleware, getCorrelationId } = require("./middleware/correlationId");
+const {
+  correlationIdMiddleware,
+  getCorrelationId,
+} = require("./middleware/correlationId");
 app.use(correlationIdMiddleware);
 // Enable if you're behind a reverse proxy (Heroku, Bluemix, AWS ELB, Nginx, Render, etc)
 app.set("trust proxy", 1);
@@ -293,13 +296,17 @@ app.use((err, req, res, next) => {
   // Mongoose validation error
   if (err.name === "ValidationError") {
     const errors = Object.values(err.errors).map((e) => e.message);
-    return res.status(400).json({ error: "Validation Error", details: errors, correlationId });
+    return res
+      .status(400)
+      .json({ error: "Validation Error", details: errors, correlationId });
   }
 
   // Mongoose duplicate key error
   if (err.code === 11000) {
     const field = Object.keys(err.keyValue)[0];
-    return res.status(400).json({ error: `${field} already exists`, correlationId });
+    return res
+      .status(400)
+      .json({ error: `${field} already exists`, correlationId });
   }
 
   // JWT errors
