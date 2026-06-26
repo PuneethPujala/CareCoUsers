@@ -12,6 +12,10 @@ jest.mock("../../src/models/Medication");
 jest.mock("../../src/models/SleepLog");
 jest.mock("../../src/models/PatientHealthStateHistory");
 jest.mock("../../src/models/AchievementEvent");
+jest.mock("../../src/services/companionAiService", () => ({
+  enqueueCompanionInsights: jest.fn().mockResolvedValue(undefined),
+  generateAndCacheInsights: jest.fn().mockResolvedValue(undefined),
+}));
 jest.mock("../../src/jobs/jobQueues", () => ({
   healthStateQueue: {
     add: jest.fn(),

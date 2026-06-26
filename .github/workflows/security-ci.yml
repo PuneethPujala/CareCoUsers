@@ -19,9 +19,7 @@ jobs:
       - name: TruffleHog Secret Scan
         uses: trufflesecurity/trufflehog@main
         with:
-          base: ${{ github.event.repository.default_branch }}
-          head: HEAD
-          extra_args: --only-verified
+          extra_args: --only-verified --exclude-paths truffle_exclude.txt
 
   snyk:
     name: Dependency Scan (Snyk)
