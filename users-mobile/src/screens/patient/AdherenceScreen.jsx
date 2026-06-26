@@ -84,7 +84,7 @@ const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 const GRID_COLUMNS = 3;
 const GRID_GAP = 12;
-const AVAILABLE_WIDTH = SCREEN_WIDTH - 80; // 20*2 ScrollView padding + 20*2 card padding
+const AVAILABLE_WIDTH = SCREEN_WIDTH - 88; // 20*2 ScrollView padding + 20*2 card padding + borders/safety margin
 const badgeWidth =
   (AVAILABLE_WIDTH - GRID_GAP * (GRID_COLUMNS - 1)) / GRID_COLUMNS;
 
@@ -969,11 +969,40 @@ function PremiumBadge({ data, size = "normal", onPress, style }) {
           shadowOpacity: 0.05,
           shadowRadius: 10,
           elevation: 2,
+          position: "relative",
         },
         isSmall && { width: itemWidth, alignItems: "center" },
         style,
       ]}
     >
+      {!isSmall &&
+        data.meta.tier !== "gold" &&
+        data.meta.tier !== "legendary" && (
+          <View
+            style={{
+              position: "absolute",
+              top: 10,
+              right: 10,
+              backgroundColor: "#10B981",
+              width: 18,
+              height: 18,
+              borderRadius: 9,
+              alignItems: "center",
+              justifyContent: "center",
+              borderWidth: 1.5,
+              borderColor: "#FFFFFF",
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: 1 },
+              shadowOpacity: 0.1,
+              shadowRadius: 1,
+              elevation: 2,
+              zIndex: 10,
+            }}
+          >
+            <Check size={9} color="white" strokeWidth={4} />
+          </View>
+        )}
+
       <View style={{ alignItems: "center", width: "100%" }}>
         {/* Metallic Ring - Outer Gradient Circle */}
         <LinearGradient
@@ -1075,6 +1104,20 @@ function PremiumBadge({ data, size = "normal", onPress, style }) {
         >
           {data.meta.title || data.key}
         </Text>
+
+        {!isSmall && (
+          <Text
+            style={{
+              fontSize: 10,
+              fontWeight: "800",
+              color: data.key === "streak_14" ? "#D97706" : "#10B981",
+              marginTop: 4,
+              textAlign: "center",
+            }}
+          >
+            {data.key === "streak_14" ? "2/2 weeks" : "Achieved"}
+          </Text>
+        )}
       </View>
     </Pressable>
   );
@@ -2314,8 +2357,8 @@ export default function AdherenceScreen({ navigation }) {
             </View>
           </Animated.View>
 
-          {/* ── [6] Achievements ── */}
-          <Animated.View style={anim(6)}>
+          {/* ── [6] Achievements (Liquid Glass style) ── */}
+          <Animated.View style={[anim(6), { position: "relative" }]}>
             <View style={{ marginBottom: 16 }}>
               {/* Hero Achievement Journey card */}
               <View
@@ -2327,18 +2370,62 @@ export default function AdherenceScreen({ navigation }) {
                   shadowRadius: 12,
                   elevation: 6,
                   backgroundColor: "transparent",
+                  position: "relative",
                 }}
               >
+                {/* Ambient Back-Glow Circles */}
+                <View
+                  style={{
+                    position: "absolute",
+                    top: -10,
+                    left: 14,
+                    width: 120,
+                    height: 120,
+                    borderRadius: 60,
+                    backgroundColor: "#8B5CF6",
+                    opacity: 0.35,
+                    transform: [{ scale: 1.2 }],
+                  }}
+                />
+                <View
+                  style={{
+                    position: "absolute",
+                    bottom: 15,
+                    right: -6,
+                    width: 110,
+                    height: 110,
+                    borderRadius: 55,
+                    backgroundColor: "#EC4899",
+                    opacity: 0.28,
+                    transform: [{ scale: 1.15 }],
+                  }}
+                />
+
                 <LinearGradient
-                  colors={["#4F46E5", "#6366F1"]}
+                  colors={[
+                    "rgba(79, 70, 229, 0.88)",
+                    "rgba(99, 102, 241, 0.55)",
+                  ]}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                   style={{
                     borderRadius: 24,
                     padding: 20,
                     overflow: "hidden",
+                    borderWidth: 1.5,
+                    borderColor: "rgba(255, 255, 255, 0.45)",
                   }}
                 >
+                  {/* Glass reflection highlight overlay */}
+                  <LinearGradient
+                    colors={[
+                      "rgba(255, 255, 255, 0.22)",
+                      "rgba(255, 255, 255, 0)",
+                    ]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 0.5, y: 1 }}
+                    style={StyleSheet.absoluteFillObject}
+                  />
                   <View
                     style={{
                       flexDirection: "row",
