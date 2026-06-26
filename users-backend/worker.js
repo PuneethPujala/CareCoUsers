@@ -27,14 +27,23 @@ class Worker extends OriginalWorker {
     const wrappedProcessor = async (job) => {
       const correlationId =
         job.data?.metadata?.correlationId || job.data?.correlationId;
-      if (correlationId) {
-        return correlationLocalStorage.run(correlationId, () => processor(job));
+      const userId = job.data?.metadata?.userId;
+      const userType = job.data?.metadata?.userType;
+
+      if (correlationId || userId) {
+        const context = {
+          correlationId: correlationId || null,
+          userId: userId || null,
+          userType: userType || null,
+        };
+        return correlationLocalStorage.run(context, () => processor(job));
       }
       return processor(job);
     };
     super(name, wrappedProcessor, opts);
   }
 }
+
 
 const connectDB = require("./src/config/database");
 const { getRedisConnection } = require("./src/jobs/redisConnection");
@@ -416,7 +425,12 @@ async function start() {
   process.on("SIGTERM", () => shutdown("SIGTERM"));
 }
 
-start().catch((err) => {
-  console.error("❌ Worker startup failed:", err);
-  process.exit(1);
-});
+if (require.main === module) {
+  start().catch((err) => {
+    console.error("❌ Worker startup failed:", err);
+    process.exit(1);
+  });
+}
+
+module.exports = { Worker };
+

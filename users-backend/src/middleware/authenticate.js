@@ -4,6 +4,8 @@ const Profile = require("../models/Profile");
 const Patient = require("../models/Patient");
 const AuditLog = require("../models/AuditLog");
 const tokenService = require("../services/tokenService");
+const { setLogContextUser } = require("./correlationId");
+
 
 // ── Caller Presence ──────────────────────────────────────────────────────────
 // Touch caller active timestamp using MongoDB-level throttle gate (max once per minute).
@@ -185,18 +187,23 @@ async function attachJwtUser(token, req) {
     return false;
   }
 
+  const userType = isPatient
+    ? "Patient"
+    : profile.role === "companion"
+      ? "Companion"
+      : "Profile";
+
   req.auth = {
     kind: "jwt",
     subject,
     userId: profile._id,
-    userType: isPatient
-      ? "Patient"
-      : profile.role === "companion"
-        ? "Companion"
-        : "Profile",
+    userType,
   };
   req.user = buildReqUserFromProfile(profile, subject);
   req.profile = profile;
+
+  setLogContextUser(profile._id, userType);
+
 
   // Touch caller presence (fire-and-forget, throttled to once per minute)
   touchCallerActivity(profile);
@@ -287,6 +294,8 @@ async function attachSupabaseUser(token, req) {
         created_at: user.created_at,
       };
       req.profile = patient;
+      setLogContextUser(patient._id, "Patient");
+
       return true;
     }
     // Patient not found — no fallback, this is a patient-only app
@@ -379,16 +388,18 @@ async function attachSupabaseUser(token, req) {
     return false;
   }
 
+  const userType =
+    profile.role === "patient"
+      ? "Patient"
+      : profile.role === "companion"
+        ? "Companion"
+        : "Profile";
+
   req.auth = {
     kind: "supabase",
     subject: user.id,
     userId: profile._id,
-    userType:
-      profile.role === "patient"
-        ? "Patient"
-        : profile.role === "companion"
-          ? "Companion"
-          : "Profile",
+    userType,
   };
   req.user = {
     id: user.id,
@@ -397,6 +408,8 @@ async function attachSupabaseUser(token, req) {
     created_at: user.created_at,
   };
   req.profile = profile;
+  setLogContextUser(profile._id, userType);
+
 
   // Touch caller presence (fire-and-forget, throttled to once per minute)
   touchCallerActivity(profile);

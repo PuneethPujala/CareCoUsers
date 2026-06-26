@@ -10,28 +10,40 @@
 const { Queue } = require("bullmq");
 const { getRedisConnection } = require("./redisConnection");
 
-// Intercept Queue.add to propagate active request Correlation ID to job metadata
+// Intercept Queue.add to propagate active request log context (correlationId, userId) to job metadata
 const originalAdd = Queue.prototype.add;
 Queue.prototype.add = function (name, data, opts) {
-  let correlationId;
+  let context;
   try {
-    const { getCorrelationId } = require("../middleware/correlationId");
-    correlationId = getCorrelationId();
+    const { getLogContext } = require("../middleware/correlationId");
+    context = getLogContext();
   } catch (err) {
     // Ignore error if context is not available
   }
 
-  if (correlationId && data && typeof data === "object") {
-    data.metadata = {
-      ...(data.metadata || {}),
-      correlationId,
-      requestSource: "api-request",
-      createdAt: new Date().toISOString(),
-    };
+  if (data && typeof data === "object") {
+    if (context && typeof context === "object") {
+      data.metadata = {
+        ...(data.metadata || {}),
+        correlationId: context.correlationId,
+        userId: context.userId,
+        userType: context.userType,
+        requestSource: "api-request",
+        createdAt: new Date().toISOString(),
+      };
+    } else if (context && typeof context === "string") {
+      data.metadata = {
+        ...(data.metadata || {}),
+        correlationId: context,
+        requestSource: "api-request",
+        createdAt: new Date().toISOString(),
+      };
+    }
   }
 
   return originalAdd.call(this, name, data, opts);
 };
+
 
 const connection = getRedisConnection();
 

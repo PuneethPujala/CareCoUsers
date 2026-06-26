@@ -42,33 +42,47 @@ function serializeMeta(meta) {
   return safe;
 }
 
-function log(level, fn, message, meta = {}) {
+function log(level, message, meta = {}) {
   if (LEVELS[level] < activeLevel) return;
 
-  let correlationId;
+  let context;
   try {
-    const { getCorrelationId } = require("../middleware/correlationId");
-    correlationId = getCorrelationId();
+    const { getLogContext } = require("../middleware/correlationId");
+    context = getLogContext();
   } catch (err) {
     // Ignore require error in environments where not initialized/available
   }
 
-  fn(
-    JSON.stringify({
-      level,
-      timestamp: new Date().toISOString(),
-      message,
-      ...(correlationId ? { correlationId } : {}),
-      ...serializeMeta(meta),
-    }),
-  );
+  const logEntry = JSON.stringify({
+    level,
+    timestamp: new Date().toISOString(),
+    message,
+    ...(context && typeof context === "object"
+      ? {
+          ...(context.correlationId ? { correlationId: context.correlationId } : {}),
+          ...(context.userId ? { userId: context.userId } : {}),
+          ...(context.userType ? { userType: context.userType } : {}),
+        }
+      : typeof context === "string"
+        ? { correlationId: context }
+        : {}),
+    ...serializeMeta(meta),
+  });
+
+  // Route error/warn levels to stderr and info/debug levels to stdout.
+  // NOTE: Direct writes to process.stdout/stderr ignore backpressure warnings (write() returning false).
+  // Under sustained extreme traffic, this could lead to memory build-up if the output stream blocks.
+  // This is a known pre-launch constraint and is acceptable at current volume.
+  const stream = level === "error" || level === "warn" ? process.stderr : process.stdout;
+  stream.write(logEntry + "\n");
 }
 
 const logger = {
-  debug: (message, meta = {}) => log("debug", console.debug, message, meta),
-  info: (message, meta = {}) => log("info", console.log, message, meta),
-  warn: (message, meta = {}) => log("warn", console.warn, message, meta),
-  error: (message, meta = {}) => log("error", console.error, message, meta),
+  debug: (message, meta = {}) => log("debug", message, meta),
+  info: (message, meta = {}) => log("info", message, meta),
+  warn: (message, meta = {}) => log("warn", message, meta),
+  error: (message, meta = {}) => log("error", message, meta),
 };
 
 module.exports = logger;
+
