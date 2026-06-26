@@ -47,15 +47,19 @@ describe("Structured Logger & Context Propagation Tests", () => {
     stderrLogs = [];
 
     // Spy on process.stdout.write and process.stderr.write
-    stdoutWriteSpy = jest.spyOn(process.stdout, "write").mockImplementation((str) => {
-      stdoutLogs.push(str);
-      return true;
-    });
+    stdoutWriteSpy = jest
+      .spyOn(process.stdout, "write")
+      .mockImplementation((str) => {
+        stdoutLogs.push(str);
+        return true;
+      });
 
-    stderrWriteSpy = jest.spyOn(process.stderr, "write").mockImplementation((str) => {
-      stderrLogs.push(str);
-      return true;
-    });
+    stderrWriteSpy = jest
+      .spyOn(process.stderr, "write")
+      .mockImplementation((str) => {
+        stderrLogs.push(str);
+        return true;
+      });
   });
 
   afterEach(() => {
@@ -182,8 +186,12 @@ describe("Structured Logger & Context Propagation Tests", () => {
       expect(stdoutLogs.length).toBe(2);
 
       const parsedLogs = stdoutLogs.map((logStr) => JSON.parse(logStr.trim()));
-      const logA = parsedLogs.find((l) => l.message === "Log for req-A-long-id");
-      const logB = parsedLogs.find((l) => l.message === "Log for req-B-long-id");
+      const logA = parsedLogs.find(
+        (l) => l.message === "Log for req-A-long-id",
+      );
+      const logB = parsedLogs.find(
+        (l) => l.message === "Log for req-B-long-id",
+      );
 
       expect(logA).toBeDefined();
       expect(logA.correlationId).toBe("req-A-long-id");
@@ -204,7 +212,9 @@ describe("Structured Logger & Context Propagation Tests", () => {
       // Load jobQueues to apply interceptor to Queue.prototype.add
       const { medicationReminderQueue } = require("../../src/jobs/jobQueues");
 
-      const req = { headers: { "x-correlation-id": "job-trigger-correlation-id" } };
+      const req = {
+        headers: { "x-correlation-id": "job-trigger-correlation-id" },
+      };
       const res = { setHeader: jest.fn() };
 
       let capturedJobData = null;
@@ -226,7 +236,9 @@ describe("Structured Logger & Context Propagation Tests", () => {
 
       expect(capturedJobData).toBeDefined();
       expect(capturedJobData.metadata).toBeDefined();
-      expect(capturedJobData.metadata.correlationId).toBe("job-trigger-correlation-id");
+      expect(capturedJobData.metadata.correlationId).toBe(
+        "job-trigger-correlation-id",
+      );
       expect(capturedJobData.metadata.userId).toBe("job-trigger-user-id");
       expect(capturedJobData.metadata.userType).toBe("Caretaker");
 

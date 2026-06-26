@@ -44,7 +44,6 @@ class Worker extends OriginalWorker {
   }
 }
 
-
 const connectDB = require("./src/config/database");
 const { getRedisConnection } = require("./src/jobs/redisConnection");
 
@@ -433,4 +432,3 @@ if (require.main === module) {
 }
 
 module.exports = { Worker };
-

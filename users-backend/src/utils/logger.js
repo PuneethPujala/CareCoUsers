@@ -59,7 +59,9 @@ function log(level, message, meta = {}) {
     message,
     ...(context && typeof context === "object"
       ? {
-          ...(context.correlationId ? { correlationId: context.correlationId } : {}),
+          ...(context.correlationId
+            ? { correlationId: context.correlationId }
+            : {}),
           ...(context.userId ? { userId: context.userId } : {}),
           ...(context.userType ? { userType: context.userType } : {}),
         }
@@ -73,7 +75,8 @@ function log(level, message, meta = {}) {
   // NOTE: Direct writes to process.stdout/stderr ignore backpressure warnings (write() returning false).
   // Under sustained extreme traffic, this could lead to memory build-up if the output stream blocks.
   // This is a known pre-launch constraint and is acceptable at current volume.
-  const stream = level === "error" || level === "warn" ? process.stderr : process.stdout;
+  const stream =
+    level === "error" || level === "warn" ? process.stderr : process.stdout;
   stream.write(logEntry + "\n");
 }
 
@@ -85,4 +88,3 @@ const logger = {
 };
 
 module.exports = logger;
-

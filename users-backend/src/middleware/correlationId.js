@@ -19,7 +19,9 @@ function getLogContext() {
  */
 function getCorrelationId() {
   const store = correlationLocalStorage.getStore();
-  return typeof store === "object" && store !== null ? store.correlationId : store;
+  return typeof store === "object" && store !== null
+    ? store.correlationId
+    : store;
 }
 
 /**
@@ -82,4 +84,3 @@ module.exports = {
   setLogContextUser,
   correlationLocalStorage,
 };
-

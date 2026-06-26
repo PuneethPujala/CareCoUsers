@@ -44,7 +44,6 @@ Queue.prototype.add = function (name, data, opts) {
   return originalAdd.call(this, name, data, opts);
 };
 
-
 const connection = getRedisConnection();
 
 const PRIORITY = {

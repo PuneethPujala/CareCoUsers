@@ -6,7 +6,6 @@ const AuditLog = require("../models/AuditLog");
 const tokenService = require("../services/tokenService");
 const { setLogContextUser } = require("./correlationId");
 
-
 // ── Caller Presence ──────────────────────────────────────────────────────────
 // Touch caller active timestamp using MongoDB-level throttle gate (max once per minute).
 // Fire-and-forget — authentication never waits on activity tracking.
@@ -203,7 +202,6 @@ async function attachJwtUser(token, req) {
   req.profile = profile;
 
   setLogContextUser(profile._id, userType);
-
 
   // Touch caller presence (fire-and-forget, throttled to once per minute)
   touchCallerActivity(profile);
@@ -409,7 +407,6 @@ async function attachSupabaseUser(token, req) {
   };
   req.profile = profile;
   setLogContextUser(profile._id, userType);
-
 
   // Touch caller presence (fire-and-forget, throttled to once per minute)
   touchCallerActivity(profile);
