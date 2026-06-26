@@ -10,6 +10,7 @@ const AuditLog = require('../models/AuditLog');
 const CaretakerPatient = require('../models/CaretakerPatient');
 const { reconcileUnassignedPatients } = require('../services/reconciliationService');
 const { authenticate, requireRole } = require('../middleware/authenticate');
+const { escapeRegex } = require('../utils/escapeRegex');
 
 const router = express.Router();
 
@@ -455,8 +456,8 @@ router.get('/caretakers', async (req, res) => {
 
         if (req.query.search) {
             filter.$or = [
-                { fullName: { $regex: req.query.search, $options: 'i' } },
-                { email: { $regex: req.query.search, $options: 'i' } },
+                { fullName: { $regex: escapeRegex(req.query.search), $options: 'i' } },
+                { email: { $regex: escapeRegex(req.query.search), $options: 'i' } },
             ];
         }
 
@@ -611,8 +612,8 @@ router.get('/patients', async (req, res) => {
 
         if (req.query.search) {
             filter.$or = [
-                { fullName: { $regex: req.query.search, $options: 'i' } },
-                { email: { $regex: req.query.search, $options: 'i' } },
+                { fullName: { $regex: escapeRegex(req.query.search), $options: 'i' } },
+                { email: { $regex: escapeRegex(req.query.search), $options: 'i' } },
             ];
         }
 
@@ -945,7 +946,7 @@ router.get('/medications', async (req, res) => {
         }
 
         if (req.query.search) {
-            filter.name = { $regex: req.query.search, $options: 'i' };
+            filter.name = { $regex: escapeRegex(req.query.search), $options: 'i' };
         }
 
         const [medications, total] = await Promise.all([

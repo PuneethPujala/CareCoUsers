@@ -12,6 +12,7 @@ const Notification = require('../models/Notification');
 const CaretakerPatient = require('../models/CaretakerPatient');
 const { reconcileUnassignedPatients } = require('../services/reconciliationService');
 const { authenticate, requireRole } = require('../middleware/authenticate');
+const { escapeRegex } = require('../utils/escapeRegex');
 
 const router = express.Router();
 
@@ -285,8 +286,8 @@ router.get('/care-managers', async (req, res) => {
 
         if (req.query.search) {
             filter.$or = [
-                { fullName: { $regex: req.query.search, $options: 'i' } },
-                { email: { $regex: req.query.search, $options: 'i' } },
+                { fullName: { $regex: escapeRegex(req.query.search), $options: 'i' } },
+                { email: { $regex: escapeRegex(req.query.search), $options: 'i' } },
             ];
         }
         if (req.query.status === 'inactive') filter.isActive = false;
@@ -421,8 +422,8 @@ router.get('/caretakers', async (req, res) => {
 
         if (req.query.search) {
             filter.$or = [
-                { fullName: { $regex: req.query.search, $options: 'i' } },
-                { email: { $regex: req.query.search, $options: 'i' } },
+                { fullName: { $regex: escapeRegex(req.query.search), $options: 'i' } },
+                { email: { $regex: escapeRegex(req.query.search), $options: 'i' } },
             ];
         }
         if (req.query.status === 'inactive') filter.isActive = false;
@@ -492,8 +493,8 @@ router.get('/patients', async (req, res) => {
 
         if (req.query.search) {
             filter.$or = [
-                { fullName: { $regex: req.query.search, $options: 'i' } },
-                { email: { $regex: req.query.search, $options: 'i' } },
+                { fullName: { $regex: escapeRegex(req.query.search), $options: 'i' } },
+                { email: { $regex: escapeRegex(req.query.search), $options: 'i' } },
             ];
         }
         if (req.query.status === 'inactive') filter.isActive = false;

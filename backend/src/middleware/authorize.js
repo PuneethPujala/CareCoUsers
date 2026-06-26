@@ -82,7 +82,7 @@ const authorize = (resource, action, options = {}) => {
 
       next();
     } catch (err) {
-      require('fs').writeFileSync('authorize_crash.txt', String(err.stack || err));
+      // Error logged to stdout (captured by Render/hosting logs)
       console.error('Authorization error:', err);
 
       // Log system error

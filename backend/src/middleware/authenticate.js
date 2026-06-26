@@ -103,7 +103,7 @@ const authenticate = async (req, res, next) => {
           supabaseUid: user.id,
           email: user.email,
           fullName: userMeta.full_name || userMeta.name || user.email.split('@')[0],
-          role: userMeta.role || 'patient',
+          role: 'patient', // SECURITY: Always default to lowest privilege — role upgrades must go through admin routes
           emailVerified: !!user.email_confirmed_at,
           isActive: true,
         });
@@ -183,7 +183,7 @@ const authenticate = async (req, res, next) => {
 
     next();
   } catch (err) {
-    require('fs').writeFileSync('authenticate_crash.txt', String(err.stack || err));
+    // Error logged to stdout (captured by Render/hosting logs)
     console.error('Authentication error:', err);
 
     // Log system error

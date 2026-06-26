@@ -1998,7 +1998,7 @@ router.post('/calls', async (req, res) => {
         res.status(201).json({ callLog: log });
     } catch (error) {
         console.error('Log call error:', error);
-        res.status(500).json({ error: 'Failed to log call', details: error.message, stack: error.stack });
+        res.status(500).json({ error: 'Failed to log call' });
     }
 });
 

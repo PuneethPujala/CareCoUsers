@@ -37,8 +37,12 @@ app.use(cors({
   origin: function (origin, callback) {
     // Mobile apps don't send an Origin header — always allow
     if (!origin) return callback(null, true);
-    // In production, you can whitelist specific web origins here
-    return callback(null, true);
+    // In development, allow all origins
+    if (process.env.NODE_ENV !== 'production') return callback(null, true);
+    // In production, only allow whitelisted origins
+    const allowed = (process.env.ALLOWED_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
+    if (allowed.includes(origin)) return callback(null, true);
+    return callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
 }));
@@ -56,6 +60,20 @@ const limiter = rateLimit({
   legacyHeaders: false,
 });
 app.use('/api/', limiter);
+
+// ── Strict rate limiter for auth routes (brute-force protection) ──
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10, // 10 attempts per window
+  message: { error: 'Too many authentication attempts. Please try again after 15 minutes.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use('/api/auth/login', authLimiter);
+app.use('/api/auth/register', authLimiter);
+app.use('/api/auth/forgot-password', authLimiter);
+app.use('/api/auth/verify-otp', authLimiter);
+app.use('/api/auth/reset-password', authLimiter);
 
 // ── Body parsing ─────────────────────────────────────────────
 app.use(express.json({ limit: '10mb' }));
@@ -106,7 +124,7 @@ app.use('*', (req, res) => {
 
 // ── Global error handler ─────────────────────────────────────
 app.use((err, req, res, next) => {
-  require('fs').writeFileSync('global_crash.txt', String(err.stack || err));
+  // Error details logged to stdout (captured by Render/hosting logs)
   console.error('Global error:', err);
 
   if (err.isJoi) {

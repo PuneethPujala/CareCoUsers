@@ -11,6 +11,7 @@ const {
   logMentorAccess
 } = require('../services/mentorService');
 const { logEvent, autoLogAccess } = require('../services/auditService');
+const { escapeRegex } = require('../utils/escapeRegex');
 
 const router = express.Router();
 
@@ -42,9 +43,9 @@ router.get('/',
       // Apply search filter
       if (search) {
         query.$or = [
-          { fullName: { $regex: search, $options: 'i' } },
-          { email: { $regex: search, $options: 'i' } },
-          { phone: { $regex: search, $options: 'i' } }
+          { fullName: { $regex: escapeRegex(search), $options: 'i' } },
+          { email: { $regex: escapeRegex(search), $options: 'i' } },
+          { phone: { $regex: escapeRegex(search), $options: 'i' } }
         ];
       }
 

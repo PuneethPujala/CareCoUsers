@@ -1,5 +1,7 @@
 const { createClient } = require('@supabase/supabase-js');
 const Profile = require('../models/Profile');
+const CaretakerPatient = require('../models/CaretakerPatient');
+const Patient = require('../models/Patient');
 
 /**
  * ═══════════════════════════════════════════════════════════════
@@ -50,7 +52,18 @@ function initializeWebSocket(server) {
 
     const io = new Server(server, {
         cors: {
-            origin: '*',  // In production: restrict to your app domain
+            origin: function (origin, callback) {
+                // Allow mobile apps (no origin) and all origins in dev
+                if (!origin || process.env.NODE_ENV !== 'production') {
+                    return callback(null, true);
+                }
+                // In production, restrict to known origins
+                const allowed = (process.env.ALLOWED_ORIGINS || '').split(',').map(s => s.trim());
+                if (allowed.includes(origin)) {
+                    return callback(null, true);
+                }
+                return callback(new Error('Not allowed by CORS'));
+            },
             methods: ['GET', 'POST'],
         },
         pingTimeout: 60000,
@@ -127,9 +140,41 @@ function initializeWebSocket(server) {
 
         // ── Client-initiated events ──────────────────────────────
 
-        // Subscribe to a specific patient's updates
-        socket.on('subscribe_patient', (patientId) => {
-            socket.join(`patient_${patientId}`);
+        // Subscribe to a specific patient's updates (with authorization)
+        socket.on('subscribe_patient', async (patientId) => {
+            try {
+                let authorized = false;
+
+                // Super admin can subscribe to any patient
+                if (profile.role === 'super_admin') {
+                    authorized = true;
+                }
+                // Org admin / care manager — check patient belongs to same org
+                else if (['org_admin', 'care_manager'].includes(profile.role) && orgId) {
+                    const patient = await Patient.findById(patientId).select('organization_id').lean();
+                    if (patient) {
+                        const patOrgId = patient.organization_id?.toString();
+                        authorized = patOrgId === orgId;
+                    }
+                }
+                // Caretaker/caller — check active assignment
+                else if (['caretaker', 'caller'].includes(profile.role)) {
+                    const assignment = await CaretakerPatient.findOne({
+                        caretakerId: profile._id,
+                        patientId: patientId,
+                        status: 'active',
+                    }).lean();
+                    authorized = !!assignment;
+                }
+
+                if (authorized) {
+                    socket.join(`patient_${patientId}`);
+                } else {
+                    socket.emit('error', { message: 'Not authorized for this patient' });
+                }
+            } catch (err) {
+                console.error('[WS] subscribe_patient auth error:', err.message);
+            }
         });
 
         // Unsubscribe from patient updates

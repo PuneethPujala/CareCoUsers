@@ -11,6 +11,7 @@ const Notification = require('../models/Notification');
 const CaretakerPatient = require('../models/CaretakerPatient');
 const { notifyNewOrganizationOnboarded } = require('../services/superAdminNotificationScheduler');
 const { authenticate, requireRole } = require('../middleware/authenticate');
+const { escapeRegex } = require('../utils/escapeRegex');
 
 const router = express.Router();
 
@@ -162,8 +163,8 @@ router.get('/organizations', async (req, res) => {
         // Search
         if (req.query.search) {
             filter.$or = [
-                { name: { $regex: req.query.search, $options: 'i' } },
-                { email: { $regex: req.query.search, $options: 'i' } },
+                { name: { $regex: escapeRegex(req.query.search), $options: 'i' } },
+                { email: { $regex: escapeRegex(req.query.search), $options: 'i' } },
             ];
         }
         // Filters
@@ -230,7 +231,7 @@ router.post('/organizations', async (req, res) => {
             return res.status(400).json({ error: 'Name and type are required' });
         }
 
-        const existing = await Organization.findOne({ name: { $regex: `^${name}$`, $options: 'i' } });
+        const existing = await Organization.findOne({ name: { $regex: `^${escapeRegex(name)}$`, $options: 'i' } });
         if (existing) {
             return res.status(409).json({ error: 'Organization with this name already exists' });
         }
@@ -391,8 +392,8 @@ router.get('/users', async (req, res) => {
         // Search across name, email
         if (req.query.search) {
             filter.$or = [
-                { fullName: { $regex: req.query.search, $options: 'i' } },
-                { email: { $regex: req.query.search, $options: 'i' } },
+                { fullName: { $regex: escapeRegex(req.query.search), $options: 'i' } },
+                { email: { $regex: escapeRegex(req.query.search), $options: 'i' } },
             ];
         }
         // Filters

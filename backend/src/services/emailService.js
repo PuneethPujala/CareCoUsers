@@ -32,7 +32,7 @@ const sendEmail = async (to, subject, html) => {
   const fromEmail = process.env.FROM_EMAIL || 'noreply@caremymednnect.com';
 
   const mailOptions = {
-    from: `"CareMyMednnect" <${fromEmail}>`,
+    from: `"CareMyMed" <${fromEmail}>`,
     to,
     subject,
     html,

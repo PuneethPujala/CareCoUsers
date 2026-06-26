@@ -6,6 +6,7 @@ const { authenticate, requireRole } = require('../middleware/authenticate');
 const { authorize } = require('../middleware/authorize');
 const { logEvent, autoLogAccess } = require('../services/auditService');
 const { invalidateCache, CacheKeys } = require('../config/redis');
+const { escapeRegex } = require('../utils/escapeRegex');
 
 const router = express.Router();
 
@@ -49,8 +50,8 @@ router.get('/',
       // Apply search filter
       if (search) {
         query.$or = [
-          { name: { $regex: search, $options: 'i' } },
-          { email: { $regex: search, $options: 'i' } }
+          { name: { $regex: escapeRegex(search), $options: 'i' } },
+          { email: { $regex: escapeRegex(search), $options: 'i' } }
         ];
       }
 
@@ -415,9 +416,8 @@ router.post('/:id/collaborations',
         organization
       });
     } catch (error) {
-      require('fs').writeFileSync('routes_crash.txt', String(error.stack || error));
       console.error('Add collaboration error:', error);
-      res.status(500).json({ error: 'Failed to add collaboration', details: error.message });
+      res.status(500).json({ error: 'Failed to add collaboration' });
     }
   }
 );
@@ -589,8 +589,8 @@ router.get('/:id/users',
       // Apply search filter
       if (search) {
         query.$or = [
-          { fullName: { $regex: search, $options: 'i' } },
-          { email: { $regex: search, $options: 'i' } }
+          { fullName: { $regex: escapeRegex(search), $options: 'i' } },
+          { email: { $regex: escapeRegex(search), $options: 'i' } }
         ];
       }
 
