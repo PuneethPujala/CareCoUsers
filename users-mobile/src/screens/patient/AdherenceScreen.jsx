@@ -811,6 +811,36 @@ function CategoryHeaderUi({ category, unlockedCount, totalCount }) {
   );
 }
 
+const getUnlockedLabel = (data) => {
+  const key = data.key;
+  switch (key) {
+    case "streak_14":
+      return "2/2 weeks";
+    case "bp_stabilized":
+      return "14/14 days";
+    case "hydration_hero":
+      return "5/5 days";
+    case "mindful_week":
+      return "7/7 days";
+    case "7_perfect_days":
+      return "7/7 perfect days";
+    case "night_owl":
+      return "5/5 nights";
+    case "vitals_tracker":
+      return "10/10 days";
+    case "100_doses":
+      return "100/100 doses";
+    case "profile_complete":
+      return "100% complete";
+    case "streak_30":
+      return "30/30 days";
+    case "30_perfect_days":
+      return "30/30 perfect days";
+    default:
+      return "Achieved";
+  }
+};
+
 function PremiumBadge({ data, size = "normal", onPress, style }) {
   const isSmall = size === "small";
   const dim = isSmall ? 50 : 62;
@@ -1110,12 +1140,15 @@ function PremiumBadge({ data, size = "normal", onPress, style }) {
             style={{
               fontSize: 10,
               fontWeight: "800",
-              color: data.key === "streak_14" ? "#D97706" : "#10B981",
+              color:
+                getUnlockedLabel(data) === "Achieved"
+                  ? "#10B981"
+                  : data.tierConfig.color,
               marginTop: 4,
               textAlign: "center",
             }}
           >
-            {data.key === "streak_14" ? "2/2 weeks" : "Achieved"}
+            {getUnlockedLabel(data)}
           </Text>
         )}
       </View>
