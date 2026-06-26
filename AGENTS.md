@@ -47,13 +47,18 @@ curl http://localhost:3001/health
 
 ## Environment Setup
 
-**`users-mobile/.env`** (copy from `.env.example` in root):
+**`users-mobile/.env`** (copy from `users-mobile/.env.example`):
 ```
 EXPO_PUBLIC_SUPABASE_URL=
 EXPO_PUBLIC_SUPABASE_ANON_KEY=
 EXPO_PUBLIC_API_URL=http://localhost:3001/api
-EXPO_PUBLIC_RESET_PASSWORD_URL=exp://192.168.1.100:8081/reset-password
-EXPO_PUBLIC_SENTRY_DSN=   # optional
+EXPO_PUBLIC_APP_NAME=CareMyMed
+EXPO_PUBLIC_APP_VERSION=1.0.0
+EXPO_PUBLIC_ENVIRONMENT=development
+EXPO_PUBLIC_DEBUG_MODE=true
+EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=     # required for Google Sign-In
+EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID= # required for Google Sign-In
+EXPO_PUBLIC_GOOGLE_PROJECT_ID=
 ```
 
 **`users-backend/.env`** (copy from `users-backend/.env.example`):
@@ -69,7 +74,15 @@ JWT_ACCESS_SECRET=
 JWT_REFRESH_SECRET=
 JWT_ACCESS_EXPIRES_IN=15m
 JWT_REFRESH_EXPIRES_MS=604800000
+BCRYPT_ROUNDS=12
 AUTH_ENABLE_SUPABASE_FALLBACK=false   # set true to allow legacy Supabase tokens
+RATE_LIMIT_WINDOW_MS=900000
+RATE_LIMIT_MAX_REQUESTS=100
+AUTH_RATE_LIMIT_WINDOW_MS=900000
+AUTH_RATE_LIMIT_MAX=60
+AUTH_LOGIN_RATE_LIMIT_MAX=25
+FRONTEND_URL=http://localhost:3000     # for password reset redirects
+REDIS_URL=redis://localhost:6379       # or default localhost:6379
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_USER=
