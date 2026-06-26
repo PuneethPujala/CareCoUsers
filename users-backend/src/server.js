@@ -52,9 +52,11 @@ app.set("trust proxy", 1);
 const PORT = process.env.PORT || 3001;
 
 // ── Sentry Test Route (Optional) ───────────────────────────────────────────
-app.get("/debug-sentry", function mainHandler(req, res) {
-  throw new Error("My first Sentry error!");
-});
+if (process.env.NODE_ENV !== "production") {
+  app.get("/debug-sentry", function mainHandler(req, res) {
+    throw new Error("My first Sentry error!");
+  });
+}
 
 // Connect to MongoDB (skip in test environment to avoid open handles or missing mocks)
 if (process.env.NODE_ENV !== "test") {
