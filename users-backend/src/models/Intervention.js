@@ -61,7 +61,10 @@ const InterventionSchema = new mongoose.Schema(
   },
 );
 
-// Compound index for cooldown check
-InterventionSchema.index({ patient_id: 1, type: 1, status: 1 });
+// Compound index for cooldown check and sorting by creation date
+InterventionSchema.index({ patient_id: 1, type: 1, status: 1, created_at: -1 });
+
+// Compound index for active interventions sorted by priority score
+InterventionSchema.index({ patient_id: 1, status: 1, priority_score: -1 });
 
 module.exports = mongoose.model("Intervention", InterventionSchema);

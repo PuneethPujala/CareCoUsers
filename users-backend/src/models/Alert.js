@@ -77,4 +77,11 @@ const AlertSchema = new mongoose.Schema(
 AlertSchema.index({ manager_id: 1, status: 1 });
 AlertSchema.index({ organization_id: 1, status: 1 });
 
+// Feed queries: alerts by caller or patient, sorted by date
+AlertSchema.index({ caller_id: 1, created_at: -1 });
+AlertSchema.index({ patient_id: 1, created_at: -1 });
+
+// Open alerts lookup by patient
+AlertSchema.index({ patient_id: 1, status: 1, created_at: -1 });
+
 module.exports = mongoose.model("Alert", AlertSchema);

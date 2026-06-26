@@ -220,5 +220,6 @@ const MedicationSchema = new mongoose.Schema(
 
 // Compound index for the main query pattern: find active meds by patient
 MedicationSchema.index({ patientId: 1, isActive: 1 });
+MedicationSchema.index({ patientId: 1, name: 1 });
 
 module.exports = mongoose.model("Medication", MedicationSchema);

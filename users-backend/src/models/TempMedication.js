@@ -126,7 +126,7 @@ const TempMedicationSchema = new mongoose.Schema(
 );
 
 // ── Indexes ────────────────────────────────────────────────────
-TempMedicationSchema.index({ patientId: 1, isActive: 1 });
+TempMedicationSchema.index({ patientId: 1, isActive: 1, createdAt: -1 });
 TempMedicationSchema.index({ organizationId: 1, isActive: 1 });
 
 // ── Statics ────────────────────────────────────────────────────

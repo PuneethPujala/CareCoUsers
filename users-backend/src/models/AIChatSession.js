@@ -61,4 +61,6 @@ const AIChatSessionSchema = new mongoose.Schema(
   },
 );
 
+AIChatSessionSchema.index({ patient_id: 1, is_active: 1, updated_at: -1 });
+
 module.exports = mongoose.model("AIChatSession", AIChatSessionSchema);

@@ -258,26 +258,25 @@ async function buildPatientContext(patientId) {
 
   if (patient.assigned_manager_id) {
     const manager = await Profile.findById(patient.assigned_manager_id).select(
-      "name role",
+      "fullName role",
     );
     if (manager) {
       careTeam = {
-        assigned_caller: manager.name,
+        assigned_caller: manager.fullName,
         role: manager.role,
       };
 
       const lastCall = await CallLog.findOne({
-        patient_id: patient._id,
-        manager_id: manager._id,
+        patientId: patient._id,
       })
-        .sort({ started_at: -1 })
-        .select("status started_at call_duration_seconds");
+        .sort({ scheduledTime: -1 })
+        .select("status scheduledTime duration");
 
       if (lastCall) {
         recentCall = {
-          date: moment(lastCall.started_at).tz(tz).format("MMM D, h:mm A"),
+          date: moment(lastCall.scheduledTime).tz(tz).format("MMM D, h:mm A"),
           status: lastCall.status,
-          duration_seconds: lastCall.call_duration_seconds,
+          duration_seconds: lastCall.duration,
         };
       }
     }
