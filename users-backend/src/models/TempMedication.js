@@ -12,13 +12,11 @@ const TempMedicationSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Profile",
       required: true,
-      index: true,
     },
     organizationId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Organization",
       required: true,
-      index: true,
     },
 
     // ── Medicine info ────────────────────────────────────────────

@@ -35,7 +35,6 @@ const AIChatSessionSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Patient",
       required: true,
-      index: true,
     },
     title: {
       type: String,

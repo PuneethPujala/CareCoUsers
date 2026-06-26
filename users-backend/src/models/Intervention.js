@@ -6,7 +6,6 @@ const InterventionSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Patient",
       required: true,
-      index: true,
     },
     companion_id: {
       type: mongoose.Schema.Types.ObjectId,

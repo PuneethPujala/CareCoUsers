@@ -23,22 +23,18 @@ const AlertSchema = new mongoose.Schema(
     patient_id: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Patient",
-      index: true,
     },
     caller_id: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Caller",
-      index: true,
     },
     manager_id: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Profile",
-      index: true,
     },
     organization_id: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Organization",
-      index: true,
     },
     status: {
       type: String,

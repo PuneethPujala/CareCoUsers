@@ -143,6 +143,13 @@ Patient accounts use the `Patient` Mongoose model; all other staff use `Profile`
 
 Key models: `Patient`, `Profile`, `Organization`, `Medication`, `MedicineLog`, `VitalLog`, `CallLog`, `Notification`, `AuditLog`, `RefreshToken`, `RolePermission`.
 
+> [!WARNING]
+> **Field Naming Inconsistencies (camelCase vs snake_case)**:
+> The codebase has mixed naming conventions for fields. Pay close attention to schemas before writing queries:
+> - **camelCase Models**: `Profile`, `Medication`, `TempMedication`, `CallLog` (e.g., uses `patientId`, `organizationId`, `scheduledTime`, `isActive`, `addedBy`).
+> - **snake_case Models**: `Patient`, `Intervention`, `AIChatSession`, `Alert` (e.g., uses `patient_id`, `organization_id`, `created_at`, `is_active`).
+> Always verify the exact schema in `users-backend/src/models/` before calling `.find()`, `.findOne()`, `.select()`, or `.sort()`. Mongoose does not error on unknown fields in query selectors, leading to silent empty results.
+
 ### Mobile State Management
 
 Zustand store (`usePatientStore`) is the single source of truth for patient dashboard data. It exposes optimistic update methods (`optimisticToggleMed`, `optimisticMarkSlotTaken`) that update state immediately and revert on API failure. Always use the store's action methods rather than calling `apiService` directly from screens.
