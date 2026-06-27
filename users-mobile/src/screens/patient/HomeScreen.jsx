@@ -78,6 +78,8 @@ import AlertManager from "../../utils/AlertManager";
 import { useTranslation } from "react-i18next";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { HapticPatterns } from "../../utils/haptics";
+import GuidedTour from "../../components/ui/GuidedTour";
+import { TourService } from "../../lib/TourService";
 import Svg, {
   Path,
   Defs,
@@ -347,6 +349,25 @@ export default function PatientHomeScreen({ navigation }) {
   const heartRateInputRef = useRef(null);
   const vitalsSectionY = useRef(0);
 
+  const [showVitalsTour, setShowVitalsTour] = useState(false);
+
+  const getVitalsTourSteps = () => {
+    return [
+      {
+        title: t("home.guide_vitals_title", { defaultValue: "❤️ Health Vitals" }),
+        desc: t("home.guide_vitals_desc", {
+          defaultValue: "Enter your BP and Sugar daily below. It takes 10 seconds and keeps your doctor and caregivers updated.",
+        }),
+        icon: Heart,
+        iconColor: "#EF4444",
+        scrollOffset: vitalsSectionY.current > 0 ? vitalsSectionY.current - 10 : 700,
+        spotlightTop: Platform.OS === "ios" ? 150 : 130,
+        spotlightHeight: 460,
+        visible: true,
+      }
+    ];
+  };
+
   const patient = usePatientStore((s) => s.patient);
   const vitals = usePatientStore((s) => s.vitals);
   const vitalsHistory = usePatientStore((s) => s.vitalsHistory);
@@ -357,6 +378,36 @@ export default function PatientHomeScreen({ navigation }) {
   const isCached = usePatientStore((s) => s.isCached);
   const storeFetchDashboard = usePatientStore((s) => s.fetchDashboard);
   const storeFetchMedications = usePatientStore((s) => s.fetchMedications);
+  const storeLoading = usePatientStore((s) => s.loading);
+
+  useEffect(() => {
+    // Only run if the patient dashboard loading is done
+    if (!storeLoading && patient && patient.subscription?.plan !== "free") {
+      const initVitalsTour = async () => {
+        const vitalsHeuristic = async () => {
+          const hasVitalsHistory = (vitalsHistory && vitalsHistory.length > 0) || (
+            vitals?.heart_rate ||
+            vitals?.blood_pressure?.systolic ||
+            vitals?.oxygen_saturation != null ||
+            vitals?.hydration != null
+          );
+          const isExistingAccount =
+            patient?.created_at &&
+            new Date(patient.created_at) < new Date("2026-06-27T00:00:00Z");
+          return !!(hasVitalsHistory || isExistingAccount);
+        };
+
+        await TourService.evaluateMigration("vitals_log", vitalsHeuristic);
+        const seen = await TourService.isTourSeen("vitals_log");
+        if (!seen) {
+          setTimeout(() => {
+            setShowVitalsTour(true);
+          }, 800);
+        }
+      };
+      initVitalsTour();
+    }
+  }, [storeLoading, patient, vitalsHistory, vitals]);
 
   const activeInsights = useMemo(() => {
     const list = [];
@@ -2996,7 +3047,7 @@ export default function PatientHomeScreen({ navigation }) {
 
           {/* ── 10. DAILY HEALTH TIP ── */}
           <Animated.View style={entranceStyle(9)}>
-            <View style={styles.section}>
+            <View>
               <LinearGradient
                 colors={["#EEF2FF", "#E0E7FF"]}
                 style={styles.tipCard}
@@ -3023,6 +3074,14 @@ export default function PatientHomeScreen({ navigation }) {
             </View>
           </Animated.View>
         </ScrollView>
+
+        <GuidedTour
+          visible={showVitalsTour}
+          steps={getVitalsTourSteps()}
+          scrollRef={scrollViewRef}
+          tourKey="vitals_log"
+          onClose={() => setShowVitalsTour(false)}
+        />
       </View>
     </KeyboardAvoidingView>
   );

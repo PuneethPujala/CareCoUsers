@@ -71,6 +71,7 @@ export default function PatientSignupScreen({ navigation, route }) {
             password: '', confirmPassword: '', age: '', gender: '',
             selectedPlanId: 'premium_monthly',
             termsAccepted: false,
+            language: 'en_IN',
         },
         mode: 'onChange',
     });
@@ -608,7 +609,7 @@ export default function PatientSignupScreen({ navigation, route }) {
     }, [step]);
 
     const handleCompleteSignUp = useCallback(async (actualDob) => {
-        const isValid = await methods.trigger(['age', 'gender']);
+        const isValid = await methods.trigger(['age', 'gender', 'language']);
         if (!isValid) return;
         if (abortRef.current) abortRef.current.abort();
         abortRef.current = new AbortController();
@@ -622,7 +623,12 @@ export default function PatientSignupScreen({ navigation, route }) {
         }, 15000);
         try {
             const dobToSend = actualDob || new Date(new Date().getFullYear() - parseInt(form.age || '0', 10), 0, 1).toISOString();
-            await apiService.patients.updateMe({ date_of_birth: dobToSend, gender: (form.gender || '').toLowerCase(), profile_complete: true }, { signal: abortRef.current.signal });
+            await apiService.patients.updateMe({
+                date_of_birth: dobToSend,
+                gender: (form.gender || '').toLowerCase(),
+                language: form.language || 'en_IN',
+                profile_complete: true
+            }, { signal: abortRef.current.signal });
             await clearProgress();
             setShowCelebration(true);
             setSignupLoading(false);
@@ -633,7 +639,7 @@ export default function PatientSignupScreen({ navigation, route }) {
             setErrors(prev => ({ ...prev, general: 'Failed to save details. Please try again.' }));
             setSignupLoading(false);
         } finally { abortRef.current = null; }
-    }, [form.age, form.gender, clearProgress, setErrors, methods]);
+    }, [form.age, form.gender, form.language, clearProgress, setErrors, methods]);
 
     const proceedToDashboard = useCallback(async () => { await completeSignUp(); }, [completeSignUp]);
 

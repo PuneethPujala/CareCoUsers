@@ -88,7 +88,11 @@
     "pending_vitals_desc": "No smartwatch or manual vitals synced today. Make sure your watch is connected, or enter vitals manually below.",
     "link_wearable_title": "Link Your Wearable",
     "link_wearable_desc": "Connect your smartwatch via Health Connect to sync live vitals automatically and receive real-time coaching insights.",
-    "link_smartwatch_btn": "Link Smartwatch"
+    "link_smartwatch_btn": "Link Smartwatch",
+    "guide_vitals_title": "❤️ Health Vitals",
+    "guide_vitals_desc": "Enter your BP and Sugar daily below. It takes 10 seconds and keeps your doctor and caregivers updated.",
+    "guide_meds_title": "💊 Medications",
+    "guide_meds_desc": "Swipe or tap a medicine card to mark it as taken once you have consumed it. Your caregiver will check this list to make sure you are safe."
   },
   "time_slots": {
     "morning": "Morning",
@@ -522,7 +526,9 @@
     "reason_title": "Reason / Title *",
     "appt_placeholder": "General Checkup",
     "doctor_specialist": "Doctor / Specialist Name *",
-    "date_time": "Date & Time *"
+    "date_time": "Date & Time *",
+    "guide_title": "👋 One last step!",
+    "guide_desc": "Add your medical conditions, allergies, and contact details so we can personalize reminders and health insights for you."
   },
   "caller": {
     "emergency_contact": "Emergency Contact",

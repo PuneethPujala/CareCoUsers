@@ -23,6 +23,7 @@ import OfflineSyncService from '../lib/OfflineSyncService';
 import WidgetBridge from '../lib/WidgetBridge';
 import i18n from '../i18n';
 import { HapticPatterns } from '../utils/haptics';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const TIME_LABELS = { morning: 'Morning', afternoon: 'Afternoon', evening: 'Evening', night: 'Night', as_needed: 'As Needed' };
 const ACCENT_MAP = { morning: '#22C55E', afternoon: '#F59E0B', evening: '#7C3AED', night: '#8B5CF6', as_needed: '#6366F1' };
@@ -212,6 +213,7 @@ const usePatientStore = create((set, get) => ({
             const prefs = patient?.medication_call_preferences || { morning: '09:00', afternoon: '14:00', evening: '17:00', night: '20:00' };
             if (patient?.language && i18n.language !== patient.language) {
                 i18n.changeLanguage(patient.language);
+                AsyncStorage.setItem('@user_preferred_language', patient.language).catch(() => {});
             }
             set({ patient, callPreferences: prefs });
             return patient;
@@ -254,6 +256,7 @@ const usePatientStore = create((set, get) => ({
 
                 if (freshPatient?.language && i18n.language !== freshPatient.language) {
                     i18n.changeLanguage(freshPatient.language);
+                    AsyncStorage.setItem('@user_preferred_language', freshPatient.language).catch(() => {});
                 }
 
                 const optRef = { ...get()._optimisticMeds };
@@ -363,6 +366,7 @@ const usePatientStore = create((set, get) => ({
 
             if (freshPatient?.language && i18n.language !== freshPatient.language) {
                 i18n.changeLanguage(freshPatient.language);
+                AsyncStorage.setItem('@user_preferred_language', freshPatient.language).catch(() => {});
             }
 
             const optRef = { ...get()._optimisticMeds };

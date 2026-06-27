@@ -4,13 +4,15 @@ import {
 } from 'react-native';
 import {
     CheckCircle2, Calendar, ChevronRight, AlertCircle,
-    Heart, ShieldCheck, Users,
+    Heart, ShieldCheck, Users, Globe, Check,
 } from 'lucide-react-native';
 import { useFormContext, Controller } from 'react-hook-form';
 import { IconInput } from './SignupUI';
 import { styles, FONT, C } from './SignupStyles';
 import { HapticPatterns } from '../../../utils/haptics';
 import { useReduceMotion } from '../../../theme';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import i18n from '../../../i18n';
 
 const CELEBRATION_FEATURES = [
     { Icon: Heart, title: 'Personalised care', subtitle: 'Tailored daily health insights' },
@@ -198,6 +200,96 @@ const Step6FinalDetails = ({
                         {errors.gender && (
                             <Text style={[styles.fieldErrorEnhanced, { marginTop: 6, marginLeft: 4 }]}>
                                 {errors.gender.message}
+                            </Text>
+                        )}
+                    </View>
+
+                    {/* Preferred Language */}
+                    <View style={{ marginBottom: 20 }}>
+                        <Text style={[styles.label, { marginBottom: 10 }]}>PREFERRED LANGUAGE / भाषा</Text>
+                        <Controller
+                            control={control}
+                            name="language"
+                            render={({ field: { onChange, value } }) => {
+                                const languages = [
+                                    { code: 'en_IN', label: 'English', native: 'English' },
+                                    { code: 'hi_IN', label: 'Hindi', native: 'हिन्दी' },
+                                    { code: 'te_IN', label: 'Telugu', native: 'తెలుగు' },
+                                    { code: 'ta_IN', label: 'Tamil', native: 'தமிழ்' },
+                                    { code: 'kn_IN', label: 'Kannada', native: 'ಕನ್ನಡ' },
+                                    { code: 'mr_IN', label: 'Marathi', native: 'मराठी' },
+                                ];
+
+                                const handleLangSelect = async (code) => {
+                                    HapticPatterns.selection();
+                                    onChange(code);
+                                    await i18n.changeLanguage(code);
+                                    try {
+                                        await AsyncStorage.setItem('@user_preferred_language', code);
+                                    } catch (e) {
+                                        console.warn('[Step6] AsyncStorage error saving language:', e);
+                                    }
+                                };
+
+                                return (
+                                    <View>
+                                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 10 }}>
+                                            {languages.map(lang => {
+                                                const isActive = value === lang.code;
+                                                return (
+                                                    <Pressable
+                                                        key={lang.code}
+                                                        style={({ pressed }) => [
+                                                            styles.genderBtn,
+                                                            {
+                                                                width: '48%',
+                                                                paddingVertical: 12,
+                                                                height: 'auto',
+                                                                alignItems: 'center',
+                                                                justifyContent: 'center',
+                                                                flexDirection: 'column',
+                                                                position: 'relative'
+                                                            },
+                                                            isActive && styles.genderBtnActive,
+                                                            pressed && styles.pressed,
+                                                        ]}
+                                                        onPress={() => handleLangSelect(lang.code)}
+                                                    >
+                                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                                            <Globe size={13} color={isActive ? C.primary : '#94A3B8'} />
+                                                            <Text style={[{ fontSize: 15, fontWeight: '700', color: C.dark }, isActive && { color: C.primary }]}>
+                                                                {lang.native}
+                                                            </Text>
+                                                        </View>
+                                                        <Text style={{ fontSize: 11, fontWeight: '500', color: '#64748B', marginTop: 2 }}>
+                                                            {lang.label}
+                                                        </Text>
+                                                        {isActive && (
+                                                            <View style={{ position: 'absolute', top: 6, right: 6 }}>
+                                                                <Check size={12} color={C.primary} strokeWidth={3} />
+                                                            </View>
+                                                        )}
+                                                    </Pressable>
+                                                );
+                                            })}
+                                        </View>
+                                        {value && (
+                                            <Text style={{ fontSize: 12, fontWeight: '600', color: '#10B981', marginTop: 10, marginLeft: 4 }}>
+                                                {value === 'hi_IN' ? '✓ भाषा बदल दी गई है (आप इसे बाद में सेटिंग्स से बदल सकते हैं)' :
+                                                 value === 'te_IN' ? '✓ భాష మార్చబడింది (దీనిని మీరు తర్వాత సెట్టింగ్స్‌లో మార్చుకోవచ్చు)' :
+                                                 value === 'ta_IN' ? '✓ மொழி மாற்றப்பட்டது (நீங்கள் இதை பிறகு அமைப்புகளில் மாற்றலாம்)' :
+                                                 value === 'kn_IN' ? '✓ ಭಾಷೆ ಬದಲಾಯಿಸಲಾಗಿದೆ (ನೀವು ಇದನ್ನು ನಂತರ ಸೆಟ್ಟಿಂಗ್ಸ್‌ನಲ್ಲಿ ಬದಲಾಯಿಸಬಹುದು)' :
+                                                 value === 'mr_IN' ? '✓ भाषा बदलली आहे (तुम्ही हे नंतर सेटिंग्जमधून बदलू शकता)' :
+                                                 '✓ Language updated (You can change this later from Settings)'}
+                                            </Text>
+                                        )}
+                                    </View>
+                                );
+                            }}
+                        />
+                        {errors.language && (
+                            <Text style={[styles.fieldErrorEnhanced, { marginTop: 6, marginLeft: 4 }]}>
+                                {errors.language.message}
                             </Text>
                         )}
                     </View>

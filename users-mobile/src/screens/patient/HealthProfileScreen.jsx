@@ -19,6 +19,8 @@ import Svg, { Circle as SvgCircle, Path, Defs, LinearGradient as SvgLinearGradie
 import * as Haptics from 'expo-haptics';
 import { apiService } from '../../lib/api';
 import usePatientStore from '../../store/usePatientStore';
+import GuidedTour from '../../components/ui/GuidedTour';
+import { TourService } from '../../lib/TourService';
 import { initializeHealthPlatform, requestHealthPermissions, fetchDailyVitalsSummary, isHealthSupported } from '../../lib/healthIntegration';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { COUNTRY_CODES, parsePhoneWithCode, validatePhone } from '../../utils/phoneUtils';
@@ -176,6 +178,78 @@ export default function HealthProfileScreen({ navigation }) {
     const [timeline, setTimeline] = useState([]);
     const [historyLoading, setHistoryLoading] = useState(false);
     const isFreePlan = (p) => p?.freePlan || p?.subscription?.plan === 'free';
+
+    const [showProfileTour, setShowProfileTour] = useState(false);
+    const scrollViewRef = useRef(null);
+
+    const getProfileTourSteps = () => {
+        return [
+            {
+                title: t('health_profile.guide_title', { defaultValue: '👋 One last step!' }),
+                desc: t('health_profile.guide_desc', { 
+                    defaultValue: 'Add your medical conditions, allergies, and contact details so we can personalize reminders and health insights for you.' 
+                }),
+                icon: Activity,
+                iconColor: '#3B82F6',
+                scrollOffset: 0,
+                spotlightTop: Platform.OS === 'ios' ? 120 : 100,
+                spotlightHeight: 110,
+                visible: true,
+            }
+        ];
+    };
+
+    useEffect(() => {
+        if (!loading && profile && !isFreePlan(profile)) {
+            const initProfileTour = async () => {
+                const profileHeuristic = async () => {
+                    const conds = Array.isArray(profile.conditions) ? profile.conditions : [];
+                    const allgs = Array.isArray(profile.allergies) ? profile.allergies : [];
+                    const contacts = Array.isArray(profile.trusted_contacts) ? profile.trusted_contacts : [];
+                    const hist = Array.isArray(profile.medical_history) ? profile.medical_history : [];
+                    const meds = Array.isArray(profile.medications) ? profile.medications : [];
+                    const vaxs = Array.isArray(profile.vaccinations) ? profile.vaccinations : [];
+                    const lifestyle = profile.lifestyle || {};
+                    const gp = profile.gp || {};
+
+                    let score = 0, total = 10;
+                    if (profile.blood_type && profile.blood_type !== 'unknown') score++;
+                    if (conds.length > 0) score++;
+                    if (allgs.length > 0) score++;
+                    if (hist.length > 0) score++;
+                    if (meds.length > 0) score++;
+                    if (vaxs.length > 0) score++;
+                    if (lifestyle.height_cm && lifestyle.weight_kg) score++;
+                    if (contacts.length > 0) score++;
+                    if (gp.name) score++;
+                    if (lifestyle.smoking_status && lifestyle.smoking_status !== 'unknown') score++;
+                    
+                    const pct = Math.round((score / total) * 100);
+                    
+                    const hasMissingCore = 
+                        pct < 70 || 
+                        conds.length === 0 || 
+                        allgs.length === 0 || 
+                        contacts.length === 0;
+
+                    const isExistingAccount = 
+                        profile.created_at && 
+                        new Date(profile.created_at) < new Date("2026-06-27T00:00:00Z");
+
+                    return !!(!hasMissingCore || isExistingAccount);
+                };
+
+                await TourService.evaluateMigration('health_profile', profileHeuristic);
+                const seen = await TourService.isTourSeen('health_profile');
+                if (!seen) {
+                    setTimeout(() => {
+                        setShowProfileTour(true);
+                    }, 800);
+                }
+            };
+            initProfileTour();
+        }
+    }, [loading, profile]);
 
     // Haptic helpers
     const triggerHapticSelection = async () => {
@@ -868,6 +942,7 @@ export default function HealthProfileScreen({ navigation }) {
             </View>
 
             <ScrollView 
+                ref={scrollViewRef}
                 contentContainerStyle={s.scrollContent} 
                 showsVerticalScrollIndicator={false}
                 refreshControl={
@@ -2587,6 +2662,14 @@ export default function HealthProfileScreen({ navigation }) {
                     );
                 })()}
             </Modal>
+
+            <GuidedTour
+                visible={showProfileTour}
+                steps={getProfileTourSteps()}
+                scrollRef={scrollViewRef}
+                tourKey="health_profile"
+                onClose={() => setShowProfileTour(false)}
+            />
         </View>
     );
 }

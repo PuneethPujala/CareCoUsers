@@ -27,6 +27,8 @@ import OfflineSyncService from '../lib/OfflineSyncService';
 import { navigate } from '../lib/navigationRef';
 import GlobalSyncBanner from '../components/ui/GlobalSyncBanner';
 import AchievementCelebration from '../components/adherence/AchievementCelebration';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import i18n from '../i18n';
 
 import PatientSignupScreen from "../screens/onboarding/PatientSignupScreen";
 import LoginScreen from "../screens/onboarding/LoginScreen";
@@ -245,6 +247,20 @@ export default function AppNavigator() {
             }
         };
     }, [user, profile, refreshDashboardDebounced]);
+
+    useEffect(() => {
+        const initLanguage = async () => {
+            try {
+                const savedLang = await AsyncStorage.getItem('@user_preferred_language');
+                if (savedLang) {
+                    await i18n.changeLanguage(savedLang);
+                }
+            } catch (e) {
+                console.warn('[AppNavigator] Failed to load local preferred language:', e);
+            }
+        };
+        initLanguage();
+    }, []);
 
     useEffect(() => {
         const unsubscribe = NetInfo.addEventListener(state => {

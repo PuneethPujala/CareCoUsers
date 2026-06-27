@@ -83,6 +83,9 @@ export const step5Schema = z.object({
     gender: z.enum(['Male', 'Female', 'Other'], {
         errorMap: () => ({ message: 'Please select your gender' }),
     }),
+    language: z.enum(['en_IN', 'hi_IN', 'te_IN', 'ta_IN', 'kn_IN', 'mr_IN'], {
+        errorMap: () => ({ message: 'Please select your preferred language' }),
+    }).optional(),
 });
 
 /**
@@ -103,6 +106,7 @@ export const signupSchema = z
         city: step2Schema.shape.city,
         age: step5Schema.shape.age,
         gender: step5Schema.shape.gender,
+        language: step5Schema.shape.language,
         termsAccepted: step1BaseSchema.shape.termsAccepted,
     })
     .refine((data) => data.password === data.confirmPassword, {

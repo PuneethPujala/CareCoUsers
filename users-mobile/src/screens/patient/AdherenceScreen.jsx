@@ -127,11 +127,11 @@ const getHeroTheme = (scoreValue) => {
   if (scoreValue >= 90) {
     return {
       gradient: [
-        "rgba(6, 95, 70, 0.88)",
-        "rgba(15, 118, 110, 0.72)",
-        "rgba(20, 184, 166, 0.5)",
-      ], // Emerald -> Teal Glass
-      accentGlow: "#10B981",
+        "#10B981", // Vibrant Emerald
+        "#0D9488", // Vibrant Teal
+        "#0F766E", // Deep Teal
+      ],
+      accentGlow: "#34D399",
       textOnHero: "#FFFFFF",
       barBg: "rgba(255, 255, 255, 0.25)",
       barFill: "#34D399",
@@ -140,10 +140,10 @@ const getHeroTheme = (scoreValue) => {
   } else {
     return {
       gradient: [
-        "rgba(9, 51, 143, 0.9)",
-        "rgba(12, 84, 214, 0.72)",
-        "rgba(34, 133, 246, 0.5)",
-      ], // Vivid Navy -> Cobalt Glass
+        "#4F46E5", // Modern Indigo
+        "#3B82F6", // Royal Blue
+        "#2563EB", // Cobalt Blue
+      ],
       accentGlow: "#60A5FA",
       textOnHero: "#FFFFFF",
       barBg: "rgba(255, 255, 255, 0.2)",
@@ -846,15 +846,21 @@ function PremiumBadge({ data, size = "normal", onPress, style }) {
   const dim = isSmall ? 50 : 62;
   const IconComponent = Icons[data.meta.iconName] || Icons.Award;
   const colors = data.tierConfig.gradient;
-
-  // Determine the width: on timeline size could be slightly different, but overall 3 columns grid width
   const itemWidth = style?.width || badgeWidth;
 
+  const target = data.meta.target || 1;
+  const current =
+    data.progress >= 1 ? target : Math.floor((data.progress || 0) * target);
+  const pct = Math.min(100, (data.progress || 0) * 100);
+  const tierColor = data.tierConfig.color;
+
   if (!data.unlocked) {
-    const target = data.meta.target || 1;
-    const current =
-      data.progress >= 1 ? target : Math.floor((data.progress || 0) * target);
-    const pct = Math.min(100, (data.progress || 0) * 100);
+    const ringSize = dim;
+    const strokeWidth = 3;
+    const r = (ringSize - strokeWidth) / 2;
+    const circumference = 2 * Math.PI * r;
+    const strokeDashoffset = circumference - (pct / 100) * circumference;
+
     return (
       <Pressable
         onPress={onPress}
@@ -866,7 +872,6 @@ function PremiumBadge({ data, size = "normal", onPress, style }) {
             borderRadius: 22,
             borderWidth: 1,
             borderColor: "#E2E8F0",
-            borderStyle: "dashed",
             paddingVertical: 14,
             paddingHorizontal: 6,
             alignItems: "center",
@@ -883,20 +888,41 @@ function PremiumBadge({ data, size = "normal", onPress, style }) {
               width: dim,
               height: dim,
               borderRadius: dim / 2,
-              borderWidth: 1.2,
-              borderColor: "#94A3B8",
-              borderStyle: "dashed",
-              padding: 3,
               alignItems: "center",
               justifyContent: "center",
               position: "relative",
             }}
           >
+            {/* SVG Progress Ring */}
+            <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, transform: [{ rotate: "-90deg" }] }}>
+              <Svg width={dim} height={dim}>
+                <Circle
+                  cx={dim / 2}
+                  cy={dim / 2}
+                  r={r}
+                  stroke="#E2E8F0"
+                  strokeWidth={strokeWidth}
+                  fill="none"
+                />
+                <Circle
+                  cx={dim / 2}
+                  cy={dim / 2}
+                  r={r}
+                  stroke={tierColor}
+                  strokeWidth={strokeWidth}
+                  fill="none"
+                  strokeDasharray={circumference}
+                  strokeDashoffset={strokeDashoffset}
+                  strokeLinecap="round"
+                />
+              </Svg>
+            </View>
+
             <View
               style={{
-                width: "100%",
-                height: "100%",
-                borderRadius: (dim - 8.4) / 2,
+                width: dim - 6,
+                height: dim - 6,
+                borderRadius: (dim - 6) / 2,
                 backgroundColor: "rgba(148, 163, 184, 0.08)",
                 alignItems: "center",
                 justifyContent: "center",
@@ -908,10 +934,11 @@ function PremiumBadge({ data, size = "normal", onPress, style }) {
                 style={{ opacity: 0.35 }}
               />
             </View>
+
             <View
               style={{
                 position: "absolute",
-                bottom: -2,
+                top: -2,
                 right: -2,
                 backgroundColor: "#94A3B8",
                 width: 18,
@@ -926,6 +953,7 @@ function PremiumBadge({ data, size = "normal", onPress, style }) {
                 shadowOpacity: 0.1,
                 shadowRadius: 1,
                 elevation: 1,
+                zIndex: 10,
               }}
             >
               <Lock size={8} color="white" />
@@ -935,11 +963,11 @@ function PremiumBadge({ data, size = "normal", onPress, style }) {
           <Text
             style={{
               fontSize: 11,
-              fontWeight: "700",
+              fontWeight: "750",
               color: "#64748B",
               marginTop: 10,
               textAlign: "center",
-              lineHeight: 15,
+              lineHeight: 14,
               paddingHorizontal: 2,
             }}
             numberOfLines={2}
@@ -948,27 +976,23 @@ function PremiumBadge({ data, size = "normal", onPress, style }) {
           </Text>
         </View>
 
-        {target > 1 && (
-          <View style={{ width: "85%", alignItems: "center", marginTop: 8 }}>
-            <Text style={{ fontSize: 9, color: "#64748B", fontWeight: "800" }}>
-              {current}/{target}
-            </Text>
-            <View
-              style={{
-                width: "100%",
-                height: 4.5,
-                borderRadius: 2.5,
-                backgroundColor: "#E2E8F0",
-                marginTop: 4,
-                overflow: "hidden",
-              }}
-            >
-              <LinearGradient
-                colors={colors}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={{ width: `${pct}%`, height: "100%", borderRadius: 2.5 }}
-              />
+        {!isSmall && (
+          <View style={{ alignItems: "center", width: "100%", marginTop: 8 }}>
+            {target > 1 && (
+              <Text style={{ fontSize: 10, color: "#64748B", fontWeight: "800" }}>
+                {current}/{target}
+              </Text>
+            )}
+            <View style={{
+              borderColor: '#E2E8F0',
+              borderWidth: 1,
+              backgroundColor: '#F8FAFC',
+              borderRadius: 12,
+              paddingHorizontal: 8,
+              paddingVertical: 2,
+              marginTop: 4,
+            }}>
+              <Text style={{ fontSize: 9, fontWeight: '800', color: '#94A3B8' }}>LOCKED</Text>
             </View>
           </View>
         )}
@@ -977,7 +1001,12 @@ function PremiumBadge({ data, size = "normal", onPress, style }) {
   }
 
   // Unlocked State
-  const tierColor = data.tierConfig.color;
+  const isGoldOrLegendary =
+    data.meta.tier === "gold" || data.meta.tier === "legendary";
+  const statusLabel = isGoldOrLegendary ? "ACHIEVED" : "UNLOCKED";
+  const statusColor = isGoldOrLegendary ? "#D97706" : "#10B981";
+  const statusBg = isGoldOrLegendary ? "#FFFBEB" : "#ECFDF5";
+  const statusBorder = isGoldOrLegendary ? "#FDE68A" : "#A7F3D0";
 
   return (
     <Pressable
@@ -989,11 +1018,11 @@ function PremiumBadge({ data, size = "normal", onPress, style }) {
           backgroundColor: "#FFFFFF",
           borderRadius: 22,
           borderWidth: 1,
-          borderColor: tierColor + "20",
+          borderColor: tierColor + "25",
           paddingVertical: 14,
           paddingHorizontal: 6,
           alignItems: "center",
-          justifyContent: "center",
+          justifyContent: "space-between",
           shadowColor: tierColor,
           shadowOffset: { width: 0, height: 4 },
           shadowOpacity: 0.05,
@@ -1005,34 +1034,6 @@ function PremiumBadge({ data, size = "normal", onPress, style }) {
         style,
       ]}
     >
-      {!isSmall &&
-        data.meta.tier !== "gold" &&
-        data.meta.tier !== "legendary" && (
-          <View
-            style={{
-              position: "absolute",
-              top: 10,
-              right: 10,
-              backgroundColor: "#10B981",
-              width: 18,
-              height: 18,
-              borderRadius: 9,
-              alignItems: "center",
-              justifyContent: "center",
-              borderWidth: 1.5,
-              borderColor: "#FFFFFF",
-              shadowColor: "#000",
-              shadowOffset: { width: 0, height: 1 },
-              shadowOpacity: 0.1,
-              shadowRadius: 1,
-              elevation: 2,
-              zIndex: 10,
-            }}
-          >
-            <Check size={9} color="white" strokeWidth={4} />
-          </View>
-        )}
-
       <View style={{ alignItems: "center", width: "100%" }}>
         {/* Metallic Ring - Outer Gradient Circle */}
         <LinearGradient
@@ -1051,9 +1052,10 @@ function PremiumBadge({ data, size = "normal", onPress, style }) {
             shadowOpacity: 0.25,
             shadowRadius: 6,
             elevation: 3,
+            position: "relative",
           }}
         >
-          {/* Inner Gold/Bronze/Silver Core Gradient */}
+          {/* Inner Core Gradient */}
           <LinearGradient
             colors={colors.slice().reverse()}
             start={{ x: 0, y: 0 }}
@@ -1094,6 +1096,34 @@ function PremiumBadge({ data, size = "normal", onPress, style }) {
             </View>
           </LinearGradient>
 
+          {/* Checkmark icon for unlocked items */}
+          {data.meta.tier !== "legendary" && (
+            <View
+              style={{
+                position: "absolute",
+                top: -2,
+                right: -2,
+                backgroundColor: "#10B981",
+                width: 18,
+                height: 18,
+                borderRadius: 9,
+                alignItems: "center",
+                justifyContent: "center",
+                borderWidth: 1.5,
+                borderColor: "#FFFFFF",
+                shadowColor: "#000",
+                shadowOffset: { width: 0, height: 1 },
+                shadowOpacity: 0.1,
+                shadowRadius: 1,
+                elevation: 2,
+                zIndex: 10,
+              }}
+            >
+              <Check size={9} color="white" strokeWidth={4} />
+            </View>
+          )}
+
+          {/* Crown badge for legendary */}
           {data.meta.tier === "legendary" && (
             <View
               style={{
@@ -1113,6 +1143,7 @@ function PremiumBadge({ data, size = "normal", onPress, style }) {
                 shadowOpacity: 0.15,
                 shadowRadius: 2,
                 elevation: 2,
+                zIndex: 10,
               }}
             >
               <Icons.Crown size={9} color="#7C3AED" fill="#7C3AED" />
@@ -1127,31 +1158,32 @@ function PremiumBadge({ data, size = "normal", onPress, style }) {
             color: "#0F172A",
             marginTop: 10,
             textAlign: "center",
-            lineHeight: 15,
+            lineHeight: 14,
             paddingHorizontal: 2,
           }}
           numberOfLines={2}
         >
           {data.meta.title || data.key}
         </Text>
-
-        {!isSmall && (
-          <Text
-            style={{
-              fontSize: 10,
-              fontWeight: "800",
-              color:
-                getUnlockedLabel(data) === "Achieved"
-                  ? "#10B981"
-                  : data.tierConfig.color,
-              marginTop: 4,
-              textAlign: "center",
-            }}
-          >
-            {getUnlockedLabel(data)}
-          </Text>
-        )}
       </View>
+
+      {!isSmall && (
+        <View style={{
+          borderColor: statusBorder,
+          borderWidth: 1,
+          backgroundColor: statusBg,
+          borderRadius: 12,
+          paddingHorizontal: 8,
+          paddingVertical: 2,
+          marginTop: 6,
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 3,
+        }}>
+          <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: statusColor }} />
+          <Text style={{ fontSize: 9, fontWeight: '850', color: statusColor }}>{statusLabel}</Text>
+        </View>
+      )}
     </Pressable>
   );
 }
@@ -1550,7 +1582,12 @@ export default function AdherenceScreen({ navigation }) {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: C.bg }}>
+    <LinearGradient
+      colors={["#EEF2FF", "#F8FAFC", "#FFFFFF"]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 0, y: 0.25 }}
+      style={{ flex: 1 }}
+    >
       <SafeAreaView style={{ flex: 1 }}>
         {/* ── Header ── */}
         <View style={styles.header}>
@@ -1620,33 +1657,41 @@ export default function AdherenceScreen({ navigation }) {
             />
           }
         >
-          {/* ── [0] Hero Gradient Card (Liquid Glass style) ── */}
+          {/* ── [0] Hero Gradient Card (Solid premium style with subtle gloss) ── */}
           <Animated.View style={[anim(0), { position: "relative" }]}>
-            {/* Ambient Back-Glow Circles */}
-            <View
+            {/* Ambient Back-Glow (Soft halos, no hard edges) */}
+            <LinearGradient
+              colors={
+                heroScore >= 90
+                  ? ["rgba(16, 185, 129, 0.28)", "rgba(16, 185, 129, 0)"]
+                  : ["rgba(79, 70, 229, 0.28)", "rgba(79, 70, 229, 0)"]
+              }
+              start={{ x: 0.5, y: 0.5 }}
+              end={{ x: 1, y: 1 }}
               style={{
                 position: "absolute",
-                top: -12,
-                left: 14,
-                width: 140,
-                height: 140,
-                borderRadius: 70,
-                backgroundColor: heroScore >= 90 ? "#0F766E" : "#0B52D2",
-                opacity: 0.35,
-                transform: [{ scale: 1.25 }],
+                top: -50,
+                left: -30,
+                width: 260,
+                height: 260,
+                borderRadius: 130,
               }}
             />
-            <View
+            <LinearGradient
+              colors={
+                heroScore >= 90
+                  ? ["rgba(20, 184, 166, 0.24)", "rgba(20, 184, 166, 0)"]
+                  : ["rgba(236, 72, 153, 0.22)", "rgba(236, 72, 153, 0)"]
+              }
+              start={{ x: 0.5, y: 0.5 }}
+              end={{ x: 1, y: 1 }}
               style={{
                 position: "absolute",
-                bottom: 22,
-                right: -6,
-                width: 130,
-                height: 130,
-                borderRadius: 65,
-                backgroundColor: heroScore >= 90 ? "#14B8A6" : "#EC4899",
-                opacity: 0.28,
-                transform: [{ scale: 1.15 }],
+                bottom: -40,
+                right: -40,
+                width: 240,
+                height: 240,
+                borderRadius: 120,
               }}
             />
 
@@ -1658,19 +1703,19 @@ export default function AdherenceScreen({ navigation }) {
                 styles.heroCard,
                 {
                   borderWidth: 1.5,
-                  borderColor: "rgba(255, 255, 255, 0.45)",
+                  borderColor: "rgba(255, 255, 255, 0.3)",
                 },
               ]}
             >
-              {/* Glass reflection highlight overlay */}
+              {/* Glass reflection highlight overlay (Background layer) */}
               <LinearGradient
-                colors={["rgba(255, 255, 255, 0.22)", "rgba(255, 255, 255, 0)"]}
+                colors={["rgba(255, 255, 255, 0.15)", "rgba(255, 255, 255, 0)"]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 0.5, y: 1 }}
-                style={StyleSheet.absoluteFillObject}
+                style={[StyleSheet.absoluteFillObject, { zIndex: 1 }]}
               />
 
-              {/* Inner glow accent */}
+              {/* Inner glow accent (Background layer) */}
               <View
                 style={{
                   position: "absolute",
@@ -1680,143 +1725,148 @@ export default function AdherenceScreen({ navigation }) {
                   height: 180,
                   borderRadius: 90,
                   backgroundColor: heroTheme.accentGlow,
-                  opacity: 0.15,
+                  opacity: 0.1,
+                  zIndex: 1,
                 }}
               />
 
-              {/* Sparkles decoration in the top-right */}
+              {/* Sparkles decoration (Background layer) */}
               <View
                 style={{
                   position: "absolute",
                   top: 16,
                   right: 16,
-                  opacity: 0.55,
+                  opacity: 0.45,
+                  zIndex: 1,
                 }}
               >
                 <Icons.Sparkles size={22} color="#FFF" />
               </View>
 
-              <View style={styles.heroTopRow}>
-                {/* Ring */}
-                <View style={styles.heroRingWrap}>
-                  <CircularProgress
-                    progress={heroScore}
-                    size={148}
-                    strokeWidth={13}
-                    color={ringColor}
-                  />
-                  <View style={styles.heroRingCenter}>
-                    <AnimatedNumber
-                      value={heroScore}
-                      style={styles.heroRingPercent}
+              {/* Foreground Content Layer */}
+              <View style={{ zIndex: 2, position: "relative" }}>
+                <View style={styles.heroTopRow}>
+                  {/* Ring */}
+                  <View style={styles.heroRingWrap}>
+                    <CircularProgress
+                      progress={heroScore}
+                      size={148}
+                      strokeWidth={13}
+                      color={ringColor}
                     />
-                    <Text style={styles.heroRingLabel}>
-                      {getRecapLabels(t)[activeRecapTab]}
-                    </Text>
-                  </View>
-                </View>
-
-                {/* Right stats */}
-                <View style={styles.heroRightCol}>
-                  <View style={styles.heroStatBox}>
-                    <Text style={styles.heroStatLabel}>
-                      {t("adherence.score", { defaultValue: "Score" })}
-                    </Text>
-                    <AnimatedNumber
-                      value={adherenceRecap?.adherence_rate ?? score.weekly}
-                      style={styles.heroStatValue}
-                    />
-                  </View>
-                  <View style={styles.heroStatDivider} />
-                  <View style={styles.heroStatBox}>
-                    <Text style={styles.heroStatLabel}>
-                      {t("adherence.momentum", { defaultValue: "Momentum" })}
-                    </Text>
-                    <View style={styles.momentumPill}>
-                      <View style={styles.momentumIconContainer}>
-                        <MomentumIcon size={12} color="#FFF" />
-                      </View>
-                      <Text style={styles.momentumText}>{momentumLabel}</Text>
-                    </View>
-                  </View>
-                  <View style={styles.heroStatDivider} />
-                  <View style={styles.heroStatBox}>
-                    <Text style={styles.heroStatLabel}>
-                      {t("adherence.level", { defaultValue: "Level" })}
-                    </Text>
-                    {(() => {
-                      const lvlCfg = getLevelConfig(level.key);
-                      const LvlIcon = lvlCfg.Icon;
-                      return (
-                        <View
-                          style={{
-                            flexDirection: "row",
-                            alignItems: "center",
-                            gap: 5,
-                            marginTop: 4,
-                          }}
-                        >
-                          <LvlIcon size={14} color={lvlCfg.color} />
-                          <Text
-                            style={[
-                              styles.heroStatValue,
-                              { color: lvlCfg.color, fontSize: 13 },
-                            ]}
-                          >
-                            {level.label}
-                          </Text>
-                        </View>
-                      );
-                    })()}
-                  </View>
-                </View>
-              </View>
-
-              {/* Today's progress bar */}
-              <View style={styles.heroProgressSection}>
-                <View style={styles.heroProgressHeader}>
-                  <Target size={13} color="rgba(255,255,255,0.7)" />
-                  <Text style={styles.heroProgressTitle}>
-                    {t("adherence.todays_goal", {
-                      defaultValue: "Today's Goal",
-                    })}
-                  </Text>
-                  <Text style={styles.heroProgressCount}>
-                    {today.taken}
-                    <Text style={{ fontSize: 13, opacity: 0.6 }}>
-                      /{today.total || "—"}{" "}
-                      {t("adherence.doses", { defaultValue: "doses" })}
-                    </Text>
-                  </Text>
-                  {today.completed && (
-                    <View style={styles.heroCompletedPill}>
-                      <Sparkles size={10} color="#10B981" />
-                      <Text style={styles.heroCompletedText}>
-                        {t("adherence.done", { defaultValue: "Done!" })}
+                    <View style={styles.heroRingCenter}>
+                      <AnimatedNumber
+                        value={heroScore}
+                        style={styles.heroRingPercent}
+                      />
+                      <Text style={styles.heroRingLabel}>
+                        {getRecapLabels(t)[activeRecapTab]}
                       </Text>
                     </View>
-                  )}
+                  </View>
+
+                  {/* Right stats */}
+                  <View style={styles.heroRightCol}>
+                    <View style={styles.heroStatBox}>
+                      <Text style={styles.heroStatLabel}>
+                        {t("adherence.score", { defaultValue: "Score" })}
+                      </Text>
+                      <AnimatedNumber
+                        value={adherenceRecap?.adherence_rate ?? score.weekly}
+                        style={styles.heroStatValue}
+                      />
+                    </View>
+                    <View style={styles.heroStatDivider} />
+                    <View style={styles.heroStatBox}>
+                      <Text style={styles.heroStatLabel}>
+                        {t("adherence.momentum", { defaultValue: "Momentum" })}
+                      </Text>
+                      <View style={styles.momentumPill}>
+                        <View style={styles.momentumIconContainer}>
+                          <MomentumIcon size={12} color="#4F46E5" />
+                        </View>
+                        <Text style={styles.momentumText}>{momentumLabel}</Text>
+                      </View>
+                    </View>
+                    <View style={styles.heroStatDivider} />
+                    <View style={styles.heroStatBox}>
+                      <Text style={styles.heroStatLabel}>
+                        {t("adherence.level", { defaultValue: "Level" })}
+                      </Text>
+                      {(() => {
+                        const lvlCfg = getLevelConfig(level.key);
+                        const LvlIcon = lvlCfg.Icon;
+                        return (
+                          <View
+                            style={{
+                              flexDirection: "row",
+                              alignItems: "center",
+                              gap: 5,
+                              marginTop: 4,
+                            }}
+                          >
+                            <LvlIcon size={14} color={lvlCfg.color} />
+                            <Text
+                              style={[
+                                styles.heroStatValue,
+                                { color: lvlCfg.color, fontSize: 13 },
+                              ]}
+                            >
+                              {level.label}
+                            </Text>
+                          </View>
+                        );
+                      })()}
+                    </View>
+                  </View>
                 </View>
-                <View
-                  style={[
-                    styles.heroProgressBg,
-                    { backgroundColor: heroTheme.barBg },
-                  ]}
-                >
-                  <Animated.View
+
+                {/* Today's progress bar */}
+                <View style={styles.heroProgressSection}>
+                  <View style={styles.heroProgressHeader}>
+                    <Target size={13} color="rgba(255,255,255,0.7)" />
+                    <Text style={styles.heroProgressTitle}>
+                      {t("adherence.todays_goal", {
+                        defaultValue: "Today's Goal",
+                      })}
+                    </Text>
+                    <Text style={styles.heroProgressCount}>
+                      {today.taken}
+                      <Text style={{ fontSize: 13, opacity: 0.6 }}>
+                        /{today.total || "—"}{" "}
+                        {t("adherence.doses", { defaultValue: "doses" })}
+                      </Text>
+                    </Text>
+                    {today.completed && (
+                      <View style={styles.heroCompletedPill}>
+                        <Sparkles size={10} color="#10B981" />
+                        <Text style={styles.heroCompletedText}>
+                          {t("adherence.done", { defaultValue: "Done!" })}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                  <View
                     style={[
-                      styles.heroProgressFill,
-                      {
-                        width:
-                          today.total > 0
-                            ? `${Math.min(100, (today.taken / today.total) * 100)}%`
-                            : "0%",
-                        backgroundColor: today.completed
-                          ? "#10B981"
-                          : heroTheme.barFill,
-                      },
+                      styles.heroProgressBg,
+                      { backgroundColor: heroTheme.barBg },
                     ]}
-                  />
+                  >
+                    <Animated.View
+                      style={[
+                        styles.heroProgressFill,
+                        {
+                          width:
+                            today.total > 0
+                              ? `${Math.min(100, (today.taken / today.total) * 100)}%`
+                              : "0%",
+                          backgroundColor: today.completed
+                            ? "#10B981"
+                            : heroTheme.barFill,
+                        },
+                      ]}
+                    />
+                  </View>
                 </View>
               </View>
             </LinearGradient>
@@ -2742,8 +2792,6 @@ export default function AdherenceScreen({ navigation }) {
               );
             })}
           </Animated.View>
-
-          <View style={{ height: 100 }} />
         </ScrollView>
       </SafeAreaView>
 
@@ -3232,7 +3280,7 @@ export default function AdherenceScreen({ navigation }) {
           </Animated.View>
         </View>
       </Modal>
-    </View>
+    </LinearGradient>
   );
 }
 
@@ -3390,12 +3438,14 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    backgroundColor: "rgba(16,185,129,0.25)",
+    backgroundColor: "#D1FAE5", // Solid light mint green (opaque)
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#A7F3D0",
   },
-  heroCompletedText: { fontSize: 11, fontWeight: "700", color: "#10B981" },
+  heroCompletedText: { fontSize: 11, fontWeight: "700", color: "#065F46" },
   heroProgressBg: {
     height: 7,
     backgroundColor: "rgba(255,255,255,0.2)",
@@ -3407,23 +3457,28 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    backgroundColor: "rgba(255, 255, 255, 0.15)",
+    backgroundColor: "#FFFFFF", // Solid opaque white
     paddingHorizontal: 12,
     paddingVertical: 5,
     borderRadius: 20,
     alignSelf: "flex-start",
     marginTop: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   momentumIconContainer: {
     width: 18,
     height: 18,
     borderRadius: 9,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    backgroundColor: "#EEF2FF", // Soft light blue (opaque)
     alignItems: "center",
     justifyContent: "center",
   },
   momentumText: {
-    color: "#FFF",
+    color: "#1E3A8A", // Deep Navy to contrast white
     fontSize: 13,
     fontWeight: "700",
   },
