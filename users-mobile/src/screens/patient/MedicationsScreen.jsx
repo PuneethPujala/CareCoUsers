@@ -2158,7 +2158,7 @@ export default function MedicationsScreen({ navigation }) {
                 style={{
                   backgroundColor: "#FFFFFF",
                   borderRadius: radius.lg,
-                  padding: 18,
+                  padding: 20,
                   marginBottom: 16,
                   borderWidth: 1,
                   borderColor: colors.borderLight,
@@ -2170,62 +2170,63 @@ export default function MedicationsScreen({ navigation }) {
                     flexDirection: "row",
                     alignItems: "center",
                     justifyContent: "space-between",
-                    marginBottom: 14,
+                    marginBottom: 16,
                   }}
                 >
                   <View
                     style={{
                       flexDirection: "row",
                       alignItems: "center",
-                      gap: 8,
+                      gap: 10,
                     }}
                   >
                     <View
                       style={{
-                        width: 28,
-                        height: 28,
-                        borderRadius: radius.sm,
-                        backgroundColor: "#FAF5FF",
+                        width: 32,
+                        height: 32,
+                        borderRadius: 10,
+                        backgroundColor: "rgba(168, 85, 247, 0.08)",
                         alignItems: "center",
                         justifyContent: "center",
-                        borderWidth: 1,
-                        borderColor: "#E9D5FF",
                       }}
                     >
-                      <Pill size={14} color="#A855F7" strokeWidth={2.5} />
+                      <Pill size={16} color="#A855F7" strokeWidth={2.5} />
                     </View>
-                    <Text
-                      style={{
-                        fontSize: 14,
-                        fontWeight: "800",
-                        color: "#0F172A",
-                        letterSpacing: 0.3,
-                      }}
-                    >
-                      Temporary Medications
-                    </Text>
-                    {tempMeds.length > 0 && (
-                      <View
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                      <Text
                         style={{
-                          backgroundColor: "#FAF5FF",
-                          paddingHorizontal: 7,
-                          paddingVertical: 2,
-                          borderRadius: radius.sm,
-                          borderWidth: 1,
-                          borderColor: "#E9D5FF",
+                          fontSize: 16,
+                          fontWeight: "800",
+                          color: "#1E293B",
+                          letterSpacing: -0.2,
                         }}
                       >
-                        <Text
+                        Temporary Medications
+                      </Text>
+                      {tempMeds.length > 0 && (
+                        <View
                           style={{
-                            fontSize: 11,
-                            fontWeight: "700",
-                            color: "#A855F7",
+                            backgroundColor: "#A855F7",
+                            borderRadius: 10,
+                            paddingHorizontal: 8,
+                            paddingVertical: 2,
+                            minWidth: 20,
+                            alignItems: "center",
+                            justifyContent: "center",
                           }}
                         >
-                          {tempMeds.length}
-                        </Text>
-                      </View>
-                    )}
+                          <Text
+                            style={{
+                              fontSize: 10,
+                              fontWeight: "800",
+                              color: "#FFFFFF",
+                            }}
+                          >
+                            {tempMeds.length}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
                   </View>
                   <Pressable
                     onPress={() => {
@@ -2238,19 +2239,20 @@ export default function MedicationsScreen({ navigation }) {
                       });
                       setShowAddTempMedModal(true);
                     }}
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      gap: 4,
-                      paddingVertical: 6,
-                      paddingHorizontal: 12,
-                      backgroundColor: "#FAF5FF",
-                      borderRadius: radius.sm,
-                      borderWidth: 1,
-                      borderColor: "#E9D5FF",
-                    }}
+                    style={({ pressed }) => [
+                      {
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 4,
+                        paddingVertical: 6,
+                        paddingHorizontal: 12,
+                        backgroundColor: "rgba(168, 85, 247, 0.08)",
+                        borderRadius: 16,
+                      },
+                      pressed && { opacity: 0.7 }
+                    ]}
                   >
-                    <Plus size={14} color="#A855F7" strokeWidth={2.5} />
+                    <Plus size={14} color="#A855F7" strokeWidth={3} />
                     <Text
                       style={{
                         fontSize: 12,
@@ -2270,10 +2272,10 @@ export default function MedicationsScreen({ navigation }) {
                         fontSize: 13,
                         color: "#64748B",
                         textAlign: "center",
+                        lineHeight: 18,
                       }}
                     >
-                      No temporary medications. Add any short-term or OTC
-                      medicines you are currently taking.
+                      No temporary medications. Add any short-term or OTC medicines you are currently taking.
                     </Text>
                   </View>
                 ) : (
@@ -2285,7 +2287,7 @@ export default function MedicationsScreen({ navigation }) {
                     };
                     const riskColor = riskColors[tm.riskTier] || "#64748B";
 
-                    // Shift config for beautiful micro-details
+                    // Shift config
                     const shiftStyles = {
                       morning: {
                         bg: "#FFF7ED",
@@ -2310,17 +2312,15 @@ export default function MedicationsScreen({ navigation }) {
                         key={tm._id || idx}
                         style={{
                           flexDirection: "row",
-                          alignItems: "center",
-                          gap: 12,
-                          padding: 14,
+                          alignItems: "flex-start",
+                          padding: 16,
                           backgroundColor: "#F8FAFC",
-                          borderRadius: radius.md,
+                          borderRadius: 16,
                           borderWidth: 1,
                           borderColor: colors.borderLight,
                           borderLeftWidth: 4,
                           borderLeftColor: riskColor,
                           marginBottom: idx < tempMeds.length - 1 ? 12 : 0,
-                          ...shadows.sm,
                         }}
                       >
                         <View style={{ flex: 1, gap: 4 }}>
@@ -2330,6 +2330,7 @@ export default function MedicationsScreen({ navigation }) {
                               alignItems: "center",
                               gap: 6,
                               flexWrap: "wrap",
+                              marginBottom: 2,
                             }}
                           >
                             <Text
@@ -2338,6 +2339,7 @@ export default function MedicationsScreen({ navigation }) {
                                 fontWeight: "800",
                                 color: "#0F172A",
                                 letterSpacing: -0.2,
+                                marginRight: 4,
                               }}
                             >
                               {tm.name}
@@ -2346,18 +2348,18 @@ export default function MedicationsScreen({ navigation }) {
                               <View
                                 style={{
                                   backgroundColor: shiftCfg.bg,
-                                  paddingHorizontal: 7,
-                                  paddingVertical: 2.5,
-                                  borderRadius: 8,
+                                  paddingHorizontal: 8,
+                                  paddingVertical: 3,
+                                  borderRadius: 6,
                                 }}
                               >
                                 <Text
                                   style={{
-                                    fontSize: 9,
+                                    fontSize: 10,
                                     fontWeight: "800",
                                     color: shiftCfg.txt,
                                     textTransform: "uppercase",
-                                    letterSpacing: 0.3,
+                                    letterSpacing: 0.5,
                                   }}
                                 >
                                   {shiftCfg.label}
@@ -2372,9 +2374,9 @@ export default function MedicationsScreen({ navigation }) {
                                     : tm.riskTier === "restricted"
                                       ? "#FEF2F2"
                                       : "#FFFBEB",
-                                paddingHorizontal: 7,
-                                paddingVertical: 2.5,
-                                borderRadius: 8,
+                                paddingHorizontal: 8,
+                                paddingVertical: 3,
+                                borderRadius: 6,
                                 borderWidth: 1,
                                 borderColor:
                                   tm.riskTier === "safe"
@@ -2386,11 +2388,11 @@ export default function MedicationsScreen({ navigation }) {
                             >
                               <Text
                                 style={{
-                                  fontSize: 9,
+                                  fontSize: 10,
                                   fontWeight: "900",
                                   color: riskColor,
                                   textTransform: "uppercase",
-                                  letterSpacing: 0.3,
+                                  letterSpacing: 0.5,
                                 }}
                               >
                                 {tm.riskTier === "safe"
@@ -2407,7 +2409,8 @@ export default function MedicationsScreen({ navigation }) {
                               style={{
                                 fontSize: 13,
                                 color: "#475569",
-                                fontWeight: "600",
+                                fontWeight: "700",
+                                marginTop: 2,
                               }}
                             >
                               {[tm.dosage, tm.frequency]
@@ -2419,10 +2422,11 @@ export default function MedicationsScreen({ navigation }) {
                           {tm.aiSummary ? (
                             <Text
                               style={{
-                                fontSize: 12,
+                                fontSize: 13,
                                 color: "#64748B",
-                                lineHeight: 17,
-                                marginTop: 2,
+                                lineHeight: 18,
+                                marginTop: 6,
+                                fontWeight: "500",
                               }}
                             >
                               {tm.aiSummary}
@@ -2433,12 +2437,15 @@ export default function MedicationsScreen({ navigation }) {
                             <Text
                               style={{
                                 fontSize: 11,
-                                color: "#94A3B8",
-                                fontWeight: "500",
-                                marginTop: 1,
+                                color: "#64748B",
+                                fontWeight: "700",
+                                marginTop: 6,
                               }}
                             >
-                              Reason: {tm.reason}
+                              Reason:{" "}
+                              <Text style={{ fontWeight: "500", color: "#94A3B8" }}>
+                                {tm.reason}
+                              </Text>
                             </Text>
                           ) : null}
 
@@ -2448,7 +2455,7 @@ export default function MedicationsScreen({ navigation }) {
                                 flexDirection: "row",
                                 alignItems: "center",
                                 gap: 4,
-                                marginTop: 6,
+                                marginTop: 8,
                                 backgroundColor: "#FEF2F2",
                                 paddingHorizontal: 8,
                                 paddingVertical: 6,
@@ -2480,7 +2487,7 @@ export default function MedicationsScreen({ navigation }) {
                               fontSize: 10,
                               color: "#94A3B8",
                               fontWeight: "500",
-                              marginTop: 2,
+                              marginTop: 6,
                             }}
                           >
                             Added by {tm.addedByName || tm.addedByRole}

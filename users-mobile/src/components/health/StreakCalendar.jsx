@@ -80,13 +80,38 @@ const StreakCalendar = ({ dailyLog = [], timezone = "Asia/Kolkata" }) => {
     }
     const score = day.log.score;
     const adherence = day.log.adherence; // 0–100 or null
+    const mood = day.log.mood;
+    const sleep = day.log.sleepHours;
+    const bp = day.log.bp;
 
-    // Adherence-first: if meds well-taken, show at least Good
-    if (adherence != null && adherence >= 95) return colors.success; // Excellent
-    if (adherence != null && adherence >= 80) return "#4ADE80"; // Good
+    // Check if the day is completely empty of logs (no meds, mood, sleep, or BP logged at all)
+    const hasAnyMeds = adherence !== null;
+    const hasMood = mood !== null && mood !== undefined;
+    const hasSleep = sleep !== null && sleep !== undefined && sleep > 0;
+    const hasBp = bp && bp.systolic !== null && bp.systolic !== undefined;
+
+    if (!hasAnyMeds && !hasMood && !hasSleep && !hasBp) {
+      return colors.borderLight; // Treat as grey/unlogged day
+    }
+
+    // Adherence-first overrides:
+    if (adherence != null) {
+      if (adherence === 0) return "#FCA5A5"; // Low (Red) - completely missed meds!
+      if (adherence < 50) return "#FCD34D"; // Fair (Yellow) - missed more than half!
+      
+      // Excellent requires taking meds AND completing daily tracking (mood + sleep)
+      if (adherence >= 95) {
+        const isHolisticTracker = hasMood && hasSleep;
+        return isHolisticTracker ? colors.success : "#4ADE80"; // Downgrade to Good if missing mood/sleep logs
+      }
+      if (adherence >= 80) return "#4ADE80"; // Good
+    }
 
     // Score-based fallback with recalibrated thresholds
-    if (score >= 70) return colors.success; // Excellent
+    if (score >= 70) {
+      const isHolisticTracker = hasMood && hasSleep;
+      return isHolisticTracker ? colors.success : "#4ADE80"; // Downgrade to Good if missing mood/sleep logs
+    }
     if (score >= 55) return "#4ADE80"; // Good
     if (score >= 40) return "#FCD34D"; // Fair
     return "#FCA5A5"; // Low

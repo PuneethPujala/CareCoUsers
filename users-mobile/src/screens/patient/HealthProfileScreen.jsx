@@ -200,7 +200,7 @@ export default function HealthProfileScreen({ navigation }) {
     };
 
     useEffect(() => {
-        if (!loading && profile && !isFreePlan(profile)) {
+        if (!loading && profile) {
             const initProfileTour = async () => {
                 const profileHeuristic = async () => {
                     const conds = Array.isArray(profile.conditions) ? profile.conditions : [];

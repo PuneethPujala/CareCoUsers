@@ -225,7 +225,7 @@ export default function CompanionSignupScreen({ navigation }) {
                         />
                         <SmartInput
                             label="CREATE PASSWORD"
-                            placeholder="Create a strong password"
+                            placeholder="Choose a password"
                             value={password}
                             onChangeText={setPassword}
                             secureTextEntry
@@ -355,6 +355,10 @@ export default function CompanionSignupScreen({ navigation }) {
                 visible={legalVisible}
                 type={legalType}
                 onClose={() => setLegalVisible(false)}
+                onAccept={() => {
+                    setTermsAccepted(true);
+                    setError('');
+                }}
             />
         </KeyboardAvoidingView>
     );

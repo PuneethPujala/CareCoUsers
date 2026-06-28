@@ -240,11 +240,13 @@ const Step6FinalDetails = ({
                                                     <Pressable
                                                         key={lang.code}
                                                         style={({ pressed }) => [
-                                                            styles.genderBtn,
                                                             {
                                                                 width: '48%',
                                                                 paddingVertical: 12,
-                                                                height: 'auto',
+                                                                borderRadius: 12,
+                                                                backgroundColor: C.surface,
+                                                                borderWidth: 1.5,
+                                                                borderColor: C.border,
                                                                 alignItems: 'center',
                                                                 justifyContent: 'center',
                                                                 flexDirection: 'column',

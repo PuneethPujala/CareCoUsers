@@ -55,6 +55,10 @@ const patientHealthStateHistorySchema = new mongoose.Schema(
       type: Number,
       default: 1,
     },
+    personal_baseline: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
+    },
     expires_at: {
       type: Date,
       required: true,

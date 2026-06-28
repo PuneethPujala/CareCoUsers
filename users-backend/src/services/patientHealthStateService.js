@@ -5,7 +5,7 @@ const VitalLog = require("../models/VitalLog");
 const SleepLog = require("../models/SleepLog");
 const PatientHealthStateHistory = require("../models/PatientHealthStateHistory");
 const AchievementEvent = require("../models/AchievementEvent");
-const { computeHealthScore } = require("./healthScoreService");
+const { computeHealthScore, gradeFromScore } = require("./healthScoreService");
 const {
   buildMergedMeds,
   computeCurrentStreak,
@@ -53,7 +53,7 @@ async function recomputeAndCacheHealthState(patientId, targetDate = null) {
       .toDate();
 
     // 1. Fetch data in parallel
-    const [todayVitals, vitalsHistory, todayMedLog, adherenceLogs, todaySleep] =
+    const [todayVitals, vitalsHistory, todayMedLog, adherenceLogs, sleepHistory] =
       await Promise.all([
         (async () => {
           let query = VitalLog.find({
@@ -167,17 +167,26 @@ async function recomputeAndCacheHealthState(patientId, targetDate = null) {
         })(),
 
         (async () => {
-          let log = await SleepLog.findOne({
+          let query = SleepLog.find({
             patient_id: patient._id,
-            date: todayUtc,
-          }).lean();
-          return log;
+            date: { $gte: thirtyDaysAgo, $lte: todayEndUtc },
+          });
+          if (!query) return [];
+          if (typeof query.sort === "function") query = query.sort({ date: 1 });
+          if (typeof query.lean === "function") query = query.lean();
+          return query;
         })(),
       ]);
 
     // Ensure arrays (auto-mocked models may return undefined)
     const safeAdherenceLogs = Array.isArray(adherenceLogs) ? adherenceLogs : [];
     const safeVitalsHistory = Array.isArray(vitalsHistory) ? vitalsHistory : [];
+    const safeSleepHistory = Array.isArray(sleepHistory) ? sleepHistory : [];
+    const todaySleep = safeSleepHistory.find(
+      (s) =>
+        s.date &&
+        new Date(s.date).toISOString().slice(0, 10) === todayStr,
+    );
 
     // 2. Compute medication adherence & streak
     let weeklyTaken = 0;
@@ -280,6 +289,59 @@ async function recomputeAndCacheHealthState(patientId, targetDate = null) {
       if (lastVal > prevVal) moodTrend = "improving";
       else if (lastVal < prevVal) moodTrend = "declining";
       else moodTrend = "stable";
+    }
+
+    // Extract today's values for Z-score feature vector
+    const MOOD_VALUES_MAP = { sad: 1, okay: 2, good: 3, great: 4 };
+    const currentSystolic = latestVital ? (latestVital.blood_pressure?.systolic ?? latestVital.systolic) : null;
+    const currentDiastolic = latestVital ? (latestVital.blood_pressure?.diastolic ?? latestVital.diastolic) : null;
+    const currentHeartRate = latestVital ? latestVital.heart_rate : null;
+    const currentSpo2 = latestVital ? latestVital.oxygen_saturation : null;
+    const currentSleep = todaySleep ? todaySleep.hours : null;
+    const currentMood = todayMood ? MOOD_VALUES_MAP[todayMood] : null;
+    const currentAdherence = todayAdherencePct;
+
+    const { calculatePersonalAnomaly } = require("./personalBaselineService");
+    const baselineReport = calculatePersonalAnomaly(
+      patientObj,
+      todayStr,
+      safeVitalsHistory,
+      safeAdherenceLogs,
+      safeSleepHistory,
+      {
+        systolic: currentSystolic,
+        diastolic: currentDiastolic,
+        heart_rate: currentHeartRate,
+        oxygen_saturation: currentSpo2,
+        sleep_hours: currentSleep,
+        mood: currentMood,
+        adherence: currentAdherence
+      }
+    );
+
+    // Apply personal baseline engine modifiers to final score
+    let finalScore = scoreDetails.score;
+    if (baselineReport.anomaly_level === "significant") {
+      finalScore = Math.max(35, finalScore - 5);
+    } else if (baselineReport.anomaly_level === "extreme") {
+      finalScore = Math.max(35, finalScore - 10);
+    }
+
+    // Recalculate grade details based on adjusted finalScore
+    const adjustedGrade = gradeFromScore(finalScore);
+
+    // Append baseline anomaly insights directly into AI tips so patient is aware
+    if (baselineReport.insights && baselineReport.insights.length > 0) {
+      for (const insightText of baselineReport.insights) {
+        scoreDetails.tips.unshift({
+          category: "vitals",
+          priority: 1,
+          impact: "medium",
+          icon: "⚠️",
+          title: "Personal Baseline Alert",
+          body: insightText
+        });
+      }
     }
 
     // 5. Compute vitals status
@@ -421,10 +483,16 @@ async function recomputeAndCacheHealthState(patientId, targetDate = null) {
 
     // 9. Construct final state
     const stateObj = {
-      score: scoreDetails.score,
-      grade: scoreDetails.grade,
-      label: scoreDetails.label,
-      color: scoreDetails.color,
+      score: finalScore,
+      grade: adjustedGrade.grade,
+      label: adjustedGrade.label,
+      color: adjustedGrade.color,
+      personal_baseline: {
+        z_scores: baselineReport.z_scores,
+        anomaly_level: baselineReport.anomaly_level,
+        insights: baselineReport.insights,
+        max_z: baselineReport.max_z
+      },
       mood: {
         today: todayMood,
         trend: moodTrend,
@@ -593,6 +661,7 @@ async function recomputeAndCacheHealthState(patientId, targetDate = null) {
               : stateObj.vitals.status === "watch"
                 ? "medium"
                 : "low"),
+          personal_baseline: stateObj.personal_baseline,
           schema_version: HEALTH_HISTORY_SCHEMA_VERSION,
           algorithm_version: HEALTH_HISTORY_ALGORITHM_VERSION,
           expires_at: historyExpiresAt,

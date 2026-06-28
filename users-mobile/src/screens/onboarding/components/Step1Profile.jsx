@@ -14,7 +14,7 @@ const Step1Profile = ({
     showConfirm, toggleShowConfirm,
     fullNameRef, emailRef, passwordRef, confirmPassRef,
 }) => {
-    const { control, formState: { errors }, watch } = useFormContext();
+    const { control, formState: { errors }, watch, setValue } = useFormContext();
     const formValues = watch();
     const passwordsMatch = formValues.confirmPassword?.length > 0 && formValues.password === formValues.confirmPassword;
 
@@ -131,7 +131,7 @@ const Step1Profile = ({
                                 ref={passwordRef}
                                 icon={Lock}
                                 label="PASSWORD"
-                                placeholder="Create a strong password"
+                                placeholder="Choose a password"
                                 value={value}
                                 onChangeText={onChange}
                                 secureTextEntry={!showPass}
@@ -166,7 +166,7 @@ const Step1Profile = ({
                             ref={confirmPassRef}
                             icon={Lock}
                             label="CONFIRM PASSWORD"
-                            placeholder="Re-enter your password"
+                            placeholder="Confirm password"
                             value={value}
                             onChangeText={onChange}
                             secureTextEntry={!showConfirm}
@@ -330,6 +330,7 @@ const Step1Profile = ({
                 visible={legalVisible}
                 type={legalType}
                 onClose={() => setLegalVisible(false)}
+                onAccept={() => setValue('termsAccepted', true, { shouldValidate: true })}
             />
         </View>
     );

@@ -69,10 +69,20 @@ const SCORE_FLOOR = {
  * Elderly patients get a slight bonus floor: even 0% adherence → 8pts (they
  * may have complex regimens that are hard to track).
  */
-function scoreAdherence(adherenceRate, bracket) {
+function scoreAdherence(adherenceRate, bracket, patient) {
+  const hasMeds =
+    patient &&
+    patient.medications &&
+    patient.medications.some((m) => m.is_active !== false);
+
+  if (!hasMeds) {
+    // No medications prescribed: full credit (perfect compliance with empty care plan)
+    return { pts: 30, bonus: 0, note: "no_meds_prescribed" };
+  }
+
   if (adherenceRate === null || adherenceRate === undefined) {
-    // No data: neutral — don't penalise data absence
-    return { pts: 15, bonus: 0, note: "no_data" };
+    // Has meds but no logs: treat as 0% adherence (missed) since they didn't log prescribed meds
+    return { pts: 3, bonus: 0, note: "no_logs" };
   }
 
   let pts;
@@ -176,8 +186,20 @@ function scoreConditions(conditions, allergies) {
  * Uses latest vitals (passed in). If no vitals: neutral 7pts.
  * BMI weight reduced for elderly bracket.
  */
-function scoreVitals(latestVitals, lifestyle, bracket) {
-  if (!latestVitals) return { pts: 7, note: "no_vitals" };
+function scoreVitals(latestVitals, lifestyle, bracket, patient) {
+  const hasActiveConditions =
+    patient &&
+    patient.conditions &&
+    patient.conditions.some((c) => c.status === "active");
+
+  if (!latestVitals) {
+    if (hasActiveConditions) {
+      // Has active conditions but no vitals logged: penalise missing critical data
+      return { pts: 2, note: "missing_critical_vitals" };
+    }
+    // Healthy user: full credit / neutral for vitals
+    return { pts: 15, note: "no_conditions_no_vitals" };
+  }
 
   let pts = 0;
 
@@ -552,10 +574,10 @@ function computeHealthScore(patient, adherenceRate, latestVitals) {
   const bracket = ageBracket(age);
   const lifestyle = patient.lifestyle || {};
 
-  const adherence = scoreAdherence(adherenceRate, bracket);
+  const adherence = scoreAdherence(adherenceRate, bracket, patient);
   const lifestyle_ = scoreLifestyle(lifestyle, bracket);
   const conditions = scoreConditions(patient.conditions, patient.allergies);
-  const vitals = scoreVitals(latestVitals, lifestyle, bracket);
+  const vitals = scoreVitals(latestVitals, lifestyle, bracket, patient);
   const preventive = scorePreventiveCare(patient);
   const mobility = scoreMobility(lifestyle, bracket);
 
@@ -602,4 +624,4 @@ function computeHealthScore(patient, adherenceRate, latestVitals) {
   };
 }
 
-module.exports = { computeHealthScore, deriveAge, ageBracket };
+module.exports = { computeHealthScore, deriveAge, ageBracket, gradeFromScore };

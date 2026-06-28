@@ -549,4 +549,64 @@ router.get(
   },
 );
 
+/**
+ * PUT /api/patients/:id/prescriptions/:prescriptionId
+ * Review an uploaded prescription (approve/reject)
+ * Access: super_admin, org_admin, care_manager, caller
+ */
+router.put(
+  "/:id/prescriptions/:prescriptionId",
+  authenticate,
+  authorize("patients", "update"),
+  async (req, res) => {
+    try {
+      const { status, reviewer_notes } = req.body;
+      if (!["reviewed", "rejected", "pending"].includes(status)) {
+        return res.status(400).json({ error: "Invalid status" });
+      }
+
+      const patient = await Patient.findById(req.params.id);
+      if (!patient) {
+        return res.status(404).json({ error: "Patient not found" });
+      }
+
+      if (!canReadPatient(req.profile, patient)) {
+        return res.status(403).json({ error: "Access denied to this patient" });
+      }
+
+      const rx = patient.uploaded_prescriptions.id(req.params.prescriptionId);
+      if (!rx) {
+        return res.status(404).json({ error: "Prescription not found" });
+      }
+
+      rx.status = status;
+      if (reviewer_notes !== undefined) rx.reviewer_notes = reviewer_notes;
+      rx.reviewed_by = req.profile.fullName || req.profile.email || "Staff";
+      rx.reviewed_at = new Date();
+
+      await patient.save();
+
+      await logEvent(
+        req.profile.supabaseUid,
+        "prescription_reviewed",
+        "patient",
+        patient._id,
+        req,
+        { prescriptionId: req.params.prescriptionId, status, reviewer_notes }
+      );
+
+      res.json({
+        message: "Prescription reviewed successfully",
+        prescription: rx,
+      });
+    } catch (error) {
+      console.error("Review prescription error:", error);
+      res.status(500).json({
+        error: "Failed to review prescription",
+        details: error.message,
+      });
+    }
+  }
+);
+
 module.exports = router;

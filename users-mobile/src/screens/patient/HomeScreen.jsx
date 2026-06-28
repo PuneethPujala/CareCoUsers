@@ -50,6 +50,7 @@ import {
   MessageSquare,
   Trophy,
   ChevronDown,
+  HelpCircle,
 } from "lucide-react-native";
 import { handleAxiosError } from "../../lib/axiosInstance";
 import {
@@ -382,7 +383,7 @@ export default function PatientHomeScreen({ navigation }) {
 
   useEffect(() => {
     // Only run if the patient dashboard loading is done
-    if (!storeLoading && patient && patient.subscription?.plan !== "free") {
+    if (!storeLoading && patient) {
       const initVitalsTour = async () => {
         const vitalsHeuristic = async () => {
           const hasVitalsHistory = (vitalsHistory && vitalsHistory.length > 0) || (

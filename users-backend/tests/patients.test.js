@@ -475,4 +475,82 @@ describe("Patients Routes", () => {
       );
     });
   });
+
+  // ── PUT /api/patients/:id/prescriptions/:prescriptionId ────────────────────
+
+  describe("PUT /api/patients/:id/prescriptions/:prescriptionId", () => {
+    it("successfully updates prescription status and notes", async () => {
+      const mockRx = {
+        _id: "rx123",
+        file_url: "http://example.com/slip.jpg",
+        status: "pending",
+        reviewer_notes: "",
+      };
+      const patient = makePatient({
+        _id: "patient123",
+        organization_id: "org123",
+      });
+      patient.uploaded_prescriptions = [];
+      patient.uploaded_prescriptions.id = jest.fn().mockReturnValue(mockRx);
+      patient.save = jest.fn().mockResolvedValue(patient);
+
+      Patient.findById = jest.fn().mockResolvedValue(patient);
+
+      const res = await request(app)
+        .put("/api/patients/patient123/prescriptions/rx123")
+        .send({ status: "reviewed", reviewer_notes: "Approved!" });
+
+      expect(res.status).toBe(200);
+      expect(mockRx.status).toBe("reviewed");
+      expect(mockRx.reviewer_notes).toBe("Approved!");
+      expect(patient.save).toHaveBeenCalled();
+      expect(logEvent).toHaveBeenCalled();
+      const args = logEvent.mock.calls[0];
+      expect(args[0]).toBe("cm-user");
+      expect(args[1]).toBe("prescription_reviewed");
+      expect(args[2]).toBe("patient");
+      expect(args[3].toString()).toBe("patient123");
+      expect(args[5]).toEqual({
+        prescriptionId: "rx123",
+        status: "reviewed",
+        reviewer_notes: "Approved!",
+      });
+    });
+
+    it("returns 400 for invalid status value", async () => {
+      const res = await request(app)
+        .put("/api/patients/patient123/prescriptions/rx123")
+        .send({ status: "invalid_status" });
+
+      expect(res.status).toBe(400);
+    });
+
+    it("returns 404 if patient is not found", async () => {
+      Patient.findById = jest.fn().mockResolvedValue(null);
+
+      const res = await request(app)
+        .put("/api/patients/nonexistent/prescriptions/rx123")
+        .send({ status: "reviewed" });
+
+      expect(res.status).toBe(404);
+    });
+
+    it("returns 404 if prescription is not found", async () => {
+      const patient = makePatient({
+        _id: "patient123",
+        organization_id: "org123",
+      });
+      patient.uploaded_prescriptions = [];
+      patient.uploaded_prescriptions.id = jest.fn().mockReturnValue(null);
+
+      Patient.findById = jest.fn().mockResolvedValue(patient);
+
+      const res = await request(app)
+        .put("/api/patients/patient123/prescriptions/rx999")
+        .send({ status: "reviewed" });
+
+      expect(res.status).toBe(404);
+    });
+  });
 });
+
