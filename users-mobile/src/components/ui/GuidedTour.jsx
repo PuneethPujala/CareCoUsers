@@ -144,8 +144,6 @@ const s = StyleSheet.create({
     wtOverlay: {
         flex: 1,
         backgroundColor: 'rgba(15, 23, 42, 0.75)', // Semi-transparent slate
-        justifyContent: 'center',
-        paddingHorizontal: 20,
     },
     wtSpotlight: {
         position: 'absolute',
