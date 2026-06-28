@@ -18,6 +18,7 @@ import {
   LayoutAnimation,
   UIManager,
   StatusBar,
+  KeyboardAvoidingView,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import PremiumFormModal from "../../components/ui/PremiumFormModal";
@@ -2845,14 +2846,18 @@ export default function MedicationsScreen({ navigation }) {
 
       {/* ── REFILL MODAL ── */}
       <Modal visible={refillModal.visible} transparent animationType="fade">
-        <View
-          style={[
-            styles.confirmOverlay,
-            { justifyContent: "center", alignItems: "center" },
-          ]}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={{ flex: 1 }}
         >
           <View
-            style={{
+            style={[
+              styles.confirmOverlay,
+              { justifyContent: "center", alignItems: "center" },
+            ]}
+          >
+            <View
+              style={{
               backgroundColor: "#FFF",
               width: "85%",
               borderRadius: 16,
@@ -3048,6 +3053,7 @@ export default function MedicationsScreen({ navigation }) {
             </Pressable>
           </View>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* ── CONFIRMATION MODAL (bottom sheet) ── */}
@@ -3198,12 +3204,16 @@ export default function MedicationsScreen({ navigation }) {
 
       {/* ── ADD TEMPORARY MEDICATION MODAL ── */}
       <Modal visible={showAddTempMedModal} transparent animationType="slide">
-        <View style={styles.confirmOverlay}>
-          <Pressable
-            style={{ flex: 1 }}
-            onPress={() => setShowAddTempMedModal(false)}
-          />
-          <View style={styles.confirmSheet}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={{ flex: 1 }}
+        >
+          <View style={styles.confirmOverlay}>
+            <Pressable
+              style={{ flex: 1 }}
+              onPress={() => setShowAddTempMedModal(false)}
+            />
+            <View style={[styles.confirmSheet, { maxHeight: "85%" }]}>
             <View style={styles.sheetHandle} />
             <View
               style={{
@@ -3421,6 +3431,7 @@ export default function MedicationsScreen({ navigation }) {
             </ScrollView>
           </View>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       <GuidedTour
