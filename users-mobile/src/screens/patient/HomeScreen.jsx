@@ -349,6 +349,7 @@ export default function PatientHomeScreen({ navigation }) {
   const scrollViewRef = useRef(null);
   const heartRateInputRef = useRef(null);
   const vitalsSectionY = useRef(0);
+  const vitalsCardRef = useRef(null);
 
   const [showVitalsTour, setShowVitalsTour] = useState(false);
 
@@ -361,9 +362,7 @@ export default function PatientHomeScreen({ navigation }) {
         }),
         icon: Heart,
         iconColor: "#EF4444",
-        scrollOffset: vitalsSectionY.current > 0 ? vitalsSectionY.current - 10 : 700,
-        spotlightTop: Platform.OS === "ios" ? 150 : 130,
-        spotlightHeight: 460,
+        ref: vitalsCardRef,
         visible: true,
       }
     ];
@@ -2615,6 +2614,7 @@ export default function PatientHomeScreen({ navigation }) {
 
           {/* ── 7. VITALS (Apple Health Style) ── */}
           <Animated.View
+            ref={vitalsCardRef}
             style={[entranceStyle(7), styles.section]}
             onLayout={(e) => {
               vitalsSectionY.current = e.nativeEvent.layout.y;

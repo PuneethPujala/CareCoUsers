@@ -181,6 +181,7 @@ export default function HealthProfileScreen({ navigation }) {
 
     const [showProfileTour, setShowProfileTour] = useState(false);
     const scrollViewRef = useRef(null);
+    const profileSetupCardRef = useRef(null);
 
     const getProfileTourSteps = () => {
         return [
@@ -191,9 +192,7 @@ export default function HealthProfileScreen({ navigation }) {
                 }),
                 icon: Activity,
                 iconColor: '#3B82F6',
-                scrollOffset: 0,
-                spotlightTop: Platform.OS === 'ios' ? 120 : 100,
-                spotlightHeight: 110,
+                ref: profileSetupCardRef,
                 visible: true,
             }
         ];
@@ -956,7 +955,7 @@ export default function HealthProfileScreen({ navigation }) {
             >
 
                 {/* ── PROFILE COMPLETENESS BANNER (above health score) ── */}
-                <Animated.View style={anim(0)}>
+                <Animated.View style={anim(0)} ref={profileSetupCardRef}>
                     <View style={s.completeBanner}>
                         <Pressable 
                             onPress={() => {

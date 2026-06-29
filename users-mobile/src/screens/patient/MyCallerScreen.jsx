@@ -184,6 +184,10 @@ export default function MyCallerScreen({ navigation }) {
 
   const [showTour, setShowTour] = useState(false);
   const scrollRef = useRef(null);
+  const companionCardRef = useRef(null);
+  const managerCardRef = useRef(null);
+  const contactsCardRef = useRef(null);
+  const callsCardRef = useRef(null);
 
   const contactModalAnim = useRef(new Animated.Value(0)).current;
   const staggerAnims = useRef(
@@ -314,55 +318,52 @@ export default function MyCallerScreen({ navigation }) {
   );
 
   const getTourSteps = () => {
-    const steps = [
-      {
-        title: "Your Companion",
-        desc: "Ramesh is your matched caregiver. They will call you for scheduled check-ins, medication logs, and wellness chats. Tap 'Call Now' to call them directly.",
-        icon: Phone,
-        iconColor: "#6366F1",
-        scrollOffset: 0,
-        spotlightTop: Platform.OS === "ios" ? 180 : 160,
-        spotlightHeight: 350,
-        tooltipBottom: 50,
-        visible: !!caller,
-      },
-      {
-        title: "Care Manager",
-        desc: "Oversees your overall care. Contact them to request schedule changes, report general feedback, or update care preferences.",
-        icon: UserCheck,
-        iconColor: "#10B981",
-        scrollOffset: 200,
-        spotlightTop: Platform.OS === "ios" ? 200 : 180,
-        spotlightHeight: 110,
-        visible: !!manager,
-      },
-      {
-        title: "Trusted Contacts & SOS",
-        desc: "Add family members or close friends who should be contacted in emergencies (SOS) or who you want to authorize to view your health logs.",
-        icon: Heart,
-        iconColor: "#EF4444",
-        scrollOffset: 340,
-        spotlightTop: Platform.OS === "ios" ? 200 : 180,
-        spotlightHeight: 160,
-        visible: true,
-      },
-      {
+    const steps = [];
+
+    steps.push({
+      title: "Your Companion",
+      desc: "Ramesh is your matched caregiver. They will call you for scheduled check-ins, medication logs, and wellness chats. Tap 'Call Now' to call them directly.",
+      icon: Phone,
+      iconColor: "#6366F1",
+      ref: companionCardRef,
+      visible: !!caller,
+    });
+
+    steps.push({
+      title: "Care Manager",
+      desc: "Oversees your overall care. Contact them to request schedule changes, report general feedback, or update care preferences.",
+      icon: UserCheck,
+      iconColor: "#10B981",
+      ref: managerCardRef,
+      visible: !!manager,
+    });
+
+    steps.push({
+      title: "Trusted Contacts & SOS",
+      desc: "Add family members or close friends who should be contacted in emergencies (SOS) or who you want to authorize to view your health logs.",
+      icon: Heart,
+      iconColor: "#EF4444",
+      ref: contactsCardRef,
+      visible: true,
+    });
+
+    if (calls.length > 0) {
+      steps.push({
         title: "Check-In Log History",
         desc: "Review dates of past check-ins, along with AI-generated summaries capturing the details from your companion calls.",
         icon: Clock,
         iconColor: "#F59E0B",
-        scrollOffset: 520,
-        spotlightTop: Platform.OS === "ios" ? 200 : 180,
-        spotlightHeight: 260,
-        visible: calls.length > 0,
-      },
-    ];
+        ref: callsCardRef,
+        visible: true,
+      });
+    }
+
     return steps.filter((s) => s.visible);
   };
 
   useEffect(() => {
     // Only run after data loading is fully completed to ensure heuristic inputs are trustworthy
-    if (!loading && patient?.subscription?.plan !== "free" && caller) {
+    if (!loading && patient?.subscription?.plan !== "free") {
       const initTour = async () => {
         // Screen-specific domain logic check for existing user migration
         const companionHeuristic = async () => {
@@ -386,7 +387,7 @@ export default function MyCallerScreen({ navigation }) {
       };
       initTour();
     }
-  }, [loading, patient, calls, contacts, caller]);
+  }, [loading, patient, calls, contacts]);
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -830,7 +831,7 @@ export default function MyCallerScreen({ navigation }) {
         }
       >
         {/* ── YOUR CALLER HERO CARD ──────────────────────────────────── */}
-        <Animated.View style={anim(1)}>
+        <Animated.View style={anim(1)} ref={companionCardRef}>
           <Text style={s.sectionLabel}>
             {t("caller.your_caller", { defaultValue: "YOUR CALLER" })}
           </Text>
@@ -1117,7 +1118,7 @@ export default function MyCallerScreen({ navigation }) {
         </Animated.View>
 
         {/* ── CARE MANAGER ──────────────────────────────────────────────── */}
-        <Animated.View style={anim(2)}>
+        <Animated.View style={anim(2)} ref={managerCardRef}>
           <View style={s.sectionHeaderRow}>
             <Text style={s.sectionLabel}>
               {t("caller.manager", { defaultValue: "CARE MANAGER" })}
@@ -1260,7 +1261,7 @@ export default function MyCallerScreen({ navigation }) {
         </Animated.View>
 
         {/* ── TRUSTED CONTACTS ───────────────────────────────────────── */}
-        <Animated.View style={anim(3)}>
+        <Animated.View style={anim(3)} ref={contactsCardRef}>
           <View style={s.sectionHeaderRow}>
             <Text style={s.sectionLabel}>
               {t("caller.care_team_contacts", {
@@ -1385,7 +1386,7 @@ export default function MyCallerScreen({ navigation }) {
 
         {/* ── RECENT CALLS (on main screen) ──────────────────────────── */}
         {calls.length > 0 && (
-          <Animated.View style={anim(4)}>
+          <Animated.View style={anim(4)} ref={callsCardRef}>
             <View style={s.sectionHeaderRow}>
               <Text style={s.sectionLabel}>
                 {t("caller.recent_calls", { defaultValue: "RECENT CALLS" })}

@@ -1012,6 +1012,7 @@ export default function MedicationsScreen({ navigation }) {
 
   const [showMedsTour, setShowMedsTour] = useState(false);
   const scrollViewRef = useRef(null);
+  const medsListCardRef = useRef(null);
 
   const getMedsTourSteps = () => {
     return [
@@ -1022,9 +1023,7 @@ export default function MedicationsScreen({ navigation }) {
         }),
         icon: Pill,
         iconColor: "#10B981",
-        scrollOffset: 120,
-        spotlightTop: Platform.OS === "ios" ? 270 : 250,
-        spotlightHeight: 180,
+        ref: medsListCardRef,
         visible: true,
       }
     ];
@@ -1933,7 +1932,7 @@ export default function MedicationsScreen({ navigation }) {
 
         {totalCount === 0 ? (
           /* ── EMPTY STATE ── */
-          <Animated.View style={[styles.emptyCard, anim(1)]}>
+          <Animated.View style={[styles.emptyCard, anim(1)]} ref={medsListCardRef}>
             <LinearGradient
               colors={["#EEF2FF", "#E0E7FF"]}
               style={styles.emptyIconWrap}
@@ -2130,7 +2129,7 @@ export default function MedicationsScreen({ navigation }) {
             </Animated.View>
 
             {/* ── TIME SECTIONS ── */}
-            <Animated.View style={anim(2)}>
+            <Animated.View style={anim(2)} ref={medsListCardRef}>
               {SLOT_ORDER.map((slot) => {
                 const meds = schedule[slot] || [];
                 if (meds.length === 0) return null;

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-    Modal, View, Text, StyleSheet, Pressable, Animated, Platform
+    Modal, View, Text, StyleSheet, Pressable, Animated, Platform, Dimensions
 } from 'react-native';
 import { X, ChevronRight } from 'lucide-react-native';
 import { colors } from '../../theme';
@@ -16,17 +16,64 @@ export default function GuidedTour({
     onClose
 }) {
     const [activeStep, setActiveStep] = useState(0);
+    const [spotlightCoords, setSpotlightCoords] = useState(null);
     const reduceMotion = useReduceMotion();
 
     useEffect(() => {
-        if (visible) {
-            setActiveStep(0);
-            // Always scroll to the first step on start
-            if (steps.length > 0 && scrollRef?.current) {
-                scrollRef.current.scrollTo({ y: steps[0].scrollOffset, animated: !reduceMotion });
+        if (visible && steps.length > 0) {
+            const stepData = steps[activeStep];
+            if (stepData) {
+                if (stepData.ref?.current && scrollRef?.current) {
+                    stepData.ref.current.measureLayout(
+                        scrollRef.current,
+                        (x, y, width, height) => {
+                            scrollRef.current.scrollTo({ y: Math.max(0, y - 20), animated: !reduceMotion });
+                            
+                            // Measure globally after scroll transition
+                            setTimeout(() => {
+                                if (stepData.ref?.current) {
+                                    stepData.ref.current.measure((mx, my, mwidth, mheight, pageX, pageY) => {
+                                        setSpotlightCoords({
+                                            top: pageY,
+                                            height: mheight,
+                                            left: pageX || 16,
+                                            width: mwidth || (Dimensions.get('window').width - 32)
+                                        });
+                                    });
+                                }
+                            }, 300);
+                        },
+                        () => {
+                            // Fallback if measureLayout fails
+                            if (stepData.scrollOffset !== undefined && scrollRef?.current) {
+                                scrollRef.current.scrollTo({ y: stepData.scrollOffset, animated: !reduceMotion });
+                            }
+                            setSpotlightCoords(stepData.spotlightTop !== undefined ? {
+                                top: stepData.spotlightTop,
+                                height: stepData.spotlightHeight || 100,
+                                left: 16,
+                                width: Dimensions.get('window').width - 32
+                            } : null);
+                        }
+                    );
+                } else {
+                    // Classic fallback
+                    if (stepData.scrollOffset !== undefined && scrollRef?.current) {
+                        scrollRef.current.scrollTo({ y: stepData.scrollOffset, animated: !reduceMotion });
+                    }
+                    setSpotlightCoords(stepData.spotlightTop !== undefined ? {
+                        top: stepData.spotlightTop,
+                        height: stepData.spotlightHeight || 100,
+                        left: 16,
+                        width: Dimensions.get('window').width - 32
+                    } : null);
+                }
             }
+        } else {
+            setActiveStep(0);
+            setSpotlightCoords(null);
         }
-    }, [visible, steps]);
+    }, [visible, activeStep, steps]);
 
     if (!visible || steps.length === 0) return null;
 
@@ -40,9 +87,6 @@ export default function GuidedTour({
         if (activeStep < steps.length - 1) {
             const nextStep = activeStep + 1;
             setActiveStep(nextStep);
-            if (scrollRef?.current) {
-                scrollRef.current.scrollTo({ y: steps[nextStep].scrollOffset, animated: !reduceMotion });
-            }
         } else {
             // Save completion to registry and close
             if (tourKey) {
@@ -60,19 +104,38 @@ export default function GuidedTour({
         if (onClose) onClose();
     };
 
+    const getCardStyle = () => {
+        if (stepData.tooltipBottom !== undefined) return { bottom: stepData.tooltipBottom };
+        if (stepData.tooltipTop !== undefined) return { top: stepData.tooltipTop };
+        if (spotlightCoords) {
+            const screenHeight = Dimensions.get('window').height;
+            const spotlightBottom = spotlightCoords.top + spotlightCoords.height;
+            // If spotlight is in the lower half of the screen, place tooltip above it
+            if (spotlightCoords.top > screenHeight / 2 - 50) {
+                return { bottom: screenHeight - spotlightCoords.top + 16 };
+            } else {
+                return { top: spotlightBottom + 16 };
+            }
+        }
+        return { top: Platform.OS === 'ios' ? 390 : 370 };
+    };
+
+    const cardStyle = getCardStyle();
+    const showArrowUp = cardStyle.top !== undefined;
+
     return (
         <Modal transparent visible={visible} animationType="fade">
             <View style={s.wtOverlay}>
                 {/* Spotlight highlight borders depending on active step */}
-                {stepData.spotlightTop !== undefined && (
+                {spotlightCoords && (
                     <View
                         style={[
                             s.wtSpotlight,
                             {
-                                top: stepData.spotlightTop,
-                                height: stepData.spotlightHeight || 100,
-                                left: 16,
-                                right: 16
+                                top: spotlightCoords.top,
+                                height: spotlightCoords.height,
+                                left: spotlightCoords.left,
+                                width: spotlightCoords.width
                             }
                         ]}
                         pointerEvents="none"
@@ -80,22 +143,15 @@ export default function GuidedTour({
                 )}
 
                 {/* Tooltip Card */}
-                <View
-                    style={[
-                        s.wtCard,
-                        stepData.tooltipBottom !== undefined
-                            ? { bottom: stepData.tooltipBottom }
-                            : { top: stepData.tooltipTop || (Platform.OS === 'ios' ? 390 : 370) }
-                    ]}
-                >
-                    {stepData.arrowDirection === 'down' ? (
+                <View style={[s.wtCard, cardStyle]}>
+                    {showArrowUp ? (
                         <View style={[
-                            s.wtCardArrowDown,
+                            s.wtCardArrowUp,
                             stepData.arrowLeft !== undefined ? { left: stepData.arrowLeft, marginLeft: 0 } : { left: '50%', marginLeft: -8 }
                         ]} />
                     ) : (
                         <View style={[
-                            s.wtCardArrowUp,
+                            s.wtCardArrowDown,
                             stepData.arrowLeft !== undefined ? { left: stepData.arrowLeft, marginLeft: 0 } : { left: '50%', marginLeft: -8 }
                         ]} />
                     )}
