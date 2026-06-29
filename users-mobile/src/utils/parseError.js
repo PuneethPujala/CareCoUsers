@@ -57,24 +57,6 @@ export function parseError(error) {
         return result;
     }
 
-    // ── Supabase AuthError ───────────────────────────────────────
-    if (error.__isAuthError || error.name === 'AuthApiError' || error.status) {
-        const msg = error.message || '';
-        const mapped = Object.entries(SUPABASE_ERROR_MAP).find(
-            ([key]) => msg.toLowerCase().includes(key.toLowerCase())
-        );
-
-        if (mapped) {
-            result.general = mapped[1];
-            // Set field-level errors for specific messages
-            if (msg.includes('email')) result.fields.email = mapped[1];
-            if (msg.includes('password') || msg.includes('Password')) result.fields.password = mapped[1];
-        } else {
-            result.general = msg || 'Authentication error. Please try again.';
-        }
-        return result;
-    }
-
     // ── Axios error (backend) ────────────────────────────────────
     if (error.response) {
         const status = error.response.status;
@@ -132,6 +114,24 @@ export function parseError(error) {
         } else {
             // Fallback to HTTP status mapping if body is completely empty/unhelpful
             result.general = HTTP_STATUS_MAP[status] || `Request failed (${status}). Please try again.`;
+        }
+        return result;
+    }
+
+    // ── Supabase AuthError ───────────────────────────────────────
+    if (error.__isAuthError || error.name === 'AuthApiError' || (error.status && !error.response)) {
+        const msg = error.message || '';
+        const mapped = Object.entries(SUPABASE_ERROR_MAP).find(
+            ([key]) => msg.toLowerCase().includes(key.toLowerCase())
+        );
+
+        if (mapped) {
+            result.general = mapped[1];
+            // Set field-level errors for specific messages
+            if (msg.includes('email')) result.fields.email = mapped[1];
+            if (msg.includes('password') || msg.includes('Password')) result.fields.password = mapped[1];
+        } else {
+            result.general = msg || 'Authentication error. Please try again.';
         }
         return result;
     }
