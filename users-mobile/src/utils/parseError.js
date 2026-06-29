@@ -1,28 +1,14 @@
-/**
- * parseError.js — Unified error parsing for all auth and API calls
- * 
- * §12 FIX: Handles Supabase AuthError, Axios error, network, timeout.
- * Returns structured { general, fields: { email, password } }.
- * No sensitive data ever exposed.
- */
-
-const SUPABASE_ERROR_MAP = {
-    'Invalid login credentials': 'Incorrect email or password. Please try again.',
-    'Email not confirmed': 'Your email is not verified. Please check your inbox.',
-    'User already registered': 'An account with this email already exists. Please log in.',
-    'Password should be at least 6 characters': 'Password must be at least 6 characters.',
-    'Unable to validate email address': 'Please enter a valid email address.',
-    'Signups not allowed for this instance': 'Signups are currently disabled.',
-    'User not found': 'No account found with this email address.',
-    'Too many requests': 'Too many attempts. Please wait a minute and try again.',
-    'For security purposes, you can only request this after': 'Please wait before requesting again.',
-    'New password should be different from the old password': 'New password must be different from your current password.',
-};
+import i18n from '../i18n';
+import { detectErrorSource } from './errors/detectErrorSource';
+import { parseAxiosError } from './errors/parseAxiosError';
+import { parseSupabaseError } from './errors/parseSupabaseError';
+import { parseNetworkError } from './errors/parseNetworkError';
+import { getRegistryEntry } from './errors/errorRegistry';
 
 const HTTP_STATUS_MAP = {
     400: 'Invalid request. Please check your input.',
     401: 'Session expired. Please log in again.',
-    403: 'You don\'t have permission to do this.',
+    403: "You don't have permission to do this.",
     404: 'The requested resource was not found.',
     409: 'A conflict occurred. Please try again.',
     422: 'Invalid input. Please check your fields.',
@@ -34,145 +20,110 @@ const HTTP_STATUS_MAP = {
 };
 
 /**
- * @param {Error|object} error
- * @returns {{ general: string, fields: { email?: string, password?: string } }}
+ * Normalized parseError entrypoint.
+ * Guaranteed to never throw and always return a fully formatted error object.
+ * @param {any} error
+ * @returns {{
+ *   general: string,
+ *   fields: Record<string, string>,
+ *   code: string | null,
+ *   translationKey: string,
+ *   source: 'axios' | 'supabase' | 'network' | 'unknown',
+ *   kind: 'validation' | 'authentication' | 'authorization' | 'network' | 'server' | 'unknown',
+ *   severity: 'info' | 'warning' | 'error',
+ *   retryable: boolean,
+ *   status: number | null,
+ *   raw: any
+ * }}
  */
 export function parseError(error) {
-    const result = { general: '', fields: {} };
-
+    // 1. Fallback for completely null/undefined/empty input
     if (!error) {
-        result.general = 'An unknown error occurred.';
-        return result;
+        const registryEntry = getRegistryEntry(null);
+        return {
+            general: registryEntry.defaultMessage,
+            fields: {},
+            code: null,
+            translationKey: registryEntry.translationKey,
+            source: 'unknown',
+            kind: 'unknown',
+            severity: registryEntry.severity,
+            retryable: registryEntry.retryable,
+            status: null,
+            raw: error,
+        };
     }
 
-    // ── Timeout (Axios ECONNABORTED) ────────────────────────────
-    if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
-        result.general = 'Request timed out. Please check your connection and try again.';
-        return result;
-    }
+    try {
+        const source = detectErrorSource(error);
+        let parsed;
 
-    // ── Network error (no response at all) ──────────────────────
-    if (error.message === 'Network Error' || !error.response && error.isAxiosError) {
-        result.general = 'No internet connection. Please check your network.';
-        return result;
-    }
-
-    // ── Axios error (backend) ────────────────────────────────────
-    if (error.response) {
-        const status = error.response.status;
-        const data = error.response.data;
-
-        // Try to extract the best error message from the backend response body
-        let backendMsg = '';
-        let code = '';
-
-        if (data) {
-            // Case 1: Backend returns { error: "message", code?: "CODE" }
-            if (data.error && typeof data.error === 'string') {
-                backendMsg = data.error;
-                code = data.code;
-            } 
-            // Case 2: Backend returns { message: "msg" }
-            else if (data.message && typeof data.message === 'string') {
-                backendMsg = data.message;
-            } 
-            // Case 3: Backend returns { details: "msg" }
-            else if (data.details && typeof data.details === 'string') {
-                backendMsg = data.details;
-            }
-            // Case 4: Backend just sends a string message directly
-            else if (typeof data === 'string') {
-                backendMsg = data;
+        switch (source) {
+            case 'axios':
+                parsed = parseAxiosError(error);
+                break;
+            case 'supabase':
+                parsed = parseSupabaseError(error);
+                break;
+            case 'network':
+                parsed = parseNetworkError(error);
+                break;
+            default: {
+                // Handle unknown errors, plain Error objects, custom string messages
+                const msg = error.message || (typeof error === 'string' ? error : '');
+                // Check if the message contains Axios-style code mapping
+                const match = msg.match(/Request failed with status code (\d+)/);
+                if (match) {
+                    const status = parseInt(match[1], 10);
+                    const axiosFake = { response: { status, data: null } };
+                    parsed = parseAxiosError(axiosFake);
+                } else {
+                    const registryEntry = getRegistryEntry(null);
+                    parsed = {
+                        general: msg || registryEntry.defaultMessage,
+                        fields: {},
+                        code: null,
+                        translationKey: registryEntry.translationKey,
+                        source: 'unknown',
+                        kind: 'unknown',
+                        severity: registryEntry.severity,
+                        retryable: registryEntry.retryable,
+                        status: null,
+                        raw: error,
+                    };
+                }
+                break;
             }
         }
 
-        if (backendMsg) {
-            // Map common backend codes or recognizable messages
-            if (code === 'EMAIL_ALREADY_EXISTS' || backendMsg.toLowerCase().includes('already exists')) {
-                result.general = 'An account with this email already exists.';
-                result.fields.email = 'Email already registered';
-                return result;
-            }
-            if (code === 'INVALID_CREDENTIALS') {
-                result.general = 'Incorrect email or password.';
-                return result;
-            }
-            if (code === 'SERVICE_UNAVAILABLE') {
-                result.general = 'Our servers are temporarily busy. Please try again in a moment.';
-                return result;
-            }
-            if (code === 'TIMEOUT') {
-                result.general = 'The request timed out. Please check your connection and try again.';
-                return result;
-            }
-            if (code === 'ACCOUNT_DEACTIVATED') {
-                result.general = backendMsg;
-                return result;
-            }
-
-            result.general = backendMsg;
-        } else {
-            // Fallback to HTTP status mapping if body is completely empty/unhelpful
-            result.general = HTTP_STATUS_MAP[status] || `Request failed (${status}). Please try again.`;
+        // Apply localization hook on general message if i18n translation key exists
+        if (parsed.translationKey && i18n && typeof i18n.t === 'function') {
+            parsed.general = i18n.t(parsed.translationKey, { defaultValue: parsed.general });
         }
-        return result;
+
+        return parsed;
+    } catch (e) {
+        console.error('[parseError] Critical error parser crash:', e);
+        // Guaranteed fallback structure
+        return {
+            general: 'An unexpected error occurred. Please try again.',
+            fields: {},
+            code: 'PARSER_CRASH',
+            translationKey: 'errors.generic',
+            source: 'unknown',
+            kind: 'unknown',
+            severity: 'error',
+            retryable: false,
+            status: null,
+            raw: error,
+        };
     }
-
-    // ── Supabase AuthError ───────────────────────────────────────
-    if (error.__isAuthError || error.name === 'AuthApiError' || (error.status && !error.response)) {
-        const msg = error.message || '';
-        const mapped = Object.entries(SUPABASE_ERROR_MAP).find(
-            ([key]) => msg.toLowerCase().includes(key.toLowerCase())
-        );
-
-        if (mapped) {
-            result.general = mapped[1];
-            // Set field-level errors for specific messages
-            if (msg.includes('email')) result.fields.email = mapped[1];
-            if (msg.includes('password') || msg.includes('Password')) result.fields.password = mapped[1];
-        } else {
-            result.general = msg || 'Authentication error. Please try again.';
-        }
-        return result;
-    }
-
-    // ── Plain Error object ───────────────────────────────────────
-    if (error.message) {
-        console.warn('[parseError] Fallback to plain error message:', error.message, 'Response present?', !!error.response);
-
-        // Catch default Axios strings that slipped through (e.g. CORS hiding response data)
-        const match = error.message.match(/Request failed with status code (\d+)/);
-        if (match) {
-            const status = parseInt(match[1], 10);
-            result.general = HTTP_STATUS_MAP[status] || `An error occurred (${status}).`;
-            return result;
-        }
-
-        // Check against Supabase map even for plain errors
-        const mapped = Object.entries(SUPABASE_ERROR_MAP).find(
-            ([key]) => error.message.toLowerCase().includes(key.toLowerCase())
-        );
-        if (mapped) {
-            result.general = mapped[1];
-            return result;
-        }
-        
-        // If it's a generic "Request failed", hide it
-        if (error.message.includes('failed with status code')) {
-            result.general = 'Server error. Please try again later.';
-            return result;
-        }
-
-        result.general = error.message;
-        return result;
-    }
-
-    result.general = 'An unexpected error occurred. Please try again.';
-    return result;
 }
 
 /**
  * Quick helper — returns just the general message string
+ * @param {any} error
+ * @returns {string}
  */
 export function parseErrorMessage(error) {
     return parseError(error).general;
