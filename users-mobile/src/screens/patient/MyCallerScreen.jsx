@@ -362,7 +362,7 @@ export default function MyCallerScreen({ navigation }) {
 
   useEffect(() => {
     // Only run after data loading is fully completed to ensure heuristic inputs are trustworthy
-    if (!loading && patient?.subscription?.plan !== "free") {
+    if (!loading && patient?.subscription?.plan !== "free" && caller) {
       const initTour = async () => {
         // Screen-specific domain logic check for existing user migration
         const companionHeuristic = async () => {
@@ -386,7 +386,7 @@ export default function MyCallerScreen({ navigation }) {
       };
       initTour();
     }
-  }, [loading, patient, calls, contacts]);
+  }, [loading, patient, calls, contacts, caller]);
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -791,17 +791,19 @@ export default function MyCallerScreen({ navigation }) {
             <Text style={s.headerTitle}>
               {t("caller.care_team", { defaultValue: "Care Team" })}
             </Text>
-            <Pressable
-              style={s.helpBtn}
-              onPress={() => {
-                HapticPatterns.selection();
-                scrollRef.current?.scrollTo({ y: 0, animated: true });
-                setShowTour(true);
-              }}
-              hitSlop={10}
-            >
-              <HelpCircle size={18} color={colors.primary} strokeWidth={2.5} />
-            </Pressable>
+            {!!caller && (
+              <Pressable
+                style={s.helpBtn}
+                onPress={() => {
+                  HapticPatterns.selection();
+                  scrollRef.current?.scrollTo({ y: 0, animated: true });
+                  setShowTour(true);
+                }}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <HelpCircle size={18} color={colors.primary} strokeWidth={2.5} />
+              </Pressable>
+            )}
           </View>
         </View>
         <Pressable

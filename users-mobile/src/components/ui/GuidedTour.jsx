@@ -105,7 +105,7 @@ export default function GuidedTour({
                             {Icon && <Icon size={22} color={stepData.iconColor || colors.primary} strokeWidth={2.5} />}
                         </View>
                         <Text style={s.wtTitle}>{stepData.title}</Text>
-                        <Pressable onPress={handleSkip} style={s.wtSkipBtn} hitSlop={10}>
+                        <Pressable onPress={handleSkip} style={s.wtSkipBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                             <Text style={s.wtSkipText}>Skip</Text>
                         </Pressable>
                     </View>
@@ -127,7 +127,7 @@ export default function GuidedTour({
                             ))}
                         </View>
 
-                        <Pressable style={s.wtNextBtn} onPress={handleNext} hitSlop={10}>
+                        <Pressable style={s.wtNextBtn} onPress={handleNext} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                             <Text style={s.wtNextText}>
                                 {activeStep === steps.length - 1 ? 'Got It' : 'Next'}
                             </Text>
