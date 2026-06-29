@@ -1,14 +1,33 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 
 const REGISTRY_KEY = '@user_guided_tours';
 
 export const TourService = {
     /**
+     * Retrieve the current logged-in user profile ID.
+     */
+    async getUserId() {
+        try {
+            const raw = await SecureStore.getItemAsync('CareMyMed_user_profile');
+            if (raw) {
+                const profile = JSON.parse(raw);
+                return profile.id || profile._id || null;
+            }
+        } catch (e) {
+            console.warn('[TourService] Failed to read user profile for prefixing:', e);
+        }
+        return null;
+    },
+
+    /**
      * Retrieve the centralized guided tour registry.
      */
     async getRegistry() {
         try {
-            const data = await AsyncStorage.getItem(REGISTRY_KEY);
+            const userId = await this.getUserId();
+            const key = userId ? `${REGISTRY_KEY}_${userId}` : REGISTRY_KEY;
+            const data = await AsyncStorage.getItem(key);
             return data ? JSON.parse(data) : {};
         } catch (e) {
             console.warn('[TourService] Failed to read tour registry:', e);
@@ -29,9 +48,11 @@ export const TourService = {
      */
     async markTourSeen(tourKey) {
         try {
+            const userId = await this.getUserId();
+            const key = userId ? `${REGISTRY_KEY}_${userId}` : REGISTRY_KEY;
             const registry = await this.getRegistry();
             registry[tourKey] = true;
-            await AsyncStorage.setItem(REGISTRY_KEY, JSON.stringify(registry));
+            await AsyncStorage.setItem(key, JSON.stringify(registry));
         } catch (e) {
             console.warn(`[TourService] Failed to mark tour seen for ${tourKey}:`, e);
         }
@@ -42,7 +63,9 @@ export const TourService = {
      */
     async resetAllTours() {
         try {
-            await AsyncStorage.removeItem(REGISTRY_KEY);
+            const userId = await this.getUserId();
+            const key = userId ? `${REGISTRY_KEY}_${userId}` : REGISTRY_KEY;
+            await AsyncStorage.removeItem(key);
         } catch (e) {
             console.warn('[TourService] Failed to reset tour registry:', e);
         }
@@ -58,6 +81,8 @@ export const TourService = {
      */
     async evaluateMigration(tourKey, heuristicFn) {
         try {
+            const userId = await this.getUserId();
+            const key = userId ? `${REGISTRY_KEY}_${userId}` : REGISTRY_KEY;
             const registry = await this.getRegistry();
             // If already processed migration for this tour key, do nothing
             if (registry[`_migrated_${tourKey}`]) {
@@ -77,7 +102,7 @@ export const TourService = {
                 registry[tourKey] = true;
             }
             registry[`_migrated_${tourKey}`] = true;
-            await AsyncStorage.setItem(REGISTRY_KEY, JSON.stringify(registry));
+            await AsyncStorage.setItem(key, JSON.stringify(registry));
             return registry;
         } catch (e) {
             console.warn(`[TourService] Migration error for ${tourKey}:`, e);
