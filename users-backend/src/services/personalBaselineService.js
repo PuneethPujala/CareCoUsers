@@ -22,7 +22,14 @@ const MOOD_VALUES = { sad: 1, okay: 2, good: 3, great: 4 };
  * @param {Object} currentValues   - Current values for today: { systolic, diastolic, heart_rate, oxygen_saturation, sleep_hours, mood, adherence }
  * @returns {Object}               - Anomaly report with z_scores, level, and explainable insights
  */
-function calculatePersonalAnomaly(patient, targetDateStr, vitalsHistory, adherenceLogs, sleepHistory, currentValues) {
+function calculatePersonalAnomaly(
+  patient,
+  targetDateStr,
+  vitalsHistory,
+  adherenceLogs,
+  sleepHistory,
+  currentValues,
+) {
   const timezone = patient.timezone || "Asia/Kolkata";
   const targetDate = moment.tz(targetDateStr, "YYYY-MM-DD", timezone);
 
@@ -38,31 +45,39 @@ function calculatePersonalAnomaly(patient, targetDateStr, vitalsHistory, adheren
   };
 
   // Extract historical feature vectors
-  const histVitals = vitalsHistory.filter(v => inWindow(v.date));
-  const histSleep = sleepHistory.filter(s => inWindow(s.date));
-  const histMood = (patient.moodHistory || []).filter(m => inWindow(m.date));
-  
+  const histVitals = vitalsHistory.filter((v) => inWindow(v.date));
+  const histSleep = sleepHistory.filter((s) => inWindow(s.date));
+  const histMood = (patient.moodHistory || []).filter((m) => inWindow(m.date));
+
   // Calculate daily medicine adherence for historical logs
   const histAdherence = [];
   for (const log of adherenceLogs) {
     if (!inWindow(log.date)) continue;
-    const active = (log.medicines || []).filter(m => m.is_active !== false);
+    const active = (log.medicines || []).filter((m) => m.is_active !== false);
     const total = active.length;
     if (total > 0) {
-      const taken = active.filter(m => m.taken).length;
+      const taken = active.filter((m) => m.taken).length;
       histAdherence.push((taken / total) * 100);
     }
   }
 
   // Define our 7 features arrays for history
   const features = {
-    systolic: histVitals.map(v => v.blood_pressure?.systolic ?? v.systolic).filter(v => v != null),
-    diastolic: histVitals.map(v => v.blood_pressure?.diastolic ?? v.diastolic).filter(v => v != null),
-    heart_rate: histVitals.map(v => v.heart_rate).filter(v => v != null),
-    oxygen_saturation: histVitals.map(v => v.oxygen_saturation).filter(v => v != null),
-    sleep_hours: histSleep.map(s => s.hours).filter(v => v != null),
-    mood: histMood.map(m => MOOD_VALUES[m.mood || m.value]).filter(v => v != null),
-    adherence: histAdherence
+    systolic: histVitals
+      .map((v) => v.blood_pressure?.systolic ?? v.systolic)
+      .filter((v) => v != null),
+    diastolic: histVitals
+      .map((v) => v.blood_pressure?.diastolic ?? v.diastolic)
+      .filter((v) => v != null),
+    heart_rate: histVitals.map((v) => v.heart_rate).filter((v) => v != null),
+    oxygen_saturation: histVitals
+      .map((v) => v.oxygen_saturation)
+      .filter((v) => v != null),
+    sleep_hours: histSleep.map((s) => s.hours).filter((v) => v != null),
+    mood: histMood
+      .map((m) => MOOD_VALUES[m.mood || m.value])
+      .filter((v) => v != null),
+    adherence: histAdherence,
   };
 
   const z_scores = {};
@@ -72,7 +87,7 @@ function calculatePersonalAnomaly(patient, targetDateStr, vitalsHistory, adheren
   // Calculate statistics (Mean, StdDev) for each feature
   for (const key of Object.keys(features)) {
     const vals = features[key];
-    
+
     // We need at least 3 historical data points to establish a stable baseline
     if (vals.length < 3) {
       z_scores[key] = 0.0;
@@ -81,7 +96,8 @@ function calculatePersonalAnomaly(patient, targetDateStr, vitalsHistory, adheren
     }
 
     const mean = vals.reduce((a, b) => a + b, 0) / vals.length;
-    const variance = vals.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / vals.length;
+    const variance =
+      vals.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / vals.length;
     const std = Math.sqrt(variance);
 
     stats[key] = { mean, std, count: vals.length };
@@ -96,7 +112,8 @@ function calculatePersonalAnomaly(patient, targetDateStr, vitalsHistory, adheren
       // Standard deviation is 0 (all values are identical), deviation from it is either 0 or infinity.
       // If today matches mean, Z is 0. Else if it deviates, treat it as a significant deviation if large,
       // but to be safe and avoid division by zero, we map Z-score to 0 or a fixed value.
-      z_scores[key] = currentVal === mean ? 0.0 : (currentVal > mean ? 3.0 : -3.0);
+      z_scores[key] =
+        currentVal === mean ? 0.0 : currentVal > mean ? 3.0 : -3.0;
     } else {
       z_scores[key] = parseFloat(((currentVal - mean) / std).toFixed(2));
     }
@@ -106,22 +123,36 @@ function calculatePersonalAnomaly(patient, targetDateStr, vitalsHistory, adheren
     if (absZ >= 1.5) {
       const zStr = absZ.toFixed(1);
       const direction = z_scores[key] > 0 ? "above" : "below";
-      
+
       if (key === "systolic") {
-        insights.push(`Your systolic BP is ${zStr} standard deviations ${direction} your normal level.`);
+        insights.push(
+          `Your systolic BP is ${zStr} standard deviations ${direction} your normal level.`,
+        );
       } else if (key === "diastolic") {
-        insights.push(`Your diastolic BP is ${zStr} standard deviations ${direction} your normal level.`);
+        insights.push(
+          `Your diastolic BP is ${zStr} standard deviations ${direction} your normal level.`,
+        );
       } else if (key === "heart_rate") {
-        insights.push(`Your heart rate is ${zStr} standard deviations ${direction} your normal baseline.`);
+        insights.push(
+          `Your heart rate is ${zStr} standard deviations ${direction} your normal baseline.`,
+        );
       } else if (key === "oxygen_saturation" && z_scores[key] < 0) {
-        insights.push(`Your oxygen saturation is ${zStr} standard deviations below your normal average.`);
+        insights.push(
+          `Your oxygen saturation is ${zStr} standard deviations below your normal average.`,
+        );
       } else if (key === "sleep_hours") {
         const diffHours = Math.abs(currentVal - mean).toFixed(1);
-        insights.push(`You slept ${diffHours} hours ${z_scores[key] > 0 ? "more" : "less"} than usual (${zStr} standard deviations deviation).`);
+        insights.push(
+          `You slept ${diffHours} hours ${z_scores[key] > 0 ? "more" : "less"} than usual (${zStr} standard deviations deviation).`,
+        );
       } else if (key === "mood" && z_scores[key] < 0) {
-        insights.push(`Your mood is significantly lower than your recent pattern.`);
+        insights.push(
+          `Your mood is significantly lower than your recent pattern.`,
+        );
       } else if (key === "adherence" && z_scores[key] < 0) {
-        insights.push(`Your medication adherence dropped significantly below your usual average.`);
+        insights.push(
+          `Your medication adherence dropped significantly below your usual average.`,
+        );
       }
     }
   }
@@ -142,7 +173,7 @@ function calculatePersonalAnomaly(patient, targetDateStr, vitalsHistory, adheren
     anomaly_level,
     insights,
     stats,
-    max_z: maxAbsZ
+    max_z: maxAbsZ,
   };
 }
 

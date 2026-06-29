@@ -592,7 +592,7 @@ router.put(
         "patient",
         patient._id,
         req,
-        { prescriptionId: req.params.prescriptionId, status, reviewer_notes }
+        { prescriptionId: req.params.prescriptionId, status, reviewer_notes },
       );
 
       res.json({
@@ -606,7 +606,7 @@ router.put(
         details: error.message,
       });
     }
-  }
+  },
 );
 
 module.exports = router;

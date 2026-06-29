@@ -53,139 +53,141 @@ async function recomputeAndCacheHealthState(patientId, targetDate = null) {
       .toDate();
 
     // 1. Fetch data in parallel
-    const [todayVitals, vitalsHistory, todayMedLog, adherenceLogs, sleepHistory] =
-      await Promise.all([
-        (async () => {
-          let query = VitalLog.find({
-            patient_id: patient._id,
-            date: { $gte: todayUtc, $lte: todayEndUtc },
-          });
-          if (!query) return [];
-          if (typeof query.sort === "function")
-            query = query.sort({ date: -1 });
-          if (typeof query.lean === "function") query = query.lean();
-          return query;
-        })(),
+    const [
+      todayVitals,
+      vitalsHistory,
+      todayMedLog,
+      adherenceLogs,
+      sleepHistory,
+    ] = await Promise.all([
+      (async () => {
+        let query = VitalLog.find({
+          patient_id: patient._id,
+          date: { $gte: todayUtc, $lte: todayEndUtc },
+        });
+        if (!query) return [];
+        if (typeof query.sort === "function") query = query.sort({ date: -1 });
+        if (typeof query.lean === "function") query = query.lean();
+        return query;
+      })(),
 
-        (async () => {
-          let query = VitalLog.find({
-            patient_id: patient._id,
-            date: { $gte: thirtyDaysAgo, $lte: todayEndUtc },
-          });
-          if (!query) return [];
-          if (typeof query.sort === "function") query = query.sort({ date: 1 });
-          if (typeof query.lean === "function") query = query.lean();
-          return query;
-        })(),
+      (async () => {
+        let query = VitalLog.find({
+          patient_id: patient._id,
+          date: { $gte: thirtyDaysAgo, $lte: todayEndUtc },
+        });
+        if (!query) return [];
+        if (typeof query.sort === "function") query = query.sort({ date: 1 });
+        if (typeof query.lean === "function") query = query.lean();
+        return query;
+      })(),
 
-        // Today's medication log or build it dynamically
-        (async () => {
-          let log = await MedicineLog.findOne({
-            patient_id: patient._id,
-            date: todayUtc,
-          });
-          // Robust mock execution check for tests where findOne returns a query mock (e.g. tests/companion.test.js)
-          if (log && typeof log.then === "function") {
-            log = await log;
-          } else if (
-            log &&
-            typeof log.lean === "function" &&
-            !log.medicines &&
-            !log.save
-          ) {
-            log = await log.lean();
+      // Today's medication log or build it dynamically
+      (async () => {
+        let log = await MedicineLog.findOne({
+          patient_id: patient._id,
+          date: todayUtc,
+        });
+        // Robust mock execution check for tests where findOne returns a query mock (e.g. tests/companion.test.js)
+        if (log && typeof log.then === "function") {
+          log = await log;
+        } else if (
+          log &&
+          typeof log.lean === "function" &&
+          !log.medicines &&
+          !log.save
+        ) {
+          log = await log.lean();
+        }
+        // Guard: ensure we have an actual document, not a raw query object
+        if (log && !log.medicines && typeof log.lean === "function") {
+          log = null; // query object returned instead of document
+        }
+        const allMedsRaw = await buildMergedMeds(patient);
+
+        if (!log && allMedsRaw.length > 0) {
+          const medicines = [];
+          for (const med of allMedsRaw) {
+            if (med.is_active !== false) {
+              for (const time of med.times) {
+                medicines.push({
+                  medicine_name: med.name,
+                  scheduled_time: time,
+                  taken: false,
+                });
+              }
+            }
           }
-          // Guard: ensure we have an actual document, not a raw query object
-          if (log && !log.medicines && typeof log.lean === "function") {
-            log = null; // query object returned instead of document
+          if (medicines.length > 0) {
+            log = new MedicineLog({
+              patient_id: patient._id,
+              date: todayUtc,
+              medicines,
+            });
+            if (typeof log.save === "function") await log.save();
           }
-          const allMedsRaw = await buildMergedMeds(patient);
-
-          if (!log && allMedsRaw.length > 0) {
-            const medicines = [];
-            for (const med of allMedsRaw) {
-              if (med.is_active !== false) {
-                for (const time of med.times) {
-                  medicines.push({
+        } else if (log && Array.isArray(log.medicines)) {
+          let isModified = false;
+          const activeMedNames = allMedsRaw
+            .filter((m) => m.is_active !== false)
+            .map((m) => m.name);
+          const originalCount = log.medicines.length;
+          log.medicines = log.medicines.filter((m) =>
+            activeMedNames.includes(m.medicine_name),
+          );
+          if (log.medicines.length !== originalCount) isModified = true;
+          for (const med of allMedsRaw) {
+            if (med.is_active !== false) {
+              for (const time of med.times) {
+                const exists = log.medicines.some(
+                  (m) =>
+                    m.medicine_name === med.name && m.scheduled_time === time,
+                );
+                if (!exists) {
+                  log.medicines.push({
                     medicine_name: med.name,
                     scheduled_time: time,
                     taken: false,
                   });
+                  isModified = true;
                 }
               }
             }
-            if (medicines.length > 0) {
-              log = new MedicineLog({
-                patient_id: patient._id,
-                date: todayUtc,
-                medicines,
-              });
-              if (typeof log.save === "function") await log.save();
-            }
-          } else if (log && Array.isArray(log.medicines)) {
-            let isModified = false;
-            const activeMedNames = allMedsRaw
-              .filter((m) => m.is_active !== false)
-              .map((m) => m.name);
-            const originalCount = log.medicines.length;
-            log.medicines = log.medicines.filter((m) =>
-              activeMedNames.includes(m.medicine_name),
-            );
-            if (log.medicines.length !== originalCount) isModified = true;
-            for (const med of allMedsRaw) {
-              if (med.is_active !== false) {
-                for (const time of med.times) {
-                  const exists = log.medicines.some(
-                    (m) =>
-                      m.medicine_name === med.name && m.scheduled_time === time,
-                  );
-                  if (!exists) {
-                    log.medicines.push({
-                      medicine_name: med.name,
-                      scheduled_time: time,
-                      taken: false,
-                    });
-                    isModified = true;
-                  }
-                }
-              }
-            }
-            if (isModified && typeof log.save === "function") await log.save();
           }
-          return log;
-        })(),
+          if (isModified && typeof log.save === "function") await log.save();
+        }
+        return log;
+      })(),
 
-        (async () => {
-          let query = MedicineLog.find({
-            patient_id: patient._id,
-            date: { $gte: thirtyDaysAgo, $lte: todayEndUtc },
-          });
-          if (!query) return [];
-          if (typeof query.sort === "function") query = query.sort({ date: 1 });
-          if (typeof query.lean === "function") query = query.lean();
-          return query;
-        })(),
+      (async () => {
+        let query = MedicineLog.find({
+          patient_id: patient._id,
+          date: { $gte: thirtyDaysAgo, $lte: todayEndUtc },
+        });
+        if (!query) return [];
+        if (typeof query.sort === "function") query = query.sort({ date: 1 });
+        if (typeof query.lean === "function") query = query.lean();
+        return query;
+      })(),
 
-        (async () => {
-          let query = SleepLog.find({
-            patient_id: patient._id,
-            date: { $gte: thirtyDaysAgo, $lte: todayEndUtc },
-          });
-          if (!query) return [];
-          if (typeof query.sort === "function") query = query.sort({ date: 1 });
-          if (typeof query.lean === "function") query = query.lean();
-          return query;
-        })(),
-      ]);
+      (async () => {
+        let query = SleepLog.find({
+          patient_id: patient._id,
+          date: { $gte: thirtyDaysAgo, $lte: todayEndUtc },
+        });
+        if (!query) return [];
+        if (typeof query.sort === "function") query = query.sort({ date: 1 });
+        if (typeof query.lean === "function") query = query.lean();
+        return query;
+      })(),
+    ]);
 
     // Ensure arrays (auto-mocked models may return undefined)
     const safeAdherenceLogs = Array.isArray(adherenceLogs) ? adherenceLogs : [];
     const safeVitalsHistory = Array.isArray(vitalsHistory) ? vitalsHistory : [];
     const safeSleepHistory = Array.isArray(sleepHistory) ? sleepHistory : [];
     const todaySleep = safeSleepHistory.find(
-      (s) =>
-        s.date &&
-        new Date(s.date).toISOString().slice(0, 10) === todayStr,
+      (s) => s.date && new Date(s.date).toISOString().slice(0, 10) === todayStr,
     );
 
     // 2. Compute medication adherence & streak
@@ -293,8 +295,12 @@ async function recomputeAndCacheHealthState(patientId, targetDate = null) {
 
     // Extract today's values for Z-score feature vector
     const MOOD_VALUES_MAP = { sad: 1, okay: 2, good: 3, great: 4 };
-    const currentSystolic = latestVital ? (latestVital.blood_pressure?.systolic ?? latestVital.systolic) : null;
-    const currentDiastolic = latestVital ? (latestVital.blood_pressure?.diastolic ?? latestVital.diastolic) : null;
+    const currentSystolic = latestVital
+      ? (latestVital.blood_pressure?.systolic ?? latestVital.systolic)
+      : null;
+    const currentDiastolic = latestVital
+      ? (latestVital.blood_pressure?.diastolic ?? latestVital.diastolic)
+      : null;
     const currentHeartRate = latestVital ? latestVital.heart_rate : null;
     const currentSpo2 = latestVital ? latestVital.oxygen_saturation : null;
     const currentSleep = todaySleep ? todaySleep.hours : null;
@@ -315,8 +321,8 @@ async function recomputeAndCacheHealthState(patientId, targetDate = null) {
         oxygen_saturation: currentSpo2,
         sleep_hours: currentSleep,
         mood: currentMood,
-        adherence: currentAdherence
-      }
+        adherence: currentAdherence,
+      },
     );
 
     // Apply personal baseline engine modifiers to final score
@@ -339,7 +345,7 @@ async function recomputeAndCacheHealthState(patientId, targetDate = null) {
           impact: "medium",
           icon: "⚠️",
           title: "Personal Baseline Alert",
-          body: insightText
+          body: insightText,
         });
       }
     }
@@ -491,7 +497,7 @@ async function recomputeAndCacheHealthState(patientId, targetDate = null) {
         z_scores: baselineReport.z_scores,
         anomaly_level: baselineReport.anomaly_level,
         insights: baselineReport.insights,
-        max_z: baselineReport.max_z
+        max_z: baselineReport.max_z,
       },
       mood: {
         today: todayMood,
