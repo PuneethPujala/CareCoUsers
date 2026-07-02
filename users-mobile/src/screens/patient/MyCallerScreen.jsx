@@ -183,6 +183,7 @@ export default function MyCallerScreen({ navigation }) {
   const [unreadCount, setUnreadCount] = useState(0);
 
   const [showTour, setShowTour] = useState(false);
+  const tourTriggeredRef = useRef(false);
   const scrollRef = useRef(null);
   const companionCardRef = useRef(null);
   const managerCardRef = useRef(null);
@@ -363,7 +364,9 @@ export default function MyCallerScreen({ navigation }) {
 
   useEffect(() => {
     // Only run after data loading is fully completed to ensure heuristic inputs are trustworthy
-    if (!loading && patient?.subscription?.plan !== "free") {
+    // Guard: only trigger once per mount to prevent re-showing after dismiss
+    if (!loading && patient?.subscription?.plan !== "free" && !tourTriggeredRef.current) {
+      tourTriggeredRef.current = true;
       const initTour = async () => {
         // Screen-specific domain logic check for existing user migration
         const companionHeuristic = async () => {

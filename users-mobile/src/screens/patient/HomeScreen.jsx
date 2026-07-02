@@ -352,6 +352,7 @@ export default function PatientHomeScreen({ navigation }) {
   const vitalsCardRef = useRef(null);
 
   const [showVitalsTour, setShowVitalsTour] = useState(false);
+  const vitalsTourTriggeredRef = useRef(false);
 
   const getVitalsTourSteps = () => {
     return [
@@ -382,14 +383,16 @@ export default function PatientHomeScreen({ navigation }) {
 
   useEffect(() => {
     // Only run if the patient dashboard loading is done
-    if (!storeLoading && patient) {
+    // Guard: only trigger once per mount to prevent re-showing after dismiss
+    if (!storeLoading && patient && !vitalsTourTriggeredRef.current) {
+      vitalsTourTriggeredRef.current = true;
       const initVitalsTour = async () => {
         const vitalsHeuristic = async () => {
           const hasVitalsHistory = (vitalsHistory && vitalsHistory.length > 0) || (
             vitals?.heart_rate ||
             vitals?.blood_pressure?.systolic ||
-            vitals?.oxygen_saturation != null ||
-            vitals?.hydration != null
+            (vitals?.oxygen_saturation != null && vitals?.oxygen_saturation !== undefined) ||
+            (vitals?.hydration != null && vitals?.hydration !== undefined)
           );
           const isExistingAccount =
             patient?.created_at &&
@@ -1228,11 +1231,12 @@ export default function PatientHomeScreen({ navigation }) {
 
   const isNewUser =
     totalMeds === 0 && vitalsHistory.length === 0 && medicationStreak === 0;
-  const hasVitalsToday =
+  const hasVitalsToday = !!(
     vitals?.heart_rate ||
     vitals?.blood_pressure?.systolic ||
-    vitals?.oxygen_saturation != null ||
-    vitals?.hydration != null;
+    (vitals?.oxygen_saturation != null && vitals?.oxygen_saturation !== undefined) ||
+    (vitals?.hydration != null && vitals?.hydration !== undefined)
+  );
 
   // ── Unified Health Score from Backend ──
   const healthScore =

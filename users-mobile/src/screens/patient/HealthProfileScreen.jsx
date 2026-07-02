@@ -180,6 +180,7 @@ export default function HealthProfileScreen({ navigation }) {
     const isFreePlan = (p) => p?.freePlan || p?.subscription?.plan === 'free';
 
     const [showProfileTour, setShowProfileTour] = useState(false);
+    const profileTourTriggeredRef = useRef(false);
     const scrollViewRef = useRef(null);
     const profileSetupCardRef = useRef(null);
 
@@ -199,7 +200,9 @@ export default function HealthProfileScreen({ navigation }) {
     };
 
     useEffect(() => {
-        if (!loading && profile) {
+        // Guard: only trigger once per mount to prevent re-showing after dismiss
+        if (!loading && profile && !profileTourTriggeredRef.current) {
+            profileTourTriggeredRef.current = true;
             const initProfileTour = async () => {
                 const profileHeuristic = async () => {
                     const conds = Array.isArray(profile.conditions) ? profile.conditions : [];

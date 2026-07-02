@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
-    Modal, View, Text, StyleSheet, Pressable, Animated, Platform, Dimensions
+    Modal, View, Text, StyleSheet, Pressable, Animated, Platform, Dimensions, findNodeHandle
 } from 'react-native';
+import Svg, { Defs, Mask, Rect as SvgRect } from 'react-native-svg';
 import { X, ChevronRight } from 'lucide-react-native';
 import { colors } from '../../theme';
 import { useReduceMotion } from '../../theme/motion';
@@ -17,63 +18,90 @@ export default function GuidedTour({
 }) {
     const [activeStep, setActiveStep] = useState(0);
     const [spotlightCoords, setSpotlightCoords] = useState(null);
+    const [isTransitioning, setIsTransitioning] = useState(false);
     const reduceMotion = useReduceMotion();
+    const cardFade = useRef(new Animated.Value(1)).current;
 
+    /**
+     * Attempt to measure a ref's on-screen position.
+     * Uses measureLayout (relative to scrollRef) first for scrolling,
+     * then falls back to measure() for global pageX/pageY coordinates.
+     * The Modal renders in a separate native view hierarchy, so
+     * measureLayout can fail — the fallback handles that gracefully.
+     */
+    const measureStep = useCallback((stepData) => {
+        if (!stepData) return;
+
+        const doGlobalMeasure = () => {
+            if (stepData.ref?.current) {
+                stepData.ref.current.measure((mx, my, mwidth, mheight, pageX, pageY) => {
+                    if (mwidth > 0 && mheight > 0) {
+                        setSpotlightCoords({
+                            top: pageY,
+                            height: mheight,
+                            left: pageX || 16,
+                            width: mwidth || (Dimensions.get('window').width - 32)
+                        });
+                    } else {
+                        // Element not yet laid out; use static fallback
+                        applyStaticFallback(stepData);
+                    }
+                });
+            } else {
+                applyStaticFallback(stepData);
+            }
+        };
+
+        const applyStaticFallback = (sd) => {
+            setSpotlightCoords(sd.spotlightTop !== undefined ? {
+                top: sd.spotlightTop,
+                height: sd.spotlightHeight || 100,
+                left: 16,
+                width: Dimensions.get('window').width - 32
+            } : null);
+        };
+
+        // Try scrolling to the target element first
+        if (stepData.ref?.current && scrollRef?.current) {
+            try {
+                stepData.ref.current.measureLayout(
+                    findNodeHandle(scrollRef.current),
+                    (x, y, width, height) => {
+                        scrollRef.current.scrollTo({ y: Math.max(0, y - 20), animated: !reduceMotion });
+                        // Wait for scroll to settle, then measure globally
+                        setTimeout(doGlobalMeasure, 350);
+                    },
+                    () => {
+                        // measureLayout failed (cross-hierarchy) — scroll using offset hint, then measure globally
+                        if (stepData.scrollOffset !== undefined && scrollRef?.current) {
+                            scrollRef.current.scrollTo({ y: stepData.scrollOffset, animated: !reduceMotion });
+                        }
+                        setTimeout(doGlobalMeasure, 350);
+                    }
+                );
+            } catch {
+                // findNodeHandle can throw if ref is stale
+                setTimeout(doGlobalMeasure, 100);
+            }
+        } else {
+            // No ref or no scrollRef — apply static fallback or direct measure
+            if (stepData.scrollOffset !== undefined && scrollRef?.current) {
+                scrollRef.current.scrollTo({ y: stepData.scrollOffset, animated: !reduceMotion });
+            }
+            setTimeout(doGlobalMeasure, 300);
+        }
+    }, [scrollRef, reduceMotion]);
+
+    // Measure spotlight whenever the active step or visibility changes
     useEffect(() => {
         if (visible && steps.length > 0) {
             const stepData = steps[activeStep];
-            if (stepData) {
-                if (stepData.ref?.current && scrollRef?.current) {
-                    stepData.ref.current.measureLayout(
-                        scrollRef.current,
-                        (x, y, width, height) => {
-                            scrollRef.current.scrollTo({ y: Math.max(0, y - 20), animated: !reduceMotion });
-                            
-                            // Measure globally after scroll transition
-                            setTimeout(() => {
-                                if (stepData.ref?.current) {
-                                    stepData.ref.current.measure((mx, my, mwidth, mheight, pageX, pageY) => {
-                                        setSpotlightCoords({
-                                            top: pageY,
-                                            height: mheight,
-                                            left: pageX || 16,
-                                            width: mwidth || (Dimensions.get('window').width - 32)
-                                        });
-                                    });
-                                }
-                            }, 300);
-                        },
-                        () => {
-                            // Fallback if measureLayout fails
-                            if (stepData.scrollOffset !== undefined && scrollRef?.current) {
-                                scrollRef.current.scrollTo({ y: stepData.scrollOffset, animated: !reduceMotion });
-                            }
-                            setSpotlightCoords(stepData.spotlightTop !== undefined ? {
-                                top: stepData.spotlightTop,
-                                height: stepData.spotlightHeight || 100,
-                                left: 16,
-                                width: Dimensions.get('window').width - 32
-                            } : null);
-                        }
-                    );
-                } else {
-                    // Classic fallback
-                    if (stepData.scrollOffset !== undefined && scrollRef?.current) {
-                        scrollRef.current.scrollTo({ y: stepData.scrollOffset, animated: !reduceMotion });
-                    }
-                    setSpotlightCoords(stepData.spotlightTop !== undefined ? {
-                        top: stepData.spotlightTop,
-                        height: stepData.spotlightHeight || 100,
-                        left: 16,
-                        width: Dimensions.get('window').width - 32
-                    } : null);
-                }
-            }
+            measureStep(stepData);
         } else {
             setActiveStep(0);
             setSpotlightCoords(null);
         }
-    }, [visible, activeStep, steps]);
+    }, [visible, activeStep, steps, measureStep]);
 
     if (!visible || steps.length === 0) return null;
 
@@ -85,10 +113,25 @@ export default function GuidedTour({
     const handleNext = async () => {
         HapticPatterns.selection();
         if (activeStep < steps.length - 1) {
-            const nextStep = activeStep + 1;
-            setActiveStep(nextStep);
+            // Animate card fade-out, swap step, fade back in
+            setIsTransitioning(true);
+            setSpotlightCoords(null); // clear stale spotlight immediately
+            Animated.timing(cardFade, {
+                toValue: 0,
+                duration: 150,
+                useNativeDriver: true,
+            }).start(() => {
+                const nextStep = activeStep + 1;
+                setActiveStep(nextStep);
+                // Fade card back in after step change
+                Animated.timing(cardFade, {
+                    toValue: 1,
+                    duration: 200,
+                    useNativeDriver: true,
+                }).start(() => setIsTransitioning(false));
+            });
         } else {
-            // Save completion to registry and close
+            // Last step — save completion and close
             if (tourKey) {
                 await TourService.markTourSeen(tourKey);
             }
@@ -124,9 +167,39 @@ export default function GuidedTour({
     const showArrowUp = cardStyle.top !== undefined;
 
     return (
-        <Modal transparent visible={visible} animationType="fade">
+        <Modal transparent visible={visible} animationType="fade" statusBarTranslucent={true}>
+            {/* 
+              Overlay is a plain View (not Pressable) — tapping the dark area does nothing.
+              Only the explicit Skip button or Got It / Next button can dismiss/advance the tour.
+            */}
             <View style={s.wtOverlay}>
-                {/* Spotlight highlight borders depending on active step */}
+                {spotlightCoords ? (
+                    <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
+                        <Defs>
+                            <Mask id="spotlightMask">
+                                <SvgRect width="100%" height="100%" fill="white" />
+                                <SvgRect
+                                    x={spotlightCoords.left}
+                                    y={spotlightCoords.top}
+                                    width={spotlightCoords.width}
+                                    height={spotlightCoords.height}
+                                    rx={24}
+                                    fill="black"
+                                />
+                            </Mask>
+                        </Defs>
+                        <SvgRect
+                            width="100%"
+                            height="100%"
+                            fill="rgba(15, 23, 42, 0.75)"
+                            mask="url(#spotlightMask)"
+                        />
+                    </Svg>
+                ) : (
+                    <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(15, 23, 42, 0.75)' }]} pointerEvents="none" />
+                )}
+
+                {/* Spotlight highlight border around the target element */}
                 {spotlightCoords && (
                     <View
                         style={[
@@ -143,7 +216,10 @@ export default function GuidedTour({
                 )}
 
                 {/* Tooltip Card */}
-                <View style={[s.wtCard, cardStyle]}>
+                <Animated.View
+                    style={[s.wtCard, cardStyle, { opacity: cardFade }]}
+                    pointerEvents={isTransitioning ? 'none' : 'auto'}
+                >
                     {showArrowUp ? (
                         <View style={[
                             s.wtCardArrowUp,
@@ -190,7 +266,7 @@ export default function GuidedTour({
                             <ChevronRight size={14} color="#FFF" strokeWidth={3} />
                         </Pressable>
                     </View>
-                </View>
+                </Animated.View>
             </View>
         </Modal>
     );
@@ -199,7 +275,6 @@ export default function GuidedTour({
 const s = StyleSheet.create({
     wtOverlay: {
         flex: 1,
-        backgroundColor: 'rgba(15, 23, 42, 0.75)', // Semi-transparent slate
     },
     wtSpotlight: {
         position: 'absolute',

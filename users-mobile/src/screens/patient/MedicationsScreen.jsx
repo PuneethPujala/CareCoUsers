@@ -1011,6 +1011,7 @@ export default function MedicationsScreen({ navigation }) {
   const [tempMeds, setTempMeds] = useState([]);
 
   const [showMedsTour, setShowMedsTour] = useState(false);
+  const medsTourTriggeredRef = useRef(false);
   const scrollViewRef = useRef(null);
   const medsListCardRef = useRef(null);
 
@@ -1032,7 +1033,9 @@ export default function MedicationsScreen({ navigation }) {
   useEffect(() => {
     const allMeds = Object.values(schedule || {}).flat();
     const hasMeds = allMeds.length > 0;
-    if (!loading && hasMeds && patient && patient.subscription?.plan !== "free") {
+    // Guard: only trigger once per mount to prevent re-showing after dismiss
+    if (!loading && hasMeds && patient && patient.subscription?.plan !== "free" && !medsTourTriggeredRef.current) {
+      medsTourTriggeredRef.current = true;
       const initMedsTour = async () => {
         const medsHeuristic = async () => {
           const hasMarkedMeds = allMeds.some(m => m.taken) || (adherence && adherence.some(d => d.p > 0));

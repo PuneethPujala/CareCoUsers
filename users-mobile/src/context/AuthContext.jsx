@@ -124,6 +124,8 @@ export function AuthProvider({ children }) {
         initialSupabaseCheckRef.current = { promise, resolve: resolveCheck, resolved: false };
     }
     const isFirstAuthEventRef = useRef(true);
+    const isInitializingRef = useRef(true);
+
 
     const profileRef = useRef(profile);
     useEffect(() => { profileRef.current = profile; }, [profile]);
@@ -206,6 +208,7 @@ export function AuthProvider({ children }) {
             // Fail-safe: force bootstrapping=false after 6s if init hangs
             const timeoutId = setTimeout(() => {
                 if (__DEV__) console.warn('[Auth] Init timeout — forcing bootstrapping false');
+                isInitializingRef.current = false;
                 setIsBootstrapping(false);
             }, 6000);
 
@@ -263,9 +266,9 @@ export function AuthProvider({ children }) {
                     if (profileData && userData) {
                         profileData.role = profileData.role || 'patient';
                         setCacheUserId(userData.id);
+                        await setProfileAndCache(profileData);
                         setUser(userData);
                         setSession({ access_token: apiTok.access_token, user: userData });
-                        await setProfileAndCache(profileData);
                         analytics.identify(userData.id, { role: profileData.role });
                     } else {
                         // Network responded but returned no profile — serve cache.
@@ -274,16 +277,18 @@ export function AuthProvider({ children }) {
                             cached.role = cached.role || 'patient';
                             const id = cached.id || cached._id;
                             setCacheUserId(id);
-                            setUser({ id, email: cached.email });
-                            setSession({ user: { id } });
-                            setProfile(cached);
-                            profileRef.current = cached;
-                            // Load cached patient
+                            
+                            // Load cached patient first
                             const cachedPat = await getCachedPatient();
                             if (cachedPat) {
                                 setPatient(cachedPat);
                                 usePatientStore.getState().setPatient(cachedPat);
                             }
+                            
+                            setProfile(cached);
+                            profileRef.current = cached;
+                            setUser({ id, email: cached.email });
+                            setSession({ user: { id } });
                         } else {
                             await signOut();
                         }
@@ -295,10 +300,6 @@ export function AuthProvider({ children }) {
                     if (__DEV__) console.log('[Auth] Supabase session:', !!currentSession?.user);
 
                     if (currentSession?.user) {
-                        setCacheUserId(currentSession.user.id);
-                        setUser(currentSession.user);
-                        setSession(currentSession);
-
                         const profileRes = await apiService.auth.getProfile().catch(() => ({ data: null }));
                         const profileData = profileRes?.data?.profile;
                         if (profileData) {
@@ -321,6 +322,10 @@ export function AuthProvider({ children }) {
                                 }
                             }
                         }
+                        
+                        setCacheUserId(currentSession.user.id);
+                        setUser(currentSession.user);
+                        setSession(currentSession);
                         analytics.identify(currentSession.user.id, { role: profileData?.role || 'patient' });
                     }
                     // No session at all → user stays on the auth stack (initial state).
@@ -353,6 +358,7 @@ export function AuthProvider({ children }) {
             } finally {
                 clearTimeout(timeoutId);
                 if (__DEV__) console.log('[Auth] Init complete');
+                isInitializingRef.current = false;
                 setIsBootstrapping(false);
             }
         };
@@ -373,11 +379,6 @@ export function AuthProvider({ children }) {
                 isFirstAuthEventRef.current = false;
                 initialSupabaseCheckRef.current.resolved = true;
                 initialSupabaseCheckRef.current.resolve(newSession);
-
-                if (newSession?.user) {
-                    setUser(newSession.user);
-                    setSession(newSession);
-                }
                 return;
             }
 
@@ -449,29 +450,40 @@ export function AuthProvider({ children }) {
 
             // SIGNED_IN
             if (newSession?.user) {
+                // If we are still in the initial app bootstrap, let init() handle the loading.
+                if (isInitializingRef.current) {
+                    if (__DEV__) console.log('[Auth] onAuthStateChange SIGNED_IN ignored during bootstrap');
+                    return;
+                }
+
                 // A1 FIX: skip the SIGNED_IN that fires right after a programmatic
                 // login — we already have fresh profile/patient data from that flow.
                 if (skipNextSignedInRef.current) {
                     skipNextSignedInRef.current = false;
+                    setUser(newSession.user);
                     setSession(newSession);
                     setIsBootstrapping(false);
                     return;
                 }
 
-                setUser(newSession.user);
-                setSession(newSession);
-
                 try {
-                    if (!profileRef.current) {
+                    let resolvedProfile = profileRef.current;
+                    if (!resolvedProfile) {
                         const response = await apiService.auth.getProfile();
-                        const profileData = response.data.profile || null;
-                        if (profileData) {
-                            profileData.role = profileData.role || 'patient';
-                            await setProfileAndCache(profileData);
+                        resolvedProfile = response.data.profile || null;
+                        if (resolvedProfile) {
+                            resolvedProfile.role = resolvedProfile.role || 'patient';
+                            await setProfileAndCache(resolvedProfile);
                         }
+                    }
+                    if (resolvedProfile?.role !== 'companion' && !usePatientStore.getState().patient) {
                         await fetchPatientData();
                     }
-                } catch { } finally {
+                } catch (err) {
+                    if (__DEV__) console.warn('[Auth] SIGNED_IN data fetch failed:', err.message);
+                } finally {
+                    setUser(newSession.user);
+                    setSession(newSession);
                     setIsBootstrapping(false);
                 }
             }
