@@ -15,7 +15,7 @@ export const resolveOnboardingStep = (patient, profile, isAuthenticated = false)
     if (!profile && !patient) return isAuthenticated ? 2 : 1;
 
     // Step 2: phone collection (always needed for Google users who skip Step 1)
-    const hasPhone = !!(patient?.phone || profile?.phoneNumber);
+    const hasPhone = !!(patient?.phone || profile?.phone || profile?.phoneNumber);
     if (!hasPhone) return 2;
 
     if (!profile?.city && !patient?.city) return 3; // locality
