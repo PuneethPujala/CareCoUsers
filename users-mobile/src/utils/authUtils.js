@@ -10,9 +10,9 @@ export const normaliseStatus = (raw) => {
     return 'none';
 };
 
-export const resolveOnboardingStep = (patient, profile) => {
+export const resolveOnboardingStep = (patient, profile, isAuthenticated = false) => {
     if (profile?.role === 'companion') return null;
-    if (!profile && !patient) return 1;
+    if (!profile && !patient) return isAuthenticated ? 2 : 1;
 
     // Step 2: phone collection (always needed for Google users who skip Step 1)
     const hasPhone = !!(patient?.phone || profile?.phoneNumber);

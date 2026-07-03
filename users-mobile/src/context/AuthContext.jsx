@@ -686,7 +686,7 @@ export function AuthProvider({ children }) {
 
     // ── Derived state ─────────────────────────────────────────────────────────
 
-    const onboardingStep = resolveOnboardingStep(patient, profile);
+    const onboardingStep = resolveOnboardingStep(patient, profile, !!user);
     const onboardingComplete = onboardingStep === null;
     const subscriptionStatus = normaliseStatus(patient?.subscription?.status);
     const displayName = profile?.fullName || user?.user_metadata?.full_name || 'User';

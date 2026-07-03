@@ -958,7 +958,8 @@ export default function HealthProfileScreen({ navigation }) {
             >
 
                 {/* ── PROFILE COMPLETENESS BANNER (above health score) ── */}
-                <Animated.View style={anim(0)} ref={profileSetupCardRef}>
+                <Animated.View style={anim(0)}>
+                    <View ref={profileSetupCardRef} collapsable={false} style={{ width: '100%' }}>
                     <View style={s.completeBanner}>
                         <Pressable 
                             onPress={() => {
@@ -1022,6 +1023,7 @@ export default function HealthProfileScreen({ navigation }) {
                                 })}
                             </View>
                         )}
+                    </View>
                     </View>
                 </Animated.View>
 

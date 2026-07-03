@@ -30,4 +30,6 @@ export const HapticPatterns = {
   },
   
   stepComplete: () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light),
+
+  selection: () => Haptics.selectionAsync(),
 };

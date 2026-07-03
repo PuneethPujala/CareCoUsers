@@ -834,7 +834,8 @@ export default function MyCallerScreen({ navigation }) {
         }
       >
         {/* ── YOUR CALLER HERO CARD ──────────────────────────────────── */}
-        <Animated.View style={anim(1)} ref={companionCardRef}>
+        <Animated.View style={anim(1)}>
+          <View ref={companionCardRef} collapsable={false}>
           <Text style={s.sectionLabel}>
             {t("caller.your_caller", { defaultValue: "YOUR CALLER" })}
           </Text>
@@ -1118,10 +1119,12 @@ export default function MyCallerScreen({ navigation }) {
               )}
             </View>
           )}
+          </View>
         </Animated.View>
 
         {/* ── CARE MANAGER ──────────────────────────────────────────────── */}
-        <Animated.View style={anim(2)} ref={managerCardRef}>
+        <Animated.View style={anim(2)}>
+          <View ref={managerCardRef} collapsable={false}>
           <View style={s.sectionHeaderRow}>
             <Text style={s.sectionLabel}>
               {t("caller.manager", { defaultValue: "CARE MANAGER" })}
@@ -1261,10 +1264,12 @@ export default function MyCallerScreen({ navigation }) {
               </View>
             </View>
           )}
+          </View>
         </Animated.View>
 
         {/* ── TRUSTED CONTACTS ───────────────────────────────────────── */}
-        <Animated.View style={anim(3)} ref={contactsCardRef}>
+        <Animated.View style={anim(3)}>
+          <View ref={contactsCardRef} collapsable={false}>
           <View style={s.sectionHeaderRow}>
             <Text style={s.sectionLabel}>
               {t("caller.care_team_contacts", {
@@ -1385,11 +1390,13 @@ export default function MyCallerScreen({ navigation }) {
               );
             })
           )}
+          </View>
         </Animated.View>
 
         {/* ── RECENT CALLS (on main screen) ──────────────────────────── */}
         {calls.length > 0 && (
-          <Animated.View style={anim(4)} ref={callsCardRef}>
+          <Animated.View style={anim(4)}>
+            <View ref={callsCardRef} collapsable={false}>
             <View style={s.sectionHeaderRow}>
               <Text style={s.sectionLabel}>
                 {t("caller.recent_calls", { defaultValue: "RECENT CALLS" })}
@@ -1441,6 +1448,7 @@ export default function MyCallerScreen({ navigation }) {
                   </View>
                 );
               })}
+            </View>
             </View>
           </Animated.View>
         )}

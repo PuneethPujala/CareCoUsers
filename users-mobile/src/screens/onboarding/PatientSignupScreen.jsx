@@ -56,7 +56,14 @@ export default function PatientSignupScreen({ navigation, route }) {
     } = useAuth();
 
     const insets = useSafeAreaInsets();
-    const [step, setStep] = useState(route?.params?.step || 1);
+    const [step, setStep] = useState(() => {
+        if (route?.params?.step) return route?.params?.step;
+        if (!user) return 1;
+        if (profile || patient) {
+            return resolveOnboardingStep(patient, profile, true);
+        }
+        return null; // Loading
+    });
 
     const methods = useForm({
         resolver: zodResolver(
@@ -247,10 +254,10 @@ export default function PatientSignupScreen({ navigation, route }) {
         }
         if (isManualTransitionRef.current) { isManualTransitionRef.current = false; return; }
         const isProcessing = signupLoading || googleLoading;
-        const targetStep = resolveOnboardingStep(patient, profile);
+        const targetStep = resolveOnboardingStep(patient, profile, !!user);
         if (targetStep === null) { clearProgressRef.current?.(); }
         else if (step !== targetStep && step !== 5 && !isProcessing && !isSubmittingRef.current) { setStep(targetStep); }
-    }, [profile, patient, signupLoading, googleLoading]);
+    }, [profile, patient, signupLoading, googleLoading, user, step]);
 
     useEffect(() => {
         GoogleSignin.configure({ webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID, offlineAccess: false });
@@ -724,6 +731,14 @@ export default function PatientSignupScreen({ navigation, route }) {
 
     // ── Render ─────────────────────────────────────────────────────────────────
 
+    if (step === null) {
+        return (
+            <View style={sc.loadingContainer}>
+                <ActivityIndicator size="large" color={C.primary} />
+            </View>
+        );
+    }
+ 
     return (
         <FormProvider {...methods}>
             <KeyboardAvoidingView
@@ -945,4 +960,10 @@ const sc = StyleSheet.create({
     },
     footerText: { fontSize: 14, ...FONT.medium, color: colors.textSecondary },
     footerLink: { fontSize: 14, ...FONT.heavy, color: colors.primary },
+    loadingContainer: {
+        flex: 1,
+        backgroundColor: colors.background,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
 });

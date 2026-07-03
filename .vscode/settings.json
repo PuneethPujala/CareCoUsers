@@ -1,0 +1,19 @@
+{
+  "java.project.resourceFilters": [
+    "node_modules",
+    ".git"
+  ],
+  "java.import.exclusions": [
+    "**/node_modules/**",
+    "**/.metadata/**",
+    "**/archived-versions/**"
+  ],
+  "gradle.nestedProjects": false,
+  "files.watcherExclude": {
+    "**/node_modules/**": true
+  },
+  "files.exclude": {
+    "**/node_modules": true
+  },
+  "problems.decorations.enabled": false
+}

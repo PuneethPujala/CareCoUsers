@@ -1935,7 +1935,8 @@ export default function MedicationsScreen({ navigation }) {
 
         {totalCount === 0 ? (
           /* ── EMPTY STATE ── */
-          <Animated.View style={[styles.emptyCard, anim(1)]} ref={medsListCardRef}>
+          <Animated.View style={[styles.emptyCard, anim(1)]}>
+            <View ref={medsListCardRef} collapsable={false} style={{ width: "100%", alignItems: "center" }}>
             <LinearGradient
               colors={["#EEF2FF", "#E0E7FF"]}
               style={styles.emptyIconWrap}
@@ -2018,6 +2019,7 @@ export default function MedicationsScreen({ navigation }) {
                 ))}
               </View>
             )}
+            </View>
           </Animated.View>
         ) : (
           <>
@@ -2132,7 +2134,8 @@ export default function MedicationsScreen({ navigation }) {
             </Animated.View>
 
             {/* ── TIME SECTIONS ── */}
-            <Animated.View style={anim(2)} ref={medsListCardRef}>
+            <Animated.View style={anim(2)}>
+              <View ref={medsListCardRef} collapsable={false}>
               {SLOT_ORDER.map((slot) => {
                 const meds = schedule[slot] || [];
                 if (meds.length === 0) return null;
@@ -2152,6 +2155,7 @@ export default function MedicationsScreen({ navigation }) {
                   </View>
                 );
               })}
+              </View>
             </Animated.View>
 
             {/* ── TEMPORARY MEDICATIONS ── */}

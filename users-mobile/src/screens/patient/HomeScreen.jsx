@@ -2618,13 +2618,13 @@ export default function PatientHomeScreen({ navigation }) {
 
           {/* ── 7. VITALS (Apple Health Style) ── */}
           <Animated.View
-            ref={vitalsCardRef}
             style={[entranceStyle(7), styles.section]}
             onLayout={(e) => {
               vitalsSectionY.current = e.nativeEvent.layout.y;
             }}
           >
-            <View style={styles.sectionTitleRow}>
+            <View ref={vitalsCardRef} collapsable={false}>
+              <View style={styles.sectionTitleRow}>
               <Text style={styles.sectionTitle}>
                 {t("home.vitals", { defaultValue: "VITALS" })}
               </Text>
@@ -2853,6 +2853,7 @@ export default function PatientHomeScreen({ navigation }) {
                 {isLogging && renderVitalsForm(false)}
               </View>
             )}
+            </View>
           </Animated.View>
 
           {/* ── 8. HEALTH JOURNEY & NEXT GOAL ── */}
