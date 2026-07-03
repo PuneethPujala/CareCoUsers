@@ -357,12 +357,12 @@ export default function PatientHomeScreen({ navigation }) {
   const getVitalsTourSteps = () => {
     return [
       {
-        title: t("home.guide_vitals_title", { defaultValue: "❤️ Health Vitals" }),
-        desc: t("home.guide_vitals_desc", {
-          defaultValue: "Enter your BP and Sugar daily below. It takes 10 seconds and keeps your doctor and caregivers updated.",
+        title: t("home.guide_dashboard_title", { defaultValue: "👋 Welcome to your Dashboard" }),
+        desc: t("home.guide_dashboard_desc", {
+          defaultValue: "This page is your daily health tracker. Here, you can monitor your health vitals, track your medication plan, review AI insights, and easily call your care companion.",
         }),
-        icon: Heart,
-        iconColor: "#EF4444",
+        icon: Sparkles,
+        iconColor: "#6366F1",
         ref: vitalsCardRef,
         visible: true,
       }
