@@ -460,9 +460,6 @@ export function AuthProvider({ children }) {
                 // login — we already have fresh profile/patient data from that flow.
                 if (skipNextSignedInRef.current) {
                     skipNextSignedInRef.current = false;
-                    setUser(newSession.user);
-                    setSession(newSession);
-                    setIsBootstrapping(false);
                     return;
                 }
 
