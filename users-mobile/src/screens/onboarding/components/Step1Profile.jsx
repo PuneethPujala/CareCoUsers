@@ -38,7 +38,7 @@ const Step1Profile = ({
 
             {/* Title */}
             <Text style={styles.stepTitleLine1}>Create your</Text>
-            <Text style={styles.stepTitleLine2}>SAMVAYA account</Text>
+            <Text style={styles.stepTitleLine2}>CareMyMed account</Text>
 
             <View style={styles.glassFormCard}>
                 {/* Google signup */}
