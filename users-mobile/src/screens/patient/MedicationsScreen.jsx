@@ -2330,26 +2330,27 @@ export default function MedicationsScreen({ navigation }) {
                         }}
                       >
                         <View style={{ flex: 1, gap: 4 }}>
+                          <Text
+                            style={{
+                              fontSize: 16,
+                              fontWeight: "800",
+                              color: "#0F172A",
+                              letterSpacing: -0.2,
+                              marginBottom: 2,
+                            }}
+                          >
+                            {tm.name}
+                          </Text>
+
+                          {/* Badges Row */}
                           <View
                             style={{
                               flexDirection: "row",
                               alignItems: "center",
                               gap: 6,
-                              flexWrap: "wrap",
-                              marginBottom: 2,
+                              marginBottom: 4,
                             }}
                           >
-                            <Text
-                              style={{
-                                fontSize: 15,
-                                fontWeight: "800",
-                                color: "#0F172A",
-                                letterSpacing: -0.2,
-                                marginRight: 4,
-                              }}
-                            >
-                              {tm.name}
-                            </Text>
                             {tm.shift && (
                               <View
                                 style={{
