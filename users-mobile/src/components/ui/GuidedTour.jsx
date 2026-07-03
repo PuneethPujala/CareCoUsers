@@ -1,107 +1,27 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
-    Modal, View, Text, StyleSheet, Pressable, Animated, Platform, Dimensions, findNodeHandle
+    Modal, View, Text, StyleSheet, Pressable, Animated, Dimensions
 } from 'react-native';
-import Svg, { Defs, Mask, Rect as SvgRect } from 'react-native-svg';
-import { X, ChevronRight } from 'lucide-react-native';
+import { ChevronRight } from 'lucide-react-native';
 import { colors } from '../../theme';
-import { useReduceMotion } from '../../theme/motion';
 import { HapticPatterns } from '../../utils/haptics';
 import { TourService } from '../../lib/TourService';
 
 export default function GuidedTour({
     visible,
     steps = [],
-    scrollRef,
     tourKey,
     onClose
 }) {
     const [activeStep, setActiveStep] = useState(0);
-    const [spotlightCoords, setSpotlightCoords] = useState(null);
     const [isTransitioning, setIsTransitioning] = useState(false);
-    const reduceMotion = useReduceMotion();
     const cardFade = useRef(new Animated.Value(1)).current;
 
-    /**
-     * Attempt to measure a ref's on-screen position.
-     * Uses measureLayout (relative to scrollRef) first for scrolling,
-     * then falls back to measure() for global pageX/pageY coordinates.
-     * The Modal renders in a separate native view hierarchy, so
-     * measureLayout can fail — the fallback handles that gracefully.
-     */
-    const measureStep = useCallback((stepData) => {
-        if (!stepData) return;
-
-        const doGlobalMeasure = () => {
-            if (stepData.ref?.current) {
-                stepData.ref.current.measure((mx, my, mwidth, mheight, pageX, pageY) => {
-                    if (mwidth > 0 && mheight > 0) {
-                        setSpotlightCoords({
-                            top: pageY,
-                            height: mheight,
-                            left: pageX || 16,
-                            width: mwidth || (Dimensions.get('window').width - 32)
-                        });
-                    } else {
-                        // Element not yet laid out; use static fallback
-                        applyStaticFallback(stepData);
-                    }
-                });
-            } else {
-                applyStaticFallback(stepData);
-            }
-        };
-
-        const applyStaticFallback = (sd) => {
-            setSpotlightCoords(sd.spotlightTop !== undefined ? {
-                top: sd.spotlightTop,
-                height: sd.spotlightHeight || 100,
-                left: 16,
-                width: Dimensions.get('window').width - 32
-            } : null);
-        };
-
-        // Try scrolling to the target element first
-        if (stepData.ref?.current && scrollRef?.current) {
-            try {
-                stepData.ref.current.measureLayout(
-                    findNodeHandle(scrollRef.current),
-                    (x, y, width, height) => {
-                        scrollRef.current.scrollTo({ y: Math.max(0, y - 20), animated: !reduceMotion });
-                        // Wait for scroll to settle, then measure globally
-                        setTimeout(doGlobalMeasure, 350);
-                    },
-                    () => {
-                        // measureLayout failed (cross-hierarchy) — scroll using offset hint, then measure globally
-                        if (stepData.scrollOffset !== undefined && scrollRef?.current) {
-                            scrollRef.current.scrollTo({ y: stepData.scrollOffset, animated: !reduceMotion });
-                        }
-                        setTimeout(doGlobalMeasure, 350);
-                    }
-                );
-            } catch {
-                // findNodeHandle can throw if ref is stale
-                setTimeout(doGlobalMeasure, 100);
-            }
-        } else {
-            // No ref or no scrollRef — apply static fallback or direct measure
-            if (stepData.scrollOffset !== undefined && scrollRef?.current) {
-                scrollRef.current.scrollTo({ y: stepData.scrollOffset, animated: !reduceMotion });
-            }
-            setTimeout(doGlobalMeasure, 300);
-        }
-    }, [scrollRef, reduceMotion]);
-
-    // Measure spotlight whenever the active step or visibility changes
     useEffect(() => {
-        if (visible && steps.length > 0) {
-            const stepData = steps[activeStep];
-            measureStep(stepData);
-        } else {
+        if (!visible) {
             setActiveStep(0);
-            setSpotlightCoords(null);
         }
-    }, [visible, activeStep, steps, measureStep]);
+    }, [visible]);
 
     if (!visible || steps.length === 0) return null;
 
@@ -113,9 +33,7 @@ export default function GuidedTour({
     const handleNext = async () => {
         HapticPatterns.selection();
         if (activeStep < steps.length - 1) {
-            // Animate card fade-out, swap step, fade back in
             setIsTransitioning(true);
-            setSpotlightCoords(null); // clear stale spotlight immediately
             Animated.timing(cardFade, {
                 toValue: 0,
                 duration: 150,
@@ -123,7 +41,6 @@ export default function GuidedTour({
             }).start(() => {
                 const nextStep = activeStep + 1;
                 setActiveStep(nextStep);
-                // Fade card back in after step change
                 Animated.timing(cardFade, {
                     toValue: 1,
                     duration: 200,
@@ -131,7 +48,6 @@ export default function GuidedTour({
                 }).start(() => setIsTransitioning(false));
             });
         } else {
-            // Last step — save completion and close
             if (tourKey) {
                 await TourService.markTourSeen(tourKey);
             }
@@ -147,91 +63,13 @@ export default function GuidedTour({
         if (onClose) onClose();
     };
 
-    const getCardStyle = () => {
-        if (stepData.tooltipBottom !== undefined) return { bottom: stepData.tooltipBottom };
-        if (stepData.tooltipTop !== undefined) return { top: stepData.tooltipTop };
-        if (spotlightCoords) {
-            const screenHeight = Dimensions.get('window').height;
-            const spotlightBottom = spotlightCoords.top + spotlightCoords.height;
-            // If spotlight is in the lower half of the screen, place tooltip above it
-            if (spotlightCoords.top > screenHeight / 2 - 50) {
-                return { bottom: screenHeight - spotlightCoords.top + 16 };
-            } else {
-                return { top: spotlightBottom + 16 };
-            }
-        }
-        return { top: Platform.OS === 'ios' ? 390 : 370 };
-    };
-
-    const cardStyle = getCardStyle();
-    const showArrowUp = cardStyle.top !== undefined;
-
     return (
         <Modal transparent visible={visible} animationType="fade" statusBarTranslucent={true}>
-            {/* 
-              Overlay is a plain View (not Pressable) — tapping the dark area does nothing.
-              Only the explicit Skip button or Got It / Next button can dismiss/advance the tour.
-            */}
             <View style={s.wtOverlay}>
-                {spotlightCoords ? (
-                    <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
-                        <Defs>
-                            <Mask id="spotlightMask">
-                                <SvgRect width="100%" height="100%" fill="white" />
-                                <SvgRect
-                                    x={spotlightCoords.left}
-                                    y={spotlightCoords.top}
-                                    width={spotlightCoords.width}
-                                    height={spotlightCoords.height}
-                                    rx={24}
-                                    fill="black"
-                                />
-                            </Mask>
-                        </Defs>
-                        <SvgRect
-                            width="100%"
-                            height="100%"
-                            fill="rgba(15, 23, 42, 0.75)"
-                            mask="url(#spotlightMask)"
-                        />
-                    </Svg>
-                ) : (
-                    <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(15, 23, 42, 0.75)' }]} pointerEvents="none" />
-                )}
-
-                {/* Spotlight highlight border around the target element */}
-                {spotlightCoords && (
-                    <View
-                        style={[
-                            s.wtSpotlight,
-                            {
-                                top: spotlightCoords.top,
-                                height: spotlightCoords.height,
-                                left: spotlightCoords.left,
-                                width: spotlightCoords.width
-                            }
-                        ]}
-                        pointerEvents="none"
-                    />
-                )}
-
-                {/* Tooltip Card */}
                 <Animated.View
-                    style={[s.wtCard, cardStyle, { opacity: cardFade }]}
+                    style={[s.wtCard, { opacity: cardFade }]}
                     pointerEvents={isTransitioning ? 'none' : 'auto'}
                 >
-                    {showArrowUp ? (
-                        <View style={[
-                            s.wtCardArrowUp,
-                            stepData.arrowLeft !== undefined ? { left: stepData.arrowLeft, marginLeft: 0 } : { left: '50%', marginLeft: -8 }
-                        ]} />
-                    ) : (
-                        <View style={[
-                            s.wtCardArrowDown,
-                            stepData.arrowLeft !== undefined ? { left: stepData.arrowLeft, marginLeft: 0 } : { left: '50%', marginLeft: -8 }
-                        ]} />
-                    )}
-
                     <View style={s.wtCardHeader}>
                         <View style={[s.wtIconWrap, { backgroundColor: (stepData.iconColor || colors.primary) + '15' }]}>
                             {Icon && <Icon size={22} color={stepData.iconColor || colors.primary} strokeWidth={2.5} />}
@@ -244,7 +82,6 @@ export default function GuidedTour({
 
                     <Text style={s.wtDesc}>{stepData.desc}</Text>
 
-                    {/* Bottom Actions and Progress Dots */}
                     <View style={s.wtFooter}>
                         <View style={s.wtDots}>
                             {steps.map((_, i) => (
@@ -275,24 +112,14 @@ export default function GuidedTour({
 const s = StyleSheet.create({
     wtOverlay: {
         flex: 1,
-    },
-    wtSpotlight: {
-        position: 'absolute',
-        borderWidth: 2,
-        borderColor: colors.primary,
-        borderStyle: 'dashed',
-        borderRadius: 24,
-        backgroundColor: 'rgba(255, 255, 255, 0.05)',
-        shadowColor: colors.primary,
-        shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 0.8,
-        shadowRadius: 15,
-        elevation: 10,
+        backgroundColor: 'rgba(15, 23, 42, 0.75)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 20,
     },
     wtCard: {
-        position: 'absolute',
-        left: 20,
-        right: 20,
+        width: '100%',
+        maxWidth: 400,
         backgroundColor: '#FFFFFF',
         borderRadius: 24,
         padding: 22,
@@ -371,31 +198,5 @@ const s = StyleSheet.create({
         fontSize: 14,
         fontWeight: '700',
         color: '#FFF',
-    },
-    wtCardArrowUp: {
-        position: 'absolute',
-        top: -8,
-        left: 48,
-        width: 16,
-        height: 16,
-        backgroundColor: '#FFFFFF',
-        borderLeftWidth: 1,
-        borderTopWidth: 1,
-        borderColor: '#E2E8F0',
-        transform: [{ rotate: '45deg' }],
-        zIndex: 5,
-    },
-    wtCardArrowDown: {
-        position: 'absolute',
-        bottom: -8,
-        left: 48,
-        width: 16,
-        height: 16,
-        backgroundColor: '#FFFFFF',
-        borderRightWidth: 1,
-        borderBottomWidth: 1,
-        borderColor: '#E2E8F0',
-        transform: [{ rotate: '45deg' }],
-        zIndex: 5,
     },
 });
