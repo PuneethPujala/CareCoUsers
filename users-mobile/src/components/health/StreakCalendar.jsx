@@ -175,7 +175,7 @@ const StreakCalendar = ({ dailyLog = [], timezone = "Asia/Kolkata" }) => {
               <Text style={styles.detailDate}>
                 {getFormattedDateString(selectedDay.date, timezone)}
               </Text>
-              {selectedDay.log && selectedDay.log.score !== null ? (
+              {selectedDay.log && selectedDay.log.score !== null && getSquareColor(selectedDay) !== colors.borderLight ? (
                 <View
                   style={[
                     styles.scoreBadge,
@@ -199,7 +199,7 @@ const StreakCalendar = ({ dailyLog = [], timezone = "Asia/Kolkata" }) => {
               ) : null}
             </View>
 
-            {selectedDay.log ? (
+            {selectedDay.log && getSquareColor(selectedDay) !== colors.borderLight ? (
               <View style={styles.metricsRow}>
                 <View style={styles.metricItem}>
                   <Text style={styles.metricIcon}>💊</Text>

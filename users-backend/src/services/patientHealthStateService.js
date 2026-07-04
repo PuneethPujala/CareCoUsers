@@ -243,7 +243,7 @@ async function recomputeAndCacheHealthState(patientId, targetDate = null) {
     const todayAdherencePct =
       todayMedsTotal > 0
         ? Math.round((todayMedsTaken / todayMedsTotal) * 100)
-        : 0;
+        : null;
 
     // 3. Compute score/grade/label
     const latestVital =
