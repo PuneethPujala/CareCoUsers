@@ -203,7 +203,7 @@ const getLevelConfig = (levelKey) => {
     case "improving":
       return { Icon: Icons.Sprout || Sparkles, color: "#34D399" };
     default:
-      return { Icon: Icons.Sprout || Sparkles, color: "#94A3B8" };
+      return { Icon: Icons.Sprout || Sparkles, color: "#A5F3FC" };
   }
 };
 
@@ -1584,12 +1584,7 @@ export default function AdherenceScreen({ navigation }) {
   }
 
   return (
-    <LinearGradient
-      colors={["#EEF2FF", "#F8FAFC", "#FFFFFF"]}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 0, y: 0.25 }}
-      style={{ flex: 1 }}
-    >
+    <View style={{ flex: 1, backgroundColor: C.bg }}>
       <SafeAreaView style={{ flex: 1 }}>
         {/* ── Header ── */}
         <View style={styles.header}>
@@ -1672,8 +1667,8 @@ export default function AdherenceScreen({ navigation }) {
               end={{ x: 1, y: 1 }}
               style={{
                 position: "absolute",
-                top: -50,
-                left: -30,
+                top: -10,
+                left: -20,
                 width: 260,
                 height: 260,
                 borderRadius: 130,
@@ -3283,7 +3278,7 @@ export default function AdherenceScreen({ navigation }) {
           </Animated.View>
         </View>
       </Modal>
-    </LinearGradient>
+    </View>
   );
 }
 
@@ -3367,7 +3362,7 @@ const styles = StyleSheet.create({
 
   scrollContent: {
     paddingHorizontal: 20,
-    paddingTop: 4,
+    paddingTop: 16,
     paddingBottom: layout.TAB_BAR_CLEARANCE,
   },
 
