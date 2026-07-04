@@ -2459,34 +2459,6 @@ export default function AdherenceScreen({ navigation }) {
                   position: "relative",
                 }}
               >
-                {/* Ambient Back-Glow Circles */}
-                <View
-                  style={{
-                    position: "absolute",
-                    top: -10,
-                    left: 14,
-                    width: 120,
-                    height: 120,
-                    borderRadius: 60,
-                    backgroundColor: "#8B5CF6",
-                    opacity: 0.35,
-                    transform: [{ scale: 1.2 }],
-                  }}
-                />
-                <View
-                  style={{
-                    position: "absolute",
-                    bottom: 15,
-                    right: -6,
-                    width: 110,
-                    height: 110,
-                    borderRadius: 55,
-                    backgroundColor: "#EC4899",
-                    opacity: 0.28,
-                    transform: [{ scale: 1.15 }],
-                  }}
-                />
-
                 <LinearGradient
                   colors={[
                     "rgba(79, 70, 229, 0.88)",
@@ -2502,6 +2474,34 @@ export default function AdherenceScreen({ navigation }) {
                     borderColor: "rgba(255, 255, 255, 0.22)",
                   }}
                 >
+                  {/* Ambient Back-Glow Circles (Inside overflow: 'hidden' to prevent leakage) */}
+                  <View
+                    style={{
+                      position: "absolute",
+                      top: -10,
+                      left: 14,
+                      width: 120,
+                      height: 120,
+                      borderRadius: 60,
+                      backgroundColor: "#8B5CF6",
+                      opacity: 0.35,
+                      transform: [{ scale: 1.2 }],
+                    }}
+                  />
+                  <View
+                    style={{
+                      position: "absolute",
+                      bottom: 15,
+                      right: -6,
+                      width: 110,
+                      height: 110,
+                      borderRadius: 55,
+                      backgroundColor: "#EC4899",
+                      opacity: 0.28,
+                      transform: [{ scale: 1.15 }],
+                    }}
+                  />
+
                   {/* Glass reflection highlight overlay */}
                   <LinearGradient
                     colors={[
@@ -2509,7 +2509,7 @@ export default function AdherenceScreen({ navigation }) {
                       "rgba(255, 255, 255, 0)",
                     ]}
                     start={{ x: 0, y: 0 }}
-                    end={{ x: 0.8, y: 0.8 }}
+                    end={{ x: 1, y: 1 }}
                     style={StyleSheet.absoluteFillObject}
                   />
                   <View
