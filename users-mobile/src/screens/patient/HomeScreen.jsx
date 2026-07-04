@@ -572,6 +572,7 @@ export default function PatientHomeScreen({ navigation }) {
 
   // Sleep state
   const [estimatedSleep, setEstimatedSleep] = useState(null);
+  const [sleepLogging, setSleepLogging] = useState(false);
 
   const checkDailyMoodStatus = useCallback(() => {
     if (!patient?.moodHistory) return;
@@ -775,7 +776,8 @@ export default function PatientHomeScreen({ navigation }) {
   };
 
   const handleConfirmSleep = async () => {
-    if (!estimatedSleep) return;
+    if (!estimatedSleep || sleepLogging) return;
+    setSleepLogging(true);
     try {
       const apiSource =
         estimatedSleep.source === "native_health"
@@ -799,6 +801,8 @@ export default function PatientHomeScreen({ navigation }) {
     } catch (e) {
       console.warn("Failed to log estimated sleep:", e.message);
       AlertManager.alert("Error", "Failed to log sleep. Please try again.");
+    } finally {
+      setSleepLogging(false);
     }
   };
 
@@ -825,7 +829,8 @@ export default function PatientHomeScreen({ navigation }) {
   };
 
   const logCustomSleep = async (hours) => {
-    if (!estimatedSleep) return;
+    if (!estimatedSleep || sleepLogging) return;
+    setSleepLogging(true);
     try {
       const apiSource =
         estimatedSleep.source === "native_health"
@@ -852,6 +857,8 @@ export default function PatientHomeScreen({ navigation }) {
     } catch (e) {
       console.warn("Failed to log custom sleep:", e.message);
       AlertManager.alert("Error", "Failed to log sleep. Please try again.");
+    } finally {
+      setSleepLogging(false);
     }
   };
 
@@ -2079,11 +2086,13 @@ export default function PatientHomeScreen({ navigation }) {
                       styles.sleepPromptBtnYes,
                       { flex: 1, height: 40 },
                       pressed && { opacity: 0.8 },
+                      sleepLogging && { opacity: 0.5 },
                     ]}
                     onPress={handleConfirmSleep}
+                    disabled={sleepLogging}
                   >
                     <Text style={styles.sleepPromptBtnYesText}>
-                      Yes, log {estimatedSleep.hours}h
+                      {sleepLogging ? "Logging..." : `Yes, log ${estimatedSleep.hours}h`}
                     </Text>
                   </Pressable>
                   <Pressable
@@ -2118,8 +2127,10 @@ export default function PatientHomeScreen({ navigation }) {
                       style={({ pressed }) => [
                         styles.sleepHourBtn,
                         pressed && { opacity: 0.7 },
+                        sleepLogging && { opacity: 0.4 },
                       ]}
                       onPress={() => logCustomSleep(h)}
+                      disabled={sleepLogging}
                     >
                       <Text style={styles.sleepHourBtnText}>{h}h</Text>
                     </Pressable>
