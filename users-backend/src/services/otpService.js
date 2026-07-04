@@ -12,20 +12,26 @@ function generateOTP() {
 }
 
 /**
+ * Acquire a cooldown lock for a given key to prevent spamming
+ */
+async function acquireCooldown(key, seconds = 60) {
+  const cooldownKey = `cooldown:${key.toLowerCase().trim()}`;
+  const acquired = await redis.set(cooldownKey, "1", "EX", seconds, "NX");
+  return !!acquired;
+}
+
+/**
  * Store an OTP for the given identifier (email or phone)
  * - Deletes any previous OTP for the same identifier
- * - Stores the new OTP with a 10-minute TTL
+ * - Stores the new OTP with a 5-minute TTL
  */
 async function createOTP(identifier) {
   const key = `${OTP_PREFIX}${identifier.toLowerCase().trim()}`;
-  const cooldownKey = `cooldown:${key}`;
-
-  // Attempt to acquire a 30-second atomic cooldown lock
-  const acquired = await redis.set(cooldownKey, "1", "EX", 30, "NX");
+  const acquired = await acquireCooldown(key, 60);
 
   if (!acquired) {
     const err = new Error(
-      "Please wait 30 seconds before requesting a new code.",
+      "Please wait 1 minute before requesting a new code.",
     );
     err.status = 429;
     throw err;
@@ -79,4 +85,5 @@ module.exports = {
   createOTP,
   verifyOTP,
   deleteOTP,
+  acquireCooldown,
 };

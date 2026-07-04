@@ -818,6 +818,17 @@ async function sendOtp(req, res) {
 
       const smsService = require("../services/smsService");
 
+      // Enforce SMS OTP cooldown of 60 seconds (1 minute)
+      const { acquireCooldown } = require("../services/otpService");
+      const cooldownKey = `phone:${phoneNorm}`;
+      const acquired = await acquireCooldown(cooldownKey, 60);
+      if (!acquired) {
+        return res.status(429).json({
+          error: "Please wait 1 minute before requesting a new code.",
+          code: "COOLDOWN_ACTIVE",
+        });
+      }
+
       // Use Twilio Verify - no need to generate or store our own OTP
       await smsService.sendVerification(phoneNorm);
 
@@ -829,6 +840,7 @@ async function sendOtp(req, res) {
       return res.status(400).json({ error: 'type must be "email" or "phone"' });
     }
   } catch (err) {
+    if (err.status) return sendError(res, err);
     console.error("Send OTP error:", err);
     res
       .status(400)
