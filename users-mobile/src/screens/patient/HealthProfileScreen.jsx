@@ -2491,7 +2491,7 @@ export default function HealthProfileScreen({ navigation }) {
                                                             minHeight: 130,
                                                             ...shadows.card
                                                         }}>
-                                                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                            <View style={{ alignItems: 'flex-start', gap: 4 }}>
                                                                 <Text style={{ fontSize: 11, ...FONT.heavy, color: '#64748B', letterSpacing: 0.8 }}>CONSISTENCY</Text>
                                                                 {healthHistory.predictive_health.consistency.score >= 80 && (
                                                                     <View style={{
@@ -2501,6 +2501,7 @@ export default function HealthProfileScreen({ navigation }) {
                                                                         borderRadius: radius.sm,
                                                                         borderWidth: 0.5,
                                                                         borderColor: '#C7D2FE',
+                                                                        alignSelf: 'flex-start',
                                                                     }}>
                                                                         <Text style={{ fontSize: 8, ...FONT.heavy, color: '#4F46E5' }}>★ HABIT HERO</Text>
                                                                     </View>
