@@ -2498,8 +2498,8 @@ export default function AdherenceScreen({ navigation }) {
                     borderRadius: 24,
                     padding: 20,
                     overflow: "hidden",
-                    borderWidth: 1.5,
-                    borderColor: "rgba(255, 255, 255, 0.45)",
+                    borderWidth: 1,
+                    borderColor: "rgba(255, 255, 255, 0.22)",
                   }}
                 >
                   {/* Glass reflection highlight overlay */}
@@ -2509,7 +2509,7 @@ export default function AdherenceScreen({ navigation }) {
                       "rgba(255, 255, 255, 0)",
                     ]}
                     start={{ x: 0, y: 0 }}
-                    end={{ x: 0.5, y: 1 }}
+                    end={{ x: 0.8, y: 0.8 }}
                     style={StyleSheet.absoluteFillObject}
                   />
                   <View
