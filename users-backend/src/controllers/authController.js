@@ -132,8 +132,18 @@ async function deleteMe(req, res) {
       const SleepLog = require("../models/SleepLog");
       const PatientHealthStateHistory = require("../models/PatientHealthStateHistory");
       const AchievementEvent = require("../models/AchievementEvent");
+      const AIChatLog = require("../models/AIChatLog");
+      const AIChatSession = require("../models/AIChatSession");
+      const CallSession = require("../models/CallSession");
+      const CarePlanHistory = require("../models/CarePlanHistory");
+      const CompanionAccess = require("../models/CompanionAccess");
+      const CompanionAiInsight = require("../models/CompanionAiInsight");
+      const CompanionAiInsightHistory = require("../models/CompanionAiInsightHistory");
+      const Intervention = require("../models/Intervention");
+      const TempMedication = require("../models/TempMedication");
+      const WeeklySummary = require("../models/WeeklySummary");
 
-      // ── Decrement Organization Count ──
+      // ── Decre Organization Count ──
       if (req.profile.organization_id) {
         const Organization = require("../models/Organization");
         await Organization.findByIdAndUpdate(req.profile.organization_id, {
@@ -163,6 +173,16 @@ async function deleteMe(req, res) {
         SleepLog.deleteMany({ patient_id: userId }),
         PatientHealthStateHistory.deleteMany({ patient_id: userId }),
         AchievementEvent.deleteMany({ patient_id: userId }),
+        AIChatLog.deleteMany({ patient_id: userId }),
+        AIChatSession.deleteMany({ patient_id: userId }),
+        CallSession.deleteMany({ patientId: userId }),
+        CarePlanHistory.deleteMany({ patient_id: userId }),
+        CompanionAccess.deleteMany({ patient_id: userId }),
+        CompanionAiInsight.deleteMany({ patient_id: userId }),
+        CompanionAiInsightHistory.deleteMany({ patient_id: userId }),
+        Intervention.deleteMany({ patient_id: userId }),
+        TempMedication.deleteMany({ patientId: userId }),
+        WeeklySummary.deleteMany({ patient_id: userId }),
         // Remove patient from any caller's assigned patient_ids list
         Caller.updateMany(
           { patient_ids: userId },
@@ -189,6 +209,16 @@ async function deleteMe(req, res) {
           "SleepLog",
           "PatientHealthStateHistory",
           "AchievementEvent",
+          "AIChatLog",
+          "AIChatSession",
+          "CallSession",
+          "CarePlanHistory",
+          "CompanionAccess",
+          "CompanionAiInsight",
+          "CompanionAiInsightHistory",
+          "Intervention",
+          "TempMedication",
+          "WeeklySummary",
         ],
       });
     } else if (req.profile.role === "companion") {
