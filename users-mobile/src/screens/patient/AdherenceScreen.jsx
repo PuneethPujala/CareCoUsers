@@ -141,16 +141,16 @@ const getHeroTheme = (scoreValue) => {
   } else {
     return {
       gradient: [
-        "#0F5FFF", // Premium Sapphire
-        "#3B82F6",
-        "#5B7CFA",
-        "#7C6CF8", // Indigo edge glow
+        "#1238C7", // Dark Sapphire
+        "#2454E8", // Electric Blue
+        "#3366FF", // Vibrant Sapphire
+        "#4F46E5", // Midnight Indigo
       ],
-      accentGlow: "#60A5FA",
+      accentGlow: "#22D3EE", // Cyan AI highlight
       textOnHero: "#FFFFFF",
-      barBg: "rgba(255, 255, 255, 0.2)",
-      barFill: "#60A5FA",
-      ringColor: "#60A5FA",
+      barBg: "rgba(255, 255, 255, 0.15)",
+      barFill: "#22D3EE",
+      ringColor: "#22D3EE",
     };
   }
 };
@@ -1700,15 +1700,15 @@ export default function AdherenceScreen({ navigation }) {
                 styles.heroCard,
                 {
                   borderWidth: 1,
-                  borderColor: "rgba(255, 255, 255, 0.22)",
+                  borderColor: "rgba(255, 255, 255, 0.12)", // Subtly transparent border at ~12% opacity
                 },
               ]}
             >
-              {/* Top-left light highlight overlay */}
+              {/* Top-left radial-like white highlight overlay */}
               <LinearGradient
                 colors={["rgba(255, 255, 255, 0.22)", "rgba(255, 255, 255, 0)"]}
                 start={{ x: 0, y: 0 }}
-                end={{ x: 0.7, y: 0.7 }}
+                end={{ x: 0.45, y: 0.45 }}
                 style={[StyleSheet.absoluteFillObject, { zIndex: 1 }]}
               />
 
@@ -1746,6 +1746,18 @@ export default function AdherenceScreen({ navigation }) {
                 <View style={styles.heroTopRow}>
                   {/* Ring */}
                   <View style={styles.heroRingWrap}>
+                    {/* Faint cyan glow behind progress ring to make it feel alive */}
+                    <LinearGradient
+                      colors={["rgba(34, 211, 238, 0.22)", "rgba(34, 211, 238, 0)"]}
+                      start={{ x: 0.5, y: 0.5 }}
+                      end={{ x: 1, y: 1 }}
+                      style={{
+                        position: "absolute",
+                        width: 120,
+                        height: 120,
+                        borderRadius: 60,
+                      }}
+                    />
                     <CircularProgress
                       progress={heroScore}
                       size={148}
