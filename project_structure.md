@@ -14,7 +14,8 @@ CareCoUsers/
 ├── chroma/                 # [ACTIVE] Local Chroma DB vector store for RAG companion guidelines
 ├── admin-app/              # [LEGACY - UNMAINTAINED] React Native admin app (staff/managers)
 ├── backend/                # [LEGACY - DEPRECATED] Older Node.js backend & admin API gateway
-├── docs/                   # Documentation archives and reference files
+├── docs/                   # Documentation archives, guides, and reference files
+│   └── architecture/       # Industry-level system flowcharts & interactive pipeline schemas
 ├── .github/                # GitHub actions and CI workflows
 ├── DESIGN_CONTRACT.md      # UI/UX design contract for the mobile app
 └── notifications_playbook.md # Push notification architecture & setup guide

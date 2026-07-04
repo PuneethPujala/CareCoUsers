@@ -40,6 +40,8 @@ Empty states and dashboards must communicate presence, not absence.
 - **Empty States**: Never cold or transactional. (e.g., *"We're ready to track your vitals whenever you are. Start with whatever feels easiest."*)
 - **The Morning/Evening Brief**: The app wakes up and winds down with the user. It evaluates yesterday's adherence quietly and contextually, requiring nothing from the user.
 - **The Streak**: Reframed at zero as "Ready" or "Paused", never as a failure. (e.g., *"Today's a new start. Your streak begins with your next log."*)
+- **Score & Wellness Framing**: Hides numerical scores and wellness estimates for brand-new users until their profile completion reaches at least **50%**. During this "Building Profile" stage, show actual profile completion percentages. Frame age-based estimations strictly as "Biological Wellness Estimates" rather than absolute clinical facts to preserve app credibility.
+- **Null Safety in Care Plans**: If a user has no medications prescribed, report adherence as `null` rather than `0%` to prevent misrepresenting a blank care plan as missed doses. The 35-day Balance Board colors are based on the overall daily health score to represent whole health.
 
 ## 5. The Five Anti-Patterns
 These are strict prohibitions. If you spot one of these in the codebase, remove it.

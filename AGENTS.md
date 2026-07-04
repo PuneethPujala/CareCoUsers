@@ -167,12 +167,24 @@ Key models: `Patient`, `Profile`, `Organization`, `Medication`, `MedicineLog`, `
 
 Zustand store (`usePatientStore`) is the single source of truth for patient dashboard data. It exposes optimistic update methods (`optimisticToggleMed`, `optimisticMarkSlotTaken`) that update state immediately and revert on API failure. Always use the store's action methods rather than calling `apiService` directly from screens.
 
+### Health Score, Sleep Engine & UI Board Conventions
+
+* **Sleep Estimation Engine**: Follows a 4-tier querying hierarchy:
+  1. **Tier 1 (Verified)**: Queries Health Connect (Android) or HealthKit (iOS) `SleepSession` wearable details.
+  2. **Tier 2 (Estimated)**: Queries Android `UsageStatsManager` activity to calculate screen-off idle time.
+  3. **Tier 3 (Manual)**: Checks the patient's manual sleep log database entries.
+  4. **Tier 4 (Unavailable)**: Presents a custom Amber CTA Card to enable setting permissions or log hours manually.
+* **Whole-Health Grid Board**: The 35-day Streak Calendar squares are colored based on the overall daily health score (Excellent $\ge 85$, Good $\ge 70$, Fair $\ge 55$, Low $< 55$). If no metrics (meds, sleep, mood, BP) are logged, the day displays as grey/unlogged.
+* **Profile Completion Score Lock**: For users with profile completion $< 50\%$, numerical health scores and biological wellness estimates are hidden. The circular progress ring displays their profile completion percentage in a "Building Profile" state.
+* **Null Adherence Defaults**: If a user has no active medications prescribed, daily compliance reports `null` instead of `0\%` to protect baseline calculations.
+
 ### Security Notes
 
 - Screen capture is disabled for patients who have `allow_screenshots: false` in their profile.
 - A privacy overlay is shown when `appState === 'background'` (not `inactive` — iOS control center pull-down briefly sets `inactive` and should not trigger the overlay).
 - Sentry is initialized before any other code in `App.js`; PII (email, IP) is stripped in `beforeSend`.
 - Stale notifications (> 30 s old) are ignored on app mount to prevent spurious navigation.
+- User caches in `react-native-encrypted-storage` use UID prefixes to ensure strict account isolation on shared devices.
 
 ## E2E Testing
 
