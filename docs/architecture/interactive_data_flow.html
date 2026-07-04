@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CareMyMed End-to-End Health Data Pipeline Architecture</title>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-dark: #0b0f19;
+      --bg-surface: rgba(17, 24, 39, 0.75);
+      --border-color: rgba(255, 255, 255, 0.08);
+      --text-primary: #f3f4f6;
+      --text-muted: #9ca3af;
+      
+      --color-vitals: #f43f5e;
+      --color-meds: #10b981;
+      --color-sleep: #fbbf24;
+      --color-mood: #8b5cf6;
+      --color-scoring: #3b82f6;
+      
+      --shadow-glow: 0 0 20px rgba(99, 102, 241, 0.15);
+      --shadow-vitals: 0 0 25px rgba(244, 63, 94, 0.2);
+      --shadow-meds: 0 0 25px rgba(16, 185, 129, 0.2);
+      --shadow-sleep: 0 0 25px rgba(251, 191, 36, 0.2);
+      --shadow-mood: 0 0 25px rgba(139, 92, 246, 0.2);
+      --shadow-scoring: 0 0 25px rgba(59, 130, 246, 0.2);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-primary);
+      font-family: 'Outfit', sans-serif;
+      overflow-x: auto;
+      overflow-y: hidden;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Grid Background */
+    .grid-bg {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-image: 
+        radial-gradient(rgba(99, 102, 241, 0.08) 1.5px, transparent 1.5px),
+        linear-gradient(rgba(99, 102, 241, 0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(99, 102, 241, 0.02) 1px, transparent 1px);
+      background-size: 24px 24px;
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    /* Top Control Header */
+    header {
+      position: relative;
+      z-index: 10;
+      background: rgba(11, 15, 25, 0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border-color);
+      padding: 16px 32px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .logo-section h1 {
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      background: linear-gradient(135deg, #a5b4fc 0%, #6366f1 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .logo-section p {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 2px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-weight: 600;
+    }
+
+    .controls-panel {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .btn-toggle {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border-color);
+      color: var(--text-muted);
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-family: 'Outfit', sans-serif;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn-toggle:hover {
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text-primary);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .btn-toggle.active[data-path="all"] {
+      background: rgba(99, 102, 241, 0.15);
+      border-color: rgba(99, 102, 241, 0.4);
+      color: #a5b4fc;
+      box-shadow: var(--shadow-glow);
+    }
+
+    .btn-toggle.active[data-path="vitals"] {
+      background: rgba(244, 63, 94, 0.15);
+      border-color: rgba(244, 63, 94, 0.4);
+      color: #fda4af;
+      box-shadow: var(--shadow-vitals);
+    }
+
+    .btn-toggle.active[data-path="meds"] {
+      background: rgba(16, 185, 129, 0.15);
+      border-color: rgba(16, 185, 129, 0.4);
+      color: #6ee7b7;
+      box-shadow: var(--shadow-meds);
+    }
+
+    .btn-toggle.active[data-path="sleep"] {
+      background: rgba(251, 191, 36, 0.15);
+      border-color: rgba(251, 191, 36, 0.4);
+      color: #fde047;
+      box-shadow: var(--shadow-sleep);
+    }
+
+    .btn-toggle.active[data-path="mood"] {
+      background: rgba(139, 92, 246, 0.15);
+      border-color: rgba(139, 92, 246, 0.4);
+      color: #c084fc;
+      box-shadow: var(--shadow-mood);
+    }
+
+    /* Diagram Canvas */
+    .canvas-container {
+      position: relative;
+      flex: 1;
+      width: 100%;
+      overflow: auto;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 40px;
+    }
+
+    .diagram-canvas {
+      position: relative;
+      width: 1400px;
+      height: 760px;
+      z-index: 2;
+    }
+
+    /* SVG Link Connectors Layer */
+    .links-layer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 3;
+      pointer-events: none;
+    }
+
+    .link-path {
+      fill: none;
+      stroke: rgba(255, 255, 255, 0.08);
+      stroke-width: 2;
+      transition: all 0.5s ease;
+    }
+
+    .link-pulse {
+      fill: none;
+      stroke-width: 3;
+      stroke-linecap: round;
+      stroke-dasharray: 8 24;
+      animation: flowPulse 3s linear infinite;
+      opacity: 0;
+      transition: opacity 0.5s ease;
+    }
+
+    @keyframes flowPulse {
+      to {
+        stroke-dashoffset: -320;
+      }
+    }
+
+    /* Active Path Highlighting */
+    body[data-active-path="all"] .link-path {
+      stroke: rgba(99, 102, 241, 0.2);
+    }
+    body[data-active-path="all"] .link-pulse {
+      stroke: #818cf8;
+      opacity: 0.6;
+    }
+
+    /* Specific Path Filters */
+    body[data-active-path="vitals"] .link-path[data-vitals="true"] { stroke: rgba(244, 63, 94, 0.35); stroke-width: 3; }
+    body[data-active-path="vitals"] .link-pulse[data-vitals="true"] { stroke: var(--color-vitals); opacity: 1; stroke-width: 4; }
+
+    body[data-active-path="meds"] .link-path[data-meds="true"] { stroke: rgba(16, 185, 129, 0.35); stroke-width: 3; }
+    body[data-active-path="meds"] .link-pulse[data-meds="true"] { stroke: var(--color-meds); opacity: 1; stroke-width: 4; }
+
+    body[data-active-path="sleep"] .link-path[data-sleep="true"] { stroke: rgba(251, 191, 36, 0.35); stroke-width: 3; }
+    body[data-active-path="sleep"] .link-pulse[data-sleep="true"] { stroke: var(--color-sleep); opacity: 1; stroke-width: 4; }
+
+    body[data-active-path="mood"] .link-path[data-mood="true"] { stroke: rgba(139, 92, 246, 0.35); stroke-width: 3; }
+    body[data-active-path="mood"] .link-pulse[data-mood="true"] { stroke: var(--color-mood); opacity: 1; stroke-width: 4; }
+
+    /* Node Cards layer */
+    .nodes-layer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 4;
+      pointer-events: none;
+    }
+
+    /* Card Component */
+    .node-card {
+      position: absolute;
+      width: 250px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 16px;
+      backdrop-filter: blur(16px);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+      pointer-events: auto;
+      cursor: pointer;
+      transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .node-card:hover {
+      border-color: rgba(255, 255, 255, 0.2);
+      transform: translateY(-4px) scale(1.02);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4), var(--shadow-glow);
+    }
+
+    /* Node Header */
+    .node-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .node-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      font-weight: 800;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .node-info h3 {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .node-info span {
+      font-size: 9px;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .node-body {
+      font-size: 11.5px;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    .node-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 12px;
+      padding-top: 8px;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+    }
+
+    .node-badge {
+      background: rgba(255, 255, 255, 0.05);
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: var(--text-muted);
+    }
+
+    /* Card Glows based on Category */
+    .node-card[data-category="vitals"] .node-icon { background: rgba(244, 63, 94, 0.1); border-color: rgba(244, 63, 94, 0.2); color: var(--color-vitals); }
+    .node-card[data-category="vitals"]:hover { border-color: var(--color-vitals); box-shadow: 0 15px 35px rgba(244, 63, 94, 0.15), var(--shadow-vitals); }
+
+    .node-card[data-category="meds"] .node-icon { background: rgba(16, 185, 129, 0.1); border-color: rgba(16, 185, 129, 0.2); color: var(--color-meds); }
+    .node-card[data-category="meds"]:hover { border-color: var(--color-meds); box-shadow: 0 15px 35px rgba(16, 185, 129, 0.15), var(--shadow-meds); }
+
+    .node-card[data-category="sleep"] .node-icon { background: rgba(251, 191, 36, 0.1); border-color: rgba(251, 191, 36, 0.2); color: var(--color-sleep); }
+    .node-card[data-category="sleep"]:hover { border-color: var(--color-sleep); box-shadow: 0 15px 35px rgba(251, 191, 36, 0.15), var(--shadow-sleep); }
+
+    .node-card[data-category="mood"] .node-icon { background: rgba(139, 92, 246, 0.1); border-color: rgba(139, 92, 246, 0.2); color: var(--color-mood); }
+    .node-card[data-category="mood"]:hover { border-color: var(--color-mood); box-shadow: 0 15px 35px rgba(139, 92, 246, 0.15), var(--shadow-mood); }
+
+    .node-card[data-category="scoring"] .node-icon { background: rgba(59, 130, 246, 0.1); border-color: rgba(59, 130, 246, 0.2); color: var(--color-scoring); }
+    .node-card[data-category="scoring"]:hover { border-color: var(--color-scoring); box-shadow: 0 15px 35px rgba(59, 130, 246, 0.15), var(--shadow-scoring); }
+
+    /* Dimming of inactive components */
+    body[data-active-path="vitals"] .node-card:not([data-vitals="true"]) { opacity: 0.2; }
+    body[data-active-path="meds"] .node-card:not([data-meds="true"]) { opacity: 0.2; }
+    body[data-active-path="sleep"] .node-card:not([data-sleep="true"]) { opacity: 0.2; }
+    body[data-active-path="mood"] .node-card:not([data-mood="true"]) { opacity: 0.2; }
+
+    /* Lane Grid Labels */
+    .lane-labels {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .lane-divider {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 1px;
+      border-left: 1px dashed rgba(255, 255, 255, 0.03);
+    }
+
+    .lane-label {
+      position: absolute;
+      top: 10px;
+      transform: translateX(-50%);
+      font-size: 11px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      background: rgba(11, 15, 25, 0.8);
+      padding: 2px 8px;
+      border-radius: 4px;
+      border: 1px solid var(--border-color);
+    }
+  </style>
+</head>
+<body data-active-path="all">
+
+  <div class="grid-bg"></div>
+
+  <!-- Header Panel -->
+  <header>
+    <div class="logo-section">
+      <h1>CareMyMed Flow.io Pipeline Diagram</h1>
+      <p>Interactive Architecture & Data Integrity Map</p>
+    </div>
+    
+    <div class="controls-panel">
+      <span style="font-size: 11px; font-weight: 700; color: var(--text-muted); margin-right: 6px;">HIGHLIGHT PATHWAY:</span>
+      <button class="btn-toggle active" data-path="all">✨ Whole Health</button>
+      <button class="btn-toggle" data-path="vitals">❤️ Vitals Pipeline</button>
+      <button class="btn-toggle" data-path="meds">💊 Medications Compliance</button>
+      <button class="btn-toggle" data-path="sleep">🌙 Sleep Estimation</button>
+      <button class="btn-toggle" data-path="mood">😊 Mood Tracking</button>
+    </div>
+  </header>
+
+  <!-- Interactive Canvas -->
+  <div class="canvas-container">
+    <div class="diagram-canvas">
+      
+      <!-- Lane Dividers and Labels -->
+      <div class="lane-labels">
+        <!-- Input Lane (X = 175) -->
+        <div class="lane-divider" style="left: 310px;"></div>
+        <div class="lane-label" style="left: 175px;">1. Client Inputs</div>
+
+        <!-- Sync & State Lane (X = 460) -->
+        <div class="lane-divider" style="left: 610px;"></div>
+        <div class="lane-label" style="left: 460px;">2. Offline & State Cache</div>
+
+        <!-- Express Layer Lane (X = 750) -->
+        <div class="lane-divider" style="left: 890px;"></div>
+        <div class="lane-label" style="left: 750px;">3. API Gateway</div>
+
+        <!-- Core Engines Lane (X = 1145) -->
+        <div class="lane-label" style="left: 1145px;">4. Analytics & Engines</div>
+      </div>
+
+      <!-- Links Layer (SVG Connectors) -->
+      <svg class="links-layer">
+        <defs>
+          <linearGradient id="grad-vitals" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="var(--color-vitals)" stop-opacity="0.1"/>
+            <stop offset="100%" stop-color="var(--color-vitals)" stop-opacity="0.6"/>
+          </linearGradient>
+          <linearGradient id="grad-meds" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="var(--color-meds)" stop-opacity="0.1"/>
+            <stop offset="100%" stop-color="var(--color-meds)" stop-opacity="0.6"/>
+          </linearGradient>
+        </defs>
+
+        <!-- Node 1 (Vitals) -> Node 5 (Zustand) -->
+        <path class="link-path" data-vitals="true" d="M300,105 C350,105 350,225 400,225" />
+        <path class="link-pulse" data-vitals="true" d="M300,105 C350,105 350,225 400,225" />
+
+        <!-- Node 2 (Meds) -> Node 5 (Zustand) -->
+        <path class="link-path" data-meds="true" d="M300,245 C350,245 350,245 400,245" />
+        <path class="link-pulse" data-meds="true" d="M300,245 C350,245 350,245 400,245" />
+
+        <!-- Node 3 (Sleep) -> Node 5 (Zustand) -->
+        <path class="link-path" data-sleep="true" d="M300,385 C350,385 350,265 400,265" />
+        <path class="link-pulse" data-sleep="true" d="M300,385 C350,385 350,265 400,265" />
+
+        <!-- Node 4 (Mood) -> Node 5 (Zustand) -->
+        <path class="link-path" data-mood="true" d="M300,525 C350,525 350,285 400,285" />
+        <path class="link-pulse" data-mood="true" d="M300,525 C350,525 350,285 400,285" />
+
+        <!-- Node 5 (Zustand) -> Node 7 (Express API) -->
+        <path class="link-path" data-vitals="true" data-meds="true" data-sleep="true" data-mood="true" d="M650,255 C690,255 690,345 730,345" />
+        <path class="link-pulse" data-vitals="true" data-meds="true" data-sleep="true" data-mood="true" d="M650,255 C690,255 690,345 730,345" />
+
+        <!-- Node 3 (Sleep) -> Node 6 (Offline Sync) -->
+        <path class="link-path" data-sleep="true" d="M300,405 C350,405 350,455 400,455" />
+        <path class="link-pulse" data-sleep="true" d="M300,405 C350,405 350,455 400,455" />
+
+        <!-- Node 1 (Vitals) -> Node 6 (Offline Sync) -->
+        <path class="link-path" data-vitals="true" d="M300,125 C350,125 350,415 400,415" />
+        <path class="link-pulse" data-vitals="true" d="M300,125 C350,125 350,415 400,415" />
+
+        <!-- Node 2 (Meds) -> Node 6 (Offline Sync) -->
+        <path class="link-path" data-meds="true" d="M300,265 C350,265 350,435 400,435" />
+        <path class="link-pulse" data-meds="true" d="M300,265 C350,265 350,435 400,435" />
+
+        <!-- Node 6 (Offline Sync) -> Node 7 (Express API) -->
+        <path class="link-path" data-vitals="true" data-meds="true" data-sleep="true" d="M650,445 C690,445 690,375 730,375" />
+        <path class="link-pulse" data-vitals="true" data-meds="true" data-sleep="true" d="M650,445 C690,445 690,375 730,375" />
+
+        <!-- Node 7 (Express API) -> Node 8 (BullMQ Queue) -->
+        <path class="link-path" data-vitals="true" data-meds="true" data-sleep="true" data-mood="true" d="M980,360 C1000,360 1000,360 1020,360" />
+        <path class="link-pulse" data-vitals="true" data-meds="true" data-sleep="true" data-mood="true" d="M980,360 C1000,360 1000,360 1020,360" />
+
+        <!-- Node 8 (BullMQ Queue) -> Node 9 (recomputeAndCacheHealthState) -->
+        <path class="link-path" data-vitals="true" data-meds="true" data-sleep="true" data-mood="true" d="M1270,360 C1290,360 1290,260 1310,260" />
+        <path class="link-pulse" data-vitals="true" data-meds="true" data-sleep="true" data-mood="true" d="M1270,360 C1290,360 1290,260 1310,260" />
+
+        <!-- Node 9 (recomputeAndCacheHealthState) -> Node 10 (Mongoose/Redis Cache) -->
+        <path class="link-path" data-vitals="true" data-meds="true" data-sleep="true" data-mood="true" d="M1435,295 C1435,320 1435,320 1435,345" />
+        <path class="link-pulse" data-vitals="true" data-meds="true" data-sleep="true" data-mood="true" d="M1435,295 C1435,320 1435,320 1435,345" />
+
+        <!-- Node 10 (Mongoose/Redis Cache) -> Node 11 (Streak Calendar UI) -->
+        <path class="link-path" data-vitals="true" data-meds="true" data-sleep="true" data-mood="true" d="M1310,480 C1290,480 1290,560 1270,560" />
+        <path class="link-pulse" data-vitals="true" data-meds="true" data-sleep="true" data-mood="true" d="M1310,480 C1290,480 1290,560 1270,560" />
+      </svg>
+
+      <!-- Nodes Layer -->
+      <div class="nodes-layer">
+
+        <!-- LANE 1: CLIENT INPUTS -->
+        
+        <!-- Node 1: Vitals -->
+        <div class="node-card" style="top: 50px; left: 50px;" data-category="vitals" data-vitals="true">
+          <div class="node-header">
+            <div class="node-icon">❤️</div>
+            <div class="node-info">
+              <h3>Vitals Logging</h3>
+              <span>Patient Input</span>
+            </div>
+          </div>
+          <div class="node-body">
+            User captures SpO2, heart rate, and blood pressure logs. Uses local timezone boundaries dynamically.
+          </div>
+          <div class="node-meta">
+            <span>Model: VitalLog</span>
+            <span class="node-badge">Client</span>
+          </div>
+        </div>
+
+        <!-- Node 2: Medications -->
+        <div class="node-card" style="top: 190px; left: 50px;" data-category="meds" data-meds="true">
+          <div class="node-header">
+            <div class="node-icon">💊</div>
+            <div class="node-info">
+              <h3>Meds Compliance</h3>
+              <span>Patient Input</span>
+            </div>
+          </div>
+          <div class="node-body">
+            Ticks off scheduled daily doses. Empty meds plans default to null to protect baseline stats integrity.
+          </div>
+          <div class="node-meta">
+            <span>Model: MedicineLog</span>
+            <span class="node-badge">Client</span>
+          </div>
+        </div>
+
+        <!-- Node 3: Sleep Tracker -->
+        <div class="node-card" style="top: 330px; left: 50px;" data-category="sleep" data-sleep="true">
+          <div class="node-header">
+            <div class="node-icon">🌙</div>
+            <div class="node-info">
+              <h3>Sleep Tracker</h3>
+              <span>4-Tier Estimation</span>
+            </div>
+          </div>
+          <div class="node-body">
+            Hierarchy: 1. Health Connect (Wearable), 2. UsageStatsManager (Screen activity Z-Scores), 3. Manual, 4. Amber CTA.
+          </div>
+          <div class="node-meta">
+            <span>Model: SleepLog</span>
+            <span class="node-badge">Client</span>
+          </div>
+        </div>
+
+        <!-- Node 4: Mood Check-in -->
+        <div class="node-card" style="top: 470px; left: 50px;" data-category="mood" data-mood="true">
+          <div class="node-header">
+            <div class="node-icon">😊</div>
+            <div class="node-info">
+              <h3>Mood Check-in</h3>
+              <span>Patient Input</span>
+            </div>
+          </div>
+          <div class="node-body">
+            Captures daily qualitative state (sad, okay, good, great) mapping to numbers (1-4) for trend vectoring.
+          </div>
+          <div class="node-meta">
+            <span>Schema: Patient.mood</span>
+            <span class="node-badge">Client</span>
+          </div>
+        </div>
+
+
+        <!-- LANE 2: OFFLINE & STATE CACHE -->
+
+        <!-- Node 5: Zustand Patient Store -->
+        <div class="node-card" style="top: 175px; left: 400px;" data-category="scoring" data-vitals="true" data-meds="true" data-sleep="true" data-mood="true">
+          <div class="node-header">
+            <div class="node-icon">📦</div>
+            <div class="node-info">
+              <h3>Zustand State Store</h3>
+              <span>usePatientStore</span>
+            </div>
+          </div>
+          <div class="node-body">
+            Client-side single source of truth. Dispatches optimistic UI updates and synchronizes cached state variables.
+          </div>
+          <div class="node-meta">
+            <span>Context: React</span>
+            <span class="node-badge">Local Cache</span>
+          </div>
+        </div>
+
+        <!-- Node 6: Offline Sync Queue -->
+        <div class="node-card" style="top: 365px; left: 400px;" data-category="scoring" data-vitals="true" data-meds="true" data-sleep="true">
+          <div class="node-header">
+            <div class="node-icon">🔄</div>
+            <div class="node-info">
+              <h3>Offline Sync Queue</h3>
+              <span>OfflineSyncService</span>
+            </div>
+          </div>
+          <div class="node-body">
+            Serializes pending updates to AsyncStorage when offline. flushes FIFO queries once connectivity resumes.
+          </div>
+          <div class="node-meta">
+            <span>Storage: AsyncStorage</span>
+            <span class="node-badge">Local Queue</span>
+          </div>
+        </div>
+
+
+        <!-- LANE 3: API GATEWAY -->
+
+        <!-- Node 7: Express API Gateway -->
+        <div class="node-card" style="top: 300px; left: 730px;" data-category="scoring" data-vitals="true" data-meds="true" data-sleep="true" data-mood="true">
+          <div class="node-header">
+            <div class="node-icon">⚡</div>
+            <div class="node-info">
+              <h3>Express Server API</h3>
+              <span>Router Gateway</span>
+            </div>
+          </div>
+          <div class="node-body">
+            Authorizes tokens via dual JWTs/Supabase middleware. Filters queries by scope, parses timezones, mounts routes.
+          </div>
+          <div class="node-meta">
+            <span>Server: Express.js</span>
+            <span class="node-badge">Port 3001</span>
+          </div>
+        </div>
+
+
+        <!-- LANE 4: ANALYTICS & ENGINES -->
+
+        <!-- Node 8: BullMQ Health State Queue -->
+        <div class="node-card" style="top: 300px; left: 1020px;" data-category="scoring" data-vitals="true" data-meds="true" data-sleep="true" data-mood="true">
+          <div class="node-header">
+            <div class="node-icon">⏰</div>
+            <div class="node-info">
+              <h3>BullMQ Queue</h3>
+              <span>5s Delay Deduplication</span>
+            </div>
+          </div>
+          <div class="node-body">
+            Queues recomputations to prevent database hammering on multiple writes. Synchronizes worker tasks.
+          </div>
+          <div class="node-meta">
+            <span>Queue: BullMQ</span>
+            <span class="node-badge">Redis Backed</span>
+          </div>
+        </div>
+
+        <!-- Node 9: Health State Calculation -->
+        <div class="node-card" style="top: 110px; left: 1310px;" data-category="scoring" data-vitals="true" data-meds="true" data-sleep="true" data-mood="true">
+          <div class="node-header">
+            <div class="node-icon">📊</div>
+            <div class="node-info">
+              <h3>Health State Engine</h3>
+              <span>Score Recomputation</span>
+            </div>
+          </div>
+          <div class="node-body">
+            Runs personalBaselineService Z-Scores. Adjusts base score for anomalies & appends tips.
+          </div>
+          <div class="node-meta">
+            <span>Service: stateService</span>
+            <span class="node-badge">Aggregator</span>
+          </div>
+        </div>
+
+        <!-- Node 10: DB Snapshots & Cache -->
+        <div class="node-card" style="top: 345px; left: 1310px;" data-category="scoring" data-vitals="true" data-meds="true" data-sleep="true" data-mood="true">
+          <div class="node-header">
+            <div class="node-icon">💾</div>
+            <div class="node-info">
+              <h3>Mongoose DB & Redis</h3>
+              <span>Persistence & Cache</span>
+            </div>
+          </div>
+          <div class="node-body">
+            Saves state to Patient document. Upserts daily record snapshots to PatientHealthStateHistory.
+          </div>
+          <div class="node-meta">
+            <span>DB: MongoDB</span>
+            <span class="node-badge">60-Day Expire</span>
+          </div>
+        </div>
+
+        <!-- Node 11: 35-Day Balance Board -->
+        <div class="node-card" style="top: 500px; left: 1020px;" data-category="scoring" data-vitals="true" data-meds="true" data-sleep="true" data-mood="true">
+          <div class="node-header">
+            <div class="node-icon">🏁</div>
+            <div class="node-info">
+              <h3>35-Day Balance Grid</h3>
+              <span>StreakCalendar UI</span>
+            </div>
+          </div>
+          <div class="node-body">
+            Grids are colored strictly based on overall health score (Whole Health). Hides score / empty details on unlogged days.
+          </div>
+          <div class="node-meta">
+            <span>Component: StreakCalendar</span>
+            <span class="node-badge">Client UI</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const toggles = document.querySelectorAll('.btn-toggle');
+    
+    toggles.forEach(toggle => {
+      toggle.addEventListener('click', () => {
+        // Toggle Active Button State
+        toggles.forEach(t => t.classList.remove('active'));
+        toggle.classList.add('active');
+        
+        // Set active path attribute on body
+        const path = toggle.getAttribute('data-path');
+        document.body.setAttribute('data-active-path', path);
+      });
+    });
+  </script>
+</body>
+</html>
