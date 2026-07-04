@@ -1960,16 +1960,16 @@ export default function PatientHomeScreen({ navigation }) {
           {estimatedSleep && (
             <Animated.View style={[entranceStyle(1), { marginBottom: 20 }]}>
               {estimatedSleep.needsPermission ? (
-                <View style={styles.sleepPromptCard}>
+                <View style={styles.sleepCtaCard}>
                   <View style={styles.sleepPromptHeader}>
-                    <View style={styles.sleepIconBox}>
-                      <Watch size={18} color="#4F46E5" />
+                    <View style={styles.sleepCtaIconBox}>
+                      <Watch size={18} color="#D97706" />
                     </View>
-                    <Text style={styles.sleepPromptTitle}>
+                    <Text style={styles.sleepCtaTitle}>
                       {t("home.sleep_tracking_title", { defaultValue: "🌙 Sleep Tracking" })}
                     </Text>
                   </View>
-                  <Text style={styles.sleepPromptText}>
+                  <Text style={styles.sleepCtaText}>
                     {t("home.sleep_tracking_cta_desc", {
                       defaultValue: "Connect Health Connect or enable device activity access for better sleep estimation."
                     })}
@@ -1979,39 +1979,39 @@ export default function PatientHomeScreen({ navigation }) {
                     {estimatedSleep.needsPermission === 'usage_stats' ? (
                       <Pressable
                         style={({ pressed }) => [
-                          styles.sleepPromptBtnYes,
+                          styles.sleepCtaBtnYes,
                           { flex: 1, height: 40 },
                           pressed && { opacity: 0.8 },
                         ]}
                         onPress={handleEnableDeviceActivity}
                       >
-                        <Text style={styles.sleepPromptBtnYesText}>
+                        <Text style={styles.sleepCtaBtnYesText}>
                           {t("home.enable_device_activity", { defaultValue: "Enable Device Activity" })}
                         </Text>
                       </Pressable>
                     ) : (
                       <Pressable
                         style={({ pressed }) => [
-                          styles.sleepPromptBtnYes,
+                          styles.sleepCtaBtnYes,
                           { flex: 1, height: 40 },
                           pressed && { opacity: 0.8 },
                         ]}
                         onPress={() => navigation.navigate("HealthConnectSetup")}
                       >
-                        <Text style={styles.sleepPromptBtnYesText}>
+                        <Text style={styles.sleepCtaBtnYesText}>
                           {t("home.connect_health_connect", { defaultValue: "Connect Health" })}
                         </Text>
                       </Pressable>
                     )}
                     <Pressable
                       style={({ pressed }) => [
-                        styles.sleepPromptBtnNo,
+                        styles.sleepCtaBtnNo,
                         { height: 40 },
                         pressed && { opacity: 0.8 },
                       ]}
                       onPress={handleDismissSleep}
                     >
-                      <Text style={styles.sleepPromptBtnNoText}>
+                      <Text style={styles.sleepCtaBtnNoText}>
                         {t("home.dismiss", { defaultValue: "Not Now" })}
                       </Text>
                     </Pressable>
@@ -2019,7 +2019,7 @@ export default function PatientHomeScreen({ navigation }) {
 
                   <Text
                     style={[
-                      styles.sleepPromptText,
+                      styles.sleepCtaText,
                       { fontSize: 11, marginBottom: 8, opacity: 0.8 },
                     ]}
                   >
@@ -2035,14 +2035,14 @@ export default function PatientHomeScreen({ navigation }) {
                       <Pressable
                         key={h}
                         style={({ pressed }) => [
-                          styles.sleepHourBtn,
+                          styles.sleepCtaHourBtn,
                           pressed && { opacity: 0.7 },
                           sleepLogging && { opacity: 0.4 },
                         ]}
                         onPress={() => logCustomSleep(h)}
                         disabled={sleepLogging}
                       >
-                        <Text style={styles.sleepHourBtnText}>{h}h</Text>
+                        <Text style={styles.sleepCtaHourBtnText}>{h}h</Text>
                       </Pressable>
                     ))}
                   </ScrollView>
@@ -4256,6 +4256,79 @@ const styles = StyleSheet.create({
   },
   sleepHourBtnDismissText: {
     color: "#64748B",
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  // Dedicated Amber CTA styles
+  sleepCtaCard: {
+    backgroundColor: "#FFFBEB",
+    borderRadius: radius.lg,
+    padding: 18,
+    borderWidth: 1.5,
+    borderColor: "#FDE68A",
+    ...shadows.card,
+  },
+  sleepCtaIconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: "#FEF3C7",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  sleepCtaTitle: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: "#78350F",
+  },
+  sleepCtaText: {
+    fontSize: 13,
+    color: "#92400E",
+    lineHeight: 18,
+    fontWeight: "500",
+    marginBottom: 14,
+  },
+  sleepCtaBtnYes: {
+    backgroundColor: "#D97706",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: radius.sm,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  sleepCtaBtnYesText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  sleepCtaBtnNo: {
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: "#FDE68A",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  sleepCtaBtnNoText: {
+    color: "#D97706",
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  sleepCtaHourBtn: {
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#FDE68A",
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    minWidth: 54,
+  },
+  sleepCtaHourBtnText: {
+    color: "#D97706",
     fontSize: 13,
     fontWeight: "700",
   },
