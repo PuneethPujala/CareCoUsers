@@ -183,6 +183,7 @@ export default function HealthProfileScreen({ navigation }) {
     const profileTourTriggeredRef = useRef(false);
     const scrollViewRef = useRef(null);
     const profileSetupCardRef = useRef(null);
+    const headerRef = useRef(null);
 
     const getProfileTourSteps = () => {
         return [
@@ -193,7 +194,8 @@ export default function HealthProfileScreen({ navigation }) {
                 }),
                 icon: Activity,
                 iconColor: '#3B82F6',
-                ref: profileSetupCardRef,
+                ref: headerRef,
+                scrollOffset: 0,
                 visible: true,
             }
         ];
@@ -929,7 +931,7 @@ export default function HealthProfileScreen({ navigation }) {
 
 
             {/* ── Simple Header (like care team) ── */}
-            <View style={s.header}>
+            <View ref={headerRef} collapsable={false} style={s.header}>
                 <View style={s.headerRow}>
                     <View style={{ flex: 1 }}>
                         <Text style={s.headerEyebrow}>{t('health_profile.health_vault', { defaultValue: 'HEALTH VAULT' })}</Text>

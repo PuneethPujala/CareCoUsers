@@ -1014,6 +1014,7 @@ export default function MedicationsScreen({ navigation }) {
   const medsTourTriggeredRef = useRef(false);
   const scrollViewRef = useRef(null);
   const medsListCardRef = useRef(null);
+  const headerRef = useRef(null);
 
   const getMedsTourSteps = () => {
     return [
@@ -1024,7 +1025,8 @@ export default function MedicationsScreen({ navigation }) {
         }),
         icon: Pill,
         iconColor: "#10B981",
-        ref: medsListCardRef,
+        ref: headerRef,
+        scrollOffset: 0,
         visible: true,
       }
     ];
@@ -1784,7 +1786,7 @@ export default function MedicationsScreen({ navigation }) {
       </View>
 
       {/* ── SIMPLE HEADER (like care team) ── */}
-      <View style={styles.header}>
+      <View ref={headerRef} collapsable={false} style={styles.header}>
         <View style={styles.headerRow}>
           <View style={{ flex: 1 }}>
             <Text style={styles.headerEyebrow}>
