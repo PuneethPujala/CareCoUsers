@@ -180,7 +180,7 @@ export function AuthProvider({ children }) {
             setSession(null);
             setProfile(null);
             setPatient(null);
-            usePatientStore.getState().setPatient(null);
+            usePatientStore.getState().resetStore();
             profileRef.current = null;
             setRecoverySessionAt(null);
             skipNextSignedInRef.current = false;

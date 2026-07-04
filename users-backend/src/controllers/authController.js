@@ -121,7 +121,6 @@ async function deleteMe(req, res) {
       req.profile?.supabase_uid;
 
     if (isPatient) {
-      // Hard-delete: permanently remove ALL patient data
       const CallLog = require("../models/CallLog");
       const MedicineLog = require("../models/MedicineLog");
       const VitalLog = require("../models/VitalLog");
@@ -130,6 +129,9 @@ async function deleteMe(req, res) {
       const AIVitalPrediction = require("../models/AIVitalPrediction");
       const Medication = require("../models/Medication");
       const Alert = require("../models/Alert");
+      const SleepLog = require("../models/SleepLog");
+      const PatientHealthStateHistory = require("../models/PatientHealthStateHistory");
+      const AchievementEvent = require("../models/AchievementEvent");
 
       // ── Decrement Organization Count ──
       if (req.profile.organization_id) {
@@ -158,6 +160,9 @@ async function deleteMe(req, res) {
         AIVitalPrediction.deleteMany({ patient_id: userId }),
         Medication.deleteMany({ patientId: userId }),
         Alert.deleteMany({ patient_id: userId }),
+        SleepLog.deleteMany({ patient_id: userId }),
+        PatientHealthStateHistory.deleteMany({ patient_id: userId }),
+        AchievementEvent.deleteMany({ patient_id: userId }),
         // Remove patient from any caller's assigned patient_ids list
         Caller.updateMany(
           { patient_ids: userId },
@@ -181,6 +186,9 @@ async function deleteMe(req, res) {
           "Alert",
           "Caller",
           "Patient",
+          "SleepLog",
+          "PatientHealthStateHistory",
+          "AchievementEvent",
         ],
       });
     } else if (req.profile.role === "companion") {

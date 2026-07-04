@@ -162,6 +162,33 @@ const usePatientStore = create((set, get) => ({
     setNetworkSimulationMode: (mode) => set({ networkSimulationMode: mode }),
     setLastSyncTimestamp: (ts) => set({ lastSyncTimestamp: ts }),
 
+    resetStore: () => set({
+        patient: null,
+        companionSelectedPatientId: null,
+        vitals: null,
+        vitalsHistory: [],
+        aiPrediction: null,
+        dashboardMeds: [],
+        medicationSchedule: { morning: [], afternoon: [], night: [] },
+        weeklyAdherence: [],
+        adherenceDetails: null,
+        healthHistory: null,
+        adherenceRecap: null,
+        adherenceRecaps: { weekly: null, monthly: null, yearly: null },
+        callPreferences: { morning: '09:00', afternoon: '14:00', evening: '17:00', night: '20:00' },
+        loading: true,
+        isCached: false,
+        lastFetchTs: 0,
+        syncState: 'synced',
+        pendingSyncCount: 0,
+        pendingInterventionsCount: 0,
+        simulateOffline: false,
+        networkSimulationMode: 'online',
+        lastSyncTimestamp: null,
+        _optimisticMeds: {},
+        newlyUnlockedAchievement: null,
+    }),
+
     fetchAdherenceDetails: async () => {
         try {
             const { data } = await apiService.medicines.getAdherenceDetails();
