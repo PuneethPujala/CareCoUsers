@@ -148,6 +148,7 @@ const StreakCalendar = ({ dailyLog = [], timezone = "Asia/Kolkata" }) => {
                     ]}
                     onPress={() => handlePressDay(day)}
                     activeOpacity={0.7}
+                    hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                   />
                 );
               })}
