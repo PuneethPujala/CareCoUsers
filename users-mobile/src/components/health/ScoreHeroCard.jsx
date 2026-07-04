@@ -15,7 +15,8 @@ export default function ScoreHeroCard({ scoreData }) {
         hsBracket,
         bracketLabel,
         lastSyncText,
-        deltas
+        deltas,
+        completionPct
     } = scoreData || {};
 
     const renderDelta = () => {
@@ -46,24 +47,22 @@ export default function ScoreHeroCard({ scoreData }) {
                         </SvgLinearGradient>
                     </Defs>
                     <SvgCircle cx={55} cy={55} r={45} stroke="#F1F5F9" strokeWidth={8} fill="none" />
-                    {hasScore && (
-                        <SvgCircle 
-                            cx={55} 
-                            cy={55} 
-                            r={45} 
-                            stroke="url(#scoreGrad)" 
-                            strokeWidth={8} 
-                            strokeDasharray={2 * Math.PI * 45} 
-                            strokeDashoffset={2 * Math.PI * 45 * (1 - (activeScoreVal || 0) / 100)} 
-                            strokeLinecap="round" 
-                            fill="none" 
-                            transform="rotate(-90 55 55)" 
-                        />
-                    )}
+                    <SvgCircle 
+                        cx={55} 
+                        cy={55} 
+                        r={45} 
+                        stroke={hasScore ? "url(#scoreGrad)" : colors.primary} 
+                        strokeWidth={8} 
+                        strokeDasharray={2 * Math.PI * 45} 
+                        strokeDashoffset={2 * Math.PI * 45 * (1 - (hasScore ? activeScoreVal : (completionPct || 0)) / 100)} 
+                        strokeLinecap="round" 
+                        fill="none" 
+                        transform="rotate(-90 55 55)" 
+                    />
                 </Svg>
                 <View style={s.scoreTextContainer}>
-                    <Text style={[s.scoreValText, { color: hasScore ? '#0F172A' : '#94A3B8' }]}>
-                        {hasScore ? activeScoreVal : '—'}
+                    <Text style={[s.scoreValText, { color: hasScore ? '#0F172A' : colors.primary }]}>
+                        {hasScore ? activeScoreVal : `${completionPct || 0}%`}
                     </Text>
                 </View>
             </View>
@@ -86,7 +85,7 @@ export default function ScoreHeroCard({ scoreData }) {
                     </View>
                 ) : (
                     <Text style={s.learnText}>
-                        We're learning your health patterns. Complete your profile to unlock your score!
+                        We need more health data to calculate an accurate score. Currently {completionPct || 0}% complete.
                     </Text>
                 )}
             </View>

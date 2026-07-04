@@ -1931,11 +1931,11 @@ export default function HealthProfileScreen({ navigation }) {
             {/* ── SCORE INFO MODAL ── */}
             <Modal visible={showScoreInfo} transparent animationType="slide" statusBarTranslucent onRequestClose={() => setShowScoreInfo(false)}>
                 {(() => {
-                    const hasScore = hsScore !== null && hsScore > 0;
+                    const hasScore = hsScore !== null && hsScore > 0 && completionPct >= 50;
                     const activeScoreVal = hasScore ? hsScore : 0;
                     
                     const scoreColor = activeScoreVal >= 80 ? '#10B981' : activeScoreVal >= 60 ? '#F59E0B' : activeScoreVal >= 40 ? '#F97316' : '#F43F5E';
-                    const scoreStatus = hasScore ? (hsLabel || 'Stable') : 'Learning Patterns';
+                    const scoreStatus = hasScore ? (hsLabel || 'Stable') : 'Building Profile';
                     
                     // Health Age: derive from actual age and score, not fabricated
                     const actualAge = age || null;
@@ -2116,7 +2116,8 @@ export default function HealthProfileScreen({ navigation }) {
                                                 hsBracket,
                                                 bracketLabel,
                                                 lastSyncText,
-                                                deltas: healthHistory?.deltas
+                                                deltas: healthHistory?.deltas,
+                                                completionPct
                                             }}
                                         />
 
@@ -2134,7 +2135,7 @@ export default function HealthProfileScreen({ navigation }) {
                                                 alignItems: 'center',
                                             }}>
                                                 <View style={{ gap: 2 }}>
-                                                    <Text style={{ fontSize: 12, ...FONT.heavy, color: '#6366F1', letterSpacing: 0.8, textTransform: 'uppercase' }}>HEALTH AGE</Text>
+                                                    <Text style={{ fontSize: 12, ...FONT.heavy, color: '#6366F1', letterSpacing: 0.8, textTransform: 'uppercase' }}>BIOLOGICAL WELLNESS ESTIMATE</Text>
                                                     <Text style={{ fontSize: 20, ...FONT.heavy, color: '#0F172A' }}>{healthAgeVal} Years</Text>
                                                 </View>
                                                 <View style={{
