@@ -127,9 +127,10 @@ const getHeroTheme = (scoreValue) => {
   if (scoreValue >= 90) {
     return {
       gradient: [
-        "#10B981", // Vibrant Emerald
-        "#0D9488", // Vibrant Teal
-        "#0F766E", // Deep Teal
+        "#10B981", // Premium Emerald
+        "#059669", 
+        "#047857",
+        "#065F46",
       ],
       accentGlow: "#34D399",
       textOnHero: "#FFFFFF",
@@ -140,9 +141,10 @@ const getHeroTheme = (scoreValue) => {
   } else {
     return {
       gradient: [
-        "#4F46E5", // Modern Indigo
-        "#3B82F6", // Royal Blue
-        "#2563EB", // Cobalt Blue
+        "#0F5FFF", // Premium Sapphire
+        "#3B82F6",
+        "#5B7CFA",
+        "#7C6CF8", // Indigo edge glow
       ],
       accentGlow: "#60A5FA",
       textOnHero: "#FFFFFF",
@@ -1702,32 +1704,33 @@ export default function AdherenceScreen({ navigation }) {
               style={[
                 styles.heroCard,
                 {
-                  borderWidth: 1.5,
-                  borderColor: "rgba(255, 255, 255, 0.3)",
+                  borderWidth: 1,
+                  borderColor: "rgba(255, 255, 255, 0.22)",
                 },
               ]}
             >
-              {/* Glass reflection highlight overlay (Background layer) */}
+              {/* Top-left light highlight overlay */}
               <LinearGradient
-                colors={["rgba(255, 255, 255, 0.15)", "rgba(255, 255, 255, 0)"]}
+                colors={["rgba(255, 255, 255, 0.22)", "rgba(255, 255, 255, 0)"]}
                 start={{ x: 0, y: 0 }}
-                end={{ x: 0.5, y: 1 }}
+                end={{ x: 0.7, y: 0.7 }}
                 style={[StyleSheet.absoluteFillObject, { zIndex: 1 }]}
               />
 
-              {/* Inner glow accent (Background layer) */}
-              <View
-                style={{
-                  position: "absolute",
-                  top: -40,
-                  right: -40,
-                  width: 180,
-                  height: 180,
-                  borderRadius: 90,
-                  backgroundColor: heroTheme.accentGlow,
-                  opacity: 0.1,
-                  zIndex: 1,
-                }}
+              {/* Bottom-right soft purple/violet glow to simulate mesh/aurora */}
+              <LinearGradient
+                colors={["rgba(124, 108, 248, 0.25)", "rgba(124, 108, 248, 0)"]}
+                start={{ x: 1, y: 1 }}
+                end={{ x: 0.3, y: 0.3 }}
+                style={[StyleSheet.absoluteFillObject, { zIndex: 1 }]}
+              />
+
+              {/* Top-right subtle cyan glow for premium lighting */}
+              <LinearGradient
+                colors={["rgba(103, 232, 249, 0.18)", "rgba(103, 232, 249, 0)"]}
+                start={{ x: 1, y: 0 }}
+                end={{ x: 0.4, y: 0.6 }}
+                style={[StyleSheet.absoluteFillObject, { zIndex: 1 }]}
               />
 
               {/* Sparkles decoration (Background layer) */}
@@ -3374,11 +3377,11 @@ const styles = StyleSheet.create({
     padding: 24,
     marginBottom: 16,
     overflow: "hidden",
-    shadowColor: "#0C54D6",
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.35,
-    shadowRadius: 24,
-    elevation: 12,
+    shadowColor: "#4A5CFF",
+    shadowOffset: { width: 0, height: 20 },
+    shadowOpacity: 0.22,
+    shadowRadius: 35,
+    elevation: 15,
   },
   heroTopRow: { flexDirection: "row", alignItems: "center", marginBottom: 20 },
   heroRingWrap: {
