@@ -10,6 +10,7 @@ Select a guide below to explore the detailed pipeline details, system interactio
 
 | Document / Area | Key Topics Covered |
 |:---|:---|
+| 🎨 [Interactive Flow.io Data Pipeline Diagram](file:///c:/dev/CareCoUsers/docs/architecture/interactive_data_flow.html) | A high-fidelity, interactive dark-themed SVG/HTML flowchart displaying how patient inputs (vitals, sleep, meds) synchronize to the Express gateway, BullMQ queue, Personal Baseline Z-Score mathematics, and Streak UI. Allows filtering individual paths directly in the browser. |
 | 🔐 [Authentication Architecture](file:///c:/dev/CareCoUsers/docs/architecture/authentication_flow.md) | Dual-Token System (CareMyMed JWT + Supabase Auth fallback), session verification, and client/server interception logic. |
 | 📊 [AI Health Scoring & Personal Baselines](file:///c:/dev/CareCoUsers/docs/architecture/health_scoring_pipeline.md) | The daily health score computation, rolling Z-scores, anomaly detection engine, and database snapshot/caching cycles. |
 | 💤 [4-Tier Sleep Estimation Pipeline](file:///c:/dev/CareCoUsers/docs/architecture/sleep_estimation_engine.md) | Smartwatch/Fitness Tracker querying (Health Connect), Android screen-off activity stats (`UsageStatsManager`), manual logger, and permission/CTA fallbacks. |
