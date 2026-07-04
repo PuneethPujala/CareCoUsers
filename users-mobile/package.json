@@ -27,6 +27,7 @@
     "axios": "^1.7.7",
     "date-fns": "^4.1.0",
     "expo": "~54.0.35",
+    "expo-android-usagestats": "^1.2.0",
     "expo-auth-session": "~7.0.11",
     "expo-av": "~16.0.8",
     "expo-build-properties": "~1.0.10",

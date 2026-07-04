@@ -67,11 +67,7 @@ import { useAuth } from "../../context/AuthContext";
 import { apiService } from "../../lib/api";
 import { useFocusEffect } from "@react-navigation/native";
 import HealthSyncService from "../../services/HealthSyncService";
-import {
-  checkPermissionStatus,
-  fetchSleepSessions,
-  initializeHealthPlatform,
-} from "../../lib/healthIntegration";
+import * as sleepEstimation from "../../lib/sleepEstimation";
 import { syncAllSchedules } from "../../utils/notifications";
 import usePatientStore from "../../store/usePatientStore";
 import SmartInput from "../../components/ui/SmartInput";
@@ -664,119 +660,32 @@ export default function PatientHomeScreen({ navigation }) {
 
   const checkEstimatedSleep = async () => {
     try {
-      // Silently initialize health platform
-      const isHealthInit = await initializeHealthPlatform();
-      if (isHealthInit) {
-        const permStatus = await checkPermissionStatus();
-        if (permStatus === "granted") {
-          // Fetch sleep sessions for the last 24 hours
-          const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
-          const sessions = await fetchSleepSessions(since);
-
-          if (sessions && sessions.length > 0) {
-            // Sort sessions by endTime descending to get the latest completed sleep session.
-            const sorted = [...sessions].sort(
-              (a, b) => new Date(b.endTime) - new Date(a.endTime),
-            );
-            const latestSession = sorted[0];
-
-            const start = new Date(latestSession.startTime);
-            const end = new Date(latestSession.endTime);
-            const durationHours =
-              (end.getTime() - start.getTime()) / (1000 * 60 * 60);
-
-            // If session is within reasonable range (3 to 16 hours)
-            if (durationHours >= 3 && durationHours <= 16) {
-              const todayStr = new Date().toDateString();
-              const lastPrompted = await AsyncStorage.getItem(
-                "last_sleep_prompt_date",
-              );
-              if (lastPrompted !== todayStr) {
-                const formatTime = (date) => {
-                  let hrs = date.getHours();
-                  const minutes = date.getMinutes();
-                  const ampm = hrs >= 12 ? "PM" : "AM";
-                  hrs = hrs % 12;
-                  hrs = hrs ? hrs : 12;
-                  const minStr = minutes < 10 ? "0" + minutes : minutes;
-                  return `${hrs}:${minStr} ${ampm}`;
-                };
-
-                setEstimatedSleep({
-                  hours: Math.round(durationHours * 10) / 10,
-                  rawHours: durationHours,
-                  startTime: formatTime(start),
-                  endTime: formatTime(end),
-                  dateStr: todayStr,
-                  lastActiveTime: start.getTime(),
-                  currentTime: end.getTime(),
-                  source: "native_health",
-                });
-                return; // Found valid sleep session, skip inactivity check
-              }
-            }
-          }
-        }
-      }
-
-      // Fallback to AsyncStorage inactivity check if no permission or no native sleep data was found
-      const lastActiveStr = await AsyncStorage.getItem("last_active_timestamp");
-      if (!lastActiveStr) return;
-
-      const lastActiveTime = parseInt(lastActiveStr, 10);
-      const currentTime = Date.now();
-      const durationMs = currentTime - lastActiveTime;
-      const durationHours = durationMs / (1000 * 60 * 60);
-
-      // Check if duration is between 4 and 12 hours
-      if (durationHours >= 4 && durationHours <= 12) {
-        const lastActiveDate = new Date(lastActiveTime);
-        const currentDate = new Date(currentTime);
-
-        const lastActiveHour = lastActiveDate.getHours();
-        const currentHour = currentDate.getHours();
-
-        // Last active between 7 PM and 3 AM; Current active between 5 AM and 11:30 AM
-        if (
-          (lastActiveHour >= 19 || lastActiveHour < 3) &&
-          currentHour >= 5 &&
-          currentHour < 12
-        ) {
-          const todayStr = currentDate.toDateString();
-          const lastPrompted = await AsyncStorage.getItem(
-            "last_sleep_prompt_date",
-          );
-          if (lastPrompted !== todayStr) {
-            const formatTime = (date) => {
-              let hrs = date.getHours();
-              const minutes = date.getMinutes();
-              const ampm = hrs >= 12 ? "PM" : "AM";
-              hrs = hrs % 12;
-              hrs = hrs ? hrs : 12;
-              const minStr = minutes < 10 ? "0" + minutes : minutes;
-              return `${hrs}:${minStr} ${ampm}`;
-            };
-
-            setEstimatedSleep({
-              hours: Math.round(durationHours * 10) / 10,
-              rawHours: durationHours,
-              startTime: formatTime(lastActiveDate),
-              endTime: formatTime(currentDate),
-              dateStr: todayStr,
-              lastActiveTime,
-              currentTime,
-              source: "device_inactivity",
-            });
-          }
-        }
+      const result = await sleepEstimation.estimateSleep();
+      if (result && result.estimate) {
+        setEstimatedSleep({
+          ...result.estimate,
+          confidenceLabel: result.confidenceLabel,
+          displayTitle: result.displayTitle,
+          displaySubtitle: result.displaySubtitle,
+          needsPermission: result.needsPermission,
+        });
+      } else if (result && result.needsPermission) {
+        setEstimatedSleep({
+          needsPermission: result.needsPermission,
+          confidenceLabel: result.confidenceLabel,
+          source: result.source,
+        });
+      } else {
+        setEstimatedSleep(null);
       }
     } catch (e) {
       console.warn("Failed to check estimated sleep:", e.message);
+      setEstimatedSleep(null);
     }
   };
 
   const handleConfirmSleep = async () => {
-    if (!estimatedSleep || sleepLogging) return;
+    if (!estimatedSleep || estimatedSleep.needsPermission || sleepLogging) return;
     setSleepLogging(true);
     try {
       const apiSource =
@@ -809,9 +718,10 @@ export default function PatientHomeScreen({ navigation }) {
   const handleDismissSleep = async () => {
     if (!estimatedSleep) return;
     try {
+      const dateStr = estimatedSleep.dateStr || new Date().toDateString();
       await AsyncStorage.setItem(
         "last_sleep_prompt_date",
-        estimatedSleep.dateStr,
+        dateStr,
       );
       setEstimatedSleep(null);
     } catch (e) {
@@ -819,34 +729,46 @@ export default function PatientHomeScreen({ navigation }) {
     }
   };
 
-  const handleAdjustSleep = () => {
-    AlertManager.alert("Adjust Sleep", "How many hours did you sleep?", [
-      { text: "6 Hours", onPress: () => logCustomSleep(6) },
-      { text: "7 Hours", onPress: () => logCustomSleep(7) },
-      { text: "8 Hours", onPress: () => logCustomSleep(8) },
-      { text: "Cancel", style: "cancel" },
-    ]);
+  const handleEnableDeviceActivity = () => {
+    AlertManager.alert(
+      t("home.usage_permission_title", { defaultValue: "Enable Activity Access" }),
+      t("home.usage_permission_desc", {
+        defaultValue: "We will open your settings. Find 'CareMyMed' in the list and turn on 'Allow usage tracking'.\n\nThis lets us estimate your sleep duration without needing a smartwatch."
+      }),
+      [
+        {
+          text: t("home.cancel", { defaultValue: "Cancel" }),
+          style: "cancel"
+        },
+        {
+          text: t("home.open_settings", { defaultValue: "Open Settings" }),
+          onPress: async () => {
+            await sleepEstimation.requestUsageStatsPermission();
+          }
+        }
+      ]
+    );
   };
 
   const logCustomSleep = async (hours) => {
     if (!estimatedSleep || sleepLogging) return;
     setSleepLogging(true);
     try {
-      const apiSource =
-        estimatedSleep.source === "native_health"
-          ? Platform.OS === "android"
-            ? "health_connect"
-            : "healthkit"
-          : "manual";
+      const apiSource = "manual";
+      const logDate = estimatedSleep.lastActiveTime 
+        ? new Date(estimatedSleep.lastActiveTime).toISOString()
+        : new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const dateStr = estimatedSleep.dateStr || new Date().toDateString();
+
       await apiService.patients.logSleep({
         hours: hours,
-        date: new Date(estimatedSleep.lastActiveTime).toISOString(),
+        date: logDate,
         quality: "good",
         source: apiSource,
       });
       await AsyncStorage.setItem(
         "last_sleep_prompt_date",
-        estimatedSleep.dateStr,
+        dateStr,
       );
       setEstimatedSleep(null);
       AlertManager.alert(
@@ -1015,16 +937,7 @@ export default function PatientHomeScreen({ navigation }) {
     const subscription = AppState.addEventListener(
       "change",
       async (nextAppState) => {
-        if (nextAppState === "background") {
-          try {
-            await AsyncStorage.setItem(
-              "last_active_timestamp",
-              Date.now().toString(),
-            );
-          } catch (e) {
-            console.warn("Failed to save last active time:", e.message);
-          }
-        } else if (nextAppState === "active") {
+        if (nextAppState === "active") {
           setNow(new Date());
           checkEstimatedSleep();
         }
@@ -2046,97 +1959,216 @@ export default function PatientHomeScreen({ navigation }) {
           {/* Sleep Inactivity/Native Detection Prompt Banner */}
           {estimatedSleep && (
             <Animated.View style={[entranceStyle(1), { marginBottom: 20 }]}>
-              <View style={styles.sleepPromptCard}>
-                <View style={styles.sleepPromptHeader}>
-                  <View style={styles.sleepIconBox}>
-                    <Watch size={18} color="#4F46E5" />
-                  </View>
-                  <Text style={styles.sleepPromptTitle}>
-                    {estimatedSleep.source === "native_health"
-                      ? "🌙 Sleep Detected"
-                      : "🌙 Phone Inactivity"}
-                  </Text>
-                </View>
-                <Text style={styles.sleepPromptText}>
-                  {estimatedSleep.source === "native_health" ? (
-                    <>
-                      Your watch or phone logged{" "}
-                      <Text style={{ fontWeight: "800", color: "#1E1B4B" }}>
-                        {estimatedSleep.hours} hours
-                      </Text>{" "}
-                      of sleep last night ({estimatedSleep.startTime} to{" "}
-                      {estimatedSleep.endTime}).
-                    </>
-                  ) : (
-                    <>
-                      Your phone was quiet for{" "}
-                      <Text style={{ fontWeight: "800", color: "#1E1B4B" }}>
-                        {estimatedSleep.hours} hours
-                      </Text>{" "}
-                      last night ({estimatedSleep.startTime} to{" "}
-                      {estimatedSleep.endTime}).
-                    </>
-                  )}
-                  {"\n\n"}Is this correct?
-                </Text>
-
-                <View style={[styles.sleepPromptActions, { marginBottom: 14 }]}>
-                  <Pressable
-                    style={({ pressed }) => [
-                      styles.sleepPromptBtnYes,
-                      { flex: 1, height: 40 },
-                      pressed && { opacity: 0.8 },
-                      sleepLogging && { opacity: 0.5 },
-                    ]}
-                    onPress={handleConfirmSleep}
-                    disabled={sleepLogging}
-                  >
-                    <Text style={styles.sleepPromptBtnYesText}>
-                      {sleepLogging ? "Logging..." : `Yes, log ${estimatedSleep.hours}h`}
+              {estimatedSleep.needsPermission ? (
+                <View style={styles.sleepPromptCard}>
+                  <View style={styles.sleepPromptHeader}>
+                    <View style={styles.sleepIconBox}>
+                      <Watch size={18} color="#4F46E5" />
+                    </View>
+                    <Text style={styles.sleepPromptTitle}>
+                      {t("home.sleep_tracking_title", { defaultValue: "🌙 Sleep Tracking" })}
                     </Text>
-                  </Pressable>
-                  <Pressable
-                    style={({ pressed }) => [
-                      styles.sleepPromptBtnNo,
-                      { height: 40 },
-                      pressed && { opacity: 0.8 },
-                    ]}
-                    onPress={handleDismissSleep}
-                  >
-                    <Text style={styles.sleepPromptBtnNoText}>Dismiss</Text>
-                  </Pressable>
-                </View>
-
-                <Text
-                  style={[
-                    styles.sleepPromptText,
-                    { fontSize: 11, marginBottom: 8, opacity: 0.8 },
-                  ]}
-                >
-                  Or log custom duration:
-                </Text>
-
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={{ gap: 8, paddingBottom: 4 }}
-                >
-                  {[5, 6, 7, 8, 9, 10].map((h) => (
+                  </View>
+                  <Text style={styles.sleepPromptText}>
+                    {t("home.sleep_tracking_cta_desc", {
+                      defaultValue: "Connect Health Connect or enable device activity access for better sleep estimation."
+                    })}
+                  </Text>
+                  
+                  <View style={[styles.sleepPromptActions, { marginBottom: 14 }]}>
+                    {estimatedSleep.needsPermission === 'usage_stats' ? (
+                      <Pressable
+                        style={({ pressed }) => [
+                          styles.sleepPromptBtnYes,
+                          { flex: 1, height: 40 },
+                          pressed && { opacity: 0.8 },
+                        ]}
+                        onPress={handleEnableDeviceActivity}
+                      >
+                        <Text style={styles.sleepPromptBtnYesText}>
+                          {t("home.enable_device_activity", { defaultValue: "Enable Device Activity" })}
+                        </Text>
+                      </Pressable>
+                    ) : (
+                      <Pressable
+                        style={({ pressed }) => [
+                          styles.sleepPromptBtnYes,
+                          { flex: 1, height: 40 },
+                          pressed && { opacity: 0.8 },
+                        ]}
+                        onPress={() => navigation.navigate("HealthConnectSetup")}
+                      >
+                        <Text style={styles.sleepPromptBtnYesText}>
+                          {t("home.connect_health_connect", { defaultValue: "Connect Health" })}
+                        </Text>
+                      </Pressable>
+                    )}
                     <Pressable
-                      key={h}
                       style={({ pressed }) => [
-                        styles.sleepHourBtn,
-                        pressed && { opacity: 0.7 },
-                        sleepLogging && { opacity: 0.4 },
+                        styles.sleepPromptBtnNo,
+                        { height: 40 },
+                        pressed && { opacity: 0.8 },
                       ]}
-                      onPress={() => logCustomSleep(h)}
+                      onPress={handleDismissSleep}
+                    >
+                      <Text style={styles.sleepPromptBtnNoText}>
+                        {t("home.dismiss", { defaultValue: "Not Now" })}
+                      </Text>
+                    </Pressable>
+                  </View>
+
+                  <Text
+                    style={[
+                      styles.sleepPromptText,
+                      { fontSize: 11, marginBottom: 8, opacity: 0.8 },
+                    ]}
+                  >
+                    Or log custom duration:
+                  </Text>
+
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={{ gap: 8, paddingBottom: 4 }}
+                  >
+                    {[5, 6, 7, 8, 9, 10].map((h) => (
+                      <Pressable
+                        key={h}
+                        style={({ pressed }) => [
+                          styles.sleepHourBtn,
+                          pressed && { opacity: 0.7 },
+                          sleepLogging && { opacity: 0.4 },
+                        ]}
+                        onPress={() => logCustomSleep(h)}
+                        disabled={sleepLogging}
+                      >
+                        <Text style={styles.sleepHourBtnText}>{h}h</Text>
+                      </Pressable>
+                    ))}
+                  </ScrollView>
+                </View>
+              ) : (
+                <View style={styles.sleepPromptCard}>
+                  <View style={styles.sleepPromptHeader}>
+                    <View style={styles.sleepIconBox}>
+                      <Watch size={18} color="#4F46E5" />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                        <Text style={styles.sleepPromptTitle}>
+                          {estimatedSleep.displayTitle}
+                        </Text>
+                        <View
+                          style={{
+                            backgroundColor:
+                              estimatedSleep.confidenceLabel === "verified" ? "#EEF2FF" : "#FFF9E6",
+                            paddingHorizontal: 8,
+                            paddingVertical: 2,
+                            borderRadius: 12,
+                            borderWidth: 1,
+                            borderColor:
+                              estimatedSleep.confidenceLabel === "verified" ? "#C7D2FE" : "#FDE68A",
+                          }}
+                        >
+                          <Text
+                            style={{
+                              fontSize: 10,
+                              fontWeight: "700",
+                              color:
+                                estimatedSleep.confidenceLabel === "verified" ? "#4F46E5" : "#D97706",
+                              textTransform: "capitalize",
+                            }}
+                          >
+                            {estimatedSleep.confidenceLabel}
+                          </Text>
+                        </View>
+                      </View>
+                      <Text style={{ fontSize: 11, color: "#6366F1", marginTop: 2, fontWeight: "600" }}>
+                        {estimatedSleep.displaySubtitle}
+                      </Text>
+                    </View>
+                  </View>
+                  <Text style={styles.sleepPromptText}>
+                    {estimatedSleep.source === "native_health" ? (
+                      <>
+                        Your watch or phone logged{" "}
+                        <Text style={{ fontWeight: "800", color: "#1E1B4B" }}>
+                          {estimatedSleep.hours} hours
+                        </Text>{" "}
+                        of sleep last night ({estimatedSleep.startTime} to{" "}
+                        {estimatedSleep.endTime}).
+                      </>
+                    ) : (
+                      <>
+                        Your phone was quiet for{" "}
+                        <Text style={{ fontWeight: "800", color: "#1E1B4B" }}>
+                          {estimatedSleep.hours} hours
+                        </Text>{" "}
+                        last night ({estimatedSleep.startTime} to{" "}
+                        {estimatedSleep.endTime}).
+                      </>
+                    )}
+                    {"\n\n"}Is this correct?
+                  </Text>
+
+                  <View style={[styles.sleepPromptActions, { marginBottom: 14 }]}>
+                    <Pressable
+                      style={({ pressed }) => [
+                        styles.sleepPromptBtnYes,
+                        { flex: 1, height: 40 },
+                        pressed && { opacity: 0.8 },
+                        sleepLogging && { opacity: 0.5 },
+                      ]}
+                      onPress={handleConfirmSleep}
                       disabled={sleepLogging}
                     >
-                      <Text style={styles.sleepHourBtnText}>{h}h</Text>
+                      <Text style={styles.sleepPromptBtnYesText}>
+                        {sleepLogging ? "Logging..." : `Yes, log ${estimatedSleep.hours}h`}
+                      </Text>
                     </Pressable>
-                  ))}
-                </ScrollView>
-              </View>
+                    <Pressable
+                      style={({ pressed }) => [
+                        styles.sleepPromptBtnNo,
+                        { height: 40 },
+                        pressed && { opacity: 0.8 },
+                      ]}
+                      onPress={handleDismissSleep}
+                    >
+                      <Text style={styles.sleepPromptBtnNoText}>Dismiss</Text>
+                    </Pressable>
+                  </View>
+
+                  <Text
+                    style={[
+                      styles.sleepPromptText,
+                      { fontSize: 11, marginBottom: 8, opacity: 0.8 },
+                    ]}
+                  >
+                    Or log custom duration:
+                  </Text>
+
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={{ gap: 8, paddingBottom: 4 }}
+                  >
+                    {[5, 6, 7, 8, 9, 10].map((h) => (
+                      <Pressable
+                        key={h}
+                        style={({ pressed }) => [
+                          styles.sleepHourBtn,
+                          pressed && { opacity: 0.7 },
+                          sleepLogging && { opacity: 0.4 },
+                        ]}
+                        onPress={() => logCustomSleep(h)}
+                        disabled={sleepLogging}
+                      >
+                        <Text style={styles.sleepHourBtnText}>{h}h</Text>
+                      </Pressable>
+                    ))}
+                  </ScrollView>
+                </View>
+              )}
             </Animated.View>
           )}
 

@@ -59,7 +59,8 @@
         "android.permission.health.READ_SLEEP_SESSION",
         "android.permission.health.READ_OXYGEN_SATURATION",
         "android.permission.health.READ_HYDRATION",
-        "android.permission.health.READ_BODY_TEMPERATURE"
+        "android.permission.health.READ_BODY_TEMPERATURE",
+        "android.permission.PACKAGE_USAGE_STATS"
       ]
     },
     "web": {
@@ -106,6 +107,7 @@
         }
       ],
       "./plugins/withAndroidWidget.js",
+      "./plugins/withUsageStatsPermission.js",
       "expo-localization",
       [
         "expo-image-picker",
