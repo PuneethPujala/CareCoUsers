@@ -119,6 +119,12 @@ export async function clearUserCache() {
             await AsyncStorage.multiRemove(userKeys);
             console.log(`[CacheService] Cleared ${userKeys.length} cached entries`);
         }
+        if (EncryptedStorage) {
+            for (const key of SENSITIVE_KEYS) {
+                await EncryptedStorage.removeItem(scopedKey(key)).catch(() => {});
+            }
+            console.log('[CacheService] Cleared sensitive encrypted cache entries');
+        }
     } catch (err) {
         console.warn('[CacheService] Failed to clear cache:', err.message);
     }

@@ -1,13 +1,13 @@
 /**
  * mfaService.js — TOTP-based Multi-Factor Authentication
  *
- * Uses `speakeasy` for TOTP generation/verification and `qrcode` for
- * generating scannable QR codes for authenticator apps.
+ * Built on native Node.js crypto module and custom base32 encoding/decoding.
+ * This completely avoids external library dependencies (like speakeasy or otplib)
+ * and resolves any potential ESM vs CommonJS testing environment conflicts in Jest.
  *
  * Audit items: 2.1–2.4, 2.8
  */
 
-const speakeasy = require("speakeasy");
 const QRCode = require("qrcode");
 const crypto = require("crypto");
 const Profile = require("../models/Profile");
@@ -16,6 +16,79 @@ const { logEvent, logSecurityEvent } = require("./auditService");
 const redis = require("../lib/redis");
 
 const APP_NAME = "CareMyMed (CareMyMed)";
+
+// ── Base32 Encoding / Decoding Helpers ──────────────────────────────────────
+
+function base32Encode(buffer) {
+  const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+  let bits = 0;
+  let value = 0;
+  let output = "";
+  for (let i = 0; i < buffer.length; i++) {
+    value = (value << 8) | buffer[i];
+    bits += 8;
+    while (bits >= 5) {
+      output += alphabet[(value >>> (bits - 5)) & 31];
+      bits -= 5;
+    }
+  }
+  if (bits > 0) {
+    output += alphabet[(value << (5 - bits)) & 31];
+  }
+  return output;
+}
+
+function base32Decode(str) {
+  const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+  const cleaned = str.toUpperCase().replace(/\s/g, "").replace(/=+$/, "");
+  let bits = 0;
+  let value = 0;
+  const bytes = [];
+  for (let i = 0; i < cleaned.length; i++) {
+    const idx = alphabet.indexOf(cleaned[i]);
+    if (idx === -1) throw new Error("Invalid base32 character: " + cleaned[i]);
+    value = (value << 5) | idx;
+    bits += 5;
+    if (bits >= 8) {
+      bytes.push((value >>> (bits - 8)) & 255);
+      bits -= 8;
+    }
+  }
+  return Buffer.from(bytes);
+}
+
+// ── TOTP Algorithm (RFC 6238) ────────────────────────────────────────────────
+
+function hotp(key, counter) {
+  const buf = Buffer.alloc(8);
+  buf.writeBigInt64BE(BigInt(counter));
+  const hmac = crypto.createHmac("sha1", key).update(buf).digest();
+  const offset = hmac[hmac.length - 1] & 0xf;
+  const code =
+    ((hmac[offset] & 0x7f) << 24) |
+    ((hmac[offset + 1] & 0xff) << 16) |
+    ((hmac[offset + 2] & 0xff) << 8) |
+    (hmac[offset + 3] & 0xff);
+  return String(code % 1000000).padStart(6, "0");
+}
+
+function verifyTOTP(secret, token, window = 1) {
+  try {
+    const key = base32Decode(secret);
+    const counter = Math.floor(Date.now() / 30000);
+    for (let i = -window; i <= window; i++) {
+      const calculated = hotp(key, counter + i);
+      if (calculated === token.toString().trim()) {
+        return true;
+      }
+    }
+  } catch (err) {
+    console.error("[verifyTOTP] Error:", err.message);
+  }
+  return false;
+}
+
+// ── Service Endpoints ────────────────────────────────────────────────────────
 
 /**
  * Generate a new TOTP secret and QR code for enrollment.
@@ -39,23 +112,26 @@ async function generateSecret(userId, userType) {
     );
   }
 
-  const secret = speakeasy.generateSecret({
-    name: `${APP_NAME} (${account.email})`,
-    issuer: APP_NAME,
-    length: 20,
-  });
+  // Generate a random 20-byte secret and base32 encode it
+  const randBytes = crypto.randomBytes(20);
+  const secret = base32Encode(randBytes);
+
+  const otpauthUrl = `otpauth://totp/${encodeURIComponent(
+    APP_NAME,
+  )}:${encodeURIComponent(account.email)}?secret=${secret}&issuer=${encodeURIComponent(
+    APP_NAME,
+  )}`;
 
   // Store the secret temporarily (not yet enabled)
-  account.mfaSecret = secret.base32;
+  account.mfaSecret = secret;
   account.mfaEnabled = false;
   await account.save();
 
   // Generate QR code as data URL
-  const otpauthUrl = secret.otpauth_url;
   const qrDataUrl = await QRCode.toDataURL(otpauthUrl);
 
   return {
-    secret: secret.base32,
+    secret,
     qrCode: qrDataUrl,
     otpauthUrl,
   };
@@ -88,12 +164,7 @@ async function verifyAndEnable(userId, userType, code, req) {
     });
   }
 
-  const verified = speakeasy.totp.verify({
-    secret: account.mfaSecret,
-    encoding: "base32",
-    token: code,
-    window: 1, // Allow 1 step drift (30 seconds each side)
-  });
+  const verified = verifyTOTP(account.mfaSecret, code, 1);
 
   if (!verified) {
     await logSecurityEvent(
@@ -175,12 +246,7 @@ async function verifyCode(userId, userType, code) {
   }
 
   // Standard TOTP verification
-  const verified = speakeasy.totp.verify({
-    secret: account.mfaSecret,
-    encoding: "base32",
-    token: code,
-    window: 1,
-  });
+  const verified = verifyTOTP(account.mfaSecret, code, 1);
 
   if (!verified) {
     return { valid: false };

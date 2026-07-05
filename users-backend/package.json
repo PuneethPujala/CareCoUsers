@@ -17,7 +17,7 @@
     "@sentry/node": "^10.49.0",
     "@supabase/supabase-js": "^2.45.4",
     "axios": "^1.15.0",
-    "bcryptjs": "^2.4.3",
+    "bcrypt": "^6.0.0",
     "bullmq": "^5.76.8",
     "chromadb": "^3.4.3",
     "compression": "^1.7.4",
@@ -39,7 +39,6 @@
     "nodemailer": "^6.10.1",
     "qrcode": "^1.5.4",
     "resend": "^6.12.4",
-    "speakeasy": "^2.0.0",
     "twilio": "^5.13.1"
   },
   "devDependencies": {

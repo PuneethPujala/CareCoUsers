@@ -121,6 +121,27 @@ async function getOrCreatePatient(req, customName = null) {
   // the patient for this request, return it directly.
   if (req.patient) return req.patient;
 
+  // SEC-FIX: Do not auto-seed a Patient record for staff/caregiver accounts.
+  // Only actual patients (or new users without a role yet) should trigger
+  // auto-creation. Staff hitting patient routes would pollute the Patient
+  // collection with phantom records and skew dashboard metrics.
+  const STAFF_ROLES = [
+    "caller",
+    "caretaker",
+    "care_manager",
+    "org_admin",
+    "super_admin",
+    "companion",
+    "patient_mentor",
+  ];
+  if (req.profile && STAFF_ROLES.includes(req.profile.role)) {
+    const err = new Error(
+      "Staff accounts cannot access patient-only endpoints.",
+    );
+    err.status = 400;
+    throw err;
+  }
+
   const patient = await findOrCreatePatientRecord({
     supabaseUid: req.user.id,
     email: req.user.email,

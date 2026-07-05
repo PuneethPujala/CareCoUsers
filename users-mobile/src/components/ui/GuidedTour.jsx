@@ -21,6 +21,19 @@ export default function GuidedTour({
     const [isTransitioning, setIsTransitioning] = useState(false);
     const reduceMotion = useReduceMotion();
     const cardFade = useRef(new Animated.Value(1)).current;
+    const timeoutsRef = useRef([]);
+
+    const setTrackedTimeout = useCallback((fn, delay) => {
+        const id = setTimeout(fn, delay);
+        timeoutsRef.current.push(id);
+        return id;
+    }, []);
+
+    useEffect(() => {
+        return () => {
+            timeoutsRef.current.forEach(clearTimeout);
+        };
+    }, []);
 
     /**
      * Attempt to measure a ref's on-screen position.
@@ -65,25 +78,25 @@ export default function GuidedTour({
                     findNodeHandle(scrollRef.current),
                     (x, y, width, height) => {
                         scrollRef.current.scrollTo({ y: Math.max(0, y - 20), animated: !reduceMotion });
-                        setTimeout(doGlobalMeasure, 350);
+                        setTrackedTimeout(doGlobalMeasure, 350);
                     },
                     () => {
                         if (stepData.scrollOffset !== undefined && scrollRef?.current) {
                             scrollRef.current.scrollTo({ y: stepData.scrollOffset, animated: !reduceMotion });
                         }
-                        setTimeout(doGlobalMeasure, 350);
+                        setTrackedTimeout(doGlobalMeasure, 350);
                     }
                 );
             } catch {
-                setTimeout(doGlobalMeasure, 100);
+                setTrackedTimeout(doGlobalMeasure, 100);
             }
         } else {
             if (stepData.scrollOffset !== undefined && scrollRef?.current) {
                 scrollRef.current.scrollTo({ y: stepData.scrollOffset, animated: !reduceMotion });
             }
-            setTimeout(doGlobalMeasure, 300);
+            setTrackedTimeout(doGlobalMeasure, 300);
         }
-    }, [scrollRef, reduceMotion]);
+    }, [scrollRef, reduceMotion, setTrackedTimeout]);
 
     // Measure spotlight whenever the active step or visibility changes
     useEffect(() => {

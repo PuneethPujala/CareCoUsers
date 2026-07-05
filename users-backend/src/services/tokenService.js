@@ -126,7 +126,13 @@ async function denylistAccessToken(token) {
 }
 
 async function checkRedisSessionValidity(token, payload) {
-  if (redis.status !== "ready" && redis.status !== "connecting") return true;
+  if (redis.status !== "ready" && redis.status !== "connecting") {
+    console.error(
+      "🚨 Redis unavailable (status: %s) — failing closed. All sessions denied until Redis recovers.",
+      redis.status,
+    );
+    return false;
+  }
 
   // Check global user invalidation (all sessions prior to X)
   const userId = payload.sub || "";

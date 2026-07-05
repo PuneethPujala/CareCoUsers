@@ -379,9 +379,14 @@ router.post("/subscribe", authenticateSession, async (req, res) => {
     let patient = await getOrCreatePatient(req);
 
     // Verification check:
-    // Always require signature verification if paid === 1, unless process.env.NODE_ENV === 'test'
+    // Always require signature verification in non-test environments.
     const isTest = process.env.NODE_ENV === "test";
-    if (paid === 1 && !isTest) {
+    if (!isTest) {
+      if (paid !== 1) {
+        return res.status(400).json({
+          error: "Payment is required to activate a subscription.",
+        });
+      }
       if (!paymentId || !signature) {
         return res.status(400).json({
           error:

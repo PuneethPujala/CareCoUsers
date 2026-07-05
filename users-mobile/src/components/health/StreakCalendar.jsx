@@ -2,16 +2,27 @@ import React, { useState } from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { colors, typography, radius, spacing } from "../../theme";
 
-// Format a Date object as YYYY-MM-DD in the target timezone
-const getLocalDateString = (date, tz) => {
-  try {
-    const formatter = new Intl.DateTimeFormat("en-CA", {
+// ── Cached Intl formatters (keyed by timezone) to avoid GC churn ────────────
+// These are module-level singletons — safe to reuse since formatters are immutable.
+const _dateFormatters = {};
+const _displayFormatters = {};
+
+const getDateFormatter = (tz) => {
+  if (!_dateFormatters[tz]) {
+    _dateFormatters[tz] = new Intl.DateTimeFormat("en-CA", {
       timeZone: tz,
       year: "numeric",
       month: "2-digit",
       day: "2-digit",
     });
-    return formatter.format(date); // Output format: YYYY-MM-DD
+  }
+  return _dateFormatters[tz];
+};
+
+// Format a Date object as YYYY-MM-DD in the target timezone
+const getLocalDateString = (date, tz) => {
+  try {
+    return getDateFormatter(tz).format(date);
   } catch (e) {
     const pad = (num) => String(num).padStart(2, "0");
     return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
@@ -19,15 +30,21 @@ const getLocalDateString = (date, tz) => {
 };
 
 // Format a Date object as MMM D, YYYY in the target timezone
-const getFormattedDateString = (date, tz) => {
-  try {
-    const formatter = new Intl.DateTimeFormat("en-US", {
+const getDisplayFormatter = (tz) => {
+  if (!_displayFormatters[tz]) {
+    _displayFormatters[tz] = new Intl.DateTimeFormat("en-US", {
       timeZone: tz,
       month: "short",
       day: "numeric",
       year: "numeric",
     });
-    return formatter.format(date); // e.g. "Jun 13, 2026"
+  }
+  return _displayFormatters[tz];
+};
+
+const getFormattedDateString = (date, tz) => {
+  try {
+    return getDisplayFormatter(tz).format(date); // e.g. "Jun 13, 2026"
   } catch (e) {
     const months = [
       "Jan",

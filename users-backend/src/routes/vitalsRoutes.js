@@ -1,8 +1,48 @@
 const express = require("express");
 const { body, param, query, validationResult } = require("express-validator");
 const VitalLog = require("../models/VitalLog");
+const { scopeFilter } = require("../middleware/scopeFilter");
 
 const router = express.Router();
+
+// Helper middleware to ensure req.profile is populated
+const ensureProfile = async (req, res, next) => {
+  if (req.profile) return next();
+
+  try {
+    if (req.auth && req.auth.subject) {
+      const Patient = require("../models/Patient");
+      const Profile = require("../models/Profile");
+      const Companion = require("../models/Companion");
+
+      let profile = await Patient.findOne({ supabase_uid: req.auth.subject });
+      if (profile) {
+        req.profile = profile;
+        return next();
+      }
+
+      profile = await Profile.findOne({ supabaseUid: req.auth.subject, isActive: true });
+      if (profile) {
+        req.profile = profile;
+        return next();
+      }
+
+      profile = await Companion.findOne({ supabaseUid: req.auth.subject, isActive: true });
+      if (profile) {
+        req.profile = profile;
+        return next();
+      }
+    }
+
+    return res.status(401).json({ error: "Authentication profile missing or inactive" });
+  } catch (err) {
+    console.error("ensureProfile error:", err);
+    return res.status(500).json({ error: "Failed to load authentication profile" });
+  }
+};
+
+router.use(ensureProfile);
+router.use(scopeFilter("patients"));
 
 // ─── Validation middleware ──────────────────────────────────────
 // Extracts express-validator errors and returns 400 with details.
@@ -68,6 +108,15 @@ router.post("/", vitalsValidators, validate, async (req, res) => {
       hydration,
     } = req.body;
 
+    const Patient = require("../models/Patient");
+    const patient = await Patient.findOne({
+      _id: patient_id,
+      ...req.scopeFilter,
+    });
+    if (!patient) {
+      return res.status(403).json({ error: "Access denied to patient vitals" });
+    }
+
     const vitalLog = new VitalLog({
       patient_id,
       date: date ? new Date(date) : new Date(),
@@ -107,6 +156,15 @@ router.get(
   validate,
   async (req, res) => {
     try {
+      const Patient = require("../models/Patient");
+      const patient = await Patient.findOne({
+        _id: req.params.patient_id,
+        ...req.scopeFilter,
+      });
+      if (!patient) {
+        return res.status(403).json({ error: "Access denied to patient vitals" });
+      }
+
       const vitals = await VitalLog.find({
         patient_id: req.params.patient_id,
       }).sort({ date: -1 });
@@ -143,6 +201,15 @@ router.get(
     try {
       const { start, end } = req.query;
 
+      const Patient = require("../models/Patient");
+      const patient = await Patient.findOne({
+        _id: req.params.patient_id,
+        ...req.scopeFilter,
+      });
+      if (!patient) {
+        return res.status(403).json({ error: "Access denied to patient vitals" });
+      }
+
       const vitals = await VitalLog.find({
         patient_id: req.params.patient_id,
         date: {
@@ -167,11 +234,21 @@ router.delete(
   validate,
   async (req, res) => {
     try {
-      const deleted = await VitalLog.findByIdAndDelete(req.params.id);
-
-      if (!deleted) {
+      const vitalLog = await VitalLog.findById(req.params.id);
+      if (!vitalLog) {
         return res.status(404).json({ error: "Vitals record not found" });
       }
+
+      const Patient = require("../models/Patient");
+      const patient = await Patient.findOne({
+        _id: vitalLog.patient_id,
+        ...req.scopeFilter,
+      });
+      if (!patient) {
+        return res.status(403).json({ error: "Access denied to patient vitals" });
+      }
+
+      const deleted = await VitalLog.findByIdAndDelete(req.params.id);
 
       res.json({ message: "Vitals record deleted", vitals: deleted });
     } catch (error) {

@@ -37,6 +37,10 @@ async function createOTP(identifier) {
 
   const otp = generateOTP();
 
+  // Reset any existing attempts tracking
+  const attemptsKey = `otp_attempts:${identifier.toLowerCase().trim()}`;
+  await redis.del(attemptsKey);
+
   // Overwrite any existing OTP with the new one
   await redis.set(key, otp, "EX", OTP_TTL_SECONDS);
 
@@ -51,6 +55,18 @@ async function createOTP(identifier) {
  */
 async function verifyOTP(identifier, code) {
   const key = `${OTP_PREFIX}${identifier.toLowerCase().trim()}`;
+  const attemptsKey = `otp_attempts:${identifier.toLowerCase().trim()}`;
+
+  const attempts = await redis.get(attemptsKey);
+  if (attempts && parseInt(attempts, 10) >= 5) {
+    await redis.del(key);
+    await redis.del(attemptsKey);
+    return {
+      valid: false,
+      reason: "Too many failed attempts. Code has been invalidated.",
+    };
+  }
+
   const stored = await redis.get(key);
 
   if (!stored) {
@@ -61,11 +77,22 @@ async function verifyOTP(identifier, code) {
   }
 
   if (stored !== code.toString()) {
+    const newAttempts = await redis.incr(attemptsKey);
+    await redis.expire(attemptsKey, OTP_TTL_SECONDS);
+    if (newAttempts >= 5) {
+      await redis.del(key);
+      await redis.del(attemptsKey);
+      return {
+        valid: false,
+        reason: "Too many failed attempts. Code has been invalidated.",
+      };
+    }
     return { valid: false, reason: "Invalid OTP. Please check and try again." };
   }
 
   // Delete after successful verification
   await redis.del(key);
+  await redis.del(attemptsKey);
   console.log(`✅ OTP verified successfully`);
   return { valid: true };
 }
@@ -75,7 +102,9 @@ async function verifyOTP(identifier, code) {
  */
 async function deleteOTP(identifier) {
   const key = `${OTP_PREFIX}${identifier.toLowerCase().trim()}`;
+  const attemptsKey = `otp_attempts:${identifier.toLowerCase().trim()}`;
   await redis.del(key);
+  await redis.del(attemptsKey);
 }
 
 module.exports = {

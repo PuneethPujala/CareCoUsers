@@ -69,7 +69,7 @@ router.post("/join", async (req, res) => {
       // SEC-FIX: CRITICAL VULNERABILITY PATCH
       // We MUST verify the provided password matches the existing account's password
       // before allowing them to link to a new care circle.
-      const bcrypt = require("bcryptjs");
+      const bcrypt = require("bcrypt");
       const isMatch = await bcrypt.compare(password, profile.passwordHash);
       if (!isMatch) {
         // Generic error to prevent aggressive enumeration, though the email existence is implied by the flow
@@ -105,7 +105,7 @@ router.post("/join", async (req, res) => {
       // Create a new companion profile
       const supabaseUid = `cmp_${Math.random().toString(36).substr(2, 9)}_${Date.now()}`;
 
-      const bcrypt = require("bcryptjs");
+      const bcrypt = require("bcrypt");
       const salt = await bcrypt.genSalt(10);
       const passwordHash = await bcrypt.hash(password, salt);
 

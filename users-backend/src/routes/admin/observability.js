@@ -24,6 +24,14 @@ router.get("/system-health", authenticate, async (req, res) => {
 
     // Check if the request is from a Patient or has a patient_id query param
     const isPatient = req.auth && req.auth.userType === "Patient";
+
+    // Enforce role checks: only patients can view their own, or super_admin/org_admin/care_manager can view global system stats
+    if (!isPatient && !["super_admin", "org_admin", "care_manager"].includes(req.profile?.role)) {
+      return res.status(403).json({
+        error: "Access denied. Insufficient permissions to view global observability metrics.",
+      });
+    }
+
     const targetPatientId = isPatient
       ? req.profile._id
       : req.query.patient_id || null;

@@ -239,7 +239,7 @@ describe("Companion Routes", () => {
         return null;
       });
 
-      const bcrypt = require("bcryptjs");
+      const bcrypt = require("bcrypt");
       const salt = await bcrypt.genSalt(10);
       const passwordHash = await bcrypt.hash("Password123", salt);
 

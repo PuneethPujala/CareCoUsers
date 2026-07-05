@@ -40,8 +40,8 @@ async function run() {
   try {
     console.log("--- TEST 1: Registering Companion Profile ---");
     // Pre-create the Companion Profile in dedicated Companion collection
-    const salt = await require("bcryptjs").genSalt(10);
-    const passwordHash = await require("bcryptjs").hash(testPassword, salt);
+    const salt = await require("bcrypt").genSalt(10);
+    const passwordHash = await require("bcrypt").hash(testPassword, salt);
     companionProfile = await Companion.create({
       supabaseUid: `cmp_${Date.now()}`,
       email: testEmail,
