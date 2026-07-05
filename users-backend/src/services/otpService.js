@@ -30,9 +30,7 @@ async function createOTP(identifier) {
   const acquired = await acquireCooldown(key, 60);
 
   if (!acquired) {
-    const err = new Error(
-      "Please wait 1 minute before requesting a new code.",
-    );
+    const err = new Error("Please wait 1 minute before requesting a new code.");
     err.status = 429;
     throw err;
   }
