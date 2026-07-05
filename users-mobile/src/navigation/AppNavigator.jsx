@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Notifications from 'expo-notifications';
 import * as ScreenCapture from 'expo-screen-capture';
 import * as SplashScreen from 'expo-splash-screen';
+import { AppMetrics } from 'expo-observe';
 import {
     View, Text, StyleSheet, Animated, ActivityIndicator,
     TouchableOpacity, Pressable, Image, Platform, DeviceEventEmitter
@@ -205,7 +206,7 @@ const MainAppStack = () => (
     </Stack.Navigator>
 );
 
-export default function AppNavigator() {
+export default function AppNavigator({ fontsLoaded }) {
     const { isBootstrapping, onboardingComplete, subscriptionStatus, user, profile, signOut, isSwitching } = useAuth();
     const patient = usePatientStore(state => state.patient);
 
@@ -280,10 +281,14 @@ export default function AppNavigator() {
     // This is the ONLY place SplashScreen.hideAsync() should be called
     // (App.js has a 12s failsafe but this is the primary controller).
     useEffect(() => {
-        if (!isBootstrapping) {
-            setTimeout(() => { SplashScreen.hideAsync().catch(() => { }); }, 100);
+        if (!isBootstrapping && fontsLoaded) {
+            setTimeout(() => {
+                SplashScreen.hideAsync().catch(() => { });
+                // Let EAS Observe know the app is fully interactive
+                AppMetrics.markInteractive();
+            }, 100);
         }
-    }, [isBootstrapping]);
+    }, [isBootstrapping, fontsLoaded]);
 
     useEffect(() => {
         if (user) {
