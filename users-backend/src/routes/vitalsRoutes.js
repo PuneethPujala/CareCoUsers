@@ -21,23 +21,33 @@ const ensureProfile = async (req, res, next) => {
         return next();
       }
 
-      profile = await Profile.findOne({ supabaseUid: req.auth.subject, isActive: true });
+      profile = await Profile.findOne({
+        supabaseUid: req.auth.subject,
+        isActive: true,
+      });
       if (profile) {
         req.profile = profile;
         return next();
       }
 
-      profile = await Companion.findOne({ supabaseUid: req.auth.subject, isActive: true });
+      profile = await Companion.findOne({
+        supabaseUid: req.auth.subject,
+        isActive: true,
+      });
       if (profile) {
         req.profile = profile;
         return next();
       }
     }
 
-    return res.status(401).json({ error: "Authentication profile missing or inactive" });
+    return res
+      .status(401)
+      .json({ error: "Authentication profile missing or inactive" });
   } catch (err) {
     console.error("ensureProfile error:", err);
-    return res.status(500).json({ error: "Failed to load authentication profile" });
+    return res
+      .status(500)
+      .json({ error: "Failed to load authentication profile" });
   }
 };
 
@@ -162,7 +172,9 @@ router.get(
         ...req.scopeFilter,
       });
       if (!patient) {
-        return res.status(403).json({ error: "Access denied to patient vitals" });
+        return res
+          .status(403)
+          .json({ error: "Access denied to patient vitals" });
       }
 
       const vitals = await VitalLog.find({
@@ -207,7 +219,9 @@ router.get(
         ...req.scopeFilter,
       });
       if (!patient) {
-        return res.status(403).json({ error: "Access denied to patient vitals" });
+        return res
+          .status(403)
+          .json({ error: "Access denied to patient vitals" });
       }
 
       const vitals = await VitalLog.find({
@@ -245,7 +259,9 @@ router.delete(
         ...req.scopeFilter,
       });
       if (!patient) {
-        return res.status(403).json({ error: "Access denied to patient vitals" });
+        return res
+          .status(403)
+          .json({ error: "Access denied to patient vitals" });
       }
 
       const deleted = await VitalLog.findByIdAndDelete(req.params.id);
