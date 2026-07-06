@@ -23,6 +23,9 @@ allprojects {
   configurations.all {
     resolutionStrategy {
       force 'host.exp.exponent:expo-updates-interface:2.0.0'
+      dependencySubstitution {
+        substitute module('host.exp.exponent:expo-updates-interface') using project(':expo-updates-interface')
+      }
     }
   }
 }
