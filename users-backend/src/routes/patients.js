@@ -342,19 +342,21 @@ router.put(
         .populate("assigned_manager_id", "fullName email");
 
       // Handle bidirectional caller assignment syncing if updated
-      if (updateData.assigned_caller_id !== undefined && 
-          String(updateData.assigned_caller_id) !== String(oldCallerId)) {
+      if (
+        updateData.assigned_caller_id !== undefined &&
+        String(updateData.assigned_caller_id) !== String(oldCallerId)
+      ) {
         const Caller = require("../models/Caller");
         if (oldCallerId) {
           await Caller.updateOne(
             { _id: oldCallerId },
-            { $pull: { patient_ids: patient._id } }
+            { $pull: { patient_ids: patient._id } },
           );
         }
         if (updateData.assigned_caller_id) {
           await Caller.updateOne(
             { _id: updateData.assigned_caller_id },
-            { $addToSet: { patient_ids: patient._id } }
+            { $addToSet: { patient_ids: patient._id } },
           );
         }
       }
