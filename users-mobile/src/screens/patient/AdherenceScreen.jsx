@@ -2299,46 +2299,52 @@ export default function AdherenceScreen({ navigation }) {
 
               <View style={styles.trendStatsRow}>
                 <View style={styles.trendStatItem}>
-                  <View
-                    style={[styles.trendDot, { backgroundColor: C.success }]}
-                  />
-                  <Text style={styles.trendStatNum}>{weeklySummary.taken}</Text>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                    <View
+                      style={[styles.trendDot, { backgroundColor: C.success }]}
+                    />
+                    <Text style={styles.trendStatNum}>{weeklySummary.taken}</Text>
+                  </View>
                   <Text style={styles.trendStatLabel}>
                     {t("common.taken", { defaultValue: "Taken" })}
                   </Text>
                 </View>
                 <View style={styles.trendDivider} />
                 <View style={styles.trendStatItem}>
-                  <View
-                    style={[styles.trendDot, { backgroundColor: C.danger }]}
-                  />
-                  <Text style={styles.trendStatNum}>
-                    {weeklySummary.missed}
-                  </Text>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                    <View
+                      style={[styles.trendDot, { backgroundColor: C.danger }]}
+                    />
+                    <Text style={styles.trendStatNum}>
+                      {weeklySummary.missed}
+                    </Text>
+                  </View>
                   <Text style={styles.trendStatLabel}>
                     {t("adherence.missed", { defaultValue: "Missed" })}
                   </Text>
                 </View>
                 <View style={styles.trendDivider} />
                 <View style={styles.trendStatItem}>
-                  <MomentumIcon
-                    size={14}
-                    color={
-                      weeklySummary.improvement >= 0 ? C.success : C.danger
-                    }
-                  />
-                  <Text
-                    style={[
-                      styles.trendStatNum,
-                      {
-                        color:
-                          weeklySummary.improvement >= 0 ? C.success : C.danger,
-                      },
-                    ]}
-                  >
-                    {weeklySummary.improvement >= 0 ? "+" : ""}
-                    {weeklySummary.improvement}%
-                  </Text>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                    <MomentumIcon
+                      size={14}
+                      color={
+                        weeklySummary.improvement >= 0 ? C.success : C.danger
+                      }
+                    />
+                    <Text
+                      style={[
+                        styles.trendStatNum,
+                        {
+                          color:
+                            weeklySummary.improvement >= 0 ? C.success : C.danger,
+                        },
+                      ]}
+                    >
+                      {weeklySummary.improvement >= 0 ? "+" : ""}
+                      {weeklySummary.improvement}%
+                    </Text>
+                  </View>
                   <Text style={styles.trendStatLabel}>
                     {t("adherence.vs_last", { defaultValue: "vs Last" })}
                   </Text>
@@ -3762,10 +3768,10 @@ const styles = StyleSheet.create({
   },
   trendStatItem: {
     flex: 1,
-    flexDirection: "row",
+    flexDirection: "column",
     alignItems: "center",
     justifyContent: "center",
-    gap: 6,
+    gap: 2,
   },
   trendDot: { width: 8, height: 8, borderRadius: 4 },
   trendStatNum: { fontSize: 20, fontWeight: "800", color: C.dark },
