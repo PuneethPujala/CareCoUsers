@@ -56,6 +56,7 @@ import {
 } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { colors, layout, spacing, radius, shadows } from "../../theme";
+import TabScreenTransition from "../../components/ui/TabScreenTransition";
 import { apiService } from "../../lib/api";
 import {
   COUNTRY_CODES,
@@ -322,8 +323,8 @@ export default function MyCallerScreen({ navigation }) {
     const steps = [];
 
     steps.push({
-      title: "Your Companion",
-      desc: "Ramesh is your matched caregiver. They will call you for scheduled check-ins, medication logs, and wellness chats. Tap 'Call Now' to call them directly.",
+      title: "Your Caller",
+      desc: "Ramesh is your matched caller. They will call you for scheduled check-ins, medication logs, and wellness chats. Tap 'Call Now' to call them directly.",
       icon: Phone,
       iconColor: "#6366F1",
       ref: companionCardRef,
@@ -351,7 +352,7 @@ export default function MyCallerScreen({ navigation }) {
     if (calls.length > 0) {
       steps.push({
         title: "Check-In Log History",
-        desc: "Review dates of past check-ins, along with AI-generated summaries capturing the details from your companion calls.",
+        desc: "Review dates of past check-ins, along with AI-generated summaries capturing the details from your check-in calls.",
         icon: Clock,
         iconColor: "#F59E0B",
         ref: callsCardRef,
@@ -723,7 +724,8 @@ export default function MyCallerScreen({ navigation }) {
 
   // ── RENDER ───────────────────────────────────────────────────────────────
   return (
-    <View style={s.container}>
+    <TabScreenTransition>
+      <View style={s.container}>
       {/* Ambient Background Decorations (Level 2: Medium) */}
       <View style={StyleSheet.absoluteFill} pointerEvents="none">
         <Svg
@@ -1089,14 +1091,14 @@ export default function MyCallerScreen({ navigation }) {
                 />
               </LinearGradient>
               <Text style={s.pendingTitle}>
-                {t("caller.caregiver_being_assigned", {
-                  defaultValue: "Caregiver Being Assigned",
+                {t("caller.caller_being_assigned", {
+                  defaultValue: "Caller Being Assigned",
                 })}
               </Text>
               <Text style={s.pendingBody}>
                 {t("caller.pending_assignment_desc", {
                   defaultValue:
-                    "Your care manager has been notified and is assigning a dedicated caregiver for you. You'll receive a notification once they're ready!",
+                    "Your care manager has been notified and is assigning a dedicated caller for you. You'll receive a notification once they're ready!",
                 })}
               </Text>
               {manager && (
@@ -2126,6 +2128,7 @@ export default function MyCallerScreen({ navigation }) {
         onClose={() => setShowTour(false)}
       />
     </View>
+    </TabScreenTransition>
   );
 }
 

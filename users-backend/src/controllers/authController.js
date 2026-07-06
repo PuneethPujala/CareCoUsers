@@ -576,10 +576,22 @@ async function patientCity(req, res) {
 
     const Patient = require("../models/Patient");
     const Organization = require("../models/Organization");
+    const City = require("../models/City");
+
+    const activeCity = await City.findOne({
+      name: { $regex: new RegExp(`^${city.trim()}$`, "i") },
+      isActive: true,
+    });
+
+    if (!activeCity) {
+      return res.status(400).json({
+        error: `We are not deployed in "${city}" yet. Stay tuned!`,
+      });
+    }
 
     const patient = await Patient.findOneAndUpdate(
       { supabase_uid: req.user.id },
-      { city },
+      { city: activeCity.name },
       { new: true },
     );
 

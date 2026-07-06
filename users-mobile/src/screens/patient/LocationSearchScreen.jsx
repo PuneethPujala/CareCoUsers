@@ -11,8 +11,32 @@ import {
 import * as Location from 'expo-location';
 import { colors } from '../../theme';
 import { apiService } from '../../lib/api';
+import TabScreenTransition from '../../components/ui/TabScreenTransition';
 
 import AlertManager from '../../utils/AlertManager';
+
+const GUNTUR_COORDS = { latitude: 16.3067, longitude: 80.4365 };
+const VIJAYAWADA_COORDS = { latitude: 16.5062, longitude: 80.6480 };
+
+function getHaversineDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371; // km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = 
+        Math.sin(dLat/2) * Math.sin(dLat/2) +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+        Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+}
+
+function isLocationServiceable(lat, lon) {
+    if (!lat || !lon) return true; // fallback
+    const distGuntur = getHaversineDistance(lat, lon, GUNTUR_COORDS.latitude, GUNTUR_COORDS.longitude);
+    const distVijayawada = getHaversineDistance(lat, lon, VIJAYAWADA_COORDS.latitude, VIJAYAWADA_COORDS.longitude);
+    return distGuntur <= 20 || distVijayawada <= 20;
+}
+
 export default function LocationSearchScreen({ navigation }) {
     const [searchQuery, setSearchQuery] = useState('');
     const [loading, setLoading] = useState(false);
@@ -55,7 +79,9 @@ export default function LocationSearchScreen({ navigation }) {
                         display_name: r.display_name,
                         city: r.city,
                         state: r.state,
-                        pincode: r.pincode
+                        pincode: r.pincode,
+                        lat: r.lat,
+                        lon: r.lon
                     }));
                     const combined = [...localResults];
                     remoteResults.forEach(rem => {
@@ -93,7 +119,19 @@ export default function LocationSearchScreen({ navigation }) {
             const { latitude, longitude } = location.coords;
             const res = await apiService.patients.reverseGeocode(latitude, longitude);
             const city = res.data.address?.city || res.data.address?.town || res.data.address?.village;
-            if (city) handleSelectLocation(city);
+            
+            if (city) {
+                if (!isLocationServiceable(latitude, longitude)) {
+                    AlertManager.alert(
+                        'Coming Soon! 🚀',
+                        `Stay tuned! We are coming to ${city} at the earliest.`,
+                        [{ text: 'OK' }],
+                        { type: 'info' }
+                    );
+                    return;
+                }
+                handleSelectLocation(city);
+            }
         } catch (err) {
             console.warn('Location detection failed:', err.message);
         } finally {
@@ -101,7 +139,17 @@ export default function LocationSearchScreen({ navigation }) {
         }
     };
 
-    const handleSelectLocation = async (city) => {
+    const handleSelectLocation = async (city, lat, lon) => {
+        if (lat && lon && !isLocationServiceable(lat, lon)) {
+            AlertManager.alert(
+                'Coming Soon! 🚀',
+                `Stay tuned! We are coming to ${city} at the earliest.`,
+                [{ text: 'OK' }],
+                { type: 'info' }
+            );
+            return;
+        }
+
         try {
             setLoading(true);
             await apiService.auth.updatePatientCity({ city });
@@ -154,6 +202,7 @@ export default function LocationSearchScreen({ navigation }) {
     };
 
     return (
+        <TabScreenTransition>
         <SafeAreaView style={styles.container}>
             {/* Header */}
             <View style={styles.header}>
@@ -227,7 +276,7 @@ export default function LocationSearchScreen({ navigation }) {
                                 <Pressable
                                     key={item._id}
                                     style={styles.resultItem}
-                                    onPress={() => handleSelectLocation(item.city || item.name)}
+                                    onPress={() => handleSelectLocation(item.city || item.name, item.lat, item.lon)}
                                 >
                                     <View style={styles.resultIcon}>
                                         <MapPin size={20} color="#3B86FF" />
@@ -315,6 +364,7 @@ export default function LocationSearchScreen({ navigation }) {
                 </View>
             )}
         </SafeAreaView>
+        </TabScreenTransition>
     );
 }
 

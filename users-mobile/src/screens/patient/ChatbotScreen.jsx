@@ -17,6 +17,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { apiService, handleApiError } from '../../lib/api';
 import AlertManager from '../../utils/AlertManager';
 import { globalChatCache } from './ChatHistoryScreen';
+import TabScreenTransition from '../../components/ui/TabScreenTransition';
 
 const INITIAL_SUGGESTIONS = [
     '📋 What should I do today?',
@@ -1446,6 +1447,7 @@ export default function ChatbotScreen({ navigation, route }) {
     const keyExtractor = useCallback((item) => item.id, []);
 
     return (
+        <TabScreenTransition>
         <View style={[styles.screen, { paddingTop: insets.top }]}>
             <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
 
@@ -1630,6 +1632,7 @@ export default function ChatbotScreen({ navigation, route }) {
                 </View>
             </KeyboardAvoidingView>
         </View>
+        </TabScreenTransition>
     );
 }
 

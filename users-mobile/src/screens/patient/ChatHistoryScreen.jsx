@@ -14,6 +14,7 @@ import { apiService, handleApiError } from '../../lib/api';
 import AlertManager from '../../utils/AlertManager';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import CompanionHeader from '../../components/ui/CompanionHeader';
+import TabScreenTransition from '../../components/ui/TabScreenTransition';
 
 export const globalChatCache = {}; // Keyed by sessionId: { messages, title, updatedAt, sessionId }
 let cachedSessions = null;
@@ -310,7 +311,8 @@ export default function ChatHistoryScreen() {
     const useCompanionHeader = isCompanion;
 
     return (
-        <View style={[styles.container, { paddingTop: useCompanionHeader ? 0 : (canGoBack ? insets.top : 50) }]}>
+        <TabScreenTransition>
+            <View style={[styles.container, { paddingTop: useCompanionHeader ? 0 : (canGoBack ? insets.top : 50) }]}>
             {!useCompanionHeader && <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />}
             
             {/* ── Header ── */}
@@ -412,6 +414,7 @@ export default function ChatHistoryScreen() {
                 />
             )}
         </View>
+        </TabScreenTransition>
     );
 }
 

@@ -21,6 +21,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { TERMS_VERSION, PRIVACY_VERSION } from '../../constants/legalContent';
 import { step1Schema, stepPhoneSchema, step2Schema, step3Schema, step5Schema } from './signupSchema';
 import Svg, { Path, Circle, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
+import TabScreenTransition from '../../components/ui/TabScreenTransition';
+import StepTransition from '../../components/ui/StepTransition';
 
 import { OTPModal } from './components';
 import CheckoutBottomSheet from '../../components/premium/CheckoutBottomSheet';
@@ -741,7 +743,8 @@ export default function PatientSignupScreen({ navigation, route }) {
  
     return (
         <FormProvider {...methods}>
-            <KeyboardAvoidingView
+            <TabScreenTransition>
+                <KeyboardAvoidingView
                 style={sc.container}
                 behavior={Platform.OS === 'ios' ? 'padding' : undefined}
             >
@@ -806,7 +809,7 @@ export default function PatientSignupScreen({ navigation, route }) {
                     </View>
 
                     {/* ── Step content ── */}
-                    <Animated.View style={[sc.stepWrap, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
+                    <StepTransition trigger={step} style={sc.stepWrap}>
                         {signupLoading ? renderProcessingState() : (
                             <>
                                 {step === 1 && (
@@ -871,7 +874,7 @@ export default function PatientSignupScreen({ navigation, route }) {
                                 )}
                             </>
                         )}
-                    </Animated.View>
+                    </StepTransition>
 
                     {/* Sign-in link — step 1 only */}
                     {step === 1 && !signupLoading && (
@@ -913,6 +916,7 @@ export default function PatientSignupScreen({ navigation, route }) {
 
                 {renderFeaturesModal()}
             </KeyboardAvoidingView>
+            </TabScreenTransition>
         </FormProvider>
     );
 }

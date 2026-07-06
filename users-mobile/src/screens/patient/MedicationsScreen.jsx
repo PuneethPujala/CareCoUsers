@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useFocusEffect } from "@react-navigation/native";
+import TabScreenTransition from "../../components/ui/TabScreenTransition";
 import {
   View,
   Text,
@@ -551,8 +552,8 @@ const MedCard = ({ med, onToggle, onSnooze, onRefill }) => {
                     <CheckCircle2 size={10} color="#10B981" />
                     <Text style={styles.takenBadgeTxt}>
                       {med.marked_by === "caller"
-                        ? t("medications.by_caregiver", {
-                            defaultValue: "By Caregiver",
+                        ? t("medications.by_caller", {
+                            defaultValue: "By Caller",
                           })
                         : t("medications.taken", { defaultValue: "Taken" })}
                     </Text>
@@ -1021,7 +1022,7 @@ export default function MedicationsScreen({ navigation }) {
       {
         title: t("home.guide_meds_title", { defaultValue: "💊 Medications" }),
         desc: t("home.guide_meds_desc", {
-          defaultValue: "Swipe or tap a medicine card to mark it as taken once you have consumed it. Your caregiver will check this list to make sure you are safe.",
+          defaultValue: "Swipe or tap a medicine card to mark it as taken once you have consumed it. Your caller will check this list to make sure you are safe.",
         }),
         icon: Pill,
         iconColor: "#10B981",
@@ -1744,7 +1745,8 @@ export default function MedicationsScreen({ navigation }) {
 
   // ══════════════════════════════════════════════════════════════════════
   return (
-    <View style={styles.root}>
+    <TabScreenTransition>
+      <View style={styles.root}>
       <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
 
       {/* Ambient Background Decorations (Level 3: Light-Medium) */}
@@ -1951,7 +1953,7 @@ export default function MedicationsScreen({ navigation }) {
             <Text style={styles.emptyBody}>
               {t("medications.no_meds_scheduled", {
                 defaultValue:
-                  "No medications scheduled yet. Your caregiver will add them, or request a review below.",
+                  "No medications scheduled yet. Your caller will add them, or request a review below.",
               })}
             </Text>
             <Pressable
@@ -2000,8 +2002,8 @@ export default function MedicationsScreen({ navigation }) {
                   <>
                     <MessageCircle size={18} color="#6366F1" />
                     <Text style={styles.outlineBtnTxt}>
-                      {t("medications.request_caregiver_review", {
-                        defaultValue: "Request Caregiver Review",
+                      {t("medications.request_caller_review", {
+                        defaultValue: "Request Caller Review",
                       })}
                     </Text>
                   </>
@@ -3458,6 +3460,7 @@ export default function MedicationsScreen({ navigation }) {
         onClose={() => setShowMedsTour(false)}
       />
     </View>
+    </TabScreenTransition>
   );
 }
 

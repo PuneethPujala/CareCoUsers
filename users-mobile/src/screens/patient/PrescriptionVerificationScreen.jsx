@@ -9,6 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AlertCircle, CheckCircle2, ChevronLeft, Shield, Wand2, X, Plus, Info, UploadCloud } from 'lucide-react-native';
 import { apiService } from '../../lib/api';
 import AlertManager from '../../utils/AlertManager';
+import TabScreenTransition from '../../components/ui/TabScreenTransition';
 
 const { width: SW } = Dimensions.get('window');
 
@@ -190,13 +191,16 @@ export default function PrescriptionVerificationScreen({ navigation, route }) {
 
     if (isAnalyzing) {
         return (
+            <TabScreenTransition>
             <View style={styles.root}>
                 <ProcessingOverlay imageUri={imageUri} />
             </View>
+            </TabScreenTransition>
         );
     }
 
     return (
+        <TabScreenTransition>
         <View style={styles.root}>
             {/* Header */}
             <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) }]}>
@@ -329,6 +333,7 @@ export default function PrescriptionVerificationScreen({ navigation, route }) {
                 </Pressable>
             </View>
         </View>
+        </TabScreenTransition>
     );
 }
 

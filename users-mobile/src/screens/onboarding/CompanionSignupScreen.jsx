@@ -11,6 +11,8 @@ import { OTPBoxes } from './components';
 import { parseError } from '../../utils/parseError';
 import { colors, radius, spacing, shadows } from '../../theme';
 import { HapticPatterns } from '../../utils/haptics';
+import TabScreenTransition from '../../components/ui/TabScreenTransition';
+import StepTransition from '../../components/ui/StepTransition';
 
 const C = {
     bg: colors.background,
@@ -147,7 +149,8 @@ export default function CompanionSignupScreen({ navigation }) {
     };
 
     return (
-        <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <TabScreenTransition>
+            <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
             <View style={styles.header}>
                 <Pressable
                     onPress={() => { step > 1 ? setStep(step - 1) : navigation.goBack() }}
@@ -175,7 +178,8 @@ export default function CompanionSignupScreen({ navigation }) {
                     </View>
                 ) : null}
 
-                {step === 1 && (
+                <StepTransition trigger={step}>
+                    {step === 1 && (
                     <View style={styles.stepContainer}>
                         <Text style={styles.subtitle}>Enter your email address to log in or create an account.</Text>
 
@@ -349,6 +353,7 @@ export default function CompanionSignupScreen({ navigation }) {
                         </Pressable>
                     </View>
                 )}
+                </StepTransition>
             </ScrollView>
 
             <LegalModal
@@ -361,6 +366,7 @@ export default function CompanionSignupScreen({ navigation }) {
                 }}
             />
         </KeyboardAvoidingView>
+        </TabScreenTransition>
     );
 }
 

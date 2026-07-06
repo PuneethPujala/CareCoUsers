@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
+import TabScreenTransition from '../../components/ui/TabScreenTransition';
 import {
     View, Text, StyleSheet, ScrollView, Platform, Pressable, Modal,
     TextInput, Switch, Animated, StatusBar, FlatList, KeyboardAvoidingView, Alert, Share, Image,
@@ -773,7 +774,8 @@ export default function PatientProfileScreen({ navigation }) {
     }
 
     return (
-        <View style={s.container}>
+        <TabScreenTransition>
+            <View style={s.container}>
             <StatusBar barStyle="dark-content" />
 
             {/* ── Header ── */}
@@ -1907,6 +1909,7 @@ export default function PatientProfileScreen({ navigation }) {
             </View>
 
         </View>
+        </TabScreenTransition>
     );
 }
 

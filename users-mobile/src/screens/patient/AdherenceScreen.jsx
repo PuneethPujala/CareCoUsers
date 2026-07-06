@@ -64,6 +64,7 @@ import {
 } from "../../constants/achievements";
 import { useFocusEffect } from "@react-navigation/native";
 import usePatientStore from "../../store/usePatientStore";
+import TabScreenTransition from "../../components/ui/TabScreenTransition";
 import RecapStoryModal from "../../components/adherence/RecapStoryModal";
 import { layout } from "../../theme";
 import {
@@ -884,7 +885,7 @@ function PremiumBadge({ data, size = "normal", onPress, style }) {
         ]}
       >
         <View style={{ alignItems: "center", width: "100%" }}>
-          {/* Ringed locked medal container - dashed outer ring */}
+          {/* Ringed locked medal container */}
           <View
             style={{
               width: dim,
@@ -893,32 +894,41 @@ function PremiumBadge({ data, size = "normal", onPress, style }) {
               alignItems: "center",
               justifyContent: "center",
               position: "relative",
+              ...(isSmall
+                ? {
+                    borderWidth: 1,
+                    borderColor: "#CBD5E1",
+                    backgroundColor: "#FFFFFF",
+                  }
+                : {}),
             }}
           >
-            {/* SVG Progress Ring */}
-            <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, transform: [{ rotate: "-90deg" }] }}>
-              <Svg width={dim} height={dim}>
-                <Circle
-                  cx={dim / 2}
-                  cy={dim / 2}
-                  r={r}
-                  stroke="#E2E8F0"
-                  strokeWidth={strokeWidth}
-                  fill="none"
-                />
-                <Circle
-                  cx={dim / 2}
-                  cy={dim / 2}
-                  r={r}
-                  stroke={tierColor}
-                  strokeWidth={strokeWidth}
-                  fill="none"
-                  strokeDasharray={circumference}
-                  strokeDashoffset={strokeDashoffset}
-                  strokeLinecap="round"
-                />
-              </Svg>
-            </View>
+            {/* SVG Progress Ring only for grid/large nodes */}
+            {!isSmall && (
+              <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, transform: [{ rotate: "-90deg" }] }}>
+                <Svg width={dim} height={dim}>
+                  <Circle
+                    cx={dim / 2}
+                    cy={dim / 2}
+                    r={r}
+                    stroke="#E2E8F0"
+                    strokeWidth={strokeWidth}
+                    fill="none"
+                  />
+                  <Circle
+                    cx={dim / 2}
+                    cy={dim / 2}
+                    r={r}
+                    stroke={tierColor}
+                    strokeWidth={strokeWidth}
+                    fill="none"
+                    strokeDasharray={circumference}
+                    strokeDashoffset={strokeDashoffset}
+                    strokeLinecap="round"
+                  />
+                </Svg>
+              </View>
+            )}
 
             <View
               style={{
@@ -930,11 +940,27 @@ function PremiumBadge({ data, size = "normal", onPress, style }) {
                 justifyContent: "center",
               }}
             >
-              <IconComponent
-                size={isSmall ? 20 : 26}
-                color="#94A3B8"
-                style={{ opacity: 0.35 }}
-              />
+              {data.meta.iconName === "Shield" ? (
+                <View style={{ alignItems: "center", justifyContent: "center" }}>
+                  <IconComponent
+                    size={isSmall ? 20 : 26}
+                    color="#64748B"
+                    style={{ opacity: 0.65 }}
+                  />
+                  <Icons.Star
+                    size={isSmall ? 8 : 10}
+                    color="#64748B"
+                    fill="#64748B"
+                    style={{ position: "absolute", top: isSmall ? 5 : 7, opacity: 0.65 }}
+                  />
+                </View>
+              ) : (
+                <IconComponent
+                  size={isSmall ? 20 : 26}
+                  color="#64748B"
+                  style={{ opacity: 0.65 }}
+                />
+              )}
             </View>
 
             <View
@@ -1086,15 +1112,35 @@ function PremiumBadge({ data, size = "normal", onPress, style }) {
                 position: "relative",
               }}
             >
-              <IconComponent
-                size={isSmall ? 18 : 24}
-                color="white"
-                style={{
-                  textShadowColor: "rgba(0,0,0,0.15)",
-                  textShadowOffset: { width: 0, height: 1 },
-                  textShadowRadius: 2,
-                }}
-              />
+              {data.meta.iconName === "Shield" ? (
+                <View style={{ alignItems: "center", justifyContent: "center" }}>
+                  <IconComponent
+                    size={isSmall ? 18 : 24}
+                    color="white"
+                    style={{
+                      textShadowColor: "rgba(0,0,0,0.15)",
+                      textShadowOffset: { width: 0, height: 1 },
+                      textShadowRadius: 2,
+                    }}
+                  />
+                  <Icons.Star
+                    size={isSmall ? 8 : 10}
+                    color="white"
+                    fill="white"
+                    style={{ position: "absolute", top: isSmall ? 4 : 6 }}
+                  />
+                </View>
+              ) : (
+                <IconComponent
+                  size={isSmall ? 18 : 24}
+                  color="white"
+                  style={{
+                    textShadowColor: "rgba(0,0,0,0.15)",
+                    textShadowOffset: { width: 0, height: 1 },
+                    textShadowRadius: 2,
+                  }}
+                />
+              )}
             </View>
           </LinearGradient>
 
@@ -1192,7 +1238,6 @@ function PremiumBadge({ data, size = "normal", onPress, style }) {
 
 function TimelineLayout({ badges, onSelect }) {
   const unlockedCount = badges.filter((b) => b.unlocked).length;
-  const progressPct = unlockedCount <= 1 ? 0 : unlockedCount === 2 ? 50 : 100;
   const accentColors = CATEGORY_CONFIG.perfect_days?.accent || [
     "#3B82F6",
     "#60A5FA",
@@ -1202,9 +1247,10 @@ function TimelineLayout({ badges, onSelect }) {
     <View
       style={{
         position: "relative",
+        width: 240,
+        alignSelf: "center",
         paddingTop: 6,
         paddingBottom: 6,
-        paddingHorizontal: 6,
       }}
     >
       {/* Background line track */}
@@ -1212,8 +1258,8 @@ function TimelineLayout({ badges, onSelect }) {
         style={{
           position: "absolute",
           top: 31,
-          left: "12%",
-          right: "12%",
+          left: 35,
+          right: 35,
           height: 4,
           borderRadius: 2,
           backgroundColor: "#E2E8F0",
@@ -1221,29 +1267,33 @@ function TimelineLayout({ badges, onSelect }) {
       />
 
       {/* Colored progress line overlay */}
-      {progressPct > 0 && (
+      {unlockedCount > 1 && (
         <View
           style={{
             position: "absolute",
             top: 31,
-            left: "12%",
-            width: `${progressPct * 0.76}%`,
+            left: 35,
+            right: 35,
             height: 4,
             borderRadius: 2,
             overflow: "hidden",
-            shadowColor: accentColors[0],
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.15,
-            shadowRadius: 3,
-            elevation: 2,
           }}
         >
-          <LinearGradient
-            colors={accentColors}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={{ flex: 1 }}
-          />
+          <View
+            style={{
+              width: unlockedCount === 2 ? "50%" : "100%",
+              height: "100%",
+              borderRadius: 2,
+              overflow: "hidden",
+            }}
+          >
+            <LinearGradient
+              colors={accentColors}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={{ flex: 1 }}
+            />
+          </View>
         </View>
       )}
 
@@ -1260,7 +1310,7 @@ function TimelineLayout({ badges, onSelect }) {
             data={b}
             size="small"
             onPress={() => onSelect(b)}
-            style={{ width: badgeWidth, marginBottom: 0 }}
+            style={{ width: 70, marginBottom: 0 }}
           />
         ))}
       </View>
@@ -1568,7 +1618,8 @@ export default function AdherenceScreen({ navigation }) {
   // ── Loading Skeleton ────────────────────────────────────
   if (loading) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: C.bg }}>
+      <TabScreenTransition>
+        <SafeAreaView style={{ flex: 1, backgroundColor: C.bg }}>
         <View style={styles.header}>
           <Skeleton width={40} height={40} borderRadius={14} />
           <Skeleton width={160} height={22} style={{ marginLeft: 12 }} />
@@ -1580,11 +1631,13 @@ export default function AdherenceScreen({ navigation }) {
           <Skeleton width="100%" height={200} borderRadius={20} />
         </ScrollView>
       </SafeAreaView>
+      </TabScreenTransition>
     );
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: C.bg }}>
+    <TabScreenTransition>
+      <View style={{ flex: 1, backgroundColor: C.bg }}>
       <SafeAreaView style={{ flex: 1 }}>
         {/* ── Header ── */}
         <View style={styles.header}>
@@ -2457,11 +2510,11 @@ export default function AdherenceScreen({ navigation }) {
               <View
                 style={{
                   borderRadius: 24,
-                  shadowColor: "#4F46E5",
+                  shadowColor: "#6A5AF9",
                   shadowOffset: { width: 0, height: 8 },
-                  shadowOpacity: 0.15,
-                  shadowRadius: 12,
-                  elevation: 6,
+                  shadowOpacity: 0.08,
+                  shadowRadius: 18,
+                  elevation: 1,
                   backgroundColor: "transparent",
                   position: "relative",
                 }}
@@ -2493,19 +2546,6 @@ export default function AdherenceScreen({ navigation }) {
                       backgroundColor: "#8B5CF6",
                       opacity: 0.35,
                       transform: [{ scale: 1.2 }],
-                    }}
-                  />
-                  <View
-                    style={{
-                      position: "absolute",
-                      bottom: 15,
-                      right: -6,
-                      width: 110,
-                      height: 110,
-                      borderRadius: 55,
-                      backgroundColor: "#EC4899",
-                      opacity: 0.28,
-                      transform: [{ scale: 1.15 }],
                     }}
                   />
 
@@ -3291,6 +3331,7 @@ export default function AdherenceScreen({ navigation }) {
         </View>
       </Modal>
     </View>
+    </TabScreenTransition>
   );
 }
 

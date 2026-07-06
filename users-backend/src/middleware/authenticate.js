@@ -12,7 +12,16 @@ const { setLogContextUser } = require("./correlationId");
 // IMPORTANT: This function is byte-for-byte synchronized with
 //   backend/src/middleware/authenticate.js — keep both in sync.
 function touchCallerActivity(profile) {
-  if (!profile || (profile.role !== "caller" && profile.role !== "caretaker")) {
+  if (mongoose.connection.readyState !== 1) {
+    return;
+  }
+
+  if (
+    !profile ||
+    (profile.role !== "caller" &&
+      profile.role !== "caretaker" &&
+      profile.role !== "care_manager")
+  ) {
     return;
   }
 
@@ -37,12 +46,15 @@ function touchCallerActivity(profile) {
     );
 
   // Update Caller collection (callers._id === profiles._id — verified via Profile post-save hooks)
-  mongoose
-    .model("Caller")
-    .updateOne(query, update)
-    .catch((e) =>
-      console.warn("[touchCallerActivity] caller update failed:", e.message),
-    );
+  // Only update Caller collection if role is caller or caretaker
+  if (profile.role === "caller" || profile.role === "caretaker") {
+    mongoose
+      .model("Caller")
+      .updateOne(query, update)
+      .catch((e) =>
+        console.warn("[touchCallerActivity] caller update failed:", e.message),
+      );
+  }
 }
 
 let supabaseClient = null;

@@ -29,6 +29,7 @@ import { colors, motion, useReduceMotion } from "../../theme";
 import { apiService } from "../../lib/api";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as IntentLauncher from "expo-intent-launcher";
+import TabScreenTransition from "../../components/ui/TabScreenTransition";
 
 // ─── Skeleton Loader ──────────────────────────────────────────
 const SkeletonItem = ({ width, height, borderRadius = 8, style }) => {
@@ -314,7 +315,7 @@ export default function NotificationsScreen({ navigation }) {
           isRead: false,
           group: "Today's Activity",
           name: `Missed Call${missedCalls.length > 1 ? "s" : ""}`,
-          action: `Your caregiver tried to reach you ${missedCalls.length > 1 ? `${missedCalls.length} times` : ""} today. Please call them back.`,
+          action: `Your caller tried to reach you ${missedCalls.length > 1 ? `${missedCalls.length} times` : ""} today. Please call them back.`,
           time: "Missed",
           Icon: PhoneMissed,
           color: C.danger,
@@ -530,6 +531,7 @@ export default function NotificationsScreen({ navigation }) {
   }, [activeTab, hasUnreadBackend, notifications.length]);
 
   return (
+    <TabScreenTransition>
     <View style={s.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
@@ -706,6 +708,7 @@ export default function NotificationsScreen({ navigation }) {
         <View style={{ height: 40 }} />
       </ScrollView>
     </View>
+    </TabScreenTransition>
   );
 }
 

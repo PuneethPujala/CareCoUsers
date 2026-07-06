@@ -11,6 +11,7 @@ import AlertManager from '../../utils/AlertManager';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import LegalModal from '../../components/ui/LegalModal';
 import CompanionHeader from '../../components/ui/CompanionHeader';
+import TabScreenTransition from '../../components/ui/TabScreenTransition';
 
 
 
@@ -220,7 +221,8 @@ export default function CompanionProfileScreen() {
     const initials = companionName.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
 
     return (
-        <View style={styles.container}>
+        <TabScreenTransition>
+            <View style={styles.container}>
             <CompanionHeader
                 subtitle="Account Setting"
                 title="Companion Profile"
@@ -497,6 +499,7 @@ export default function CompanionProfileScreen() {
                 </View>
             </Modal>
         </View>
+        </TabScreenTransition>
     );
 }
 

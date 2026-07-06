@@ -21,6 +21,7 @@ import { colors, spacing, radius, shadows, layout } from '../../theme';
 import usePatientStore from '../../store/usePatientStore';
 import AlertManager from '../../utils/AlertManager';
 import { motion, anim, useReduceMotion } from '../../theme';
+import TabScreenTransition from '../../components/ui/TabScreenTransition';
 
 const { width: SW } = Dimensions.get('window');
 
@@ -277,6 +278,7 @@ export default function HealthConnectSetupScreen({ navigation }) {
     });
 
     return (
+        <TabScreenTransition>
         <View style={styles.container}>
             {/* ── Header ──────────────────────────────────────── */}
             <View style={styles.header}>
@@ -560,6 +562,7 @@ export default function HealthConnectSetupScreen({ navigation }) {
                 </Pressable>
             </Modal>
         </View>
+        </TabScreenTransition>
     );
 }
 

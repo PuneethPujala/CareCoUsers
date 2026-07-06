@@ -64,6 +64,7 @@ import {
   useReduceMotion,
 } from "../../theme";
 import { useAuth } from "../../context/AuthContext";
+import TabScreenTransition from "../../components/ui/TabScreenTransition";
 import { apiService } from "../../lib/api";
 import { useFocusEffect } from "@react-navigation/native";
 import HealthSyncService from "../../services/HealthSyncService";
@@ -376,6 +377,7 @@ export default function PatientHomeScreen({ navigation }) {
   const storeFetchDashboard = usePatientStore((s) => s.fetchDashboard);
   const storeFetchMedications = usePatientStore((s) => s.fetchMedications);
   const storeLoading = usePatientStore((s) => s.loading);
+  const setPatient = usePatientStore((s) => s.setPatient);
 
   useEffect(() => {
     // Only run if the patient dashboard loading is done
@@ -577,12 +579,20 @@ export default function PatientHomeScreen({ navigation }) {
       const todayStr = new Date().toLocaleDateString("en-CA", {
         timeZone: timezone,
       }); // YYYY-MM-DD
+      const now = new Date();
       const loggedToday = patient.moodHistory.find((m) => {
         if (!m.date) return false;
+        // Check 1: Date strings match in patient timezone
         const dStr = new Date(m.date).toLocaleDateString("en-CA", {
           timeZone: timezone,
         });
-        return dStr === todayStr;
+        if (dStr === todayStr) return true;
+
+        // Check 2: Time diff is less than 16 hours (guard against clock skew/midnight border)
+        const diffMs = Math.abs(now.getTime() - new Date(m.date).getTime());
+        if (diffMs < 16 * 60 * 60 * 1000) return true;
+
+        return false;
       });
       if (loggedToday) {
         setMoodLogged(true);
@@ -625,6 +635,10 @@ export default function PatientHomeScreen({ navigation }) {
     try {
       const { data } = await apiService.patients.logMood(moodValue);
       if (data?.success) {
+        // Update local patient store immediately with the response
+        if (data.patient) {
+          setPatient(data.patient);
+        }
         // Delayed fetch to sync new live coach card data
         setTimeout(async () => {
           await fetchData(true);
@@ -1676,10 +1690,11 @@ export default function PatientHomeScreen({ navigation }) {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-    >
+    <TabScreenTransition>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
       <View style={{ flex: 1, backgroundColor: "#F8FAFC" }}>
         <StatusBar
           barStyle="dark-content"
@@ -3133,6 +3148,7 @@ export default function PatientHomeScreen({ navigation }) {
         />
       </View>
     </KeyboardAvoidingView>
+    </TabScreenTransition>
   );
 }
 

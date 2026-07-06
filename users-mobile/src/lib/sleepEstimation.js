@@ -174,11 +174,15 @@ export const estimateSleep = async () => {
     }
 
     // --- Tier 4: No data / unavailable ---
+    const hasUsagePerm = Platform.OS === 'android' && ExpoAndroidUsagestats
+      ? await hasUsageStatsPermission()
+      : false;
+
     return {
       estimate: null,
       source: 'none',
       confidenceLabel: 'unavailable',
-      needsPermission: Platform.OS === 'android' ? 'usage_stats' : 'health_connect',
+      needsPermission: Platform.OS === 'android' && !hasUsagePerm ? 'usage_stats' : null,
     };
   } catch (e) {
     console.warn("Failed to check estimated sleep:", e.message);

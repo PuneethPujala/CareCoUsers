@@ -19,6 +19,7 @@ import analytics from '../../utils/analytics';
 import { useAuth } from '../../context/AuthContext';
 import { isRecoveryExpired } from '../../utils/authUtils';
 import SmartInput from '../../components/ui/SmartInput';
+import TabScreenTransition from '../../components/ui/TabScreenTransition';
 import { colors, radius, spacing, shadows } from '../../theme';
 
 export default function ResetPasswordScreen({ navigation }) {
@@ -114,7 +115,8 @@ export default function ResetPasswordScreen({ navigation }) {
 
     if (isExpired) {
         return (
-            <View style={styles.container}>
+            <TabScreenTransition>
+                <View style={styles.container}>
                 {renderSvgBackground()}
                 <View style={styles.successCenter}>
                     <View style={[styles.successCircle, { backgroundColor: '#FEF2F2', borderColor: '#FEE2E2', borderWidth: 1.5 }]}>
@@ -130,12 +132,14 @@ export default function ResetPasswordScreen({ navigation }) {
                     </Pressable>
                 </View>
             </View>
+            </TabScreenTransition>
         );
     }
 
     if (success) {
         return (
-            <View style={styles.container}>
+            <TabScreenTransition>
+                <View style={styles.container}>
                 {renderSvgBackground()}
                 <View style={styles.successCenter}>
                     <View style={[styles.successCircle, { backgroundColor: '#F0FDF4', borderColor: '#DCFCE7', borderWidth: 1.5 }]}>
@@ -151,11 +155,13 @@ export default function ResetPasswordScreen({ navigation }) {
                     </Pressable>
                 </View>
             </View>
+            </TabScreenTransition>
         );
     }
 
     return (
-        <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <TabScreenTransition>
+            <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
             {renderSvgBackground()}
             <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled" bounces={false} showsVerticalScrollIndicator={false}>
                 
@@ -245,6 +251,7 @@ export default function ResetPasswordScreen({ navigation }) {
                 </View>
             </ScrollView>
         </KeyboardAvoidingView>
+        </TabScreenTransition>
     );
 }
 

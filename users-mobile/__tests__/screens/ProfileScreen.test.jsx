@@ -24,6 +24,7 @@ jest.mock('@react-navigation/native', () => {
         callback();
       }, [callback]);
     },
+    useIsFocused: () => true,
   };
 });
 

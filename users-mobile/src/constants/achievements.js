@@ -24,7 +24,7 @@ export const ACHIEVEMENTS = [
         tier: 'bronze',
         category: 'perfect_days',
         description: 'Complete all scheduled medication doses in a single day',
-        iconName: 'Star',
+        iconName: 'Compass',
         target: 1,
     },
     {
@@ -120,7 +120,7 @@ export const ACHIEVEMENTS = [
         tier: 'gold',
         category: 'perfect_days',
         description: 'Log 7 perfect days of 100% medication adherence',
-        iconName: 'Award',
+        iconName: 'Trophy',
         target: 7,
     },
     {
@@ -223,7 +223,7 @@ export const ACHIEVEMENTS = [
         tier: 'legendary',
         category: 'perfect_days',
         description: 'Record 30 days of perfect 100% medication adherence',
-        iconName: 'Crown',
+        iconName: 'Shield',
         target: 30,
     }
 ];

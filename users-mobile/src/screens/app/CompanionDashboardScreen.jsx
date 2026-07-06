@@ -8,6 +8,7 @@ import usePatientStore from '../../store/usePatientStore';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import Svg, { Path, Circle, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
 import CompanionHeader from '../../components/ui/CompanionHeader';
+import TabScreenTransition from '../../components/ui/TabScreenTransition';
 
 const { width } = Dimensions.get('window');
 
@@ -424,7 +425,8 @@ export default function CompanionDashboardScreen() {
     }
 
     return (
-        <View style={styles.container}>
+        <TabScreenTransition>
+            <View style={styles.container}>
             {/* Ambient Background Decorations */}
             <View style={StyleSheet.absoluteFill}>
                 <Svg height="100%" width="100%" viewBox="0 0 400 850" preserveAspectRatio="none">
@@ -973,6 +975,7 @@ export default function CompanionDashboardScreen() {
                 )}
             </ScrollView>
         </View>
+        </TabScreenTransition>
     );
 }
 

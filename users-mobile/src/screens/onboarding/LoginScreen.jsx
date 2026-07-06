@@ -10,6 +10,7 @@ import { apiService } from '../../lib/api';
 import { parseError } from '../../utils/parseError';
 import analytics from '../../utils/analytics';
 import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
+import TabScreenTransition from '../../components/ui/TabScreenTransition';
 import SmartInput from '../../components/ui/SmartInput';
 import { OTPBoxes } from './components';
 import { colors, radius, spacing, shadows } from '../../theme';
@@ -525,8 +526,9 @@ export default function LoginScreen({ navigation }) {
     const handlePasswordChange = (v) => { setPassword(v); if (errorText) setErrorText(''); };
 
     return (
-        <KeyboardAvoidingView
-            style={styles.container}
+        <TabScreenTransition>
+            <KeyboardAvoidingView
+                style={styles.container}
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
             {/* Ambient Background Decorations */}
@@ -835,6 +837,7 @@ export default function LoginScreen({ navigation }) {
                 </KeyboardAvoidingView>
             </Modal>
         </KeyboardAvoidingView>
+        </TabScreenTransition>
     );
 }
 

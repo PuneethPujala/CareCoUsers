@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Pressable, ScrollView, Platform, Dimensions } f
 import { LinearGradient } from 'expo-linear-gradient';
 import { ChevronLeft, Check, Sparkles, Activity, ShieldCheck, Zap } from 'lucide-react-native';
 import CheckoutBottomSheet from '../../components/premium/CheckoutBottomSheet';
+import TabScreenTransition from '../../components/ui/TabScreenTransition';
 
 const { width: SW } = Dimensions.get('window');
 
@@ -53,6 +54,7 @@ export default function PremiumShowcaseScreen({ navigation, route }) {
     };
 
     return (
+        <TabScreenTransition>
         <View style={s.container}>
             {/* Header Graphics */}
             <LinearGradient colors={['#F3E8FF', '#FFFFFF']} style={s.headerGraphic}>
@@ -136,6 +138,7 @@ export default function PremiumShowcaseScreen({ navigation, route }) {
                 isRenewal={isRenewal}
             />
         </View>
+        </TabScreenTransition>
     );
 }
 

@@ -9,6 +9,7 @@ import AlertManager from '../../utils/AlertManager';
 import Svg, { Path, Circle, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
 import CompanionHeader from '../../components/ui/CompanionHeader';
 import PremiumFormModal from '../../components/ui/PremiumFormModal';
+import TabScreenTransition from '../../components/ui/TabScreenTransition';
 
 const C = {
     bg: colors.background,
@@ -383,7 +384,8 @@ export default function CompanionAlertsScreen() {
         : mockHistory;
 
     return (
-        <View style={styles.container}>
+        <TabScreenTransition>
+            <View style={styles.container}>
             {/* Ambient Background Decorations */}
             <View style={StyleSheet.absoluteFill}>
                 <Svg height="100%" width="100%" viewBox="0 0 400 850" preserveAspectRatio="none">
@@ -842,6 +844,7 @@ export default function CompanionAlertsScreen() {
                  </View>
              </PremiumFormModal>
          </View>
+         </TabScreenTransition>
      );
  }
 

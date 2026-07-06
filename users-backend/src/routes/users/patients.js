@@ -192,7 +192,7 @@ async function activateSubscription(patient, planId) {
           type: "system",
           title: "Welcome to CareMyMed! 🎉",
           message:
-            "Your account is now active. Explore the app while we appoint your dedicated caregiver.",
+            "Your account is now active. Explore the app while we appoint your dedicated caller.",
           target_screen: "HealthProfile",
         },
       ],
@@ -238,11 +238,8 @@ router.get("/cities", async (req, res) => {
 
     if (cities.length === 0) {
       const seedCities = [
-        { name: "Hyderabad", state: "Telangana", isActive: true },
-        { name: "Bengaluru", state: "Karnataka", isActive: true },
-        { name: "Chennai", state: "Tamil Nadu", isActive: true },
-        { name: "Mumbai", state: "Maharashtra", isActive: true },
-        { name: "Delhi", state: "Delhi", isActive: true },
+        { name: "Guntur", state: "Andhra Pradesh", isActive: true },
+        { name: "Vijayawada", state: "Andhra Pradesh", isActive: true },
       ];
       await City.insertMany(seedCities);
       cities = await City.find({ isActive: true }).sort("name");

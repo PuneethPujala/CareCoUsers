@@ -93,7 +93,7 @@ const CustomAlert = forwardRef((_, ref) => {
   }, [dismiss]);
 
   const theme = THEME[type] || THEME.info;
-  const hasDestructive = buttons.some(b => b.style === 'destructive');
+  const shouldStack = buttons.length > 2 || buttons.some(b => (b.text || '').length > 12);
 
   return (
     <Modal
@@ -132,7 +132,7 @@ const CustomAlert = forwardRef((_, ref) => {
             <View style={[
               styles.buttonRow,
               buttons.length === 1 && styles.buttonRowSingle,
-              buttons.length > 2 && { flexDirection: 'column' },
+              shouldStack && { flexDirection: 'column-reverse', gap: 8 },
             ]}>
               {buttons.map((btn, idx) => {
                 const isDestructive = btn.style === 'destructive';
@@ -159,12 +159,17 @@ const CustomAlert = forwardRef((_, ref) => {
                     style={({ pressed }) => [
                       styles.btn,
                       buttonStyle,
-                      (buttons.length === 1 || buttons.length > 2) && styles.btnFull,
+                      (buttons.length === 1 || shouldStack) && styles.btnFull,
                       pressed && styles.btnPressed,
                     ]}
                     onPress={() => handleButtonPress(btn)}
                   >
-                    <Text style={[styles.btnText, textStyle]}>
+                    <Text 
+                      style={[styles.btnText, textStyle]}
+                      numberOfLines={1}
+                      adjustsFontSizeToFit
+                      minimumFontScale={0.7}
+                    >
                       {btn.text || 'OK'}
                     </Text>
                   </Pressable>

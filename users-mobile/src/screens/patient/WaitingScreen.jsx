@@ -10,6 +10,7 @@ import {
 } from 'lucide-react-native';
 import { colors } from '../../theme';
 import { useAuth } from '../../context/AuthContext';
+import TabScreenTransition from '../../components/ui/TabScreenTransition';
 
 const { width } = Dimensions.get('window');
 
@@ -70,6 +71,7 @@ export default function WaitingScreen({ navigation, route }) {
     }, []);
 
     return (
+        <TabScreenTransition>
         <View style={styles.container}>
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
 
@@ -207,6 +209,7 @@ export default function WaitingScreen({ navigation, route }) {
                 </Pressable>
             </View>
         </View>
+        </TabScreenTransition>
     );
 }
 

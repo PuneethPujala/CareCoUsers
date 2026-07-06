@@ -202,12 +202,9 @@ describe("User Patients Routes", () => {
         .mockReturnValueOnce(makeCityFindChain([])) // first call returns empty
         .mockReturnValueOnce(
           makeCityFindChain([
-            // after seed, returns 5
-            { name: "Hyderabad" },
-            { name: "Bengaluru" },
-            { name: "Chennai" },
-            { name: "Mumbai" },
-            { name: "Delhi" },
+            // after seed, returns 2
+            { name: "Guntur" },
+            { name: "Vijayawada" },
           ]),
         );
       City.insertMany = jest.fn().mockResolvedValue([]);
@@ -216,7 +213,7 @@ describe("User Patients Routes", () => {
 
       expect(res.status).toBe(200);
       expect(City.insertMany).toHaveBeenCalled();
-      expect(res.body.cities).toHaveLength(5);
+      expect(res.body.cities).toHaveLength(2);
     });
 
     it("returns 500 on database error", async () => {

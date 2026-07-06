@@ -17,6 +17,7 @@ import { useAuth } from '../../context/AuthContext';
 import { parseError } from '../../utils/parseError';
 import analytics from '../../utils/analytics';
 import { colors, radius, spacing, shadows } from '../../theme';
+import TabScreenTransition from '../../components/ui/TabScreenTransition';
 
 const RESEND_COOLDOWN = 60; // seconds
 
@@ -78,7 +79,8 @@ export default function VerifyEmailScreen({ navigation, route }) {
     };
 
     return (
-        <View style={styles.container}>
+        <TabScreenTransition>
+            <View style={styles.container}>
             {/* Ambient Background Decorations */}
             <View style={StyleSheet.absoluteFill}>
                 <Svg height="100%" width="100%" viewBox="0 0 400 850" preserveAspectRatio="none">
@@ -169,6 +171,7 @@ export default function VerifyEmailScreen({ navigation, route }) {
                 </View>
             </View>
         </View>
+        </TabScreenTransition>
     );
 }
 

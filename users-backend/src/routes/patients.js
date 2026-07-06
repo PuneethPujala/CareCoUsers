@@ -330,6 +330,8 @@ router.put(
           .json({ error: "No valid fields to update for your role" });
       }
 
+      const oldCallerId = patient.assigned_caller_id;
+
       const updatedPatient = await Patient.findByIdAndUpdate(
         req.params.id,
         updateData,
@@ -338,6 +340,24 @@ router.put(
         .populate("organization_id", "name city")
         .populate("assigned_caller_id", "fullName email phone")
         .populate("assigned_manager_id", "fullName email");
+
+      // Handle bidirectional caller assignment syncing if updated
+      if (updateData.assigned_caller_id !== undefined && 
+          String(updateData.assigned_caller_id) !== String(oldCallerId)) {
+        const Caller = require("../models/Caller");
+        if (oldCallerId) {
+          await Caller.updateOne(
+            { _id: oldCallerId },
+            { $pull: { patient_ids: patient._id } }
+          );
+        }
+        if (updateData.assigned_caller_id) {
+          await Caller.updateOne(
+            { _id: updateData.assigned_caller_id },
+            { $addToSet: { patient_ids: patient._id } }
+          );
+        }
+      }
 
       await logEvent(
         req.profile.supabaseUid,

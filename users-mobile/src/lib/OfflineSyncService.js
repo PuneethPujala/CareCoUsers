@@ -3,6 +3,7 @@ import NetInfo from '@react-native-community/netinfo';
 import { AppState, DeviceEventEmitter } from 'react-native';
 import { apiService } from './api';
 import usePatientStore from '../store/usePatientStore';
+import AlertManager from '../utils/AlertManager';
 
 const QUEUE_KEY = 'offline_mutation_queue';
 
@@ -283,12 +284,26 @@ class OfflineSyncService {
                     }
                 } catch (error) {
                     errorMsg = error.message;
-                    // If it's a 4xx error (e.g. invalid data), we should probably drop it so it doesn't block forever.
-                    // If it's a network error (ECONNABORTED, no response), keep it in the queue.
-                    if (error.response && error.response.status >= 400 && error.response.status < 500) {
-                        console.warn(`[OfflineSync] Dropping invalid mutation (4xx error):`, error.message);
+                    const status = error.response?.status;
+
+                    if (status === 401 || status === 403) {
+                        console.warn(`[OfflineSync] Dropping mutation due to revoked auth (status ${status}):`, error.message);
                         success = true; // Drop it
-                        this.logReplayEvent(item.type, 'failure', `Dropped (4xx): ${error.message}`);
+                        this.logReplayEvent(item.type, 'failure', `Dropped (Auth Revoked ${status}): ${error.message}`);
+                    } else if (status >= 400 && status < 500) {
+                        console.warn(`[OfflineSync] Dropping invalid mutation with 4xx error (status ${status}):`, error.message);
+                        success = true; // Drop to prevent queue blockage
+                        this.logReplayEvent(item.type, 'failure', `Dropped (4xx status ${status}): ${error.message}`);
+
+                        // Loudly notify the user of the sync failure
+                        const medName = item.payload?.medicine_name || item.payload?.title || 'Medication';
+                        setTimeout(() => {
+                            AlertManager.alert(
+                                'Sync Update Failed ⚠️',
+                                `Could not sync your offline update for "${medName}". The schedule or medication list may have changed on the server. Please verify your medications.`,
+                                [{ text: 'OK' }]
+                            );
+                        }, 100);
                     } else {
                         item.retryCount = (item.retryCount || 0) + 1;
                         const backoffMs = Math.min(1000 * Math.pow(2, item.retryCount), 3600000); // Max 1 hour

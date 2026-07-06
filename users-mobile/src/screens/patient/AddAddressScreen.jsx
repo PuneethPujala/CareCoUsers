@@ -9,6 +9,7 @@ import {
 } from 'lucide-react-native';
 import { colors } from '../../theme';
 import { apiService } from '../../lib/api';
+import TabScreenTransition from '../../components/ui/TabScreenTransition';
 
 import AlertManager from '../../utils/AlertManager';
 const LABELS = [
@@ -123,7 +124,8 @@ export default function AddAddressScreen({ navigation, route }) {
     const canSave = !!selectedPlace && !saving;
 
     return (
-        <SafeAreaView style={styles.container}>
+        <TabScreenTransition>
+            <SafeAreaView style={styles.container}>
             <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
                 {/* Header */}
                 <View style={styles.header}>
@@ -277,6 +279,7 @@ export default function AddAddressScreen({ navigation, route }) {
                 </View>
             </KeyboardAvoidingView>
         </SafeAreaView>
+        </TabScreenTransition>
     );
 }
 

@@ -16,6 +16,7 @@ import usePatientStore from '../../store/usePatientStore';
 import { apiService, handleApiError, getApiTokens } from '../../lib/api';
 import AlertManager from '../../utils/AlertManager';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import TabScreenTransition from '../../components/ui/TabScreenTransition';
 
 export default function HealthCopilotScreen({ navigation, route }) {
     const { t } = useTranslation();
@@ -219,6 +220,7 @@ export default function HealthCopilotScreen({ navigation, route }) {
     };
 
     return (
+        <TabScreenTransition>
         <View style={styles.container}>
             <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
             {renderHeader()}
@@ -226,6 +228,7 @@ export default function HealthCopilotScreen({ navigation, route }) {
                 {renderBriefTab()}
             </View>
         </View>
+        </TabScreenTransition>
     );
 }
 

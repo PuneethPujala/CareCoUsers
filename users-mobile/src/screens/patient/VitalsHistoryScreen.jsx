@@ -20,6 +20,7 @@ import axiosInstance, { handleAxiosError } from '../../lib/axiosInstance';
 import api, { apiService } from '../../lib/api';
 import { colors, layout } from '../../theme';
 import SmartInput from '../../components/ui/SmartInput';
+import TabScreenTransition from '../../components/ui/TabScreenTransition';
 import OfflineSyncService from '../../lib/OfflineSyncService';
 import HealthSyncService from '../../services/HealthSyncService';
 import usePatientStore from '../../store/usePatientStore';
@@ -1249,7 +1250,8 @@ export default function VitalsHistoryScreen({ navigation }) {
     const isHistoryLoadingState = historyLoading || historyRefreshing || displayedHistoryDate.toDateString() !== historyDate.toDateString();
 
     return (
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <TabScreenTransition>
+            <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
             {renderFullscreenChart()}
             <View style={[styles.container, { backgroundColor: def ? def.bgTint : '#F8FAFC' }]}>
                 {renderHeader()}
@@ -1503,6 +1505,7 @@ export default function VitalsHistoryScreen({ navigation }) {
                 </Animated.ScrollView>
             </View>
         </KeyboardAvoidingView>
+        </TabScreenTransition>
     );
 }
 

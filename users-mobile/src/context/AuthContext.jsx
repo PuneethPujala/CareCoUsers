@@ -114,16 +114,6 @@ export function AuthProvider({ children }) {
     // A2 FIX: in-flight deduplication so concurrent callers share one getMe().
     const patientFetchPromiseRef = useRef(null);
 
-    // A7: Await initial Supabase session loading to prevent split-second login page flash
-    const initialSupabaseCheckRef = useRef(null);
-    if (!initialSupabaseCheckRef.current) {
-        let resolveCheck;
-        const promise = new Promise((resolve) => {
-            resolveCheck = resolve;
-        });
-        initialSupabaseCheckRef.current = { promise, resolve: resolveCheck, resolved: false };
-    }
-    const isFirstAuthEventRef = useRef(true);
     const isInitializingRef = useRef(true);
 
 
@@ -294,9 +284,8 @@ export function AuthProvider({ children }) {
                         }
                     }
                 } else {
-                    // No custom API token — fall back to Supabase session.
-                    if (__DEV__) console.log('[Auth] No API token, checking Supabase session...');
-                    const currentSession = await initialSupabaseCheckRef.current.promise;
+                    const sessionRes = await supabase.auth.getSession().catch(() => ({ data: { session: null } }));
+                    const currentSession = sessionRes?.data?.session || null;
                     if (__DEV__) console.log('[Auth] Supabase session:', !!currentSession?.user);
 
                     if (currentSession?.user) {
@@ -374,13 +363,6 @@ export function AuthProvider({ children }) {
                 setCacheUserId(newSession.user.id);
             }
 
-            // A7: Resolve initial check on the first event and delegate initial loading to init()
-            if (isFirstAuthEventRef.current) {
-                isFirstAuthEventRef.current = false;
-                initialSupabaseCheckRef.current.resolved = true;
-                initialSupabaseCheckRef.current.resolve(newSession);
-                return;
-            }
 
             if (event === 'SIGNED_OUT') {
                 // Only clear React state if there's no custom API token keeping

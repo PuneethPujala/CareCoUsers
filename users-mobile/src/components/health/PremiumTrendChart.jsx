@@ -253,25 +253,37 @@ const PremiumTrendChart = ({
                 )}
 
                 {/* X Axis Labels */}
-                {points.map((p, idx) => {
-                    // Reduce label density to prevent overlap (max 5 labels)
-                    const skipCount = Math.ceil(points.length / 5);
-                    if (idx % skipCount !== 0 && idx !== points.length - 1) return null;
+                {(() => {
+                    const N = points.length;
+                    const indicesToShow = new Set();
+                    if (N <= 5) {
+                        for (let i = 0; i < N; i++) indicesToShow.add(i);
+                    } else {
+                        indicesToShow.add(0);
+                        indicesToShow.add(Math.round((N - 1) * 0.25));
+                        indicesToShow.add(Math.round((N - 1) * 0.50));
+                        indicesToShow.add(Math.round((N - 1) * 0.75));
+                        indicesToShow.add(N - 1);
+                    }
 
-                    return (
-                        <SvgText
-                            key={`x-lbl-${idx}`}
-                            x={p.x}
-                            y={height - 6}
-                            fill={colors.textMuted}
-                            fontSize={10}
-                            fontWeight="600"
-                            textAnchor="middle"
-                        >
-                            {p.label}
-                        </SvgText>
-                    );
-                })}
+                    return points.map((p, idx) => {
+                        if (!indicesToShow.has(idx)) return null;
+
+                        return (
+                            <SvgText
+                                key={`x-lbl-${idx}`}
+                                x={p.x}
+                                y={height - 6}
+                                fill={colors.textMuted}
+                                fontSize={10}
+                                fontWeight="600"
+                                textAnchor="middle"
+                            >
+                                {p.label}
+                            </SvgText>
+                        );
+                    });
+                })()}
 
                 {/* Trajectory Label on X Axis */}
                 {projectionValue !== undefined && projectionValue !== null && (

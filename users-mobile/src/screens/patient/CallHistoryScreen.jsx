@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, Pressable, ActivityIndicator, Platform } from 'react-native';
 import { ChevronLeft, PhoneIncoming, AlertTriangle, Clock, Calendar } from 'lucide-react-native';
+import TabScreenTransition from '../../components/ui/TabScreenTransition';
 import { apiService } from '../../lib/api';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -93,7 +94,8 @@ export default function CallHistoryScreen({ navigation }) {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <TabScreenTransition>
+      <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
         <Pressable onPress={() => navigation.goBack()} style={styles.backBtn}>
           <ChevronLeft size={24} color="#0F172A" />
@@ -120,6 +122,7 @@ export default function CallHistoryScreen({ navigation }) {
         />
       )}
     </View>
+    </TabScreenTransition>
   );
 }
 

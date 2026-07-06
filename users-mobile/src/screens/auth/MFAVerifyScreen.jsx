@@ -19,6 +19,7 @@ import { apiService } from '../../lib/api';
 import OTPBoxes from '../../components/ui/OTPBoxes';
 import { useAuth } from '../../context/AuthContext';
 import SmartInput from '../../components/ui/SmartInput';
+import TabScreenTransition from '../../components/ui/TabScreenTransition';
 
 const FONT = {
     regular: { fontFamily: 'Inter_400Regular' },
@@ -107,8 +108,9 @@ export default function MFAVerifyScreen({ route, navigation }) {
     };
 
     return (
-        <KeyboardAvoidingView
-            style={styles.container}
+        <TabScreenTransition>
+            <KeyboardAvoidingView
+                style={styles.container}
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
             <ScrollView
@@ -219,6 +221,7 @@ export default function MFAVerifyScreen({ route, navigation }) {
                 </Animated.View>
             </ScrollView>
         </KeyboardAvoidingView>
+        </TabScreenTransition>
     );
 }
 

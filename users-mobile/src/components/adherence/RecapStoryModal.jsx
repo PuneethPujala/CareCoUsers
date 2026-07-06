@@ -23,7 +23,14 @@ import {
   Trophy,
   Heart,
   Sparkles,
+  TrendingUp,
+  Leaf,
+  Sunrise,
+  Sun,
+  Moon,
+  Check,
 } from "lucide-react-native";
+import Svg, { Circle } from "react-native-svg";
 import ViewShot from "react-native-view-shot";
 import * as Sharing from "expo-sharing";
 import { HapticPatterns } from "../../utils/haptics";
@@ -104,13 +111,16 @@ const AnimatedCounter = ({ value, suffix = "", style }) => {
 
 const ProgressRing = ({
   progress = 0,
-  size = 180,
-  strokeWidth = 18,
-  theme,
+  size = 190,
+  strokeWidth = 12,
+  activeColor = "#10B981",
+  trackColor = "rgba(255, 255, 255, 0.08)",
+  textColor = "#FFFFFF",
+  subtitle = "Keep It Up.",
 }) => {
-  const activeColor = theme.textColor;
-  const ringTrackColor =
-    activeColor === "#000000" ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.18)";
+  const r = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * r;
+  const strokeDashoffset = circumference - (progress / 100) * circumference;
 
   return (
     <View
@@ -121,38 +131,59 @@ const ProgressRing = ({
         justifyContent: "center",
       }}
     >
-      <View style={{ position: "absolute" }}>
-        <View
+      <View style={{ transform: [{ rotate: "-90deg" }] }}>
+        <Svg width={size} height={size}>
+          <Circle
+            cx={size / 2}
+            cy={size / 2}
+            r={r}
+            stroke={trackColor}
+            strokeWidth={strokeWidth}
+            fill="none"
+          />
+          <Circle
+            cx={size / 2}
+            cy={size / 2}
+            r={r}
+            stroke={activeColor}
+            strokeWidth={strokeWidth}
+            fill="none"
+            strokeDasharray={circumference}
+            strokeDashoffset={strokeDashoffset}
+            strokeLinecap="round"
+          />
+        </Svg>
+      </View>
+      <View
+        style={{
+          position: "absolute",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <AnimatedCounter
+          value={progress}
+          suffix="%"
           style={{
-            width: size,
-            height: size,
-            borderRadius: size / 2,
-            borderWidth: strokeWidth,
-            borderColor: ringTrackColor,
+            fontSize: 54,
+            fontWeight: "900",
+            color: textColor,
+            letterSpacing: -2,
           }}
         />
+        {subtitle ? (
+          <Text
+            style={{
+              fontSize: 15,
+              fontWeight: "600",
+              color: "rgba(255, 255, 255, 0.7)",
+              marginTop: 4,
+            }}
+          >
+            {subtitle}
+          </Text>
+        ) : null}
       </View>
-      <View style={{ position: "absolute" }}>
-        <View
-          style={{
-            width: size,
-            height: size,
-            borderRadius: size / 2,
-            borderWidth: strokeWidth,
-            borderColor: activeColor,
-            borderTopColor: progress > 25 ? activeColor : "transparent",
-            borderRightColor: progress > 50 ? activeColor : "transparent",
-            borderBottomColor: progress > 75 ? activeColor : "transparent",
-            borderLeftColor: progress > 0 ? activeColor : "transparent",
-            transform: [{ rotate: "-90deg" }],
-          }}
-        />
-      </View>
-      <AnimatedCounter
-        value={progress}
-        suffix="%"
-        style={[s.ringText, { color: activeColor }]}
-      />
     </View>
   );
 };
@@ -455,49 +486,112 @@ export default function RecapStoryModal({
           </Animated.View>
         );
         break;
-      case 1:
+      case 1: {
+        const subtitleText = r.adherence_rate >= 90
+          ? "Outstanding."
+          : r.adherence_rate >= 70
+            ? "Great Work."
+            : "Keep It Up.";
         content = (
           <Animated.View style={[s.slideContent, makeSlideAnim(1)]}>
             <View
-              style={[
-                s.cardPanel,
-                {
-                  backgroundColor:
-                    theme.textColor === "#000000"
-                      ? "rgba(0,0,0,0.06)"
-                      : "rgba(255,255,255,0.12)",
-                },
-              ]}
+              style={{
+                width: "100%",
+                backgroundColor: "#05322C",
+                borderRadius: 36,
+                padding: 24,
+                alignItems: "center",
+                shadowColor: "#000",
+                shadowOffset: { width: 0, height: 10 },
+                shadowOpacity: 0.25,
+                shadowRadius: 20,
+                elevation: 8,
+              }}
             >
-              <Text style={[s.slideLabel, { color: theme.textColor }]}>
+              <View
+                style={{
+                  width: 54,
+                  height: 54,
+                  borderRadius: 27,
+                  backgroundColor: "rgba(16, 185, 129, 0.12)",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  marginBottom: 16,
+                }}
+              >
+                <TrendingUp size={24} color="#10B981" />
+              </View>
+
+              <Text
+                style={{
+                  fontSize: 13,
+                  fontWeight: "900",
+                  color: "#A7F3D0",
+                  letterSpacing: 2,
+                  marginBottom: 20,
+                  textTransform: "uppercase",
+                }}
+              >
                 ADHERENCE SCORE
               </Text>
-              <ProgressRing progress={r.adherence_rate || 0} theme={theme} />
+
+              <ProgressRing
+                progress={r.adherence_rate || 0}
+                size={180}
+                strokeWidth={12}
+                activeColor="#10B981"
+                trackColor="rgba(255, 255, 255, 0.08)"
+                textColor="#FFFFFF"
+                subtitle={subtitleText}
+              />
+
               <Text
-                style={[s.slideTitleAlt, { color: theme.textColor }]}
-                adjustsFontSizeToFit
-                numberOfLines={2}
+                style={{
+                  fontSize: 14,
+                  color: "rgba(255, 255, 255, 0.75)",
+                  textAlign: "center",
+                  lineHeight: 20,
+                  marginTop: 24,
+                  paddingHorizontal: 12,
+                }}
               >
-                {r.adherence_rate >= 90
-                  ? "Outstanding."
-                  : r.adherence_rate >= 70
-                    ? "Great Work."
-                    : "Keep It Up."}
+                Every dose you take today brings you closer to better health.
               </Text>
-              {r.improvement_vs_previous !== 0 && (
-                <View
-                  style={[s.changeBadge, { backgroundColor: theme.accentBg }]}
+
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 8,
+                  backgroundColor: "rgba(255, 255, 255, 0.04)",
+                  borderWidth: 1,
+                  borderColor: "rgba(255, 255, 255, 0.08)",
+                  borderRadius: 16,
+                  paddingHorizontal: 12,
+                  paddingVertical: 8,
+                  marginTop: 20,
+                }}
+              >
+                <Leaf size={14} color="#10B981" />
+                <Text
+                  style={{
+                    fontSize: 12,
+                    fontWeight: "600",
+                    color: "rgba(255, 255, 255, 0.8)",
+                  }}
                 >
-                  <Text style={[s.changeText, { color: theme.accentText }]}>
-                    {r.improvement_vs_previous > 0 ? "↑" : "↓"}{" "}
-                    {Math.abs(r.improvement_vs_previous)}% vs last {period}
-                  </Text>
-                </View>
-              )}
+                  Consistency today,{" "}
+                  <Text style={{ color: "#10B981", fontWeight: "700" }}>
+                    Wellness
+                  </Text>{" "}
+                  tomorrow.
+                </Text>
+              </View>
             </View>
           </Animated.View>
         );
         break;
+      }
       case 2:
         content = (
           <Animated.View
@@ -572,36 +666,145 @@ export default function RecapStoryModal({
           </Animated.View>
         );
         break;
-      case 4:
+      case 4: {
+        const isMorning = bestTime === "morning";
+        const isAfternoon = bestTime === "afternoon";
+        const isNight = bestTime === "night";
+
+        // Dynamic theme configurations based on time slot
+        let bgColors = ["#05100E", "#020706"];
+        let iconColor = "#10B981"; // Green
+        let glowColor = "rgba(16, 185, 129, 0.08)";
+        let highlightColor = "#10B981";
+        let IconCmp = Sunrise;
+
+        if (isAfternoon) {
+          bgColors = ["#120E05", "#080602"];
+          iconColor = "#F59E0B"; // Orange/Yellow
+          glowColor = "rgba(245, 158, 11, 0.08)";
+          highlightColor = "#F59E0B";
+          IconCmp = Sun;
+        } else if (isNight) {
+          bgColors = ["#040412", "#020208"];
+          iconColor = "#8B5CF6"; // Purple
+          glowColor = "rgba(139, 92, 246, 0.08)";
+          highlightColor = "#8B5CF6";
+          IconCmp = Moon;
+        }
+
         content = (
-          <Animated.View style={[s.slideContent, makeSlideAnim(4)]}>
-            <Animated.Text
-              style={[
-                s.bigEmoji,
-                { transform: [...floatTransform, { rotate: "-10deg" }] },
-              ]}
-            >
-              {TIME_EMOJIS[bestTime]}
-            </Animated.Text>
-            <Text
-              style={[s.slideTitle, { color: theme.textColor }]}
-              adjustsFontSizeToFit
-              numberOfLines={2}
-            >
-              {TIME_LABELS[bestTime]}
-              {"\n"}Champion
-            </Text>
-            <Text
-              style={[
-                s.slideCaption,
-                { color: theme.textColor, opacity: 0.85 },
-              ]}
-            >
-              Your most consistent time slot
-            </Text>
+          <Animated.View style={[s.slideContent, makeSlideAnim(4), { paddingHorizontal: 0, paddingBottom: 0 }]}>
+            {/* Ambient Background Gradient for the slide */}
+            <LinearGradient colors={bgColors} style={StyleSheet.absoluteFillObject} />
+
+            <View style={{ flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 40, paddingBottom: 80, width: "100%" }}>
+              {/* Glowing Icon Container */}
+              <View
+                style={{
+                  width: 180,
+                  height: 180,
+                  borderRadius: 90,
+                  backgroundColor: glowColor,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  borderWidth: 1,
+                  borderColor: iconColor + "15",
+                  marginBottom: 36,
+                  shadowColor: iconColor,
+                  shadowOffset: { width: 0, height: 10 },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 20,
+                  elevation: 4,
+                }}
+              >
+                <View
+                  style={{
+                    width: 140,
+                    height: 140,
+                    borderRadius: 70,
+                    backgroundColor: "rgba(0,0,0,0.2)",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <IconCmp size={64} color={iconColor} strokeWidth={2} />
+                </View>
+              </View>
+
+              {/* Title */}
+              <Text
+                style={{
+                  fontSize: 48,
+                  fontWeight: "900",
+                  color: "#FFFFFF",
+                  textAlign: "center",
+                  lineHeight: 52,
+                  letterSpacing: -1,
+                }}
+              >
+                {TIME_LABELS[bestTime]}
+                {"\n"}
+                <Text style={{ color: highlightColor }}>Champion</Text>
+              </Text>
+
+              {/* Subtitle */}
+              <Text
+                style={{
+                  fontSize: 16,
+                  color: "rgba(255, 255, 255, 0.5)",
+                  fontWeight: "500",
+                  textAlign: "center",
+                  marginTop: 12,
+                }}
+              >
+                Your most consistent time slot
+              </Text>
+
+              {/* Bottom Pill */}
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 8,
+                  backgroundColor: "rgba(255, 255, 255, 0.03)",
+                  borderWidth: 1,
+                  borderColor: "rgba(255, 255, 255, 0.06)",
+                  borderRadius: 20,
+                  paddingHorizontal: 16,
+                  paddingVertical: 10,
+                  marginTop: 40,
+                }}
+              >
+                <View
+                  style={{
+                    width: 18,
+                    height: 18,
+                    borderRadius: 9,
+                    backgroundColor: highlightColor,
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Check size={12} color="#000000" strokeWidth={3} />
+                </View>
+                <Text
+                  style={{
+                    fontSize: 13,
+                    fontWeight: "600",
+                    color: "rgba(255, 255, 255, 0.7)",
+                  }}
+                >
+                  <Text style={{ color: highlightColor, fontWeight: "700" }}>
+                    Consistency
+                  </Text>{" "}
+                  looks good on you.
+                </Text>
+              </View>
+            </View>
           </Animated.View>
         );
         break;
+      }
       case 5:
         content = (
           <Animated.View style={[s.slideContent, makeSlideAnim(5)]}>

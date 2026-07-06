@@ -11,6 +11,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 import SmartInput from '../../components/ui/SmartInput';
 import PremiumFormModal from '../../components/ui/PremiumFormModal';
 import { useFocusEffect } from '@react-navigation/native';
+import TabScreenTransition from '../../components/ui/TabScreenTransition';
 import { useTranslation } from 'react-i18next';
 import { LinearGradient } from 'expo-linear-gradient';
 import { AlertTriangle, ShieldCheck, HeartPulse, Activity, Droplet, Phone, Plus, Pencil, X, Trash2, CheckCircle2, RefreshCw, ChevronDown, Upload, Siren, ChevronRight, TrendingUp, TrendingDown, Sparkles, Bell, FileText, Pill, Syringe, Link2, Users, Calendar, Info, Clock, MapPin } from 'lucide-react-native';
@@ -184,6 +185,9 @@ export default function HealthProfileScreen({ navigation }) {
     const scrollViewRef = useRef(null);
     const profileSetupCardRef = useRef(null);
     const headerRef = useRef(null);
+    const healthScoreCardRef = useRef(null);
+    const alertsCardRef = useRef(null);
+    const medicalRecordsCardRef = useRef(null);
 
     const getProfileTourSteps = () => {
         return [
@@ -196,6 +200,50 @@ export default function HealthProfileScreen({ navigation }) {
                 iconColor: '#3B82F6',
                 ref: headerRef,
                 scrollOffset: 0,
+                visible: true,
+            },
+            {
+                title: t('health_profile.guide_score_title', { defaultValue: '❤️ AI Health Score' }),
+                desc: t('health_profile.guide_score_desc', { 
+                    defaultValue: 'This computes your daily health grade based on active conditions, vitals, and habits. Tap it to see personalized coaching, warnings, and charts.' 
+                }),
+                icon: HeartPulse,
+                iconColor: '#EF4444',
+                ref: healthScoreCardRef,
+                scrollOffset: 0,
+                visible: true,
+            },
+            {
+                title: t('health_profile.guide_complete_title', { defaultValue: '⚡ Profile Completion' }),
+                desc: t('health_profile.guide_complete_desc', { 
+                    defaultValue: 'Track how close you are to finishing your profile. Keeping completeness above 50% unlocks advanced biological wellness analysis.' 
+                }),
+                icon: ShieldCheck,
+                iconColor: '#10B981',
+                ref: profileSetupCardRef,
+                scrollOffset: 0,
+                visible: true,
+            },
+            {
+                title: t('health_profile.guide_alerts_title', { defaultValue: '⚠️ Emergency Alerts' }),
+                desc: t('health_profile.guide_alerts_desc', { 
+                    defaultValue: 'All severe allergies and active conditions are grouped here. In an emergency, this ensures your caller or SOS contact is instantly aware.' 
+                }),
+                icon: AlertTriangle,
+                iconColor: '#F59E0B',
+                ref: alertsCardRef,
+                scrollOffset: 0,
+                visible: true,
+            },
+            {
+                title: t('health_profile.guide_records_title', { defaultValue: '🩺 Medical Vault' }),
+                desc: t('health_profile.guide_records_desc', { 
+                    defaultValue: 'Add active medications, vaccination records, appointments, and primary doctor details here to keep your records unified and secure.' 
+                }),
+                icon: FileText,
+                iconColor: '#8B5CF6',
+                ref: medicalRecordsCardRef,
+                scrollOffset: 250,
                 visible: true,
             }
         ];
@@ -911,7 +959,8 @@ export default function HealthProfileScreen({ navigation }) {
     const inactiveMeds = medications.filter(m => m.is_active === false);
 
     return (
-        <View style={s.root}>
+        <TabScreenTransition>
+            <View style={s.root}>
             <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
 
             {/* Ambient Background Decorations (Level 3: Light) */}
@@ -1032,7 +1081,7 @@ export default function HealthProfileScreen({ navigation }) {
                 {/* ── COMPACT HEALTH SCORE CARD (tappable) ── */}
                 <Animated.View style={[anim(0), { marginTop: 0 }]}>
                     <Pressable style={({ pressed }) => [{ opacity: pressed ? 0.96 : 1 }]} onPress={() => setShowScoreInfo(true)}>
-                        <View style={s.dashboardCard}>
+                        <View ref={healthScoreCardRef} collapsable={false} style={s.dashboardCard}>
                             <View style={s.dashTopRow}>
                                 <View style={s.dashLeft}>
                                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
@@ -1104,7 +1153,7 @@ export default function HealthProfileScreen({ navigation }) {
 
                 {/* ── ALERTS CARD ── */}
                 <Animated.View style={anim(1)}>
-                    <View style={s.alertsCard}>
+                    <View ref={alertsCardRef} collapsable={false} style={s.alertsCard}>
                         <Pressable 
                             style={({ pressed }) => [s.alertHeader, pressed && { opacity: 0.7 }]}
                             onPress={() => {
@@ -1175,7 +1224,7 @@ export default function HealthProfileScreen({ navigation }) {
                 </Animated.View>
 
                 {/* ── STACKED CARDS ── */}
-                <View style={{ gap: 16 }}>
+                <View ref={medicalRecordsCardRef} collapsable={false} style={{ gap: 16 }}>
                     
                     {/* Current Conditions */}
                     <Animated.View style={anim(2)}>
@@ -2679,6 +2728,7 @@ export default function HealthProfileScreen({ navigation }) {
                 onClose={() => setShowProfileTour(false)}
             />
         </View>
+        </TabScreenTransition>
     );
 }
 
