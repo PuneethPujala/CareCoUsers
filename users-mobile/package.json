@@ -7,8 +7,7 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
-    "test": "jest",
-    "postinstall": "node scripts/patch-app-metrics.js"
+    "test": "jest"
   },
   "dependencies": {
     "@expo-google-fonts/dm-sans": "^0.4.2",
@@ -48,7 +47,6 @@
     "expo-localization": "~17.0.9",
     "expo-location": "~19.0.8",
     "expo-notifications": "~0.32.17",
-    "expo-observe": "^0.2.3",
     "expo-screen-capture": "~8.0.9",
     "expo-secure-store": "~15.0.8",
     "expo-sharing": "~14.0.8",
@@ -92,7 +90,6 @@
     "babel-preset-expo": "^54.0.10",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.5",
-    "patch-package": "^8.0.1",
     "prettier": "^3.8.3",
     "react-test-renderer": "19.1.0"
   },
@@ -114,11 +111,6 @@
     }
   },
   "overrides": {
-    "@expo/fingerprint": "0.15.4",
-    "expo-updates-interface": "2.0.0",
-    "expo-app-metrics": {
-      "expo-updates-interface": "2.0.0"
-    },
-    "@expo/config-plugins": "54.0.4"
+    "@expo/fingerprint": "0.15.4"
   }
 }

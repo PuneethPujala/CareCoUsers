@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Notifications from 'expo-notifications';
 import * as ScreenCapture from 'expo-screen-capture';
 import * as SplashScreen from 'expo-splash-screen';
-import { AppMetrics } from 'expo-observe';
+
 import {
     View, Text, StyleSheet, Animated, ActivityIndicator,
     TouchableOpacity, Pressable, Image, Platform, DeviceEventEmitter
@@ -284,8 +284,6 @@ export default function AppNavigator({ fontsLoaded }) {
         if (!isBootstrapping && fontsLoaded) {
             setTimeout(() => {
                 SplashScreen.hideAsync().catch(() => { });
-                // Let EAS Observe know the app is fully interactive
-                AppMetrics.markInteractive();
             }, 100);
         }
     }, [isBootstrapping, fontsLoaded]);
