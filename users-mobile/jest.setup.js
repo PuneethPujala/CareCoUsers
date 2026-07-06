@@ -86,14 +86,4 @@ jest.mock('react-native-safe-area-context', () => {
   };
 });
 
-// expo-observe
-jest.mock('expo-observe', () => {
-  const React = require('react');
-  return {
-    AppMetricsRoot: ({ children }) => children,
-    AppMetrics: {
-      markInteractive: jest.fn(),
-      markFirstRender: jest.fn(),
-    },
-  };
-});
+

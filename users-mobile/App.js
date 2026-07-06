@@ -38,7 +38,7 @@ import analytics from './src/utils/analytics';
 import * as Linking from 'expo-linking';
 import { navigationRef } from './src/lib/navigationRef';
 
-import { AppMetricsRoot } from 'expo-observe';
+
 
 analytics.init();
 
@@ -93,34 +93,32 @@ export default function App() {
     const showPrivacyOverlay = appState === 'background';
 
     return (
-        <AppMetricsRoot>
-            <GestureHandlerRootView style={{ flex: 1 }}>
-                <SafeAreaProvider>
-                    <ErrorBoundary>
-                        <SecurityProvider>
-                            <NetworkProvider>
-                                <AuthProvider>
-                                    <NavigationContainer linking={linking} ref={navigationRef}>
-                                        <AppNavigator fontsLoaded={fontsLoaded} />
-                                        <StatusBar style="light" />
-                                    </NavigationContainer>
-                                </AuthProvider>
-                            </NetworkProvider>
-                        </SecurityProvider>
+        <GestureHandlerRootView style={{ flex: 1 }}>
+            <SafeAreaProvider>
+                <ErrorBoundary>
+                    <SecurityProvider>
+                        <NetworkProvider>
+                            <AuthProvider>
+                                <NavigationContainer linking={linking} ref={navigationRef}>
+                                    <AppNavigator fontsLoaded={fontsLoaded} />
+                                    <StatusBar style="light" />
+                                </NavigationContainer>
+                            </AuthProvider>
+                        </NetworkProvider>
+                    </SecurityProvider>
 
-                        {showPrivacyOverlay && (
-                            <View style={StyleSheet.absoluteFill}>
-                                <View style={styles.privacyOverlay}>
-                                    <ShieldCheck size={48} color="#FFFFFF" strokeWidth={1.5} />
-                                    <Text style={styles.privacyTitle}>CareMyMed Secure View</Text>
-                                    <Text style={styles.privacySubtitle}>Protecting your health data</Text>
-                                </View>
+                    {showPrivacyOverlay && (
+                        <View style={StyleSheet.absoluteFill}>
+                            <View style={styles.privacyOverlay}>
+                                <ShieldCheck size={48} color="#FFFFFF" strokeWidth={1.5} />
+                                <Text style={styles.privacyTitle}>CareMyMed Secure View</Text>
+                                <Text style={styles.privacySubtitle}>Protecting your health data</Text>
                             </View>
-                        )}
-                    </ErrorBoundary>
-                </SafeAreaProvider>
-            </GestureHandlerRootView>
-        </AppMetricsRoot>
+                        </View>
+                    )}
+                </ErrorBoundary>
+            </SafeAreaProvider>
+        </GestureHandlerRootView>
     );
 }
 
