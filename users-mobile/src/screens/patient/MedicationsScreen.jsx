@@ -2324,139 +2324,170 @@ export default function MedicationsScreen({ navigation }) {
                           flexDirection: "row",
                           alignItems: "flex-start",
                           padding: 16,
-                          backgroundColor: "#F8FAFC",
+                          backgroundColor: "#F8F7FF",
                           borderRadius: 16,
                           borderWidth: 1,
-                          borderColor: colors.borderLight,
-                          borderLeftWidth: 4,
-                          borderLeftColor: riskColor,
+                          borderColor: "#EEF2FF",
                           marginBottom: idx < tempMeds.length - 1 ? 12 : 0,
                         }}
                       >
-                        <View style={{ flex: 1, gap: 4 }}>
-                          <Text
-                            style={{
-                              fontSize: 16,
-                              fontWeight: "800",
-                              color: "#0F172A",
-                              letterSpacing: -0.2,
-                              marginBottom: 2,
-                            }}
-                          >
-                            {tm.name}
-                          </Text>
+                        {/* Left Pill Icon container */}
+                        <View
+                          style={{
+                            width: 44,
+                            height: 44,
+                            borderRadius: 12,
+                            backgroundColor: "#E0E7FF",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            marginRight: 12,
+                          }}
+                        >
+                          <Pill size={20} color="#4F46E5" strokeWidth={2.5} />
+                        </View>
 
-                          {/* Badges Row */}
+                        <View style={{ flex: 1 }}>
+                          {/* Heading & Trash Row */}
                           <View
                             style={{
                               flexDirection: "row",
-                              alignItems: "center",
-                              gap: 6,
-                              marginBottom: 4,
+                              alignItems: "flex-start",
+                              justifyContent: "space-between",
                             }}
                           >
-                            {tm.shift && (
+                            <View style={{ flex: 1 }}>
                               <View
                                 style={{
-                                  backgroundColor: shiftCfg.bg,
-                                  paddingHorizontal: 8,
-                                  paddingVertical: 3,
-                                  borderRadius: 6,
+                                  flexDirection: "row",
+                                  alignItems: "center",
+                                  flexWrap: "wrap",
+                                  gap: 8,
+                                  marginBottom: 6,
                                 }}
                               >
                                 <Text
                                   style={{
-                                    fontSize: 10,
+                                    fontSize: 18,
                                     fontWeight: "800",
-                                    color: shiftCfg.txt,
-                                    textTransform: "uppercase",
-                                    letterSpacing: 0.5,
+                                    color: "#0F172A",
+                                    letterSpacing: -0.2,
                                   }}
                                 >
-                                  {shiftCfg.label}
+                                  {tm.name}
                                 </Text>
+                                {/* Badges */}
+                                {tm.shift && (
+                                  <View
+                                    style={{
+                                      backgroundColor: shiftCfg.bg,
+                                      paddingHorizontal: 8,
+                                      paddingVertical: 3,
+                                      borderRadius: 6,
+                                    }}
+                                  >
+                                    <Text
+                                      style={{
+                                        fontSize: 10,
+                                        fontWeight: "800",
+                                        color: shiftCfg.txt,
+                                        textTransform: "uppercase",
+                                        letterSpacing: 0.5,
+                                      }}
+                                    >
+                                      {shiftCfg.label}
+                                    </Text>
+                                  </View>
+                                )}
+                                <View
+                                  style={{
+                                    backgroundColor:
+                                      tm.riskTier === "safe"
+                                        ? "#ECFDF5"
+                                        : tm.riskTier === "restricted"
+                                          ? "#FEF2F2"
+                                          : "#FFFBEB",
+                                    paddingHorizontal: 8,
+                                    paddingVertical: 3,
+                                    borderRadius: 6,
+                                    borderWidth: 1,
+                                    borderColor:
+                                      tm.riskTier === "safe"
+                                        ? "#A7F3D0"
+                                        : tm.riskTier === "restricted"
+                                          ? "#FECACA"
+                                          : "#FDE68A",
+                                  }}
+                                >
+                                  <Text
+                                    style={{
+                                      fontSize: 10,
+                                      fontWeight: "900",
+                                      color: riskColor,
+                                      textTransform: "uppercase",
+                                      letterSpacing: 0.5,
+                                    }}
+                                  >
+                                    {tm.riskTier === "safe"
+                                      ? "Safe"
+                                      : tm.riskTier === "restricted"
+                                        ? "Restricted"
+                                        : "Caution"}
+                                  </Text>
+                                </View>
                               </View>
-                            )}
-                            <View
-                              style={{
-                                backgroundColor:
-                                  tm.riskTier === "safe"
-                                    ? "#ECFDF5"
-                                    : tm.riskTier === "restricted"
-                                      ? "#FEF2F2"
-                                      : "#FFFBEB",
-                                paddingHorizontal: 8,
-                                paddingVertical: 3,
-                                borderRadius: 6,
-                                borderWidth: 1,
-                                borderColor:
-                                  tm.riskTier === "safe"
-                                    ? "#A7F3D0"
-                                    : tm.riskTier === "restricted"
-                                      ? "#FECACA"
-                                      : "#FDE68A",
-                              }}
-                            >
-                              <Text
-                                style={{
-                                  fontSize: 10,
-                                  fontWeight: "900",
-                                  color: riskColor,
-                                  textTransform: "uppercase",
-                                  letterSpacing: 0.5,
-                                }}
-                              >
-                                {tm.riskTier === "safe"
-                                  ? "Safe"
-                                  : tm.riskTier === "restricted"
-                                    ? "Restricted"
-                                    : "Caution"}
-                              </Text>
+
+                              {tm.dosage || tm.frequency ? (
+                                <Text
+                                  style={{
+                                    fontSize: 13,
+                                    color: "#475569",
+                                    fontWeight: "700",
+                                    marginBottom: 6,
+                                  }}
+                                >
+                                  {[tm.dosage, tm.frequency]
+                                    .filter(Boolean)
+                                    .join(" · ")}
+                                </Text>
+                              ) : null}
                             </View>
+
+                            {/* Trash button */}
+                            {tm._id && String(tm._id).startsWith("temp_") ? (
+                              <View style={{ padding: 8 }}>
+                                <ActivityIndicator size="small" color="#A855F7" />
+                              </View>
+                            ) : (
+                              <Pressable
+                                onPress={() => handleDeleteTempMed(tm)}
+                                style={({ pressed }) => [
+                                  {
+                                    padding: 8,
+                                    borderRadius: 10,
+                                    backgroundColor: "#F1F5F9",
+                                    opacity: pressed ? 0.6 : 1,
+                                    marginLeft: 8,
+                                  },
+                                ]}
+                              >
+                                <Icons.Trash2 size={15} color="#94A3B8" />
+                              </Pressable>
+                            )}
                           </View>
 
-                          {tm.dosage || tm.frequency ? (
-                            <Text
-                              style={{
-                                fontSize: 13,
-                                color: "#475569",
-                                fontWeight: "700",
-                                marginTop: 2,
-                              }}
-                            >
-                              {[tm.dosage, tm.frequency]
-                                .filter(Boolean)
-                                .join(" · ")}
-                            </Text>
-                          ) : null}
-
+                          {/* Description */}
                           {tm.aiSummary ? (
                             <Text
                               style={{
                                 fontSize: 13,
                                 color: "#64748B",
                                 lineHeight: 18,
-                                marginTop: 6,
+                                marginTop: 4,
+                                marginBottom: 4,
                                 fontWeight: "500",
                               }}
                             >
                               {tm.aiSummary}
-                            </Text>
-                          ) : null}
-
-                          {tm.reason ? (
-                            <Text
-                              style={{
-                                fontSize: 11,
-                                color: "#64748B",
-                                fontWeight: "700",
-                                marginTop: 6,
-                              }}
-                            >
-                              Reason:{" "}
-                              <Text style={{ fontWeight: "500", color: "#94A3B8" }}>
-                                {tm.reason}
-                              </Text>
                             </Text>
                           ) : null}
 
@@ -2475,7 +2506,7 @@ export default function MedicationsScreen({ navigation }) {
                                 borderColor: "#FCA5A5",
                               }}
                             >
-                              <AlertCircle
+                              <Icons.AlertCircle
                                 size={11}
                                 color="#DC2626"
                                 strokeWidth={2.5}
@@ -2493,37 +2524,65 @@ export default function MedicationsScreen({ navigation }) {
                             </View>
                           )}
 
-                          <Text
+                          {/* Dashed divider */}
+                          <View
                             style={{
-                              fontSize: 10,
-                              color: "#94A3B8",
-                              fontWeight: "500",
-                              marginTop: 6,
+                              borderStyle: "dashed",
+                              borderBottomWidth: 1,
+                              borderColor: "#CBD5E1",
+                              marginVertical: 12,
+                              height: 1,
+                              width: "100%",
+                            }}
+                          />
+
+                          {/* Reason */}
+                          {tm.reason ? (
+                            <View
+                              style={{
+                                flexDirection: "row",
+                                alignItems: "center",
+                                gap: 8,
+                                marginBottom: 6,
+                              }}
+                            >
+                              <Icons.Calendar size={14} color="#6366F1" />
+                              <Text
+                                style={{
+                                  fontSize: 12,
+                                  fontWeight: "600",
+                                  color: "#475569",
+                                }}
+                              >
+                                Reason:{" "}
+                                <Text style={{ fontWeight: "500", color: "#64748B" }}>
+                                  {tm.reason}
+                                </Text>
+                              </Text>
+                            </View>
+                          ) : null}
+
+                          {/* Added by */}
+                          <View
+                            style={{
+                              flexDirection: "row",
+                              alignItems: "center",
+                              gap: 8,
                             }}
                           >
-                            Added by {tm.addedByName || tm.addedByRole}
-                          </Text>
-                        </View>
-
-                        {tm._id && String(tm._id).startsWith("temp_") ? (
-                          <View style={{ padding: 8 }}>
-                            <ActivityIndicator size="small" color="#A855F7" />
+                            <Icons.User size={14} color="#6366F1" />
+                            <Text
+                              style={{
+                                fontSize: 12,
+                                fontWeight: "600",
+                                color: "#475569",
+                              }}
+                            >
+                              Added by {tm.addedByName || tm.addedByRole}{" "}
+                              <Text style={{ color: "#94A3B8" }}>• Today</Text>
+                            </Text>
                           </View>
-                        ) : (
-                          <Pressable
-                            onPress={() => handleDeleteTempMed(tm)}
-                            style={({ pressed }) => [
-                              {
-                                padding: 8,
-                                borderRadius: 10,
-                                backgroundColor: "#F1F5F9",
-                                opacity: pressed ? 0.6 : 1,
-                              },
-                            ]}
-                          >
-                            <Trash2 size={15} color="#94A3B8" />
-                          </Pressable>
-                        )}
+                        </View>
                       </View>
                     );
                   })
