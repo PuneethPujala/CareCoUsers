@@ -112,6 +112,10 @@
     }
   },
   "overrides": {
-    "@expo/fingerprint": "0.15.4"
+    "@expo/fingerprint": "0.15.4",
+    "expo-updates-interface": "2.0.0",
+    "expo-app-metrics": {
+      "expo-updates-interface": "2.0.0"
+    }
   }
 }
