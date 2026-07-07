@@ -26,7 +26,7 @@ export default function ScoreHeroCard({ scoreData }) {
         const color = deltaVal > 0 ? colors.success : deltaVal < 0 ? colors.danger : colors.textMuted;
         const text = deltaVal > 0 ? `+${deltaVal}` : deltaVal < 0 ? `${deltaVal}` : 'stable';
         return (
-            <Text style={{ fontSize: 12, color, fontWeight: '700', marginLeft: 6 }}>
+            <Text style={{ fontSize: 11, color, fontWeight: '700' }}>
                 {arrow} {text} this month
             </Text>
         );
@@ -153,7 +153,8 @@ const s = StyleSheet.create({
     gradeRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 4,
+        flexWrap: 'wrap',
+        gap: 6,
     },
     gradeText: {
         fontSize: 13,

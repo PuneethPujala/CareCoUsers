@@ -881,7 +881,11 @@ export default function HealthProfileScreen({ navigation }) {
     }[hsBracket] || '';
 
     const formatLastComputed = (iso) => {
-        if (!iso) return t('health_profile.last_sync_unknown', { defaultValue: 'Not yet computed' });
+        if (!iso) {
+            return hsScore !== null 
+                ? t('health_profile.updated_recently', { defaultValue: 'Updated recently' }) 
+                : t('health_profile.last_sync_unknown', { defaultValue: 'Not yet computed' });
+        }
         const d = new Date(iso);
         const diffMin = Math.floor((Date.now() - d.getTime()) / 60000);
         if (diffMin < 1) return t('health_profile.just_now', { defaultValue: 'Updated just now' });
@@ -2196,7 +2200,13 @@ export default function HealthProfileScreen({ navigation }) {
                                                     borderRadius: radius.md,
                                                 }}>
                                                     <Text style={{ fontSize: 12, ...FONT.bold, color: healthAgeDiff === 0 ? '#475569' : (healthAgeDiff < 0 ? '#10B981' : '#EF4444') }}>
-                                                        {healthAgeDiff === 0 ? 'Same as actual age' : (healthAgeDiff < 0 ? `${Math.abs(healthAgeDiff)} years younger` : `${healthAgeDiff} years older`)}
+                                                        {healthAgeDiff === 0 
+                                                            ? 'Same as actual age' 
+                                                            : (healthAgeDiff < 0 
+                                                                ? `${Math.abs(healthAgeDiff)} year${Math.abs(healthAgeDiff) === 1 ? '' : 's'} younger` 
+                                                                : `${healthAgeDiff} year${healthAgeDiff === 1 ? '' : 's'} older`
+                                                            )
+                                                        }
                                                     </Text>
                                                 </View>
                                             </View>
