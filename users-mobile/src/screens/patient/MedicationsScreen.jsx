@@ -47,6 +47,7 @@ import {
   TrendingUp,
   Zap,
   Trash2,
+  User,
 } from "lucide-react-native";
 import { Swipeable } from "react-native-gesture-handler";
 import Svg, {
@@ -2470,7 +2471,7 @@ export default function MedicationsScreen({ navigation }) {
                                   },
                                 ]}
                               >
-                                <Icons.Trash2 size={15} color="#94A3B8" />
+                                <Trash2 size={15} color="#94A3B8" />
                               </Pressable>
                             )}
                           </View>
@@ -2506,7 +2507,7 @@ export default function MedicationsScreen({ navigation }) {
                                 borderColor: "#FCA5A5",
                               }}
                             >
-                              <Icons.AlertCircle
+                              <AlertCircle
                                 size={11}
                                 color="#DC2626"
                                 strokeWidth={2.5}
@@ -2546,7 +2547,7 @@ export default function MedicationsScreen({ navigation }) {
                                 marginBottom: 6,
                               }}
                             >
-                              <Icons.Calendar size={14} color="#6366F1" />
+                              <Calendar size={14} color="#6366F1" />
                               <Text
                                 style={{
                                   fontSize: 12,
@@ -2570,7 +2571,7 @@ export default function MedicationsScreen({ navigation }) {
                               gap: 8,
                             }}
                           >
-                            <Icons.User size={14} color="#6366F1" />
+                            <User size={14} color="#6366F1" />
                             <Text
                               style={{
                                 fontSize: 12,
