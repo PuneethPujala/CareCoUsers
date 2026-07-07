@@ -203,7 +203,7 @@ export default function HealthProfileScreen({ navigation }) {
                 visible: true,
             },
             {
-                title: t('health_profile.guide_score_title', { defaultValue: '❤️ AI Health Score' }),
+                title: t('health_profile.guide_score_title', { defaultValue: '❤️ Health Score' }),
                 desc: t('health_profile.guide_score_desc', { 
                     defaultValue: 'This computes your daily health grade based on active conditions, vitals, and habits. Tap it to see personalized coaching, warnings, and charts.' 
                 }),
@@ -2083,7 +2083,9 @@ export default function HealthProfileScreen({ navigation }) {
                                 {/* Modal Header */}
                                 <View style={{ paddingHorizontal: spacing.screen, paddingTop: 16, paddingBottom: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                                     <View style={{ flex: 1 }}>
-                                        <Text style={{ fontSize: 24, ...FONT.heavy, color: '#0F172A', letterSpacing: -0.5, marginBottom: 2 }}>AI Health Score Coach</Text>
+                                        <Text style={{ fontSize: 24, ...FONT.heavy, color: '#0F172A', letterSpacing: -0.5, marginBottom: 2 }}>
+                                            Health Score <Text style={{ color: colors.primary }}>Coach</Text>
+                                        </Text>
                                         <Text style={{ fontSize: 13, ...FONT.medium, color: '#64748B' }}>Your personalized health insights</Text>
                                     </View>
                                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -2621,7 +2623,9 @@ export default function HealthProfileScreen({ navigation }) {
                                                         score: h.score ?? null,
                                                     })) || []}
                                                     timezone={profile?.timezone || 'Asia/Kolkata'}
-                                                />
+                                                     profile={profile}
+                                                     onPressLogActivity={() => { setShowScoreInfo(false); navigation.navigate('Home'); }}
+                                                 />
 
                                                 {/* Sleep Trend Card */}
                                                 <View style={s.trendCard}>

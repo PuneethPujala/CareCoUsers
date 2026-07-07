@@ -857,6 +857,26 @@ function PremiumBadge({ data, size = "normal", onPress, style }) {
   const pct = Math.min(100, (data.progress || 0) * 100);
   const tierColor = data.tierConfig.color;
 
+  const pressScale = useRef(new Animated.Value(1)).current;
+
+  const handlePressIn = () => {
+    Animated.spring(pressScale, {
+      toValue: 0.93,
+      useNativeDriver: true,
+      tension: 60,
+      friction: 8,
+    }).start();
+  };
+
+  const handlePressOut = () => {
+    Animated.spring(pressScale, {
+      toValue: 1,
+      useNativeDriver: true,
+      tension: 60,
+      friction: 8,
+    }).start();
+  };
+
   if (!data.unlocked) {
     const ringSize = dim;
     const strokeWidth = 3;
@@ -867,6 +887,8 @@ function PremiumBadge({ data, size = "normal", onPress, style }) {
     return (
       <Pressable
         onPress={onPress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
         style={[
           !isSmall && {
             width: itemWidth,
@@ -884,7 +906,8 @@ function PremiumBadge({ data, size = "normal", onPress, style }) {
           style,
         ]}
       >
-        <View style={{ alignItems: "center", width: "100%" }}>
+        <Animated.View style={{ transform: [{ scale: pressScale }], width: "100%", height: isSmall ? undefined : "100%", alignItems: "center", justifyContent: isSmall ? undefined : "space-between" }}>
+          <View style={{ alignItems: "center", width: "100%" }}>
           {/* Ringed locked medal container */}
           <View
             style={{
@@ -1024,6 +1047,7 @@ function PremiumBadge({ data, size = "normal", onPress, style }) {
             </View>
           </View>
         )}
+        </Animated.View>
       </Pressable>
     );
   }
@@ -1039,6 +1063,8 @@ function PremiumBadge({ data, size = "normal", onPress, style }) {
   return (
     <Pressable
       onPress={onPress}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
       style={[
         !isSmall && {
           width: itemWidth,
@@ -1062,7 +1088,8 @@ function PremiumBadge({ data, size = "normal", onPress, style }) {
         style,
       ]}
     >
-      <View style={{ alignItems: "center", width: "100%" }}>
+      <Animated.View style={{ transform: [{ scale: pressScale }], width: "100%", height: isSmall ? undefined : "100%", alignItems: "center", justifyContent: isSmall ? undefined : "space-between" }}>
+        <View style={{ alignItems: "center", width: "100%" }}>
         {/* Metallic Ring - Outer Gradient Circle */}
         <LinearGradient
           colors={colors}
@@ -1232,6 +1259,7 @@ function PremiumBadge({ data, size = "normal", onPress, style }) {
           <Text style={{ fontSize: 9, fontWeight: '850', color: statusColor }}>{statusLabel}</Text>
         </View>
       )}
+      </Animated.View>
     </Pressable>
   );
 }
@@ -1334,6 +1362,8 @@ export default function AdherenceScreen({ navigation }) {
   const [showStoryModal, setShowStoryModal] = useState(false);
   const [selectedBadge, setSelectedBadge] = useState(null);
   const scaleAnim = useRef(new Animated.Value(0)).current;
+  const badgeScaleAnim = useRef(new Animated.Value(0)).current;
+  const badgeRotateAnim = useRef(new Animated.Value(0)).current;
 
   const handleBadgePress = (badge) => {
     try {
@@ -1357,12 +1387,29 @@ export default function AdherenceScreen({ navigation }) {
     });
 
     scaleAnim.setValue(0.3);
-    Animated.spring(scaleAnim, {
-      toValue: 1,
-      friction: 7,
-      tension: 40,
-      useNativeDriver: true,
-    }).start();
+    badgeScaleAnim.setValue(0);
+    badgeRotateAnim.setValue(0);
+
+    Animated.parallel([
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        friction: 7,
+        tension: 40,
+        useNativeDriver: true,
+      }),
+      Animated.spring(badgeScaleAnim, {
+        toValue: 1,
+        friction: 5,
+        tension: 35,
+        useNativeDriver: true,
+      }),
+      Animated.spring(badgeRotateAnim, {
+        toValue: 1,
+        friction: 6,
+        tension: 30,
+        useNativeDriver: true,
+      }),
+    ]).start();
   };
 
   const handleCloseBadgeModal = () => {
@@ -3064,6 +3111,10 @@ export default function AdherenceScreen({ navigation }) {
                 const tierInfo = TIER_CONFIG[meta.tier] || TIER_CONFIG.bronze;
                 const IconComponent = Icons[meta.iconName] || Icons.Award;
                 const isUnlocked = selectedBadge.unlocked;
+                const badgeRotation = badgeRotateAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: ["-15deg", "0deg"],
+                });
 
                 return (
                   <>
@@ -3076,7 +3127,19 @@ export default function AdherenceScreen({ navigation }) {
                     </Pressable>
 
                     {/* Large Glowing Collectible Trophy Container */}
-                    <View
+                    <Pressable
+                      onPress={() => {
+                        badgeScaleAnim.setValue(0.85);
+                        Animated.spring(badgeScaleAnim, {
+                          toValue: 1,
+                          friction: 4,
+                          tension: 40,
+                          useNativeDriver: true,
+                        }).start();
+                        try {
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                        } catch (e) {}
+                      }}
                       style={{
                         position: "relative",
                         marginBottom: 24,
@@ -3086,6 +3149,18 @@ export default function AdherenceScreen({ navigation }) {
                         justifyContent: "center",
                       }}
                     >
+                      <Animated.View
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          transform: [
+                            { scale: badgeScaleAnim },
+                            { rotate: badgeRotation },
+                          ],
+                        }}
+                      >
                       {/* Multi-layered Glowing Halos */}
                       <View
                         style={{
@@ -3230,7 +3305,8 @@ export default function AdherenceScreen({ navigation }) {
                           </View>
                         </View>
                       )}
-                    </View>
+                      </Animated.View>
+                    </Pressable>
 
                     {/* Ribbon label */}
                     <View

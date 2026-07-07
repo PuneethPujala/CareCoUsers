@@ -70,6 +70,17 @@ export default function PatientProfileScreen({ navigation }) {
     const reduceMotion = useReduceMotion();
     const filteredWorkspaces = profile?.workspaces?.filter(w => w.id === 'patient' || w.id === 'companion') || [];
     const [patient, setPatient] = useState(null);
+    const [avatarError, setAvatarError] = useState(false);
+    const [cardAvatarError, setCardAvatarError] = useState(false);
+
+    useEffect(() => {
+        setAvatarError(false);
+        setCardAvatarError(false);
+    }, [patient?.avatar_url]);
+
+    const cacheBuster = patient?.updated_at ? new Date(patient.updated_at).getTime() : '';
+    const avatarUri = patient?.avatar_url ? (cacheBuster ? `${patient.avatar_url}?t=${cacheBuster}` : patient.avatar_url) : null;
+
     const [loading, setLoading] = useState(true);
     const [mfaEnabled, setMfaEnabled] = useState(false);
     const [accountActionLoading, setAccountActionLoading] = useState(false);
@@ -800,8 +811,8 @@ export default function PatientProfileScreen({ navigation }) {
                     <View style={s.profileCard}>
                         <View style={s.profileMain}>
                             <Pressable style={s.avatar} onPress={handleAvatarPress}>
-                                {patient?.avatar_url ? (
-                                    <Image source={{ uri: patient.avatar_url }} style={s.avatarImg} />
+                                {avatarUri && !avatarError ? (
+                                    <Image source={{ uri: avatarUri }} style={s.avatarImg} onError={() => setAvatarError(true)} />
                                 ) : (
                                     <Text style={s.avatarTxt}>{patient?.name?.charAt(0) || displayName?.charAt(0) || 'U'}</Text>
                                 )}
@@ -1286,7 +1297,7 @@ export default function PatientProfileScreen({ navigation }) {
                     }
                 }}
                 onRemove={handleRemoveAvatar}
-                currentAvatarUrl={patient?.avatar_url}
+                currentAvatarUrl={avatarUri}
             />
 
             <AvatarCropModal
@@ -1828,8 +1839,8 @@ export default function PatientProfileScreen({ navigation }) {
                             
                             {/* Patient Name Area */}
                             <View style={{ alignItems: 'center', marginBottom: 80, paddingBottom: 60, borderBottomWidth: 2, borderBottomColor: 'rgba(255,255,255,0.05)' }}>
-                                {patient?.avatar_url ? (
-                                    <Image source={{ uri: patient.avatar_url }} style={{ width: 160, height: 160, borderRadius: 80, marginBottom: 30 }} />
+                                {avatarUri && !cardAvatarError ? (
+                                    <Image source={{ uri: avatarUri }} style={{ width: 160, height: 160, borderRadius: 80, marginBottom: 30 }} onError={() => setCardAvatarError(true)} />
                                 ) : (
                                     <View style={{ width: 160, height: 160, borderRadius: 80, backgroundColor: 'rgba(99,102,241,0.2)', alignItems: 'center', justifyContent: 'center', marginBottom: 30 }}>
                                         <User size={80} color="#818CF8" />

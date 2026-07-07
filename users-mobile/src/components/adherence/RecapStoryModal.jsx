@@ -41,46 +41,60 @@ const SLIDE_DURATION = 4000; // 4 seconds per slide (video-like)
 
 const SLIDE_THEMES = [
   {
-    colors: ["#FF416C", "#FF4B2B"], // Slide 0: Vibrant Red/Pink
-    textColor: "#000000",
-    accentBg: "#000000",
-    accentText: "#FFFFFF",
-  },
-  {
-    colors: ["#11998E", "#38EF7D"], // Slide 1: Spotify Vibrant Green
-    textColor: "#000000",
-    accentBg: "#000000",
-    accentText: "#FFFFFF",
-  },
-  {
-    colors: ["#8A2387", "#E94057"], // Slide 2: Neon Magenta/Orange
+    colors: ["#05100E", "#020706"], // Unified Deep Dark Teal/Black background
     textColor: "#FFFFFF",
-    accentBg: "#FFFFFF",
-    accentText: "#E94057",
+    accentBg: "rgba(236, 72, 153, 0.1)",
+    accentText: "#EC4899",
+    blobColor1: "rgba(236, 72, 153, 0.03)",
+    blobColor2: "rgba(236, 72, 153, 0.015)",
   },
   {
-    colors: ["#F2994A", "#F2C94C"], // Slide 3: Sunny Yellow/Orange
-    textColor: "#000000",
-    accentBg: "#000000",
-    accentText: "#FFFFFF",
-  },
-  {
-    colors: ["#00B4DB", "#0083B0"], // Slide 4: Vivid Aqua Blue
+    colors: ["#05100E", "#020706"],
     textColor: "#FFFFFF",
-    accentBg: "#FFFFFF",
-    accentText: "#0083B0",
+    accentBg: "rgba(16, 185, 129, 0.1)",
+    accentText: "#10B981",
+    blobColor1: "rgba(16, 185, 129, 0.03)",
+    blobColor2: "rgba(16, 185, 129, 0.015)",
   },
   {
-    colors: ["#DA22FF", "#9733EE"], // Slide 5: Neon Violet
+    colors: ["#05100E", "#020706"],
     textColor: "#FFFFFF",
-    accentBg: "#FFFFFF",
-    accentText: "#9733EE",
+    accentBg: "rgba(245, 158, 11, 0.1)",
+    accentText: "#F59E0B",
+    blobColor1: "rgba(245, 158, 11, 0.03)",
+    blobColor2: "rgba(245, 158, 11, 0.015)",
   },
   {
-    colors: ["#1A2A6C", "#B21F1F"], // Slide 6: Deep Blue to Crimson
+    colors: ["#05100E", "#020706"],
     textColor: "#FFFFFF",
-    accentBg: "#FFFFFF",
-    accentText: "#1A2A6C",
+    accentBg: "rgba(139, 92, 246, 0.1)",
+    accentText: "#8B5CF6",
+    blobColor1: "rgba(139, 92, 246, 0.03)",
+    blobColor2: "rgba(139, 92, 246, 0.015)",
+  },
+  {
+    colors: ["#05100E", "#020706"],
+    textColor: "#FFFFFF",
+    accentBg: "rgba(16, 185, 129, 0.1)",
+    accentText: "#10B981",
+    blobColor1: "rgba(16, 185, 129, 0.03)",
+    blobColor2: "rgba(16, 185, 129, 0.015)",
+  },
+  {
+    colors: ["#05100E", "#020706"],
+    textColor: "#FFFFFF",
+    accentBg: "rgba(168, 85, 247, 0.1)",
+    accentText: "#A855F7",
+    blobColor1: "rgba(168, 85, 247, 0.03)",
+    blobColor2: "rgba(168, 85, 247, 0.015)",
+  },
+  {
+    colors: ["#05100E", "#020706"],
+    textColor: "#FFFFFF",
+    accentBg: "rgba(59, 130, 246, 0.1)",
+    accentText: "#3B82F6",
+    blobColor1: "rgba(59, 130, 246, 0.03)",
+    blobColor2: "rgba(59, 130, 246, 0.015)",
   },
 ];
 
@@ -364,7 +378,6 @@ export default function RecapStoryModal({
       stopAutoPlay();
 
       if (shareCardRef.current) {
-        // Add a small delay to ensure the hidden component has fully rendered off-screen
         await new Promise((r) => setTimeout(r, 100));
         const uri = await shareCardRef.current.capture();
 
@@ -448,41 +461,119 @@ export default function RecapStoryModal({
   ];
 
   const BrandBadge = ({ theme }) => (
-    <View style={[s.brandBadge, { backgroundColor: theme.accentBg }]}>
+    <View style={[s.brandBadge, { backgroundColor: theme.accentBg, alignSelf: "center" }]}>
       <Heart size={14} color={theme.accentText} fill={theme.accentText} />
       <Text style={[s.brandText, { color: theme.accentText }]}>CareMyMed</Text>
     </View>
   );
 
   const renderSlide = (idx) => {
-    const theme = SLIDE_THEMES[idx];
+    const theme = { ...SLIDE_THEMES[idx] };
+    if (idx === 4) {
+      const isMorning = bestTime === "morning";
+      const isAfternoon = bestTime === "afternoon";
+      const isNight = bestTime === "night";
+      if (isMorning) {
+        theme.blobColor1 = "rgba(16, 185, 129, 0.03)";
+        theme.blobColor2 = "rgba(16, 185, 129, 0.015)";
+      } else if (isAfternoon) {
+        theme.blobColor1 = "rgba(245, 158, 11, 0.03)";
+        theme.blobColor2 = "rgba(245, 158, 11, 0.015)";
+      } else if (isNight) {
+        theme.blobColor1 = "rgba(139, 92, 246, 0.03)";
+        theme.blobColor2 = "rgba(139, 92, 246, 0.015)";
+      }
+    }
     const grad = theme.colors;
     let content;
 
     switch (idx) {
       case 0:
         content = (
-          <Animated.View
-            style={[s.slideContent, s.slideLeftAlign, makeSlideAnim(0)]}
-          >
-            <BrandBadge theme={theme} />
-            <Text
-              style={[s.introTitle, { color: theme.textColor }]}
-              adjustsFontSizeToFit
-              numberOfLines={3}
+          <Animated.View style={[s.slideContent, makeSlideAnim(0)]}>
+            <View
+              style={{
+                width: 180,
+                height: 180,
+                borderRadius: 90,
+                backgroundColor: "rgba(236, 72, 153, 0.08)",
+                alignItems: "center",
+                justifyContent: "center",
+                borderWidth: 1,
+                borderColor: "rgba(236, 72, 153, 0.15)",
+                marginBottom: 36,
+                shadowColor: "#EC4899",
+                shadowOffset: { width: 0, height: 10 },
+                shadowOpacity: 0.1,
+                shadowRadius: 20,
+                elevation: 4,
+              }}
             >
-              YOUR{"\n"}HEALTH{"\n"}WRAPPED
+              <View
+                style={{
+                  width: 140,
+                  height: 140,
+                  borderRadius: 70,
+                  backgroundColor: "rgba(0,0,0,0.2)",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Trophy size={64} color="#EC4899" strokeWidth={2} />
+              </View>
+            </View>
+
+            <Text
+              style={{
+                fontSize: 48,
+                fontWeight: "900",
+                color: "#FFFFFF",
+                textAlign: "center",
+                lineHeight: 52,
+                letterSpacing: -1,
+              }}
+            >
+              YOUR HEALTH{"\n"}
+              <Text style={{ color: "#EC4899" }}>WRAPPED</Text>
             </Text>
-            <View style={[s.datePill, { backgroundColor: theme.accentBg }]}>
-              <Text style={[s.datePillText, { color: theme.accentText }]}>
-                {r.date_range?.start} — {r.date_range?.end}
+
+            <Text
+              style={{
+                fontSize: 16,
+                color: "rgba(255, 255, 255, 0.5)",
+                fontWeight: "500",
+                textAlign: "center",
+                marginTop: 12,
+              }}
+            >
+              {r.date_range?.start} — {r.date_range?.end}
+            </Text>
+
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 8,
+                backgroundColor: "rgba(255, 255, 255, 0.03)",
+                borderWidth: 1,
+                borderColor: "rgba(255, 255, 255, 0.06)",
+                borderRadius: 20,
+                paddingHorizontal: 16,
+                paddingVertical: 10,
+                marginTop: 40,
+              }}
+            >
+              <Sparkles size={14} color="#EC4899" />
+              <Text
+                style={{
+                  fontSize: 13,
+                  fontWeight: "600",
+                  color: "rgba(255, 255, 255, 0.7)",
+                }}
+              >
+                Tap or swipe to begin
               </Text>
             </View>
-            <Text
-              style={[s.introHint, { color: theme.textColor, opacity: 0.75 }]}
-            >
-              Tap to reveal →
-            </Text>
           </Animated.View>
         );
         break;
@@ -492,49 +583,30 @@ export default function RecapStoryModal({
           : r.adherence_rate >= 70
             ? "Great Work."
             : "Keep It Up.";
+        
+        const impVal = r.improvement_vs_previous || 0;
+        const impLabel = impVal > 0 
+          ? `+${impVal}% vs last period` 
+          : impVal < 0 
+            ? `${impVal}% vs last period` 
+            : "Steady pace";
+
         content = (
           <Animated.View style={[s.slideContent, makeSlideAnim(1)]}>
+            {/* Glowing Ring Spotlight */}
             <View
               style={{
-                width: "100%",
-                backgroundColor: "#05322C",
-                borderRadius: 36,
-                padding: 24,
+                width: 220,
+                height: 220,
+                borderRadius: 110,
+                backgroundColor: "rgba(16, 185, 129, 0.05)",
                 alignItems: "center",
-                shadowColor: "#000",
-                shadowOffset: { width: 0, height: 10 },
-                shadowOpacity: 0.25,
-                shadowRadius: 20,
-                elevation: 8,
+                justifyContent: "center",
+                borderWidth: 1,
+                borderColor: "rgba(16, 185, 129, 0.12)",
+                marginBottom: 36,
               }}
             >
-              <View
-                style={{
-                  width: 54,
-                  height: 54,
-                  borderRadius: 27,
-                  backgroundColor: "rgba(16, 185, 129, 0.12)",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  marginBottom: 16,
-                }}
-              >
-                <TrendingUp size={24} color="#10B981" />
-              </View>
-
-              <Text
-                style={{
-                  fontSize: 13,
-                  fontWeight: "900",
-                  color: "#A7F3D0",
-                  letterSpacing: 2,
-                  marginBottom: 20,
-                  textTransform: "uppercase",
-                }}
-              >
-                ADHERENCE SCORE
-              </Text>
-
               <ProgressRing
                 progress={r.adherence_rate || 0}
                 size={180}
@@ -544,49 +616,58 @@ export default function RecapStoryModal({
                 textColor="#FFFFFF"
                 subtitle={subtitleText}
               />
+            </View>
 
+            <Text
+              style={{
+                fontSize: 48,
+                fontWeight: "900",
+                color: "#FFFFFF",
+                textAlign: "center",
+                lineHeight: 52,
+                letterSpacing: -1,
+              }}
+            >
+              Adherence{"\n"}
+              <Text style={{ color: "#10B981" }}>Score</Text>
+            </Text>
+
+            <Text
+              style={{
+                fontSize: 16,
+                color: "rgba(255, 255, 255, 0.5)",
+                fontWeight: "500",
+                textAlign: "center",
+                marginTop: 12,
+              }}
+            >
+              Every logged dose builds consistency
+            </Text>
+
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 8,
+                backgroundColor: "rgba(255, 255, 255, 0.03)",
+                borderWidth: 1,
+                borderColor: "rgba(255, 255, 255, 0.06)",
+                borderRadius: 20,
+                paddingHorizontal: 16,
+                paddingVertical: 10,
+                marginTop: 40,
+              }}
+            >
+              <TrendingUp size={14} color="#10B981" />
               <Text
                 style={{
-                  fontSize: 14,
-                  color: "rgba(255, 255, 255, 0.75)",
-                  textAlign: "center",
-                  lineHeight: 20,
-                  marginTop: 24,
-                  paddingHorizontal: 12,
+                  fontSize: 13,
+                  fontWeight: "600",
+                  color: "rgba(255, 255, 255, 0.7)",
                 }}
               >
-                Every dose you take today brings you closer to better health.
+                {impLabel}
               </Text>
-
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 8,
-                  backgroundColor: "rgba(255, 255, 255, 0.04)",
-                  borderWidth: 1,
-                  borderColor: "rgba(255, 255, 255, 0.08)",
-                  borderRadius: 16,
-                  paddingHorizontal: 12,
-                  paddingVertical: 8,
-                  marginTop: 20,
-                }}
-              >
-                <Leaf size={14} color="#10B981" />
-                <Text
-                  style={{
-                    fontSize: 12,
-                    fontWeight: "600",
-                    color: "rgba(255, 255, 255, 0.8)",
-                  }}
-                >
-                  Consistency today,{" "}
-                  <Text style={{ color: "#10B981", fontWeight: "700" }}>
-                    Wellness
-                  </Text>{" "}
-                  tomorrow.
-                </Text>
-              </View>
             </View>
           </Animated.View>
         );
@@ -594,36 +675,104 @@ export default function RecapStoryModal({
       }
       case 2:
         content = (
-          <Animated.View
-            style={[s.slideContent, s.slideLeftAlign, makeSlideAnim(2)]}
-          >
-            <Text
-              style={[
-                s.slideLabel,
-                {
-                  color: theme.textColor,
-                  textAlign: "left",
-                  marginBottom: -20,
-                },
-              ]}
+          <Animated.View style={[s.slideContent, makeSlideAnim(2)]}>
+            {/* Glowing Orange Flame Circle */}
+            <View
+              style={{
+                width: 180,
+                height: 180,
+                borderRadius: 90,
+                backgroundColor: "rgba(245, 158, 11, 0.08)",
+                alignItems: "center",
+                justifyContent: "center",
+                borderWidth: 1,
+                borderColor: "rgba(245, 158, 11, 0.15)",
+                marginBottom: 36,
+                shadowColor: "#F59E0B",
+                shadowOffset: { width: 0, height: 10 },
+                shadowOpacity: 0.1,
+                shadowRadius: 20,
+                elevation: 4,
+              }}
             >
-              ON FIRE
-            </Text>
-            <AnimatedCounter
-              value={r.streak_current || 0}
-              style={[s.megaStat, { color: theme.textColor }]}
-            />
-            <Text style={[s.slideTitleAlt, { color: theme.textColor }]}>
-              Day Streak.
-            </Text>
-            <View style={[s.pillBadge, { backgroundColor: theme.accentBg }]}>
-              <Flame
-                size={16}
-                color={theme.accentText}
-                fill={theme.accentText}
+              <View
+                style={{
+                  width: 140,
+                  height: 140,
+                  borderRadius: 70,
+                  backgroundColor: "rgba(0,0,0,0.2)",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Flame size={64} color="#F59E0B" fill="#F59E0B" strokeWidth={2} />
+              </View>
+            </View>
+
+            <View style={{ flexDirection: "row", alignItems: "baseline" }}>
+              <AnimatedCounter
+                value={r.streak_current || 0}
+                style={{
+                  fontSize: 84,
+                  fontWeight: "900",
+                  color: "#FFFFFF",
+                  letterSpacing: -3,
+                  lineHeight: 90,
+                }}
               />
-              <Text style={[s.pillBadgeText, { color: theme.accentText }]}>
-                Best: {r.streak_best || 0} days
+              <Text style={{ fontSize: 28, fontWeight: "950", color: "#F59E0B" }}> DAYS</Text>
+            </View>
+
+            <Text
+              style={{
+                fontSize: 48,
+                fontWeight: "900",
+                color: "#FFFFFF",
+                textAlign: "center",
+                lineHeight: 52,
+                letterSpacing: -1,
+                marginTop: 8,
+              }}
+            >
+              Current{"\n"}
+              <Text style={{ color: "#F59E0B" }}>Streak</Text>
+            </Text>
+
+            <Text
+              style={{
+                fontSize: 16,
+                color: "rgba(255, 255, 255, 0.5)",
+                fontWeight: "500",
+                textAlign: "center",
+                marginTop: 12,
+              }}
+            >
+              You're building exceptional momentum!
+            </Text>
+
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 8,
+                backgroundColor: "rgba(255, 255, 255, 0.03)",
+                borderWidth: 1,
+                borderColor: "rgba(255, 255, 255, 0.06)",
+                borderRadius: 20,
+                paddingHorizontal: 16,
+                paddingVertical: 10,
+                marginTop: 40,
+              }}
+            >
+              <Trophy size={14} color="#F59E0B" />
+              <Text
+                style={{
+                  fontSize: 13,
+                  fontWeight: "600",
+                  color: "rgba(255, 255, 255, 0.7)",
+                }}
+              >
+                Best streak: {r.streak_best || 0} days
               </Text>
             </View>
           </Animated.View>
@@ -632,37 +781,105 @@ export default function RecapStoryModal({
       case 3:
         content = (
           <Animated.View style={[s.slideContent, makeSlideAnim(3)]}>
-            <Animated.View
-              style={{ transform: floatTransform, marginBottom: 16 }}
+            {/* Glowing Violet Pill Circle */}
+            <View
+              style={{
+                width: 180,
+                height: 180,
+                borderRadius: 90,
+                backgroundColor: "rgba(139, 92, 246, 0.08)",
+                alignItems: "center",
+                justifyContent: "center",
+                borderWidth: 1,
+                borderColor: "rgba(139, 92, 246, 0.15)",
+                marginBottom: 36,
+                shadowColor: "#8B5CF6",
+                shadowOffset: { width: 0, height: 10 },
+                shadowOpacity: 0.1,
+                shadowRadius: 20,
+                elevation: 4,
+              }}
             >
-              <Pill size={48} color={theme.textColor} />
-            </Animated.View>
+              <View
+                style={{
+                  width: 140,
+                  height: 140,
+                  borderRadius: 70,
+                  backgroundColor: "rgba(0,0,0,0.2)",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Pill size={64} color="#8B5CF6" strokeWidth={2} />
+              </View>
+            </View>
+
             <View style={{ flexDirection: "row", alignItems: "baseline" }}>
               <AnimatedCounter
                 value={r.total_doses_taken || 0}
-                style={[s.bigStat, { color: theme.textColor }]}
+                style={{
+                  fontSize: 84,
+                  fontWeight: "900",
+                  color: "#FFFFFF",
+                  letterSpacing: -3,
+                  lineHeight: 90,
+                }}
               />
+              <Text style={{ fontSize: 28, fontWeight: "950", color: "#8B5CF6" }}> / {r.total_doses_scheduled || 0}</Text>
+            </View>
+
+            <Text
+              style={{
+                fontSize: 48,
+                fontWeight: "900",
+                color: "#FFFFFF",
+                textAlign: "center",
+                lineHeight: 52,
+                letterSpacing: -1,
+                marginTop: 8,
+              }}
+            >
+              Doses{"\n"}
+              <Text style={{ color: "#8B5CF6" }}>Completed</Text>
+            </Text>
+
+            <Text
+              style={{
+                fontSize: 16,
+                color: "rgba(255, 255, 255, 0.5)",
+                fontWeight: "500",
+                textAlign: "center",
+                marginTop: 12,
+              }}
+            >
+              Every completed dose contributes to wellness
+            </Text>
+
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 8,
+                backgroundColor: "rgba(255, 255, 255, 0.03)",
+                borderWidth: 1,
+                borderColor: "rgba(255, 255, 255, 0.06)",
+                borderRadius: 20,
+                paddingHorizontal: 16,
+                paddingVertical: 10,
+                marginTop: 40,
+              }}
+            >
+              <Check size={14} color="#8B5CF6" strokeWidth={3} />
               <Text
-                style={[
-                  s.bigStatSub,
-                  { color: theme.textColor, opacity: 0.65 },
-                ]}
+                style={{
+                  fontSize: 13,
+                  fontWeight: "600",
+                  color: "rgba(255, 255, 255, 0.7)",
+                }}
               >
-                {" "}
-                / {r.total_doses_scheduled || 0}
+                {r.perfect_days || 0} perfect days this {period}
               </Text>
             </View>
-            <Text style={[s.slideLabel, { color: theme.textColor }]}>
-              DOSES TAKEN
-            </Text>
-            <Text
-              style={[
-                s.slideCaption,
-                { color: theme.textColor, opacity: 0.85 },
-              ]}
-            >
-              {r.perfect_days || 0} perfect days this {period}
-            </Text>
           </Animated.View>
         );
         break;
@@ -671,21 +888,17 @@ export default function RecapStoryModal({
         const isAfternoon = bestTime === "afternoon";
         const isNight = bestTime === "night";
 
-        // Dynamic theme configurations based on time slot
-        let bgColors = ["#05100E", "#020706"];
         let iconColor = "#10B981"; // Green
         let glowColor = "rgba(16, 185, 129, 0.08)";
         let highlightColor = "#10B981";
         let IconCmp = Sunrise;
 
         if (isAfternoon) {
-          bgColors = ["#120E05", "#080602"];
           iconColor = "#F59E0B"; // Orange/Yellow
           glowColor = "rgba(245, 158, 11, 0.08)";
           highlightColor = "#F59E0B";
           IconCmp = Sun;
         } else if (isNight) {
-          bgColors = ["#040412", "#020208"];
           iconColor = "#8B5CF6"; // Purple
           glowColor = "rgba(139, 92, 246, 0.08)";
           highlightColor = "#8B5CF6";
@@ -694,11 +907,7 @@ export default function RecapStoryModal({
 
         content = (
           <Animated.View style={[s.slideContent, makeSlideAnim(4), { paddingHorizontal: 0, paddingBottom: 0 }]}>
-            {/* Ambient Background Gradient for the slide */}
-            <LinearGradient colors={bgColors} style={StyleSheet.absoluteFillObject} />
-
             <View style={{ flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 40, paddingBottom: 80, width: "100%" }}>
-              {/* Glowing Icon Container */}
               <View
                 style={{
                   width: 180,
@@ -731,7 +940,6 @@ export default function RecapStoryModal({
                 </View>
               </View>
 
-              {/* Title */}
               <Text
                 style={{
                   fontSize: 48,
@@ -747,7 +955,6 @@ export default function RecapStoryModal({
                 <Text style={{ color: highlightColor }}>Champion</Text>
               </Text>
 
-              {/* Subtitle */}
               <Text
                 style={{
                   fontSize: 16,
@@ -760,7 +967,6 @@ export default function RecapStoryModal({
                 Your most consistent time slot
               </Text>
 
-              {/* Bottom Pill */}
               <View
                 style={{
                   flexDirection: "row",
@@ -808,36 +1014,88 @@ export default function RecapStoryModal({
       case 5:
         content = (
           <Animated.View style={[s.slideContent, makeSlideAnim(5)]}>
-            <Animated.Text
-              style={[
-                s.bigEmoji,
-                { transform: [...floatTransform, { rotate: "-10deg" }] },
-              ]}
+            {/* Glowing Purple Growth Circle */}
+            <View
+              style={{
+                width: 180,
+                height: 180,
+                borderRadius: 90,
+                backgroundColor: "rgba(168, 85, 247, 0.08)",
+                alignItems: "center",
+                justifyContent: "center",
+                borderWidth: 1,
+                borderColor: "rgba(168, 85, 247, 0.15)",
+                marginBottom: 36,
+                shadowColor: "#A855F7",
+                shadowOffset: { width: 0, height: 10 },
+                shadowOpacity: 0.1,
+                shadowRadius: 20,
+                elevation: 4,
+              }}
             >
-              {r.level?.emoji || "🌱"}
-            </Animated.Text>
+              <View
+                style={{
+                  width: 140,
+                  height: 140,
+                  borderRadius: 70,
+                  backgroundColor: "rgba(0,0,0,0.2)",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Text style={{ fontSize: 64 }}>{r.level?.emoji || "🌱"}</Text>
+              </View>
+            </View>
+
             <Text
-              style={[s.slideTitle, { color: theme.textColor }]}
-              adjustsFontSizeToFit
-              numberOfLines={2}
+              style={{
+                fontSize: 48,
+                fontWeight: "900",
+                color: "#FFFFFF",
+                textAlign: "center",
+                lineHeight: 52,
+                letterSpacing: -1,
+              }}
             >
-              You're{"\n"}
-              {r.level?.label || "Growing"}
+              Level:{"\n"}
+              <Text style={{ color: "#A855F7" }}>{r.level?.label || "Growing"}</Text>
             </Text>
+
             <Text
-              style={[
-                s.slideCaption,
-                { color: theme.textColor, opacity: 0.85 },
-              ]}
+              style={{
+                fontSize: 16,
+                color: "rgba(255, 255, 255, 0.5)",
+                fontWeight: "500",
+                textAlign: "center",
+                marginTop: 12,
+              }}
             >
-              {r.badges_earned || 0} badges earned
+              You've unlocked {r.badges_earned || 0} consistency badges!
             </Text>
+
             {r.top_medication && (
               <View
-                style={[s.topMedBadge, { backgroundColor: theme.accentBg }]}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 8,
+                  backgroundColor: "rgba(255, 255, 255, 0.03)",
+                  borderWidth: 1,
+                  borderColor: "rgba(255, 255, 255, 0.06)",
+                  borderRadius: 20,
+                  paddingHorizontal: 16,
+                  paddingVertical: 10,
+                  marginTop: 40,
+                }}
               >
-                <Trophy size={14} color={theme.accentText} />
-                <Text style={[s.topMedText, { color: theme.accentText }]}>
+                <Trophy size={14} color="#A855F7" />
+                <Text
+                  style={{
+                    fontSize: 13,
+                    fontWeight: "600",
+                    color: "rgba(255, 255, 255, 0.7)",
+                  }}
+                >
                   Top: {r.top_medication.name} ({r.top_medication.rate}%)
                 </Text>
               </View>
@@ -848,28 +1106,74 @@ export default function RecapStoryModal({
       case 6:
         content = (
           <Animated.View style={[s.slideContent, makeSlideAnim(6)]}>
-            <Animated.View
-              style={{ transform: floatTransform, marginBottom: 16 }}
+            {/* Glowing Indigo/Blue Circle */}
+            <View
+              style={{
+                width: 180,
+                height: 180,
+                borderRadius: 90,
+                backgroundColor: "rgba(59, 130, 246, 0.08)",
+                alignItems: "center",
+                justifyContent: "center",
+                borderWidth: 1,
+                borderColor: "rgba(59, 130, 246, 0.15)",
+                marginBottom: 36,
+                shadowColor: "#3B82F6",
+                shadowOffset: { width: 0, height: 10 },
+                shadowOpacity: 0.1,
+                shadowRadius: 20,
+                elevation: 4,
+              }}
             >
-              <Sparkles size={40} color={theme.textColor} />
-            </Animated.View>
+              <View
+                style={{
+                  width: 140,
+                  height: 140,
+                  borderRadius: 70,
+                  backgroundColor: "rgba(0,0,0,0.2)",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Sparkles size={64} color="#3B82F6" strokeWidth={2} />
+              </View>
+            </View>
+
             <Text
-              style={[s.slideTitle, { color: theme.textColor, fontSize: 32 }]}
+              style={{
+                fontSize: 32,
+                fontWeight: "900",
+                color: "#FFFFFF",
+                textAlign: "center",
+                lineHeight: 38,
+                letterSpacing: -1,
+                paddingHorizontal: 12,
+              }}
               adjustsFontSizeToFit
               numberOfLines={3}
             >
-              {r.motivational_message || "Keep going! 💙"}
+              "{r.motivational_message || "Keep going! 💙"}"
             </Text>
-            <View style={{ marginTop: 20 }}>
-              <BrandBadge theme={theme} />
-            </View>
+
+            <Text
+              style={{
+                fontSize: 15,
+                color: "rgba(255, 255, 255, 0.4)",
+                fontWeight: "600",
+                textAlign: "center",
+                marginTop: 16,
+              }}
+            >
+              CareMyMed • Your Health Wrapped
+            </Text>
+
             <Pressable
-              style={[s.shareBtn, { backgroundColor: theme.accentBg }]}
+              style={[s.shareBtn, { backgroundColor: "#3B82F6" }]}
               onPress={handleShare}
               disabled={isSharing}
             >
-              <Share2 size={18} color={theme.accentText} />
-              <Text style={[s.shareBtnText, { color: theme.accentText }]}>
+              <Share2 size={18} color="#FFFFFF" strokeWidth={2.5} />
+              <Text style={[s.shareBtnText, { color: "#FFFFFF" }]}>
                 {isSharing ? "Capturing..." : "Share Story"}
               </Text>
             </Pressable>
@@ -896,7 +1200,7 @@ export default function RecapStoryModal({
                 left: -50,
                 width: 300,
                 height: 300,
-                backgroundColor: grad[1],
+                backgroundColor: theme.blobColor2,
                 transform: b1Transform,
               },
             ]}
@@ -909,7 +1213,7 @@ export default function RecapStoryModal({
                 right: -100,
                 width: 400,
                 height: 400,
-                backgroundColor: grad[0],
+                backgroundColor: theme.blobColor1,
                 transform: b2Transform,
               },
             ]}

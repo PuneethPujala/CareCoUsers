@@ -254,7 +254,7 @@ async function recomputeAndCacheHealthState(patientId, targetDate = null) {
       typeof patient.toObject === "function" ? patient.toObject() : patient;
     const scoreDetails = computeHealthScore(
       patientObj,
-      adherenceRate,
+      todayAdherencePct,
       latestVital,
     );
 

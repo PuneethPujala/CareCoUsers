@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
     Modal,
     View,
@@ -26,6 +26,11 @@ const AvatarSelectModal = ({
 }) => {
     const slideAnim = useRef(new Animated.Value(0)).current;
     const backdropAnim = useRef(new Animated.Value(0)).current;
+    const [imageError, setImageError] = useState(false);
+
+    useEffect(() => {
+        setImageError(false);
+    }, [currentAvatarUrl]);
 
     useEffect(() => {
         if (visible) {
@@ -144,10 +149,11 @@ const AvatarSelectModal = ({
                     {/* Current Avatar Preview */}
                     <View style={styles.avatarPreviewContainer}>
                         <View style={styles.avatarPreviewRing}>
-                            {currentAvatarUrl ? (
+                            {currentAvatarUrl && !imageError ? (
                                 <Image
                                     source={{ uri: currentAvatarUrl }}
                                     style={styles.avatarPreviewImage}
+                                    onError={() => setImageError(true)}
                                 />
                             ) : (
                                 <View style={styles.avatarPreviewFallback}>
