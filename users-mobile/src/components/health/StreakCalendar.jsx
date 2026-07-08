@@ -1,5 +1,12 @@
 import React, { useState, useEffect, useRef } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, Animated, LayoutAnimation } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Animated,
+  LayoutAnimation,
+} from "react-native";
 import { colors, typography, radius, spacing } from "../../theme";
 import * as Icons from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -45,12 +52,30 @@ const getFormattedDateString = (date, tz) => {
   try {
     return getDisplayFormatter(tz).format(date);
   } catch (e) {
-    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const months = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
+    ];
     return `${date.getDate()} ${months[date.getMonth()]}`;
   }
 };
 
-const StreakCalendar = ({ dailyLog = [], timezone = "Asia/Kolkata", profile = null, onPressLogActivity = null }) => {
+const StreakCalendar = ({
+  dailyLog = [],
+  timezone = "Asia/Kolkata",
+  profile = null,
+  onPressLogActivity = null,
+}) => {
   const [selectedDay, setSelectedDay] = useState(null);
 
   // Animated values for selected day scale & lift translation
@@ -171,11 +196,16 @@ const StreakCalendar = ({ dailyLog = [], timezone = "Asia/Kolkata", profile = nu
   // Apple/Duolingo style tiny monochrome white glyph milestones for perfect days (100%)
   const getMilestoneIcon = (dayNumber, score) => {
     if (score < 100) return null;
-    if (dayNumber === 7) return <Icons.Sparkles size={11} color="#FFFFFF" strokeWidth={2.5} />;
-    if (dayNumber === 14) return <Icons.Zap size={11} color="#FFFFFF" strokeWidth={2.5} />;
-    if (dayNumber === 21) return <Icons.Star size={11} color="#FFFFFF" strokeWidth={2.5} />;
-    if (dayNumber === 28) return <Icons.Flag size={11} color="#FFFFFF" strokeWidth={2.5} />;
-    if (dayNumber === 35) return <Icons.Award size={11} color="#FFFFFF" strokeWidth={2.5} />;
+    if (dayNumber === 7)
+      return <Icons.Sparkles size={11} color="#FFFFFF" strokeWidth={2.5} />;
+    if (dayNumber === 14)
+      return <Icons.Zap size={11} color="#FFFFFF" strokeWidth={2.5} />;
+    if (dayNumber === 21)
+      return <Icons.Star size={11} color="#FFFFFF" strokeWidth={2.5} />;
+    if (dayNumber === 28)
+      return <Icons.Flag size={11} color="#FFFFFF" strokeWidth={2.5} />;
+    if (dayNumber === 35)
+      return <Icons.Award size={11} color="#FFFFFF" strokeWidth={2.5} />;
     return null;
   };
 
@@ -188,13 +218,24 @@ const StreakCalendar = ({ dailyLog = [], timezone = "Asia/Kolkata", profile = nu
   };
 
   const getDayName = (date) => {
-    const daysName = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+    const daysName = [
+      "Sunday",
+      "Monday",
+      "Tuesday",
+      "Wednesday",
+      "Thursday",
+      "Friday",
+      "Saturday",
+    ];
     return daysName[date.getDay()];
   };
 
   const getCoachingFeedback = (day) => {
-    if (!day || !day.log) return "A new day is a fresh opportunity to build consistent habits.";
-    const isToday = getLocalDateString(day.date, timezone) === getLocalDateString(new Date(), timezone);
+    if (!day || !day.log)
+      return "A new day is a fresh opportunity to build consistent habits.";
+    const isToday =
+      getLocalDateString(day.date, timezone) ===
+      getLocalDateString(new Date(), timezone);
     const score = calculateDailyConsistency(day);
     const adherence = day.log.adherence;
     const mood = day.log.mood;
@@ -296,17 +337,23 @@ const StreakCalendar = ({ dailyLog = [], timezone = "Asia/Kolkata", profile = nu
                         {milestoneIcon ? (
                           milestoneIcon
                         ) : (
-                          <Text style={[styles.squareText, { color: textColor }]}>
+                          <Text
+                            style={[styles.squareText, { color: textColor }]}
+                          >
                             {dayNumber}
                           </Text>
                         )}
                       </Animated.View>
                     ) : (
-                      <View style={[styles.square, { backgroundColor: bgColor }]}>
+                      <View
+                        style={[styles.square, { backgroundColor: bgColor }]}
+                      >
                         {milestoneIcon ? (
                           milestoneIcon
                         ) : (
-                          <Text style={[styles.squareText, { color: textColor }]}>
+                          <Text
+                            style={[styles.squareText, { color: textColor }]}
+                          >
                             {dayNumber}
                           </Text>
                         )}
@@ -340,13 +387,27 @@ const StreakCalendar = ({ dailyLog = [], timezone = "Asia/Kolkata", profile = nu
             const hasData = score > 0;
 
             if (!hasData) {
+              const isToday =
+                selectedDay.dateStr ===
+                getLocalDateString(new Date(), timezone);
               return (
                 <View style={styles.emptyStateContainer}>
-                  <Text style={styles.emptyStateTitle}>Start today's journey</Text>
-                  <Text style={styles.emptyStateSubtitle}>Log your first activity to build consistency.</Text>
-                  {onPressLogActivity && (
-                    <TouchableOpacity style={styles.emptyStateButton} onPress={onPressLogActivity}>
-                      <Text style={styles.emptyStateButtonText}>Log Activity</Text>
+                  <Text style={styles.emptyStateTitle}>
+                    {isToday ? "Start today's journey" : "No activity logged"}
+                  </Text>
+                  <Text style={styles.emptyStateSubtitle}>
+                    {isToday
+                      ? "Log your first activity to build consistency."
+                      : "No health logs were recorded on this day. Remember, consistency is a journey, not a destination — keep moving forward!"}
+                  </Text>
+                  {isToday && onPressLogActivity && (
+                    <TouchableOpacity
+                      style={styles.emptyStateButton}
+                      onPress={onPressLogActivity}
+                    >
+                      <Text style={styles.emptyStateButtonText}>
+                        Log Activity
+                      </Text>
                     </TouchableOpacity>
                   )}
                 </View>
@@ -362,15 +423,20 @@ const StreakCalendar = ({ dailyLog = [], timezone = "Asia/Kolkata", profile = nu
             const medsCompleted = hasMeds && adherence === 100;
             const hasSleep = sleep !== null && sleep > 0;
             const hasMood = mood !== null && mood !== undefined;
-            const hasBp = bp && bp.systolic !== null && bp.systolic !== undefined;
+            const hasBp =
+              bp && bp.systolic !== null && bp.systolic !== undefined;
 
             return (
               <View style={styles.detailCard}>
                 {/* Section 1: Header */}
                 <View style={styles.detailHeader}>
                   <View>
-                    <Text style={styles.detailDayName}>{getDayName(selectedDay.date)}</Text>
-                    <Text style={styles.detailDate}>{getFormattedDateString(selectedDay.date, timezone)}</Text>
+                    <Text style={styles.detailDayName}>
+                      {getDayName(selectedDay.date)}
+                    </Text>
+                    <Text style={styles.detailDate}>
+                      {getFormattedDateString(selectedDay.date, timezone)}
+                    </Text>
                   </View>
                   <View style={{ alignItems: "flex-end" }}>
                     <Text style={styles.scoreTextValue}>{score}%</Text>
@@ -403,42 +469,94 @@ const StreakCalendar = ({ dailyLog = [], timezone = "Asia/Kolkata", profile = nu
                 {/* Section 3: Navi-style Chips Checklist */}
                 <View style={styles.chipsRow}>
                   {hasMeds && (
-                    <View style={[styles.chip, medsCompleted ? styles.chipActive : styles.chipInactive]}>
-                      <Text style={[styles.chipText, medsCompleted ? styles.chipTextActive : styles.chipTextInactive]}>
+                    <View
+                      style={[
+                        styles.chip,
+                        medsCompleted ? styles.chipActive : styles.chipInactive,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.chipText,
+                          medsCompleted
+                            ? styles.chipTextActive
+                            : styles.chipTextInactive,
+                        ]}
+                      >
                         {medsCompleted ? "✓ Medication" : "○ Medication"}
                       </Text>
                     </View>
                   )}
-                  <View style={[styles.chip, hasSleep ? styles.chipActive : styles.chipInactive]}>
-                    <Text style={[styles.chipText, hasSleep ? styles.chipTextActive : styles.chipTextInactive]}>
+                  <View
+                    style={[
+                      styles.chip,
+                      hasSleep ? styles.chipActive : styles.chipInactive,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.chipText,
+                        hasSleep
+                          ? styles.chipTextActive
+                          : styles.chipTextInactive,
+                      ]}
+                    >
                       {hasSleep ? "✓ Sleep" : "○ Sleep"}
                     </Text>
                   </View>
-                  <View style={[styles.chip, hasMood ? styles.chipActive : styles.chipInactive]}>
-                    <Text style={[styles.chipText, hasMood ? styles.chipTextActive : styles.chipTextInactive]}>
+                  <View
+                    style={[
+                      styles.chip,
+                      hasMood ? styles.chipActive : styles.chipInactive,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.chipText,
+                        hasMood
+                          ? styles.chipTextActive
+                          : styles.chipTextInactive,
+                      ]}
+                    >
                       {hasMood ? "✓ Mood" : "○ Mood"}
                     </Text>
                   </View>
-                  <View style={[styles.chip, hasBp ? styles.chipActive : styles.chipInactive]}>
-                    <Text style={[styles.chipText, hasBp ? styles.chipTextActive : styles.chipTextInactive]}>
+                  <View
+                    style={[
+                      styles.chip,
+                      hasBp ? styles.chipActive : styles.chipInactive,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.chipText,
+                        hasBp ? styles.chipTextActive : styles.chipTextInactive,
+                      ]}
+                    >
                       {hasBp ? "✓ Blood Pressure" : "○ Blood Pressure"}
                     </Text>
                   </View>
                 </View>
 
                 {/* Section 6: AI Coaching Feedback */}
-                <Text style={styles.feedbackText}>{getCoachingFeedback(selectedDay)}</Text>
+                <Text style={styles.feedbackText}>
+                  {getCoachingFeedback(selectedDay)}
+                </Text>
 
                 <View style={styles.momentumCard}>
                   <Text style={styles.momentumValue}>🔥</Text>
                   <View style={{ flex: 1, marginLeft: 10 }}>
                     <Text style={styles.momentumTitle}>
-                      {(profile?.gamification?.current_streak !== undefined && profile?.gamification?.current_streak !== null && profile.gamification.current_streak > 0)
+                      {profile?.gamification?.current_streak !== undefined &&
+                      profile?.gamification?.current_streak !== null &&
+                      profile.gamification.current_streak > 0
                         ? `${profile.gamification.current_streak}-day streak`
                         : "Start your streak!"}
                     </Text>
                     <Text style={styles.momentumSubtitle}>
-                      {(profile?.gamification?.current_streak !== undefined && profile?.gamification?.current_streak !== null && profile.gamification.current_streak > 0)
+                      {profile?.gamification?.current_streak !== undefined &&
+                      profile?.gamification?.current_streak !== null &&
+                      profile.gamification.current_streak > 0
                         ? "Keep the momentum going!"
                         : "Log today's activities to start!"}
                     </Text>
@@ -448,7 +566,9 @@ const StreakCalendar = ({ dailyLog = [], timezone = "Asia/Kolkata", profile = nu
             );
           })()
         ) : (
-          <Text style={styles.placeholderText}>Tap any square to view daily journey details</Text>
+          <Text style={styles.placeholderText}>
+            Tap any square to view daily journey details
+          </Text>
         )}
       </View>
     </View>
