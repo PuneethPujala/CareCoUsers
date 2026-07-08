@@ -26,7 +26,13 @@ import { getStreakState } from "../../utils/streakHelper";
 import StreakCompanion from "../../components/ui/StreakCompanion";
 import { LinearGradient } from "expo-linear-gradient";
 import { LineChart } from "react-native-chart-kit";
-import Svg, { Circle, Path, Defs, LinearGradient as SvgLinearGradient, Stop } from "react-native-svg";
+import Svg, {
+  Circle,
+  Path,
+  Defs,
+  LinearGradient as SvgLinearGradient,
+  Stop,
+} from "react-native-svg";
 import * as Icons from "lucide-react-native";
 import {
   Check,
@@ -137,7 +143,7 @@ const getHeroTheme = (scoreValue) => {
     return {
       gradient: [
         "#10B981", // Premium Emerald
-        "#059669", 
+        "#059669",
         "#047857",
         "#065F46",
       ],
@@ -900,7 +906,7 @@ function PremiumBadge({ data, size = "normal", onPress, style }) {
         style={[
           !isSmall && {
             width: itemWidth,
-            minHeight: 140,
+            height: 140,
             backgroundColor: "rgba(248, 250, 252, 0.65)",
             borderRadius: 22,
             borderWidth: 1,
@@ -914,164 +920,206 @@ function PremiumBadge({ data, size = "normal", onPress, style }) {
           style,
         ]}
       >
-        <Animated.View style={{ transform: [{ scale: pressScale }], width: "100%", height: isSmall ? undefined : "100%", alignItems: "center", justifyContent: isSmall ? undefined : "space-between" }}>
+        <Animated.View
+          style={{
+            transform: [{ scale: pressScale }],
+            width: "100%",
+            height: isSmall ? undefined : "100%",
+            alignItems: "center",
+            justifyContent: isSmall ? undefined : "space-between",
+          }}
+        >
           <View style={{ alignItems: "center", width: "100%" }}>
-          {/* Ringed locked medal container */}
-          <View
-            style={{
-              width: dim,
-              height: dim,
-              borderRadius: dim / 2,
-              alignItems: "center",
-              justifyContent: "center",
-              position: "relative",
-              ...(isSmall
-                ? {
-                    borderWidth: 1,
-                    borderColor: "#CBD5E1",
-                    backgroundColor: "#FFFFFF",
-                  }
-                : {}),
-            }}
-          >
-            {/* SVG Progress Ring only for grid/large nodes */}
-            {!isSmall && (
-              <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, transform: [{ rotate: "-90deg" }] }}>
-                <Svg width={dim} height={dim}>
-                  <Circle
-                    cx={dim / 2}
-                    cy={dim / 2}
-                    r={r}
-                    stroke="#E2E8F0"
-                    strokeWidth={strokeWidth}
-                    fill="none"
-                  />
-                  <Circle
-                    cx={dim / 2}
-                    cy={dim / 2}
-                    r={r}
-                    stroke={tierColor}
-                    strokeWidth={strokeWidth}
-                    fill="none"
-                    strokeDasharray={circumference}
-                    strokeDashoffset={strokeDashoffset}
-                    strokeLinecap="round"
-                  />
-                </Svg>
-              </View>
-            )}
-
+            {/* Ringed locked medal container */}
             <View
               style={{
-                width: dim - 6,
-                height: dim - 6,
-                borderRadius: (dim - 6) / 2,
-                backgroundColor: "rgba(148, 163, 184, 0.08)",
+                width: dim,
+                height: dim,
+                borderRadius: dim / 2,
                 alignItems: "center",
                 justifyContent: "center",
+                position: "relative",
+                ...(isSmall
+                  ? {
+                      borderWidth: 1,
+                      borderColor: "#CBD5E1",
+                      backgroundColor: "#FFFFFF",
+                    }
+                  : {}),
               }}
             >
-              {data.meta.iconName === "Shield" ? (
-                <View style={{ alignItems: "center", justifyContent: "center" }}>
+              {/* SVG Progress Ring only for grid/large nodes */}
+              {!isSmall && (
+                <View
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    transform: [{ rotate: "-90deg" }],
+                  }}
+                >
+                  <Svg width={dim} height={dim}>
+                    <Circle
+                      cx={dim / 2}
+                      cy={dim / 2}
+                      r={r}
+                      stroke="#E2E8F0"
+                      strokeWidth={strokeWidth}
+                      fill="none"
+                    />
+                    <Circle
+                      cx={dim / 2}
+                      cy={dim / 2}
+                      r={r}
+                      stroke={tierColor}
+                      strokeWidth={strokeWidth}
+                      fill="none"
+                      strokeDasharray={circumference}
+                      strokeDashoffset={strokeDashoffset}
+                      strokeLinecap="round"
+                    />
+                  </Svg>
+                </View>
+              )}
+
+              <View
+                style={{
+                  width: dim - 6,
+                  height: dim - 6,
+                  borderRadius: (dim - 6) / 2,
+                  backgroundColor: "rgba(148, 163, 184, 0.08)",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                {data.meta.iconName === "Shield" ? (
+                  <View
+                    style={{ alignItems: "center", justifyContent: "center" }}
+                  >
+                    <IconComponent
+                      size={isSmall ? 20 : 26}
+                      color="#64748B"
+                      style={{ opacity: 0.65 }}
+                    />
+                    <Icons.Star
+                      size={isSmall ? 8 : 10}
+                      color="#64748B"
+                      fill="#64748B"
+                      style={{
+                        position: "absolute",
+                        top: isSmall ? 5 : 7,
+                        opacity: 0.65,
+                      }}
+                    />
+                  </View>
+                ) : (
                   <IconComponent
                     size={isSmall ? 20 : 26}
                     color="#64748B"
                     style={{ opacity: 0.65 }}
                   />
-                  <Icons.Star
-                    size={isSmall ? 8 : 10}
-                    color="#64748B"
-                    fill="#64748B"
-                    style={{ position: "absolute", top: isSmall ? 5 : 7, opacity: 0.65 }}
-                  />
+                )}
+              </View>
+
+              <View
+                style={{
+                  position: "absolute",
+                  top: -2,
+                  right: -2,
+                  backgroundColor: "#94A3B8",
+                  width: 18,
+                  height: 18,
+                  borderRadius: 9,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  borderWidth: 1.5,
+                  borderColor: "#FFFFFF",
+                  shadowColor: "#000",
+                  shadowOffset: { width: 0, height: 1 },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 1,
+                  elevation: 1,
+                  zIndex: 10,
+                }}
+              >
+                <Lock size={8} color="white" />
+              </View>
+            </View>
+
+            <Text
+              style={{
+                fontSize: 11,
+                fontWeight: "750",
+                color: "#64748B",
+                marginTop: 10,
+                textAlign: "center",
+                lineHeight: 14,
+                paddingHorizontal: 2,
+              }}
+              numberOfLines={2}
+            >
+              {data.meta.title || data.key}
+            </Text>
+          </View>
+
+          {!isSmall && (
+            <View style={{ alignItems: "center", width: "100%", marginTop: 8 }}>
+              {target > 1 ? (
+                <View
+                  style={{ width: "80%", alignItems: "center", marginTop: 2 }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 10,
+                      ...FONT.heavy,
+                      color: "#64748B",
+                      marginBottom: 4,
+                    }}
+                  >
+                    {current}/{target}
+                  </Text>
+                  <View
+                    style={{
+                      width: "100%",
+                      height: 4,
+                      borderRadius: 2,
+                      backgroundColor: "#E2E8F0",
+                      overflow: "hidden",
+                    }}
+                  >
+                    <View
+                      style={{
+                        width: `${pct}%`,
+                        height: "100%",
+                        borderRadius: 2,
+                        backgroundColor: tierColor,
+                      }}
+                    />
+                  </View>
                 </View>
               ) : (
-                <IconComponent
-                  size={isSmall ? 20 : 26}
-                  color="#64748B"
-                  style={{ opacity: 0.65 }}
-                />
+                <View
+                  style={{
+                    borderColor: "#E2E8F0",
+                    borderWidth: 1,
+                    backgroundColor: "#F8FAFC",
+                    borderRadius: 12,
+                    paddingHorizontal: 8,
+                    paddingVertical: 2,
+                    marginTop: 4,
+                  }}
+                >
+                  <Text
+                    style={{ fontSize: 9, ...FONT.heavy, color: "#94A3B8" }}
+                  >
+                    LOCKED
+                  </Text>
+                </View>
               )}
             </View>
-
-            <View
-              style={{
-                position: "absolute",
-                top: -2,
-                right: -2,
-                backgroundColor: "#94A3B8",
-                width: 18,
-                height: 18,
-                borderRadius: 9,
-                alignItems: "center",
-                justifyContent: "center",
-                borderWidth: 1.5,
-                borderColor: "#FFFFFF",
-                shadowColor: "#000",
-                shadowOffset: { width: 0, height: 1 },
-                shadowOpacity: 0.1,
-                shadowRadius: 1,
-                elevation: 1,
-                zIndex: 10,
-              }}
-            >
-              <Lock size={8} color="white" />
-            </View>
-          </View>
-
-          <Text
-            style={{
-              fontSize: 11,
-              fontWeight: "750",
-              color: "#64748B",
-              marginTop: 10,
-              textAlign: "center",
-              lineHeight: 14,
-              paddingHorizontal: 2,
-            }}
-            numberOfLines={2}
-          >
-            {data.meta.title || data.key}
-          </Text>
-        </View>
-
-        {!isSmall && (
-          <View style={{ alignItems: "center", width: "100%", marginTop: 8 }}>
-            {target > 1 ? (
-              <View style={{ width: "80%", alignItems: "center", marginTop: 2 }}>
-                <Text style={{ fontSize: 10, ...FONT.heavy, color: "#64748B", marginBottom: 4 }}>
-                  {current}/{target}
-                </Text>
-                <View style={{
-                  width: "100%",
-                  height: 4,
-                  borderRadius: 2,
-                  backgroundColor: "#E2E8F0",
-                  overflow: "hidden",
-                }}>
-                  <View style={{
-                    width: `${pct}%`,
-                    height: "100%",
-                    borderRadius: 2,
-                    backgroundColor: tierColor,
-                  }} />
-                </View>
-              </View>
-            ) : (
-              <View style={{
-                borderColor: '#E2E8F0',
-                borderWidth: 1,
-                backgroundColor: '#F8FAFC',
-                borderRadius: 12,
-                paddingHorizontal: 8,
-                paddingVertical: 2,
-                marginTop: 4,
-              }}>
-                <Text style={{ fontSize: 9, ...FONT.heavy, color: '#94A3B8' }}>LOCKED</Text>
-              </View>
-            )}
-          </View>
-        )}
+          )}
         </Animated.View>
       </Pressable>
     );
@@ -1079,7 +1127,12 @@ function PremiumBadge({ data, size = "normal", onPress, style }) {
 
   // Unlocked State
   const label = getUnlockedLabel(data);
-  const statusColor = (label === "Achieved" || label.endsWith("complete") || label.endsWith("perfect days")) ? "#10B981" : "#64748B";
+  const statusColor =
+    label === "Achieved" ||
+    label.endsWith("complete") ||
+    label.endsWith("perfect days")
+      ? "#10B981"
+      : "#64748B";
 
   return (
     <Pressable
@@ -1089,7 +1142,7 @@ function PremiumBadge({ data, size = "normal", onPress, style }) {
       style={[
         !isSmall && {
           width: itemWidth,
-          minHeight: 140,
+          height: 140,
           backgroundColor: "#FFFFFF",
           borderRadius: 22,
           borderWidth: 1,
@@ -1109,59 +1162,86 @@ function PremiumBadge({ data, size = "normal", onPress, style }) {
         style,
       ]}
     >
-      <Animated.View style={{ transform: [{ scale: pressScale }], width: "100%", height: isSmall ? undefined : "100%", alignItems: "center", justifyContent: isSmall ? undefined : "space-between" }}>
+      <Animated.View
+        style={{
+          transform: [{ scale: pressScale }],
+          width: "100%",
+          height: isSmall ? undefined : "100%",
+          alignItems: "center",
+          justifyContent: isSmall ? undefined : "space-between",
+        }}
+      >
         <View style={{ alignItems: "center", width: "100%" }}>
-        {/* Metallic Ring - Outer Gradient Circle */}
-        <LinearGradient
-          colors={colors}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={{
-            width: dim,
-            height: dim,
-            borderRadius: dim / 2,
-            padding: 3,
-            alignItems: "center",
-            justifyContent: "center",
-            shadowColor: tierColor,
-            shadowOffset: { width: 0, height: 3 },
-            shadowOpacity: 0.25,
-            shadowRadius: 6,
-            elevation: 3,
-            position: "relative",
-          }}
-        >
-          {/* Inner Core Gradient */}
+          {/* Metallic Ring - Outer Gradient Circle */}
           <LinearGradient
-            colors={colors.slice().reverse()}
+            colors={colors}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={{
-              width: "100%",
-              height: "100%",
-              borderRadius: (dim - 6) / 2,
+              width: dim,
+              height: dim,
+              borderRadius: dim / 2,
+              padding: 3,
               alignItems: "center",
               justifyContent: "center",
-              borderWidth: 1,
-              borderColor: "rgba(255,255,255,0.45)",
+              shadowColor: tierColor,
+              shadowOffset: { width: 0, height: 3 },
+              shadowOpacity: 0.25,
+              shadowRadius: 6,
+              elevation: 3,
+              position: "relative",
             }}
           >
-            {/* Concentric Dotted Circle Inside Core */}
-            <View
+            {/* Inner Core Gradient */}
+            <LinearGradient
+              colors={colors.slice().reverse()}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
               style={{
-                width: "85%",
-                height: "85%",
-                borderRadius: ((dim - 6) * 0.85) / 2,
-                borderWidth: 0.8,
-                borderColor: "rgba(255,255,255,0.25)",
-                borderStyle: "dashed",
+                width: "100%",
+                height: "100%",
+                borderRadius: (dim - 6) / 2,
                 alignItems: "center",
                 justifyContent: "center",
-                position: "relative",
+                borderWidth: 1,
+                borderColor: "rgba(255,255,255,0.45)",
               }}
             >
-              {data.meta.iconName === "Shield" ? (
-                <View style={{ alignItems: "center", justifyContent: "center" }}>
+              {/* Concentric Dotted Circle Inside Core */}
+              <View
+                style={{
+                  width: "85%",
+                  height: "85%",
+                  borderRadius: ((dim - 6) * 0.85) / 2,
+                  borderWidth: 0.8,
+                  borderColor: "rgba(255,255,255,0.25)",
+                  borderStyle: "dashed",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  position: "relative",
+                }}
+              >
+                {data.meta.iconName === "Shield" ? (
+                  <View
+                    style={{ alignItems: "center", justifyContent: "center" }}
+                  >
+                    <IconComponent
+                      size={isSmall ? 18 : 24}
+                      color="white"
+                      style={{
+                        textShadowColor: "rgba(0,0,0,0.15)",
+                        textShadowOffset: { width: 0, height: 1 },
+                        textShadowRadius: 2,
+                      }}
+                    />
+                    <Icons.Star
+                      size={isSmall ? 8 : 10}
+                      color="white"
+                      fill="white"
+                      style={{ position: "absolute", top: isSmall ? 4 : 6 }}
+                    />
+                  </View>
+                ) : (
                   <IconComponent
                     size={isSmall ? 18 : 24}
                     color="white"
@@ -1171,106 +1251,93 @@ function PremiumBadge({ data, size = "normal", onPress, style }) {
                       textShadowRadius: 2,
                     }}
                   />
-                  <Icons.Star
-                    size={isSmall ? 8 : 10}
-                    color="white"
-                    fill="white"
-                    style={{ position: "absolute", top: isSmall ? 4 : 6 }}
-                  />
-                </View>
-              ) : (
-                <IconComponent
-                  size={isSmall ? 18 : 24}
-                  color="white"
-                  style={{
-                    textShadowColor: "rgba(0,0,0,0.15)",
-                    textShadowOffset: { width: 0, height: 1 },
-                    textShadowRadius: 2,
-                  }}
-                />
-              )}
-            </View>
+                )}
+              </View>
+            </LinearGradient>
+
+            {/* Checkmark icon for unlocked items */}
+            {data.meta.tier !== "legendary" && (
+              <View
+                style={{
+                  position: "absolute",
+                  top: -2,
+                  right: -2,
+                  backgroundColor: "#10B981",
+                  width: 18,
+                  height: 18,
+                  borderRadius: 9,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  borderWidth: 1.5,
+                  borderColor: "#FFFFFF",
+                  shadowColor: "#000",
+                  shadowOffset: { width: 0, height: 1 },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 1,
+                  elevation: 2,
+                  zIndex: 10,
+                }}
+              >
+                <Check size={9} color="white" strokeWidth={4} />
+              </View>
+            )}
+
+            {/* Crown badge for legendary */}
+            {data.meta.tier === "legendary" && (
+              <View
+                style={{
+                  position: "absolute",
+                  top: -5,
+                  right: -5,
+                  backgroundColor: "#FBBF24",
+                  borderRadius: 10,
+                  width: 18,
+                  height: 18,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  borderWidth: 1.5,
+                  borderColor: "#FFFFFF",
+                  shadowColor: "#000",
+                  shadowOffset: { width: 0, height: 1 },
+                  shadowOpacity: 0.15,
+                  shadowRadius: 2,
+                  elevation: 2,
+                  zIndex: 10,
+                }}
+              >
+                <Icons.Crown size={9} color="#7C3AED" fill="#7C3AED" />
+              </View>
+            )}
           </LinearGradient>
 
-          {/* Checkmark icon for unlocked items */}
-          {data.meta.tier !== "legendary" && (
-            <View
-              style={{
-                position: "absolute",
-                top: -2,
-                right: -2,
-                backgroundColor: "#10B981",
-                width: 18,
-                height: 18,
-                borderRadius: 9,
-                alignItems: "center",
-                justifyContent: "center",
-                borderWidth: 1.5,
-                borderColor: "#FFFFFF",
-                shadowColor: "#000",
-                shadowOffset: { width: 0, height: 1 },
-                shadowOpacity: 0.1,
-                shadowRadius: 1,
-                elevation: 2,
-                zIndex: 10,
-              }}
-            >
-              <Check size={9} color="white" strokeWidth={4} />
-            </View>
-          )}
-
-          {/* Crown badge for legendary */}
-          {data.meta.tier === "legendary" && (
-            <View
-              style={{
-                position: "absolute",
-                top: -5,
-                right: -5,
-                backgroundColor: "#FBBF24",
-                borderRadius: 10,
-                width: 18,
-                height: 18,
-                alignItems: "center",
-                justifyContent: "center",
-                borderWidth: 1.5,
-                borderColor: "#FFFFFF",
-                shadowColor: "#000",
-                shadowOffset: { width: 0, height: 1 },
-                shadowOpacity: 0.15,
-                shadowRadius: 2,
-                elevation: 2,
-                zIndex: 10,
-              }}
-            >
-              <Icons.Crown size={9} color="#7C3AED" fill="#7C3AED" />
-            </View>
-          )}
-        </LinearGradient>
-
-        <Text
-          style={{
-            fontSize: 11,
-            fontWeight: "800",
-            color: "#0F172A",
-            marginTop: 10,
-            textAlign: "center",
-            lineHeight: 14,
-            paddingHorizontal: 2,
-          }}
-          numberOfLines={2}
-        >
-          {data.meta.title || data.key}
-        </Text>
-      </View>
-
-      {!isSmall && (
-        <View style={{
-          marginTop: 8,
-          alignItems: 'center',
-        }}>
-          <Text style={{ fontSize: 10, ...FONT.bold, color: statusColor }}>{label}</Text>
+          <Text
+            style={{
+              fontSize: 11,
+              fontWeight: "800",
+              color: "#0F172A",
+              marginTop: 10,
+              textAlign: "center",
+              lineHeight: 14,
+              paddingHorizontal: 2,
+            }}
+            numberOfLines={2}
+          >
+            {data.meta.title || data.key}
+          </Text>
         </View>
-      )}
+
+        {!isSmall && (
+          <View
+            style={{
+              marginTop: 8,
+              alignItems: "center",
+            }}
+          >
+            <Text style={{ fontSize: 10, ...FONT.bold, color: statusColor }}>
+              {label}
+            </Text>
+          </View>
+        )}
       </Animated.View>
     </Pressable>
   );
@@ -1679,17 +1746,17 @@ export default function AdherenceScreen({ navigation }) {
     return (
       <TabScreenTransition>
         <SafeAreaView style={{ flex: 1, backgroundColor: C.bg }}>
-        <View style={styles.header}>
-          <Skeleton width={40} height={40} borderRadius={14} />
-          <Skeleton width={160} height={22} style={{ marginLeft: 12 }} />
-        </View>
-        <ScrollView contentContainerStyle={{ padding: 20, gap: 16 }}>
-          <Skeleton width="100%" height={220} borderRadius={28} />
-          <Skeleton width="100%" height={80} borderRadius={20} />
-          <Skeleton width="100%" height={130} borderRadius={20} />
-          <Skeleton width="100%" height={200} borderRadius={20} />
-        </ScrollView>
-      </SafeAreaView>
+          <View style={styles.header}>
+            <Skeleton width={40} height={40} borderRadius={14} />
+            <Skeleton width={160} height={22} style={{ marginLeft: 12 }} />
+          </View>
+          <ScrollView contentContainerStyle={{ padding: 20, gap: 16 }}>
+            <Skeleton width="100%" height={220} borderRadius={28} />
+            <Skeleton width="100%" height={80} borderRadius={20} />
+            <Skeleton width="100%" height={130} borderRadius={20} />
+            <Skeleton width="100%" height={200} borderRadius={20} />
+          </ScrollView>
+        </SafeAreaView>
       </TabScreenTransition>
     );
   }
@@ -1699,1732 +1766,1811 @@ export default function AdherenceScreen({ navigation }) {
       <View style={{ flex: 1, backgroundColor: C.bg }}>
         {/* Ambient Background Decorations (Level 3: Light) */}
         <View style={StyleSheet.absoluteFill} pointerEvents="none">
-          <Svg height="100%" width="100%" viewBox="0 0 400 850" preserveAspectRatio="none">
+          <Svg
+            height="100%"
+            width="100%"
+            viewBox="0 0 400 850"
+            preserveAspectRatio="none"
+          >
             <Defs>
-              <SvgLinearGradient id="adherenceTopBg" x1="0%" y1="0%" x2="100%" y2="100%">
+              <SvgLinearGradient
+                id="adherenceTopBg"
+                x1="0%"
+                y1="0%"
+                x2="100%"
+                y2="100%"
+              >
                 <Stop offset="0%" stopColor="#E0F2FE" stopOpacity="0.4" />
                 <Stop offset="100%" stopColor="#F8FAFC" stopOpacity="0" />
               </SvgLinearGradient>
             </Defs>
             {/* Top right curvy gradient backdrop */}
-            <Path d="M180 0 C260 120, 320 150, 400 120 L400 0 Z" fill="url(#adherenceTopBg)" />
+            <Path
+              d="M180 0 C260 120, 320 150, 400 120 L400 0 Z"
+              fill="url(#adherenceTopBg)"
+            />
           </Svg>
         </View>
 
         <SafeAreaView style={{ flex: 1 }}>
-        {/* ── Header ── */}
-        <View style={styles.header}>
-          <Pressable onPress={() => navigation.goBack()} style={styles.backBtn}>
-            <ChevronLeft size={22} color={C.dark} />
-          </Pressable>
-          <View style={{ flex: 1, marginLeft: 12 }}>
-            <Text style={styles.headerTitle}>
-              {t("common.adherence", { defaultValue: "Adherence" })}
-            </Text>
-            <Text style={styles.headerSub}>
-              {t("adherence.header_sub", {
-                defaultValue: "Track your medication journey",
-              })}
-            </Text>
-          </View>
-          <Pressable
-            style={styles.shareBtn}
-            onPress={() => setShowStoryModal(true)}
-          >
-            <Share2 size={15} color="#FFF" />
-            <Text style={styles.shareBtnText}>
-              {t("adherence.share", { defaultValue: "Share" })}
-            </Text>
-          </Pressable>
-        </View>
-
-        {/* ── Period Tabs ── */}
-        <View style={styles.tabsContainer}>
-          <View style={styles.tabsInner}>
-            <Animated.View
-              style={[
-                styles.tabSlider,
-                {
-                  width: tabWidth - 4,
-                  transform: [{ translateX: tabSlideAnim }],
-                },
-              ]}
-            />
-            {RECAP_TABS.map((tab) => (
-              <Pressable
-                key={tab}
-                style={[styles.tab, { width: tabWidth }]}
-                onPress={() => switchRecapTab(tab)}
-              >
-                <Text
-                  style={[
-                    styles.tabText,
-                    activeRecapTab === tab && styles.tabTextActive,
-                  ]}
-                >
-                  {getRecapLabels(t)[tab]}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-        </View>
-
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContent}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={handleRefresh}
-              tintColor={C.primary}
-            />
-          }
-        >
-          {/* ── [0] Hero Gradient Card (Redesigned Light Theme Fitbit style) ── */}
-          <Animated.View style={[anim(0), { position: "relative" }]}>
-            <View
-              style={[
-                styles.heroCard,
-                {
-                  backgroundColor: "#FFFFFF",
-                  borderWidth: 1,
-                  borderColor: "rgba(15, 23, 42, 0.04)",
-                  shadowColor: "#000000",
-                  shadowOffset: { width: 0, height: 8 },
-                  shadowOpacity: 0.04,
-                  shadowRadius: 24,
-                  elevation: 3,
-                },
-              ]}
+          {/* ── Header ── */}
+          <View style={styles.header}>
+            <Pressable
+              onPress={() => navigation.goBack()}
+              style={styles.backBtn}
             >
-              {/* Sparkles decoration (Background layer) */}
-              <View
-                style={{
-                  position: "absolute",
-                  top: 16,
-                  right: 16,
-                  opacity: 0.35,
-                  zIndex: 1,
-                }}
-              >
-                <Icons.Sparkles size={20} color="#7C3AED" />
-              </View>
+              <ChevronLeft size={22} color={C.dark} />
+            </Pressable>
+            <View style={{ flex: 1, marginLeft: 12 }}>
+              <Text style={styles.headerTitle}>
+                {t("common.adherence", { defaultValue: "Adherence" })}
+              </Text>
+              <Text style={styles.headerSub}>
+                {t("adherence.header_sub", {
+                  defaultValue: "Track your medication journey",
+                })}
+              </Text>
+            </View>
+            <Pressable
+              style={styles.shareBtn}
+              onPress={() => setShowStoryModal(true)}
+            >
+              <Share2 size={15} color="#FFF" />
+              <Text style={styles.shareBtnText}>
+                {t("adherence.share", { defaultValue: "Share" })}
+              </Text>
+            </Pressable>
+          </View>
 
-              {/* Foreground Content Layer */}
-              <View style={{ zIndex: 2, position: "relative" }}>
-                <View style={styles.heroTopRow}>
-                  {/* Ring */}
-                  <View style={styles.heroRingWrap}>
-                    <CircularProgress
-                      progress={heroScore}
-                      size={148}
-                      strokeWidth={13}
-                      color="#7C3AED"
-                    />
-                    <View style={styles.heroRingCenter}>
-                      <AnimatedNumber
-                        value={heroScore}
-                        style={styles.heroRingPercent}
+          {/* ── Period Tabs ── */}
+          <View style={styles.tabsContainer}>
+            <View style={styles.tabsInner}>
+              <Animated.View
+                style={[
+                  styles.tabSlider,
+                  {
+                    width: tabWidth - 4,
+                    transform: [{ translateX: tabSlideAnim }],
+                  },
+                ]}
+              />
+              {RECAP_TABS.map((tab) => (
+                <Pressable
+                  key={tab}
+                  style={[styles.tab, { width: tabWidth }]}
+                  onPress={() => switchRecapTab(tab)}
+                >
+                  <Text
+                    style={[
+                      styles.tabText,
+                      activeRecapTab === tab && styles.tabTextActive,
+                    ]}
+                  >
+                    {getRecapLabels(t)[tab]}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.scrollContent}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={handleRefresh}
+                tintColor={C.primary}
+              />
+            }
+          >
+            {/* ── [0] Hero Gradient Card (Redesigned Light Theme Fitbit style) ── */}
+            <Animated.View style={[anim(0), { position: "relative" }]}>
+              <View
+                style={[
+                  styles.heroCard,
+                  {
+                    backgroundColor: "#FFFFFF",
+                    borderWidth: 1,
+                    borderColor: "rgba(15, 23, 42, 0.04)",
+                    shadowColor: "#000000",
+                    shadowOffset: { width: 0, height: 8 },
+                    shadowOpacity: 0.04,
+                    shadowRadius: 24,
+                    elevation: 3,
+                  },
+                ]}
+              >
+                {/* Sparkles decoration (Background layer) */}
+                <View
+                  style={{
+                    position: "absolute",
+                    top: 16,
+                    right: 16,
+                    opacity: 0.35,
+                    zIndex: 1,
+                  }}
+                >
+                  <Icons.Sparkles size={20} color="#7C3AED" />
+                </View>
+
+                {/* Foreground Content Layer */}
+                <View style={{ zIndex: 2, position: "relative" }}>
+                  <View style={styles.heroTopRow}>
+                    {/* Ring */}
+                    <View style={styles.heroRingWrap}>
+                      <CircularProgress
+                        progress={heroScore}
+                        size={148}
+                        strokeWidth={13}
+                        color="#7C3AED"
                       />
-                      <Text style={styles.heroRingLabel}>
-                        {getRecapLabels(t)[activeRecapTab]}
-                      </Text>
+                      <View style={styles.heroRingCenter}>
+                        <AnimatedNumber
+                          value={heroScore}
+                          style={styles.heroRingPercent}
+                        />
+                        <Text style={styles.heroRingLabel}>
+                          {getRecapLabels(t)[activeRecapTab]}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Right stats */}
+                    <View style={styles.heroRightCol}>
+                      <View style={styles.heroStatBox}>
+                        <Text style={styles.heroStatLabel}>
+                          {t("adherence.score", { defaultValue: "Score" })}
+                        </Text>
+                        <AnimatedNumber
+                          value={adherenceRecap?.adherence_rate ?? score.weekly}
+                          style={styles.heroStatValue}
+                        />
+                      </View>
+                      <View style={styles.heroStatDivider} />
+                      <View style={styles.heroStatBox}>
+                        <Text style={styles.heroStatLabel}>
+                          {t("adherence.momentum", {
+                            defaultValue: "Momentum",
+                          })}
+                        </Text>
+                        <View style={styles.momentumPill}>
+                          <View style={styles.momentumIconContainer}>
+                            <MomentumIcon size={12} color="#7C3AED" />
+                          </View>
+                          <Text style={styles.momentumText}>
+                            {momentumLabel}
+                          </Text>
+                        </View>
+                      </View>
+                      <View style={styles.heroStatDivider} />
+                      <View style={styles.heroStatBox}>
+                        <Text style={styles.heroStatLabel}>
+                          {t("adherence.level", { defaultValue: "Level" })}
+                        </Text>
+                        {(() => {
+                          const lvlCfg = getLevelConfig(level.key);
+                          const LvlIcon = lvlCfg.Icon;
+                          return (
+                            <View
+                              style={{
+                                flexDirection: "row",
+                                alignItems: "center",
+                                gap: 5,
+                                marginTop: 4,
+                              }}
+                            >
+                              <LvlIcon size={14} color="#7C3AED" />
+                              <Text
+                                style={[
+                                  styles.heroStatValue,
+                                  { color: "#7C3AED", fontSize: 13 },
+                                ]}
+                              >
+                                {level.label}
+                              </Text>
+                            </View>
+                          );
+                        })()}
+                      </View>
                     </View>
                   </View>
 
-                  {/* Right stats */}
-                  <View style={styles.heroRightCol}>
-                    <View style={styles.heroStatBox}>
-                      <Text style={styles.heroStatLabel}>
-                        {t("adherence.score", { defaultValue: "Score" })}
+                  {/* Today's progress bar */}
+                  <View style={styles.heroProgressSection}>
+                    <View style={styles.heroProgressHeader}>
+                      <Target size={13} color="#7C3AED" />
+                      <Text style={styles.heroProgressTitle}>
+                        {t("adherence.todays_goal", {
+                          defaultValue: "Today's Goal",
+                        })}
                       </Text>
-                      <AnimatedNumber
-                        value={adherenceRecap?.adherence_rate ?? score.weekly}
-                        style={styles.heroStatValue}
-                      />
-                    </View>
-                    <View style={styles.heroStatDivider} />
-                    <View style={styles.heroStatBox}>
-                      <Text style={styles.heroStatLabel}>
-                        {t("adherence.momentum", { defaultValue: "Momentum" })}
+                      <Text style={styles.heroProgressCount}>
+                        {today.taken}
+                        <Text style={{ fontSize: 13, opacity: 0.6 }}>
+                          /{today.total || "—"}{" "}
+                          {t("adherence.doses", { defaultValue: "doses" })}
+                        </Text>
                       </Text>
-                      <View style={styles.momentumPill}>
-                        <View style={styles.momentumIconContainer}>
-                          <MomentumIcon size={12} color="#7C3AED" />
+                      {today.completed && (
+                        <View style={styles.heroCompletedPill}>
+                          <Sparkles size={10} color="#10B981" />
+                          <Text style={styles.heroCompletedText}>
+                            {t("adherence.done", { defaultValue: "Done!" })}
+                          </Text>
                         </View>
-                        <Text style={styles.momentumText}>{momentumLabel}</Text>
-                      </View>
+                      )}
                     </View>
-                    <View style={styles.heroStatDivider} />
-                    <View style={styles.heroStatBox}>
-                      <Text style={styles.heroStatLabel}>
-                        {t("adherence.level", { defaultValue: "Level" })}
-                      </Text>
-                      {(() => {
-                        const lvlCfg = getLevelConfig(level.key);
-                        const LvlIcon = lvlCfg.Icon;
-                        return (
-                          <View
-                            style={{
-                              flexDirection: "row",
-                              alignItems: "center",
-                              gap: 5,
-                              marginTop: 4,
-                            }}
-                          >
-                            <LvlIcon size={14} color="#7C3AED" />
-                            <Text
-                              style={[
-                                styles.heroStatValue,
-                                { color: "#7C3AED", fontSize: 13 },
-                              ]}
-                            >
-                              {level.label}
-                            </Text>
-                          </View>
-                        );
-                      })()}
+                    <View
+                      style={[
+                        styles.heroProgressBg,
+                        { backgroundColor: "#F3E8FF" },
+                      ]}
+                    >
+                      <Animated.View
+                        style={[
+                          styles.heroProgressFill,
+                          {
+                            width:
+                              today.total > 0
+                                ? `${Math.min(100, (today.taken / today.total) * 100)}%`
+                                : "0%",
+                            backgroundColor: today.completed
+                              ? "#10B981"
+                              : "#7C3AED",
+                          },
+                        ]}
+                      />
                     </View>
                   </View>
                 </View>
+              </View>
+            </Animated.View>
 
-                {/* Today's progress bar */}
-                <View style={styles.heroProgressSection}>
-                  <View style={styles.heroProgressHeader}>
-                    <Target size={13} color="#7C3AED" />
-                    <Text style={styles.heroProgressTitle}>
-                      {t("adherence.todays_goal", {
-                        defaultValue: "Today's Goal",
-                      })}
-                    </Text>
-                    <Text style={styles.heroProgressCount}>
-                      {today.taken}
-                      <Text style={{ fontSize: 13, opacity: 0.6 }}>
-                        /{today.total || "—"}{" "}
-                        {t("adherence.doses", { defaultValue: "doses" })}
-                      </Text>
-                    </Text>
-                    {today.completed && (
-                      <View style={styles.heroCompletedPill}>
-                        <Sparkles size={10} color="#10B981" />
-                        <Text style={styles.heroCompletedText}>
-                          {t("adherence.done", { defaultValue: "Done!" })}
+            {/* ── [1] Streak Banner with Companion ── */}
+            <Animated.View style={anim(1)}>
+              {(() => {
+                const companion = getStreakState(streak, dailyLog);
+                return (
+                  <View
+                    style={[
+                      styles.streakCard,
+                      {
+                        backgroundColor: "#FAF5FF",
+                        borderWidth: 1,
+                        borderColor: "#F3E8FF",
+                        shadowColor: "#7C3AED",
+                        shadowOffset: { width: 0, height: 4 },
+                        shadowOpacity: 0.03,
+                        shadowRadius: 10,
+                        elevation: 2,
+                      },
+                    ]}
+                  >
+                    <View style={styles.streakLeft}>
+                      <View
+                        style={[
+                          styles.companionImageWrap,
+                          {
+                            backgroundColor: "#FFFFFF",
+                            borderColor: "#F3E8FF",
+                            borderWidth: 1.5,
+                          },
+                        ]}
+                      >
+                        <StreakCompanion
+                          streak={streak}
+                          dailyLog={dailyLog}
+                          size={48}
+                        />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.streakNum}>
+                          {t("adherence.streak_days", {
+                            defaultValue: "{{streak}} Day Streak",
+                            streak,
+                          })}
+                        </Text>
+                        <Text style={styles.companionLabel}>
+                          {companion.label}
+                        </Text>
+                        <Text style={styles.streakSub}>
+                          {companion.subtitle}
+                        </Text>
+                      </View>
+                    </View>
+                    {streak > 0 && (
+                      <View style={styles.streakBadge}>
+                        <Text style={styles.streakBadgeNum}>{streak}</Text>
+                        <Text style={styles.streakBadgeLabel}>
+                          {t("adherence.days", { defaultValue: "DAYS" })}
                         </Text>
                       </View>
                     )}
                   </View>
-                  <View
-                    style={[
-                      styles.heroProgressBg,
-                      { backgroundColor: "#F3E8FF" },
-                    ]}
-                  >
-                    <Animated.View
-                      style={[
-                        styles.heroProgressFill,
-                        {
-                          width:
-                            today.total > 0
-                              ? `${Math.min(100, (today.taken / today.total) * 100)}%`
-                              : "0%",
-                          backgroundColor: today.completed
-                            ? "#10B981"
-                            : "#7C3AED",
-                        },
-                      ]}
-                    />
-                  </View>
-                </View>
-              </View>
-            </View>
-          </Animated.View>
+                );
+              })()}
+            </Animated.View>
 
-          {/* ── [1] Streak Banner with Companion ── */}
-          <Animated.View style={anim(1)}>
-            {(() => {
-              const companion = getStreakState(streak, dailyLog);
-              return (
-                <View
-                  style={[
-                    styles.streakCard,
-                    {
-                      backgroundColor: "#FAF5FF",
-                      borderWidth: 1,
-                      borderColor: "#F3E8FF",
-                      shadowColor: "#7C3AED",
-                      shadowOffset: { width: 0, height: 4 },
-                      shadowOpacity: 0.03,
-                      shadowRadius: 10,
-                      elevation: 2,
-                    },
-                  ]}
-                >
-                  <View style={styles.streakLeft}>
+            {/* ── [2] Recap Stats ── */}
+            {recapLoading || !adherenceRecap ? (
+              <Animated.View style={anim(2)}>
+                <View style={styles.card}>
+                  <View style={styles.cardHeaderRow}>
+                    <Skeleton width={120} height={18} />
+                    <Skeleton width={80} height={20} borderRadius={10} />
+                  </View>
+
+                  <View style={styles.recapStatsRow}>
+                    {[1, 2, 3].map((_, i) => (
+                      <View
+                        key={i}
+                        style={[
+                          styles.recapStatCard,
+                          { borderColor: "#E2E8F0", borderWidth: 1 },
+                        ]}
+                      >
+                        <Skeleton
+                          width={32}
+                          height={32}
+                          borderRadius={16}
+                          style={{ marginBottom: 8 }}
+                        />
+                        <Skeleton
+                          width={45}
+                          height={20}
+                          borderRadius={6}
+                          style={{ marginBottom: 6 }}
+                        />
+                        <Skeleton width={60} height={10} borderRadius={3} />
+                      </View>
+                    ))}
+                  </View>
+                  <Skeleton width={180} height={12} style={{ marginTop: 12 }} />
+                </View>
+              </Animated.View>
+            ) : (
+              <Animated.View style={anim(2)}>
+                <View style={styles.card}>
+                  <View style={styles.cardHeaderRow}>
+                    <Text style={styles.cardTitle}>
+                      {activeRecapTab === "yearly" &&
+                      adherenceRecap.is_all_time_fallback
+                        ? t("adherence.all_time_recap", {
+                            defaultValue: "ALL TIME RECAP",
+                          })
+                        : t("adherence.recap_title", {
+                            defaultValue: "{{tab}} RECAP",
+                            tab: getRecapLabels(t)[
+                              activeRecapTab
+                            ].toUpperCase(),
+                          })}
+                    </Text>
                     <View
                       style={[
-                        styles.companionImageWrap,
+                        styles.levelPill,
                         {
-                          backgroundColor: "#FFFFFF",
-                          borderColor: "#F3E8FF",
-                          borderWidth: 1.5,
+                          backgroundColor:
+                            (adherenceRecap.level?.key === "optimal"
+                              ? C.success
+                              : adherenceRecap.level?.key === "consistent"
+                                ? C.primary
+                                : C.warning) + "18",
                         },
                       ]}
                     >
-                      <StreakCompanion
-                        streak={streak}
-                        dailyLog={dailyLog}
-                        size={48}
-                      />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.streakNum}>
-                        {t("adherence.streak_days", {
-                          defaultValue: "{{streak}} Day Streak",
-                          streak,
-                        })}
+                      <Text style={{ fontSize: 12 }}>
+                        {adherenceRecap.level?.emoji || "🌱"}
                       </Text>
-                      <Text style={styles.companionLabel}>
-                        {companion.label}
+                      <Text
+                        style={[
+                          styles.levelPillText,
+                          {
+                            color:
+                              adherenceRecap.level?.key === "optimal"
+                                ? C.success
+                                : adherenceRecap.level?.key === "consistent"
+                                  ? C.primary
+                                  : C.warning,
+                          },
+                        ]}
+                      >
+                        {adherenceRecap.level?.label
+                          ? t(`adherence.level_${adherenceRecap.level.key}`, {
+                              defaultValue: adherenceRecap.level.label,
+                            })
+                          : t("adherence.level_beginner", {
+                              defaultValue: "Beginner",
+                            })}
                       </Text>
-                      <Text style={styles.streakSub}>{companion.subtitle}</Text>
                     </View>
                   </View>
-                  {streak > 0 && (
-                    <View style={styles.streakBadge}>
-                      <Text style={styles.streakBadgeNum}>{streak}</Text>
-                      <Text style={styles.streakBadgeLabel}>
-                        {t("adherence.days", { defaultValue: "DAYS" })}
+
+                  <View style={styles.recapStatsRow}>
+                    {(() => {
+                      const RECAP_ITEMS = [
+                        {
+                          label: t("common.adherence", {
+                            defaultValue: "Adherence",
+                          }),
+                          value: `${adherenceRecap.adherence_rate || 0}%`,
+                          color: "#7C3AED",
+                          bg: "#FAF5FF",
+                          Icon: CheckCircle2,
+                        },
+                        {
+                          label: t("adherence.perfect_days", {
+                            defaultValue: "Perfect Days",
+                          }),
+                          value: adherenceRecap.perfect_days || 0,
+                          color: "#7C3AED",
+                          bg: "#FAF5FF",
+                          Icon: CalIcon,
+                        },
+                        {
+                          label: t("adherence.doses_taken", {
+                            defaultValue: "Doses Taken",
+                          }),
+                          value: adherenceRecap.total_doses_taken || 0,
+                          color: "#7C3AED",
+                          bg: "#FAF5FF",
+                          Icon: Icons.Pill || Sparkles,
+                        },
+                      ];
+                      return RECAP_ITEMS.map((item, i) => {
+                        const CardIcon = item.Icon;
+                        return (
+                          <View key={i} style={styles.recapStatCard}>
+                            <View
+                              style={[
+                                styles.recapStatCardIconBg,
+                                { backgroundColor: item.bg },
+                              ]}
+                            >
+                              <CardIcon size={16} color={item.color} />
+                            </View>
+                            <Text
+                              style={[
+                                styles.recapStatCardValue,
+                                { color: item.color },
+                              ]}
+                            >
+                              {item.value}
+                            </Text>
+                            <Text style={styles.recapStatCardLabel}>
+                              {item.label}
+                            </Text>
+                          </View>
+                        );
+                      });
+                    })()}
+                  </View>
+
+                  {adherenceRecap.improvement_vs_previous !== 0 && (
+                    <View style={styles.tipBanner}>
+                      <Sparkles size={14} color="#7C3AED" />
+                      <Text style={styles.tipText}>
+                        {t("adherence.improvement_tip_prefix", {
+                          defaultValue: "You're ",
+                        })}
+                        <Text style={styles.tipBoldText}>
+                          {Math.abs(adherenceRecap.improvement_vs_previous)}%
+                        </Text>
+                        {adherenceRecap.improvement_vs_previous > 0
+                          ? t("adherence.improvement_tip_more", {
+                              defaultValue: " ahead of your previous ",
+                            })
+                          : t("adherence.improvement_tip_away", {
+                              defaultValue: " away from your previous ",
+                            })}
+                        {activeRecapTab === "yearly"
+                          ? t("adherence.year", { defaultValue: "year" })
+                          : activeRecapTab === "monthly"
+                            ? t("adherence.month", { defaultValue: "month" })
+                            : t("adherence.week", { defaultValue: "week" })}
+                        {t("adherence.improvement_tip_suffix", {
+                          defaultValue:
+                            ". Keep going! Consistency builds results.",
+                        })}
                       </Text>
                     </View>
                   )}
                 </View>
-              );
-            })()}
-          </Animated.View>
+              </Animated.View>
+            )}
 
-          {/* ── [2] Recap Stats ── */}
-          {recapLoading || !adherenceRecap ? (
-            <Animated.View style={anim(2)}>
-              <View style={styles.card}>
-                <View style={styles.cardHeaderRow}>
-                  <Skeleton width={120} height={18} />
-                  <Skeleton width={80} height={20} borderRadius={10} />
-                </View>
+            {/* ── [3] Feedback + Insights ── */}
+            <Animated.View style={anim(3)}>
+              <View
+                style={[
+                  styles.feedbackBanner,
+                  {
+                    backgroundColor: feedback.color + "12",
+                    borderColor: feedback.color + "30",
+                  },
+                ]}
+              >
+                <Heart
+                  size={16}
+                  color={feedback.color}
+                  fill={feedback.color + "40"}
+                />
+                <Text style={[styles.feedbackText, { color: feedback.color }]}>
+                  {feedback.text}
+                </Text>
+              </View>
 
-                <View style={styles.recapStatsRow}>
-                  {[1, 2, 3].map((_, i) => (
-                    <View
-                      key={i}
-                      style={[
-                        styles.recapStatCard,
-                        { borderColor: "#E2E8F0", borderWidth: 1 },
-                      ]}
-                    >
-                      <Skeleton
-                        width={32}
-                        height={32}
-                        borderRadius={16}
-                        style={{ marginBottom: 8 }}
-                      />
-                      <Skeleton
-                        width={45}
-                        height={20}
-                        borderRadius={6}
-                        style={{ marginBottom: 6 }}
-                      />
-                      <Skeleton width={60} height={10} borderRadius={3} />
+              {insights.length > 0 && (
+                <View style={{ gap: 10, marginBottom: 20 }}>
+                  {insights.map((insight, idx) => (
+                    <View key={idx} style={styles.insightCard}>
+                      <View style={styles.insightLeft}>
+                        <View style={styles.insightIconBox}>
+                          <Sparkles size={14} color={C.purple} />
+                        </View>
+                        <Text style={styles.insightText}>{insight}</Text>
+                      </View>
+                      {insight.includes("afternoon") && (
+                        <Pressable
+                          style={styles.reminderBtn}
+                          onPress={() =>
+                            Alert.alert(
+                              t("adherence.set_reminder", {
+                                defaultValue: "Set Reminder",
+                              }),
+                              t("adherence.reminder_desc", {
+                                defaultValue:
+                                  "Afternoon medication reminder will be added to your notifications.",
+                              }),
+                              [
+                                {
+                                  text: t("common.ok", { defaultValue: "OK" }),
+                                },
+                              ],
+                            )
+                          }
+                        >
+                          <Text style={styles.reminderBtnText}>
+                            {t("adherence.set_reminder", {
+                              defaultValue: "Set Reminder",
+                            })}
+                          </Text>
+                        </Pressable>
+                      )}
                     </View>
                   ))}
                 </View>
-                <Skeleton width={180} height={12} style={{ marginTop: 12 }} />
-              </View>
+              )}
             </Animated.View>
-          ) : (
-            <Animated.View style={anim(2)}>
+
+            {/* ── [4] 7-Day Trend ── */}
+            <Animated.View style={anim(4)}>
               <View style={styles.card}>
-                <View style={styles.cardHeaderRow}>
-                  <Text style={styles.cardTitle}>
-                    {activeRecapTab === "yearly" &&
-                    adherenceRecap.is_all_time_fallback
-                      ? t("adherence.all_time_recap", {
-                          defaultValue: "ALL TIME RECAP",
-                        })
-                      : t("adherence.recap_title", {
-                          defaultValue: "{{tab}} RECAP",
-                          tab: getRecapLabels(t)[activeRecapTab].toUpperCase(),
-                        })}
-                  </Text>
-                  <View
-                    style={[
-                      styles.levelPill,
-                      {
-                        backgroundColor:
-                          (adherenceRecap.level?.key === "optimal"
-                            ? C.success
-                            : adherenceRecap.level?.key === "consistent"
-                              ? C.primary
-                              : C.warning) + "18",
-                      },
-                    ]}
-                  >
-                    <Text style={{ fontSize: 12 }}>
-                      {adherenceRecap.level?.emoji || "🌱"}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.levelPillText,
-                        {
-                          color:
-                            adherenceRecap.level?.key === "optimal"
-                              ? C.success
-                              : adherenceRecap.level?.key === "consistent"
-                                ? C.primary
-                                : C.warning,
-                        },
-                      ]}
-                    >
-                      {adherenceRecap.level?.label
-                        ? t(`adherence.level_${adherenceRecap.level.key}`, {
-                            defaultValue: adherenceRecap.level.label,
-                          })
-                        : t("adherence.level_beginner", {
-                            defaultValue: "Beginner",
-                          })}
-                    </Text>
-                  </View>
-                </View>
+                <Text style={styles.cardTitle}>
+                  {t("common.7_day_adherence_trend", {
+                    defaultValue: "7-DAY ADHERENCE TREND",
+                  })}
+                </Text>
 
-                <View style={styles.recapStatsRow}>
-                  {(() => {
-                    const RECAP_ITEMS = [
-                      {
-                        label: t("common.adherence", {
-                          defaultValue: "Adherence",
-                        }),
-                        value: `${adherenceRecap.adherence_rate || 0}%`,
-                        color: "#7C3AED",
-                        bg: "#FAF5FF",
-                        Icon: CheckCircle2,
-                      },
-                      {
-                        label: t("adherence.perfect_days", {
-                          defaultValue: "Perfect Days",
-                        }),
-                        value: adherenceRecap.perfect_days || 0,
-                        color: "#7C3AED",
-                        bg: "#FAF5FF",
-                        Icon: CalIcon,
-                      },
-                      {
-                        label: t("adherence.doses_taken", {
-                          defaultValue: "Doses Taken",
-                        }),
-                        value: adherenceRecap.total_doses_taken || 0,
-                        color: "#7C3AED",
-                        bg: "#FAF5FF",
-                        Icon: Icons.Pill || Sparkles,
-                      },
-                    ];
-                    return RECAP_ITEMS.map((item, i) => {
-                      const CardIcon = item.Icon;
-                      return (
-                        <View key={i} style={styles.recapStatCard}>
-                          <View
-                            style={[
-                              styles.recapStatCardIconBg,
-                              { backgroundColor: item.bg },
-                            ]}
-                          >
-                            <CardIcon size={16} color={item.color} />
-                          </View>
-                          <Text
-                            style={[
-                              styles.recapStatCardValue,
-                              { color: item.color },
-                            ]}
-                          >
-                            {item.value}
-                          </Text>
-                          <Text style={styles.recapStatCardLabel}>
-                            {item.label}
-                          </Text>
-                        </View>
-                      );
-                    });
-                  })()}
-                </View>
-
-                {adherenceRecap.improvement_vs_previous !== 0 && (
-                  <View style={styles.tipBanner}>
-                    <Sparkles size={14} color="#7C3AED" />
-                    <Text style={styles.tipText}>
-                      {t("adherence.improvement_tip_prefix", {
-                        defaultValue: "You're ",
-                      })}
-                      <Text style={styles.tipBoldText}>
-                        {Math.abs(adherenceRecap.improvement_vs_previous)}%
-                      </Text>
-                      {adherenceRecap.improvement_vs_previous > 0
-                        ? t("adherence.improvement_tip_more", {
-                            defaultValue: " ahead of your previous ",
-                          })
-                        : t("adherence.improvement_tip_away", {
-                            defaultValue: " away from your previous ",
-                          })}
-                      {activeRecapTab === "yearly"
-                        ? t("adherence.year", { defaultValue: "year" })
-                        : activeRecapTab === "monthly"
-                          ? t("adherence.month", { defaultValue: "month" })
-                          : t("adherence.week", { defaultValue: "week" })}
-                      {t("adherence.improvement_tip_suffix", {
-                        defaultValue:
-                          ". Keep going! Consistency builds results.",
-                      })}
-                    </Text>
-                  </View>
-                )}
-              </View>
-            </Animated.View>
-          )}
-
-          {/* ── [3] Feedback + Insights ── */}
-          <Animated.View style={anim(3)}>
-            <View
-              style={[
-                styles.feedbackBanner,
-                {
-                  backgroundColor: feedback.color + "12",
-                  borderColor: feedback.color + "30",
-                },
-              ]}
-            >
-              <Heart
-                size={16}
-                color={feedback.color}
-                fill={feedback.color + "40"}
-              />
-              <Text style={[styles.feedbackText, { color: feedback.color }]}>
-                {feedback.text}
-              </Text>
-            </View>
-
-            {insights.length > 0 && (
-              <View style={{ gap: 10, marginBottom: 20 }}>
-                {insights.map((insight, idx) => (
-                  <View key={idx} style={styles.insightCard}>
-                    <View style={styles.insightLeft}>
-                      <View style={styles.insightIconBox}>
-                        <Sparkles size={14} color={C.purple} />
-                      </View>
-                      <Text style={styles.insightText}>{insight}</Text>
-                    </View>
-                    {insight.includes("afternoon") && (
-                      <Pressable
-                        style={styles.reminderBtn}
-                        onPress={() =>
-                          Alert.alert(
-                            t("adherence.set_reminder", {
-                              defaultValue: "Set Reminder",
-                            }),
-                            t("adherence.reminder_desc", {
-                              defaultValue:
-                                "Afternoon medication reminder will be added to your notifications.",
-                            }),
-                            [{ text: t("common.ok", { defaultValue: "OK" }) }],
-                          )
-                        }
-                      >
-                        <Text style={styles.reminderBtnText}>
-                          {t("adherence.set_reminder", {
-                            defaultValue: "Set Reminder",
-                          })}
-                        </Text>
-                      </Pressable>
-                    )}
-                  </View>
-                ))}
-              </View>
-            )}
-          </Animated.View>
-
-          {/* ── [4] 7-Day Trend ── */}
-          <Animated.View style={anim(4)}>
-            <View style={styles.card}>
-              <Text style={styles.cardTitle}>
-                {t("common.7_day_adherence_trend", {
-                  defaultValue: "7-DAY ADHERENCE TREND",
-                })}
-              </Text>
-
-              <View
-                style={{
-                  alignItems: "center",
-                  marginHorizontal: -8,
-                  marginTop: 4,
-                  marginBottom: 16,
-                }}
-              >
-                <LineChart
-                  data={{
-                    labels:
-                      weeklyTrend.length > 0
-                        ? weeklyTrend.map((d) => d.day)
-                        : [
-                            t("adherence.mon", { defaultValue: "Mon" }),
-                            t("adherence.tue", { defaultValue: "Tue" }),
-                            t("adherence.wed", { defaultValue: "Wed" }),
-                            t("adherence.thu", { defaultValue: "Thu" }),
-                            t("adherence.fri", { defaultValue: "Fri" }),
-                            t("adherence.sat", { defaultValue: "Sat" }),
-                            t("adherence.sun", { defaultValue: "Sun" }),
-                          ],
-                    datasets: [
-                      {
-                        data:
-                          weeklyTrend.length > 0
-                            ? weeklyTrend.map((d) => Math.max(d.rate, 1))
-                            : [1, 1, 1, 1, 1, 1, 1],
-                      },
-                    ],
+                <View
+                  style={{
+                    alignItems: "center",
+                    marginHorizontal: -8,
+                    marginTop: 4,
+                    marginBottom: 16,
                   }}
-                  width={SCREEN_WIDTH - 48}
-                  height={170}
-                  chartConfig={{
-                    backgroundColor: "transparent",
-                    backgroundGradientFrom: "#FFFFFF",
-                    backgroundGradientFromOpacity: 0,
-                    backgroundGradientTo: "#FFFFFF",
-                    backgroundGradientToOpacity: 0,
-                    decimalPlaces: 0,
-                    color: (opacity = 1) => `rgba(67, 97, 238, ${opacity})`,
-                    labelColor: (opacity = 1) =>
-                      `rgba(100, 116, 139, ${opacity})`,
-                    propsForDots: {
-                      r: "5",
-                      strokeWidth: "2",
-                      stroke: "#4361EE",
-                      fill: "#EEF2FF",
-                    },
-                    propsForBackgroundLines: {
-                      strokeDasharray: "4",
-                      strokeWidth: 1,
-                      stroke: "rgba(226, 232, 240, 0.8)",
-                    },
-                  }}
-                  bezier
-                  style={{ borderRadius: 16 }}
-                  withInnerLines
-                  withOuterLines={false}
-                  withVerticalLines={false}
-                />
-              </View>
-
-              <View style={styles.trendStatsRow}>
-                <View style={styles.trendStatItem}>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                    <View
-                      style={[styles.trendDot, { backgroundColor: C.success }]}
-                    />
-                    <Text style={styles.trendStatNum}>{weeklySummary.taken}</Text>
-                  </View>
-                  <Text style={styles.trendStatLabel}>
-                    {t("common.taken", { defaultValue: "Taken" })}
-                  </Text>
-                </View>
-                <View style={styles.trendDivider} />
-                <View style={styles.trendStatItem}>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                    <View
-                      style={[styles.trendDot, { backgroundColor: C.danger }]}
-                    />
-                    <Text style={styles.trendStatNum}>
-                      {weeklySummary.missed}
-                    </Text>
-                  </View>
-                  <Text style={styles.trendStatLabel}>
-                    {t("adherence.missed", { defaultValue: "Missed" })}
-                  </Text>
-                </View>
-                <View style={styles.trendDivider} />
-                <View style={styles.trendStatItem}>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-                    <MomentumIcon
-                      size={14}
-                      color={
-                        weeklySummary.improvement >= 0 ? C.success : C.danger
-                      }
-                    />
-                    <Text
-                      style={[
-                        styles.trendStatNum,
+                >
+                  <LineChart
+                    data={{
+                      labels:
+                        weeklyTrend.length > 0
+                          ? weeklyTrend.map((d) => d.day)
+                          : [
+                              t("adherence.mon", { defaultValue: "Mon" }),
+                              t("adherence.tue", { defaultValue: "Tue" }),
+                              t("adherence.wed", { defaultValue: "Wed" }),
+                              t("adherence.thu", { defaultValue: "Thu" }),
+                              t("adherence.fri", { defaultValue: "Fri" }),
+                              t("adherence.sat", { defaultValue: "Sat" }),
+                              t("adherence.sun", { defaultValue: "Sun" }),
+                            ],
+                      datasets: [
                         {
-                          color:
-                            weeklySummary.improvement >= 0 ? C.success : C.danger,
+                          data:
+                            weeklyTrend.length > 0
+                              ? weeklyTrend.map((d) => Math.max(d.rate, 1))
+                              : [1, 1, 1, 1, 1, 1, 1],
                         },
-                      ]}
-                    >
-                      {weeklySummary.improvement >= 0 ? "+" : ""}
-                      {weeklySummary.improvement}%
-                    </Text>
-                  </View>
-                  <Text style={styles.trendStatLabel}>
-                    {t("adherence.vs_last", { defaultValue: "vs Last" })}
-                  </Text>
-                </View>
-              </View>
-
-              {/* Vitals adherence row */}
-              <View style={styles.vitalsRow}>
-                <View style={styles.vitalsHeader}>
-                  <Heart size={14} color={C.danger} />
-                  <Text style={styles.vitalsLabel}>
-                    {t("adherence.vitals_logging", {
-                      defaultValue: "Vitals Logging",
-                    })}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.vitalsValue,
-                      {
-                        color:
-                          vitalsAdherence >= 70
-                            ? C.success
-                            : vitalsAdherence >= 40
-                              ? C.warning
-                              : C.danger,
+                      ],
+                    }}
+                    width={SCREEN_WIDTH - 48}
+                    height={170}
+                    chartConfig={{
+                      backgroundColor: "transparent",
+                      backgroundGradientFrom: "#FFFFFF",
+                      backgroundGradientFromOpacity: 0,
+                      backgroundGradientTo: "#FFFFFF",
+                      backgroundGradientToOpacity: 0,
+                      decimalPlaces: 0,
+                      color: (opacity = 1) => `rgba(67, 97, 238, ${opacity})`,
+                      labelColor: (opacity = 1) =>
+                        `rgba(100, 116, 139, ${opacity})`,
+                      propsForDots: {
+                        r: "5",
+                        strokeWidth: "2",
+                        stroke: "#4361EE",
+                        fill: "#EEF2FF",
                       },
-                    ]}
-                  >
-                    {vitalsAdherence}%
-                  </Text>
-                </View>
-                <View style={styles.vitalsBarBg}>
-                  <View
-                    style={[
-                      styles.vitalsBarFill,
-                      {
-                        width: `${vitalsAdherence}%`,
-                        backgroundColor:
-                          vitalsAdherence >= 70
-                            ? C.success
-                            : vitalsAdherence >= 40
-                              ? C.warning
-                              : C.danger,
+                      propsForBackgroundLines: {
+                        strokeDasharray: "4",
+                        strokeWidth: 1,
+                        stroke: "rgba(226, 232, 240, 0.8)",
                       },
-                    ]}
+                    }}
+                    bezier
+                    style={{ borderRadius: 16 }}
+                    withInnerLines
+                    withOuterLines={false}
+                    withVerticalLines={false}
                   />
                 </View>
-              </View>
-            </View>
-          </Animated.View>
 
-          {/* ── [5] Calendar Heatmap ── */}
-          <Animated.View style={anim(5)}>
-            <View style={styles.card}>
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 8,
-                  marginBottom: 16,
-                }}
-              >
-                <View
-                  style={[
-                    styles.cardIconBox,
-                    { backgroundColor: C.primarySoft },
-                  ]}
-                >
-                  <CalIcon size={15} color={C.primary} />
+                <View style={styles.trendStatsRow}>
+                  <View style={styles.trendStatItem}>
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 6,
+                      }}
+                    >
+                      <View
+                        style={[
+                          styles.trendDot,
+                          { backgroundColor: C.success },
+                        ]}
+                      />
+                      <Text style={styles.trendStatNum}>
+                        {weeklySummary.taken}
+                      </Text>
+                    </View>
+                    <Text style={styles.trendStatLabel}>
+                      {t("common.taken", { defaultValue: "Taken" })}
+                    </Text>
+                  </View>
+                  <View style={styles.trendDivider} />
+                  <View style={styles.trendStatItem}>
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 6,
+                      }}
+                    >
+                      <View
+                        style={[styles.trendDot, { backgroundColor: C.danger }]}
+                      />
+                      <Text style={styles.trendStatNum}>
+                        {weeklySummary.missed}
+                      </Text>
+                    </View>
+                    <Text style={styles.trendStatLabel}>
+                      {t("adherence.missed", { defaultValue: "Missed" })}
+                    </Text>
+                  </View>
+                  <View style={styles.trendDivider} />
+                  <View style={styles.trendStatItem}>
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 4,
+                      }}
+                    >
+                      <MomentumIcon
+                        size={14}
+                        color={
+                          weeklySummary.improvement >= 0 ? C.success : C.danger
+                        }
+                      />
+                      <Text
+                        style={[
+                          styles.trendStatNum,
+                          {
+                            color:
+                              weeklySummary.improvement >= 0
+                                ? C.success
+                                : C.danger,
+                          },
+                        ]}
+                      >
+                        {weeklySummary.improvement >= 0 ? "+" : ""}
+                        {weeklySummary.improvement}%
+                      </Text>
+                    </View>
+                    <Text style={styles.trendStatLabel}>
+                      {t("adherence.vs_last", { defaultValue: "vs Last" })}
+                    </Text>
+                  </View>
                 </View>
-                <Text style={styles.cardTitle}>
-                  {format(currentMonth, "MMMM yyyy").toUpperCase()}
-                </Text>
-                <View style={{ flex: 1 }} />
-                <Pressable
-                  onPress={() => setCurrentMonth((prev) => subMonths(prev, 1))}
-                  style={{ padding: 4 }}
-                >
-                  <ChevronLeft size={20} color={C.primary} />
-                </Pressable>
-                <Pressable
-                  onPress={() => setCurrentMonth((prev) => addMonths(prev, 1))}
-                  style={{ padding: 4 }}
-                >
-                  <ChevronRight size={20} color={C.primary} />
-                </Pressable>
-              </View>
 
-              <View style={styles.weekDaysRow}>
-                {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(
-                  (d, i) => (
-                    <Text key={i} style={styles.weekDayLabel}>
-                      {t(`adherence.short_day_${i}`, {
-                        defaultValue: d.charAt(0),
+                {/* Vitals adherence row */}
+                <View style={styles.vitalsRow}>
+                  <View style={styles.vitalsHeader}>
+                    <Heart size={14} color={C.danger} />
+                    <Text style={styles.vitalsLabel}>
+                      {t("adherence.vitals_logging", {
+                        defaultValue: "Vitals Logging",
                       })}
                     </Text>
-                  ),
-                )}
-              </View>
-
-              <View style={styles.calendarGrid}>
-                {calendarDays.map((date, idx) => {
-                  const dateStr = format(date, "yyyy-MM-dd");
-                  const entry = dailyLogMap[dateStr];
-                  return (
-                    <CalendarDay
-                      key={idx}
-                      date={date}
-                      status={entry?.status}
-                      isCurrentMonth={isSameMonth(date, currentMonth)}
-                      onPress={() => {
-                        const isPast = new Date(dateStr) < new Date();
-                        setSelectedDay(
-                          entry || {
-                            date: dateStr,
-                            status: isPast ? "missed" : "none",
-                            rate: 0,
-                            medicines: [],
-                            vitals: null,
-                            _noEntry: true,
-                            _isPast: isPast,
-                          },
-                        );
-                      }}
-                    />
-                  );
-                })}
-              </View>
-
-              <View style={styles.legendRow}>
-                {[
-                  {
-                    label: t("adherence.complete", {
-                      defaultValue: "Complete",
-                    }),
-                    color: C.success,
-                  },
-                  {
-                    label: t("adherence.partial", { defaultValue: "Partial" }),
-                    color: C.warning,
-                  },
-                  {
-                    label: t("adherence.missed", { defaultValue: "Missed" }),
-                    color: C.danger,
-                  },
-                  {
-                    label: t("adherence.no_data", { defaultValue: "No Data" }),
-                    color: "#CBD5E1",
-                  },
-                ].map((item) => (
-                  <View key={item.label} style={styles.legendItem}>
+                    <Text
+                      style={[
+                        styles.vitalsValue,
+                        {
+                          color:
+                            vitalsAdherence >= 70
+                              ? C.success
+                              : vitalsAdherence >= 40
+                                ? C.warning
+                                : C.danger,
+                        },
+                      ]}
+                    >
+                      {vitalsAdherence}%
+                    </Text>
+                  </View>
+                  <View style={styles.vitalsBarBg}>
                     <View
                       style={[
-                        styles.legendDot,
-                        { backgroundColor: item.color },
+                        styles.vitalsBarFill,
+                        {
+                          width: `${vitalsAdherence}%`,
+                          backgroundColor:
+                            vitalsAdherence >= 70
+                              ? C.success
+                              : vitalsAdherence >= 40
+                                ? C.warning
+                                : C.danger,
+                        },
                       ]}
                     />
-                    <Text style={styles.legendText}>{item.label}</Text>
                   </View>
-                ))}
+                </View>
               </View>
-            </View>
-          </Animated.View>
+            </Animated.View>
 
-          {/* ── [6] Achievements (Liquid Glass style) ── */}
-          <Animated.View style={[anim(6), { position: "relative" }]}>
-            <View style={{ marginBottom: 16 }}>
-              {/* Hero Achievement Journey card */}
-              <View
-                style={{
-                  borderRadius: 24,
-                  shadowColor: "#6A5AF9",
-                  shadowOffset: { width: 0, height: 8 },
-                  shadowOpacity: 0.08,
-                  shadowRadius: 18,
-                  elevation: 1,
-                  backgroundColor: "transparent",
-                  position: "relative",
-                }}
-              >
-                <LinearGradient
-                  colors={[
-                    "rgba(79, 70, 229, 0.88)",
-                    "rgba(99, 102, 241, 0.55)",
-                  ]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
+            {/* ── [5] Calendar Heatmap ── */}
+            <Animated.View style={anim(5)}>
+              <View style={styles.card}>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 8,
+                    marginBottom: 16,
+                  }}
+                >
+                  <View
+                    style={[
+                      styles.cardIconBox,
+                      { backgroundColor: C.primarySoft },
+                    ]}
+                  >
+                    <CalIcon size={15} color={C.primary} />
+                  </View>
+                  <Text style={styles.cardTitle}>
+                    {format(currentMonth, "MMMM yyyy").toUpperCase()}
+                  </Text>
+                  <View style={{ flex: 1 }} />
+                  <Pressable
+                    onPress={() =>
+                      setCurrentMonth((prev) => subMonths(prev, 1))
+                    }
+                    style={{ padding: 4 }}
+                  >
+                    <ChevronLeft size={20} color={C.primary} />
+                  </Pressable>
+                  <Pressable
+                    onPress={() =>
+                      setCurrentMonth((prev) => addMonths(prev, 1))
+                    }
+                    style={{ padding: 4 }}
+                  >
+                    <ChevronRight size={20} color={C.primary} />
+                  </Pressable>
+                </View>
+
+                <View style={styles.weekDaysRow}>
+                  {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(
+                    (d, i) => (
+                      <Text key={i} style={styles.weekDayLabel}>
+                        {t(`adherence.short_day_${i}`, {
+                          defaultValue: d.charAt(0),
+                        })}
+                      </Text>
+                    ),
+                  )}
+                </View>
+
+                <View style={styles.calendarGrid}>
+                  {calendarDays.map((date, idx) => {
+                    const dateStr = format(date, "yyyy-MM-dd");
+                    const entry = dailyLogMap[dateStr];
+                    return (
+                      <CalendarDay
+                        key={idx}
+                        date={date}
+                        status={entry?.status}
+                        isCurrentMonth={isSameMonth(date, currentMonth)}
+                        onPress={() => {
+                          const isPast = new Date(dateStr) < new Date();
+                          setSelectedDay(
+                            entry || {
+                              date: dateStr,
+                              status: isPast ? "missed" : "none",
+                              rate: 0,
+                              medicines: [],
+                              vitals: null,
+                              _noEntry: true,
+                              _isPast: isPast,
+                            },
+                          );
+                        }}
+                      />
+                    );
+                  })}
+                </View>
+
+                <View style={styles.legendRow}>
+                  {[
+                    {
+                      label: t("adherence.complete", {
+                        defaultValue: "Complete",
+                      }),
+                      color: C.success,
+                    },
+                    {
+                      label: t("adherence.partial", {
+                        defaultValue: "Partial",
+                      }),
+                      color: C.warning,
+                    },
+                    {
+                      label: t("adherence.missed", { defaultValue: "Missed" }),
+                      color: C.danger,
+                    },
+                    {
+                      label: t("adherence.no_data", {
+                        defaultValue: "No Data",
+                      }),
+                      color: "#CBD5E1",
+                    },
+                  ].map((item) => (
+                    <View key={item.label} style={styles.legendItem}>
+                      <View
+                        style={[
+                          styles.legendDot,
+                          { backgroundColor: item.color },
+                        ]}
+                      />
+                      <Text style={styles.legendText}>{item.label}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            </Animated.View>
+
+            {/* ── [6] Achievements (Liquid Glass style) ── */}
+            <Animated.View style={[anim(6), { position: "relative" }]}>
+              <View style={{ marginBottom: 16 }}>
+                {/* Hero Achievement Journey card */}
+                <View
                   style={{
                     borderRadius: 24,
-                    padding: 20,
-                    overflow: "hidden",
-                    borderWidth: 1,
-                    borderColor: "rgba(255, 255, 255, 0.22)",
+                    shadowColor: "#6A5AF9",
+                    shadowOffset: { width: 0, height: 8 },
+                    shadowOpacity: 0.08,
+                    shadowRadius: 18,
+                    elevation: 1,
+                    backgroundColor: "transparent",
+                    position: "relative",
                   }}
                 >
-                  {/* Ambient Back-Glow Circles (Inside overflow: 'hidden' to prevent leakage) */}
-                  <View
-                    style={{
-                      position: "absolute",
-                      top: -10,
-                      left: 14,
-                      width: 120,
-                      height: 120,
-                      borderRadius: 60,
-                      backgroundColor: "#8B5CF6",
-                      opacity: 0.35,
-                      transform: [{ scale: 1.2 }],
-                    }}
-                  />
-
-                  {/* Glass reflection highlight overlay */}
                   <LinearGradient
                     colors={[
-                      "rgba(255, 255, 255, 0.22)",
-                      "rgba(255, 255, 255, 0)",
+                      "rgba(79, 70, 229, 0.88)",
+                      "rgba(99, 102, 241, 0.55)",
                     ]}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
-                    style={StyleSheet.absoluteFillObject}
-                  />
-                  <View
                     style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      justifyContent: "space-between",
+                      borderRadius: 24,
+                      padding: 20,
+                      overflow: "hidden",
+                      borderWidth: 1,
+                      borderColor: "rgba(255, 255, 255, 0.22)",
                     }}
                   >
-                    <View style={{ flex: 1, paddingRight: 12 }}>
-                      <View
-                        style={{
-                          flexDirection: "row",
-                          alignItems: "center",
-                          gap: 6,
-                        }}
-                      >
-                        <Trophy size={14} color="#FFF" />
-                        <Text
-                          style={{
-                            fontSize: 11,
-                            fontWeight: "800",
-                            color: "#E0E7FF",
-                            letterSpacing: 0.8,
-                            textTransform: "uppercase",
-                          }}
-                        >
-                          Achievement Journey
-                        </Text>
-                      </View>
-                      <Text
-                        style={{
-                          fontSize: 22,
-                          fontWeight: "900",
-                          color: "white",
-                          marginTop: 6,
-                          letterSpacing: -0.5,
-                        }}
-                      >
-                        {unlockedCount}/{totalAchievementsCount} Unlocked
-                      </Text>
-
-                      {nextGoal && (
-                        <View
-                          style={{
-                            marginTop: 10,
-                            backgroundColor: "rgba(255, 255, 255, 0.08)",
-                            paddingHorizontal: 10,
-                            paddingVertical: 8,
-                            borderRadius: 10,
-                          }}
-                        >
-                          <Text
-                            style={{
-                              fontSize: 11,
-                              color: "#E0E7FF",
-                              fontWeight: "700",
-                            }}
-                          >
-                            Next:{" "}
-                            <Text style={{ color: "white", fontWeight: "800" }}>
-                              {nextGoal.meta.title || nextGoal.key}
-                            </Text>
-                          </Text>
-                          <Text
-                            style={{
-                              fontSize: 11,
-                              color: "#C7D2FE",
-                              fontWeight: "600",
-                              marginTop: 1,
-                            }}
-                          >
-                            {getRemainingLabel(nextGoal, nextGoal.meta)}
-                          </Text>
-                        </View>
-                      )}
-                    </View>
-
+                    {/* Ambient Back-Glow Circles (Inside overflow: 'hidden' to prevent leakage) */}
                     <View
                       style={{
-                        position: "relative",
-                        width: 84,
-                        height: 84,
+                        position: "absolute",
+                        top: -10,
+                        left: 14,
+                        width: 120,
+                        height: 120,
+                        borderRadius: 60,
+                        backgroundColor: "#8B5CF6",
+                        opacity: 0.35,
+                        transform: [{ scale: 1.2 }],
+                      }}
+                    />
+
+                    {/* Glass reflection highlight overlay */}
+                    <LinearGradient
+                      colors={[
+                        "rgba(255, 255, 255, 0.22)",
+                        "rgba(255, 255, 255, 0)",
+                      ]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={StyleSheet.absoluteFillObject}
+                    />
+                    <View
+                      style={{
+                        flexDirection: "row",
                         alignItems: "center",
-                        justifyContent: "center",
+                        justifyContent: "space-between",
                       }}
                     >
-                      <ProgressRing percent={completionPercentage} />
+                      <View style={{ flex: 1, paddingRight: 12 }}>
+                        <View
+                          style={{
+                            flexDirection: "row",
+                            alignItems: "center",
+                            gap: 6,
+                          }}
+                        >
+                          <Trophy size={14} color="#FFF" />
+                          <Text
+                            style={{
+                              fontSize: 11,
+                              fontWeight: "800",
+                              color: "#E0E7FF",
+                              letterSpacing: 0.8,
+                              textTransform: "uppercase",
+                            }}
+                          >
+                            Achievement Journey
+                          </Text>
+                        </View>
+                        <Text
+                          style={{
+                            fontSize: 22,
+                            fontWeight: "900",
+                            color: "white",
+                            marginTop: 6,
+                            letterSpacing: -0.5,
+                          }}
+                        >
+                          {unlockedCount}/{totalAchievementsCount} Unlocked
+                        </Text>
+
+                        {nextGoal && (
+                          <View
+                            style={{
+                              marginTop: 10,
+                              backgroundColor: "rgba(255, 255, 255, 0.08)",
+                              paddingHorizontal: 10,
+                              paddingVertical: 8,
+                              borderRadius: 10,
+                            }}
+                          >
+                            <Text
+                              style={{
+                                fontSize: 11,
+                                color: "#E0E7FF",
+                                fontWeight: "700",
+                              }}
+                            >
+                              Next:{" "}
+                              <Text
+                                style={{ color: "white", fontWeight: "800" }}
+                              >
+                                {nextGoal.meta.title || nextGoal.key}
+                              </Text>
+                            </Text>
+                            <Text
+                              style={{
+                                fontSize: 11,
+                                color: "#C7D2FE",
+                                fontWeight: "600",
+                                marginTop: 1,
+                              }}
+                            >
+                              {getRemainingLabel(nextGoal, nextGoal.meta)}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+
                       <View
                         style={{
-                          position: "absolute",
-                          top: 0,
-                          bottom: 0,
-                          left: 0,
-                          right: 0,
+                          position: "relative",
+                          width: 84,
+                          height: 84,
                           alignItems: "center",
                           justifyContent: "center",
                         }}
                       >
-                        <Text
+                        <ProgressRing percent={completionPercentage} />
+                        <View
                           style={{
-                            fontSize: 18,
-                            fontWeight: "900",
-                            color: "white",
-                            letterSpacing: -0.5,
+                            position: "absolute",
+                            top: 0,
+                            bottom: 0,
+                            left: 0,
+                            right: 0,
+                            alignItems: "center",
+                            justifyContent: "center",
                           }}
                         >
-                          {completionPercentage}%
-                        </Text>
+                          <Text
+                            style={{
+                              fontSize: 18,
+                              fontWeight: "900",
+                              color: "white",
+                              letterSpacing: -0.5,
+                            }}
+                          >
+                            {completionPercentage}%
+                          </Text>
+                        </View>
                       </View>
                     </View>
-                  </View>
-                </LinearGradient>
+                  </LinearGradient>
+                </View>
               </View>
-            </View>
 
-            {/* Category Sections */}
-            {Object.keys(CATEGORY_CONFIG).map((categoryKey, idx) => {
-              const catConfig = CATEGORY_CONFIG[categoryKey];
-              let catAchievements = achievementsByCategory[categoryKey] || [];
-              if (catAchievements.length === 0) return null;
+              {/* Category Sections */}
+              {Object.keys(CATEGORY_CONFIG).map((categoryKey, idx) => {
+                const catConfig = CATEGORY_CONFIG[categoryKey];
+                let catAchievements = achievementsByCategory[categoryKey] || [];
+                if (catAchievements.length === 0) return null;
 
-              // Enrich achievements with meta & tierConfig
-              catAchievements = catAchievements.map((a) => {
-                const meta =
-                  ACHIEVEMENTS.find((ach) => ach.key === a.key) || {};
-                return {
-                  ...a,
-                  meta,
-                  tierConfig: TIER_CONFIG[meta.tier] || TIER_CONFIG.bronze,
-                };
-              });
+                // Enrich achievements with meta & tierConfig
+                catAchievements = catAchievements.map((a) => {
+                  const meta =
+                    ACHIEVEMENTS.find((ach) => ach.key === a.key) || {};
+                  return {
+                    ...a,
+                    meta,
+                    tierConfig: TIER_CONFIG[meta.tier] || TIER_CONFIG.bronze,
+                  };
+                });
 
-              const unlockedCat = catAchievements.filter(
-                (a) => a.unlocked,
-              ).length;
+                const unlockedCat = catAchievements.filter(
+                  (a) => a.unlocked,
+                ).length;
 
-              return (
-                <View
-                  key={categoryKey}
-                  style={{
-                    marginBottom: 20,
-                    backgroundColor: "#FFFFFF",
-                    borderRadius: 24,
-                    borderWidth: 1,
-                    borderColor: catConfig.accent[0] + "1E",
-                    shadowColor: "#0F172A",
-                    shadowOffset: { width: 0, height: 6 },
-                    shadowOpacity: 0.04,
-                    shadowRadius: 16,
-                    elevation: 4,
-                    overflow: "hidden",
-                  }}
-                >
-                  <LinearGradient
-                    colors={[
-                      "#FFFFFF",
-                      catConfig.accent[0] + "03",
-                      catConfig.accent[0] + "0B",
-                    ]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={{ padding: 20 }}
+                return (
+                  <View
+                    key={categoryKey}
+                    style={{
+                      marginBottom: 20,
+                      backgroundColor: "#FFFFFF",
+                      borderRadius: 24,
+                      borderWidth: 1,
+                      borderColor: catConfig.accent[0] + "1E",
+                      shadowColor: "#0F172A",
+                      shadowOffset: { width: 0, height: 6 },
+                      shadowOpacity: 0.04,
+                      shadowRadius: 16,
+                      elevation: 4,
+                      overflow: "hidden",
+                    }}
                   >
-                    {/* Outer Double-Line Frame */}
-                    <View
-                      pointerEvents="none"
-                      style={{
-                        position: "absolute",
-                        top: 6,
-                        bottom: 6,
-                        left: 6,
-                        right: 6,
-                        borderRadius: 18,
-                        borderWidth: 1,
-                        borderColor: catConfig.accent[0] + "12",
-                        borderStyle: "solid",
-                      }}
-                    />
-
-                    {/* Inner Dashed Frame */}
-                    <View
-                      pointerEvents="none"
-                      style={{
-                        position: "absolute",
-                        top: 10,
-                        bottom: 10,
-                        left: 10,
-                        right: 10,
-                        borderRadius: 14,
-                        borderWidth: 0.8,
-                        borderColor: catConfig.accent[0] + "0C",
-                        borderStyle: "dashed",
-                      }}
-                    />
-
-                    {/* Watermark/Vector Decor in Corner */}
-                    <Svg
-                      pointerEvents="none"
-                      style={{ position: "absolute", right: -30, top: -30 }}
-                      width={160}
-                      height={160}
-                      viewBox="0 0 100 100"
+                    <LinearGradient
+                      colors={[
+                        "#FFFFFF",
+                        catConfig.accent[0] + "03",
+                        catConfig.accent[0] + "0B",
+                      ]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={{ padding: 20 }}
                     >
-                      <Circle
-                        cx="100"
-                        cy="0"
-                        r="30"
-                        stroke={catConfig.accent[0]}
-                        strokeWidth="0.8"
-                        strokeDasharray="3 3"
-                        fill="none"
-                        opacity={0.06}
+                      {/* Outer Double-Line Frame */}
+                      <View
+                        pointerEvents="none"
+                        style={{
+                          position: "absolute",
+                          top: 6,
+                          bottom: 6,
+                          left: 6,
+                          right: 6,
+                          borderRadius: 18,
+                          borderWidth: 1,
+                          borderColor: catConfig.accent[0] + "12",
+                          borderStyle: "solid",
+                        }}
                       />
-                      <Circle
-                        cx="100"
-                        cy="0"
-                        r="45"
-                        stroke={catConfig.accent[0]}
-                        strokeWidth="0.8"
-                        fill="none"
-                        opacity={0.04}
-                      />
-                      <Circle
-                        cx="100"
-                        cy="0"
-                        r="60"
-                        stroke={catConfig.accent[0]}
-                        strokeWidth="0.8"
-                        strokeDasharray="4 2"
-                        fill="none"
-                        opacity={0.05}
-                      />
-                      <Circle
-                        cx="100"
-                        cy="0"
-                        r="75"
-                        stroke={catConfig.accent[0]}
-                        strokeWidth="0.8"
-                        fill="none"
-                        opacity={0.03}
-                      />
-                      <Circle
-                        cx="100"
-                        cy="0"
-                        r="90"
-                        stroke={catConfig.accent[0]}
-                        strokeWidth="0.8"
-                        fill="none"
-                        opacity={0.02}
-                      />
-                    </Svg>
 
-                    <CategoryHeaderUi
-                      category={catConfig}
-                      unlockedCount={unlockedCat}
-                      totalCount={catAchievements.length}
-                    />
-                    {catConfig.layout === "timeline" ? (
-                      <TimelineLayout
-                        badges={catAchievements}
-                        onSelect={handleBadgePress}
+                      {/* Inner Dashed Frame */}
+                      <View
+                        pointerEvents="none"
+                        style={{
+                          position: "absolute",
+                          top: 10,
+                          bottom: 10,
+                          left: 10,
+                          right: 10,
+                          borderRadius: 14,
+                          borderWidth: 0.8,
+                          borderColor: catConfig.accent[0] + "0C",
+                          borderStyle: "dashed",
+                        }}
                       />
-                    ) : (
+
+                      {/* Watermark/Vector Decor in Corner */}
+                      <Svg
+                        pointerEvents="none"
+                        style={{ position: "absolute", right: -30, top: -30 }}
+                        width={160}
+                        height={160}
+                        viewBox="0 0 100 100"
+                      >
+                        <Circle
+                          cx="100"
+                          cy="0"
+                          r="30"
+                          stroke={catConfig.accent[0]}
+                          strokeWidth="0.8"
+                          strokeDasharray="3 3"
+                          fill="none"
+                          opacity={0.06}
+                        />
+                        <Circle
+                          cx="100"
+                          cy="0"
+                          r="45"
+                          stroke={catConfig.accent[0]}
+                          strokeWidth="0.8"
+                          fill="none"
+                          opacity={0.04}
+                        />
+                        <Circle
+                          cx="100"
+                          cy="0"
+                          r="60"
+                          stroke={catConfig.accent[0]}
+                          strokeWidth="0.8"
+                          strokeDasharray="4 2"
+                          fill="none"
+                          opacity={0.05}
+                        />
+                        <Circle
+                          cx="100"
+                          cy="0"
+                          r="75"
+                          stroke={catConfig.accent[0]}
+                          strokeWidth="0.8"
+                          fill="none"
+                          opacity={0.03}
+                        />
+                        <Circle
+                          cx="100"
+                          cy="0"
+                          r="90"
+                          stroke={catConfig.accent[0]}
+                          strokeWidth="0.8"
+                          fill="none"
+                          opacity={0.02}
+                        />
+                      </Svg>
+
+                      <CategoryHeaderUi
+                        category={catConfig}
+                        unlockedCount={unlockedCat}
+                        totalCount={catAchievements.length}
+                      />
+                      {catConfig.layout === "timeline" ? (
+                        <TimelineLayout
+                          badges={catAchievements}
+                          onSelect={handleBadgePress}
+                        />
+                      ) : (
+                        <View
+                          style={{
+                            flexDirection: "row",
+                            flexWrap: "wrap",
+                            gap: GRID_GAP,
+                            alignItems: "flex-start",
+                          }}
+                        >
+                          {catAchievements.map((b, i) => (
+                            <PremiumBadge
+                              key={i}
+                              data={b}
+                              onPress={() => handleBadgePress(b)}
+                            />
+                          ))}
+                        </View>
+                      )}
+                    </LinearGradient>
+                  </View>
+                );
+              })}
+            </Animated.View>
+          </ScrollView>
+        </SafeAreaView>
+
+        {/* ── Recap Story Modal ── */}
+        <RecapStoryModal
+          visible={showStoryModal}
+          onClose={() => setShowStoryModal(false)}
+          recap={adherenceRecap}
+          period={activeRecapTab}
+        />
+
+        {/* ── Day Detail Bottom Sheet ── */}
+        <Modal
+          visible={!!selectedDay}
+          animationType="slide"
+          transparent
+          onRequestClose={() => setSelectedDay(null)}
+        >
+          <View style={styles.modalOverlay}>
+            <Pressable
+              style={styles.modalBackdrop}
+              onPress={() => setSelectedDay(null)}
+            />
+            <View style={styles.bottomSheet}>
+              <View style={styles.sheetHandle} />
+              {selectedDay && (
+                <>
+                  <View style={styles.sheetHeader}>
+                    <View>
+                      <Text style={styles.sheetDate}>
+                        {format(parseISO(selectedDay.date), "EEEE, MMMM do")}
+                      </Text>
+                      <Text style={styles.sheetYear}>
+                        {format(parseISO(selectedDay.date), "yyyy")}
+                      </Text>
+                    </View>
+                    <View
+                      style={[
+                        styles.sheetBadge,
+                        {
+                          backgroundColor:
+                            STATUS_COLORS[selectedDay.status] + "22",
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.sheetBadgeText,
+                          { color: STATUS_COLORS[selectedDay.status] },
+                        ]}
+                      >
+                        {selectedDay.rate}% adherence
+                      </Text>
+                    </View>
+                  </View>
+
+                  {selectedDay.medicines && selectedDay.medicines.length > 0 ? (
+                    <View style={{ marginBottom: 16 }}>
+                      <Text style={styles.sheetSectionLabel}>
+                        {t("adherence.medications_label", {
+                          defaultValue: "MEDICATIONS",
+                        })}
+                      </Text>
+                      {selectedDay.medicines.map((med, idx) => (
+                        <View
+                          key={idx}
+                          style={{
+                            flexDirection: "row",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            backgroundColor: med.taken ? "#FAF5FF" : "#F8FAFC",
+                            borderRadius: 16,
+                            padding: 12,
+                            marginBottom: 10,
+                            borderWidth: 1,
+                            borderColor: med.taken ? "#F3E8FF" : "#E2E8F0",
+                            shadowColor: "#7C3AED",
+                            shadowOffset: { width: 0, height: 2 },
+                            shadowOpacity: med.taken ? 0.03 : 0,
+                            shadowRadius: 6,
+                            elevation: 1,
+                          }}
+                        >
+                          <View
+                            style={{
+                              flexDirection: "row",
+                              alignItems: "center",
+                              flex: 1,
+                            }}
+                          >
+                            <View
+                              style={{
+                                width: 32,
+                                height: 32,
+                                borderRadius: 16,
+                                backgroundColor: med.taken
+                                  ? "#ECFDF5"
+                                  : "#FEF2F2",
+                                alignItems: "center",
+                                justifyContent: "center",
+                              }}
+                            >
+                              {med.taken ? (
+                                <CheckCircle2 size={16} color="#10B981" />
+                              ) : (
+                                <X size={16} color="#EF4444" />
+                              )}
+                            </View>
+                            <View style={{ flex: 1, marginHorizontal: 12 }}>
+                              <Text
+                                style={{
+                                  fontSize: 15,
+                                  fontWeight: "700",
+                                  color: med.taken ? "#0F172A" : "#64748B",
+                                  textDecorationLine: med.taken
+                                    ? "none"
+                                    : "line-through",
+                                }}
+                              >
+                                {med.name}
+                              </Text>
+                            </View>
+                          </View>
+                          <View
+                            style={{
+                              backgroundColor: med.taken
+                                ? "#F5F3FF"
+                                : "#F1F5F9",
+                              paddingHorizontal: 10,
+                              paddingVertical: 5,
+                              borderRadius: 8,
+                            }}
+                          >
+                            <Text
+                              style={{
+                                fontSize: 10,
+                                fontWeight: "800",
+                                color: med.taken ? "#7C3AED" : "#64748B",
+                                textTransform: "uppercase",
+                              }}
+                            >
+                              {med.time}
+                            </Text>
+                          </View>
+                        </View>
+                      ))}
+                    </View>
+                  ) : (
+                    <View style={styles.sheetEmptyBox}>
+                      <Text style={styles.sheetEmptyIcon}>
+                        {selectedDay._noEntry && selectedDay._isPast
+                          ? "😴"
+                          : selectedDay._noEntry
+                            ? "📅"
+                            : "💊"}
+                      </Text>
+                      <Text style={styles.sheetEmptyTitle}>
+                        {selectedDay._noEntry && selectedDay._isPast
+                          ? t("adherence.no_log_past", {
+                              defaultValue: "No records for this day",
+                            })
+                          : selectedDay._noEntry
+                            ? t("adherence.no_log_future", {
+                                defaultValue: "No medications scheduled",
+                              })
+                            : t("adherence.no_meds_scheduled_day", {
+                                defaultValue:
+                                  "No medications scheduled for this day.",
+                              })}
+                      </Text>
+                      <Text style={styles.sheetEmptyDesc}>
+                        {selectedDay._noEntry && selectedDay._isPast
+                          ? t("adherence.no_log_past_desc", {
+                              defaultValue:
+                                "Medication data wasn't recorded for this day.",
+                            })
+                          : t("adherence.no_log_future_desc", {
+                              defaultValue:
+                                "This day has no scheduled medications.",
+                            })}
+                      </Text>
+                    </View>
+                  )}
+
+                  {selectedDay.vitals && (
+                    <View style={styles.sheetVitals}>
+                      <Text style={styles.sheetSectionLabel}>
+                        {t("adherence.vitals_logged_label", {
+                          defaultValue: "VITALS LOGGED",
+                        })}
+                      </Text>
                       <View
                         style={{
                           flexDirection: "row",
                           flexWrap: "wrap",
-                          gap: GRID_GAP,
+                          gap: 10,
+                          marginTop: 8,
                         }}
                       >
-                        {catAchievements.map((b, i) => (
-                          <PremiumBadge
-                            key={i}
-                            data={b}
-                            onPress={() => handleBadgePress(b)}
-                          />
-                        ))}
-                      </View>
-                    )}
-                  </LinearGradient>
-                </View>
-              );
-            })}
-          </Animated.View>
-        </ScrollView>
-      </SafeAreaView>
-
-      {/* ── Recap Story Modal ── */}
-      <RecapStoryModal
-        visible={showStoryModal}
-        onClose={() => setShowStoryModal(false)}
-        recap={adherenceRecap}
-        period={activeRecapTab}
-      />
-
-      {/* ── Day Detail Bottom Sheet ── */}
-      <Modal
-        visible={!!selectedDay}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setSelectedDay(null)}
-      >
-        <View style={styles.modalOverlay}>
-          <Pressable
-            style={styles.modalBackdrop}
-            onPress={() => setSelectedDay(null)}
-          />
-          <View style={styles.bottomSheet}>
-            <View style={styles.sheetHandle} />
-            {selectedDay && (
-              <>
-                <View style={styles.sheetHeader}>
-                  <View>
-                    <Text style={styles.sheetDate}>
-                      {format(parseISO(selectedDay.date), "EEEE, MMMM do")}
-                    </Text>
-                    <Text style={styles.sheetYear}>
-                      {format(parseISO(selectedDay.date), "yyyy")}
-                    </Text>
-                  </View>
-                  <View
-                    style={[
-                      styles.sheetBadge,
-                      {
-                        backgroundColor:
-                          STATUS_COLORS[selectedDay.status] + "22",
-                      },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.sheetBadgeText,
-                        { color: STATUS_COLORS[selectedDay.status] },
-                      ]}
-                    >
-                      {selectedDay.rate}% adherence
-                    </Text>
-                  </View>
-                </View>
-
-                {selectedDay.medicines && selectedDay.medicines.length > 0 ? (
-                  <View style={{ marginBottom: 16 }}>
-                    <Text style={styles.sheetSectionLabel}>
-                      {t("adherence.medications_label", {
-                        defaultValue: "MEDICATIONS",
-                      })}
-                    </Text>
-                    {selectedDay.medicines.map((med, idx) => (
-                      <View
-                        key={idx}
-                        style={{
-                          flexDirection: "row",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                          backgroundColor: med.taken ? "#FAF5FF" : "#F8FAFC",
-                          borderRadius: 16,
-                          padding: 12,
-                          marginBottom: 10,
-                          borderWidth: 1,
-                          borderColor: med.taken ? "#F3E8FF" : "#E2E8F0",
-                          shadowColor: "#7C3AED",
-                          shadowOffset: { width: 0, height: 2 },
-                          shadowOpacity: med.taken ? 0.03 : 0,
-                          shadowRadius: 6,
-                          elevation: 1,
-                        }}
-                      >
-                        <View style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
-                          <View
-                            style={{
-                              width: 32,
-                              height: 32,
-                              borderRadius: 16,
-                              backgroundColor: med.taken ? "#ECFDF5" : "#FEF2F2",
-                              alignItems: "center",
-                              justifyContent: "center",
-                            }}
-                          >
-                            {med.taken ? (
-                              <CheckCircle2 size={16} color="#10B981" />
-                            ) : (
-                              <X size={16} color="#EF4444" />
-                            )}
-                          </View>
-                          <View style={{ flex: 1, marginHorizontal: 12 }}>
-                            <Text
-                              style={{
-                                fontSize: 15,
-                                fontWeight: "700",
-                                color: med.taken ? "#0F172A" : "#64748B",
-                                textDecorationLine: med.taken ? "none" : "line-through",
-                              }}
-                            >
-                              {med.name}
+                        {selectedDay.vitals.heart_rate && (
+                          <View style={styles.sheetVitalChip}>
+                            <Text style={styles.sheetVitalText}>
+                              💓 {selectedDay.vitals.heart_rate} bpm
                             </Text>
                           </View>
-                        </View>
-                        <View
-                          style={{
-                            backgroundColor: med.taken ? "#F5F3FF" : "#F1F5F9",
-                            paddingHorizontal: 10,
-                            paddingVertical: 5,
-                            borderRadius: 8,
-                          }}
-                        >
-                          <Text
-                            style={{
-                              fontSize: 10,
-                              fontWeight: "800",
-                              color: med.taken ? "#7C3AED" : "#64748B",
-                              textTransform: "uppercase",
-                            }}
-                          >
-                            {med.time}
-                          </Text>
-                        </View>
+                        )}
+                        {selectedDay.vitals.systolic && (
+                          <View style={styles.sheetVitalChip}>
+                            <Text style={styles.sheetVitalText}>
+                              🩸 {selectedDay.vitals.systolic}/
+                              {selectedDay.vitals.diastolic}
+                            </Text>
+                          </View>
+                        )}
+                        {selectedDay.vitals.oxygen_saturation && (
+                          <View style={styles.sheetVitalChip}>
+                            <Text style={styles.sheetVitalText}>
+                              💨 {selectedDay.vitals.oxygen_saturation}%
+                            </Text>
+                          </View>
+                        )}
+                        {selectedDay.vitals.hydration && (
+                          <View style={styles.sheetVitalChip}>
+                            <Text style={styles.sheetVitalText}>
+                              💧 {selectedDay.vitals.hydration}%
+                            </Text>
+                          </View>
+                        )}
                       </View>
-                    ))}
-                  </View>
-                ) : (
-                  <View style={styles.sheetEmptyBox}>
-                    <Text style={styles.sheetEmptyIcon}>
-                      {selectedDay._noEntry && selectedDay._isPast
-                        ? "😴"
-                        : selectedDay._noEntry
-                          ? "📅"
-                          : "💊"}
-                    </Text>
-                    <Text style={styles.sheetEmptyTitle}>
-                      {selectedDay._noEntry && selectedDay._isPast
-                        ? t("adherence.no_log_past", {
-                            defaultValue: "No records for this day",
-                          })
-                        : selectedDay._noEntry
-                          ? t("adherence.no_log_future", {
-                              defaultValue: "No medications scheduled",
-                            })
-                          : t("adherence.no_meds_scheduled_day", {
-                              defaultValue:
-                                "No medications scheduled for this day.",
-                            })}
-                    </Text>
-                    <Text style={styles.sheetEmptyDesc}>
-                      {selectedDay._noEntry && selectedDay._isPast
-                        ? t("adherence.no_log_past_desc", {
-                            defaultValue:
-                              "Medication data wasn't recorded for this day.",
-                          })
-                        : t("adherence.no_log_future_desc", {
-                            defaultValue:
-                              "This day has no scheduled medications.",
-                          })}
-                    </Text>
-                  </View>
-                )}
-
-                {selectedDay.vitals && (
-                  <View style={styles.sheetVitals}>
-                    <Text style={styles.sheetSectionLabel}>
-                      {t("adherence.vitals_logged_label", {
-                        defaultValue: "VITALS LOGGED",
-                      })}
-                    </Text>
-                    <View
-                      style={{
-                        flexDirection: "row",
-                        flexWrap: "wrap",
-                        gap: 10,
-                        marginTop: 8,
-                      }}
-                    >
-                      {selectedDay.vitals.heart_rate && (
-                        <View style={styles.sheetVitalChip}>
-                          <Text style={styles.sheetVitalText}>
-                            💓 {selectedDay.vitals.heart_rate} bpm
-                          </Text>
-                        </View>
-                      )}
-                      {selectedDay.vitals.systolic && (
-                        <View style={styles.sheetVitalChip}>
-                          <Text style={styles.sheetVitalText}>
-                            🩸 {selectedDay.vitals.systolic}/
-                            {selectedDay.vitals.diastolic}
-                          </Text>
-                        </View>
-                      )}
-                      {selectedDay.vitals.oxygen_saturation && (
-                        <View style={styles.sheetVitalChip}>
-                          <Text style={styles.sheetVitalText}>
-                            💨 {selectedDay.vitals.oxygen_saturation}%
-                          </Text>
-                        </View>
-                      )}
-                      {selectedDay.vitals.hydration && (
-                        <View style={styles.sheetVitalChip}>
-                          <Text style={styles.sheetVitalText}>
-                            💧 {selectedDay.vitals.hydration}%
-                          </Text>
-                        </View>
-                      )}
                     </View>
-                  </View>
-                )}
-              </>
-            )}
+                  )}
+                </>
+              )}
+            </View>
           </View>
-        </View>
-      </Modal>
+        </Modal>
 
-      {/* ── Achievement Detail Modal ── */}
-      <Modal
-        visible={!!selectedBadge}
-        transparent
-        animationType="fade"
-        onRequestClose={handleCloseBadgeModal}
-      >
-        <View style={styles.badgeModalOverlay}>
-          <Pressable
-            style={styles.badgeModalBackdrop}
-            onPress={handleCloseBadgeModal}
-          />
+        {/* ── Achievement Detail Modal ── */}
+        <Modal
+          visible={!!selectedBadge}
+          transparent
+          animationType="fade"
+          onRequestClose={handleCloseBadgeModal}
+        >
+          <View style={styles.badgeModalOverlay}>
+            <Pressable
+              style={styles.badgeModalBackdrop}
+              onPress={handleCloseBadgeModal}
+            />
 
-          <Animated.View
-            style={[
-              styles.badgeModalContent,
-              {
-                transform: [{ scale: scaleAnim }],
-              },
-            ]}
-          >
-            {selectedBadge &&
-              (() => {
-                const meta =
-                  ACHIEVEMENTS.find((a) => a.key === selectedBadge.key) || {};
-                const tierInfo = TIER_CONFIG[meta.tier] || TIER_CONFIG.bronze;
-                const IconComponent = Icons[meta.iconName] || Icons.Award;
-                const isUnlocked = selectedBadge.unlocked;
-                const badgeRotation = badgeRotateAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: ["-15deg", "0deg"],
-                });
+            <Animated.View
+              style={[
+                styles.badgeModalContent,
+                {
+                  transform: [{ scale: scaleAnim }],
+                },
+              ]}
+            >
+              {selectedBadge &&
+                (() => {
+                  const meta =
+                    ACHIEVEMENTS.find((a) => a.key === selectedBadge.key) || {};
+                  const tierInfo = TIER_CONFIG[meta.tier] || TIER_CONFIG.bronze;
+                  const IconComponent = Icons[meta.iconName] || Icons.Award;
+                  const isUnlocked = selectedBadge.unlocked;
+                  const badgeRotation = badgeRotateAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: ["-15deg", "0deg"],
+                  });
 
-                return (
-                  <>
-                    {/* Close Button */}
-                    <Pressable
-                      style={styles.badgeModalClose}
-                      onPress={handleCloseBadgeModal}
-                    >
-                      <X size={18} color={C.muted} />
-                    </Pressable>
+                  return (
+                    <>
+                      {/* Close Button */}
+                      <Pressable
+                        style={styles.badgeModalClose}
+                        onPress={handleCloseBadgeModal}
+                      >
+                        <X size={18} color={C.muted} />
+                      </Pressable>
 
-                    {/* Large Glowing Collectible Trophy Container */}
-                    <Pressable
-                      onPress={() => {
-                        badgeScaleAnim.setValue(0.85);
-                        Animated.spring(badgeScaleAnim, {
-                          toValue: 1,
-                          friction: 4,
-                          tension: 40,
-                          useNativeDriver: true,
-                        }).start();
-                        try {
-                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                        } catch (e) {}
-                      }}
-                      style={{
-                        position: "relative",
-                        marginBottom: 24,
-                        width: 170,
-                        height: 170,
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
-                    >
-                      <Animated.View
+                      {/* Large Glowing Collectible Trophy Container */}
+                      <Pressable
+                        onPress={() => {
+                          badgeScaleAnim.setValue(0.85);
+                          Animated.spring(badgeScaleAnim, {
+                            toValue: 1,
+                            friction: 4,
+                            tension: 40,
+                            useNativeDriver: true,
+                          }).start();
+                          try {
+                            Haptics.impactAsync(
+                              Haptics.ImpactFeedbackStyle.Medium,
+                            );
+                          } catch (e) {}
+                        }}
                         style={{
-                          width: "100%",
-                          height: "100%",
+                          position: "relative",
+                          marginBottom: 24,
+                          width: 170,
+                          height: 170,
                           alignItems: "center",
                           justifyContent: "center",
-                          transform: [
-                            { scale: badgeScaleAnim },
-                            { rotate: badgeRotation },
-                          ],
                         }}
                       >
-                      {/* Multi-layered Glowing Halos */}
-                      <View
-                        style={{
-                          position: "absolute",
-                          width: 156,
-                          height: 156,
-                          borderRadius: 78,
-                          backgroundColor: isUnlocked
-                            ? tierInfo.color + "0C"
-                            : "#E2E8F015",
-                          transform: [{ scale: 1.15 }],
-                        }}
-                      />
-                      <View
-                        style={{
-                          position: "absolute",
-                          width: 130,
-                          height: 130,
-                          borderRadius: 65,
-                          backgroundColor: isUnlocked
-                            ? tierInfo.color + "1C"
-                            : "#E2E8F02C",
-                          transform: [{ scale: 1.05 }],
-                        }}
-                      />
-
-                      {isUnlocked ? (
-                        /* Large Unlocked Ringed Medal */
-                        <View
+                        <Animated.View
                           style={{
-                            width: 96,
-                            height: 96,
-                            borderRadius: 48,
-                            borderWidth: 3,
-                            borderColor: tierInfo.color,
-                            padding: 4,
+                            width: "100%",
+                            height: "100%",
                             alignItems: "center",
                             justifyContent: "center",
-                            shadowColor: tierInfo.color,
-                            shadowOffset: { width: 0, height: 6 },
-                            shadowOpacity: 0.35,
-                            shadowRadius: 10,
-                            elevation: 6,
+                            transform: [
+                              { scale: badgeScaleAnim },
+                              { rotate: badgeRotation },
+                            ],
                           }}
                         >
-                          <LinearGradient
-                            colors={tierInfo.gradient}
-                            style={{
-                              width: "100%",
-                              height: "100%",
-                              borderRadius: 40,
-                              alignItems: "center",
-                              justifyContent: "center",
-                            }}
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 1, y: 1 }}
-                          >
-                            <IconComponent size={40} color="#FFF" />
-                          </LinearGradient>
-
-                          {meta.tier === "legendary" && (
-                            <View
-                              style={{
-                                position: "absolute",
-                                top: -6,
-                                right: -6,
-                                backgroundColor: "#FBBF24",
-                                borderRadius: 12,
-                                width: 24,
-                                height: 24,
-                                alignItems: "center",
-                                justifyContent: "center",
-                                borderWidth: 2,
-                                borderColor: "#FFFFFF",
-                                shadowColor: "#000",
-                                shadowOffset: { width: 0, height: 2 },
-                                shadowOpacity: 0.2,
-                                shadowRadius: 3,
-                                elevation: 3,
-                              }}
-                            >
-                              <Icons.Crown
-                                size={12}
-                                color="#7C3AED"
-                                fill="#7C3AED"
-                              />
-                            </View>
-                          )}
-                        </View>
-                      ) : (
-                        /* Large Locked Ringed Medal */
-                        <View
-                          style={{
-                            width: 96,
-                            height: 96,
-                            borderRadius: 48,
-                            borderWidth: 2,
-                            borderColor: "#CBD5E1",
-                            borderStyle: "dashed",
-                            padding: 4,
-                            alignItems: "center",
-                            justifyContent: "center",
-                          }}
-                        >
-                          <View
-                            style={{
-                              width: "100%",
-                              height: "100%",
-                              borderRadius: 40,
-                              backgroundColor: "rgba(148, 163, 184, 0.05)",
-                              alignItems: "center",
-                              justifyContent: "center",
-                            }}
-                          >
-                            <IconComponent
-                              size={40}
-                              color="#94A3B8"
-                              style={{ opacity: 0.35 }}
-                            />
-                          </View>
+                          {/* Multi-layered Glowing Halos */}
                           <View
                             style={{
                               position: "absolute",
-                              bottom: -2,
-                              right: -2,
-                              backgroundColor: "#64748B",
-                              width: 26,
-                              height: 26,
-                              borderRadius: 13,
-                              alignItems: "center",
-                              justifyContent: "center",
-                              borderWidth: 2.5,
-                              borderColor: "#FFFFFF",
-                              shadowColor: "#000",
-                              shadowOffset: { width: 0, height: 2 },
-                              shadowOpacity: 0.15,
-                              shadowRadius: 3,
-                              elevation: 2,
+                              width: 156,
+                              height: 156,
+                              borderRadius: 78,
+                              backgroundColor: isUnlocked
+                                ? tierInfo.color + "0C"
+                                : "#E2E8F015",
+                              transform: [{ scale: 1.15 }],
                             }}
-                          >
-                            <Lock size={12} color="#FFF" />
-                          </View>
-                        </View>
-                      )}
-                      </Animated.View>
-                    </Pressable>
+                          />
+                          <View
+                            style={{
+                              position: "absolute",
+                              width: 130,
+                              height: 130,
+                              borderRadius: 65,
+                              backgroundColor: isUnlocked
+                                ? tierInfo.color + "1C"
+                                : "#E2E8F02C",
+                              transform: [{ scale: 1.05 }],
+                            }}
+                          />
 
-                    {/* Ribbon label */}
-                    <View
-                      style={[
-                        styles.badgeModalRibbon,
-                        {
-                          backgroundColor: tierInfo.bgColor,
-                          borderWidth: 1,
-                          borderColor: tierInfo.color + "25",
-                          flexDirection: "row",
-                          alignItems: "center",
-                          gap: 4,
-                          paddingHorizontal: 12,
-                          paddingVertical: 5,
-                          borderRadius: 12,
-                        },
-                      ]}
-                    >
-                      <IconComponent size={10} color={tierInfo.color} />
-                      <Text
-                        style={[
-                          styles.badgeModalRibbonTxt,
-                          { color: tierInfo.color, fontWeight: "850" },
-                        ]}
-                      >
-                        {tierInfo.label.toUpperCase()} ACHIEVEMENT
-                      </Text>
-                    </View>
+                          {isUnlocked ? (
+                            /* Large Unlocked Ringed Medal */
+                            <View
+                              style={{
+                                width: 96,
+                                height: 96,
+                                borderRadius: 48,
+                                borderWidth: 3,
+                                borderColor: tierInfo.color,
+                                padding: 4,
+                                alignItems: "center",
+                                justifyContent: "center",
+                                shadowColor: tierInfo.color,
+                                shadowOffset: { width: 0, height: 6 },
+                                shadowOpacity: 0.35,
+                                shadowRadius: 10,
+                                elevation: 6,
+                              }}
+                            >
+                              <LinearGradient
+                                colors={tierInfo.gradient}
+                                style={{
+                                  width: "100%",
+                                  height: "100%",
+                                  borderRadius: 40,
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                }}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 1 }}
+                              >
+                                <IconComponent size={40} color="#FFF" />
+                              </LinearGradient>
 
-                    {/* Title */}
-                    <Text style={styles.badgeModalTitle}>
-                      {meta.title || selectedBadge.key}
-                    </Text>
+                              {meta.tier === "legendary" && (
+                                <View
+                                  style={{
+                                    position: "absolute",
+                                    top: -6,
+                                    right: -6,
+                                    backgroundColor: "#FBBF24",
+                                    borderRadius: 12,
+                                    width: 24,
+                                    height: 24,
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    borderWidth: 2,
+                                    borderColor: "#FFFFFF",
+                                    shadowColor: "#000",
+                                    shadowOffset: { width: 0, height: 2 },
+                                    shadowOpacity: 0.2,
+                                    shadowRadius: 3,
+                                    elevation: 3,
+                                  }}
+                                >
+                                  <Icons.Crown
+                                    size={12}
+                                    color="#7C3AED"
+                                    fill="#7C3AED"
+                                  />
+                                </View>
+                              )}
+                            </View>
+                          ) : (
+                            /* Large Locked Ringed Medal */
+                            <View
+                              style={{
+                                width: 96,
+                                height: 96,
+                                borderRadius: 48,
+                                borderWidth: 2,
+                                borderColor: "#CBD5E1",
+                                borderStyle: "dashed",
+                                padding: 4,
+                                alignItems: "center",
+                                justifyContent: "center",
+                              }}
+                            >
+                              <View
+                                style={{
+                                  width: "100%",
+                                  height: "100%",
+                                  borderRadius: 40,
+                                  backgroundColor: "rgba(148, 163, 184, 0.05)",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                }}
+                              >
+                                <IconComponent
+                                  size={40}
+                                  color="#94A3B8"
+                                  style={{ opacity: 0.35 }}
+                                />
+                              </View>
+                              <View
+                                style={{
+                                  position: "absolute",
+                                  bottom: -2,
+                                  right: -2,
+                                  backgroundColor: "#64748B",
+                                  width: 26,
+                                  height: 26,
+                                  borderRadius: 13,
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  borderWidth: 2.5,
+                                  borderColor: "#FFFFFF",
+                                  shadowColor: "#000",
+                                  shadowOffset: { width: 0, height: 2 },
+                                  shadowOpacity: 0.15,
+                                  shadowRadius: 3,
+                                  elevation: 2,
+                                }}
+                              >
+                                <Lock size={12} color="#FFF" />
+                              </View>
+                            </View>
+                          )}
+                        </Animated.View>
+                      </Pressable>
 
-                    {/* Description */}
-                    <Text style={styles.badgeModalDesc}>
-                      {meta.description}
-                    </Text>
-
-                    <View style={styles.badgeModalDivider} />
-
-                    {/* Progress & Locked status banner */}
-                    {isUnlocked ? (
+                      {/* Ribbon label */}
                       <View
                         style={[
-                          styles.badgeModalStatusBox,
+                          styles.badgeModalRibbon,
                           {
                             backgroundColor: tierInfo.bgColor,
-                            borderColor: tierInfo.color + "20",
                             borderWidth: 1,
-                            shadowColor: tierInfo.color,
-                            shadowOpacity: 0.1,
-                            shadowRadius: 8,
-                            elevation: 2,
+                            borderColor: tierInfo.color + "25",
+                            flexDirection: "row",
+                            alignItems: "center",
+                            gap: 4,
+                            paddingHorizontal: 12,
+                            paddingVertical: 5,
+                            borderRadius: 12,
                           },
                         ]}
                       >
-                        <Sparkles size={15} color={tierInfo.color} />
+                        <IconComponent size={10} color={tierInfo.color} />
                         <Text
                           style={[
-                            styles.badgeModalStatusTextUnlocked,
-                            { color: tierInfo.color, fontWeight: "950" },
+                            styles.badgeModalRibbonTxt,
+                            { color: tierInfo.color, fontWeight: "850" },
                           ]}
                         >
-                          {selectedBadge.unlockedTime
-                            ? selectedBadge.unlockedTime.toUpperCase()
-                            : "UNLOCKED"}
+                          {tierInfo.label.toUpperCase()} ACHIEVEMENT
                         </Text>
                       </View>
-                    ) : (
-                      <View style={styles.badgeModalProgressContainer}>
-                        <View style={styles.badgeModalProgressHeader}>
-                          <Text style={styles.badgeModalProgressTitle}>
-                            Progress to Unlock
-                          </Text>
+
+                      {/* Title */}
+                      <Text style={styles.badgeModalTitle}>
+                        {meta.title || selectedBadge.key}
+                      </Text>
+
+                      {/* Description */}
+                      <Text style={styles.badgeModalDesc}>
+                        {meta.description}
+                      </Text>
+
+                      <View style={styles.badgeModalDivider} />
+
+                      {/* Progress & Locked status banner */}
+                      {isUnlocked ? (
+                        <View
+                          style={[
+                            styles.badgeModalStatusBox,
+                            {
+                              backgroundColor: tierInfo.bgColor,
+                              borderColor: tierInfo.color + "20",
+                              borderWidth: 1,
+                              shadowColor: tierInfo.color,
+                              shadowOpacity: 0.1,
+                              shadowRadius: 8,
+                              elevation: 2,
+                            },
+                          ]}
+                        >
+                          <Sparkles size={15} color={tierInfo.color} />
                           <Text
                             style={[
-                              styles.badgeModalProgressVal,
-                              { color: tierInfo.color, fontWeight: "900" },
+                              styles.badgeModalStatusTextUnlocked,
+                              { color: tierInfo.color, fontWeight: "950" },
                             ]}
                           >
-                            {selectedBadge.progressLabel || "0%"}
+                            {selectedBadge.unlockedTime
+                              ? selectedBadge.unlockedTime.toUpperCase()
+                              : "UNLOCKED"}
                           </Text>
                         </View>
-                        <View style={styles.badgeModalProgressBg}>
-                          <LinearGradient
-                            colors={tierInfo.gradient}
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 1, y: 0 }}
-                            style={[
-                              styles.badgeModalProgressFill,
-                              {
-                                width: `${Math.min(100, (selectedBadge.progress || 0) * 100)}%`,
-                              },
-                            ]}
-                          />
+                      ) : (
+                        <View style={styles.badgeModalProgressContainer}>
+                          <View style={styles.badgeModalProgressHeader}>
+                            <Text style={styles.badgeModalProgressTitle}>
+                              Progress to Unlock
+                            </Text>
+                            <Text
+                              style={[
+                                styles.badgeModalProgressVal,
+                                { color: tierInfo.color, fontWeight: "900" },
+                              ]}
+                            >
+                              {selectedBadge.progressLabel || "0%"}
+                            </Text>
+                          </View>
+                          <View style={styles.badgeModalProgressBg}>
+                            <LinearGradient
+                              colors={tierInfo.gradient}
+                              start={{ x: 0, y: 0 }}
+                              end={{ x: 1, y: 0 }}
+                              style={[
+                                styles.badgeModalProgressFill,
+                                {
+                                  width: `${Math.min(100, (selectedBadge.progress || 0) * 100)}%`,
+                                },
+                              ]}
+                            />
+                          </View>
                         </View>
-                      </View>
-                    )}
-                  </>
-                );
-              })()}
-          </Animated.View>
-        </View>
-      </Modal>
-    </View>
+                      )}
+                    </>
+                  );
+                })()}
+            </Animated.View>
+          </View>
+        </Modal>
+      </View>
     </TabScreenTransition>
   );
 }
