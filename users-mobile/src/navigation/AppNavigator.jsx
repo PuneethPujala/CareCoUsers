@@ -489,8 +489,8 @@ const styles = StyleSheet.create({
     tabItem: { width: 44, alignItems: "center", justifyContent: "center", height: "100%" },
     tabSlot: { width: 44, height: 44, borderRadius: 14, alignItems: "center", justifyContent: "center" },
     tabSlotActive: {
-        backgroundColor: "#2563EB",
-        shadowColor: "#2563EB", shadowOffset: { width: 0, height: 4 },
+        backgroundColor: "#7C3AED",
+        shadowColor: "#7C3AED", shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.35, shadowRadius: 8, elevation: 8,
     },
     loadingContainer: {

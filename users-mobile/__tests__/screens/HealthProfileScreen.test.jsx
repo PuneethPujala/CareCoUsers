@@ -89,6 +89,7 @@ jest.mock('lucide-react-native', () => {
   return {
     TriangleAlert: () => React.createElement(View),
     AlertTriangle: () => React.createElement(View),
+    Lock: () => React.createElement(View),
     ShieldCheck: () => React.createElement(View),
     HeartPulse: () => React.createElement(View),
     Activity: () => React.createElement(View),
@@ -217,5 +218,87 @@ describe('HealthProfileScreen', () => {
       },
     });
     expect(toJSON()).toBeTruthy();
+  });
+
+  describe('Profile Completion Score Lock', () => {
+    const makeProfile = (overrides = {}) => ({
+      data: {
+        blood_type: null,
+        conditions: [],
+        allergies: [],
+        medical_history: [],
+        medications: [],
+        vaccinations: [],
+        appointments: [],
+        lifestyle: {},
+        gp: {},
+        health_score: {
+          score: 72,
+          grade: 'B',
+          label: 'Good',
+          color: '#7C3AED',
+          bracket: 'senior',
+          breakdown: {
+            adherence: { pts: 20, max: 30 },
+            lifestyle: { pts: 12, max: 20 },
+            vitals: { pts: 10, max: 15 },
+            conditions: { pts: 12, max: 15 },
+            preventive: { pts: 8, max: 10 },
+            mobility: { pts: 10, max: 10 },
+          },
+          tips: [],
+        },
+        ...overrides,
+      },
+    });
+
+    it('shows "Building Profile" when profile is mostly empty (< 50% completion)', async () => {
+      // Empty profile: no blood type, no lifestyle, no GP, no conditions, etc.
+      const { queryByText } = await renderScreen(makeProfile());
+      expect(queryByText('Building Profile')).toBeTruthy();
+    });
+
+    it('hides numerical health score when completion < 50%', async () => {
+      // Score of 72 should NOT be visible when profile is incomplete
+      const { queryByText } = await renderScreen(makeProfile());
+      // The score number should not appear; instead it shows '—'
+      expect(queryByText('72')).toBeNull();
+    });
+
+    it('shows health score when profile is sufficiently complete (>= 50%)', async () => {
+      // Provide enough data for >= 50% completion
+      const completeProfile = makeProfile({
+        blood_type: 'O+',
+        date_of_birth: '1960-05-15',
+        gender: 'male',
+        lifestyle: {
+          height_cm: 170,
+          weight_kg: 75,
+          smoking_status: 'never',
+          alcohol_use: 'none',
+          exercise_frequency: 'moderate',
+          mobility_level: 'full',
+        },
+        gp: {
+          name: 'Dr. Smith',
+          phone: '+919999999999',
+        },
+        conditions: [{ name: 'Hypertension', status: 'managed' }],
+        trusted_contacts: [{ name: 'Jane', phone: '+911111111111', is_emergency: true }],
+      });
+      const { queryByText } = await renderScreen(completeProfile);
+      // "Building Profile" should NOT appear when >= 50% complete
+      expect(queryByText('Building Profile')).toBeNull();
+    });
+
+    it('shows "Complete profile to unlock" hint when locked', async () => {
+      const { queryByText } = await renderScreen(makeProfile());
+      expect(queryByText('Complete profile to unlock')).toBeTruthy();
+    });
+
+    it('shows "Tap to view checklist" hint when locked', async () => {
+      const { queryByText } = await renderScreen(makeProfile());
+      expect(queryByText('Tap to view checklist')).toBeTruthy();
+    });
   });
 });

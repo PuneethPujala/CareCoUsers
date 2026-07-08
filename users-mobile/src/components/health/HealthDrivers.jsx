@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { colors } from '../../theme';
-import { FONT, getDriverColor } from './constants';
+import { FONT } from './constants';
 
 export default function HealthDrivers({ driverData }) {
     return (
@@ -14,10 +14,10 @@ export default function HealthDrivers({ driverData }) {
                         <View key={idx}>
                             <View style={s.driverHeader}>
                                 <Text style={s.driverLabel}>{driver.icon} {driver.label}</Text>
-                                <Text style={[s.driverPct, { color: getDriverColor(driver.pct) }]}>{driver.pct}%</Text>
+                                <Text style={s.driverPct}>{driver.pct}%</Text>
                             </View>
                             <View style={s.progressBarBg}>
-                                <View style={[s.progressBarFill, { width: `${driver.pct}%`, backgroundColor: getDriverColor(driver.pct) }]} />
+                                <View style={[s.progressBarFill, { width: `${driver.pct}%`, backgroundColor: '#7C3AED' }]} />
                             </View>
                         </View>
                     ))}
@@ -42,7 +42,7 @@ const s = StyleSheet.create({
     sectionTitle: {
         fontSize: 12,
         ...FONT.heavy,
-        color: colors.textMuted,
+        color: '#94A3B8',
         letterSpacing: 0.8,
         textTransform: 'uppercase',
         marginBottom: 12,
@@ -58,29 +58,30 @@ const s = StyleSheet.create({
     driverLabel: {
         fontSize: 14,
         ...FONT.bold,
-        color: colors.textPrimary,
+        color: '#0F172A',
     },
     driverPct: {
         fontSize: 13,
         ...FONT.bold,
+        color: '#7C3AED',
     },
     progressBarBg: {
-        height: 12,
-        backgroundColor: colors.borderLight,
-        borderRadius: 6,
+        height: 10,
+        backgroundColor: '#F1F5F9',
+        borderRadius: 5,
         overflow: 'hidden',
     },
     progressBarFill: {
         height: '100%',
-        borderRadius: 6,
+        borderRadius: 5,
     },
     emptyCard: {
-        backgroundColor: colors.background,
+        backgroundColor: '#FFFFFF',
         borderRadius: 20,
         padding: 24,
         alignItems: 'center',
         borderWidth: 1,
-        borderColor: colors.borderLight,
+        borderColor: 'rgba(15, 23, 42, 0.04)',
     },
     emptyIcon: {
         fontSize: 24,
@@ -89,14 +90,15 @@ const s = StyleSheet.create({
     emptyTitle: {
         fontSize: 13,
         ...FONT.bold,
-        color: colors.textSecondary,
+        color: '#0F172A',
         marginBottom: 4,
     },
     emptyDesc: {
         fontSize: 12,
         ...FONT.medium,
-        color: colors.textMuted,
+        color: '#94A3B8',
         textAlign: 'center',
         lineHeight: 18,
     },
 });
+

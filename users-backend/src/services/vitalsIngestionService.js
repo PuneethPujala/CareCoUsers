@@ -10,6 +10,8 @@ const DANGER_THRESHOLDS = {
   oxygen_saturation: { min: 88, max: 100 },
   systolic: { min: 70, max: 200 },
   diastolic: { min: 40, max: 130 },
+  blood_glucose: { min: 54, max: 400 },
+  respiratory_rate: { min: 8, max: 40 },
 };
 
 class VitalsIngestionService {
@@ -35,7 +37,7 @@ class VitalsIngestionService {
 
     for (const reading of readings) {
       // ── Validate required fields ──────────────────────────
-      if (!reading.timestamp || !reading.heart_rate) {
+      if (!reading.timestamp) {
         summary.invalid++;
         continue;
       }
@@ -46,9 +48,17 @@ class VitalsIngestionService {
         continue;
       }
 
-      // Range-check heart_rate
-      const hr = Number(reading.heart_rate);
-      if (hr < 30 || hr > 250) {
+      // We must have at least one valid metric to save
+      const hasAnyMetric =
+        reading.heart_rate != null ||
+        reading.oxygen_saturation != null ||
+        reading.blood_pressure != null ||
+        reading.blood_glucose != null ||
+        reading.respiratory_rate != null ||
+        reading.hydration != null ||
+        reading.temperature != null;
+
+      if (!hasAnyMetric) {
         summary.invalid++;
         continue;
       }
@@ -58,14 +68,27 @@ class VitalsIngestionService {
         patient_id: patientId,
         date: rawTimestamp,
         raw_timestamp: rawTimestamp,
-        heart_rate: hr,
         source,
       };
 
-      // Optional fields from device
+      if (reading.heart_rate != null) {
+        const hr = Number(reading.heart_rate);
+        if (hr >= 30 && hr <= 250) {
+          doc.heart_rate = hr;
+        } else {
+          summary.invalid++;
+          continue;
+        }
+      }
+
       if (reading.oxygen_saturation != null) {
         const o2 = Number(reading.oxygen_saturation);
-        if (o2 >= 0 && o2 <= 100) doc.oxygen_saturation = o2;
+        if (o2 >= 0 && o2 <= 100) {
+          doc.oxygen_saturation = o2;
+        } else {
+          summary.invalid++;
+          continue;
+        }
       }
 
       if (
@@ -76,7 +99,63 @@ class VitalsIngestionService {
         const dia = Number(reading.blood_pressure.diastolic);
         if (sys >= 60 && sys <= 250 && dia >= 40 && dia <= 150) {
           doc.blood_pressure = { systolic: sys, diastolic: dia };
+        } else {
+          summary.invalid++;
+          continue;
         }
+      }
+
+      if (reading.hydration != null) {
+        const hyd = Number(reading.hydration);
+        if (hyd >= 0 && hyd <= 100) {
+          doc.hydration = hyd;
+        } else {
+          summary.invalid++;
+          continue;
+        }
+      }
+
+      if (reading.temperature != null) {
+        const temp = Number(reading.temperature);
+        if (temp >= 90 && temp <= 110) {
+          doc.temperature = temp;
+        } else {
+          summary.invalid++;
+          continue;
+        }
+      }
+
+      if (reading.blood_glucose != null) {
+        const bg = Number(reading.blood_glucose);
+        if (bg >= 20 && bg <= 600) {
+          doc.blood_glucose = bg;
+        } else {
+          summary.invalid++;
+          continue;
+        }
+      }
+
+      if (reading.respiratory_rate != null) {
+        const rr = Number(reading.respiratory_rate);
+        if (rr >= 4 && rr <= 60) {
+          doc.respiratory_rate = rr;
+        } else {
+          summary.invalid++;
+          continue;
+        }
+      }
+
+      // Attach metadata if available
+      if (reading.metadata) {
+        doc.metadata = {
+          device_name: reading.metadata.device_name,
+          device_manufacturer: reading.metadata.device_manufacturer,
+          device_model: reading.metadata.device_model,
+          record_id: reading.metadata.record_id,
+          last_modified: reading.metadata.last_modified ? new Date(reading.metadata.last_modified) : undefined,
+          timezone: reading.metadata.timezone,
+          recorded_at: reading.metadata.recorded_at ? new Date(reading.metadata.recorded_at) : undefined,
+        };
       }
 
       // ── Anomaly detection ─────────────────────────────────
@@ -142,11 +221,13 @@ class VitalsIngestionService {
   static _detectAnomaly(doc) {
     const alerts = [];
 
-    if (doc.heart_rate < DANGER_THRESHOLDS.heart_rate.min) {
-      alerts.push(`Heart rate critically low: ${doc.heart_rate} bpm`);
-    }
-    if (doc.heart_rate > DANGER_THRESHOLDS.heart_rate.max) {
-      alerts.push(`Heart rate critically high: ${doc.heart_rate} bpm`);
+    if (doc.heart_rate != null) {
+      if (doc.heart_rate < DANGER_THRESHOLDS.heart_rate.min) {
+        alerts.push(`Heart rate critically low: ${doc.heart_rate} bpm`);
+      }
+      if (doc.heart_rate > DANGER_THRESHOLDS.heart_rate.max) {
+        alerts.push(`Heart rate critically high: ${doc.heart_rate} bpm`);
+      }
     }
 
     if (
@@ -166,6 +247,24 @@ class VitalsIngestionService {
         alerts.push(
           `Systolic BP critically low: ${doc.blood_pressure.systolic} mmHg`,
         );
+      }
+    }
+
+    if (doc.blood_glucose != null) {
+      if (doc.blood_glucose < DANGER_THRESHOLDS.blood_glucose.min) {
+        alerts.push(`Blood glucose critically low: ${doc.blood_glucose} mg/dL`);
+      }
+      if (doc.blood_glucose > DANGER_THRESHOLDS.blood_glucose.max) {
+        alerts.push(`Blood glucose critically high: ${doc.blood_glucose} mg/dL`);
+      }
+    }
+
+    if (doc.respiratory_rate != null) {
+      if (doc.respiratory_rate < DANGER_THRESHOLDS.respiratory_rate.min) {
+        alerts.push(`Respiratory rate critically low: ${doc.respiratory_rate} breaths/min`);
+      }
+      if (doc.respiratory_rate > DANGER_THRESHOLDS.respiratory_rate.max) {
+        alerts.push(`Respiratory rate critically high: ${doc.respiratory_rate} breaths/min`);
       }
     }
 

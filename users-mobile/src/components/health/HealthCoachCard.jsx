@@ -35,8 +35,8 @@ export default function HealthCoachCard({ coachData, onPressCoach }) {
             <Image source={coachIllus} style={s.illustration} />
             <View style={s.cardBody}>
                 <View style={s.headerRow}>
-                    <Sparkles size={16} color={colors.primary} />
-                    <Text style={s.headerEyebrow}>AI HEALTH COACH</Text>
+                    <Sparkles size={16} color="#7C3AED" />
+                    <Text style={s.headerEyebrow}>HEALTH COACH</Text>
                     {topTip && (
                         <View style={s.tipBadge}>
                             <Text style={s.tipBadgeTxt}>{(topTip.impact || 'TIP').toUpperCase()}</Text>
@@ -67,7 +67,7 @@ export default function HealthCoachCard({ coachData, onPressCoach }) {
                         style={({ pressed }) => [s.ctaBtn, pressed && { opacity: 0.7 }]}
                     >
                         <Text style={s.ctaTxt}>{coachCtaText}</Text>
-                        <ChevronRight size={14} color={colors.primary} />
+                        <ChevronRight size={14} color="#7C3AED" />
                     </Pressable>
                 </View>
             </View>
@@ -77,10 +77,10 @@ export default function HealthCoachCard({ coachData, onPressCoach }) {
 
 const s = StyleSheet.create({
     cardContainer: {
-        backgroundColor: colors.primarySoft,
-        borderRadius: 24,
-        borderWidth: 1.5,
-        borderColor: '#E0E7FF',
+        backgroundColor: '#FAF5FF',
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: '#F3E8FF',
         marginBottom: 20,
         position: 'relative',
         overflow: 'hidden',
@@ -89,8 +89,8 @@ const s = StyleSheet.create({
         width: '100%',
         height: 140,
         resizeMode: 'cover',
-        borderTopLeftRadius: 22,
-        borderTopRightRadius: 22,
+        borderTopLeftRadius: 18,
+        borderTopRightRadius: 18,
     },
     cardBody: {
         padding: 20,
@@ -104,11 +104,11 @@ const s = StyleSheet.create({
     headerEyebrow: {
         fontSize: 12,
         ...FONT.heavy,
-        color: colors.primary,
+        color: '#7C3AED',
         letterSpacing: 0.8,
     },
     tipBadge: {
-        backgroundColor: '#E0E7FF',
+        backgroundColor: '#F3E8FF',
         paddingHorizontal: 8,
         paddingVertical: 2,
         borderRadius: 8,
@@ -117,19 +117,19 @@ const s = StyleSheet.create({
     tipBadgeTxt: {
         fontSize: 9,
         ...FONT.bold,
-        color: colors.primaryDark,
+        color: '#7C3AED',
     },
     coachActionTitle: {
         fontSize: 16,
         ...FONT.bold,
-        color: colors.textPrimary,
+        color: '#0F172A',
         lineHeight: 22,
         marginBottom: 4,
     },
     coachActionBody: {
         fontSize: 13,
         ...FONT.medium,
-        color: colors.textSecondary,
+        color: '#475569',
         lineHeight: 18,
         marginBottom: 12,
     },
@@ -148,7 +148,7 @@ const s = StyleSheet.create({
     scoreImpactTxt: {
         fontSize: 12,
         ...FONT.heavy,
-        color: colors.success,
+        color: '#10B981',
         letterSpacing: 0.2,
     },
     ctaBtn: {
@@ -159,6 +159,7 @@ const s = StyleSheet.create({
     ctaTxt: {
         fontSize: 12,
         ...FONT.bold,
-        color: colors.primaryDark,
+        color: '#7C3AED',
     },
 });
+

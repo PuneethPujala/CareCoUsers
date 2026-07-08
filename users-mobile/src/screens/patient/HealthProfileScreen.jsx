@@ -14,7 +14,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import TabScreenTransition from '../../components/ui/TabScreenTransition';
 import { useTranslation } from 'react-i18next';
 import { LinearGradient } from 'expo-linear-gradient';
-import { AlertTriangle, ShieldCheck, HeartPulse, Activity, Droplet, Phone, Plus, Pencil, X, Trash2, CheckCircle2, RefreshCw, ChevronDown, Upload, Siren, ChevronRight, TrendingUp, TrendingDown, Sparkles, Bell, FileText, Pill, Syringe, Link2, Users, Calendar, Info, Clock, MapPin } from 'lucide-react-native';
+import { AlertTriangle, ShieldCheck, Lock, HeartPulse, Activity, Droplet, Phone, Plus, Pencil, X, Trash2, CheckCircle2, RefreshCw, ChevronDown, Upload, Siren, ChevronRight, TrendingUp, TrendingDown, Sparkles, Bell, FileText, Pill, Syringe, Link2, Users, Calendar, Info, Clock, MapPin } from 'lucide-react-native';
 import { StatusBar } from 'react-native';
 import Svg, { Circle as SvgCircle, Path, Defs, LinearGradient as SvgLinearGradient, Stop, Rect } from 'react-native-svg';
 import * as Haptics from 'expo-haptics';
@@ -70,7 +70,7 @@ const ALLERGY_SEVERITY = {
 const CONDITION_STATUS = {
     active: { bg: '#FEE2E2', text: '#991B1B' },
     managed: { bg: '#DCFCE7', text: '#166534' },
-    resolved: { bg: '#F0F9FF', text: '#075985' },
+    resolved: { bg: '#FAF5FF', text: '#5B21B6' },
 };
 
 const ChipSelector = ({ options, selected, onSelect, vertical = false }) => (
@@ -161,6 +161,142 @@ const getConsistencyStyle = (score) => {
     return { label: 'Limited Tracking', color: '#64748B' };
 };
 
+const cmToFtIn = (cm) => {
+    if (!cm) return '';
+    const realInches = cm / 2.54;
+    const ft = Math.floor(realInches / 12);
+    const inch = Math.round(realInches % 12);
+    if (inch === 12) {
+        return `${ft + 1} ft 0 in`;
+    }
+    return `${ft} ft ${inch} in`;
+};
+
+const TactileWheelPicker = ({ data, selectedValue, onValueChange, itemHeight = 44 }) => {
+    const flatListRef = useRef(null);
+    const scrollY = useRef(new Animated.Value(0)).current;
+    
+    const paddedData = useMemo(() => {
+        return [
+            { isPlaceholder: true, key: 'p1' },
+            { isPlaceholder: true, key: 'p2' },
+            ...data.map((item, idx) => ({ ...item, key: String(idx) })),
+            { isPlaceholder: true, key: 'p3' },
+            { isPlaceholder: true, key: 'p4' }
+        ];
+    }, [data]);
+
+    const onMomentumScrollEnd = (event) => {
+        const y = event.nativeEvent.contentOffset.y;
+        const index = Math.round(y / itemHeight);
+        if (index >= 0 && index < data.length) {
+            const newValue = data[index].value;
+            if (newValue !== selectedValue) {
+                onValueChange(newValue);
+                Haptics.selectionAsync().catch(() => {});
+            }
+        }
+    };
+
+    useEffect(() => {
+        const index = data.findIndex(item => item.value === selectedValue);
+        if (index !== -1) {
+            const timer = setTimeout(() => {
+                flatListRef.current?.scrollToOffset({
+                    offset: index * itemHeight,
+                    animated: false
+                });
+            }, 60);
+            return () => clearTimeout(timer);
+        }
+    }, [selectedValue, data]);
+
+    const renderItem = ({ item, index }) => {
+        if (item.isPlaceholder) {
+            return <View style={{ height: itemHeight }} />;
+        }
+
+        const itemScrollY = (index - 2) * itemHeight;
+        
+        const scale = scrollY.interpolate({
+            inputRange: [itemScrollY - itemHeight * 2, itemScrollY - itemHeight, itemScrollY, itemScrollY + itemHeight, itemScrollY + itemHeight * 2],
+            outputRange: [0.8, 0.9, 1.12, 0.9, 0.8],
+            extrapolate: 'clamp'
+        });
+
+        const opacity = scrollY.interpolate({
+            inputRange: [itemScrollY - itemHeight * 2, itemScrollY - itemHeight, itemScrollY, itemScrollY + itemHeight, itemScrollY + itemHeight * 2],
+            outputRange: [0.35, 0.55, 1.0, 0.55, 0.35],
+            extrapolate: 'clamp'
+        });
+
+        const rotateX = scrollY.interpolate({
+            inputRange: [itemScrollY - itemHeight * 2, itemScrollY - itemHeight, itemScrollY, itemScrollY + itemHeight, itemScrollY + itemHeight * 2],
+            outputRange: ['45deg', '25deg', '0deg', '-25deg', '-45deg'],
+            extrapolate: 'clamp'
+        });
+
+        const isSelected = item.value === selectedValue;
+
+        return (
+            <Animated.View style={{
+                height: itemHeight,
+                alignItems: 'center',
+                justifyContent: 'center',
+                transform: [
+                    { scale },
+                    { rotateX }
+                ],
+                opacity
+            }}>
+                <Text style={{
+                    fontSize: 20,
+                    ...FONT.bold,
+                    color: isSelected ? '#7C3AED' : '#64748B'
+                }}>
+                    {item.label}
+                </Text>
+            </Animated.View>
+        );
+    };
+
+    return (
+        <View style={{ height: itemHeight * 5, overflow: 'hidden', justifyContent: 'center' }}>
+            <View style={{
+                position: 'absolute',
+                top: itemHeight * 2,
+                left: 10,
+                right: 10,
+                height: itemHeight,
+                backgroundColor: 'rgba(124, 58, 237, 0.06)',
+                borderRadius: 12,
+                borderWidth: 1,
+                borderColor: 'rgba(124, 58, 237, 0.15)',
+                pointerEvents: 'none'
+            }} />
+            
+            <Animated.FlatList
+                ref={flatListRef}
+                data={paddedData}
+                renderItem={renderItem}
+                keyExtractor={(item, index) => item.key || String(index)}
+                showsVerticalScrollIndicator={false}
+                snapToInterval={itemHeight}
+                decelerationRate="fast"
+                scrollEventThrottle={16}
+                onScroll={Animated.event(
+                    [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+                    { useNativeDriver: true }
+                )}
+                onMomentumScrollEnd={onMomentumScrollEnd}
+                getItemLayout={(data, index) => (
+                    { length: itemHeight, offset: itemHeight * index, index }
+                )}
+            />
+        </View>
+    );
+};
+
 export default function HealthProfileScreen({ navigation }) {
     const { t } = useTranslation();
     const reduceMotion = useReduceMotion();
@@ -197,7 +333,7 @@ export default function HealthProfileScreen({ navigation }) {
                     defaultValue: 'Add your medical conditions, allergies, and contact details so we can personalize reminders and health insights for you.' 
                 }),
                 icon: Activity,
-                iconColor: '#3B82F6',
+                iconColor: '#7C3AED',
                 ref: headerRef,
                 scrollOffset: 0,
                 visible: true,
@@ -432,6 +568,26 @@ export default function HealthProfileScreen({ navigation }) {
     const [countryCodeModal, setCountryCodeModal] = useState(false);
     const [tipsModalVisible, setTipsModalVisible] = useState(false);
     const [showScoreInfo, setShowScoreInfo] = useState(false);
+
+    const [vitalsPickerVisible, setVitalsPickerVisible] = useState(false);
+    const [vitalsPickerType, setVitalsPickerType] = useState(null); // 'height' or 'weight'
+    const [vitalsUnitSystem, setVitalsUnitSystem] = useState('metric'); // 'metric' or 'imperial'
+    const [vitalsTempHeightCm, setVitalsTempHeightCm] = useState(170);
+    const [vitalsTempWeightKg, setVitalsTempWeightKg] = useState(70);
+
+    const openHeightPicker = () => {
+        const currentHeight = formState.height_cm ? Number(formState.height_cm) : 170;
+        setVitalsTempHeightCm(currentHeight);
+        setVitalsPickerType('height');
+        setVitalsPickerVisible(true);
+    };
+
+    const openWeightPicker = () => {
+        const currentWeight = formState.weight_kg ? Number(formState.weight_kg) : 70;
+        setVitalsTempWeightKg(currentWeight);
+        setVitalsPickerType('weight');
+        setVitalsPickerVisible(true);
+    };
 
     const backdropAnim = useRef(new Animated.Value(0)).current;
     const modalAnim = useRef(new Animated.Value(0)).current;
@@ -868,7 +1024,7 @@ export default function HealthProfileScreen({ navigation }) {
     const _rawScore = hs?.score;
     const hsScore    = (_rawScore !== undefined && _rawScore !== null && !isNaN(Number(_rawScore))) ? Number(_rawScore) : null;
     const hsLabel    = hs?.label ?? t('health_profile.status_stable', { defaultValue: 'Stable' });
-    const hsColor    = hs?.color ?? '#0EA5E9';
+    const hsColor    = (hs?.color === '#3B82F6' || hs?.color === '#0EA5E9') ? '#7C3AED' : (hs?.color ?? '#7C3AED');
     const hsGrade    = hs?.grade ?? '—';
     const hsBracket  = hs?.bracket ?? null;
     const hsBreakdown = hs?.breakdown ?? null;
@@ -882,7 +1038,7 @@ export default function HealthProfileScreen({ navigation }) {
 
     const formatLastComputed = (iso) => {
         if (!iso) {
-            return hsScore !== null 
+            return (hsScore !== null || hsGrade !== '—')
                 ? t('health_profile.updated_recently', { defaultValue: 'Updated recently' }) 
                 : t('health_profile.last_sync_unknown', { defaultValue: 'Not yet computed' });
         }
@@ -972,7 +1128,7 @@ export default function HealthProfileScreen({ navigation }) {
                 <Svg height="100%" width="100%" viewBox="0 0 400 850" preserveAspectRatio="none">
                     <Defs>
                         <SvgLinearGradient id="healthProfileTopBg" x1="0%" y1="0%" x2="100%" y2="100%">
-                            <Stop offset="0%" stopColor="#E0F2FE" stopOpacity="0.4" />
+                            <Stop offset="0%" stopColor="#F3E8FF" stopOpacity="0.4" />
                             <Stop offset="100%" stopColor="#F8FAFC" stopOpacity="0" />
                         </SvgLinearGradient>
                     </Defs>
@@ -1006,8 +1162,8 @@ export default function HealthProfileScreen({ navigation }) {
                     <RefreshControl 
                         refreshing={refreshing} 
                         onRefresh={onRefresh} 
-                        tintColor="#6366F1" 
-                        colors={["#6366F1"]} 
+                        tintColor="#7C3AED" 
+                        colors={["#7C3AED"]} 
                     />
                 }
             >
@@ -1026,12 +1182,12 @@ export default function HealthProfileScreen({ navigation }) {
                             <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8, alignItems: 'center' }}>
                                 <Text style={s.completeBannerTitle}>{t('health_profile.profile_completeness', { defaultValue: 'Profile Completeness' })}</Text>
                                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                                    <Text style={[s.completeBannerPct, { color: completionPct === 100 ? '#10B981' : '#0EA5E9' }]}>{completionPct}%</Text>
-                                    <ChevronDown size={14} color={completionPct === 100 ? '#10B981' : '#0EA5E9'} style={{ transform: [{ rotate: completenessExpanded ? '180deg' : '0deg' }] }} />
+                                    <Text style={[s.completeBannerPct, { color: completionPct === 100 ? '#10B981' : '#7C3AED' }]}>{completionPct}%</Text>
+                                    <ChevronDown size={14} color={completionPct === 100 ? '#10B981' : '#7C3AED'} style={{ transform: [{ rotate: completenessExpanded ? '180deg' : '0deg' }] }} />
                                 </View>
                             </View>
                             <View style={s.completeBarOuter}>
-                                <View style={[s.completeBarInner, { width: `${completionPct}%`, backgroundColor: completionPct === 100 ? '#10B981' : '#0EA5E9' }]} />
+                                <View style={[s.completeBarInner, { width: `${completionPct}%`, backgroundColor: completionPct === 100 ? '#10B981' : '#7C3AED' }]} />
                             </View>
                             {!completenessExpanded && completionPct < 100 && (
                                 <Text style={s.completeBannerSub}>{t('health_profile.tap_to_complete', { defaultValue: 'Tap to see what’s missing →' })}</Text>
@@ -1084,32 +1240,83 @@ export default function HealthProfileScreen({ navigation }) {
 
                 {/* ── COMPACT HEALTH SCORE CARD (tappable) ── */}
                 <Animated.View style={[anim(0), { marginTop: 0 }]}>
-                    <Pressable style={({ pressed }) => [{ opacity: pressed ? 0.96 : 1 }]} onPress={() => setShowScoreInfo(true)}>
+                    <Pressable
+                        style={({ pressed }) => [{ opacity: pressed ? 0.96 : 1 }]}
+                        onPress={() => {
+                            const isLocked = completionPct < 50;
+                            if (isLocked) {
+                                LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                                setCompletenessExpanded(true);
+                                triggerHapticSelection(); // triggers haptic tick
+                                AlertManager.alert(
+                                    t('health_profile.unlock_score_title', { defaultValue: 'Unlock Your Health Insights' }),
+                                    t('health_profile.unlock_score_desc', { 
+                                        defaultValue: 'Complete at least 50% of your health profile to unlock your personalized health score, biological wellness estimate, and AI coaching. You\'re on your way!' 
+                                    })
+                                );
+                                if (scrollViewRef.current) {
+                                    scrollViewRef.current.scrollTo({ y: 0, animated: true });
+                                }
+                            } else {
+                                setShowScoreInfo(true);
+                            }
+                        }}
+                    >
                         <View ref={healthScoreCardRef} collapsable={false} style={s.dashboardCard}>
                             <View style={s.dashTopRow}>
                                 <View style={s.dashLeft}>
                                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
                                         <Text style={s.dashEyebrow}>{t('health_profile.health_score', { defaultValue: 'HEALTH SCORE' })}</Text>
-                                        <Pressable onPress={(e) => { e.stopPropagation(); setShowScoreInfo(true); }} hitSlop={10} style={{ padding: 4, backgroundColor: '#F1F5F9', borderRadius: radius.md, marginLeft: 4 }}>
+                                        <Pressable 
+                                            onPress={(e) => { 
+                                                e.stopPropagation(); 
+                                                const isLocked = completionPct < 50;
+                                                if (isLocked) {
+                                                    setCompletenessExpanded(true);
+                                                    if (scrollViewRef.current) scrollViewRef.current.scrollTo({ y: 0, animated: true });
+                                                } else {
+                                                    setShowScoreInfo(true);
+                                                }
+                                            }} 
+                                            hitSlop={10} 
+                                            style={{ padding: 4, backgroundColor: '#F1F5F9', borderRadius: radius.md, marginLeft: 4 }}
+                                        >
                                             <Info size={12} color="#64748B" />
                                         </Pressable>
                                     </View>
                                     <View style={s.dashScoreRow}>
-                                        <Text style={[s.dashScoreMain, { color: hsScore !== null ? hsColor : colors.textMuted }]}>
-                                            {hsScore !== null ? hsScore : '—'}
+                                        <Text style={[s.dashScoreMain, { color: (hsScore !== null && completionPct >= 50) ? hsColor : colors.textMuted }]}>
+                                            {(hsScore !== null && completionPct >= 50) ? hsScore : '—'}
                                         </Text>
-                                        <Text style={s.dashScoreSub}>/ 100</Text>
-                                        {hsGrade !== '—' && (
-                                            <View style={[s.gradeChip, { backgroundColor: hsColor + '20', borderColor: hsColor }]}>
-                                                <Text style={[s.gradeChipTxt, { color: hsColor }]}>{hsGrade}</Text>
-                                            </View>
+                                        {completionPct >= 50 ? (
+                                            <>
+                                                <Text style={s.dashScoreSub}>/ 100</Text>
+                                                {hsGrade !== '—' && (
+                                                    <View style={[s.gradeChip, { backgroundColor: hsColor + '20', borderColor: hsColor }]}>
+                                                        <Text style={[s.gradeChipTxt, { color: hsColor }]}>{hsGrade}</Text>
+                                                    </View>
+                                                )}
+                                            </>
+                                        ) : (
+                                            <Text style={[s.dashScoreSub, { color: '#94A3B8', fontSize: 12, marginLeft: 6 }]}>
+                                                Complete profile to unlock
+                                            </Text>
                                         )}
                                     </View>
                                     <View style={s.dashStatusRow}>
-                                        <ShieldCheck size={14} color={hsColor} />
-                                        <Text style={[s.dashStatusTxt, { color: hsColor }]}>{hsLabel}</Text>
+                                        {completionPct >= 50 ? (
+                                            <>
+                                                <ShieldCheck size={14} color={hsColor} />
+                                                <Text style={[s.dashStatusTxt, { color: hsColor }]}>{hsLabel}</Text>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Lock size={14} color="#94A3B8" />
+                                                <Text style={[s.dashStatusTxt, { color: '#94A3B8' }]}>Building Profile</Text>
+                                            </>
+                                        )}
                                     </View>
-                                    {hsBracket && (
+                                    {hsBracket && completionPct >= 50 && (
                                         <View style={s.bracketTag}>
                                             <Text style={s.bracketTagTxt}>{t('health_profile.adjusted_for', { defaultValue: 'Adjusted for age • {{bracket}}', bracket: bracketLabel }).replace('{{bracket}}', bracketLabel)}</Text>
                                         </View>
@@ -1130,25 +1337,34 @@ export default function HealthProfileScreen({ navigation }) {
                                 <View style={s.dashCenter}>
                                     <View style={s.ringWrap}>
                                         <Svg width={88} height={88} viewBox="0 0 88 88">
-                                            <SvgCircle cx="44" cy="44" r="38" stroke="#EEF2FF" strokeWidth="8" fill="transparent" />
+                                            <SvgCircle cx="44" cy="44" r="38" stroke={completionPct < 50 ? "#F3E8FF" : "#F3E8FF"} strokeWidth="8" fill="transparent" />
                                             <SvgCircle
                                                 cx="44" cy="44" r="38"
-                                                stroke={hsScore !== null ? hsColor : '#CBD5E1'}
+                                                stroke={completionPct < 50 ? "#7C3AED" : (hsScore !== null ? hsColor : '#CBD5E1')}
                                                 strokeWidth="8"
                                                 fill="transparent"
                                                 strokeDasharray={`${2 * Math.PI * 38}`}
-                                                strokeDashoffset={`${2 * Math.PI * 38 * (1 - (hsScore ?? 0) / 100)}`}
+                                                strokeDashoffset={`${2 * Math.PI * 38 * (1 - (completionPct < 50 ? completionPct : (hsScore ?? 0)) / 100)}`}
                                                 strokeLinecap="round"
                                                 transform="rotate(-90 44 44)"
                                             />
                                         </Svg>
-                                        <HeartPulse size={24} color={hsScore !== null ? hsColor : '#94A3B8'} style={{ position: 'absolute' }} />
+                                        {completionPct < 50 ? (
+                                            <View style={{ position: 'absolute', alignItems: 'center', justifyContent: 'center' }}>
+                                                <Text style={{ fontSize: 16, ...FONT.heavy, color: '#7C3AED' }}>{completionPct}%</Text>
+                                                <Text style={{ fontSize: 8, ...FONT.bold, color: '#94A3B8', marginTop: 1 }}>Complete</Text>
+                                            </View>
+                                        ) : (
+                                            <HeartPulse size={24} color={hsScore !== null ? hsColor : '#94A3B8'} style={{ position: 'absolute' }} />
+                                        )}
                                     </View>
                                 </View>
                             </View>
                             {/* Tap hint */}
                             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingTop: 14, borderTopWidth: 1, borderTopColor: '#F1F5F9' }}>
-                                <Text style={{ fontSize: 12, color: '#94A3B8', ...FONT.bold }}>Tap for full breakdown &amp; insights</Text>
+                                <Text style={{ fontSize: 12, color: '#94A3B8', ...FONT.bold }}>
+                                    {completionPct < 50 ? 'Tap to view checklist' : 'Tap for full breakdown & insights'}
+                                </Text>
                                 <ChevronRight size={14} color="#94A3B8" style={{ marginLeft: 4 }} />
                             </View>
                         </View>
@@ -1215,7 +1431,7 @@ export default function HealthProfileScreen({ navigation }) {
                             <Text style={s.bentoLbl}>{t('health_profile.blood_type', { defaultValue: 'Blood Type' }).toUpperCase()}</Text>
                         </Pressable>
                         <Pressable style={s.bentoCard} onPress={() => openModal('vitals')}>
-                            <View style={[s.bentoCircle, { backgroundColor: '#E0F2FE' }]}><Activity size={18} color="#0EA5E9" /></View>
+                            <View style={[s.bentoCircle, { backgroundColor: '#FAF5FF' }]}><Activity size={18} color="#8B5CF6" /></View>
                             <Text style={s.bentoVal}>{lifestyle.height_cm ? `${lifestyle.height_cm} cm` : '—'}</Text>
                             <Text style={s.bentoLbl}>{t('health_profile.height', { defaultValue: 'Height' }).toUpperCase()}</Text>
                         </Pressable>
@@ -1313,10 +1529,10 @@ export default function HealthProfileScreen({ navigation }) {
                     <Animated.View style={anim(5)}>
                         <View style={s.gridCard}>
                             <View style={s.gridHeader}>
-                                <View style={[s.gridIconWrap, { backgroundColor: '#E0F2FE' }]}><Pill size={16} color="#3B82F6" /></View>
+                                <View style={[s.gridIconWrap, { backgroundColor: '#F3E8FF' }]}><Pill size={16} color="#8B5CF6" /></View>
                                 <Text style={s.gridTitle}>{t('health_profile.medications', { defaultValue: 'Medications' })}</Text>
                                 <Pressable style={s.gridAddBtn} onPress={() => openModal('medication')} hitSlop={10}>
-                                    <Plus size={16} color="#3B82F6" />
+                                    <Plus size={16} color="#8B5CF6" />
                                 </Pressable>
                             </View>
                             <View style={s.gridBody}>
@@ -1422,7 +1638,7 @@ export default function HealthProfileScreen({ navigation }) {
                     <Animated.View style={anim(8)}>
                         <View style={s.gridCard}>
                             <View style={s.gridHeader}>
-                                <View style={[s.gridIconWrap, { backgroundColor: '#E0F2FE' }]}><Users size={16} color="#3B82F6" /></View>
+                                <View style={[s.gridIconWrap, { backgroundColor: '#F3E8FF' }]}><Users size={16} color="#8B5CF6" /></View>
                                 <Text style={s.gridTitle}>{t('health_profile.care_network', { defaultValue: 'Care Network' })}</Text>
                                 <Pressable 
                                     style={s.gridAddBtn} 
@@ -1439,7 +1655,7 @@ export default function HealthProfileScreen({ navigation }) {
                                     }} 
                                     hitSlop={10}
                                 >
-                                    <Plus size={16} color="#3B82F6" />
+                                    <Plus size={16} color="#8B5CF6" />
                                 </Pressable>
                             </View>
                             <View style={s.gridBody}>
@@ -1449,9 +1665,9 @@ export default function HealthProfileScreen({ navigation }) {
                                             <Text style={s.netName} numberOfLines={1}>{gp.name}</Text>
                                             <Text style={s.netRole}>{t('health_profile.primary_doctor', { defaultValue: 'Primary Doctor' })}</Text>
                                         </Pressable>
-                                        <Pressable style={[s.netBtn, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]} onPress={() => gp.phone && Linking.openURL(`tel:${gp.phone}`)}>
-                                            <Phone size={12} color="#3B82F6" style={{ marginRight: 4 }} />
-                                            <Text style={[s.netBtnTxt, { color: '#3B82F6' }]}>{t('health_profile.call', { defaultValue: 'Call' })}</Text>
+                                        <Pressable style={[s.netBtn, { backgroundColor: '#FAF5FF', borderColor: '#E9D5FF' }]} onPress={() => gp.phone && Linking.openURL(`tel:${gp.phone}`)}>
+                                            <Phone size={12} color="#8B5CF6" style={{ marginRight: 4 }} />
+                                            <Text style={[s.netBtnTxt, { color: '#8B5CF6' }]}>{t('health_profile.call', { defaultValue: 'Call' })}</Text>
                                         </Pressable>
                                     </View>
                                 )}
@@ -1476,10 +1692,10 @@ export default function HealthProfileScreen({ navigation }) {
                     <Animated.View style={anim(9)}>
                         <View style={s.gridCard}>
                             <View style={s.gridHeader}>
-                                <View style={[s.gridIconWrap, { backgroundColor: '#EEF2FF' }]}><Calendar size={16} color="#6366F1" /></View>
+                                <View style={[s.gridIconWrap, { backgroundColor: '#FAF5FF' }]}><Calendar size={16} color="#8B5CF6" /></View>
                                 <Text style={s.gridTitle}>{t('health_profile.upcoming_appointments', { defaultValue: 'Upcoming Appointments' })}</Text>
                                 <Pressable style={s.gridAddBtn} onPress={() => openModal('appointment')} hitSlop={10}>
-                                    <Plus size={16} color="#6366F1" />
+                                    <Plus size={16} color="#8B5CF6" />
                                 </Pressable>
                             </View>
                             <View style={s.gridBody}>
@@ -1508,7 +1724,7 @@ export default function HealthProfileScreen({ navigation }) {
                                                         <Text style={s.apptTitle} numberOfLines={1}>{appt.title}</Text>
                                                         <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4, gap: 12 }}>
                                                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                                                                <Clock size={10} color="#6366F1" />
+                                                                <Clock size={10} color="#8B5CF6" />
                                                                 <Text style={s.apptDateText}>{dateLabel} • {timeLabel}</Text>
                                                             </View>
                                                             {appt.location ? (
@@ -1581,8 +1797,28 @@ export default function HealthProfileScreen({ navigation }) {
                 )}
                 {editingType === 'vitals' && (
                     <>
-                        <View style={s.formGroup}><SmartInput label={t('health_profile.height_cm', { defaultValue: 'Height (cm)' })} keyboardType="numeric" maxLength={3} value={String(formState.height_cm || '')} onChangeText={(t) => { const v = t.replace(/[^0-9]/g, ''); setFormState({ ...formState, height_cm: v ? Number(v) : '' }); }} placeholder="e.g. 170" /></View>
-                        <View style={s.formGroup}><SmartInput label={t('health_profile.weight_kg', { defaultValue: 'Weight (kg)' })} keyboardType="numeric" maxLength={3} value={String(formState.weight_kg || '')} onChangeText={(t) => { const v = t.replace(/[^0-9.]/g, ''); setFormState({ ...formState, weight_kg: v ? Number(v) : '' }); }} placeholder="e.g. 70" /></View>
+                        <View style={s.formGroup}>
+                            <Pressable onPress={openHeightPicker}>
+                                <View pointerEvents="none">
+                                    <SmartInput 
+                                        label={t('health_profile.height', { defaultValue: 'Height' })}
+                                        value={formState.height_cm ? `${formState.height_cm} cm (${cmToFtIn(formState.height_cm)})` : ''} 
+                                        placeholder={t('health_profile.select_height', { defaultValue: 'Select height' })} 
+                                    />
+                                </View>
+                            </Pressable>
+                        </View>
+                        <View style={s.formGroup}>
+                            <Pressable onPress={openWeightPicker}>
+                                <View pointerEvents="none">
+                                    <SmartInput 
+                                        label={t('health_profile.weight', { defaultValue: 'Weight' })}
+                                        value={formState.weight_kg ? `${formState.weight_kg} kg (${Math.round(formState.weight_kg / 0.45359237)} lbs)` : ''} 
+                                        placeholder={t('health_profile.select_weight', { defaultValue: 'Select weight' })} 
+                                    />
+                                </View>
+                            </Pressable>
+                        </View>
                     </>
                 )}
                 {editingType === 'habits' && (
@@ -1716,8 +1952,8 @@ export default function HealthProfileScreen({ navigation }) {
                         <View style={[s.formGroup, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 }]}>
                             <Text style={s.formLabel}>{t('health_profile.currently_active', { defaultValue: 'Currently Active' })}</Text>
                             <Switch
-                                trackColor={{ false: '#E2E8F0', true: '#38BDF8' }}
-                                thumbColor={formState.is_active ? '#0284C7' : '#F8FAFC'}
+                                trackColor={{ false: '#E2E8F0', true: '#C084FC' }}
+                                thumbColor={formState.is_active ? '#7C3AED' : '#F8FAFC'}
                                 onValueChange={(val) => setFormState({ ...formState, is_active: val })}
                                 value={formState.is_active !== false}
                             />
@@ -1947,7 +2183,7 @@ export default function HealthProfileScreen({ navigation }) {
                                         high:   { bg: '#FEF2F2', border: '#FCA5A5', text: '#DC2626', badge: '#FEF2F2', badgeText: '#DC2626', label: 'High Impact' },
                                         medium: { bg: '#FFFBEB', border: '#FDE68A', text: '#D97706', badge: '#FFFBEB', badgeText: '#D97706', label: 'Medium Impact' },
                                         low:    { bg: '#F0FDF4', border: '#BBF7D0', text: '#16A34A', badge: '#F0FDF4', badgeText: '#16A34A', label: 'Good to have' },
-                                    }[tip.impact] || { bg: '#F8FAFC', border: '#E2E8F0', text: '#0EA5E9', badge: '#F0F9FF', badgeText: '#0369A1', label: 'Tip' };
+                                    }[tip.impact] || { bg: '#FAF5FF', border: '#E9D5FF', text: '#7C3AED', badge: '#F3E8FF', badgeText: '#6D28D9', label: 'Tip' };
 
                                     return (
                                         <View key={idx} style={[s.tipCard, { borderLeftColor: impactConfig.text, backgroundColor: impactConfig.bg, borderColor: impactConfig.border }]}>
@@ -2088,7 +2324,7 @@ export default function HealthProfileScreen({ navigation }) {
                                 <View style={{ paddingHorizontal: spacing.screen, paddingTop: 16, paddingBottom: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                                     <View style={{ flex: 1 }}>
                                         <Text style={{ fontSize: 24, ...FONT.heavy, color: '#0F172A', letterSpacing: -0.5, marginBottom: 2 }}>
-                                            Health Score <Text style={{ color: colors.primary }}>Coach</Text>
+                                            Health Score <Text style={{ color: '#7C3AED' }}>Coach</Text>
                                         </Text>
                                         <Text style={{ fontSize: 13, ...FONT.medium, color: '#64748B' }}>Your personalized health insights</Text>
                                     </View>
@@ -2097,19 +2333,37 @@ export default function HealthProfileScreen({ navigation }) {
                                             onPress={handleRefreshPress}
                                             disabled={historyLoading}
                                             hitSlop={12}
-                                        >
-                                            <Animated.View style={{
+                                            style={{
+                                                width: 36,
+                                                height: 36,
+                                                borderRadius: 18,
                                                 backgroundColor: '#F1F5F9',
-                                                padding: 6,
-                                                borderRadius: radius.lg,
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
                                                 borderWidth: 1,
                                                 borderColor: '#E2E8F0',
+                                            }}
+                                        >
+                                            <Animated.View style={{
                                                 transform: [{ scale: refreshBtnScale }]
                                             }}>
                                                 <RefreshCw size={18} color={historyLoading ? '#94A3B8' : '#64748B'} />
                                             </Animated.View>
                                         </Pressable>
-                                        <Pressable onPress={() => setShowScoreInfo(false)} hitSlop={12} style={{ backgroundColor: '#F1F5F9', padding: 6, borderRadius: radius.lg, borderWidth: 1, borderColor: '#E2E8F0' }}>
+                                        <Pressable
+                                            onPress={() => setShowScoreInfo(false)}
+                                            hitSlop={12}
+                                            style={{
+                                                width: 36,
+                                                height: 36,
+                                                borderRadius: 18,
+                                                backgroundColor: '#F1F5F9',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                borderWidth: 1,
+                                                borderColor: '#E2E8F0',
+                                            }}
+                                        >
                                             <X size={18} color="#64748B" />
                                         </Pressable>
                                     </View>
@@ -2129,12 +2383,12 @@ export default function HealthProfileScreen({ navigation }) {
                                             borderRadius: radius.md,
                                             alignItems: 'center',
                                             justifyContent: 'center',
-                                            backgroundColor: activeTab === 'insights' ? colors.primarySoft : '#F1F5F9',
+                                            backgroundColor: activeTab === 'insights' ? '#FAF5FF' : '#F1F5F9',
                                             borderWidth: 1.5,
-                                            borderColor: activeTab === 'insights' ? colors.primary : 'transparent',
+                                            borderColor: activeTab === 'insights' ? '#7C3AED' : 'transparent',
                                         }}
                                     >
-                                        <Text style={{ fontSize: 13, ...FONT.bold, color: activeTab === 'insights' ? colors.primaryMid : colors.textSecondary }}>Insights</Text>
+                                        <Text style={{ fontSize: 13, ...FONT.bold, color: activeTab === 'insights' ? '#7C3AED' : colors.textSecondary }}>Insights</Text>
                                     </Pressable>
                                     <Pressable
                                         onPress={async () => {
@@ -2148,12 +2402,12 @@ export default function HealthProfileScreen({ navigation }) {
                                             borderRadius: radius.md,
                                             alignItems: 'center',
                                             justifyContent: 'center',
-                                            backgroundColor: activeTab === 'trends' ? colors.primarySoft : '#F1F5F9',
+                                            backgroundColor: activeTab === 'trends' ? '#FAF5FF' : '#F1F5F9',
                                             borderWidth: 1.5,
-                                            borderColor: activeTab === 'trends' ? colors.primary : 'transparent',
+                                            borderColor: activeTab === 'trends' ? '#7C3AED' : 'transparent',
                                         }}
                                     >
-                                        <Text style={{ fontSize: 13, ...FONT.bold, color: activeTab === 'trends' ? colors.primaryMid : colors.textSecondary }}>Trends & Journey</Text>
+                                        <Text style={{ fontSize: 13, ...FONT.bold, color: activeTab === 'trends' ? '#7C3AED' : colors.textSecondary }}>Trends & Journey</Text>
                                     </Pressable>
                                 </View>
 
@@ -2177,20 +2431,20 @@ export default function HealthProfileScreen({ navigation }) {
                                         />
 
                                         {/* ── SECTION 2: HEALTH AGE WIDGET ── */}
-                                        {actualAge && healthAgeVal !== null && (
+                                        {actualAge && healthAgeVal !== null && completionPct >= 50 && (
                                             <View style={{
-                                                backgroundColor: '#FAFBFF',
+                                                backgroundColor: '#FAF5FF',
                                                 borderRadius: radius.lg,
                                                 padding: 16,
                                                 borderWidth: 1,
-                                                borderColor: '#E0E7FF',
+                                                borderColor: '#F3E8FF',
                                                 marginBottom: 20,
                                                 flexDirection: 'row',
                                                 justifyContent: 'space-between',
                                                 alignItems: 'center',
                                             }}>
                                                 <View style={{ gap: 2 }}>
-                                                    <Text style={{ fontSize: 12, ...FONT.heavy, color: '#6366F1', letterSpacing: 0.8, textTransform: 'uppercase' }}>BIOLOGICAL WELLNESS ESTIMATE</Text>
+                                                    <Text style={{ fontSize: 12, ...FONT.heavy, color: '#7C3AED', letterSpacing: 0.8, textTransform: 'uppercase' }}>BIOLOGICAL WELLNESS ESTIMATE</Text>
                                                     <Text style={{ fontSize: 20, ...FONT.heavy, color: '#0F172A' }}>{healthAgeVal} Years</Text>
                                                 </View>
                                                 <View style={{
@@ -2276,7 +2530,7 @@ export default function HealthProfileScreen({ navigation }) {
                                                         </View>
                                                         <Text style={{ fontSize: 13, ...FONT.bold, color: '#0F172A', marginTop: 8 }} numberOfLines={2}>Take morning meds</Text>
                                                         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', marginTop: 4 }}>
-                                                            <ChevronRight size={14} color="#6366F1" />
+                                                            <ChevronRight size={14} color="#8B5CF6" />
                                                         </View>
                                                     </Pressable>
                                                 )}
@@ -2300,7 +2554,7 @@ export default function HealthProfileScreen({ navigation }) {
                                                     </View>
                                                     <Text style={{ fontSize: 13, ...FONT.bold, color: '#0F172A', marginTop: 8 }} numberOfLines={2}>Log BP Reading</Text>
                                                     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', marginTop: 4 }}>
-                                                        <ChevronRight size={14} color="#6366F1" />
+                                                        <ChevronRight size={14} color="#8B5CF6" />
                                                     </View>
                                                 </Pressable>
 
@@ -2324,7 +2578,7 @@ export default function HealthProfileScreen({ navigation }) {
                                                         </View>
                                                         <Text style={{ fontSize: 13, ...FONT.bold, color: '#0F172A', marginTop: 8 }} numberOfLines={2}>Sync Wearable</Text>
                                                         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', marginTop: 4 }}>
-                                                            <ChevronRight size={14} color="#6366F1" />
+                                                            <ChevronRight size={14} color="#8B5CF6" />
                                                         </View>
                                                     </Pressable>
                                                 )}
@@ -2349,7 +2603,7 @@ export default function HealthProfileScreen({ navigation }) {
                                                         </View>
                                                         <Text style={{ fontSize: 13, ...FONT.bold, color: '#0F172A', marginTop: 8 }} numberOfLines={2}>Complete Profile</Text>
                                                         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', marginTop: 4 }}>
-                                                            <ChevronRight size={14} color="#6366F1" />
+                                                            <ChevronRight size={14} color="#8B5CF6" />
                                                         </View>
                                                     </Pressable>
                                                 )}
@@ -2371,17 +2625,17 @@ export default function HealthProfileScreen({ navigation }) {
                                         {/* ── SECTION 7: AI INSIGHT & PREDICTION CARD ── */}
                                         {hasScore && (
                                             <View style={{
-                                                backgroundColor: '#FAFBFF',
+                                                backgroundColor: '#FAF5FF',
                                                 borderRadius: radius.lg,
                                                 padding: 20,
                                                 borderWidth: 1,
-                                                borderColor: '#E0E7FF',
+                                                borderColor: '#F3E8FF',
                                                 marginBottom: 20,
                                                 gap: 12,
                                             }}>
                                                 {(hs?.tips || []).length > 0 && (
                                                     <View style={{ gap: 4 }}>
-                                                        <Text style={{ fontSize: 12, ...FONT.heavy, color: '#6366F1', letterSpacing: 0.8, textTransform: 'uppercase' }}>AI INSIGHT</Text>
+                                                        <Text style={{ fontSize: 12, ...FONT.heavy, color: '#7C3AED', letterSpacing: 0.8, textTransform: 'uppercase' }}>INSIGHT</Text>
                                                         <Text style={{ fontSize: 14, ...FONT.medium, color: '#334155', lineHeight: 20 }}>
                                                             {hs.tips[0].body}
                                                         </Text>
@@ -2390,21 +2644,21 @@ export default function HealthProfileScreen({ navigation }) {
                                                 
                                                 {weakest && projectedScore && (
                                                     <>
-                                                        <View style={{ height: 1, backgroundColor: '#E0E7FF' }} />
+                                                        <View style={{ height: 1, backgroundColor: '#F3E8FF' }} />
                                                         <View style={{ gap: 4 }}>
-                                                            <Text style={{ fontSize: 12, ...FONT.heavy, color: '#6366F1', letterSpacing: 0.8, textTransform: 'uppercase' }}>PREDICTION</Text>
+                                                            <Text style={{ fontSize: 12, ...FONT.heavy, color: '#7C3AED', letterSpacing: 0.8, textTransform: 'uppercase' }}>PREDICTION</Text>
                                                             <Text style={{ fontSize: 14, ...FONT.medium, color: '#334155', lineHeight: 20 }}>
                                                                 Improving your {weakest.label.toLowerCase()} score could boost your overall health score.
                                                             </Text>
                                                             <View style={{
-                                                                backgroundColor: '#EEF2FF',
+                                                                backgroundColor: '#F3E8FF',
                                                                 paddingHorizontal: 10,
                                                                 paddingVertical: 6,
                                                                 borderRadius: radius.md,
                                                                 alignSelf: 'flex-start',
                                                                 marginTop: 4,
                                                             }}>
-                                                                <Text style={{ fontSize: 12, ...FONT.bold, color: '#4F46E5' }}>Projected Score: {projectedScore}</Text>
+                                                                <Text style={{ fontSize: 12, ...FONT.bold, color: '#7C3AED' }}>Projected Score: {projectedScore}</Text>
                                                             </View>
                                                         </View>
                                                     </>
@@ -2455,26 +2709,26 @@ export default function HealthProfileScreen({ navigation }) {
                                                 {/* History pending/backfilling banner */}
                                                 {historyPending ? (
                                                     <View style={{
-                                                        backgroundColor: '#EFF6FF',
+                                                        backgroundColor: '#FAF5FF',
                                                         borderRadius: radius.lg,
                                                         padding: 16,
                                                         borderWidth: 1,
-                                                        borderColor: '#BFDBFE',
+                                                        borderColor: '#E9D5FF',
                                                         flexDirection: 'row',
                                                         alignItems: 'center',
                                                         gap: 12,
                                                     }}>
-                                                        <ActivityIndicator size="small" color="#3B82F6" />
+                                                        <ActivityIndicator size="small" color="#7C3AED" />
                                                         <View style={{ flex: 1 }}>
-                                                            <Text style={{ fontSize: 13, ...FONT.bold, color: '#1E3A8A' }}>Analyzing Health History...</Text>
-                                                            <Text style={{ fontSize: 11, ...FONT.medium, color: '#1E40AF', marginTop: 2 }}>
+                                                            <Text style={{ fontSize: 13, ...FONT.bold, color: '#5B21B6' }}>Analyzing Health History...</Text>
+                                                            <Text style={{ fontSize: 11, ...FONT.medium, color: '#6D28D9', marginTop: 2 }}>
                                                                 We are analyzing your 30-day historical logs. This will take a few moments.
                                                             </Text>
                                                         </View>
                                                         <Pressable
                                                             onPress={() => loadHistoryAndTimeline(true)}
                                                             style={{
-                                                                backgroundColor: '#3B82F6',
+                                                                backgroundColor: '#7C3AED',
                                                                 paddingHorizontal: 10,
                                                                 paddingVertical: 6,
                                                                 borderRadius: radius.md,
@@ -2494,7 +2748,7 @@ export default function HealthProfileScreen({ navigation }) {
                                                         alignItems: 'center',
                                                         gap: 12,
                                                     }}>
-                                                        <Info size={18} color="#6366F1" />
+                                                        <Info size={18} color="#8B5CF6" />
                                                         <View style={{ flex: 1 }}>
                                                             <Text style={{ fontSize: 13, ...FONT.bold, color: '#334155' }}>Unlock Advanced Trends</Text>
                                                             <Text style={{ fontSize: 11, ...FONT.medium, color: '#64748B', marginTop: 2 }}>
@@ -2524,7 +2778,7 @@ export default function HealthProfileScreen({ navigation }) {
                                                                 <Text style={{
                                                                     fontSize: 24,
                                                                     ...FONT.heavy,
-                                                                    color: healthHistory.predictive_health.momentum.direction === 'improving' ? '#10B981' : (healthHistory.predictive_health.momentum.direction === 'declining' ? '#EF4444' : '#4F46E5'),
+                                                                    color: healthHistory.predictive_health.momentum.direction === 'improving' ? '#10B981' : (healthHistory.predictive_health.momentum.direction === 'declining' ? '#EF4444' : '#7C3AED'),
                                                                     marginTop: 8,
                                                                 }}>
                                                                     {healthHistory.predictive_health.momentum.direction === 'improving' ? 'Improving ↗' : (healthHistory.predictive_health.momentum.direction === 'declining' ? 'Declining ↘' : 'Stable ➔')}
@@ -2556,15 +2810,15 @@ export default function HealthProfileScreen({ navigation }) {
                                                                 <Text style={{ fontSize: 11, ...FONT.heavy, color: '#64748B', letterSpacing: 0.8 }}>CONSISTENCY</Text>
                                                                 {healthHistory.predictive_health.consistency.score >= 80 && (
                                                                     <View style={{
-                                                                        backgroundColor: '#EEF2FF',
+                                                                        backgroundColor: '#FAF5FF',
                                                                         paddingHorizontal: 6,
                                                                         paddingVertical: 2,
                                                                         borderRadius: radius.sm,
                                                                         borderWidth: 0.5,
-                                                                        borderColor: '#C7D2FE',
+                                                                        borderColor: '#E9D5FF',
                                                                         alignSelf: 'flex-start',
                                                                     }}>
-                                                                        <Text style={{ fontSize: 8, ...FONT.heavy, color: '#4F46E5' }}>★ HABIT HERO</Text>
+                                                                        <Text style={{ fontSize: 8, ...FONT.heavy, color: '#7C3AED' }}>★ HABIT HERO</Text>
                                                                     </View>
                                                                 )}
                                                             </View>
@@ -2586,7 +2840,7 @@ export default function HealthProfileScreen({ navigation }) {
                                                 {/* Score Trend Card */}
                                                 <View style={s.trendCard}>
                                                     <View style={s.trendHeader}>
-                                                        <Activity size={18} color={colors.primary} />
+                                                        <Activity size={18} color="#7C3AED" />
                                                         <Text style={s.trendTitle}>Overall Health Score</Text>
                                                     </View>
                                                     <PremiumTrendChart
@@ -2595,7 +2849,7 @@ export default function HealthProfileScreen({ navigation }) {
                                                             label: formatDate(h.date, 'D MMM')
                                                         })) || []}
                                                         type="area"
-                                                        color={colors.primary}
+                                                        color="#7C3AED"
                                                         emptyIcon="📈"
                                                         emptyLabel="No health score data yet"
                                                         emptySubLabel="Score history builds as you track daily. Check back soon!"
@@ -2640,7 +2894,7 @@ export default function HealthProfileScreen({ navigation }) {
                                                 {/* Sleep Trend Card */}
                                                 <View style={s.trendCard}>
                                                     <View style={s.trendHeader}>
-                                                        <Clock size={18} color="#6366F1" />
+                                                        <Clock size={18} color="#7C3AED" />
                                                         <Text style={s.trendTitle}>Sleep Duration</Text>
                                                     </View>
                                                     <PremiumTrendChart
@@ -2649,7 +2903,7 @@ export default function HealthProfileScreen({ navigation }) {
                                                             label: formatDate(h.date, 'D MMM')
                                                         })) || []}
                                                         type="bar"
-                                                        color="#6366F1"
+                                                        color="#7C3AED"
                                                         yMax={12}
                                                         emptyIcon="😴"
                                                         emptyLabel="No sleep logs yet"
@@ -2741,6 +2995,304 @@ export default function HealthProfileScreen({ navigation }) {
                 tourKey="health_profile"
                 onClose={() => setShowProfileTour(false)}
             />
+
+            {/* ── VITALS PICKER MODAL (WHEEL) ── */}
+            <Modal
+                visible={vitalsPickerVisible}
+                transparent
+                animationType="slide"
+                onRequestClose={() => setVitalsPickerVisible(false)}
+            >
+                <View style={s.pickerBackdrop}>
+                    <Pressable style={StyleSheet.absoluteFill} onPress={() => {
+                        if (vitalsPickerType === 'height') {
+                            setFormState(prev => ({ ...prev, height_cm: vitalsTempHeightCm }));
+                        } else {
+                            setFormState(prev => ({ ...prev, weight_kg: vitalsTempWeightKg }));
+                        }
+                        setVitalsPickerVisible(false);
+                    }} />
+                    <View style={s.pickerSheet}>
+                        <View style={s.pickerHandle} />
+                        
+                        {/* Header */}
+                        <View style={s.pickerHeader}>
+                            <Pressable onPress={() => setVitalsPickerVisible(false)}>
+                                <Text style={s.pickerCancelTxt}>Cancel</Text>
+                            </Pressable>
+                            <Text style={s.pickerTitle}>
+                                {vitalsPickerType === 'height' ? 'Height' : 'Weight'}
+                            </Text>
+                            <Pressable onPress={() => {
+                                if (vitalsPickerType === 'height') {
+                                    setFormState(prev => ({ ...prev, height_cm: vitalsTempHeightCm }));
+                                } else {
+                                    setFormState(prev => ({ ...prev, weight_kg: vitalsTempWeightKg }));
+                                }
+                                setVitalsPickerVisible(false);
+                            }}>
+                                <Text style={s.pickerDoneTxt}>Done</Text>
+                            </Pressable>
+                        </View>
+
+                        <Text style={s.pickerSubtitle}>
+                            {vitalsPickerType === 'height' 
+                                ? 'CareMyMed uses height to estimate stride length and calculate Body Mass Index (BMI).' 
+                                : 'CareMyMed uses weight to monitor changes and calculate Body Mass Index (BMI).'}
+                        </Text>
+
+                        {/* Metric/Imperial Segmented Toggle */}
+                        <View style={s.pickerToggleBar}>
+                            <Pressable 
+                                style={[s.pickerToggleBtn, vitalsUnitSystem === 'metric' && s.pickerToggleBtnActive]}
+                                onPress={() => {
+                                    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                                    setVitalsUnitSystem('metric');
+                                }}
+                            >
+                                <Text style={[s.pickerToggleText, vitalsUnitSystem === 'metric' && s.pickerToggleTextActive]}>Metric</Text>
+                            </Pressable>
+                            <Pressable 
+                                style={[s.pickerToggleBtn, vitalsUnitSystem === 'imperial' && s.pickerToggleBtnActive]}
+                                onPress={() => {
+                                    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                                    setVitalsUnitSystem('imperial');
+                                }}
+                            >
+                                <Text style={[s.pickerToggleText, vitalsUnitSystem === 'imperial' && s.pickerToggleTextActive]}>Imperial</Text>
+                            </Pressable>
+                        </View>
+
+                        {/* Pickers Section */}
+                        <View style={s.pickerWheelsContainer}>
+                            {vitalsPickerType === 'height' ? (
+                                vitalsUnitSystem === 'metric' ? (
+                                    <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+                                        <Pressable style={s.stepBtn} onPress={() => {
+                                            const newVal = Math.max(100, vitalsTempHeightCm - 1);
+                                            setVitalsTempHeightCm(newVal);
+                                            Haptics.selectionAsync().catch(() => {});
+                                        }}>
+                                            <Text style={s.stepBtnTxt}>-</Text>
+                                        </Pressable>
+                                        
+                                        <View style={{ width: 140 }}>
+                                            <TactileWheelPicker
+                                                data={Array.from({ length: 151 }, (_, i) => ({ label: `${i + 100} cm`, value: i + 100 }))}
+                                                selectedValue={vitalsTempHeightCm}
+                                                onValueChange={(val) => setVitalsTempHeightCm(val)}
+                                            />
+                                        </View>
+
+                                        <Pressable style={s.stepBtn} onPress={() => {
+                                            const newVal = Math.min(250, vitalsTempHeightCm + 1);
+                                            setVitalsTempHeightCm(newVal);
+                                            Haptics.selectionAsync().catch(() => {});
+                                        }}>
+                                            <Text style={s.stepBtnTxt}>+</Text>
+                                        </Pressable>
+                                    </View>
+                                ) : (
+                                    <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+                                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                            <Pressable style={s.stepBtnMini} onPress={() => {
+                                                const realInches = vitalsTempHeightCm / 2.54;
+                                                const ft = Math.floor(realInches / 12);
+                                                const inch = Math.round(realInches % 12);
+                                                const newFt = Math.max(3, ft - 1);
+                                                const cm = Math.round((newFt * 12 + (inch === 12 ? 0 : inch)) * 2.54);
+                                                setVitalsTempHeightCm(cm);
+                                                Haptics.selectionAsync().catch(() => {});
+                                            }}>
+                                                <Text style={s.stepBtnTxt}>-</Text>
+                                            </Pressable>
+                                            <View style={{ width: 85 }}>
+                                                <TactileWheelPicker
+                                                    data={Array.from({ length: 6 }, (_, i) => ({ label: `${i + 3} ft`, value: i + 3 }))}
+                                                    selectedValue={Math.max(3, Math.min(8, Math.floor((vitalsTempHeightCm / 2.54) / 12)))}
+                                                    onValueChange={(newFt) => {
+                                                        const realInches = vitalsTempHeightCm / 2.54;
+                                                        const inch = Math.round(realInches % 12);
+                                                        const cm = Math.round((newFt * 12 + (inch === 12 ? 0 : inch)) * 2.54);
+                                                        setVitalsTempHeightCm(cm);
+                                                    }}
+                                                />
+                                            </View>
+                                            <Pressable style={s.stepBtnMini} onPress={() => {
+                                                const realInches = vitalsTempHeightCm / 2.54;
+                                                const ft = Math.floor(realInches / 12);
+                                                const inch = Math.round(realInches % 12);
+                                                const newFt = Math.min(8, ft + 1);
+                                                const cm = Math.round((newFt * 12 + (inch === 12 ? 0 : inch)) * 2.54);
+                                                setVitalsTempHeightCm(cm);
+                                                Haptics.selectionAsync().catch(() => {});
+                                            }}>
+                                                <Text style={s.stepBtnTxt}>+</Text>
+                                            </Pressable>
+                                        </View>
+
+                                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                            <Pressable style={s.stepBtnMini} onPress={() => {
+                                                const realInches = vitalsTempHeightCm / 2.54;
+                                                const ft = Math.floor(realInches / 12);
+                                                const inch = Math.round(realInches % 12) === 12 ? 0 : Math.round(realInches % 12);
+                                                const newInch = inch === 0 ? 11 : inch - 1;
+                                                const newFt = inch === 0 ? Math.max(3, ft - 1) : ft;
+                                                const cm = Math.round((newFt * 12 + newInch) * 2.54);
+                                                setVitalsTempHeightCm(cm);
+                                                Haptics.selectionAsync().catch(() => {});
+                                            }}>
+                                                <Text style={s.stepBtnTxt}>-</Text>
+                                            </Pressable>
+                                            <View style={{ width: 85 }}>
+                                                <TactileWheelPicker
+                                                    data={Array.from({ length: 12 }, (_, i) => ({ label: `${i} in`, value: i }))}
+                                                    selectedValue={Math.max(0, Math.min(11, Math.round((vitalsTempHeightCm / 2.54) % 12) === 12 ? 0 : Math.round((vitalsTempHeightCm / 2.54) % 12)))}
+                                                    onValueChange={(newInch) => {
+                                                        const realInches = vitalsTempHeightCm / 2.54;
+                                                        const ft = Math.floor(realInches / 12);
+                                                        const cm = Math.round((ft * 12 + newInch) * 2.54);
+                                                        setVitalsTempHeightCm(cm);
+                                                    }}
+                                                />
+                                            </View>
+                                            <Pressable style={s.stepBtnMini} onPress={() => {
+                                                const realInches = vitalsTempHeightCm / 2.54;
+                                                const ft = Math.floor(realInches / 12);
+                                                const inch = Math.round(realInches % 12) === 12 ? 0 : Math.round(realInches % 12);
+                                                const newInch = inch === 11 ? 0 : inch + 1;
+                                                const newFt = inch === 11 ? Math.min(8, ft + 1) : ft;
+                                                const cm = Math.round((newFt * 12 + newInch) * 2.54);
+                                                setVitalsTempHeightCm(cm);
+                                                Haptics.selectionAsync().catch(() => {});
+                                            }}>
+                                                <Text style={s.stepBtnTxt}>+</Text>
+                                            </Pressable>
+                                        </View>
+                                    </View>
+                                )
+                            ) : (
+                                vitalsUnitSystem === 'metric' ? (
+                                    <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+                                        <Pressable style={s.stepBtn} onPress={() => {
+                                            const newVal = Math.max(30, vitalsTempWeightKg - 1);
+                                            setVitalsTempWeightKg(newVal);
+                                            Haptics.selectionAsync().catch(() => {});
+                                        }}>
+                                            <Text style={s.stepBtnTxt}>-</Text>
+                                        </Pressable>
+                                        
+                                        <View style={{ width: 140 }}>
+                                            <TactileWheelPicker
+                                                data={Array.from({ length: 221 }, (_, i) => ({ label: `${i + 30} kg`, value: i + 30 }))}
+                                                selectedValue={Math.round(vitalsTempWeightKg)}
+                                                onValueChange={(val) => setVitalsTempWeightKg(val)}
+                                            />
+                                        </View>
+
+                                        <Pressable style={s.stepBtn} onPress={() => {
+                                            const newVal = Math.min(250, vitalsTempWeightKg + 1);
+                                            setVitalsTempWeightKg(newVal);
+                                            Haptics.selectionAsync().catch(() => {});
+                                        }}>
+                                            <Text style={s.stepBtnTxt}>+</Text>
+                                        </Pressable>
+                                    </View>
+                                ) : (
+                                    <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+                                        <Pressable style={s.stepBtn} onPress={() => {
+                                            const currentLbs = Math.round(vitalsTempWeightKg / 0.45359237);
+                                            const newLbs = Math.max(60, currentLbs - 1);
+                                            const kg = Math.round(newLbs * 0.45359237 * 10) / 10;
+                                            setVitalsTempWeightKg(kg);
+                                            Haptics.selectionAsync().catch(() => {});
+                                        }}>
+                                            <Text style={s.stepBtnTxt}>-</Text>
+                                        </Pressable>
+
+                                        <View style={{ width: 140 }}>
+                                            <TactileWheelPicker
+                                                data={Array.from({ length: 491 }, (_, i) => ({ label: `${i + 60} lbs`, value: i + 60 }))}
+                                                selectedValue={Math.round(vitalsTempWeightKg / 0.45359237)}
+                                                onValueChange={(newLbs) => {
+                                                    const kg = Math.round(newLbs * 0.45359237 * 10) / 10;
+                                                    setVitalsTempWeightKg(kg);
+                                                }}
+                                            />
+                                        </View>
+
+                                        <Pressable style={s.stepBtn} onPress={() => {
+                                            const currentLbs = Math.round(vitalsTempWeightKg / 0.45359237);
+                                            const newLbs = Math.min(550, currentLbs + 1);
+                                            const kg = Math.round(newLbs * 0.45359237 * 10) / 10;
+                                            setVitalsTempWeightKg(kg);
+                                            Haptics.selectionAsync().catch(() => {});
+                                        }}>
+                                            <Text style={s.stepBtnTxt}>+</Text>
+                                        </Pressable>
+                                    </View>
+                                )
+                            )}
+                        </View>
+
+                        {/* Live Conversion Subtitle */}
+                        <View style={s.pickerConversionRow}>
+                            <Text style={s.pickerConversionText}>
+                                {vitalsPickerType === 'height' ? (
+                                    vitalsUnitSystem === 'metric' 
+                                        ? `${cmToFtIn(vitalsTempHeightCm)}`
+                                        : `${vitalsTempHeightCm} cm`
+                                ) : (
+                                    vitalsUnitSystem === 'metric'
+                                        ? `${Math.round(vitalsTempWeightKg / 0.45359237)} lbs`
+                                        : `${Math.round(vitalsTempWeightKg)} kg`
+                                )}
+                            </Text>
+                        </View>
+
+                        {/* Live BMI Preview Card */}
+                        <View style={s.bmiPreviewCard}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                                <View>
+                                    <Text style={s.bmiPreviewLabel}>LIVE BMI PREVIEW</Text>
+                                    <Text style={s.bmiPreviewValue}>
+                                        {(() => {
+                                            const heightToUse = vitalsPickerType === 'height' ? vitalsTempHeightCm : (formState.height_cm || 170);
+                                            const weightToUse = vitalsPickerType === 'weight' ? vitalsTempWeightKg : (formState.weight_kg || 70);
+                                            const hM = heightToUse / 100;
+                                            const bmiVal = hM > 0 ? weightToUse / (hM * hM) : 0;
+                                            return bmiVal > 0 ? bmiVal.toFixed(1) : '—';
+                                        })()}
+                                    </Text>
+                                </View>
+                                <View style={{ alignItems: 'flex-end' }}>
+                                    {(() => {
+                                        const heightToUse = vitalsPickerType === 'height' ? vitalsTempHeightCm : (formState.height_cm || 170);
+                                        const weightToUse = vitalsPickerType === 'weight' ? vitalsTempWeightKg : (formState.weight_kg || 70);
+                                        const hM = heightToUse / 100;
+                                        const bmiVal = hM > 0 ? weightToUse / (hM * hM) : 0;
+                                        
+                                        let cat = 'Unknown';
+                                        let col = '#94A3B8';
+                                        if (bmiVal > 0) {
+                                            if (bmiVal < 18.5) { cat = 'Underweight'; col = '#F59E0B'; }
+                                            else if (bmiVal < 25) { cat = 'Healthy'; col = '#10B981'; }
+                                            else if (bmiVal < 30) { cat = 'Overweight'; col = '#F59E0B'; }
+                                            else { cat = 'Obese'; col = '#EF4444'; }
+                                        }
+                                        return (
+                                            <View style={[s.bmiCategoryBadge, { borderColor: col + '40', backgroundColor: col + '10' }]}>
+                                                <View style={[s.bmiCategoryDot, { backgroundColor: col }]} />
+                                                <Text style={[s.bmiCategoryText, { color: col }]}>{cat}</Text>
+                                            </View>
+                                        );
+                                    })()}
+                                </View>
+                            </View>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
         </View>
         </TabScreenTransition>
     );
@@ -2760,7 +3312,7 @@ const s = StyleSheet.create({
     },
     headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
     headerEyebrow: {
-        fontSize: 13, fontWeight: '800', color: '#6366F1',
+        fontSize: 13, fontWeight: '800', color: '#8B5CF6',
         letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 4,
     },
     headerTitle: { fontSize: 32, fontWeight: '800', color: '#0F172A', letterSpacing: -1 },
@@ -2793,7 +3345,7 @@ const s = StyleSheet.create({
     completionTitleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
     completionTitle: { fontSize: 14, ...FONT.bold, color: '#1E293B' },
     completionPctTxt: { fontSize: 14, ...FONT.heavy, color: colors.primary },
-    progressBarBg: { height: 5, borderRadius: 3, backgroundColor: '#BAE6FD', marginBottom: 6, overflow: 'hidden' },
+    progressBarBg: { height: 5, borderRadius: 3, backgroundColor: '#E9D5FF', marginBottom: 6, overflow: 'hidden' },
     progressBarFill: { height: '100%', borderRadius: 3, backgroundColor: colors.primary },
     completionSub: { fontSize: 11, ...FONT.medium, color: '#94A3B8' },
 
@@ -2891,7 +3443,7 @@ const s = StyleSheet.create({
 
     // ── Primary Doctor ──
     gpRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 12 },
-    gpAvatar: { width: 50, height: 50, borderRadius: 25, backgroundColor: '#E0F2FE', alignItems: 'center', justifyContent: 'center', marginRight: 14 },
+    gpAvatar: { width: 50, height: 50, borderRadius: 25, backgroundColor: '#F3E8FF', alignItems: 'center', justifyContent: 'center', marginRight: 14 },
     gpAvatarTxt: { fontSize: 20, ...FONT.heavy, color: colors.primary },
     gpInfo: { flex: 1 },
     gpName: { fontSize: 17, ...FONT.bold, color: '#0F172A', marginBottom: 3 },
@@ -2900,7 +3452,7 @@ const s = StyleSheet.create({
     callBtnTxt: { fontSize: 14, ...FONT.bold, color: '#FFF' },
 
     // ── Freemium Upgrade ──
-    upgradeIconWrap: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#E0F2FE', alignItems: 'center', justifyContent: 'center', marginBottom: 24 },
+    upgradeIconWrap: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#F3E8FF', alignItems: 'center', justifyContent: 'center', marginBottom: 24 },
     upgradeTitle: { fontSize: 24, ...FONT.bold, color: '#0F172A', marginBottom: 12, letterSpacing: -0.5 },
     upgradeBody: { fontSize: 16, ...FONT.regular, color: '#94A3B8', textAlign: 'center', lineHeight: 24 },
 
@@ -2928,7 +3480,7 @@ const s = StyleSheet.create({
 
     // DOB Picker
     pickerContainer: { paddingBottom: 20 },
-    pickerHeader: { backgroundColor: '#E0F2FE', padding: 16, borderRadius: radius.md, marginBottom: 20, alignItems: 'center' },
+    pickerHeader: { backgroundColor: '#F3E8FF', padding: 16, borderRadius: radius.md, marginBottom: 20, alignItems: 'center' },
     pickerPreview: { fontSize: 18, ...FONT.bold, color: colors.primaryDark },
     pickerLabel: { fontSize: 13, ...FONT.bold, color: colors.textMuted, marginBottom: 12, letterSpacing: 0.5 },
     yearScroll: { marginBottom: 10 },
@@ -2962,7 +3514,7 @@ const s = StyleSheet.create({
     dashLeft: { flex: 1, paddingRight: 16 },
     dashEyebrow: { fontSize: 11, ...FONT.heavy, color: '#94A3B8', letterSpacing: 1 },
     dashScoreRow: { flexDirection: 'row', alignItems: 'baseline', marginBottom: 10 },
-    dashScoreMain: { fontSize: 48, ...FONT.heavy, color: '#3B82F6', letterSpacing: -2 },
+    dashScoreMain: { fontSize: 48, ...FONT.heavy, color: '#7C3AED', letterSpacing: -2 },
     dashScoreSub: { fontSize: 16, ...FONT.bold, color: '#94A3B8', marginLeft: 4 },
     dashStatusRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
     dashStatusTxt: { fontSize: 13, ...FONT.bold, color: '#10B981' },
@@ -2977,11 +3529,11 @@ const s = StyleSheet.create({
     dashMiniVal: { fontSize: 14, ...FONT.heavy },
 
     // Profile completeness banner
-    completeBanner: { backgroundColor: '#F0F9FF', borderRadius: radius.lg, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: '#BAE6FD' },
-    completeBannerTitle: { fontSize: 13, ...FONT.bold, color: '#0369A1' },
+    completeBanner: { backgroundColor: '#FAF5FF', borderRadius: radius.lg, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: '#E9D5FF' },
+    completeBannerTitle: { fontSize: 13, ...FONT.bold, color: '#5B21B6' },
     completeBannerPct: { fontSize: 13, ...FONT.heavy },
-    completeBannerSub: { fontSize: 11, ...FONT.medium, color: '#0EA5E9', marginTop: 6 },
-    completeBarOuter: { height: 5, backgroundColor: '#E0F2FE', borderRadius: radius.sm, overflow: 'hidden' },
+    completeBannerSub: { fontSize: 11, ...FONT.medium, color: '#7C3AED', marginTop: 6 },
+    completeBarOuter: { height: 5, backgroundColor: '#F3E8FF', borderRadius: radius.sm, overflow: 'hidden' },
     completeBarInner: { height: 5, borderRadius: radius.sm },
 
     // Health score card — grade chip + bracket tag
@@ -3005,8 +3557,8 @@ const s = StyleSheet.create({
     // Today's Focus (Inline Insights)
     focusSection: { marginBottom: 20 },
     focusHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12, paddingHorizontal: 4 },
-    focusHeaderTitle: { fontSize: 11, ...FONT.heavy, color: '#6366F1', letterSpacing: 1 },
-    insightCard: { borderRadius: radius.lg, padding: 14, marginBottom: 10, borderWidth: 1, borderLeftWidth: 4, shadowColor: '#6366F1', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.04, shadowRadius: 8, elevation: 2 },
+    focusHeaderTitle: { fontSize: 11, ...FONT.heavy, color: '#8B5CF6', letterSpacing: 1 },
+    insightCard: { borderRadius: radius.lg, padding: 14, marginBottom: 10, borderWidth: 1, borderLeftWidth: 4, shadowColor: '#8B5CF6', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.04, shadowRadius: 8, elevation: 2 },
     insightTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 6 },
     insightIcon: { fontSize: 18, lineHeight: 22 },
     insightTitle: { fontSize: 14, ...FONT.bold, color: '#0F172A', lineHeight: 20 },
@@ -3014,7 +3566,7 @@ const s = StyleSheet.create({
     insightBadgeText: { fontSize: 9, ...FONT.heavy, textTransform: 'uppercase', letterSpacing: 0.3 },
     insightBody: { fontSize: 13, ...FONT.medium, color: '#475569', lineHeight: 18, marginLeft: 26 },
     seeAllInsightsBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: 12, marginTop: 4 },
-    seeAllInsightsTxt: { fontSize: 13, ...FONT.bold, color: '#6366F1' },
+    seeAllInsightsTxt: { fontSize: 13, ...FONT.bold, color: '#8B5CF6' },
     emptyFocusState: { backgroundColor: '#FFF', borderRadius: radius.lg, padding: 24, alignItems: 'center', borderWidth: 1, borderColor: '#F1F5F9' },
     emptyFocusIcon: { fontSize: 24, marginBottom: 8 },
     emptyFocusTxt: { fontSize: 13, ...FONT.medium, color: '#64748B', textAlign: 'center' },
@@ -3053,7 +3605,7 @@ const s = StyleSheet.create({
     wellLbl: { fontSize: 9, ...FONT.bold, color: '#64748B', marginBottom: 2, textAlign: 'center' },
     wellSub: { fontSize: 8, ...FONT.heavy, textAlign: 'center' },
 
-    gridTimeLbl: { fontSize: 12, ...FONT.bold, color: '#3B82F6', marginBottom: 6 },
+    gridTimeLbl: { fontSize: 12, ...FONT.bold, color: '#8B5CF6', marginBottom: 6 },
     tinyDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: '#0F172A', marginRight: 8 },
     gridMedTxt: { fontSize: 12, ...FONT.bold, color: '#0F172A', flex: 1 },
 
@@ -3261,7 +3813,7 @@ const s = StyleSheet.create({
     apptDateText: {
         fontSize: 11,
         ...FONT.semibold,
-        color: '#4F46E5',
+        color: '#7C3AED',
     },
     apptLocText: {
         fontSize: 11,
@@ -3273,18 +3825,18 @@ const s = StyleSheet.create({
         paddingVertical: 8,
         paddingHorizontal: 16,
         borderRadius: radius.md,
-        backgroundColor: '#EEF2FF',
+        backgroundColor: '#FAF5FF',
     },
     schedBtnTxt: {
         fontSize: 13,
         ...FONT.bold,
-        color: '#6366F1',
+        color: '#8B5CF6',
     },
     checklistContainer: {
         marginTop: 16,
         paddingTop: 12,
         borderTopWidth: 1,
-        borderTopColor: '#BAE6FD',
+        borderTopColor: '#E9D5FF',
         flexDirection: 'row',
         flexWrap: 'wrap',
         gap: 10,
@@ -3461,5 +4013,174 @@ const s = StyleSheet.create({
         ...FONT.medium,
         color: colors.textMuted,
         marginTop: 4,
+    },
+    pickerBackdrop: {
+        flex: 1,
+        backgroundColor: 'rgba(15, 23, 42, 0.45)',
+        justifyContent: 'flex-end',
+    },
+    pickerSheet: {
+        backgroundColor: '#FFFFFF',
+        borderTopLeftRadius: 32,
+        borderTopRightRadius: 32,
+        paddingHorizontal: 20,
+        paddingTop: 12,
+        paddingBottom: 36,
+        shadowColor: '#0F172A',
+        shadowOffset: { width: 0, height: -10 },
+        shadowOpacity: 0.1,
+        shadowRadius: 20,
+        elevation: 10,
+    },
+    pickerHandle: {
+        width: 36,
+        height: 5,
+        borderRadius: 2.5,
+        backgroundColor: '#E2E8F0',
+        alignSelf: 'center',
+        marginBottom: 16,
+    },
+    pickerHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: 12,
+    },
+    pickerCancelTxt: {
+        fontSize: 15,
+        ...FONT.medium,
+        color: '#64748B',
+    },
+    pickerTitle: {
+        fontSize: 18,
+        ...FONT.bold,
+        color: '#0F172A',
+    },
+    pickerDoneTxt: {
+        fontSize: 15,
+        ...FONT.bold,
+        color: '#7C3AED',
+    },
+    pickerSubtitle: {
+        fontSize: 13,
+        ...FONT.medium,
+        color: '#64748B',
+        textAlign: 'center',
+        paddingHorizontal: 12,
+        lineHeight: 18,
+        marginBottom: 8,
+    },
+    pickerWheelsContainer: {
+        height: 220,
+        marginVertical: 12,
+        justifyContent: 'center',
+    },
+    pickerConversionRow: {
+        alignItems: 'center',
+        marginVertical: 10,
+    },
+    pickerConversionText: {
+        fontSize: 14,
+        ...FONT.semibold,
+        color: '#64748B',
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
+    },
+    bmiPreviewCard: {
+        backgroundColor: '#FAF5FF',
+        borderRadius: 16,
+        paddingHorizontal: 16,
+        paddingVertical: 14,
+        borderWidth: 1,
+        borderColor: 'rgba(124, 58, 237, 0.12)',
+        marginTop: 8,
+    },
+    bmiPreviewLabel: {
+        fontSize: 10,
+        ...FONT.bold,
+        color: '#7C3AED',
+        letterSpacing: 0.5,
+    },
+    bmiPreviewValue: {
+        fontSize: 22,
+        ...FONT.heavy,
+        color: '#0F172A',
+        marginTop: 2,
+    },
+    bmiCategoryBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderRadius: 12,
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        gap: 6,
+    },
+    bmiCategoryDot: {
+        width: 6,
+        height: 6,
+        borderRadius: 3,
+    },
+    bmiCategoryText: {
+        fontSize: 12,
+        ...FONT.bold,
+    },
+    stepBtn: {
+        width: 38,
+        height: 38,
+        borderRadius: 19,
+        backgroundColor: '#FAF5FF',
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 1,
+        borderColor: 'rgba(124, 58, 237, 0.15)',
+        marginHorizontal: 12,
+    },
+    stepBtnMini: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: '#FAF5FF',
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 1,
+        borderColor: 'rgba(124, 58, 237, 0.15)',
+    },
+    stepBtnTxt: {
+        fontSize: 18,
+        ...FONT.bold,
+        color: '#7C3AED',
+        lineHeight: 20,
+    },
+    pickerToggleBar: {
+        flexDirection: 'row',
+        backgroundColor: '#F1F5F9',
+        borderRadius: 14,
+        padding: 4,
+        marginVertical: 16,
+        alignSelf: 'center',
+        width: '65%',
+    },
+    pickerToggleBtn: {
+        flex: 1,
+        paddingVertical: 8,
+        alignItems: 'center',
+        borderRadius: 10,
+    },
+    pickerToggleBtnActive: {
+        backgroundColor: '#FFFFFF',
+        shadowColor: '#0F172A',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 4,
+        elevation: 2,
+    },
+    pickerToggleText: {
+        fontSize: 14,
+        ...FONT.semibold,
+        color: '#64748B',
+    },
+    pickerToggleTextActive: {
+        color: '#7C3AED',
     },
 });

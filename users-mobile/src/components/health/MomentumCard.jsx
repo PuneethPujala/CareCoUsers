@@ -16,7 +16,7 @@ export default function MomentumCard({
                 <Text style={s.title}>
                     {streakDays > 0 ? `🔥 ${streakDays} Day ${streakLabel}` : `🎯 Start Your ${streakLabel}`}
                 </Text>
-                <Text style={[s.badge, { color: streakDays > 0 ? colors.success : colors.textMuted }]}>
+                <Text style={[s.badge, { color: '#7C3AED' }]}>
                     {streakDays > 0 ? 'Active' : 'Tracking'}
                 </Text>
             </View>
@@ -30,18 +30,18 @@ export default function MomentumCard({
                             <View style={[
                                 s.dayCircle,
                                 {
-                                    borderColor: isCompleted ? colors.success : isToday ? colors.primary : colors.borderLight,
+                                    borderColor: isCompleted ? '#7C3AED' : isToday ? '#7C3AED' : '#E4E4E7',
                                     borderStyle: isCompleted ? 'solid' : 'dashed',
-                                    backgroundColor: isCompleted ? '#ECFDF5' : isToday ? colors.primarySoft : 'transparent',
+                                    backgroundColor: isCompleted ? '#7C3AED' : isToday ? '#FAF5FF' : 'transparent',
                                 }
                              ]}>
                                 {isCompleted ? (
                                     <Text style={s.checkTxt}>✓</Text>
                                 ) : (
-                                    <Text style={[s.dayLetter, isToday && { color: colors.primary }]}>{day}</Text>
+                                    <Text style={[s.dayLetter, isToday && { color: '#7C3AED' }]}>{day}</Text>
                                 )}
                             </View>
-                            <Text style={[s.dayLabel, isToday && { color: colors.primary }]}>{day}</Text>
+                            <Text style={[s.dayLabel, isToday && { color: '#7C3AED' }]}>{day}</Text>
                         </View>
                     );
                 })}
@@ -52,17 +52,17 @@ export default function MomentumCard({
 
 const s = StyleSheet.create({
     card: {
-        backgroundColor: colors.surface,
-        borderRadius: 28,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 20,
         padding: 20,
         borderWidth: 1,
-        borderColor: colors.borderLight,
+        borderColor: 'rgba(15, 23, 42, 0.04)',
         marginBottom: 20,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.02,
-        shadowRadius: 8,
-        elevation: 1,
+        shadowColor: '#000000',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.05,
+        shadowRadius: 30,
+        elevation: 4,
     },
     headerRow: {
         flexDirection: 'row',
@@ -73,7 +73,7 @@ const s = StyleSheet.create({
     title: {
         fontSize: 14,
         ...FONT.heavy,
-        color: colors.textPrimary,
+        color: '#0F172A',
     },
     badge: {
         fontSize: 12,
@@ -98,17 +98,18 @@ const s = StyleSheet.create({
     },
     checkTxt: {
         fontSize: 12,
-        color: colors.success,
+        color: '#FFFFFF',
         ...FONT.bold,
     },
     dayLetter: {
         fontSize: 11,
-        color: colors.textMuted,
+        color: '#94A3B8',
         ...FONT.medium,
     },
     dayLabel: {
         fontSize: 10,
         ...FONT.semibold,
-        color: colors.textSecondary,
+        color: '#64748B',
     },
 });
+

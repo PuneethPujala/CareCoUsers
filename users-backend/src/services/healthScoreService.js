@@ -290,9 +290,12 @@ function scoreMobility(lifestyle, bracket) {
 /* ─── Grade & Label ────────────────────────────────────────────────────────── */
 
 function gradeFromScore(score) {
+  // TODO/ARCH-SMELL: Hardcoding UI hex colors on the backend couples presentation to API response data.
+  // Ideally, the backend should return a semantic indicator (e.g. status tier/severity), and client
+  // applications should map it to their specific design tokens.
   if (score >= 85) return { grade: "A", label: "Excellent", color: "#10B981" };
   if (score >= 70)
-    return { grade: "B", label: "Managing Well", color: "#3B82F6" };
+    return { grade: "B", label: "Managing Well", color: "#7C3AED" };
   if (score >= 55) return { grade: "C", label: "Doing OK", color: "#F59E0B" };
   if (score >= 40)
     return { grade: "D", label: "Needs Attention", color: "#F97316" };

@@ -9,6 +9,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 let HealthConnect = null;
 let AppleHealthKit = null;
 
+export const getHealthConnect = () => HealthConnect;
+export const getAppleHealthKit = () => AppleHealthKit;
+
 export const isHealthSupported = () => {
     return Platform.OS !== 'web'; // Support Android & iOS natively
 };
@@ -52,6 +55,21 @@ export const REQUIRED_PERMISSIONS = [
     { accessType: 'read', recordType: 'OxygenSaturation' },
     { accessType: 'read', recordType: 'Hydration' },
     { accessType: 'read', recordType: 'BodyTemperature' }
+];
+
+export const OPTIONAL_PERMISSIONS = [
+    { accessType: 'read', recordType: 'Steps' },
+    { accessType: 'read', recordType: 'Distance' },
+    { accessType: 'read', recordType: 'ExerciseSession' },
+    { accessType: 'read', recordType: 'ActiveCaloriesBurned' },
+    { accessType: 'read', recordType: 'TotalCaloriesBurned' },
+    { accessType: 'read', recordType: 'FloorsClimbed' },
+    { accessType: 'read', recordType: 'Vo2Max' },
+    { accessType: 'read', recordType: 'Weight' },
+    { accessType: 'read', recordType: 'Height' },
+    { accessType: 'read', recordType: 'BodyFat' },
+    { accessType: 'read', recordType: 'BloodGlucose' },
+    { accessType: 'read', recordType: 'RespiratoryRate' }
 ];
 
 /**
@@ -143,9 +161,10 @@ export const requestHealthPermissions = async () => {
 /**
  * Check current permission status without re-prompting the user.
  * @param {'all'|'any'} mode - Verification mode
+ * @param {Array} permissionsList - The list of permissions to check (defaults to REQUIRED_PERMISSIONS)
  * @returns {Promise<'granted'|'denied'|'unavailable'>}
  */
-export const checkPermissionStatus = async (mode = 'any') => {
+export const checkPermissionStatus = async (mode = 'any', permissionsList = REQUIRED_PERMISSIONS) => {
     if (Platform.OS === 'android') {
         try {
             if (!HealthConnect) {
@@ -155,7 +174,7 @@ export const checkPermissionStatus = async (mode = 'any') => {
             if (!isInitialized) return 'unavailable';
 
             const grantedPermissions = await HealthConnect.getGrantedPermissions();
-            const isGranted = hasPermissions(grantedPermissions, REQUIRED_PERMISSIONS, mode);
+            const isGranted = hasPermissions(grantedPermissions, permissionsList, mode);
             if (isGranted) {
                 try {
                     await AsyncStorage.setItem('lastHealthPermissionCheck', Date.now().toString());
@@ -185,6 +204,68 @@ export const checkPermissionStatus = async (mode = 'any') => {
         }
     }
     return 'unavailable';
+};
+
+/**
+ * Request user permission to read optional health data categories (e.g. activity, body measurements, blood glucose).
+ * @param {Array<string>} recordTypes - Specific optional record types (e.g., ['Steps', 'Weight']) to prompt for. If null, requests all.
+ */
+export const requestOptionalHealthPermissions = async (recordTypes = null) => {
+    const targets = recordTypes
+        ? OPTIONAL_PERMISSIONS.filter(p => recordTypes.includes(p.recordType))
+        : OPTIONAL_PERMISSIONS;
+
+    if (Platform.OS === 'android' && HealthConnect) {
+        try {
+            await HealthConnect.requestPermission(targets);
+            const grantedPermissions = await HealthConnect.getGrantedPermissions();
+            return hasPermissions(grantedPermissions, targets, 'any');
+        } catch (e) {
+            console.warn('Android Optional Health Permission Error:', e);
+            return false;
+        }
+    } else if (Platform.OS === 'ios' && AppleHealthKit) {
+        return new Promise((resolve) => {
+            const HKReadPermissions = [];
+            targets.forEach(t => {
+                let mapped = null;
+                switch(t.recordType) {
+                    case 'Steps': mapped = AppleHealthKit.Constants.Permissions.StepCount; break;
+                    case 'Distance': mapped = AppleHealthKit.Constants.Permissions.DistanceWalkingRunning; break;
+                    case 'ExerciseSession': mapped = AppleHealthKit.Constants.Permissions.Workout; break;
+                    case 'ActiveCaloriesBurned': mapped = AppleHealthKit.Constants.Permissions.ActiveEnergyBurned; break;
+                    case 'TotalCaloriesBurned': mapped = AppleHealthKit.Constants.Permissions.BasalEnergyBurned; break;
+                    case 'FloorsClimbed': mapped = AppleHealthKit.Constants.Permissions.FlightsClimbed; break;
+                    case 'Vo2Max': mapped = AppleHealthKit.Constants.Permissions.Vo2Max; break;
+                    case 'Weight': mapped = AppleHealthKit.Constants.Permissions.Weight; break;
+                    case 'Height': mapped = AppleHealthKit.Constants.Permissions.Height; break;
+                    case 'BodyFat': mapped = AppleHealthKit.Constants.Permissions.BodyFatPercentage; break;
+                    case 'BloodGlucose': mapped = AppleHealthKit.Constants.Permissions.BloodGlucose; break;
+                    case 'RespiratoryRate': mapped = AppleHealthKit.Constants.Permissions.RespiratoryRate; break;
+                }
+                if (mapped) HKReadPermissions.push(mapped);
+            });
+
+            if (HKReadPermissions.length === 0) {
+                return resolve(true);
+            }
+
+            const permissions = {
+                permissions: {
+                    read: HKReadPermissions,
+                },
+            };
+            AppleHealthKit.initHealthKit(permissions, (error) => {
+                if (error) {
+                    console.warn('iOS Optional Health Permission Error:', error);
+                    resolve(false);
+                } else {
+                    resolve(true);
+                }
+            });
+        });
+    }
+    return false;
 };
 
 

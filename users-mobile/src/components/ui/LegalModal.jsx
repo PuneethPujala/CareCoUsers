@@ -372,7 +372,7 @@ const styles = StyleSheet.create({
     },
     progressBar: {
         height: '100%',
-        backgroundColor: '#e8ff47',
+        backgroundColor: '#7C3AED',
     },
     bodyRow: {
         flex: 1,
@@ -557,9 +557,9 @@ const styles = StyleSheet.create({
         backgroundColor: '#E2E8F0',
     },
     acceptBtnActive: {
-        backgroundColor: '#e8ff47',
+        backgroundColor: '#7C3AED',
         borderWidth: 1,
-        borderColor: '#d2eb3a',
+        borderColor: '#6D28D9',
     },
     acceptBtnText: {
         fontSize: 14,
@@ -567,6 +567,6 @@ const styles = StyleSheet.create({
         color: '#94A3B8',
     },
     acceptBtnTextActive: {
-        color: '#000000',
+        color: '#FFFFFF',
     },
 });

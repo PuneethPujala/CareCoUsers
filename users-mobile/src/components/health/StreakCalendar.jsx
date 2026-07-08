@@ -192,9 +192,9 @@ const StreakCalendar = ({ dailyLog = [], timezone = "Asia/Kolkata", profile = nu
     return daysName[date.getDay()];
   };
 
-  // AI Coaching feedback generation
   const getCoachingFeedback = (day) => {
     if (!day || !day.log) return "A new day is a fresh opportunity to build consistent habits.";
+    const isToday = getLocalDateString(day.date, timezone) === getLocalDateString(new Date(), timezone);
     const score = calculateDailyConsistency(day);
     const adherence = day.log.adherence;
     const mood = day.log.mood;
@@ -208,19 +208,29 @@ const StreakCalendar = ({ dailyLog = [], timezone = "Asia/Kolkata", profile = nu
     const hasBp = bp && bp.systolic !== null && bp.systolic !== undefined;
 
     if (score === 100) {
-      return "Excellent consistency. You completed every scheduled health activity today!";
+      return isToday
+        ? "Excellent consistency. You completed every scheduled health activity today!"
+        : "Excellent consistency. You completed every scheduled health activity on this day!";
     }
     if (hasMeds && adherence < 100) {
-      return "You completed some medications today. Try setting alarms to complete the rest.";
+      return isToday
+        ? "You completed some medications today. Try setting alarms to complete the rest."
+        : "You completed some medications on this day.";
     }
     if (!hasSleep) {
-      return "Sleep wasn't logged today. Adding it improves tomorrow's insight.";
+      return isToday
+        ? "Sleep wasn't logged today. Adding it improves tomorrow's insight."
+        : "Sleep wasn't logged on this day.";
     }
     if (!hasMood) {
-      return "Log your mood today to help track the impact of daily habits on wellness.";
+      return isToday
+        ? "Log your mood today to help track the impact of daily habits on wellness."
+        : "Mood wasn't logged on this day.";
     }
     if (!hasBp) {
-      return "Your vitals aren't logged today. Adding them keeps dashboard alerts clear.";
+      return isToday
+        ? "Your vitals aren't logged today. Adding them keeps dashboard alerts clear."
+        : "Vitals weren't logged on this day.";
     }
     return "Excellent consistency. You're building a healthy routine step by step.";
   };
@@ -419,14 +429,19 @@ const StreakCalendar = ({ dailyLog = [], timezone = "Asia/Kolkata", profile = nu
                 {/* Section 6: AI Coaching Feedback */}
                 <Text style={styles.feedbackText}>{getCoachingFeedback(selectedDay)}</Text>
 
-                {/* Section 7: Momentum Card */}
                 <View style={styles.momentumCard}>
                   <Text style={styles.momentumValue}>🔥</Text>
                   <View style={{ flex: 1, marginLeft: 10 }}>
                     <Text style={styles.momentumTitle}>
-                      {profile?.gamification?.current_streak || 7}-day streak
+                      {(profile?.gamification?.current_streak !== undefined && profile?.gamification?.current_streak !== null && profile.gamification.current_streak > 0)
+                        ? `${profile.gamification.current_streak}-day streak`
+                        : "Start your streak!"}
                     </Text>
-                    <Text style={styles.momentumSubtitle}>Keep the momentum going!</Text>
+                    <Text style={styles.momentumSubtitle}>
+                      {(profile?.gamification?.current_streak !== undefined && profile?.gamification?.current_streak !== null && profile.gamification.current_streak > 0)
+                        ? "Keep the momentum going!"
+                        : "Log today's activities to start!"}
+                    </Text>
                   </View>
                 </View>
               </View>

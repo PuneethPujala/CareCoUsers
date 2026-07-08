@@ -26,7 +26,7 @@ import { getStreakState } from "../../utils/streakHelper";
 import StreakCompanion from "../../components/ui/StreakCompanion";
 import { LinearGradient } from "expo-linear-gradient";
 import { LineChart } from "react-native-chart-kit";
-import Svg, { Circle } from "react-native-svg";
+import Svg, { Circle, Path, Defs, LinearGradient as SvgLinearGradient, Stop } from "react-native-svg";
 import * as Icons from "lucide-react-native";
 import {
   Check,
@@ -80,6 +80,14 @@ import {
   addMonths,
   subMonths,
 } from "date-fns";
+
+const FONT = {
+  regular: { fontFamily: "Inter_400Regular" },
+  medium: { fontFamily: "Inter_500Medium" },
+  semibold: { fontFamily: "Inter_600SemiBold" },
+  bold: { fontFamily: "Inter_700Bold" },
+  heavy: { fontFamily: "Inter_800ExtraBold" },
+};
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
@@ -142,16 +150,16 @@ const getHeroTheme = (scoreValue) => {
   } else {
     return {
       gradient: [
-        "#1238C7", // Dark Sapphire
-        "#2454E8", // Electric Blue
-        "#3366FF", // Vibrant Sapphire
         "#4F46E5", // Midnight Indigo
+        "#6366F1", // Electric Purple
+        "#7C3AED", // Vibrant Purple
+        "#8B5CF6", // Light Violet
       ],
-      accentGlow: "#22D3EE", // Cyan AI highlight
+      accentGlow: "#C084FC", // Lavender AI highlight
       textOnHero: "#FFFFFF",
       barBg: "rgba(255, 255, 255, 0.15)",
-      barFill: "#22D3EE",
-      ringColor: "#22D3EE",
+      barFill: "#C084FC",
+      ringColor: "#C084FC",
     };
   }
 };
@@ -160,8 +168,8 @@ const getHeroTheme = (scoreValue) => {
 const C = {
   bg: "#F8FAFC",
   card: "#FFFFFF",
-  primary: "#4361EE",
-  primarySoft: "#EEF2FF",
+  primary: "#7C3AED", // Unified Purple Theme
+  primarySoft: "#FAF5FF", // Lavender Accent Background
   success: "#10B981",
   successBg: "#ECFDF5",
   warning: "#F59E0B",
@@ -182,7 +190,7 @@ const C = {
 
 const LEVEL_COLORS = {
   optimal: "#10B981",
-  consistent: "#4361EE",
+  consistent: "#7C3AED", // Unified Purple Theme
   improving: "#F59E0B",
   beginner: "#94A3B8",
 };
@@ -486,7 +494,7 @@ const CircularProgress = ({
           cx={size / 2}
           cy={size / 2}
           r={radius}
-          stroke="rgba(255,255,255,0.15)"
+          stroke={color ? "#F3E8FF" : "rgba(255,255,255,0.15)"}
           strokeWidth={strokeWidth}
           fill="none"
         />
@@ -1029,22 +1037,39 @@ function PremiumBadge({ data, size = "normal", onPress, style }) {
 
         {!isSmall && (
           <View style={{ alignItems: "center", width: "100%", marginTop: 8 }}>
-            {target > 1 && (
-              <Text style={{ fontSize: 10, color: "#64748B", fontWeight: "800" }}>
-                {current}/{target}
-              </Text>
+            {target > 1 ? (
+              <View style={{ width: "80%", alignItems: "center", marginTop: 2 }}>
+                <Text style={{ fontSize: 10, ...FONT.heavy, color: "#64748B", marginBottom: 4 }}>
+                  {current}/{target}
+                </Text>
+                <View style={{
+                  width: "100%",
+                  height: 4,
+                  borderRadius: 2,
+                  backgroundColor: "#E2E8F0",
+                  overflow: "hidden",
+                }}>
+                  <View style={{
+                    width: `${pct}%`,
+                    height: "100%",
+                    borderRadius: 2,
+                    backgroundColor: tierColor,
+                  }} />
+                </View>
+              </View>
+            ) : (
+              <View style={{
+                borderColor: '#E2E8F0',
+                borderWidth: 1,
+                backgroundColor: '#F8FAFC',
+                borderRadius: 12,
+                paddingHorizontal: 8,
+                paddingVertical: 2,
+                marginTop: 4,
+              }}>
+                <Text style={{ fontSize: 9, ...FONT.heavy, color: '#94A3B8' }}>LOCKED</Text>
+              </View>
             )}
-            <View style={{
-              borderColor: '#E2E8F0',
-              borderWidth: 1,
-              backgroundColor: '#F8FAFC',
-              borderRadius: 12,
-              paddingHorizontal: 8,
-              paddingVertical: 2,
-              marginTop: 4,
-            }}>
-              <Text style={{ fontSize: 9, fontWeight: '800', color: '#94A3B8' }}>LOCKED</Text>
-            </View>
           </View>
         )}
         </Animated.View>
@@ -1053,12 +1078,8 @@ function PremiumBadge({ data, size = "normal", onPress, style }) {
   }
 
   // Unlocked State
-  const isGoldOrLegendary =
-    data.meta.tier === "gold" || data.meta.tier === "legendary";
-  const statusLabel = isGoldOrLegendary ? "ACHIEVED" : "UNLOCKED";
-  const statusColor = isGoldOrLegendary ? "#D97706" : "#10B981";
-  const statusBg = isGoldOrLegendary ? "#FFFBEB" : "#ECFDF5";
-  const statusBorder = isGoldOrLegendary ? "#FDE68A" : "#A7F3D0";
+  const label = getUnlockedLabel(data);
+  const statusColor = (label === "Achieved" || label.endsWith("complete") || label.endsWith("perfect days")) ? "#10B981" : "#64748B";
 
   return (
     <Pressable
@@ -1244,19 +1265,10 @@ function PremiumBadge({ data, size = "normal", onPress, style }) {
 
       {!isSmall && (
         <View style={{
-          borderColor: statusBorder,
-          borderWidth: 1,
-          backgroundColor: statusBg,
-          borderRadius: 12,
-          paddingHorizontal: 8,
-          paddingVertical: 2,
-          marginTop: 6,
-          flexDirection: 'row',
+          marginTop: 8,
           alignItems: 'center',
-          gap: 3,
         }}>
-          <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: statusColor }} />
-          <Text style={{ fontSize: 9, fontWeight: '850', color: statusColor }}>{statusLabel}</Text>
+          <Text style={{ fontSize: 10, ...FONT.bold, color: statusColor }}>{label}</Text>
         </View>
       )}
       </Animated.View>
@@ -1685,7 +1697,21 @@ export default function AdherenceScreen({ navigation }) {
   return (
     <TabScreenTransition>
       <View style={{ flex: 1, backgroundColor: C.bg }}>
-      <SafeAreaView style={{ flex: 1 }}>
+        {/* Ambient Background Decorations (Level 3: Light) */}
+        <View style={StyleSheet.absoluteFill} pointerEvents="none">
+          <Svg height="100%" width="100%" viewBox="0 0 400 850" preserveAspectRatio="none">
+            <Defs>
+              <SvgLinearGradient id="adherenceTopBg" x1="0%" y1="0%" x2="100%" y2="100%">
+                <Stop offset="0%" stopColor="#E0F2FE" stopOpacity="0.4" />
+                <Stop offset="100%" stopColor="#F8FAFC" stopOpacity="0" />
+              </SvgLinearGradient>
+            </Defs>
+            {/* Top right curvy gradient backdrop */}
+            <Path d="M180 0 C260 120, 320 150, 400 120 L400 0 Z" fill="url(#adherenceTopBg)" />
+          </Svg>
+        </View>
+
+        <SafeAreaView style={{ flex: 1 }}>
         {/* ── Header ── */}
         <View style={styles.header}>
           <Pressable onPress={() => navigation.goBack()} style={styles.backBtn}>
@@ -1754,91 +1780,34 @@ export default function AdherenceScreen({ navigation }) {
             />
           }
         >
-          {/* ── [0] Hero Gradient Card (Solid premium style with subtle gloss) ── */}
+          {/* ── [0] Hero Gradient Card (Redesigned Light Theme Fitbit style) ── */}
           <Animated.View style={[anim(0), { position: "relative" }]}>
-            {/* Ambient Back-Glow (Soft halos, no hard edges) */}
-            <LinearGradient
-              colors={
-                heroScore >= 90
-                  ? ["rgba(16, 185, 129, 0.28)", "rgba(16, 185, 129, 0)"]
-                  : ["rgba(79, 70, 229, 0.28)", "rgba(79, 70, 229, 0)"]
-              }
-              start={{ x: 0.5, y: 0.5 }}
-              end={{ x: 1, y: 1 }}
-              style={{
-                position: "absolute",
-                top: -10,
-                left: -20,
-                width: 260,
-                height: 260,
-                borderRadius: 130,
-              }}
-            />
-            <LinearGradient
-              colors={
-                heroScore >= 90
-                  ? ["rgba(20, 184, 166, 0.24)", "rgba(20, 184, 166, 0)"]
-                  : ["rgba(236, 72, 153, 0.22)", "rgba(236, 72, 153, 0)"]
-              }
-              start={{ x: 0.5, y: 0.5 }}
-              end={{ x: 1, y: 1 }}
-              style={{
-                position: "absolute",
-                bottom: -40,
-                right: -40,
-                width: 240,
-                height: 240,
-                borderRadius: 120,
-              }}
-            />
-
-            <LinearGradient
-              colors={heroTheme.gradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
+            <View
               style={[
                 styles.heroCard,
                 {
+                  backgroundColor: "#FFFFFF",
                   borderWidth: 1,
-                  borderColor: "rgba(255, 255, 255, 0.12)", // Subtly transparent border at ~12% opacity
+                  borderColor: "rgba(15, 23, 42, 0.04)",
+                  shadowColor: "#000000",
+                  shadowOffset: { width: 0, height: 8 },
+                  shadowOpacity: 0.04,
+                  shadowRadius: 24,
+                  elevation: 3,
                 },
               ]}
             >
-              {/* Top-left radial-like white highlight overlay */}
-              <LinearGradient
-                colors={["rgba(255, 255, 255, 0.22)", "rgba(255, 255, 255, 0)"]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 0.45, y: 0.45 }}
-                style={[StyleSheet.absoluteFillObject, { zIndex: 1 }]}
-              />
-
-              {/* Bottom-right soft purple/violet glow to simulate mesh/aurora */}
-              <LinearGradient
-                colors={["rgba(124, 108, 248, 0.25)", "rgba(124, 108, 248, 0)"]}
-                start={{ x: 1, y: 1 }}
-                end={{ x: 0.3, y: 0.3 }}
-                style={[StyleSheet.absoluteFillObject, { zIndex: 1 }]}
-              />
-
-              {/* Top-right subtle cyan glow for premium lighting */}
-              <LinearGradient
-                colors={["rgba(103, 232, 249, 0.18)", "rgba(103, 232, 249, 0)"]}
-                start={{ x: 1, y: 0 }}
-                end={{ x: 0.4, y: 0.6 }}
-                style={[StyleSheet.absoluteFillObject, { zIndex: 1 }]}
-              />
-
               {/* Sparkles decoration (Background layer) */}
               <View
                 style={{
                   position: "absolute",
                   top: 16,
                   right: 16,
-                  opacity: 0.45,
+                  opacity: 0.35,
                   zIndex: 1,
                 }}
               >
-                <Icons.Sparkles size={22} color="#FFF" />
+                <Icons.Sparkles size={20} color="#7C3AED" />
               </View>
 
               {/* Foreground Content Layer */}
@@ -1846,23 +1815,11 @@ export default function AdherenceScreen({ navigation }) {
                 <View style={styles.heroTopRow}>
                   {/* Ring */}
                   <View style={styles.heroRingWrap}>
-                    {/* Faint cyan glow behind progress ring to make it feel alive */}
-                    <LinearGradient
-                      colors={["rgba(34, 211, 238, 0.22)", "rgba(34, 211, 238, 0)"]}
-                      start={{ x: 0.5, y: 0.5 }}
-                      end={{ x: 1, y: 1 }}
-                      style={{
-                        position: "absolute",
-                        width: 120,
-                        height: 120,
-                        borderRadius: 60,
-                      }}
-                    />
                     <CircularProgress
                       progress={heroScore}
                       size={148}
                       strokeWidth={13}
-                      color={ringColor}
+                      color="#7C3AED"
                     />
                     <View style={styles.heroRingCenter}>
                       <AnimatedNumber
@@ -1893,7 +1850,7 @@ export default function AdherenceScreen({ navigation }) {
                       </Text>
                       <View style={styles.momentumPill}>
                         <View style={styles.momentumIconContainer}>
-                          <MomentumIcon size={12} color="#4F46E5" />
+                          <MomentumIcon size={12} color="#7C3AED" />
                         </View>
                         <Text style={styles.momentumText}>{momentumLabel}</Text>
                       </View>
@@ -1915,11 +1872,11 @@ export default function AdherenceScreen({ navigation }) {
                               marginTop: 4,
                             }}
                           >
-                            <LvlIcon size={14} color={lvlCfg.color} />
+                            <LvlIcon size={14} color="#7C3AED" />
                             <Text
                               style={[
                                 styles.heroStatValue,
-                                { color: lvlCfg.color, fontSize: 13 },
+                                { color: "#7C3AED", fontSize: 13 },
                               ]}
                             >
                               {level.label}
@@ -1934,7 +1891,7 @@ export default function AdherenceScreen({ navigation }) {
                 {/* Today's progress bar */}
                 <View style={styles.heroProgressSection}>
                   <View style={styles.heroProgressHeader}>
-                    <Target size={13} color="rgba(255,255,255,0.7)" />
+                    <Target size={13} color="#7C3AED" />
                     <Text style={styles.heroProgressTitle}>
                       {t("adherence.todays_goal", {
                         defaultValue: "Today's Goal",
@@ -1959,7 +1916,7 @@ export default function AdherenceScreen({ navigation }) {
                   <View
                     style={[
                       styles.heroProgressBg,
-                      { backgroundColor: heroTheme.barBg },
+                      { backgroundColor: "#F3E8FF" },
                     ]}
                   >
                     <Animated.View
@@ -1972,14 +1929,14 @@ export default function AdherenceScreen({ navigation }) {
                               : "0%",
                           backgroundColor: today.completed
                             ? "#10B981"
-                            : heroTheme.barFill,
+                            : "#7C3AED",
                         },
                       ]}
                     />
                   </View>
                 </View>
               </View>
-            </LinearGradient>
+            </View>
           </Animated.View>
 
           {/* ── [1] Streak Banner with Companion ── */}
@@ -1987,14 +1944,32 @@ export default function AdherenceScreen({ navigation }) {
             {(() => {
               const companion = getStreakState(streak, dailyLog);
               return (
-                <LinearGradient
-                  colors={["#DBEAFE", "#BFDBFE"]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={[styles.streakCard, { shadowColor: "#3B82F6" }]}
+                <View
+                  style={[
+                    styles.streakCard,
+                    {
+                      backgroundColor: "#FAF5FF",
+                      borderWidth: 1,
+                      borderColor: "#F3E8FF",
+                      shadowColor: "#7C3AED",
+                      shadowOffset: { width: 0, height: 4 },
+                      shadowOpacity: 0.03,
+                      shadowRadius: 10,
+                      elevation: 2,
+                    },
+                  ]}
                 >
                   <View style={styles.streakLeft}>
-                    <View style={styles.companionImageWrap}>
+                    <View
+                      style={[
+                        styles.companionImageWrap,
+                        {
+                          backgroundColor: "#FFFFFF",
+                          borderColor: "#F3E8FF",
+                          borderWidth: 1.5,
+                        },
+                      ]}
+                    >
                       <StreakCompanion
                         streak={streak}
                         dailyLog={dailyLog}
@@ -2022,7 +1997,7 @@ export default function AdherenceScreen({ navigation }) {
                       </Text>
                     </View>
                   )}
-                </LinearGradient>
+                </View>
               );
             })()}
           </Animated.View>
@@ -2127,8 +2102,8 @@ export default function AdherenceScreen({ navigation }) {
                           defaultValue: "Adherence",
                         }),
                         value: `${adherenceRecap.adherence_rate || 0}%`,
-                        color: "#1E88E5",
-                        bg: "rgba(30, 136, 229, 0.08)",
+                        color: "#7C3AED",
+                        bg: "#FAF5FF",
                         Icon: CheckCircle2,
                       },
                       {
@@ -2136,8 +2111,8 @@ export default function AdherenceScreen({ navigation }) {
                           defaultValue: "Perfect Days",
                         }),
                         value: adherenceRecap.perfect_days || 0,
-                        color: "#10B981",
-                        bg: "rgba(16, 185, 129, 0.08)",
+                        color: "#7C3AED",
+                        bg: "#FAF5FF",
                         Icon: CalIcon,
                       },
                       {
@@ -2145,8 +2120,8 @@ export default function AdherenceScreen({ navigation }) {
                           defaultValue: "Doses Taken",
                         }),
                         value: adherenceRecap.total_doses_taken || 0,
-                        color: "#8B5CF6",
-                        bg: "rgba(139, 92, 246, 0.08)",
+                        color: "#7C3AED",
+                        bg: "#FAF5FF",
                         Icon: Icons.Pill || Sparkles,
                       },
                     ];
@@ -2181,7 +2156,7 @@ export default function AdherenceScreen({ navigation }) {
 
                 {adherenceRecap.improvement_vs_previous !== 0 && (
                   <View style={styles.tipBanner}>
-                    <Sparkles size={14} color="#1E88E5" />
+                    <Sparkles size={14} color="#7C3AED" />
                     <Text style={styles.tipText}>
                       {t("adherence.improvement_tip_prefix", {
                         defaultValue: "You're ",
@@ -2959,36 +2934,73 @@ export default function AdherenceScreen({ navigation }) {
                       })}
                     </Text>
                     {selectedDay.medicines.map((med, idx) => (
-                      <View key={idx} style={styles.sheetMedRow}>
-                        <View
-                          style={[
-                            styles.sheetMedIcon,
-                            {
-                              backgroundColor: med.taken
-                                ? C.successBg
-                                : C.dangerBg,
-                            },
-                          ]}
-                        >
-                          {med.taken ? (
-                            <CheckCircle2 size={14} color={C.success} />
-                          ) : (
-                            <X size={14} color={C.danger} />
-                          )}
-                        </View>
-                        <View style={{ flex: 1 }}>
-                          <Text
-                            style={[
-                              styles.sheetMedName,
-                              !med.taken && {
-                                textDecorationLine: "line-through",
-                                color: C.muted,
-                              },
-                            ]}
+                      <View
+                        key={idx}
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          backgroundColor: med.taken ? "#FAF5FF" : "#F8FAFC",
+                          borderRadius: 16,
+                          padding: 12,
+                          marginBottom: 10,
+                          borderWidth: 1,
+                          borderColor: med.taken ? "#F3E8FF" : "#E2E8F0",
+                          shadowColor: "#7C3AED",
+                          shadowOffset: { width: 0, height: 2 },
+                          shadowOpacity: med.taken ? 0.03 : 0,
+                          shadowRadius: 6,
+                          elevation: 1,
+                        }}
+                      >
+                        <View style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
+                          <View
+                            style={{
+                              width: 32,
+                              height: 32,
+                              borderRadius: 16,
+                              backgroundColor: med.taken ? "#ECFDF5" : "#FEF2F2",
+                              alignItems: "center",
+                              justifyContent: "center",
+                            }}
                           >
-                            {med.name}
+                            {med.taken ? (
+                              <CheckCircle2 size={16} color="#10B981" />
+                            ) : (
+                              <X size={16} color="#EF4444" />
+                            )}
+                          </View>
+                          <View style={{ flex: 1, marginHorizontal: 12 }}>
+                            <Text
+                              style={{
+                                fontSize: 15,
+                                fontWeight: "700",
+                                color: med.taken ? "#0F172A" : "#64748B",
+                                textDecorationLine: med.taken ? "none" : "line-through",
+                              }}
+                            >
+                              {med.name}
+                            </Text>
+                          </View>
+                        </View>
+                        <View
+                          style={{
+                            backgroundColor: med.taken ? "#F5F3FF" : "#F1F5F9",
+                            paddingHorizontal: 10,
+                            paddingVertical: 5,
+                            borderRadius: 8,
+                          }}
+                        >
+                          <Text
+                            style={{
+                              fontSize: 10,
+                              fontWeight: "800",
+                              color: med.taken ? "#7C3AED" : "#64748B",
+                              textTransform: "uppercase",
+                            }}
+                          >
+                            {med.time}
                           </Text>
-                          <Text style={styles.sheetMedTime}>{med.time}</Text>
                         </View>
                       </View>
                     ))}
@@ -3432,45 +3444,42 @@ const styles = StyleSheet.create({
   backBtn: {
     width: 42,
     height: 42,
-    borderRadius: 14,
+    borderRadius: 21,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#FFFFFF",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 3,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: "800",
+    fontSize: 24,
+    ...FONT.heavy,
     color: C.dark,
-    letterSpacing: -0.4,
+    letterSpacing: -0.5,
   },
-  headerSub: { fontSize: 12, color: C.muted, fontWeight: "500", marginTop: 1 },
+  headerSub: { fontSize: 13, color: C.muted, ...FONT.medium, marginTop: 2 },
   shareBtn: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
-    paddingHorizontal: 14,
+    gap: 6,
+    paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: 20,
+    borderRadius: 999,
     backgroundColor: C.primary,
     shadowColor: C.primary,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 10,
-    elevation: 6,
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 3,
   },
-  shareBtnText: { fontSize: 13, fontWeight: "700", color: "#FFF" },
+  shareBtnText: { fontSize: 13, ...FONT.bold, color: "#FFF" },
 
   // ── Tabs ──
   tabsContainer: { paddingHorizontal: 20, paddingBottom: 16 },
   tabsInner: {
     flexDirection: "row",
     backgroundColor: "#F1F5F9",
-    borderRadius: 16,
+    borderRadius: 14,
     padding: 4,
     position: "relative",
   },
@@ -3479,20 +3488,20 @@ const styles = StyleSheet.create({
     top: 4,
     left: 4,
     height: 38,
-    borderRadius: 12,
+    borderRadius: 10,
     backgroundColor: "#FFFFFF",
-    shadowColor: "#000",
+    shadowColor: "#000000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.06,
     shadowRadius: 6,
-    elevation: 3,
+    elevation: 2,
   },
   tab: {
     paddingVertical: 10,
     alignItems: "center",
     zIndex: 1,
   },
-  tabText: { fontSize: 14, fontWeight: "700", color: C.light },
+  tabText: { fontSize: 14, ...FONT.bold, color: C.light },
   tabTextActive: { color: C.dark },
 
   scrollContent: {
@@ -3503,15 +3512,15 @@ const styles = StyleSheet.create({
 
   // ── Hero Card ──
   heroCard: {
-    borderRadius: 28,
+    borderRadius: 20,
     padding: 24,
     marginBottom: 16,
     overflow: "hidden",
-    shadowColor: "#4A5CFF",
-    shadowOffset: { width: 0, height: 20 },
-    shadowOpacity: 0.22,
-    shadowRadius: 35,
-    elevation: 15,
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.05,
+    shadowRadius: 30,
+    elevation: 4,
   },
   heroTopRow: { flexDirection: "row", alignItems: "center", marginBottom: 20 },
   heroRingWrap: {
@@ -3521,15 +3530,15 @@ const styles = StyleSheet.create({
   },
   heroRingCenter: { position: "absolute", alignItems: "center" },
   heroRingPercent: {
-    fontSize: 34,
-    fontWeight: "900",
-    color: "#FFFFFF",
+    fontSize: 32,
+    ...FONT.heavy,
+    color: "#0F172A",
     letterSpacing: -1,
   },
   heroRingLabel: {
     fontSize: 11,
-    fontWeight: "600",
-    color: "rgba(255,255,255,0.6)",
+    ...FONT.semibold,
+    color: "#64748B",
     marginTop: -2,
   },
   heroRightCol: {
@@ -3541,17 +3550,17 @@ const styles = StyleSheet.create({
   heroStatBox: { paddingVertical: 10 },
   heroStatLabel: {
     fontSize: 11,
-    fontWeight: "600",
-    color: "rgba(255,255,255,0.5)",
+    ...FONT.heavy,
+    color: "#64748B",
     textTransform: "uppercase",
     letterSpacing: 0.8,
     marginBottom: 4,
   },
-  heroStatValue: { fontSize: 18, fontWeight: "800", color: "#FFFFFF" },
-  heroStatDivider: { height: 1, backgroundColor: "rgba(255,255,255,0.1)" },
+  heroStatValue: { fontSize: 18, ...FONT.heavy, color: "#0F172A" },
+  heroStatDivider: { height: 1, backgroundColor: "#F3E8FF" },
   heroProgressSection: {
     borderTopWidth: 1,
-    borderTopColor: "rgba(255,255,255,0.15)",
+    borderTopColor: "#F3E8FF",
     paddingTop: 16,
   },
   heroProgressHeader: {
@@ -3563,10 +3572,10 @@ const styles = StyleSheet.create({
   heroProgressTitle: {
     flex: 1,
     fontSize: 12,
-    fontWeight: "700",
-    color: "rgba(255,255,255,0.7)",
+    ...FONT.bold,
+    color: "#475569",
   },
-  heroProgressCount: { fontSize: 15, fontWeight: "800", color: "#FFFFFF" },
+  heroProgressCount: { fontSize: 15, ...FONT.heavy, color: "#0F172A" },
   heroCompletedPill: {
     flexDirection: "row",
     alignItems: "center",
@@ -3578,10 +3587,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#A7F3D0",
   },
-  heroCompletedText: { fontSize: 11, fontWeight: "700", color: "#065F46" },
+  heroCompletedText: { fontSize: 11, ...FONT.bold, color: "#065F46" },
   heroProgressBg: {
     height: 7,
-    backgroundColor: "rgba(255,255,255,0.2)",
+    backgroundColor: "#F3E8FF",
     borderRadius: 4,
     overflow: "hidden",
   },
@@ -3590,35 +3599,32 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    backgroundColor: "#FFFFFF", // Solid opaque white
+    backgroundColor: "#FAF5FF",
+    borderWidth: 1,
+    borderColor: "#F3E8FF",
     paddingHorizontal: 12,
     paddingVertical: 5,
     borderRadius: 20,
     alignSelf: "flex-start",
     marginTop: 4,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
   },
   momentumIconContainer: {
     width: 18,
     height: 18,
     borderRadius: 9,
-    backgroundColor: "#EEF2FF", // Soft light blue (opaque)
+    backgroundColor: "#F3E8FF",
     alignItems: "center",
     justifyContent: "center",
   },
   momentumText: {
-    color: "#1E3A8A", // Deep Navy to contrast white
+    color: "#7C3AED",
     fontSize: 13,
-    fontWeight: "700",
+    ...FONT.bold,
   },
 
   // ── Streak Card ──
   streakCard: {
-    borderRadius: 22,
+    borderRadius: 20,
     paddingHorizontal: 20,
     paddingVertical: 18,
     flexDirection: "row",
@@ -3626,11 +3632,6 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: 16,
     overflow: "hidden",
-    shadowColor: "#3B82F6",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.15,
-    shadowRadius: 14,
-    elevation: 8,
   },
   streakLeft: { flexDirection: "row", alignItems: "center", gap: 14, flex: 1 },
   companionImageWrap: {
@@ -3639,7 +3640,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     backgroundColor: "#FFFFFF",
     borderWidth: 1.5,
-    borderColor: "#DBEAFE",
+    borderColor: "#F3E8FF",
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",
@@ -3652,26 +3653,26 @@ const styles = StyleSheet.create({
   companionImage: { width: 48, height: 48 },
   companionLabel: {
     fontSize: 11,
-    fontWeight: "800",
-    color: "#2563EB",
+    ...FONT.heavy,
+    color: "#7C3AED",
     letterSpacing: 0.5,
     textTransform: "uppercase",
     marginTop: 1,
   },
   streakNum: {
     fontSize: 20,
-    fontWeight: "900",
-    color: "#1E3A8A",
+    ...FONT.heavy,
+    color: "#0F172A",
     letterSpacing: -0.5,
   },
   streakSub: {
     fontSize: 12,
-    fontWeight: "600",
+    ...FONT.semibold,
     color: "#475569",
     marginTop: 2,
   },
   streakBadge: {
-    backgroundColor: "#3B82F6",
+    backgroundColor: C.primary, // Matches unified theme color
     borderRadius: 16,
     paddingHorizontal: 16,
     paddingVertical: 10,
@@ -3679,10 +3680,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     minWidth: 64,
   },
-  streakBadgeNum: { fontSize: 20, fontWeight: "900", color: "#FFF" },
+  streakBadgeNum: { fontSize: 20, ...FONT.heavy, color: "#FFF" },
   streakBadgeLabel: {
     fontSize: 9,
-    fontWeight: "750",
+    ...FONT.heavy,
     color: "#FFF",
     letterSpacing: 1,
     marginTop: 2,
@@ -3691,15 +3692,15 @@ const styles = StyleSheet.create({
   // ── Generic Card ──
   card: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 24,
+    borderRadius: 20,
     padding: 20,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: C.border,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
+    borderColor: "rgba(15, 23, 42, 0.04)",
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.05,
-    shadowRadius: 14,
+    shadowRadius: 30,
     elevation: 4,
   },
   cardHeaderRow: {
@@ -3710,7 +3711,7 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     fontSize: 12,
-    fontWeight: "800",
+    ...FONT.heavy,
     color: C.light,
     letterSpacing: 1.4,
     textTransform: "uppercase",
@@ -3730,7 +3731,7 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     borderRadius: 20,
   },
-  levelPillText: { fontSize: 12, fontWeight: "700" },
+  levelPillText: { fontSize: 12, ...FONT.bold },
 
   // ── Recap Stats ──
   recapStatsRow: {
@@ -3748,7 +3749,7 @@ const styles = StyleSheet.create({
   },
   recapStatLabel: {
     fontSize: 11,
-    fontWeight: "700",
+    ...FONT.bold,
     color: C.muted,
     textAlign: "center",
   },
@@ -3774,12 +3775,12 @@ const styles = StyleSheet.create({
   tipText: {
     flex: 1,
     fontSize: 12,
-    fontWeight: "600",
+    ...FONT.semibold,
     color: "#1E3A8A",
     lineHeight: 18,
   },
   tipBoldText: {
-    fontWeight: "800",
+    ...FONT.heavy,
     color: "#1E88E5",
   },
 

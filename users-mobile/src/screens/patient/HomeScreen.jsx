@@ -116,7 +116,7 @@ const ACCENT_MAP = {
   morning: "#F97316",
   afternoon: "#0EA5E9",
   evening: "#A855F7",
-  night: "#6366F1",
+  night: "#1E1B4B",
   as_needed: "#10B981",
 };
 
@@ -288,7 +288,7 @@ const VitalsCard = ({
 // ── Mini medication card ───────────────────────────────────────────────────
 const MedicationCard = ({ med, onPress }) => {
   const { t } = useTranslation();
-  const accentColor = ACCENT_MAP[med.type] || "#6366F1";
+  const accentColor = ACCENT_MAP[med.type] || "#8B5CF6";
   return (
     <Pressable
       onPress={() => onPress && onPress()}
@@ -359,7 +359,7 @@ export default function PatientHomeScreen({ navigation }) {
           defaultValue: "This page is your daily health tracker. Here, you can monitor your health vitals, track your medication plan, review AI insights, and easily call your care companion.",
         }),
         icon: Sparkles,
-        iconColor: "#6366F1",
+        iconColor: "#8B5CF6",
         ref: vitalsCardRef,
         visible: true,
       }
@@ -1638,7 +1638,7 @@ export default function PatientHomeScreen({ navigation }) {
           disabled={submitLoading}
         >
           <LinearGradient
-            colors={["#818CF8", "#4F46E5"]}
+            colors={["#A78BFA", "#7C3AED"]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
             style={StyleSheet.absoluteFill}
@@ -1899,7 +1899,7 @@ export default function PatientHomeScreen({ navigation }) {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={onRefresh}
-              tintColor="#4F46E5"
+              tintColor="#7C3AED"
             />
           }
         >
@@ -2066,7 +2066,7 @@ export default function PatientHomeScreen({ navigation }) {
                 <View style={styles.sleepPromptCard}>
                   <View style={styles.sleepPromptHeader}>
                     <View style={styles.sleepIconBox}>
-                      <Watch size={18} color="#4F46E5" />
+                      <Watch size={18} color="#7C3AED" />
                     </View>
                     <View style={{ flex: 1 }}>
                       <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
@@ -2076,13 +2076,13 @@ export default function PatientHomeScreen({ navigation }) {
                         <View
                           style={{
                             backgroundColor:
-                              estimatedSleep.confidenceLabel === "verified" ? "#EEF2FF" : "#FFF9E6",
+                              estimatedSleep.confidenceLabel === "verified" ? "#FAF5FF" : "#FFF9E6",
                             paddingHorizontal: 8,
                             paddingVertical: 2,
                             borderRadius: 12,
                             borderWidth: 1,
                             borderColor:
-                              estimatedSleep.confidenceLabel === "verified" ? "#C7D2FE" : "#FDE68A",
+                              estimatedSleep.confidenceLabel === "verified" ? "#E9D5FF" : "#FDE68A",
                           }}
                         >
                           <Text
@@ -2090,7 +2090,7 @@ export default function PatientHomeScreen({ navigation }) {
                               fontSize: 10,
                               fontWeight: "700",
                               color:
-                                estimatedSleep.confidenceLabel === "verified" ? "#4F46E5" : "#D97706",
+                                estimatedSleep.confidenceLabel === "verified" ? "#7C3AED" : "#D97706",
                               textTransform: "capitalize",
                             }}
                           >
@@ -2098,7 +2098,7 @@ export default function PatientHomeScreen({ navigation }) {
                           </Text>
                         </View>
                       </View>
-                      <Text style={{ fontSize: 11, color: "#6366F1", marginTop: 2, fontWeight: "600" }}>
+                      <Text style={{ fontSize: 11, color: "#7C3AED", marginTop: 2, fontWeight: "600" }}>
                         {estimatedSleep.displaySubtitle}
                       </Text>
                     </View>
@@ -2194,13 +2194,13 @@ export default function PatientHomeScreen({ navigation }) {
               onPress={() => navigation.navigate("HealthCopilot")}
             >
               <LinearGradient
-                colors={["#EEF2FF", "#E0E7FF"]}
+                colors={["#FAF5FF", "#F3E8FF"]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.morningBriefGradient}
               >
                 <View style={styles.morningBriefIconContainer}>
-                  <Sparkles size={16} color="#6366F1" />
+                  <Sparkles size={16} color="#7C3AED" />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.morningBriefTitle}>
@@ -2211,7 +2211,7 @@ export default function PatientHomeScreen({ navigation }) {
                     view.
                   </Text>
                 </View>
-                <ChevronRight size={18} color="#6366F1" />
+                <ChevronRight size={18} color="#7C3AED" />
               </LinearGradient>
             </Pressable>
           </Animated.View>
@@ -2238,10 +2238,10 @@ export default function PatientHomeScreen({ navigation }) {
                     x2="100%"
                     y2="100%"
                   >
-                    <Stop offset="0%" stopColor="#818CF8" stopOpacity={0.15} />
+                    <Stop offset="0%" stopColor="#A78BFA" stopOpacity={0.15} />
                     <Stop
                       offset="100%"
-                      stopColor="#A855F7"
+                      stopColor="#7C3AED"
                       stopOpacity={0.03}
                     />
                   </SvgLinearGradient>
@@ -2252,9 +2252,9 @@ export default function PatientHomeScreen({ navigation }) {
                     x2="100%"
                     y2="0%"
                   >
-                    <Stop offset="0%" stopColor="#818CF8" />
-                    <Stop offset="50%" stopColor="#6366F1" />
-                    <Stop offset="100%" stopColor="#A855F7" />
+                    <Stop offset="0%" stopColor="#A78BFA" />
+                    <Stop offset="50%" stopColor="#8B5CF6" />
+                    <Stop offset="100%" stopColor="#7C3AED" />
                   </SvgLinearGradient>
                 </Defs>
                 <SvgCircle cx="100" cy="100" r="86" fill="url(#orbGlowGrad)" />
@@ -2433,7 +2433,7 @@ export default function PatientHomeScreen({ navigation }) {
                   <View style={styles.checkinCompleteView}>
                     <Sparkles
                       size={16}
-                      color="#6366F1"
+                      color="#8B5CF6"
                       style={{ marginRight: 8 }}
                     />
                     <Text style={styles.checkinCompleteText}>
@@ -2459,12 +2459,7 @@ export default function PatientHomeScreen({ navigation }) {
 
           {/* ── 4. TODAY'S INSIGHT (AI Coach Guidance sliding carousel) ── */}
           <Animated.View style={[entranceStyle(4), styles.section]}>
-            <LinearGradient
-              colors={["#1E1B4B", "#312E81"]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.insightCard}
-            >
+            <View style={styles.insightCard}>
               <View style={styles.insightHeaderRow}>
                 <View style={styles.insightHeaderLeft}>
                   <View style={styles.insightIconBox}>
@@ -2554,7 +2549,7 @@ export default function PatientHomeScreen({ navigation }) {
                   />
                 ))}
               </View>
-            </LinearGradient>
+            </View>
           </Animated.View>
 
           {/* ── 6. MEDICATIONS ── */}
@@ -2570,7 +2565,7 @@ export default function PatientHomeScreen({ navigation }) {
                 <Text style={styles.viewAllText}>
                   {t("home.view_details", { defaultValue: "View Details" })}
                 </Text>
-                <ChevronRight size={13} color="#6366F1" />
+                <ChevronRight size={13} color="#8B5CF6" />
               </Pressable>
             </View>
 
@@ -2587,7 +2582,7 @@ export default function PatientHomeScreen({ navigation }) {
                       adherencePct === 100
                         ? ["#22C55E", "#16A34A"]
                         : adherencePct >= 50
-                          ? ["#6366F1", "#4F46E5"]
+                          ? ["#8B5CF6", "#7C3AED"]
                           : ["#EF4444", "#DC2626"]
                     }
                     style={styles.medSummaryGradient}
@@ -2693,7 +2688,7 @@ export default function PatientHomeScreen({ navigation }) {
                 <Text style={styles.viewAllText}>
                   {t("home.history", { defaultValue: "History" })}
                 </Text>
-                <ChevronRight size={13} color="#6366F1" />
+                <ChevronRight size={13} color="#8B5CF6" />
               </Pressable>
             </View>
 
@@ -2718,13 +2713,13 @@ export default function PatientHomeScreen({ navigation }) {
                     {
                       backgroundColor: syncStatus.connected
                         ? "#DCFCE7"
-                        : "#EEF2FF",
+                        : "#FAF5FF",
                     },
                   ]}
                 >
                   <Watch
                     size={20}
-                    color={syncStatus.connected ? colors.success : "#6366F1"}
+                    color={syncStatus.connected ? colors.success : "#8B5CF6"}
                     strokeWidth={2.5}
                   />
                 </View>
@@ -2814,7 +2809,7 @@ export default function PatientHomeScreen({ navigation }) {
                   }
                   unit="mmHg"
                   icon={Activity}
-                  color="#6366F1"
+                  color="#8B5CF6"
                   status={
                     vitals?.blood_pressure?.systolic ? "Recorded" : "Not Logged"
                   }
@@ -3007,11 +3002,11 @@ export default function PatientHomeScreen({ navigation }) {
                 }}
               >
                 <Text
-                  style={{ fontSize: 12, color: "#6366F1", fontWeight: "700" }}
+                  style={{ fontSize: 12, color: "#8B5CF6", fontWeight: "700" }}
                 >
                   View Adherence Details
                 </Text>
-                <ChevronRight size={12} color="#6366F1" />
+                <ChevronRight size={12} color="#8B5CF6" />
               </View>
             </Pressable>
 
@@ -3113,12 +3108,12 @@ export default function PatientHomeScreen({ navigation }) {
           <Animated.View style={entranceStyle(9)}>
             <View>
               <LinearGradient
-                colors={["#EEF2FF", "#E0E7FF"]}
+                colors={["#FAF5FF", "#F3E8FF"]}
                 style={styles.tipCard}
               >
                 <View style={styles.tipHeader}>
                   <LinearGradient
-                    colors={["#818CF8", "#6366F1"]}
+                    colors={["#A78BFA", "#8B5CF6"]}
                     style={styles.tipIconBox}
                   >
                     <Sparkles size={14} color="#FFF" />
@@ -3184,7 +3179,7 @@ const styles = StyleSheet.create({
   },
   morningBriefSub: {
     fontSize: 12,
-    color: "#4F46E5",
+    color: "#7C3AED",
     fontWeight: "600",
     marginTop: 2,
     lineHeight: 16,
@@ -3245,7 +3240,7 @@ const styles = StyleSheet.create({
   greetingName: {
     fontSize: 28,
     fontWeight: "900",
-    color: "#6366F1",
+    color: "#7C3AED",
     letterSpacing: -1,
   },
   headerSubtext: {
@@ -3280,9 +3275,9 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 21,
-    backgroundColor: "#6366F1",
+    backgroundColor: "#7C3AED",
     borderWidth: 2,
-    borderColor: "#C7D2FE",
+    borderColor: "#E9D5FF",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -3324,7 +3319,7 @@ const styles = StyleSheet.create({
     width: 16,
     height: 16,
     borderRadius: 8,
-    backgroundColor: "#6366F1",
+    backgroundColor: "#7C3AED",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -3441,8 +3436,8 @@ const styles = StyleSheet.create({
   selectedMoodBadge: {
     fontSize: 12,
     fontWeight: "700",
-    color: "#6366F1",
-    backgroundColor: "#EEF2FF",
+    color: "#7C3AED",
+    backgroundColor: "#FAF5FF",
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 12,
@@ -3497,9 +3492,16 @@ const styles = StyleSheet.create({
 
   // ── AI Coach (Today's Insight) ──
   insightCard: {
-    borderRadius: radius.lg,
-    padding: 22,
-    ...shadows.hero,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: "rgba(15, 23, 42, 0.04)",
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.05,
+    shadowRadius: 30,
+    elevation: 4,
   },
   insightHeaderRow: {
     flexDirection: "row",
@@ -3518,14 +3520,14 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 10,
-    backgroundColor: "rgba(255, 255, 255, 0.15)",
+    backgroundColor: "#FAF5FF",
     alignItems: "center",
     justifyContent: "center",
   },
   insightTitle: {
     fontSize: 13,
     fontWeight: "800",
-    color: "#E0E7FF",
+    color: "#0F172A",
     letterSpacing: 1,
   },
   insightBadge: {
@@ -3535,18 +3537,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 10,
-    backgroundColor: "#DCFCE7",
+    backgroundColor: "#FAF5FF",
+    borderWidth: 1,
+    borderColor: "#F3E8FF",
   },
   insightBadgeDot: {
     width: 5,
     height: 5,
     borderRadius: 2.5,
-    backgroundColor: "#22C55E",
+    backgroundColor: "#7C3AED",
   },
   insightBadgeText: {
     fontSize: 9,
     fontWeight: "900",
-    color: "#16A34A",
+    color: "#7C3AED",
     letterSpacing: 0.5,
   },
   insightBody: {
@@ -3556,7 +3560,7 @@ const styles = StyleSheet.create({
   },
   insightDescText: {
     fontSize: 15,
-    color: "#FFFFFF",
+    color: "#475569",
     lineHeight: 22,
     fontWeight: "500",
   },
@@ -3564,7 +3568,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 18,
-    backgroundColor: "rgba(255,255,255,0.08)",
+    backgroundColor: "#FAF5FF",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -3578,11 +3582,11 @@ const styles = StyleSheet.create({
     width: 5,
     height: 5,
     borderRadius: 2.5,
-    backgroundColor: "rgba(255, 255, 255, 0.3)",
+    backgroundColor: "rgba(124, 58, 237, 0.2)",
   },
   insightDotActive: {
     width: 15,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#7C3AED",
   },
 
   // ── Next Goal Card ──
@@ -3831,7 +3835,7 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   journeyConsistencyBadge: {
-    backgroundColor: "#EEF2FF",
+    backgroundColor: "#FAF5FF",
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
@@ -3839,7 +3843,7 @@ const styles = StyleSheet.create({
   },
   journeyConsistencyBadgeText: {
     fontSize: 11,
-    color: "#6366F1",
+    color: "#7C3AED",
     fontWeight: "800",
   },
   journeyDesc: {
@@ -3879,7 +3883,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     padding: 18,
     borderWidth: 1,
-    borderColor: "#C7D2FE",
+    borderColor: "#E9D5FF",
   },
   tipHeader: {
     flexDirection: "row",
@@ -3897,13 +3901,13 @@ const styles = StyleSheet.create({
   tipLabel: {
     fontSize: 11,
     fontWeight: "800",
-    color: "#6366F1",
+    color: "#7C3AED",
     letterSpacing: 1.2,
     textTransform: "uppercase",
   },
   tipText: {
     fontSize: 14,
-    color: "#3730A3",
+    color: "#5B21B6",
     lineHeight: 22,
     fontWeight: "500",
   },
@@ -3932,7 +3936,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   viewAllBtn: { flexDirection: "row", alignItems: "center", gap: 3 },
-  viewAllText: { fontSize: 13, fontWeight: "700", color: "#6366F1" },
+  viewAllText: { fontSize: 13, fontWeight: "700", color: "#8B5CF6" },
 
   // ── Offline Banner ──
   offlineBanner: {
@@ -4045,13 +4049,13 @@ const styles = StyleSheet.create({
   },
   cardTitle: { fontSize: 16, fontWeight: "800", color: "#1E293B" },
   toggleBadge: {
-    backgroundColor: "rgba(99,102,241,0.1)",
+    backgroundColor: "rgba(139,92,246,0.1)",
     paddingHorizontal: 14,
     paddingVertical: 7,
     borderRadius: 10,
   },
   toggleBadgeCancel: { backgroundColor: "rgba(239,68,68,0.08)" },
-  toggleBadgeText: { color: "#6366F1", fontSize: 13, fontWeight: "700" },
+  toggleBadgeText: { color: "#8B5CF6", fontSize: 13, fontWeight: "700" },
   formRow: { flexDirection: "row", gap: 12, marginBottom: 4 },
   submitBtn: {
     borderRadius: 18,
@@ -4143,11 +4147,11 @@ const styles = StyleSheet.create({
   },
   // ── Sleep Inactivity Prompt ──
   sleepPromptCard: {
-    backgroundColor: "#EEF2FF",
+    backgroundColor: "#FAF5FF",
     borderRadius: radius.lg,
     padding: 18,
     borderWidth: 1.5,
-    borderColor: "#C7D2FE",
+    borderColor: "#E9D5FF",
     ...shadows.card,
   },
   sleepPromptHeader: {
@@ -4160,7 +4164,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 10,
-    backgroundColor: "#E0E7FF",
+    backgroundColor: "#F3E8FF",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -4171,7 +4175,7 @@ const styles = StyleSheet.create({
   },
   sleepPromptText: {
     fontSize: 13,
-    color: "#312E81",
+    color: "#4C1D95",
     lineHeight: 18,
     fontWeight: "500",
     marginBottom: 14,
@@ -4181,7 +4185,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   sleepPromptBtnYes: {
-    backgroundColor: "#4F46E5",
+    backgroundColor: "#7C3AED",
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: radius.sm,
@@ -4199,12 +4203,12 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: radius.sm,
     borderWidth: 1,
-    borderColor: "#C7D2FE",
+    borderColor: "#E9D5FF",
     alignItems: "center",
     justifyContent: "center",
   },
   sleepPromptBtnNoText: {
-    color: "#4F46E5",
+    color: "#7C3AED",
     fontSize: 12,
     fontWeight: "700",
   },
@@ -4214,13 +4218,13 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: radius.sm,
     borderWidth: 1,
-    borderColor: "#C7D2FE",
+    borderColor: "#E9D5FF",
     alignItems: "center",
     justifyContent: "center",
     marginLeft: "auto",
   },
   sleepPromptBtnAdjustText: {
-    color: "#4F46E5",
+    color: "#7C3AED",
     fontSize: 12,
     fontWeight: "700",
   },
@@ -4247,7 +4251,7 @@ const styles = StyleSheet.create({
   sleepHourBtn: {
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: "#C7D2FE",
+    borderColor: "#E9D5FF",
     borderRadius: 20,
     paddingHorizontal: 16,
     paddingVertical: 10,
@@ -4256,7 +4260,7 @@ const styles = StyleSheet.create({
     minWidth: 54,
   },
   sleepHourBtnText: {
-    color: "#4F46E5",
+    color: "#7C3AED",
     fontSize: 13,
     fontWeight: "700",
   },

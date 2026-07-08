@@ -3,9 +3,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
     initializeHealthPlatform,
     checkPermissionStatus,
-    fetchGranularVitals,
     isHealthSupported,
+    REQUIRED_PERMISSIONS,
+    OPTIONAL_PERMISSIONS,
 } from '../lib/healthIntegration';
+import HealthRepository from '../lib/HealthRepository';
 import { apiService } from '../lib/api';
 
 // ─── Storage keys ───────────────────────────────────────────────
@@ -173,11 +175,15 @@ class HealthSyncService {
                 ? new Date(parseInt(lastSyncStr, 10))
                 : new Date(Date.now() - 24 * 60 * 60 * 1000); // Default: last 24h
 
-            // 2. Fetch granular vitals from device
-            const readings = await fetchGranularVitals(sinceTimestamp);
+            // 2. Fetch granular health records from device
+            const data = await HealthRepository.fetchAll(sinceTimestamp);
 
-            if (!readings || readings.length === 0) {
-                console.log('⚡ Health sync: No new readings since last sync');
+            const hasVitals = data.vitals && data.vitals.length > 0;
+            const hasActivity = data.activity !== null;
+            const hasBody = data.body !== null;
+
+            if (!hasVitals && !hasActivity && !hasBody) {
+                console.log('⚡ Health sync: No new health records since last sync');
                 await AsyncStorage.setItem(STORAGE_KEYS.LAST_SYNC_TIMESTAMP, Date.now().toString());
 
                 this._notifyListeners({
@@ -188,42 +194,74 @@ class HealthSyncService {
                 return null;
             }
 
-            // 3. Chunk readings if > MAX_READINGS_PER_SYNC
-            const chunks = [];
-            for (let i = 0; i < readings.length; i += MAX_READINGS_PER_SYNC) {
-                chunks.push(readings.slice(i, i + MAX_READINGS_PER_SYNC));
+            // 3. Chunk vitals if > 100 and build payloads
+            const maxVitals = 100;
+            const vitalsList = data.vitals || [];
+            const payloads = [];
+
+            if (vitalsList.length === 0) {
+                payloads.push({
+                    vitals: [],
+                    activity: data.activity,
+                    body: data.body,
+                });
+            } else {
+                for (let i = 0; i < vitalsList.length; i += maxVitals) {
+                    payloads.push({
+                        vitals: vitalsList.slice(i, i + maxVitals),
+                        activity: i === 0 ? data.activity : null,
+                        body: i === 0 ? data.body : null,
+                    });
+                }
             }
+
+            // 4. Gather metadata
+            const grantedPermissions = [];
+            if (Platform.OS === 'android') {
+                try {
+                    const HealthConnect = require('react-native-health-connect');
+                    const granted = await HealthConnect.getGrantedPermissions();
+                    granted.forEach(p => {
+                        if (p.recordType) grantedPermissions.push(p.recordType);
+                    });
+                } catch (e) {}
+            } else if (Platform.OS === 'ios') {
+                grantedPermissions.push('HeartRate', 'BloodPressure', 'SleepSession', 'OxygenSaturation', 'Hydration', 'BodyTemperature');
+            }
+
+            const source = Platform.OS === 'ios' ? 'healthkit' : 'health_connect';
+            const platform = Platform.OS === 'ios' ? 'ios' : 'android';
 
             let totalAccepted = 0;
             let totalDuplicates = 0;
             let anomaliesDetected = 0;
 
-            // 4. Upload each chunk
-            const source = Platform.OS === 'ios' ? 'healthkit' : 'health_connect';
+            // 5. Upload payloads
+            for (const payload of payloads) {
+                payload.source = source;
+                payload.platform = platform;
+                payload.metadata = {
+                    device_name: data.activity?.metadata?.device_name || data.body?.metadata?.device_name || (Platform.OS === 'ios' ? 'Apple Watch' : 'Android Wearable'),
+                    permissions_granted: grantedPermissions,
+                };
 
-            for (const chunk of chunks) {
                 try {
-                    const response = await apiService.patients.syncVitals({
-                        readings: chunk,
-                        source,
-                    });
-
-                    const summary = response.data?.summary;
-                    if (summary) {
-                        totalAccepted += summary.accepted || 0;
-                        totalDuplicates += summary.duplicates || 0;
-                        anomaliesDetected += summary.anomalies_detected || 0;
+                    const response = await apiService.patients.syncHealthData(payload);
+                    const syncResult = response.data?.results;
+                    if (syncResult?.vitals?.summary) {
+                        totalAccepted += syncResult.vitals.summary.accepted || 0;
+                        totalDuplicates += syncResult.vitals.summary.duplicates || 0;
+                        anomaliesDetected += syncResult.vitals.summary.anomalies_detected || 0;
                     }
                 } catch (err) {
-                    console.error('Health sync chunk upload failed:', err.message);
-                    // Continue with next chunk — partial success is fine
+                    console.error('Health sync payload upload failed:', err.message);
                 }
             }
 
-            // 5. Update last sync timestamp
+            // 6. Update last sync timestamp
             await AsyncStorage.setItem(STORAGE_KEYS.LAST_SYNC_TIMESTAMP, Date.now().toString());
 
-            // 6. Update today's count
+            // 7. Update today's count
             await this._incrementTodayCount(totalAccepted);
 
             const result = {
@@ -237,7 +275,8 @@ class HealthSyncService {
 
             console.log(`✅ Health sync complete: ${totalAccepted} accepted, ${totalDuplicates} duplicates, ${anomaliesDetected} anomalies`);
             this._notifyListeners(result);
-            DeviceEventEmitter.emit('VITALS_SYNCED', result);
+            DeviceEventEmitter.emit('HEALTH_SYNCED', result);
+            DeviceEventEmitter.emit('VITALS_SYNCED', result); // Backwards compatibility
             DeviceEventEmitter.emit('VITALS_UPDATED', { source: 'sync' });
             return result;
 

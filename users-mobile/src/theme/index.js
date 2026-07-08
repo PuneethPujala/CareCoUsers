@@ -6,11 +6,11 @@
 
 export const colors = {
     // ─── Core Brand ────────────────────────────
-    primary: '#6366F1',
-    primaryMid: '#4F46E5',
-    primaryDark: '#4338CA',
-    primarySoft: '#EEF2FF',
-    accent: '#818CF8',
+    primary: '#7C3AED',
+    primaryMid: '#6D28D9',
+    primaryDark: '#5B21B6',
+    primarySoft: '#FAF5FF',
+    accent: '#C084FC',
 
     // ─── Surfaces ──────────────────────────────
     background: '#F8FAFC',
@@ -38,9 +38,9 @@ export const colors = {
     divider: '#E2E8F0',
 
     // ─── Gradients ─────────────────────────────
-    gradientPrimary: ['#4F46E5', '#6366F1'],
-    gradientAccent: ['#6366F1', '#818CF8'],
-    gradientSoft: ['#818CF8', '#C7D2FE'],
+    gradientPrimary: ['#6D28D9', '#7C3AED'],
+    gradientAccent: ['#7C3AED', '#C084FC'],
+    gradientSoft: ['#C084FC', '#F3E8FF'],
 
     // ─── Status Indicators ─────────────────────
     calledToday: '#22C55E',
@@ -129,7 +129,7 @@ export const shadows = {
         elevation: 3,
     },
     hero: {
-        shadowColor: '#4F46E5',
+        shadowColor: '#7C3AED',
         shadowOffset: { width: 0, height: 8 },
         shadowOpacity: 0.22,
         shadowRadius: 16,

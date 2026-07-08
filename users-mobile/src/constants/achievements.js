@@ -260,35 +260,35 @@ export const CATEGORY_CONFIG = {
         title: 'Perfect Days Progression',
         description: 'Complete all scheduled medication doses',
         iconName: 'Star',
-        accent: ['#3B82F6', '#60A5FA'], // Blue
+        accent: ['#7C3AED', '#C084FC'], // Purple/Lavender
         layout: 'timeline',
     },
     streaks: {
         title: 'Consistency & Streaks',
         description: 'Maintain logs over consecutive days',
         iconName: 'Flame',
-        accent: ['#059669', '#34D399'], // Emerald
+        accent: ['#9F1239', '#F43F5E'], // Rose/Pink
         layout: 'grid',
     },
     doses: {
         title: 'Logging Volume',
         description: 'Total medication and vitals entries logged',
         iconName: 'Pill',
-        accent: ['#0891B2', '#22D3EE'], // Cyan
+        accent: ['#6D28D9', '#A78BFA'], // Violet
         layout: 'grid',
     },
     routine: {
         title: 'Routine & Adherence',
         description: 'Time-of-day accuracy and compliance rates',
         iconName: 'Clock',
-        accent: ['#4F46E5', '#818CF8'], // Indigo
+        accent: ['#5B21B6', '#C084FC'], // Dark Purple/Lavender
         layout: 'grid',
     },
     wellbeing: {
         title: 'Holistic Wellbeing',
         description: 'Mood, hydration, and overall health tracking',
         iconName: 'Activity',
-        accent: ['#7C3AED', '#A78BFA'], // Purple/Violet
+        accent: ['#7C3AED', '#F3E8FF'], // Purple/Lavender Soft
         layout: 'grid',
     },
 };

@@ -40,6 +40,7 @@ const notificationsRoutes = require("./routes/users/notifications");
 const vitalsRoutes = require("./routes/vitalsRoutes");
 const vitalsSyncRoutes = require("./routes/vitalsSync");
 const companionRoutes = require("./routes/companion");
+const healthSyncRoutes = require("./routes/healthSyncRouter");
 
 const app = express();
 const {
@@ -262,6 +263,12 @@ app.use(
   authenticateSession,
   requireSubscription,
   vitalsSyncRoutes,
+);
+app.use(
+  "/api/health",
+  authenticateSession,
+  requireSubscription,
+  healthSyncRoutes,
 );
 
 // Companion Routes
