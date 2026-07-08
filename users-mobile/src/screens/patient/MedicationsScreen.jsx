@@ -1023,14 +1023,15 @@ export default function MedicationsScreen({ navigation }) {
       {
         title: t("home.guide_meds_title", { defaultValue: "💊 Medications" }),
         desc: t("home.guide_meds_desc", {
-          defaultValue: "Swipe or tap a medicine card to mark it as taken once you have consumed it. Your caller will check this list to make sure you are safe.",
+          defaultValue:
+            "Swipe or tap a medicine card to mark it as taken once you have consumed it. Your caller will check this list to make sure you are safe.",
         }),
         icon: Pill,
         iconColor: "#10B981",
         ref: headerRef,
         scrollOffset: 0,
         visible: true,
-      }
+      },
     ];
   };
 
@@ -1038,11 +1039,19 @@ export default function MedicationsScreen({ navigation }) {
     const allMeds = Object.values(schedule || {}).flat();
     const hasMeds = allMeds.length > 0;
     // Guard: only trigger once per mount to prevent re-showing after dismiss
-    if (!loading && hasMeds && patient && patient.subscription?.plan !== "free" && !medsTourTriggeredRef.current) {
+    if (
+      !loading &&
+      hasMeds &&
+      patient &&
+      patient.subscription?.plan !== "free" &&
+      !medsTourTriggeredRef.current
+    ) {
       medsTourTriggeredRef.current = true;
       const initMedsTour = async () => {
         const medsHeuristic = async () => {
-          const hasMarkedMeds = allMeds.some(m => m.taken) || (adherence && adherence.some(d => d.p > 0));
+          const hasMarkedMeds =
+            allMeds.some((m) => m.taken) ||
+            (adherence && adherence.some((d) => d.p > 0));
           const isExistingAccount =
             patient?.created_at &&
             new Date(patient.created_at) < new Date("2026-06-27T00:00:00Z");
@@ -1748,882 +1757,357 @@ export default function MedicationsScreen({ navigation }) {
   return (
     <TabScreenTransition>
       <View style={styles.root}>
-      <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
+        <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
 
-      {/* Ambient Background Decorations (Level 3: Light-Medium) */}
-      <View style={StyleSheet.absoluteFill} pointerEvents="none">
-        <Svg
-          height="100%"
-          width="100%"
-          viewBox="0 0 400 850"
-          preserveAspectRatio="none"
-        >
-          <Defs>
-            <SvgLinearGradient
-              id="medsTopBg"
-              x1="0%"
-              y1="0%"
-              x2="100%"
-              y2="100%"
-            >
-              <Stop offset="0%" stopColor="#E0F2FE" stopOpacity="0.65" />
-              <Stop offset="100%" stopColor="#F8FAFC" stopOpacity="0" />
-            </SvgLinearGradient>
-          </Defs>
+        {/* Ambient Background Decorations (Level 3: Light-Medium) */}
+        <View style={StyleSheet.absoluteFill} pointerEvents="none">
+          <Svg
+            height="100%"
+            width="100%"
+            viewBox="0 0 400 850"
+            preserveAspectRatio="none"
+          >
+            <Defs>
+              <SvgLinearGradient
+                id="medsTopBg"
+                x1="0%"
+                y1="0%"
+                x2="100%"
+                y2="100%"
+              >
+                <Stop offset="0%" stopColor="#E0F2FE" stopOpacity="0.65" />
+                <Stop offset="100%" stopColor="#F8FAFC" stopOpacity="0" />
+              </SvgLinearGradient>
+            </Defs>
 
-          {/* Top right curvy gradient backdrop */}
-          <Path
-            d="M180 0 C260 120, 320 150, 400 120 L400 0 Z"
-            fill="url(#medsTopBg)"
-          />
+            {/* Top right curvy gradient backdrop */}
+            <Path
+              d="M180 0 C260 120, 320 150, 400 120 L400 0 Z"
+              fill="url(#medsTopBg)"
+            />
 
-          {/* Stylized sweeping curve line */}
-          <Path
-            d="M-20 180 C80 230, 180 150, 280 230 C340 280, 380 250, 420 310"
-            stroke={colors.borderLight}
-            strokeWidth="1"
-            fill="none"
-            opacity="0.15"
-          />
-        </Svg>
-      </View>
-
-      {/* ── SIMPLE HEADER (like care team) ── */}
-      <View ref={headerRef} collapsable={false} style={styles.header}>
-        <View style={styles.headerRow}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.headerEyebrow}>
-              {t("meds.care_plan", { defaultValue: "CARE PLAN" })}
-            </Text>
-            <Text style={styles.headerTitle}>
-              {t("common.medications", { defaultValue: "Medications" })}
-            </Text>
-          </View>
-          <View style={{ flexDirection: "row", gap: 10 }}>
-            <Pressable
-              style={styles.headerBtn}
-              onPress={() => {
-                setShowPrefModal(true);
-                setTempPrefs(preferences);
-                setActivePicker(null);
-              }}
-            >
-              <Clock size={20} color="#475569" strokeWidth={2.5} />
-            </Pressable>
-            <Pressable
-              style={styles.headerBtn}
-              onPress={() => navigation.navigate("Notifications")}
-            >
-              <Bell size={20} color="#475569" strokeWidth={2.5} />
-              {unreadCount > 0 && <View style={styles.bellDot} />}
-            </Pressable>
-          </View>
+            {/* Stylized sweeping curve line */}
+            <Path
+              d="M-20 180 C80 230, 180 150, 280 230 C340 280, 380 250, 420 310"
+              stroke={colors.borderLight}
+              strokeWidth="1"
+              fill="none"
+              opacity="0.15"
+            />
+          </Svg>
         </View>
-      </View>
 
-      {/* ── ALL SCROLLABLE CONTENT ── */}
-      <ScrollView
-        ref={scrollViewRef}
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={handleRefresh}
-            tintColor="#6366F1"
-          />
-        }
-      >
-        {/* Progress card (scrolls with content) */}
-        {totalCount > 0 && (
-          <Animated.View style={[anim(0), styles.progressCard]}>
+        {/* ── SIMPLE HEADER (like care team) ── */}
+        <View ref={headerRef} collapsable={false} style={styles.header}>
+          <View style={styles.headerRow}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.progressLabel}>
-                {t("medications.todays_progress", {
-                  defaultValue: "Today's Progress",
-                })}
+              <Text style={styles.headerEyebrow}>
+                {t("meds.care_plan", { defaultValue: "CARE PLAN" })}
               </Text>
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "baseline",
-                  gap: 4,
-                  marginVertical: 6,
+              <Text style={styles.headerTitle}>
+                {t("common.medications", { defaultValue: "Medications" })}
+              </Text>
+            </View>
+            <View style={{ flexDirection: "row", gap: 10 }}>
+              <Pressable
+                style={styles.headerBtn}
+                onPress={() => {
+                  setShowPrefModal(true);
+                  setTempPrefs(preferences);
+                  setActivePicker(null);
                 }}
               >
-                <Text style={styles.progressCount}>{takenCount}</Text>
-                <Text style={styles.progressTotal}>
-                  / {totalCount} {t("common.taken", { defaultValue: "taken" })}
-                </Text>
-              </View>
-              <View style={styles.progressBarBg}>
-                <LinearGradient
-                  colors={
-                    progressPerc >= 80
-                      ? ["#34D399", "#10B981"]
-                      : progressPerc >= 50
-                        ? ["#FCD34D", "#F59E0B"]
-                        : ["#FC8181", "#EF4444"]
-                  }
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={[
-                    styles.progressBarFill,
-                    { width: `${Math.max(progressPerc, 4)}%` },
-                  ]}
-                />
-              </View>
-              <View style={{ flexDirection: "row", gap: 16, marginTop: 10 }}>
-                <View
-                  style={{ flexDirection: "row", alignItems: "center", gap: 5 }}
-                >
-                  <TrendingUp size={12} color="#6366F1" />
-                  <Text
-                    style={{
-                      fontSize: 11,
-                      fontWeight: "700",
-                      color: "#6366F1",
-                    }}
-                  >
-                    {Math.round(adherencePct)}%{" "}
-                    {t("common.avg", { defaultValue: "avg" })}
-                  </Text>
-                </View>
-                {nextCfg ? (
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      gap: 5,
-                    }}
-                  >
-                    <nextCfg.Icon size={12} color={nextCfg.color} />
-                    <Text
-                      style={{
-                        fontSize: 11,
-                        fontWeight: "700",
-                        color: nextCfg.color,
-                      }}
-                    >
-                      {t("medications.next", { defaultValue: "Next" })}:{" "}
-                      {t(`time_slots.${nextSlot}`, {
-                        defaultValue: nextCfg.label,
-                      })}
-                    </Text>
-                  </View>
-                ) : (
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      gap: 5,
-                    }}
-                  >
-                    <CheckCircle2 size={12} color="#10B981" />
-                    <Text
-                      style={{
-                        fontSize: 11,
-                        fontWeight: "700",
-                        color: "#10B981",
-                      }}
-                    >
-                      {t("common.all_done", { defaultValue: "All done!" })}
-                    </Text>
-                  </View>
-                )}
-              </View>
-            </View>
-            <ProgressRing progress={progressPerc} size={88} strokeWidth={8} />
-          </Animated.View>
-        )}
-
-        {totalCount === 0 ? (
-          /* ── EMPTY STATE ── */
-          <Animated.View style={[styles.emptyCard, anim(1)]}>
-            <View ref={medsListCardRef} collapsable={false} style={{ width: "100%", alignItems: "center" }}>
-            <LinearGradient
-              colors={["#EEF2FF", "#E0E7FF"]}
-              style={styles.emptyIconWrap}
-            >
-              <Calendar size={44} color="#6366F1" strokeWidth={1.5} />
-            </LinearGradient>
-            <Text style={styles.emptyTitle}>
-              {t("common.all_clear", { defaultValue: "All Clear!" })}
-            </Text>
-            <Text style={styles.emptyBody}>
-              {t("medications.no_meds_scheduled", {
-                defaultValue:
-                  "No medications scheduled yet. Your caller will add them, or request a review below.",
-              })}
-            </Text>
-            <Pressable
-              style={styles.emptyPrefBtn}
-              onPress={() => {
-                setShowPrefModal(true);
-                setTempPrefs(preferences);
-              }}
-            >
-              <LinearGradient
-                colors={["#6366F1", "#4F46E5"]}
-                style={StyleSheet.absoluteFill}
-              />
-              <Clock size={17} color="#FFF" />
-              <Text style={styles.emptyPrefTxt}>
-                {t("medications.set_call_prefs", {
-                  defaultValue: "Set Call Preferences",
-                })}
-              </Text>
-            </Pressable>
-
-            <View style={styles.actionGroup}>
+                <Clock size={20} color="#475569" strokeWidth={2.5} />
+              </Pressable>
               <Pressable
-                style={[
-                  styles.outlineBtn,
-                  modRequested && {
-                    borderColor: "#86EFAC",
-                    backgroundColor: "#F0FDF4",
-                  },
-                ]}
-                disabled={uploadingImage || modRequested}
-                onPress={handleUploadPrescription}
+                style={styles.headerBtn}
+                onPress={() => navigation.navigate("Notifications")}
               >
-                {uploadingImage ? (
-                  <ActivityIndicator size="small" color="#6366F1" />
-                ) : modRequested ? (
-                  <>
-                    <CheckCircle2 size={18} color="#16A34A" />
-                    <Text style={[styles.outlineBtnTxt, { color: "#16A34A" }]}>
-                      {t("medications.request_sent", {
-                        defaultValue: "Request Sent!",
-                      })}
-                    </Text>
-                  </>
-                ) : (
-                  <>
-                    <MessageCircle size={18} color="#6366F1" />
-                    <Text style={styles.outlineBtnTxt}>
-                      {t("medications.request_caller_review", {
-                        defaultValue: "Request Caller Review",
-                      })}
-                    </Text>
-                  </>
-                )}
+                <Bell size={20} color="#475569" strokeWidth={2.5} />
+                {unreadCount > 0 && <View style={styles.bellDot} />}
               </Pressable>
             </View>
+          </View>
+        </View>
 
-            {patient?.uploaded_prescriptions?.length > 0 && (
-              <View style={{ width: "100%", marginTop: 20 }}>
-                <Text style={styles.sectionLabel}>
-                  {t("medications.recent_uploads", {
-                    defaultValue: "RECENT UPLOADS",
+        {/* ── ALL SCROLLABLE CONTENT ── */}
+        <ScrollView
+          ref={scrollViewRef}
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              tintColor="#6366F1"
+            />
+          }
+        >
+          {/* Progress card (scrolls with content) */}
+          {totalCount > 0 && (
+            <Animated.View style={[anim(0), styles.progressCard]}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.progressLabel}>
+                  {t("medications.todays_progress", {
+                    defaultValue: "Today's Progress",
                   })}
                 </Text>
-                {patient.uploaded_prescriptions.map((up, idx) => (
-                  <UploadRow key={idx} upload={up} />
-                ))}
-              </View>
-            )}
-            </View>
-          </Animated.View>
-        ) : (
-          <>
-            {/* ── WEEKLY CHART ── */}
-            <Animated.View style={anim(1)}>
-              <View style={styles.chartCard}>
                 <View
                   style={{
                     flexDirection: "row",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    marginBottom: 20,
+                    alignItems: "baseline",
+                    gap: 4,
+                    marginVertical: 6,
                   }}
                 >
-                  <View>
-                    <Text style={styles.cardTitle}>
-                      {t("common.weekly_adherence", {
-                        defaultValue: "Weekly Adherence",
-                      })}
-                    </Text>
-                    <Text
-                      style={{
-                        fontSize: 12,
-                        color: "#94A3B8",
-                        marginTop: 2,
-                        fontWeight: "600",
-                      }}
-                    >
-                      {t("common.last_7_days", { defaultValue: "Last 7 days" })}
-                    </Text>
-                  </View>
-                  <View style={styles.adherenceBadge}>
-                    <TrendingUp size={13} color="#6366F1" />
-                    <Text style={styles.adherenceBadgeTxt}>
-                      {adherencePct}% {t("common.avg", { defaultValue: "avg" })}
-                    </Text>
-                  </View>
+                  <Text style={styles.progressCount}>{takenCount}</Text>
+                  <Text style={styles.progressTotal}>
+                    / {totalCount}{" "}
+                    {t("common.taken", { defaultValue: "taken" })}
+                  </Text>
                 </View>
-                <View style={{ flexDirection: "row", gap: 2 }}>
-                  {adherence.map((d, i) => (
-                    <ChartBar
-                      key={i}
-                      percentage={d.p}
-                      isToday={d.isToday}
-                      day={(d.day || "").substring(0, 2)}
-                    />
-                  ))}
+                <View style={styles.progressBarBg}>
+                  <LinearGradient
+                    colors={
+                      progressPerc >= 80
+                        ? ["#34D399", "#10B981"]
+                        : progressPerc >= 50
+                          ? ["#FCD34D", "#F59E0B"]
+                          : ["#FC8181", "#EF4444"]
+                    }
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={[
+                      styles.progressBarFill,
+                      { width: `${Math.max(progressPerc, 4)}%` },
+                    ]}
+                  />
                 </View>
-              </View>
-
-              {/* ── AI WEEKLY SUMMARY ── */}
-              {weeklySummary && (
-                <View
-                  style={{
-                    backgroundColor: "#F0FDF4",
-                    borderRadius: 16,
-                    padding: 16,
-                    marginBottom: 20,
-                    borderWidth: 1,
-                    borderColor: "#BBF7D0",
-                  }}
-                >
+                <View style={{ flexDirection: "row", gap: 16, marginTop: 10 }}>
                   <View
                     style={{
                       flexDirection: "row",
                       alignItems: "center",
-                      gap: 8,
-                      marginBottom: 8,
+                      gap: 5,
                     }}
                   >
-                    <Zap size={16} color="#16A34A" />
+                    <TrendingUp size={12} color="#6366F1" />
                     <Text
                       style={{
-                        fontSize: 13,
-                        fontWeight: "800",
-                        color: "#16A34A",
-                        letterSpacing: 0.5,
-                        textTransform: "uppercase",
+                        fontSize: 11,
+                        fontWeight: "700",
+                        color: "#6366F1",
                       }}
                     >
-                      AI Weekly Summary
+                      {Math.round(adherencePct)}%{" "}
+                      {t("common.avg", { defaultValue: "avg" })}
                     </Text>
                   </View>
-                  <Text
-                    style={{
-                      fontSize: 15,
-                      fontWeight: "600",
-                      color: "#064E3B",
-                      lineHeight: 22,
-                      marginBottom: 8,
-                    }}
-                  >
-                    {weeklySummary.summary_text}
-                  </Text>
-                  <Text
-                    style={{
-                      fontSize: 14,
-                      color: "#047857",
-                      fontStyle: "italic",
-                      marginBottom: 4,
-                    }}
-                  >
-                    "{weeklySummary.encouragement_text}"
-                  </Text>
-                  <Text
-                    style={{ fontSize: 13, color: "#065F46", marginTop: 4 }}
-                  >
-                    💡 {weeklySummary.areas_to_improve}
-                  </Text>
-                </View>
-              )}
-            </Animated.View>
-
-            {/* ── TIME SECTIONS ── */}
-            <Animated.View style={anim(2)}>
-              <View ref={medsListCardRef} collapsable={false}>
-              {SLOT_ORDER.map((slot) => {
-                const meds = schedule[slot] || [];
-                if (meds.length === 0) return null;
-                return (
-                  <View key={slot} style={styles.slotSection}>
-                    <SlotHeader slot={slot} callTime={preferences[slot]} />
-                    {meds.map((med) => (
-                      <View key={med.id} style={{ marginBottom: 10 }}>
-                        <MedCard
-                          med={med}
-                          onToggle={handleMedIconPress}
-                          onSnooze={handleSnooze}
-                          onRefill={handleRefill}
-                        />
-                      </View>
-                    ))}
-                  </View>
-                );
-              })}
-              </View>
-            </Animated.View>
-
-            {/* ── TEMPORARY MEDICATIONS ── */}
-            <Animated.View style={anim(3)}>
-              <View
-                style={{
-                  backgroundColor: "#FFFFFF",
-                  borderRadius: radius.lg,
-                  padding: 20,
-                  marginBottom: 16,
-                  borderWidth: 1,
-                  borderColor: colors.borderLight,
-                  ...shadows.card,
-                }}
-              >
-                <View
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    marginBottom: 16,
-                  }}
-                >
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      gap: 10,
-                    }}
-                  >
+                  {nextCfg ? (
                     <View
                       style={{
-                        width: 32,
-                        height: 32,
-                        borderRadius: 10,
-                        backgroundColor: "rgba(168, 85, 247, 0.08)",
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
-                    >
-                      <Pill size={16} color="#A855F7" strokeWidth={2.5} />
-                    </View>
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                      <Text
-                        style={{
-                          fontSize: 16,
-                          fontWeight: "800",
-                          color: "#1E293B",
-                          letterSpacing: -0.2,
-                        }}
-                      >
-                        Temporary Medications
-                      </Text>
-                      {tempMeds.length > 0 && (
-                        <View
-                          style={{
-                            backgroundColor: "#A855F7",
-                            borderRadius: 10,
-                            paddingHorizontal: 8,
-                            paddingVertical: 2,
-                            minWidth: 20,
-                            alignItems: "center",
-                            justifyContent: "center",
-                          }}
-                        >
-                          <Text
-                            style={{
-                              fontSize: 10,
-                              fontWeight: "800",
-                              color: "#FFFFFF",
-                            }}
-                          >
-                            {tempMeds.length}
-                          </Text>
-                        </View>
-                      )}
-                    </View>
-                  </View>
-                  <Pressable
-                    onPress={() => {
-                      setTempMedForm({
-                        name: "",
-                        dosage: "",
-                        frequency: "As needed",
-                        reason: "",
-                        shift: "morning",
-                      });
-                      setShowAddTempMedModal(true);
-                    }}
-                    style={({ pressed }) => [
-                      {
                         flexDirection: "row",
                         alignItems: "center",
-                        gap: 4,
-                        paddingVertical: 6,
-                        paddingHorizontal: 12,
-                        backgroundColor: "rgba(168, 85, 247, 0.08)",
-                        borderRadius: 16,
-                      },
-                      pressed && { opacity: 0.7 }
-                    ]}
-                  >
-                    <Plus size={14} color="#A855F7" strokeWidth={3} />
-                    <Text
-                      style={{
-                        fontSize: 12,
-                        fontWeight: "700",
-                        color: "#A855F7",
+                        gap: 5,
                       }}
                     >
-                      Add
-                    </Text>
+                      <nextCfg.Icon size={12} color={nextCfg.color} />
+                      <Text
+                        style={{
+                          fontSize: 11,
+                          fontWeight: "700",
+                          color: nextCfg.color,
+                        }}
+                      >
+                        {t("medications.next", { defaultValue: "Next" })}:{" "}
+                        {t(`time_slots.${nextSlot}`, {
+                          defaultValue: nextCfg.label,
+                        })}
+                      </Text>
+                    </View>
+                  ) : (
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 5,
+                      }}
+                    >
+                      <CheckCircle2 size={12} color="#10B981" />
+                      <Text
+                        style={{
+                          fontSize: 11,
+                          fontWeight: "700",
+                          color: "#10B981",
+                        }}
+                      >
+                        {t("common.all_done", { defaultValue: "All done!" })}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              </View>
+              <ProgressRing progress={progressPerc} size={88} strokeWidth={8} />
+            </Animated.View>
+          )}
+
+          {totalCount === 0 ? (
+            /* ── EMPTY STATE ── */
+            <Animated.View style={[styles.emptyCard, anim(1)]}>
+              <View
+                ref={medsListCardRef}
+                collapsable={false}
+                style={{ width: "100%", alignItems: "center" }}
+              >
+                <LinearGradient
+                  colors={["#EEF2FF", "#E0E7FF"]}
+                  style={styles.emptyIconWrap}
+                >
+                  <Calendar size={44} color="#6366F1" strokeWidth={1.5} />
+                </LinearGradient>
+                <Text style={styles.emptyTitle}>
+                  {t("common.all_clear", { defaultValue: "All Clear!" })}
+                </Text>
+                <Text style={styles.emptyBody}>
+                  {t("medications.no_meds_scheduled", {
+                    defaultValue:
+                      "No medications scheduled yet. Your caller will add them, or request a review below.",
+                  })}
+                </Text>
+                <Pressable
+                  style={styles.emptyPrefBtn}
+                  onPress={() => {
+                    setShowPrefModal(true);
+                    setTempPrefs(preferences);
+                  }}
+                >
+                  <LinearGradient
+                    colors={["#6366F1", "#4F46E5"]}
+                    style={StyleSheet.absoluteFill}
+                  />
+                  <Clock size={17} color="#FFF" />
+                  <Text style={styles.emptyPrefTxt}>
+                    {t("medications.set_call_prefs", {
+                      defaultValue: "Set Call Preferences",
+                    })}
+                  </Text>
+                </Pressable>
+
+                <View style={styles.actionGroup}>
+                  <Pressable
+                    style={[
+                      styles.outlineBtn,
+                      modRequested && {
+                        borderColor: "#86EFAC",
+                        backgroundColor: "#F0FDF4",
+                      },
+                    ]}
+                    disabled={uploadingImage || modRequested}
+                    onPress={handleUploadPrescription}
+                  >
+                    {uploadingImage ? (
+                      <ActivityIndicator size="small" color="#6366F1" />
+                    ) : modRequested ? (
+                      <>
+                        <CheckCircle2 size={18} color="#16A34A" />
+                        <Text
+                          style={[styles.outlineBtnTxt, { color: "#16A34A" }]}
+                        >
+                          {t("medications.request_sent", {
+                            defaultValue: "Request Sent!",
+                          })}
+                        </Text>
+                      </>
+                    ) : (
+                      <>
+                        <MessageCircle size={18} color="#6366F1" />
+                        <Text style={styles.outlineBtnTxt}>
+                          {t("medications.request_caller_review", {
+                            defaultValue: "Request Caller Review",
+                          })}
+                        </Text>
+                      </>
+                    )}
                   </Pressable>
                 </View>
 
-                {tempMeds.length === 0 ? (
-                  <View style={{ alignItems: "center", paddingVertical: 20 }}>
-                    <Text
-                      style={{
-                        fontSize: 13,
-                        color: "#64748B",
-                        textAlign: "center",
-                        lineHeight: 18,
-                      }}
-                    >
-                      No temporary medications. Add any short-term or OTC medicines you are currently taking.
+                {patient?.uploaded_prescriptions?.length > 0 && (
+                  <View style={{ width: "100%", marginTop: 20 }}>
+                    <Text style={styles.sectionLabel}>
+                      {t("medications.recent_uploads", {
+                        defaultValue: "RECENT UPLOADS",
+                      })}
                     </Text>
+                    {patient.uploaded_prescriptions.map((up, idx) => (
+                      <UploadRow key={idx} upload={up} />
+                    ))}
                   </View>
-                ) : (
-                  tempMeds.map((tm, idx) => {
-                    const riskColors = {
-                      safe: "#10B981",
-                      caution: "#F59E0B",
-                      restricted: "#EF4444",
-                    };
-                    const riskColor = riskColors[tm.riskTier] || "#64748B";
-
-                    // Shift config
-                    const shiftStyles = {
-                      morning: {
-                        bg: "#FFF7ED",
-                        txt: "#C2410C",
-                        label: "Morning",
-                      },
-                      afternoon: {
-                        bg: "#F0F9FF",
-                        txt: "#0369A1",
-                        label: "Afternoon",
-                      },
-                      night: { bg: "#EEF2FF", txt: "#4338CA", label: "Night" },
-                    };
-                    const shiftCfg = shiftStyles[tm.shift] || {
-                      bg: "#F1F5F9",
-                      txt: "#475569",
-                      label: tm.shift,
-                    };
-
-                    return (
-                      <View
-                        key={tm._id || idx}
-                        style={{
-                          flexDirection: "row",
-                          alignItems: "flex-start",
-                          padding: 16,
-                          backgroundColor: "#F8F7FF",
-                          borderRadius: 16,
-                          borderWidth: 1,
-                          borderColor: "#EEF2FF",
-                          marginBottom: idx < tempMeds.length - 1 ? 12 : 0,
-                        }}
-                      >
-                        {/* Left Pill Icon container */}
-                        <View
-                          style={{
-                            width: 44,
-                            height: 44,
-                            borderRadius: 12,
-                            backgroundColor: "#E0E7FF",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            marginRight: 12,
-                          }}
-                        >
-                          <Pill size={20} color="#4F46E5" strokeWidth={2.5} />
-                        </View>
-
-                        <View style={{ flex: 1 }}>
-                          {/* Heading & Trash Row */}
-                          <View
-                            style={{
-                              flexDirection: "row",
-                              alignItems: "flex-start",
-                              justifyContent: "space-between",
-                            }}
-                          >
-                            <View style={{ flex: 1 }}>
-                              <View
-                                style={{
-                                  flexDirection: "row",
-                                  alignItems: "center",
-                                  flexWrap: "wrap",
-                                  gap: 8,
-                                  marginBottom: 6,
-                                }}
-                              >
-                                <Text
-                                  style={{
-                                    fontSize: 18,
-                                    fontWeight: "800",
-                                    color: "#0F172A",
-                                    letterSpacing: -0.2,
-                                  }}
-                                >
-                                  {tm.name}
-                                </Text>
-                                {/* Badges */}
-                                {tm.shift && (
-                                  <View
-                                    style={{
-                                      backgroundColor: shiftCfg.bg,
-                                      paddingHorizontal: 8,
-                                      paddingVertical: 3,
-                                      borderRadius: 6,
-                                    }}
-                                  >
-                                    <Text
-                                      style={{
-                                        fontSize: 10,
-                                        fontWeight: "800",
-                                        color: shiftCfg.txt,
-                                        textTransform: "uppercase",
-                                        letterSpacing: 0.5,
-                                      }}
-                                    >
-                                      {shiftCfg.label}
-                                    </Text>
-                                  </View>
-                                )}
-                                <View
-                                  style={{
-                                    backgroundColor:
-                                      tm.riskTier === "safe"
-                                        ? "#ECFDF5"
-                                        : tm.riskTier === "restricted"
-                                          ? "#FEF2F2"
-                                          : "#FFFBEB",
-                                    paddingHorizontal: 8,
-                                    paddingVertical: 3,
-                                    borderRadius: 6,
-                                    borderWidth: 1,
-                                    borderColor:
-                                      tm.riskTier === "safe"
-                                        ? "#A7F3D0"
-                                        : tm.riskTier === "restricted"
-                                          ? "#FECACA"
-                                          : "#FDE68A",
-                                  }}
-                                >
-                                  <Text
-                                    style={{
-                                      fontSize: 10,
-                                      fontWeight: "900",
-                                      color: riskColor,
-                                      textTransform: "uppercase",
-                                      letterSpacing: 0.5,
-                                    }}
-                                  >
-                                    {tm.riskTier === "safe"
-                                      ? "Safe"
-                                      : tm.riskTier === "restricted"
-                                        ? "Restricted"
-                                        : "Caution"}
-                                  </Text>
-                                </View>
-                              </View>
-
-                              {tm.dosage || tm.frequency ? (
-                                <Text
-                                  style={{
-                                    fontSize: 13,
-                                    color: "#475569",
-                                    fontWeight: "700",
-                                    marginBottom: 6,
-                                  }}
-                                >
-                                  {[tm.dosage, tm.frequency]
-                                    .filter(Boolean)
-                                    .join(" · ")}
-                                </Text>
-                              ) : null}
-                            </View>
-
-                            {/* Trash button */}
-                            {tm._id && String(tm._id).startsWith("temp_") ? (
-                              <View style={{ padding: 8 }}>
-                                <ActivityIndicator size="small" color="#A855F7" />
-                              </View>
-                            ) : (
-                              <Pressable
-                                onPress={() => handleDeleteTempMed(tm)}
-                                style={({ pressed }) => [
-                                  {
-                                    padding: 8,
-                                    borderRadius: 10,
-                                    backgroundColor: "#F1F5F9",
-                                    opacity: pressed ? 0.6 : 1,
-                                    marginLeft: 8,
-                                  },
-                                ]}
-                              >
-                                <Trash2 size={15} color="#94A3B8" />
-                              </Pressable>
-                            )}
-                          </View>
-
-                          {/* Description */}
-                          {tm.aiSummary ? (
-                            <Text
-                              style={{
-                                fontSize: 13,
-                                color: "#64748B",
-                                lineHeight: 18,
-                                marginTop: 4,
-                                marginBottom: 4,
-                                fontWeight: "500",
-                              }}
-                            >
-                              {tm.aiSummary}
-                            </Text>
-                          ) : null}
-
-                          {tm.riskTier === "restricted" && (
-                            <View
-                              style={{
-                                flexDirection: "row",
-                                alignItems: "center",
-                                gap: 4,
-                                marginTop: 8,
-                                backgroundColor: "#FEF2F2",
-                                paddingHorizontal: 8,
-                                paddingVertical: 6,
-                                borderRadius: 8,
-                                borderWidth: 1,
-                                borderColor: "#FCA5A5",
-                              }}
-                            >
-                              <AlertCircle
-                                size={11}
-                                color="#DC2626"
-                                strokeWidth={2.5}
-                              />
-                              <Text
-                                style={{
-                                  fontSize: 10,
-                                  fontWeight: "800",
-                                  color: "#DC2626",
-                                  letterSpacing: 0.2,
-                                }}
-                              >
-                                Do NOT take without doctor approval
-                              </Text>
-                            </View>
-                          )}
-
-                          {/* Dashed divider */}
-                          <View
-                            style={{
-                              borderStyle: "dashed",
-                              borderBottomWidth: 1,
-                              borderColor: "#CBD5E1",
-                              marginVertical: 12,
-                              height: 1,
-                              width: "100%",
-                            }}
-                          />
-
-                          {/* Reason */}
-                          {tm.reason ? (
-                            <View
-                              style={{
-                                flexDirection: "row",
-                                alignItems: "center",
-                                gap: 8,
-                                marginBottom: 6,
-                              }}
-                            >
-                              <Calendar size={14} color="#6366F1" />
-                              <Text
-                                style={{
-                                  fontSize: 12,
-                                  fontWeight: "600",
-                                  color: "#475569",
-                                }}
-                              >
-                                Reason:{" "}
-                                <Text style={{ fontWeight: "500", color: "#64748B" }}>
-                                  {tm.reason}
-                                </Text>
-                              </Text>
-                            </View>
-                          ) : null}
-
-                          {/* Added by */}
-                          <View
-                            style={{
-                              flexDirection: "row",
-                              alignItems: "center",
-                              gap: 8,
-                            }}
-                          >
-                            <User size={14} color="#6366F1" />
-                            <Text
-                              style={{
-                                fontSize: 12,
-                                fontWeight: "600",
-                                color: "#475569",
-                              }}
-                            >
-                              Added by {tm.addedByName || tm.addedByRole}{" "}
-                              <Text style={{ color: "#94A3B8" }}>• Today</Text>
-                            </Text>
-                          </View>
-                        </View>
-                      </View>
-                    );
-                  })
                 )}
               </View>
             </Animated.View>
-
-            {/* ── MEDICATION SUPPLY ── */}
-            {(() => {
-              const supplyMeds = [];
-              const seen = new Set();
-              allMeds.forEach((med) => {
-                if (med.refillInfo && !seen.has(med.name)) {
-                  seen.add(med.name);
-                  const remaining =
-                    med.refillInfo.remainingDoses ??
-                    med.refillInfo.totalDoses ??
-                    null;
-                  if (remaining !== null) {
-                    supplyMeds.push({
-                      name: med.name,
-                      remaining,
-                      total: med.refillInfo.totalDoses || remaining,
-                      isLow: remaining <= (med.refillInfo.alertThreshold || 5),
-                    });
-                  }
-                }
-              });
-              if (supplyMeds.length === 0) return null;
-              return (
-                <Animated.View style={anim(3)}>
+          ) : (
+            <>
+              {/* ── WEEKLY CHART ── */}
+              <Animated.View style={anim(1)}>
+                <View style={styles.chartCard}>
                   <View
                     style={{
-                      backgroundColor: "#FFFFFF",
-                      borderRadius: radius.lg,
-                      padding: 18,
-                      marginBottom: 16,
+                      flexDirection: "row",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      marginBottom: 20,
+                    }}
+                  >
+                    <View>
+                      <Text style={styles.cardTitle}>
+                        {t("common.weekly_adherence", {
+                          defaultValue: "Weekly Adherence",
+                        })}
+                      </Text>
+                      <Text
+                        style={{
+                          fontSize: 12,
+                          color: "#94A3B8",
+                          marginTop: 2,
+                          fontWeight: "600",
+                        }}
+                      >
+                        {t("common.last_7_days", {
+                          defaultValue: "Last 7 days",
+                        })}
+                      </Text>
+                    </View>
+                    <View style={styles.adherenceBadge}>
+                      <TrendingUp size={13} color="#6366F1" />
+                      <Text style={styles.adherenceBadgeTxt}>
+                        {adherencePct}%{" "}
+                        {t("common.avg", { defaultValue: "avg" })}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={{ flexDirection: "row", gap: 2 }}>
+                    {adherence.map((d, i) => (
+                      <ChartBar
+                        key={i}
+                        percentage={d.p}
+                        isToday={d.isToday}
+                        day={(d.day || "").substring(0, 2)}
+                      />
+                    ))}
+                  </View>
+                </View>
+
+                {/* ── AI WEEKLY SUMMARY ── */}
+                {weeklySummary && (
+                  <View
+                    style={{
+                      backgroundColor: "#F0FDF4",
+                      borderRadius: 16,
+                      padding: 16,
+                      marginBottom: 20,
                       borderWidth: 1,
-                      borderColor: colors.borderLight,
-                      ...shadows.card,
+                      borderColor: "#BBF7D0",
                     }}
                   >
                     <View
@@ -2631,698 +2115,939 @@ export default function MedicationsScreen({ navigation }) {
                         flexDirection: "row",
                         alignItems: "center",
                         gap: 8,
-                        marginBottom: 14,
+                        marginBottom: 8,
+                      }}
+                    >
+                      <Zap size={16} color="#16A34A" />
+                      <Text
+                        style={{
+                          fontSize: 13,
+                          fontWeight: "800",
+                          color: "#16A34A",
+                          letterSpacing: 0.5,
+                          textTransform: "uppercase",
+                        }}
+                      >
+                        AI Weekly Summary
+                      </Text>
+                    </View>
+                    <Text
+                      style={{
+                        fontSize: 15,
+                        fontWeight: "600",
+                        color: "#064E3B",
+                        lineHeight: 22,
+                        marginBottom: 8,
+                      }}
+                    >
+                      {weeklySummary.summary_text}
+                    </Text>
+                    <Text
+                      style={{
+                        fontSize: 14,
+                        color: "#047857",
+                        fontStyle: "italic",
+                        marginBottom: 4,
+                      }}
+                    >
+                      "{weeklySummary.encouragement_text}"
+                    </Text>
+                    <Text
+                      style={{ fontSize: 13, color: "#065F46", marginTop: 4 }}
+                    >
+                      💡 {weeklySummary.areas_to_improve}
+                    </Text>
+                  </View>
+                )}
+              </Animated.View>
+
+              {/* ── TIME SECTIONS ── */}
+              <Animated.View style={anim(2)}>
+                <View ref={medsListCardRef} collapsable={false}>
+                  {SLOT_ORDER.map((slot) => {
+                    const meds = schedule[slot] || [];
+                    if (meds.length === 0) return null;
+                    return (
+                      <View key={slot} style={styles.slotSection}>
+                        <SlotHeader slot={slot} callTime={preferences[slot]} />
+                        {meds.map((med) => (
+                          <View key={med.id} style={{ marginBottom: 10 }}>
+                            <MedCard
+                              med={med}
+                              onToggle={handleMedIconPress}
+                              onSnooze={handleSnooze}
+                              onRefill={handleRefill}
+                            />
+                          </View>
+                        ))}
+                      </View>
+                    );
+                  })}
+                </View>
+              </Animated.View>
+
+              {/* ── TEMPORARY MEDICATIONS ── */}
+              <Animated.View style={anim(3)}>
+                <View
+                  style={{
+                    backgroundColor: "#FFFFFF",
+                    borderRadius: radius.lg,
+                    padding: 20,
+                    marginBottom: 16,
+                    borderWidth: 1,
+                    borderColor: colors.borderLight,
+                    ...shadows.card,
+                  }}
+                >
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      marginBottom: 16,
+                    }}
+                  >
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 10,
+                        flex: 1,
+                        marginRight: 8,
                       }}
                     >
                       <View
                         style={{
-                          width: 28,
-                          height: 28,
-                          borderRadius: radius.sm,
-                          backgroundColor: "#EEF2FF",
+                          width: 32,
+                          height: 32,
+                          borderRadius: 10,
+                          backgroundColor: "rgba(168, 85, 247, 0.08)",
                           alignItems: "center",
                           justifyContent: "center",
-                          borderWidth: 1,
-                          borderColor: "#C7D2FE",
                         }}
                       >
-                        <Pill size={14} color="#6366F1" strokeWidth={2.5} />
+                        <Pill size={16} color="#A855F7" strokeWidth={2.5} />
                       </View>
-                      <Text
+                      <View
                         style={{
-                          fontSize: 14,
-                          fontWeight: "800",
-                          color: "#0F172A",
-                          letterSpacing: 0.3,
+                          flexDirection: "row",
+                          alignItems: "center",
+                          gap: 8,
+                          flexShrink: 1,
                         }}
                       >
-                        {t("medications.supply_tracker", {
-                          defaultValue: "Medication Supply",
-                        })}
-                      </Text>
-                    </View>
-                    {supplyMeds.map((sm) => {
-                      const pct =
-                        sm.total > 0
-                          ? Math.min((sm.remaining / sm.total) * 100, 100)
-                          : 0;
-                      return (
-                        <View key={sm.name} style={{ marginBottom: 14 }}>
+                        <Text
+                          numberOfLines={1}
+                          ellipsizeMode="tail"
+                          style={{
+                            fontSize: 16,
+                            fontWeight: "800",
+                            color: "#1E293B",
+                            letterSpacing: -0.2,
+                            flexShrink: 1,
+                          }}
+                        >
+                          Temporary Medications
+                        </Text>
+                        {tempMeds.length > 0 && (
                           <View
                             style={{
-                              flexDirection: "row",
-                              justifyContent: "space-between",
+                              backgroundColor: "#A855F7",
+                              borderRadius: 10,
+                              paddingHorizontal: 8,
+                              paddingVertical: 2,
+                              minWidth: 20,
                               alignItems: "center",
-                              marginBottom: 6,
+                              justifyContent: "center",
                             }}
                           >
                             <Text
                               style={{
-                                fontSize: 13,
+                                fontSize: 10,
                                 fontWeight: "800",
-                                color: "#1E293B",
-                                letterSpacing: -0.1,
+                                color: "#FFFFFF",
                               }}
                             >
-                              {sm.name}
+                              {tempMeds.length}
                             </Text>
+                          </View>
+                        )}
+                      </View>
+                    </View>
+                    <Pressable
+                      onPress={() => {
+                        setTempMedForm({
+                          name: "",
+                          dosage: "",
+                          frequency: "As needed",
+                          reason: "",
+                          shift: "morning",
+                        });
+                        setShowAddTempMedModal(true);
+                      }}
+                      style={({ pressed }) => [
+                        {
+                          flexDirection: "row",
+                          alignItems: "center",
+                          gap: 4,
+                          paddingVertical: 6,
+                          paddingHorizontal: 12,
+                          backgroundColor: "rgba(168, 85, 247, 0.08)",
+                          borderRadius: 16,
+                        },
+                        pressed && { opacity: 0.7 },
+                      ]}
+                    >
+                      <Plus size={14} color="#A855F7" strokeWidth={3} />
+                      <Text
+                        style={{
+                          fontSize: 12,
+                          fontWeight: "700",
+                          color: "#A855F7",
+                        }}
+                      >
+                        Add
+                      </Text>
+                    </Pressable>
+                  </View>
+
+                  {tempMeds.length === 0 ? (
+                    <View style={{ alignItems: "center", paddingVertical: 20 }}>
+                      <Text
+                        style={{
+                          fontSize: 13,
+                          color: "#64748B",
+                          textAlign: "center",
+                          lineHeight: 18,
+                        }}
+                      >
+                        No temporary medications. Add any short-term or OTC
+                        medicines you are currently taking.
+                      </Text>
+                    </View>
+                  ) : (
+                    tempMeds.map((tm, idx) => {
+                      const riskColors = {
+                        safe: "#10B981",
+                        caution: "#F59E0B",
+                        restricted: "#EF4444",
+                      };
+                      const riskColor = riskColors[tm.riskTier] || "#64748B";
+
+                      // Shift config
+                      const shiftStyles = {
+                        morning: {
+                          bg: "#FFF7ED",
+                          txt: "#C2410C",
+                          label: "Morning",
+                        },
+                        afternoon: {
+                          bg: "#F0F9FF",
+                          txt: "#0369A1",
+                          label: "Afternoon",
+                        },
+                        night: {
+                          bg: "#EEF2FF",
+                          txt: "#4338CA",
+                          label: "Night",
+                        },
+                      };
+                      const shiftCfg = shiftStyles[tm.shift] || {
+                        bg: "#F1F5F9",
+                        txt: "#475569",
+                        label: tm.shift,
+                      };
+
+                      return (
+                        <View
+                          key={tm._id || idx}
+                          style={{
+                            flexDirection: "row",
+                            alignItems: "flex-start",
+                            padding: 16,
+                            backgroundColor: "#F8F7FF",
+                            borderRadius: 16,
+                            borderWidth: 1,
+                            borderColor: "#EEF2FF",
+                            marginBottom: idx < tempMeds.length - 1 ? 12 : 0,
+                          }}
+                        >
+                          {/* Left Pill Icon container */}
+                          <View
+                            style={{
+                              width: 44,
+                              height: 44,
+                              borderRadius: 12,
+                              backgroundColor: "#E0E7FF",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              marginRight: 12,
+                            }}
+                          >
+                            <Pill size={20} color="#4F46E5" strokeWidth={2.5} />
+                          </View>
+
+                          <View style={{ flex: 1 }}>
+                            {/* Heading & Trash Row */}
+                            <View
+                              style={{
+                                flexDirection: "row",
+                                alignItems: "flex-start",
+                                justifyContent: "space-between",
+                              }}
+                            >
+                              <View style={{ flex: 1 }}>
+                                <View
+                                  style={{
+                                    flexDirection: "row",
+                                    alignItems: "center",
+                                    flexWrap: "wrap",
+                                    gap: 8,
+                                    marginBottom: 6,
+                                  }}
+                                >
+                                  <Text
+                                    style={{
+                                      fontSize: 18,
+                                      fontWeight: "800",
+                                      color: "#0F172A",
+                                      letterSpacing: -0.2,
+                                    }}
+                                  >
+                                    {tm.name}
+                                  </Text>
+                                  {/* Badges */}
+                                  {tm.shift && (
+                                    <View
+                                      style={{
+                                        backgroundColor: shiftCfg.bg,
+                                        paddingHorizontal: 8,
+                                        paddingVertical: 3,
+                                        borderRadius: 6,
+                                      }}
+                                    >
+                                      <Text
+                                        style={{
+                                          fontSize: 10,
+                                          fontWeight: "800",
+                                          color: shiftCfg.txt,
+                                          textTransform: "uppercase",
+                                          letterSpacing: 0.5,
+                                        }}
+                                      >
+                                        {shiftCfg.label}
+                                      </Text>
+                                    </View>
+                                  )}
+                                  <View
+                                    style={{
+                                      backgroundColor:
+                                        tm.riskTier === "safe"
+                                          ? "#ECFDF5"
+                                          : tm.riskTier === "restricted"
+                                            ? "#FEF2F2"
+                                            : "#FFFBEB",
+                                      paddingHorizontal: 8,
+                                      paddingVertical: 3,
+                                      borderRadius: 6,
+                                      borderWidth: 1,
+                                      borderColor:
+                                        tm.riskTier === "safe"
+                                          ? "#A7F3D0"
+                                          : tm.riskTier === "restricted"
+                                            ? "#FECACA"
+                                            : "#FDE68A",
+                                    }}
+                                  >
+                                    <Text
+                                      style={{
+                                        fontSize: 10,
+                                        fontWeight: "900",
+                                        color: riskColor,
+                                        textTransform: "uppercase",
+                                        letterSpacing: 0.5,
+                                      }}
+                                    >
+                                      {tm.riskTier === "safe"
+                                        ? "Safe"
+                                        : tm.riskTier === "restricted"
+                                          ? "Restricted"
+                                          : "Caution"}
+                                    </Text>
+                                  </View>
+                                </View>
+
+                                {tm.dosage || tm.frequency ? (
+                                  <Text
+                                    style={{
+                                      fontSize: 13,
+                                      color: "#475569",
+                                      fontWeight: "700",
+                                      marginBottom: 6,
+                                    }}
+                                  >
+                                    {[tm.dosage, tm.frequency]
+                                      .filter(Boolean)
+                                      .join(" · ")}
+                                  </Text>
+                                ) : null}
+                              </View>
+
+                              {/* Trash button */}
+                              {tm._id && String(tm._id).startsWith("temp_") ? (
+                                <View style={{ padding: 8 }}>
+                                  <ActivityIndicator
+                                    size="small"
+                                    color="#A855F7"
+                                  />
+                                </View>
+                              ) : (
+                                <Pressable
+                                  onPress={() => handleDeleteTempMed(tm)}
+                                  style={({ pressed }) => [
+                                    {
+                                      padding: 8,
+                                      borderRadius: 10,
+                                      backgroundColor: "#F1F5F9",
+                                      opacity: pressed ? 0.6 : 1,
+                                      marginLeft: 8,
+                                    },
+                                  ]}
+                                >
+                                  <Trash2 size={15} color="#94A3B8" />
+                                </Pressable>
+                              )}
+                            </View>
+
+                            {/* Description */}
+                            {tm.aiSummary ? (
+                              <Text
+                                style={{
+                                  fontSize: 13,
+                                  color: "#64748B",
+                                  lineHeight: 18,
+                                  marginTop: 4,
+                                  marginBottom: 4,
+                                  fontWeight: "500",
+                                }}
+                              >
+                                {tm.aiSummary}
+                              </Text>
+                            ) : null}
+
+                            {tm.riskTier === "restricted" && (
+                              <View
+                                style={{
+                                  flexDirection: "row",
+                                  alignItems: "center",
+                                  gap: 4,
+                                  marginTop: 8,
+                                  backgroundColor: "#FEF2F2",
+                                  paddingHorizontal: 8,
+                                  paddingVertical: 6,
+                                  borderRadius: 8,
+                                  borderWidth: 1,
+                                  borderColor: "#FCA5A5",
+                                }}
+                              >
+                                <AlertCircle
+                                  size={11}
+                                  color="#DC2626"
+                                  strokeWidth={2.5}
+                                />
+                                <Text
+                                  style={{
+                                    fontSize: 10,
+                                    fontWeight: "800",
+                                    color: "#DC2626",
+                                    letterSpacing: 0.2,
+                                  }}
+                                >
+                                  Do NOT take without doctor approval
+                                </Text>
+                              </View>
+                            )}
+
+                            {/* Dashed divider */}
+                            <View
+                              style={{
+                                borderStyle: "dashed",
+                                borderBottomWidth: 1,
+                                borderColor: "#CBD5E1",
+                                marginVertical: 12,
+                                height: 1,
+                                width: "100%",
+                              }}
+                            />
+
+                            {/* Reason */}
+                            {tm.reason ? (
+                              <View
+                                style={{
+                                  flexDirection: "row",
+                                  alignItems: "center",
+                                  gap: 8,
+                                  marginBottom: 6,
+                                }}
+                              >
+                                <Calendar size={14} color="#6366F1" />
+                                <Text
+                                  style={{
+                                    fontSize: 12,
+                                    fontWeight: "600",
+                                    color: "#475569",
+                                  }}
+                                >
+                                  Reason:{" "}
+                                  <Text
+                                    style={{
+                                      fontWeight: "500",
+                                      color: "#64748B",
+                                    }}
+                                  >
+                                    {tm.reason}
+                                  </Text>
+                                </Text>
+                              </View>
+                            ) : null}
+
+                            {/* Added by */}
                             <View
                               style={{
                                 flexDirection: "row",
                                 alignItems: "center",
-                                gap: 4,
+                                gap: 8,
                               }}
                             >
-                              {sm.isLow && (
-                                <AlertCircle
-                                  size={10}
-                                  color="#EF4444"
-                                  strokeWidth={3}
-                                />
-                              )}
+                              <User size={14} color="#6366F1" />
                               <Text
                                 style={{
                                   fontSize: 12,
-                                  fontWeight: "800",
-                                  color: sm.isLow ? "#EF4444" : "#64748B",
+                                  fontWeight: "600",
+                                  color: "#475569",
                                 }}
                               >
-                                {sm.remaining} / {sm.total}{" "}
-                                {t("medications.left", {
-                                  defaultValue: "left",
-                                })}
+                                Added by {tm.addedByName || tm.addedByRole}{" "}
+                                <Text style={{ color: "#94A3B8" }}>
+                                  • Today
+                                </Text>
                               </Text>
-                            </View>
-                          </View>
-                          <View
-                            style={{
-                              height: 8,
-                              backgroundColor: "#F1F5F9",
-                              borderRadius: 4,
-                              overflow: "hidden",
-                            }}
-                          >
-                            <View
-                              style={{
-                                height: 8,
-                                borderRadius: 4,
-                                width: `${Math.max(pct, 2)}%`,
-                                overflow: "hidden",
-                              }}
-                            >
-                              <LinearGradient
-                                colors={
-                                  sm.isLow
-                                    ? ["#EF4444", "#F87171"]
-                                    : pct > 50
-                                      ? ["#10B981", "#34D399"]
-                                      : ["#F59E0B", "#FBBF24"]
-                                }
-                                start={{ x: 0, y: 0 }}
-                                end={{ x: 1, y: 0 }}
-                                style={{ flex: 1 }}
-                              />
                             </View>
                           </View>
                         </View>
                       );
-                    })}
-                  </View>
-                </Animated.View>
-              );
-            })()}
+                    })
+                  )}
+                </View>
+              </Animated.View>
 
-            {/* ── ACTION BUTTONS ── */}
-            <Animated.View style={[anim(3), styles.actionGroup]}>
-              <Pressable
-                style={[
-                  styles.outlineBtn,
-                  modRequested && {
-                    borderColor: "#86EFAC",
-                    backgroundColor: "#F0FDF4",
-                  },
-                ]}
-                disabled={uploadingImage || modRequested}
-                onPress={handleUploadPrescription}
-              >
-                {uploadingImage ? (
-                  <ActivityIndicator size="small" color="#6366F1" />
-                ) : modRequested ? (
-                  <>
-                    <CheckCircle2 size={18} color="#16A34A" />
-                    <Text style={[styles.outlineBtnTxt, { color: "#16A34A" }]}>
-                      {t("medications.request_sent", {
-                        defaultValue: "Request Sent!",
-                      })}
-                    </Text>
-                  </>
-                ) : (
-                  <>
-                    <Pencil size={18} color="#6366F1" />
-                    <Text style={styles.outlineBtnTxt}>
-                      {t("medications.request_med_review", {
-                        defaultValue: "Request Medication Review",
-                      })}
-                    </Text>
-                  </>
-                )}
-              </Pressable>
-
-              {patient?.uploaded_prescriptions?.length > 0 && (
-                <View style={{ marginTop: 8 }}>
-                  <Text style={[styles.sectionLabel, { marginBottom: 12 }]}>
-                    {t("medications.uploaded_prescriptions", {
-                      defaultValue: "UPLOADED PRESCRIPTIONS",
-                    })}
-                  </Text>
-                  {patient.uploaded_prescriptions.map((up, idx) => (
+              {/* ── MEDICATION SUPPLY ── */}
+              {(() => {
+                const supplyMeds = [];
+                const seen = new Set();
+                allMeds.forEach((med) => {
+                  if (med.refillInfo && !seen.has(med.name)) {
+                    seen.add(med.name);
+                    const remaining =
+                      med.refillInfo.remainingDoses ??
+                      med.refillInfo.totalDoses ??
+                      null;
+                    if (remaining !== null) {
+                      supplyMeds.push({
+                        name: med.name,
+                        remaining,
+                        total: med.refillInfo.totalDoses || remaining,
+                        isLow:
+                          remaining <= (med.refillInfo.alertThreshold || 5),
+                      });
+                    }
+                  }
+                });
+                if (supplyMeds.length === 0) return null;
+                return (
+                  <Animated.View style={anim(3)}>
                     <View
-                      key={idx}
-                      style={[styles.uploadCard, { marginBottom: 8 }]}
+                      style={{
+                        backgroundColor: "#FFFFFF",
+                        borderRadius: radius.lg,
+                        padding: 18,
+                        marginBottom: 16,
+                        borderWidth: 1,
+                        borderColor: colors.borderLight,
+                        ...shadows.card,
+                      }}
                     >
                       <View
-                        style={[
-                          styles.uploadStatusBox,
-                          {
-                            backgroundColor:
-                              up.status === "reviewed"
-                                ? "#DCFCE7"
-                                : up.status === "rejected"
-                                  ? "#FEE2E2"
-                                  : "#FEF3C7",
-                          },
-                        ]}
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          gap: 8,
+                          marginBottom: 14,
+                        }}
                       >
-                        {up.status === "reviewed" ? (
-                          <CheckCircle2 size={18} color="#16A34A" />
-                        ) : up.status === "rejected" ? (
-                          <X size={18} color="#DC2626" />
-                        ) : (
-                          <Clock size={18} color="#D97706" />
-                        )}
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.uploadName}>
-                          {t("medications.doctors_slip", {
-                            defaultValue: "Doctor's Slip",
+                        <View
+                          style={{
+                            width: 28,
+                            height: 28,
+                            borderRadius: radius.sm,
+                            backgroundColor: "#EEF2FF",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            borderWidth: 1,
+                            borderColor: "#C7D2FE",
+                          }}
+                        >
+                          <Pill size={14} color="#6366F1" strokeWidth={2.5} />
+                        </View>
+                        <Text
+                          style={{
+                            fontSize: 14,
+                            fontWeight: "800",
+                            color: "#0F172A",
+                            letterSpacing: 0.3,
+                          }}
+                        >
+                          {t("medications.supply_tracker", {
+                            defaultValue: "Medication Supply",
                           })}
                         </Text>
-                        <Text style={styles.uploadDate}>
-                          {new Date(up.uploaded_at).toLocaleDateString()}
-                        </Text>
                       </View>
+                      {supplyMeds.map((sm) => {
+                        const pct =
+                          sm.total > 0
+                            ? Math.min((sm.remaining / sm.total) * 100, 100)
+                            : 0;
+                        return (
+                          <View key={sm.name} style={{ marginBottom: 14 }}>
+                            <View
+                              style={{
+                                flexDirection: "row",
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                                marginBottom: 6,
+                              }}
+                            >
+                              <Text
+                                style={{
+                                  fontSize: 13,
+                                  fontWeight: "800",
+                                  color: "#1E293B",
+                                  letterSpacing: -0.1,
+                                }}
+                              >
+                                {sm.name}
+                              </Text>
+                              <View
+                                style={{
+                                  flexDirection: "row",
+                                  alignItems: "center",
+                                  gap: 4,
+                                }}
+                              >
+                                {sm.isLow && (
+                                  <AlertCircle
+                                    size={10}
+                                    color="#EF4444"
+                                    strokeWidth={3}
+                                  />
+                                )}
+                                <Text
+                                  style={{
+                                    fontSize: 12,
+                                    fontWeight: "800",
+                                    color: sm.isLow ? "#EF4444" : "#64748B",
+                                  }}
+                                >
+                                  {sm.remaining} / {sm.total}{" "}
+                                  {t("medications.left", {
+                                    defaultValue: "left",
+                                  })}
+                                </Text>
+                              </View>
+                            </View>
+                            <View
+                              style={{
+                                height: 8,
+                                backgroundColor: "#F1F5F9",
+                                borderRadius: 4,
+                                overflow: "hidden",
+                              }}
+                            >
+                              <View
+                                style={{
+                                  height: 8,
+                                  borderRadius: 4,
+                                  width: `${Math.max(pct, 2)}%`,
+                                  overflow: "hidden",
+                                }}
+                              >
+                                <LinearGradient
+                                  colors={
+                                    sm.isLow
+                                      ? ["#EF4444", "#F87171"]
+                                      : pct > 50
+                                        ? ["#10B981", "#34D399"]
+                                        : ["#F59E0B", "#FBBF24"]
+                                  }
+                                  start={{ x: 0, y: 0 }}
+                                  end={{ x: 1, y: 0 }}
+                                  style={{ flex: 1 }}
+                                />
+                              </View>
+                            </View>
+                          </View>
+                        );
+                      })}
+                    </View>
+                  </Animated.View>
+                );
+              })()}
+
+              {/* ── ACTION BUTTONS ── */}
+              <Animated.View style={[anim(3), styles.actionGroup]}>
+                <Pressable
+                  style={[
+                    styles.outlineBtn,
+                    modRequested && {
+                      borderColor: "#86EFAC",
+                      backgroundColor: "#F0FDF4",
+                    },
+                  ]}
+                  disabled={uploadingImage || modRequested}
+                  onPress={handleUploadPrescription}
+                >
+                  {uploadingImage ? (
+                    <ActivityIndicator size="small" color="#6366F1" />
+                  ) : modRequested ? (
+                    <>
+                      <CheckCircle2 size={18} color="#16A34A" />
                       <Text
-                        style={[
-                          styles.uploadStatus,
-                          {
-                            color:
-                              up.status === "reviewed"
-                                ? "#16A34A"
-                                : up.status === "rejected"
-                                  ? "#DC2626"
-                                  : "#D97706",
-                          },
-                        ]}
+                        style={[styles.outlineBtnTxt, { color: "#16A34A" }]}
                       >
-                        {t(`medications.status_${up.status}`, {
-                          defaultValue: up.status,
+                        {t("medications.request_sent", {
+                          defaultValue: "Request Sent!",
                         })}
                       </Text>
-                    </View>
-                  ))}
-                </View>
-              )}
-            </Animated.View>
-          </>
-        )}
-      </ScrollView>
+                    </>
+                  ) : (
+                    <>
+                      <Pencil size={18} color="#6366F1" />
+                      <Text style={styles.outlineBtnTxt}>
+                        {t("medications.request_med_review", {
+                          defaultValue: "Request Medication Review",
+                        })}
+                      </Text>
+                    </>
+                  )}
+                </Pressable>
 
-      {/* ── PREFERENCES MODAL ── */}
-      <PremiumFormModal
-        visible={showPrefModal}
-        title={t("medications.call_preferences", {
-          defaultValue: "Call Preferences",
-        })}
-        onClose={() => setShowPrefModal(false)}
-        onSave={handleSavePreferences}
-        saveText={
-          savingPrefs
-            ? t("common.saving", { defaultValue: "Saving..." })
-            : t("medications.save_prefs", { defaultValue: "Save Preferences" })
-        }
-        saving={savingPrefs}
-      >
-        <Text style={styles.modalDesc}>
-          {t("medications.call_prefs_desc", {
-            defaultValue:
-              "Set when your care team should call to check on your medications. We call within 30 min of this time.",
+                {patient?.uploaded_prescriptions?.length > 0 && (
+                  <View style={{ marginTop: 8 }}>
+                    <Text style={[styles.sectionLabel, { marginBottom: 12 }]}>
+                      {t("medications.uploaded_prescriptions", {
+                        defaultValue: "UPLOADED PRESCRIPTIONS",
+                      })}
+                    </Text>
+                    {patient.uploaded_prescriptions.map((up, idx) => (
+                      <View
+                        key={idx}
+                        style={[styles.uploadCard, { marginBottom: 8 }]}
+                      >
+                        <View
+                          style={[
+                            styles.uploadStatusBox,
+                            {
+                              backgroundColor:
+                                up.status === "reviewed"
+                                  ? "#DCFCE7"
+                                  : up.status === "rejected"
+                                    ? "#FEE2E2"
+                                    : "#FEF3C7",
+                            },
+                          ]}
+                        >
+                          {up.status === "reviewed" ? (
+                            <CheckCircle2 size={18} color="#16A34A" />
+                          ) : up.status === "rejected" ? (
+                            <X size={18} color="#DC2626" />
+                          ) : (
+                            <Clock size={18} color="#D97706" />
+                          )}
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.uploadName}>
+                            {t("medications.doctors_slip", {
+                              defaultValue: "Doctor's Slip",
+                            })}
+                          </Text>
+                          <Text style={styles.uploadDate}>
+                            {new Date(up.uploaded_at).toLocaleDateString()}
+                          </Text>
+                        </View>
+                        <Text
+                          style={[
+                            styles.uploadStatus,
+                            {
+                              color:
+                                up.status === "reviewed"
+                                  ? "#16A34A"
+                                  : up.status === "rejected"
+                                    ? "#DC2626"
+                                    : "#D97706",
+                            },
+                          ]}
+                        >
+                          {t(`medications.status_${up.status}`, {
+                            defaultValue: up.status,
+                          })}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+              </Animated.View>
+            </>
+          )}
+        </ScrollView>
+
+        {/* ── PREFERENCES MODAL ── */}
+        <PremiumFormModal
+          visible={showPrefModal}
+          title={t("medications.call_preferences", {
+            defaultValue: "Call Preferences",
           })}
-        </Text>
-        {["morning", "afternoon", "evening", "night"].map((slot) => {
-          const cfg = SLOT_CONFIG[slot];
-          return (
-            <View key={slot} style={styles.prefRow}>
-              <View
-                style={{ flexDirection: "row", alignItems: "center", gap: 10 }}
-              >
-                <View
-                  style={[
-                    styles.prefIconBox,
-                    { backgroundColor: cfg.light, borderColor: cfg.border },
-                  ]}
-                >
-                  <cfg.Icon size={17} color={cfg.color} strokeWidth={2.5} />
-                </View>
-                <Text style={styles.prefLabel}>
-                  {t(`time_slots.${slot}`, { defaultValue: cfg.label })}
-                </Text>
-              </View>
-              <Pressable
-                style={[styles.timeBtn, { borderColor: cfg.border }]}
-                onPress={() => setActivePicker(slot)}
-              >
-                <Clock size={14} color={cfg.color} />
-                <Text style={[styles.timeBtnTxt, { color: cfg.color }]}>
-                  {tempPrefs[slot]}
-                </Text>
-              </Pressable>
-            </View>
-          );
-        })}
-      </PremiumFormModal>
-
-      <TimePickerModal
-        visible={!!activePicker}
-        initialTime={activePicker ? tempPrefs[activePicker] : "12:00"}
-        onClose={() => setActivePicker(null)}
-        onSave={(val) => {
-          if (activePicker)
-            setTempPrefs((p) => ({ ...p, [activePicker]: val }));
-          setActivePicker(null);
-        }}
-      />
-
-      {/* ── REFILL MODAL ── */}
-      <Modal visible={refillModal.visible} transparent animationType="fade">
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          style={{ flex: 1 }}
+          onClose={() => setShowPrefModal(false)}
+          onSave={handleSavePreferences}
+          saveText={
+            savingPrefs
+              ? t("common.saving", { defaultValue: "Saving..." })
+              : t("medications.save_prefs", {
+                  defaultValue: "Save Preferences",
+                })
+          }
+          saving={savingPrefs}
         >
-          <View
-            style={[
-              styles.confirmOverlay,
-              { justifyContent: "center", alignItems: "center" },
-            ]}
-          >
-            <View
-              style={{
-              backgroundColor: "#FFF",
-              width: "85%",
-              borderRadius: 16,
-              padding: 24,
-              shadowColor: "#000",
-              shadowOffset: { width: 0, height: 10 },
-              shadowOpacity: 0.1,
-              shadowRadius: 15,
-              elevation: 10,
-            }}
-          >
-            <View
-              style={{
-                flexDirection: "row",
-                justifyContent: "space-between",
-                alignItems: "center",
-                marginBottom: 16,
-              }}
-            >
-              <Text
-                style={{ fontSize: 18, fontWeight: "800", color: "#1E293B" }}
-              >
-                Refill Medication
-              </Text>
-              <Pressable
-                onPress={() =>
-                  setRefillModal({ visible: false, med: null, count: "" })
-                }
-              >
-                <X color="#64748B" size={20} />
-              </Pressable>
-            </View>
-            <Text
-              style={{
-                fontSize: 14,
-                color: "#475569",
-                marginBottom: 16,
-                lineHeight: 20,
-              }}
-            >
-              Enter the number of new doses you purchased. These will be{" "}
-              <Text style={{ fontWeight: "800", color: "#1E293B" }}>added</Text>{" "}
-              to your current remaining supply of{" "}
-              <Text style={{ fontWeight: "700", color: "#1E293B" }}>
-                {refillModal.med?.name}
-              </Text>
-              .
-            </Text>
-            <TextInput
-              style={{
-                backgroundColor: "#F8FAFC",
-                borderWidth: 1,
-                borderColor: "#E2E8F0",
-                borderRadius: 12,
-                padding: 14,
-                fontSize: 16,
-                color: "#1E293B",
-                marginBottom: 16,
-              }}
-              value={refillModal.count}
-              onChangeText={(t) => setRefillModal((p) => ({ ...p, count: t }))}
-              keyboardType="numeric"
-              placeholder="e.g. 30"
-              placeholderTextColor="#94A3B8"
-            />
-            {(() => {
-              const currentRemaining =
-                refillModal.med?.refillInfo?.remainingDoses ??
-                refillModal.med?.refillInfo?.totalDoses ??
-                0;
-              const addedDoses = parseInt(refillModal.count, 10) || 0;
-              const newRemaining = currentRemaining + addedDoses;
-              return (
+          <Text style={styles.modalDesc}>
+            {t("medications.call_prefs_desc", {
+              defaultValue:
+                "Set when your care team should call to check on your medications. We call within 30 min of this time.",
+            })}
+          </Text>
+          {["morning", "afternoon", "evening", "night"].map((slot) => {
+            const cfg = SLOT_CONFIG[slot];
+            return (
+              <View key={slot} style={styles.prefRow}>
                 <View
                   style={{
-                    marginBottom: 20,
-                    backgroundColor: "#F8FAFC",
-                    padding: 14,
-                    borderRadius: 12,
-                    borderWidth: 1,
-                    borderColor: "#E2E8F0",
-                    gap: 6,
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 10,
                   }}
                 >
                   <View
-                    style={{
-                      flexDirection: "row",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                    }}
+                    style={[
+                      styles.prefIconBox,
+                      { backgroundColor: cfg.light, borderColor: cfg.border },
+                    ]}
                   >
-                    <Text
-                      style={{
-                        fontSize: 13,
-                        color: "#64748B",
-                        fontWeight: "500",
-                      }}
-                    >
-                      Current Remaining:
-                    </Text>
-                    <Text
-                      style={{
-                        fontSize: 13,
-                        fontWeight: "700",
-                        color: "#334155",
-                      }}
-                    >
-                      {currentRemaining} doses
-                    </Text>
+                    <cfg.Icon size={17} color={cfg.color} strokeWidth={2.5} />
                   </View>
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                    }}
-                  >
-                    <Text
-                      style={{
-                        fontSize: 13,
-                        color: "#64748B",
-                        fontWeight: "500",
-                      }}
-                    >
-                      New Purchased:
-                    </Text>
-                    <Text
-                      style={{
-                        fontSize: 13,
-                        fontWeight: "700",
-                        color: "#10B981",
-                      }}
-                    >
-                      +{addedDoses} doses
-                    </Text>
-                  </View>
-                  <View
-                    style={{
-                      height: 1,
-                      backgroundColor: "#E2E8F0",
-                      marginVertical: 4,
-                    }}
-                  />
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                    }}
-                  >
-                    <Text
-                      style={{
-                        fontSize: 13,
-                        fontWeight: "700",
-                        color: "#1E3A8A",
-                      }}
-                    >
-                      New remaining after refill:
-                    </Text>
-                    <Text
-                      style={{
-                        fontSize: 13,
-                        fontWeight: "900",
-                        color: "#1E3A8A",
-                      }}
-                    >
-                      {newRemaining} doses
-                    </Text>
-                  </View>
+                  <Text style={styles.prefLabel}>
+                    {t(`time_slots.${slot}`, { defaultValue: cfg.label })}
+                  </Text>
                 </View>
-              );
-            })()}
-            <Pressable
-              style={{
-                backgroundColor: submittingRefill ? "#94A3B8" : "#1E3A8A",
-                paddingVertical: 14,
-                borderRadius: 12,
-                alignItems: "center",
-                opacity: submittingRefill ? 0.8 : 1,
-              }}
-              disabled={submittingRefill}
-              onPress={submitRefill}
-            >
-              {submittingRefill ? (
-                <ActivityIndicator size="small" color="#FFF" />
-              ) : (
-                <Text
-                  style={{ color: "#FFF", fontSize: 16, fontWeight: "700" }}
+                <Pressable
+                  style={[styles.timeBtn, { borderColor: cfg.border }]}
+                  onPress={() => setActivePicker(slot)}
                 >
-                  Confirm Refill
-                </Text>
-              )}
-            </Pressable>
-          </View>
-        </View>
-        </KeyboardAvoidingView>
-      </Modal>
+                  <Clock size={14} color={cfg.color} />
+                  <Text style={[styles.timeBtnTxt, { color: cfg.color }]}>
+                    {tempPrefs[slot]}
+                  </Text>
+                </Pressable>
+              </View>
+            );
+          })}
+        </PremiumFormModal>
 
-      {/* ── CONFIRMATION MODAL (bottom sheet) ── */}
-      <Modal visible={isConfirmVisible} transparent animationType="slide">
-        <View style={styles.confirmOverlay}>
-          <Pressable
+        <TimePickerModal
+          visible={!!activePicker}
+          initialTime={activePicker ? tempPrefs[activePicker] : "12:00"}
+          onClose={() => setActivePicker(null)}
+          onSave={(val) => {
+            if (activePicker)
+              setTempPrefs((p) => ({ ...p, [activePicker]: val }));
+            setActivePicker(null);
+          }}
+        />
+
+        {/* ── REFILL MODAL ── */}
+        <Modal visible={refillModal.visible} transparent animationType="fade">
+          <KeyboardAvoidingView
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
             style={{ flex: 1 }}
-            onPress={() => {
-              setIsConfirmVisible(false);
-              setConfirmingMed(null);
-            }}
-          />
-          <View style={styles.confirmSheet}>
-            <View style={styles.sheetHandle} />
-            <View style={{ alignItems: "center", marginBottom: 24 }}>
-              <LinearGradient
-                colors={["#EEF2FF", "#C7D2FE"]}
-                style={styles.confirmIconWrap}
-              >
-                <Pill size={36} color="#6366F1" strokeWidth={1.8} />
-              </LinearGradient>
-              <Text style={styles.confirmTitle}>
-                {t("medications.confirm_intake", {
-                  defaultValue: "Confirm Intake",
-                })}
-              </Text>
-              <Text style={styles.confirmSub}>
-                {t("medications.have_you_taken", {
-                  defaultValue: "Have you taken\n",
-                })}
-                <Text style={{ fontWeight: "900", color: "#1E293B" }}>
-                  "{confirmingMed?.name}"
-                </Text>
-                {"?"}
-              </Text>
-              {confirmingMed?.dosage && (
-                <View style={styles.dosagePill}>
-                  <Zap size={12} color="#6366F1" />
-                  <Text style={styles.dosageTxt}>{confirmingMed.dosage}</Text>
-                </View>
-              )}
-            </View>
-            <Pressable
-              style={styles.confirmYesBtn}
-              onPress={handleConfirmToggle}
-            >
-              <LinearGradient
-                colors={["#818CF8", "#4F46E5"]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={[StyleSheet.absoluteFill, { borderRadius: 18 }]}
-              />
-              <CheckCircle2 size={22} color="#FFF" />
-              <Text style={styles.confirmYesTxt}>
-                {t("medications.yes_i_took_it", {
-                  defaultValue: "Yes, I took it!",
-                })}
-              </Text>
-            </Pressable>
-            <Pressable
-              style={styles.confirmNoBtn}
-              onPress={() => {
-                setIsConfirmVisible(false);
-                setConfirmingMed(null);
-              }}
-            >
-              <Text style={styles.confirmNoTxt}>
-                {t("common.not_yet", { defaultValue: "Not yet" })}
-              </Text>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
-
-      {/* ── TOAST ── */}
-      {toast.visible &&
-        (() => {
-          const toastConfigs = {
-            success: {
-              bg: "#ECFDF5",
-              border: "#A7F3D0",
-              iconBg: "#D1FAE5",
-              iconColor: "#10B981",
-              Icon: CheckCircle2,
-            },
-            error: {
-              bg: "#FEF2F2",
-              border: "#FECACA",
-              iconBg: "#FEE2E2",
-              iconColor: "#EF4444",
-              Icon: AlertCircle,
-            },
-            info: {
-              bg: "#EFF6FF",
-              border: "#BFDBFE",
-              iconBg: "#DBEAFE",
-              iconColor: "#3B82F6",
-              Icon: Info,
-            },
-          };
-          const cfg =
-            toastConfigs[toast.type || "success"] || toastConfigs.success;
-          const IconComponent = cfg.Icon;
-          return (
-            <Animated.View
+          >
+            <View
               style={[
-                styles.toast,
-                {
-                  opacity: toastAnim,
-                  transform: [
-                    {
-                      translateY: toastAnim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [-24, 0],
-                      }),
-                    },
-                  ],
-                },
+                styles.confirmOverlay,
+                { justifyContent: "center", alignItems: "center" },
               ]}
             >
               <View
-                style={[
-                  styles.toastInner,
-                  { backgroundColor: cfg.bg, borderColor: cfg.border },
-                ]}
+                style={{
+                  backgroundColor: "#FFF",
+                  width: "85%",
+                  borderRadius: 16,
+                  padding: 24,
+                  shadowColor: "#000",
+                  shadowOffset: { width: 0, height: 10 },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 15,
+                  elevation: 10,
+                }}
               >
                 <View
                   style={{
-                    width: 38,
-                    height: 38,
-                    borderRadius: 19,
-                    backgroundColor: cfg.iconBg,
+                    flexDirection: "row",
+                    justifyContent: "space-between",
                     alignItems: "center",
-                    justifyContent: "center",
-                    marginRight: 12,
+                    marginBottom: 16,
                   }}
                 >
-                  <IconComponent size={20} color={cfg.iconColor} />
+                  <Text
+                    style={{
+                      fontSize: 18,
+                      fontWeight: "800",
+                      color: "#1E293B",
+                    }}
+                  >
+                    Refill Medication
+                  </Text>
+                  <Pressable
+                    onPress={() =>
+                      setRefillModal({ visible: false, med: null, count: "" })
+                    }
+                  >
+                    <X color="#64748B" size={20} />
+                  </Pressable>
                 </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.toastTitle}>{toast.title}</Text>
-                  <Text style={styles.toastMsg}>{toast.message}</Text>
-                </View>
-              </View>
-            </Animated.View>
-          );
-        })()}
-
-      {/* ── ADD TEMPORARY MEDICATION MODAL ── */}
-      <Modal visible={showAddTempMedModal} transparent animationType="slide">
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          style={{ flex: 1 }}
-        >
-          <View style={styles.confirmOverlay}>
-            <Pressable
-              style={{ flex: 1 }}
-              onPress={() => setShowAddTempMedModal(false)}
-            />
-            <View style={[styles.confirmSheet, { maxHeight: "85%" }]}>
-            <View style={styles.sheetHandle} />
-            <View
-              style={{
-                flexDirection: "row",
-                justifyContent: "space-between",
-                alignItems: "center",
-                marginBottom: 20,
-              }}
-            >
-              <Text
-                style={{ fontSize: 20, fontWeight: "900", color: "#0F172A" }}
-              >
-                Add Temporary Medication
-              </Text>
-              <Pressable onPress={() => setShowAddTempMedModal(false)}>
-                <X color="#64748B" size={20} />
-              </Pressable>
-            </View>
-
-            <ScrollView
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={{
-                gap: 14,
-                paddingBottom: Platform.OS === "ios" ? 40 : 20,
-              }}
-            >
-              <View style={{ gap: 6 }}>
                 <Text
-                  style={{ fontSize: 13, fontWeight: "700", color: "#475569" }}
+                  style={{
+                    fontSize: 14,
+                    color: "#475569",
+                    marginBottom: 16,
+                    lineHeight: 20,
+                  }}
                 >
-                  Medicine Name *
+                  Enter the number of new doses you purchased. These will be{" "}
+                  <Text style={{ fontWeight: "800", color: "#1E293B" }}>
+                    added
+                  </Text>{" "}
+                  to your current remaining supply of{" "}
+                  <Text style={{ fontWeight: "700", color: "#1E293B" }}>
+                    {refillModal.med?.name}
+                  </Text>
+                  .
                 </Text>
                 <TextInput
                   style={{
@@ -3330,196 +3055,563 @@ export default function MedicationsScreen({ navigation }) {
                     borderWidth: 1,
                     borderColor: "#E2E8F0",
                     borderRadius: 12,
-                    padding: 12,
-                    fontSize: 15,
-                    color: "#0F172A",
+                    padding: 14,
+                    fontSize: 16,
+                    color: "#1E293B",
+                    marginBottom: 16,
                   }}
-                  placeholder="e.g. Paracetamol, Dolo 650"
-                  placeholderTextColor="#94A3B8"
-                  value={tempMedForm.name}
-                  onChangeText={(text) =>
-                    setTempMedForm((prev) => ({ ...prev, name: text }))
+                  value={refillModal.count}
+                  onChangeText={(t) =>
+                    setRefillModal((p) => ({ ...p, count: t }))
                   }
+                  keyboardType="numeric"
+                  placeholder="e.g. 30"
+                  placeholderTextColor="#94A3B8"
                 />
-              </View>
-
-              <View style={{ flexDirection: "row", gap: 12 }}>
-                <View style={{ flex: 1, gap: 6 }}>
-                  <Text
-                    style={{
-                      fontSize: 13,
-                      fontWeight: "700",
-                      color: "#475569",
-                    }}
-                  >
-                    Dosage
-                  </Text>
-                  <TextInput
-                    style={{
-                      backgroundColor: "#F8FAFC",
-                      borderWidth: 1,
-                      borderColor: "#E2E8F0",
-                      borderRadius: 12,
-                      padding: 12,
-                      fontSize: 15,
-                      color: "#0F172A",
-                    }}
-                    placeholder="e.g. 650 mg, 1 tablet"
-                    placeholderTextColor="#94A3B8"
-                    value={tempMedForm.dosage}
-                    onChangeText={(text) =>
-                      setTempMedForm((prev) => ({ ...prev, dosage: text }))
-                    }
-                  />
-                </View>
-                <View style={{ flex: 1, gap: 6 }}>
-                  <Text
-                    style={{
-                      fontSize: 13,
-                      fontWeight: "700",
-                      color: "#475569",
-                    }}
-                  >
-                    Frequency
-                  </Text>
-                  <TextInput
-                    style={{
-                      backgroundColor: "#F8FAFC",
-                      borderWidth: 1,
-                      borderColor: "#E2E8F0",
-                      borderRadius: 12,
-                      padding: 12,
-                      fontSize: 15,
-                      color: "#0F172A",
-                    }}
-                    placeholder="e.g. As needed, Twice daily"
-                    placeholderTextColor="#94A3B8"
-                    value={tempMedForm.frequency}
-                    onChangeText={(text) =>
-                      setTempMedForm((prev) => ({ ...prev, frequency: text }))
-                    }
-                  />
-                </View>
-              </View>
-
-              <View style={{ gap: 6 }}>
-                <Text
-                  style={{ fontSize: 13, fontWeight: "700", color: "#475569" }}
-                >
-                  Preferred Shift *
-                </Text>
-                <View
-                  style={{
-                    flexDirection: "row",
-                    backgroundColor: "#F1F5F9",
-                    borderRadius: 12,
-                    padding: 4,
-                    gap: 4,
-                  }}
-                >
-                  {["morning", "afternoon", "night"].map((shift) => {
-                    const active = tempMedForm.shift === shift;
-                    return (
-                      <Pressable
-                        key={shift}
-                        onPress={() =>
-                          setTempMedForm((prev) => ({ ...prev, shift }))
-                        }
+                {(() => {
+                  const currentRemaining =
+                    refillModal.med?.refillInfo?.remainingDoses ??
+                    refillModal.med?.refillInfo?.totalDoses ??
+                    0;
+                  const addedDoses = parseInt(refillModal.count, 10) || 0;
+                  const newRemaining = currentRemaining + addedDoses;
+                  return (
+                    <View
+                      style={{
+                        marginBottom: 20,
+                        backgroundColor: "#F8FAFC",
+                        padding: 14,
+                        borderRadius: 12,
+                        borderWidth: 1,
+                        borderColor: "#E2E8F0",
+                        gap: 6,
+                      }}
+                    >
+                      <View
                         style={{
-                          flex: 1,
-                          paddingVertical: 10,
-                          borderRadius: 10,
+                          flexDirection: "row",
+                          justifyContent: "space-between",
                           alignItems: "center",
-                          backgroundColor: active ? "#FFFFFF" : "transparent",
-                          shadowColor: active ? "#000" : "transparent",
-                          shadowOffset: { width: 0, height: 1 },
-                          shadowOpacity: active ? 0.1 : 0,
-                          shadowRadius: 2,
-                          elevation: active ? 1 : 0,
+                        }}
+                      >
+                        <Text
+                          style={{
+                            fontSize: 13,
+                            color: "#64748B",
+                            fontWeight: "500",
+                          }}
+                        >
+                          Current Remaining:
+                        </Text>
+                        <Text
+                          style={{
+                            fontSize: 13,
+                            fontWeight: "700",
+                            color: "#334155",
+                          }}
+                        >
+                          {currentRemaining} doses
+                        </Text>
+                      </View>
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                        }}
+                      >
+                        <Text
+                          style={{
+                            fontSize: 13,
+                            color: "#64748B",
+                            fontWeight: "500",
+                          }}
+                        >
+                          New Purchased:
+                        </Text>
+                        <Text
+                          style={{
+                            fontSize: 13,
+                            fontWeight: "700",
+                            color: "#10B981",
+                          }}
+                        >
+                          +{addedDoses} doses
+                        </Text>
+                      </View>
+                      <View
+                        style={{
+                          height: 1,
+                          backgroundColor: "#E2E8F0",
+                          marginVertical: 4,
+                        }}
+                      />
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          justifyContent: "space-between",
+                          alignItems: "center",
                         }}
                       >
                         <Text
                           style={{
                             fontSize: 13,
                             fontWeight: "700",
-                            color: active ? "#0F172A" : "#64748B",
-                            textTransform: "capitalize",
+                            color: "#1E3A8A",
                           }}
                         >
-                          {shift}
+                          New remaining after refill:
                         </Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              </View>
-
-              <View style={{ gap: 6 }}>
-                <Text
-                  style={{ fontSize: 13, fontWeight: "700", color: "#475569" }}
-                >
-                  Reason
-                </Text>
-                <TextInput
+                        <Text
+                          style={{
+                            fontSize: 13,
+                            fontWeight: "900",
+                            color: "#1E3A8A",
+                          }}
+                        >
+                          {newRemaining} doses
+                        </Text>
+                      </View>
+                    </View>
+                  );
+                })()}
+                <Pressable
                   style={{
-                    backgroundColor: "#F8FAFC",
-                    borderWidth: 1,
-                    borderColor: "#E2E8F0",
+                    backgroundColor: submittingRefill ? "#94A3B8" : "#1E3A8A",
+                    paddingVertical: 14,
                     borderRadius: 12,
-                    padding: 12,
-                    fontSize: 15,
-                    color: "#0F172A",
+                    alignItems: "center",
+                    opacity: submittingRefill ? 0.8 : 1,
                   }}
-                  placeholder="e.g. Headache, Fever"
-                  placeholderTextColor="#94A3B8"
-                  value={tempMedForm.reason}
-                  onChangeText={(text) =>
-                    setTempMedForm((prev) => ({ ...prev, reason: text }))
-                  }
-                />
-              </View>
-
-              <Pressable
-                onPress={submitAddTempMed}
-                disabled={addingTempMed}
-                style={{
-                  backgroundColor: "#7C3AED",
-                  paddingVertical: 15,
-                  borderRadius: 16,
-                  alignItems: "center",
-                  justifyContent: "center",
-                  marginTop: 10,
-                  flexDirection: "row",
-                  gap: 8,
-                }}
-              >
-                {addingTempMed ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                ) : (
-                  <>
-                    <Plus size={18} color="#FFFFFF" strokeWidth={2.5} />
+                  disabled={submittingRefill}
+                  onPress={submitRefill}
+                >
+                  {submittingRefill ? (
+                    <ActivityIndicator size="small" color="#FFF" />
+                  ) : (
                     <Text
                       style={{ color: "#FFF", fontSize: 16, fontWeight: "700" }}
                     >
-                      Add Medicine
+                      Confirm Refill
                     </Text>
-                  </>
-                )}
-              </Pressable>
-            </ScrollView>
-          </View>
-        </View>
-        </KeyboardAvoidingView>
-      </Modal>
+                  )}
+                </Pressable>
+              </View>
+            </View>
+          </KeyboardAvoidingView>
+        </Modal>
 
-      <GuidedTour
-        visible={showMedsTour}
-        steps={getMedsTourSteps()}
-        scrollRef={scrollViewRef}
-        tourKey="medications_log"
-        onClose={() => setShowMedsTour(false)}
-      />
-    </View>
+        {/* ── CONFIRMATION MODAL (bottom sheet) ── */}
+        <Modal visible={isConfirmVisible} transparent animationType="slide">
+          <View style={styles.confirmOverlay}>
+            <Pressable
+              style={{ flex: 1 }}
+              onPress={() => {
+                setIsConfirmVisible(false);
+                setConfirmingMed(null);
+              }}
+            />
+            <View style={styles.confirmSheet}>
+              <View style={styles.sheetHandle} />
+              <View style={{ alignItems: "center", marginBottom: 24 }}>
+                <LinearGradient
+                  colors={["#EEF2FF", "#C7D2FE"]}
+                  style={styles.confirmIconWrap}
+                >
+                  <Pill size={36} color="#6366F1" strokeWidth={1.8} />
+                </LinearGradient>
+                <Text style={styles.confirmTitle}>
+                  {t("medications.confirm_intake", {
+                    defaultValue: "Confirm Intake",
+                  })}
+                </Text>
+                <Text style={styles.confirmSub}>
+                  {t("medications.have_you_taken", {
+                    defaultValue: "Have you taken\n",
+                  })}
+                  <Text style={{ fontWeight: "900", color: "#1E293B" }}>
+                    "{confirmingMed?.name}"
+                  </Text>
+                  {"?"}
+                </Text>
+                {confirmingMed?.dosage && (
+                  <View style={styles.dosagePill}>
+                    <Zap size={12} color="#6366F1" />
+                    <Text style={styles.dosageTxt}>{confirmingMed.dosage}</Text>
+                  </View>
+                )}
+              </View>
+              <Pressable
+                style={styles.confirmYesBtn}
+                onPress={handleConfirmToggle}
+              >
+                <LinearGradient
+                  colors={["#818CF8", "#4F46E5"]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={[StyleSheet.absoluteFill, { borderRadius: 18 }]}
+                />
+                <CheckCircle2 size={22} color="#FFF" />
+                <Text style={styles.confirmYesTxt}>
+                  {t("medications.yes_i_took_it", {
+                    defaultValue: "Yes, I took it!",
+                  })}
+                </Text>
+              </Pressable>
+              <Pressable
+                style={styles.confirmNoBtn}
+                onPress={() => {
+                  setIsConfirmVisible(false);
+                  setConfirmingMed(null);
+                }}
+              >
+                <Text style={styles.confirmNoTxt}>
+                  {t("common.not_yet", { defaultValue: "Not yet" })}
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        </Modal>
+
+        {/* ── TOAST ── */}
+        {toast.visible &&
+          (() => {
+            const toastConfigs = {
+              success: {
+                bg: "#ECFDF5",
+                border: "#A7F3D0",
+                iconBg: "#D1FAE5",
+                iconColor: "#10B981",
+                Icon: CheckCircle2,
+              },
+              error: {
+                bg: "#FEF2F2",
+                border: "#FECACA",
+                iconBg: "#FEE2E2",
+                iconColor: "#EF4444",
+                Icon: AlertCircle,
+              },
+              info: {
+                bg: "#EFF6FF",
+                border: "#BFDBFE",
+                iconBg: "#DBEAFE",
+                iconColor: "#3B82F6",
+                Icon: Info,
+              },
+            };
+            const cfg =
+              toastConfigs[toast.type || "success"] || toastConfigs.success;
+            const IconComponent = cfg.Icon;
+            return (
+              <Animated.View
+                style={[
+                  styles.toast,
+                  {
+                    opacity: toastAnim,
+                    transform: [
+                      {
+                        translateY: toastAnim.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [-24, 0],
+                        }),
+                      },
+                    ],
+                  },
+                ]}
+              >
+                <View
+                  style={[
+                    styles.toastInner,
+                    { backgroundColor: cfg.bg, borderColor: cfg.border },
+                  ]}
+                >
+                  <View
+                    style={{
+                      width: 38,
+                      height: 38,
+                      borderRadius: 19,
+                      backgroundColor: cfg.iconBg,
+                      alignItems: "center",
+                      justifyContent: "center",
+                      marginRight: 12,
+                    }}
+                  >
+                    <IconComponent size={20} color={cfg.iconColor} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.toastTitle}>{toast.title}</Text>
+                    <Text style={styles.toastMsg}>{toast.message}</Text>
+                  </View>
+                </View>
+              </Animated.View>
+            );
+          })()}
+
+        {/* ── ADD TEMPORARY MEDICATION MODAL ── */}
+        <Modal visible={showAddTempMedModal} transparent animationType="slide">
+          <KeyboardAvoidingView
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            style={{ flex: 1 }}
+          >
+            <View style={styles.confirmOverlay}>
+              <Pressable
+                style={{ flex: 1 }}
+                onPress={() => setShowAddTempMedModal(false)}
+              />
+              <View style={[styles.confirmSheet, { maxHeight: "85%" }]}>
+                <View style={styles.sheetHandle} />
+                <View
+                  style={{
+                    flexDirection: "row",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    marginBottom: 20,
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 20,
+                      fontWeight: "900",
+                      color: "#0F172A",
+                    }}
+                  >
+                    Add Temporary Medication
+                  </Text>
+                  <Pressable onPress={() => setShowAddTempMedModal(false)}>
+                    <X color="#64748B" size={20} />
+                  </Pressable>
+                </View>
+
+                <ScrollView
+                  showsVerticalScrollIndicator={false}
+                  contentContainerStyle={{
+                    gap: 14,
+                    paddingBottom: Platform.OS === "ios" ? 40 : 20,
+                  }}
+                >
+                  <View style={{ gap: 6 }}>
+                    <Text
+                      style={{
+                        fontSize: 13,
+                        fontWeight: "700",
+                        color: "#475569",
+                      }}
+                    >
+                      Medicine Name *
+                    </Text>
+                    <TextInput
+                      style={{
+                        backgroundColor: "#F8FAFC",
+                        borderWidth: 1,
+                        borderColor: "#E2E8F0",
+                        borderRadius: 12,
+                        padding: 12,
+                        fontSize: 15,
+                        color: "#0F172A",
+                      }}
+                      placeholder="e.g. Paracetamol, Dolo 650"
+                      placeholderTextColor="#94A3B8"
+                      value={tempMedForm.name}
+                      onChangeText={(text) =>
+                        setTempMedForm((prev) => ({ ...prev, name: text }))
+                      }
+                    />
+                  </View>
+
+                  <View style={{ flexDirection: "row", gap: 12 }}>
+                    <View style={{ flex: 1, gap: 6 }}>
+                      <Text
+                        style={{
+                          fontSize: 13,
+                          fontWeight: "700",
+                          color: "#475569",
+                        }}
+                      >
+                        Dosage
+                      </Text>
+                      <TextInput
+                        style={{
+                          backgroundColor: "#F8FAFC",
+                          borderWidth: 1,
+                          borderColor: "#E2E8F0",
+                          borderRadius: 12,
+                          padding: 12,
+                          fontSize: 15,
+                          color: "#0F172A",
+                        }}
+                        placeholder="e.g. 650 mg, 1 tablet"
+                        placeholderTextColor="#94A3B8"
+                        value={tempMedForm.dosage}
+                        onChangeText={(text) =>
+                          setTempMedForm((prev) => ({ ...prev, dosage: text }))
+                        }
+                      />
+                    </View>
+                    <View style={{ flex: 1, gap: 6 }}>
+                      <Text
+                        style={{
+                          fontSize: 13,
+                          fontWeight: "700",
+                          color: "#475569",
+                        }}
+                      >
+                        Frequency
+                      </Text>
+                      <TextInput
+                        style={{
+                          backgroundColor: "#F8FAFC",
+                          borderWidth: 1,
+                          borderColor: "#E2E8F0",
+                          borderRadius: 12,
+                          padding: 12,
+                          fontSize: 15,
+                          color: "#0F172A",
+                        }}
+                        placeholder="e.g. As needed, Twice daily"
+                        placeholderTextColor="#94A3B8"
+                        value={tempMedForm.frequency}
+                        onChangeText={(text) =>
+                          setTempMedForm((prev) => ({
+                            ...prev,
+                            frequency: text,
+                          }))
+                        }
+                      />
+                    </View>
+                  </View>
+
+                  <View style={{ gap: 6 }}>
+                    <Text
+                      style={{
+                        fontSize: 13,
+                        fontWeight: "700",
+                        color: "#475569",
+                      }}
+                    >
+                      Preferred Shift *
+                    </Text>
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        backgroundColor: "#F1F5F9",
+                        borderRadius: 12,
+                        padding: 4,
+                        gap: 4,
+                      }}
+                    >
+                      {["morning", "afternoon", "night"].map((shift) => {
+                        const active = tempMedForm.shift === shift;
+                        return (
+                          <Pressable
+                            key={shift}
+                            onPress={() =>
+                              setTempMedForm((prev) => ({ ...prev, shift }))
+                            }
+                            style={{
+                              flex: 1,
+                              paddingVertical: 10,
+                              borderRadius: 10,
+                              alignItems: "center",
+                              backgroundColor: active
+                                ? "#FFFFFF"
+                                : "transparent",
+                              shadowColor: active ? "#000" : "transparent",
+                              shadowOffset: { width: 0, height: 1 },
+                              shadowOpacity: active ? 0.1 : 0,
+                              shadowRadius: 2,
+                              elevation: active ? 1 : 0,
+                            }}
+                          >
+                            <Text
+                              style={{
+                                fontSize: 13,
+                                fontWeight: "700",
+                                color: active ? "#0F172A" : "#64748B",
+                                textTransform: "capitalize",
+                              }}
+                            >
+                              {shift}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  </View>
+
+                  <View style={{ gap: 6 }}>
+                    <Text
+                      style={{
+                        fontSize: 13,
+                        fontWeight: "700",
+                        color: "#475569",
+                      }}
+                    >
+                      Reason
+                    </Text>
+                    <TextInput
+                      style={{
+                        backgroundColor: "#F8FAFC",
+                        borderWidth: 1,
+                        borderColor: "#E2E8F0",
+                        borderRadius: 12,
+                        padding: 12,
+                        fontSize: 15,
+                        color: "#0F172A",
+                      }}
+                      placeholder="e.g. Headache, Fever"
+                      placeholderTextColor="#94A3B8"
+                      value={tempMedForm.reason}
+                      onChangeText={(text) =>
+                        setTempMedForm((prev) => ({ ...prev, reason: text }))
+                      }
+                    />
+                  </View>
+
+                  <Pressable
+                    onPress={submitAddTempMed}
+                    disabled={addingTempMed}
+                    style={{
+                      backgroundColor: "#7C3AED",
+                      paddingVertical: 15,
+                      borderRadius: 16,
+                      alignItems: "center",
+                      justifyContent: "center",
+                      marginTop: 10,
+                      flexDirection: "row",
+                      gap: 8,
+                    }}
+                  >
+                    {addingTempMed ? (
+                      <ActivityIndicator size="small" color="#FFFFFF" />
+                    ) : (
+                      <>
+                        <Plus size={18} color="#FFFFFF" strokeWidth={2.5} />
+                        <Text
+                          style={{
+                            color: "#FFF",
+                            fontSize: 16,
+                            fontWeight: "700",
+                          }}
+                        >
+                          Add Medicine
+                        </Text>
+                      </>
+                    )}
+                  </Pressable>
+                </ScrollView>
+              </View>
+            </View>
+          </KeyboardAvoidingView>
+        </Modal>
+
+        <GuidedTour
+          visible={showMedsTour}
+          steps={getMedsTourSteps()}
+          scrollRef={scrollViewRef}
+          tourKey="medications_log"
+          onClose={() => setShowMedsTour(false)}
+        />
+      </View>
     </TabScreenTransition>
   );
 }
